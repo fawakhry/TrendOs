@@ -1,7 +1,8 @@
 import { qualifyOperatorTaskCanaryV1 } from '../core/operator-task-canary-qualification-v1.mjs';
+import { buildOwnerExceptionModelV1, OWNER_EXCEPTION_MODEL_VERSION } from '../core/owner-exception-model-v1.mjs';
 const SHADOW_URL='https://autonomous-printshop-shadow.trendmall-contact.workers.dev';
 const READINESS_COLLECTOR_URL='https://autonomous-printshop-readiness-collector.trendmall-contact.workers.dev';
-const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_20261007';
+const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_1_20261007';
 
 function json(body,status=200){
   return new Response(JSON.stringify(body),{
@@ -96,6 +97,7 @@ h1{font-size:28px;margin:0 0 5px}
 .signal.ok{background:#ecfdf3;color:#067647}
 .signal.warn{background:#fffaeb;color:#b54708}
 .signal.danger{background:#fef3f2;color:#b42318}
+.exception-title{font-weight:800;margin-bottom:5px}.exception-meta{font-size:12px;opacity:.82;margin-top:5px}.exception-next{font-size:12px;margin-top:7px}.owner-needed{font-weight:800}
 .readiness{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .rbox{border:1px solid var(--line);border-radius:14px;padding:12px}
 .rtitle{font-weight:800;margin-bottom:8px}
@@ -131,7 +133,7 @@ th{color:var(--muted);font-weight:700}
   <div class="grid section" id="kpis"></div>
 
   <div class="card section">
-    <h2>قرارات تحتاج تدخلك</h2>
+    <h2>قرارات تحتاج تدخلك والاستثناءات التشغيلية</h2>
     <div id="ownerExceptions"></div>
   </div>
 
@@ -186,7 +188,29 @@ function readinessBox(label,x={}){
     +'<span>غير معروف <b>'+n(x.unknown)+'</b></span>'
     +'</div></div>';
 }
+function aiStateLabel(v){
+  const map={
+    MONITOR_ONLY:'يراقب فقط',
+    WAITING_EXTERNAL_EVIDENCE:'ينتظر دليلًا حقيقيًا',
+    PREPARE_HUMAN_REVIEW:'يجهز السياق للمراجعة',
+    OWNER_DECISION_REQUIRED:'ينتظر قرار المالك',
+    CONTROL_REVIEW_REQUIRED:'يحتاج مراجعة Control Plane'
+  };
+  return map[String(v||'')]||String(v||'—');
+}
 function ownerDecisionItems(d={}){
+  const modeled=d.ownerExceptionModel&&Array.isArray(d.ownerExceptionModel.exceptions)?d.ownerExceptionModel.exceptions:[];
+  if(modeled.length) return modeled.map(x=>{
+    const sev=String(x.severity||'').toUpperCase();
+    return {
+      kind:sev==='CRITICAL'?'danger':sev==='HIGH'?'warn':'ok',
+      title:x.titleAr||x.id||'استثناء',
+      text:x.reasonAr||'',
+      meta:'المسؤول: '+(x.responsibleActorAr||x.responsibleActor||'—')+' • AI: '+aiStateLabel(x.aiState)+' • قرارك: '+(x.ownerActionRequired?'مطلوب':'غير مطلوب'),
+      next:x.nextActionAr||'',
+      ownerActionRequired:x.ownerActionRequired===true
+    };
+  });
   const sig=d.attentionSignals||{};
   const controls=d.controls||{};
   const ready=d.readiness||{};
@@ -277,8 +301,14 @@ async function load(){
       kpi('متاح الآن',n(emp.available),n(emp.total)+' موظف معروف')
     ].join('');
 
-    q('#ownerExceptions').innerHTML=ownerDecisionItems(d)
-      .map(x=>'<div class="signal '+esc(x.kind)+'">'+esc(x.text)+'</div>').join('');
+    const ownerModelSummary=d.ownerExceptionModel?.summary||{};
+    const ownerItems=ownerDecisionItems(d);
+    const ownerRequired=n(ownerModelSummary.ownerActionRequired);
+    const ownerHeadline=ownerRequired>0
+      ? '<div class="signal danger owner-needed">عندك '+ownerRequired+' قرار محمي يحتاج موافقتك.</div>'
+      : '<div class="signal ok">لا يوجد قرار محمي منتظر منك الآن؛ باقي الاستثناءات موضحة مع المسؤول عنها.</div>';
+    q('#ownerExceptions').innerHTML=ownerHeadline+ownerItems
+      .map(x=>'<div class="signal '+esc(x.kind)+'"><div class="exception-title">'+esc(x.title||'استثناء')+'</div><div>'+esc(x.text||'')+'</div><div class="exception-meta">'+esc(x.meta||'')+'</div>'+(x.next?'<div class="exception-next">التالي: '+esc(x.next)+'</div>':'')+'</div>').join('');
 
     const cov=ready.coverage||{};
     q('#readiness').innerHTML=[
@@ -368,7 +398,8 @@ export default {
         }catch{}
 
         const operatorTaskCanary=operatorTaskCanaryState(control);
-        return json({...control,evidenceAcquisition,operatorTaskCanary});
+        const ownerExceptionModel=buildOwnerExceptionModelV1({...control,evidenceAcquisition,operatorTaskCanary});
+        return json({...control,evidenceAcquisition,operatorTaskCanary,ownerExceptionModel});
       }catch(err){
         return json({success:false,code:'CONTROL_TOWER_UPSTREAM_ERROR',message:String(err&&err.message||err)},502);
       }
@@ -398,6 +429,7 @@ export default {
         transport:'CLOUDFLARE_SERVICE_BINDING',
         ownerExceptionConsole:true,
         trendosManagerCenterReplacementCandidate:true,
+        ownerExceptionModelVersion:OWNER_EXCEPTION_MODEL_VERSION,
         businessWrites:false,
         employeeAssignment:false
       });
