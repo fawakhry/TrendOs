@@ -6799,3 +6799,154 @@ Next migration gaps:
 2. read-only debt/payment/day-close warning signals without Accounting writes;
 3. Control Tower last-good/stale degraded-mode parity;
 4. protected archive-restore only after a separately qualified TrendOS backend contract.
+
+
+### AP-077 — Pending Comms operational aggregate live in Control Tower and Owner Exception Console
+
+Date: 2026-10-07.
+
+This checkpoint continues the Manager Center migration after AP-076. It moves only the **read-only pending communications signal** from the old Manager Center responsibility into Autonomous Printshop. It does **not** move message sending, WhatsApp actions, customer PII, message text, or Comms write authority.
+
+#### Gate N1 — Control Tower read-only Comms projection
+
+Source commit:
+`6d8ab01024ccb2d3ec0e4ad0aa9fd7e27b344e44`.
+
+Added:
+- `autonomous-printshop/core/comms-pending-projection-v1.mjs`;
+- `autonomous-printshop/tests/comms_pending_projection_v1.test.mjs`;
+- read-only D1 aggregate inside `autonomous-printshop/production-shadow/worker.mjs`;
+- Control Tower attention signals for Comms;
+- Sidecar runtime verification.
+
+Qualified D1 sources:
+- `employee_comms_control_v1`;
+- `conversations`;
+- `employee_feedback_requests_v1`.
+
+No message bodies, phone numbers, customer identities, raw order IDs, or employee identities are projected.
+
+Initial Production proof:
+```ini
+CONTROL_TOWER_COMMS_GATE_RUN=37648492274
+CONTROL_TOWER_COMMS_GATE=SUCCESS
+PRODUCTION_SHADOW_VERSION=7390c112-55e3-4901-bc00-d2c11009a242
+COMMS_CONTROL_MODE=READONLY
+COMMS_POLICY_EPOCH=2
+COMMS_WAITING_REPLY=1
+COMMS_MANAGER_ESCALATIONS=0
+COMMS_FEEDBACK_PENDING_OBSERVED=166
+COMMS_SEND_AUTHORITY=NO
+COMMS_PII_EXPOSED=NO
+MAIN_TRENDOS_WORKER_CHANGED=NO
+```
+
+#### Gate N1b — dormant Feedback backlog corrected before Owner Console routing
+
+Runtime inspection showed that the 166 Feedback rows existed while:
+```ini
+feedbackEnabledAtMs=0
+COMMS_MODE=READONLY
+```
+
+Under the Entry630 contract, this means Feedback scanning/sending is not operationally activated. Treating those rows as live pending messages would create false owner noise.
+
+Correction commit:
+`0385e75924fbe6777c7a044160bb2bc5d16c1ba0`.
+
+Corrected semantics:
+- live operational Comms signal = conversations whose latest direction is inbound, plus explicit manager escalation;
+- Feedback pending/follow-up contributes to operational signals only when `feedback_enabled_at_ms > 0`;
+- while disabled, Feedback rows remain visible only as `feedbackDormantBacklog`;
+- dormant backlog never raises an Owner Exception by itself.
+
+Corrected Production proof:
+```ini
+CONTROL_TOWER_COMMS_CORRECTION_RUN=37655984075
+CONTROL_TOWER_COMMS_CORRECTION=SUCCESS
+PRODUCTION_SHADOW_VERSION=a6c29a6c-f416-4aae-a142-55a5f6c4bab7
+COMMS_CONTROL_MODE=READONLY
+COMMS_POLICY_EPOCH=2
+COMMS_FEEDBACK_OPERATIONAL=false
+COMMS_WAITING_REPLY=1
+COMMS_MANAGER_ESCALATIONS=0
+COMMS_FEEDBACK_PENDING=0
+COMMS_FEEDBACK_FOLLOWUP_REQUIRED=0
+COMMS_FEEDBACK_DORMANT_BACKLOG=166
+COMMS_TOTAL_PENDING_SIGNALS=1
+COMMS_OWNER_REVIEW_SIGNALS=0
+COMMS_SEND_AUTHORITY=NO
+COMMS_PII_EXPOSED=NO
+MAIN_TRENDOS_WORKER_CHANGED=NO
+```
+
+#### Gate N2 — Owner Exception Console projection
+
+Source commit:
+`e4aa59000b59ed8ab064f6c1070857d0946fbd9d`.
+
+Owner Exception Model now produces:
+- `COMMS_PENDING_RESPONSE` for operational follow-up only;
+- `COMMS_MANAGER_ESCALATION` only when the D1 Comms source marks a conversation for manager review.
+
+Neither exception gives message-send authority or exposes message text / customer identity.
+
+Dashboard additions:
+- Comms READONLY badge;
+- `رسائل تنتظر رد` KPI;
+- aggregate Comms context in the top operational signal;
+- dormant Feedback count appears only as a diagnostic hint marked non-operational.
+
+Qualification:
+```ini
+OWNER_CONSOLE_POLICY_CI_RUN=37656472989
+OWNER_CONSOLE_POLICY_CI=SUCCESS
+OWNER_CONSOLE_DEPLOY_RUN=37656472999
+OWNER_CONSOLE_DEPLOY=SUCCESS
+OWNER_CONSOLE_CLOUDFLARE_VERSION=d46c4582-60f8-4058-950b-f82eb754a496
+DASHBOARD_VERSION=AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_4_20261007
+OWNER_CONSOLE_COMMS_PENDING=1
+OWNER_CONSOLE_COMMS_SEND_AUTHORITY=NO
+OWNER_CONSOLE_FEEDBACK_DORMANT_BACKLOG=166
+CONTROL_TOWER_UPSTREAM=PASS
+MAIN_TRENDOS_PREDEPLOY=PASS
+MAIN_TRENDOS_POSTDEPLOY=PASS
+```
+
+Final live Runtime:
+```ini
+MC_15_PENDING_OPERATIONAL_MESSAGE_QUEUE=LIVE
+COMMS_MODE=READONLY
+COMMS_POLICY_EPOCH=2
+COMMS_FEEDBACK_ENABLED_AT_MS=0
+COMMS_FEEDBACK_OPERATIONAL=false
+WAITING_REPLY=1
+MANAGER_ESCALATIONS=0
+TOTAL_OPERATIONAL_PENDING_SIGNALS=1
+FEEDBACK_DORMANT_BACKLOG=166
+OWNER_EXCEPTION=COMMS_PENDING_RESPONSE
+OWNER_EXCEPTION_COUNT=1
+OWNER_EXCEPTION_OWNER_ACTION_REQUIRED=false
+OWNER_EXCEPTION_RESPONSIBLE_ACTOR=COMMS_AGENT
+OWNER_CONSOLE_COMMS_SEND=false
+RAW_PHONE_EXPOSED=false
+CUSTOMER_IDENTITY_EXPOSED=false
+MESSAGE_TEXT_EXPOSED=false
+RAW_ORDER_IDS_EXPOSED=false
+D1_MUTATION=false
+```
+
+Manager Center inventory:
+```ini
+MC_15_STATUS=LIVE
+MC_15_TARGET=CONTROL_TOWER+OWNER_EXCEPTION_CONSOLE
+MC_16_OPEN_WHATSAPP_COPY_SEND=NOT_MIGRATED
+MC_16_SEND_AUTHORITY_MOVED=NO
+```
+
+Result: **PASS — THE QUALIFIED OPERATIONAL COMMS PENDING SIGNAL IS LIVE IN AUTONOMOUS PRINTSHOP CONTROL TOWER AND OWNER EXCEPTION CONSOLE AS A PII-FREE READ-ONLY AGGREGATE, WHILE DISABLED FEEDBACK BACKLOG IS DIAGNOSTIC-ONLY AND MESSAGE-SEND AUTHORITY REMAINS OUTSIDE AUTONOMOUS PRINTSHOP.**
+
+Next Manager Center gaps remain:
+1. read-only debt/payment/day-close warnings without Accounting writes;
+2. Control Tower stale/last-good degraded-mode parity;
+3. protected archive-restore only after a separately qualified TrendOS backend contract.

@@ -147,8 +147,8 @@
       "legacy": "Trend Master messages panel",
       "classification": "MOVE_TO_CONTROL_TOWER",
       "target": "Comms signal -> Control Tower",
-      "status": "GAP",
-      "notes": "Current Owner Console has no qualified message-queue aggregate."
+      "status": "LIVE",
+      "notes": "Qualified D1-native Comms pending aggregate is live in Autonomous Printshop Control Tower and Owner Exception Console. Operational count uses live conversations needing reply/manager review only. Feedback rows are excluded from operational alerts while feedback_enabled_at_ms=0 and are exposed only as a PII-free dormant-backlog diagnostic. Comms remains READONLY; Owner Console has no send authority."
     },
     {
       "id": "MC-16",
@@ -157,7 +157,7 @@
       "classification": "REUSE_UX_ONLY",
       "target": "Future Comms Agent safe action UX",
       "status": "NOT_MIGRATED",
-      "notes": "No send authority is moved while COMMS is READONLY."
+      "notes": "Not migrated. Open WhatsApp / copy/send actions remain outside the Owner Console while COMMS is READONLY. Owner Console exposes aggregate counts only and has commsSend=false."
     },
     {
       "id": "MC-17",

@@ -6599,3 +6599,35 @@ EASYSTORE_MUTATION=NO
 CONTENT_R2_MUTATION=NO
 ROLLBACK_USED=NO
 ```
+
+
+##### Entry650 — Pending Comms aggregate projected to Autonomous Printshop Owner Console
+- Date: 2026-10-07 Cairo.
+- This entry records the Manager Center responsibility migration only. No TrendOS application worker, frontend, Comms control, customer record, message, or business row was mutated by this step.
+- Autonomous Printshop now reads the already-qualified D1-native Comms source as an aggregate-only signal and projects it into Control Tower + Owner Exception Console.
+- The first aggregate exposed 166 historical Feedback pending rows. Because `feedbackEnabledAtMs=0`, those rows were corrected to dormant diagnostic-only before Owner Console activation.
+- Live operational pending count is currently one conversation whose latest direction is inbound.
+- Open WhatsApp / copy/send actions remain outside Autonomous Printshop.
+
+```ini
+ENTRY650=PASS
+CONTROL_TOWER_COMMS_SOURCE_COMMIT=6d8ab01024ccb2d3ec0e4ad0aa9fd7e27b344e44
+CONTROL_TOWER_COMMS_CORRECTION_COMMIT=0385e75924fbe6777c7a044160bb2bc5d16c1ba0
+OWNER_CONSOLE_COMMS_COMMIT=e4aa59000b59ed8ab064f6c1070857d0946fbd9d
+CONTROL_TOWER_COMMS_RUN=37655984075
+OWNER_CONSOLE_DEPLOY_RUN=37656472999
+PRODUCTION_SHADOW_VERSION=a6c29a6c-f416-4aae-a142-55a5f6c4bab7
+OWNER_CONSOLE_VERSION=d46c4582-60f8-4058-950b-f82eb754a496
+COMMS_MODE=READONLY
+COMMS_POLICY_EPOCH=2
+FEEDBACK_ENABLED_AT_MS=0
+OPERATIONAL_PENDING_SIGNALS=1
+FEEDBACK_DORMANT_BACKLOG=166
+COMMS_SEND_AUTHORITY=NO
+CUSTOMER_PII_EXPOSED=NO
+MESSAGE_TEXT_EXPOSED=NO
+TRENDOS_MAIN_WORKER_CHANGED=NO
+D1_MUTATION=NO
+MC_15=LIVE
+MC_16=NOT_MIGRATED
+```
