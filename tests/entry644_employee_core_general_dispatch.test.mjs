@@ -93,7 +93,7 @@ for(const action of [...manifest.coreNativeReads,...manifest.coreNativeWrites]){
 console.log('ENTRY644_CORE_GENERAL_8_OF_8_ROUTE=PASS');
 
 const beforeEdge=downstreamCalls.length;
-const edgeOut=await windowObject.trendosEmployeeApiV1('searchCustomers',{username:'ضياء',token:'native-token',query:'x'});
+const edgeOut=await windowObject.trendosSecureApiV1922('searchCustomers',{username:'ضياء',token:'native-token',query:'x'});
 assert.equal(edgeOut.source,'downstream');
 assert.equal(downstreamCalls.length,beforeEdge+1);
 console.log('ENTRY644_NON_CORE_EDGE_ROUTE_PRESERVED=PASS');
