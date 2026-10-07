@@ -37,3 +37,8 @@ This bridge does not:
 - treat `x` as authoritative printed truth.
 
 The local connection is a read bridge only.
+
+
+## Cloudflare transport compatibility
+
+The packaged client sends a browser-compatible User-Agent because the current Cloudflare zone rejects Python urllib's default browser signature with Error 1010 before the request reaches the Worker. No Cloudflare security rule is weakened by the client-side compatibility fix.
