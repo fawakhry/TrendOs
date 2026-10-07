@@ -1,0 +1,47 @@
+name: EasyStore A2.12 Six-Canary Baseline Qualification
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a212-six-canary-baseline-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/easystore-accounting-a2-20261005
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const files={
+            runtime:'.github/workflows/easystore-accounting-runtime-checkpoint-audit.yml',
+            schema:'.github/workflows/easystore-a2-schema-apply-controlled.yml',
+            deploy:'.github/workflows/easystore-a2-accounting-readonly-api-deploy.yml'
+          };
+          const required=['materials:1','templates:1','parties:1','partyBalances:1','waste:1','deptLines:1','requestLedger:6','events:6'];
+          for(const [name,p] of Object.entries(files)){
+            const s=fs.readFileSync(p,'utf8');
+            for(const token of required)if(!s.includes(token))throw Error(name+' missing '+token);
+            if(s.includes('requestLedger:5')||s.includes('events:5')||s.includes('deptLines:0'))throw Error(name+' retains five-canary baseline');
+          }
+          const test=fs.readFileSync('tests/easystore_a28_schema_workflow_guard.test.mjs','utf8');
+          for(const token of ["requestLedger:6","events:6","deptLines:1","waste:1"])if(!test.includes(token))throw Error('schema guard test missing '+token);
+          console.log('A212_SIX_CANARY_BASELINE_CI=PASS');
+          console.log('RUNTIME_BASELINE=materials1_templates1_parties1_partyBalances1_waste1_deptLines1_request6_events6');
+          console.log('SCHEMA_BASELINE=materials1_templates1_parties1_partyBalances1_waste1_deptLines1_request6_events6');
+          console.log('DEPLOY_BASELINE=materials1_templates1_parties1_partyBalances1_waste1_deptLines1_request6_events6');
+          console.log('GENERAL_OPENED=NO');
+          console.log('PRODUCTION_MUTATION=NO');
+          NODE
