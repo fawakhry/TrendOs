@@ -6239,3 +6239,244 @@ Next highest-value migration gaps remain:
 4. Control Tower last-good/stale degraded-mode parity;
 5. protected archive-restore action only after a separately qualified TrendOS backend contract.
 
+### AP-074 — Structured Employee Andon / blocker events live in SHADOW and projected to Owner Exception Console
+
+Date: 2026-10-07.
+
+This checkpoint continued directly from AP-073's first declared migration gap. The goal was to replace legacy free-text `OPS_REPLY` / Andon note authority with a structured append-only blocker-event path while preserving all protected authority boundaries.
+
+Truth priority:
+`Runtime truth > deployed > tested > repo-only > historical`.
+
+#### Gate F — structured blocker event foundation
+
+Added:
+- `autonomous-printshop/migrations/0030_employee_supervisor_blocker_events_v1.sql`;
+- `autonomous-printshop/core/employee-blocker-events-v1.mjs`;
+- `autonomous-printshop/tests/employee_blocker_events_v1.test.mjs`;
+- controlled Production schema workflow.
+
+Legacy reason taxonomy was normalized to six structured codes:
+- `MACHINE_BREAKDOWN`;
+- `MATERIAL_MISSING`;
+- `WAITING_CUSTOMER`;
+- `PRICE_OR_OWNER_DECISION`;
+- `QUALITY_ISSUE`;
+- `HELP_NEEDED`.
+
+The event ledger is append-only and accepts only:
+- `REPORTED`;
+- `ACKNOWLEDGED`;
+- `RESOLVED`.
+
+Source commits:
+- foundation: `be52ad6726713479f6aad04aca26f08690e0e404`;
+- controlled apply trigger: `a29f1508e2db729f9e8a0561cc8fbf2c964675eb`.
+
+Production schema qualification:
+```ini
+EMPLOYEE_BLOCKER_SCHEMA_RUN_PRIMARY=37636817049
+EMPLOYEE_BLOCKER_SCHEMA_RUN_REPEAT_SAFE=37636967118
+EMPLOYEE_BLOCKER_SCHEMA_PRODUCTION=PASS
+EMPLOYEE_SUPERVISOR_CONTROL=OFF
+SUPERVISOR_EPOCH=1
+BLOCKER_EVENTS=0
+OPERATOR_TASK_CONTROL=OFF
+PRODUCTION_BUSINESS_DATA_MUTATION=NO
+ORDER_WRITE=NO
+LINE_WRITE=NO
+ACCOUNTING_WRITE=NO
+EMPLOYEE_ASSIGNMENT=NO
+```
+
+#### Gate G — read-only projection into Employee Supervisor / Control Tower
+
+Updated the production shadow sidecar to read the new ledger as aggregate-only state.
+
+Source commit:
+`ed5f10ceebaf729312852f0481b8dab4fd0765f1`.
+
+Qualification:
+```ini
+POLICY_CI_RUN=37637355619
+POLICY_CI=SUCCESS
+SIDECAR_DEPLOY_RUN=37637355541
+SIDECAR_DEPLOY=SUCCESS
+OBSERVER_DEPLOY_RUN=37637355554
+OBSERVER_DEPLOY=SUCCESS
+EMPLOYEE_BLOCKER_LEDGER_MODE=READ_ONLY
+BLOCKER_EVENTS=0
+RAW_BLOCKER_IDS_EXPOSED=NO
+RAW_ORDER_IDS_EXPOSED=NO
+RAW_LINE_IDS_EXPOSED=NO
+EMPLOYEE_IDENTITY_EXPOSED=NO
+DETAIL_TEXT_EXPOSED=NO
+```
+
+#### Gate H — isolated Employee Supervisor blocker service
+
+Added:
+- `autonomous-printshop/core/employee-blocker-event-writer-v1.mjs`;
+- `autonomous-printshop/employee-supervisor/worker.mjs`;
+- `autonomous-printshop/employee-supervisor/wrangler.toml`;
+- `autonomous-printshop/tests/employee_supervisor_service_v1.test.mjs`;
+- isolated Production deploy workflow.
+
+Source commit:
+`e64911bff4aeab31a1b3e4baab8ddda7ef08a228`.
+
+The service:
+- consumes the existing TrendOS Native Employee Session authority;
+- does not own login/session policy;
+- can write only `autonomous_employee_blocker_events`;
+- cannot write Orders, Lines, Accounting, Operator Tasks, Autonomy events, or readiness evidence;
+- never assigns employees.
+
+Qualification / deployment:
+```ini
+POLICY_CI_RUN=37638107997
+POLICY_CI=SUCCESS
+EMPLOYEE_SUPERVISOR_DEPLOY_RUN=37638108090
+EMPLOYEE_SUPERVISOR_DEPLOY=SUCCESS
+SERVICE=autonomous-printshop-employee-supervisor
+WRITE_AUTHORITY=AUTONOMOUS_EMPLOYEE_BLOCKER_EVENTS_ONLY
+CONTROL_MODE=OFF
+BLOCKER_EVENTS=0
+OPERATOR_TASK_CONTROL=OFF
+BUSINESS_WRITE=NO
+```
+
+#### Gate I — Employee Supervisor SHADOW activation
+
+A separate idempotent control transition moved only:
+`OFF epoch=1 -> SHADOW epoch=2`.
+
+Source commit:
+`d6dfddfcebff9ea1c613e8a903e1efb9cad05b63`.
+
+Qualification:
+```ini
+SHADOW_ACTIVATION_RUN=37638609895
+SHADOW_ACTIVATION=SUCCESS
+POLICY_CI_RUN=37638609784
+POLICY_CI=SUCCESS
+EMPLOYEE_SUPERVISOR_CONTROL=SHADOW
+SUPERVISOR_EPOCH=2
+STRUCTURED_ANDON_LEDGER_WRITES=SHADOW_ONLY
+BLOCKER_EVENTS_AFTER_ACTIVATION=0
+OPERATOR_TASK_CONTROL=OFF
+BUSINESS_WRITE=NO
+EMPLOYEE_FRONTEND_WIRED=NO
+```
+
+Live service proof after activation:
+```ini
+SERVICE_MODE=EMPLOYEE_SUPERVISOR_BLOCKER_SERVICE
+CONTROL_MODE=SHADOW
+CONTROL_EPOCH=2
+EVENT_ROWS=0
+WRITES_ACCEPTED=true
+WRITE_AUTHORITY=AUTONOMOUS_EMPLOYEE_BLOCKER_EVENTS_ONLY
+AUTH_AUTHORITY=TRENDOS_NATIVE_SESSION_CONSUMER
+ORDER_WRITE=false
+LINE_WRITE=false
+ACCOUNTING_WRITE=false
+EMPLOYEE_ASSIGNMENT=false
+OPERATOR_TASK_MODE=OFF
+OPERATOR_TASKS=0
+```
+
+#### Gate J — structured Andon aggregates routed to Owner Exception Console
+
+Updated:
+- `autonomous-printshop/core/owner-exception-model-v1.mjs`;
+- `autonomous-printshop/tests/owner_exception_model_v1.test.mjs`;
+- `autonomous-printshop/dashboard/worker.mjs`;
+- `autonomous-printshop/tests/dashboard_v1.test.mjs`;
+- Dashboard deploy qualification;
+- `MC-11` notes in the Manager Center migration inventory.
+
+Source commit:
+`5fbb940b748aed6c020789056fab8d8eee3092c8`.
+
+Owner routing rules are aggregate-only:
+- Machine breakdown -> Machine Agent;
+- Material missing -> Material Agent;
+- Waiting customer -> Comms / Customer Service;
+- Price or protected decision -> Owner, `OWNER_DECISION_REQUIRED`;
+- Quality issue -> Employee Supervisor;
+- Help needed -> Employee Supervisor.
+
+No raw blocker ID, Order ID, Line ID, employee identity, or detail text is needed by the Owner Exception Console.
+
+Qualification / deploy:
+```ini
+POLICY_CI_RUN=37640633500
+POLICY_CI=SUCCESS
+DASHBOARD_DEPLOY_RUN=37640633464
+DASHBOARD_DEPLOY=SUCCESS
+DASHBOARD_VERSION=AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_3_20261007
+DASHBOARD_MODE=READ_ONLY_OWNER_EXCEPTION_CONSOLE
+OWNER_EXCEPTION_GENERATED_FROM=CONTROL_TOWER+EMPLOYEE_BLOCKERS+READINESS_EVIDENCE+CANARY_GATE
+```
+
+Final live Runtime proof at this checkpoint:
+```ini
+EMPLOYEE_BLOCKER_CONTROL=SHADOW
+EMPLOYEE_BLOCKER_EPOCH=2
+EMPLOYEE_BLOCKER_EVENTS=0
+EMPLOYEE_OPEN_BLOCKERS=0
+EMPLOYEE_CRITICAL_BLOCKERS=0
+EMPLOYEE_OWNER_DECISION_BLOCKERS=0
+
+NATIVE_ORDERS=383
+SCHEDULE_ROWS=383
+MISSING_SCHEDULE=0
+CONTROL_TOWER_ROWS=623
+ORDINARY=92
+IN_PROGRESS=12
+CLOSED=519
+
+AUTONOMY=SHADOW
+READINESS=SHADOW
+OPERATOR_TASK=OFF
+STRICT_ELIGIBLE=0
+READINESS_BLOCKED=92
+ACTIVE_OPERATOR_TASKS=0
+
+OWNER_EXCEPTION_TOTAL=7
+OWNER_ACTION_REQUIRED=0
+AI_EXECUTION_STATE=SHADOW_NO_LIVE_EXECUTION
+```
+
+Authority / privacy postflight:
+```ini
+TRENDOS_SOURCE_OF_TRUTH=YES
+RAW_BLOCKER_IDS_EXPOSED=NO
+RAW_ORDER_IDS_EXPOSED=NO
+RAW_LINE_IDS_EXPOSED=NO
+CUSTOMER_PII_EXPOSED=NO
+EMPLOYEE_IDENTITY_EXPOSED=NO
+DETAIL_TEXT_EXPOSED=NO
+ORDER_WRITE=NO
+LINE_WRITE=NO
+ACCOUNTING_WRITE=NO
+EASYSTORE_MUTATION=NO
+CONTENT_R2_CHANGE=NO
+OPERATOR_TASK_WRITE=NO
+EMPLOYEE_ASSIGNMENT=NO
+LEGACY_FREE_TEXT_OPS_REPLY_AUTHORITY=NO
+```
+
+Result: **PASS — STRUCTURED EMPLOYEE ANDON / BLOCKER EVENTS ARE NOW A LIVE SHADOW AUTHORITY LIMITED TO THEIR OWN APPEND-ONLY LEDGER, AND THEIR AGGREGATES REACH THE CONTROL TOWER AND OWNER EXCEPTION CONSOLE WITH RESPONSIBLE-ACTOR / OWNER-DECISION ROUTING, WITHOUT MOVING ORDER, ACCOUNTING, TASK, OR EMPLOYEE-ASSIGNMENT AUTHORITY.**
+
+Important incomplete boundary:
+- the legacy employee Andon UI is **not yet cut over** to the new service;
+- no synthetic Production blocker event was inserted;
+- `MC-11` therefore remains `PARTIAL` until employee UI cutover is separately qualified;
+- `MC-12` legacy free-text authority remains `DROPPED` / non-authoritative.
+
+Next highest-value step:
+1. qualify and cut the employee Andon UI from `saveMatbagyNote/OPS_REPLY` to the isolated Employee Supervisor service, with Native-session auth, idempotent client request IDs, explicit fallback prohibition, and a canary/postflight that does not create fake Production blockers.
+2. then continue AP-073 remaining gaps: Comms pending-message aggregate, Accounting read-only warnings, Control Tower stale/last-good parity, and protected archive-restore only after a separate TrendOS backend contract.
+
