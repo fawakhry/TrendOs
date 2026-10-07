@@ -16,6 +16,7 @@ window.MATBAGY_EDGE_ORDERS_API_URL = "https://trendos-d1-api.trendmall-contact.w
 // T12 A61 employee API dispatcher foundation. Default-OFF: no runtime change
 // until native employee auth and the temporary legacy bridge are separately qualified.
 window.MATBAGY_EMPLOYEE_API_URL = window.MATBAGY_EDGE_ORDERS_API_URL;
+window.MATBAGY_EMPLOYEE_SUPERVISOR_API_URL = "https://autonomous-printshop-employee-supervisor.trendmall-contact.workers.dev";
 window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true;
 window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false;
 window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = [];
@@ -132,7 +133,7 @@ var TRENDOS_AUTH_DEFERRED_MODULES_V1 = [
   ['trendCustomerFeedbackV1Loader','customer-feedback-v1.js?v=20260930-a61-cloud-transport'],
   ['trendEmployeeManagerStripsV2Loader','employee-manager-strips-v2.js?v=20260930-a61-cloud-transport'],
   ['trendEmployeeManagerStripsDragV2Loader','employee-manager-strips-drag-v2.js?v=20260930-a61-cloud-transport'],
-  ['trendEmployeeAndonV1Loader','employee-andon-v1.js?v=20260930-a61-cloud-transport'],
+  ['trendEmployeeAndonV1Loader','employee-andon-v1.js?v=20261007-entry649-structured-andon'],
   ['trendGoLiveAutopilotV1Loader','go-live-autopilot-v1.js?v=20260930-a61-cloud-transport'],
   ['trendOperationsHubV1Loader','operations-hub-v1.js?v=20260930-a61-cloud-transport']
 ];
@@ -172,6 +173,7 @@ window.MATBAGY_EMPLOYEE_OPS_COACH_V1 = false;
 window.MATBAGY_EMPLOYEE_MANAGER_STRIPS_V2 = true;
 window.MATBAGY_EMPLOYEE_MANAGER_STRIPS_DRAG_V2 = true;
 window.MATBAGY_EMPLOYEE_ANDON_V1 = true;
+window.MATBAGY_EMPLOYEE_ANDON_STRUCTURED_V1 = true;
 window.MATBAGY_GO_LIVE_AUTOPILOT_V1 = true;
 window.MATBAGY_GO_LIVE_AUTOPILOT_AUTO_SWEEP_V1 = false;
 window.MATBAGY_OPERATIONS_HUB_V1 = true;

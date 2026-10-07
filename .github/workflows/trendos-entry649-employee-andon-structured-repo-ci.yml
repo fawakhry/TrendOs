@@ -1,0 +1,47 @@
+name: TrendOS Entry649 Structured Employee Andon Repo CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'employee-andon-v1.js'
+      - 'config.js'
+      - 'tests/entry649_employee_andon_structured.test.mjs'
+      - '.github/workflows/trendos-entry649-employee-andon-structured-repo-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Structured Andon repo qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check employee-andon-v1.js
+          node --check config.js
+          node tests/entry649_employee_andon_structured.test.mjs
+          ! grep -Fq 'saveMatbagyNote' employee-andon-v1.js
+          ! grep -Fq 'OPS_REPLY' employee-andon-v1.js
+          grep -Fq '/blockers/report' employee-andon-v1.js
+          grep -Fq '/blockers/my-open' employee-andon-v1.js
+          grep -Fq '/blockers/resolve' employee-andon-v1.js
+          echo ENTRY649_REPO_GATE=PASS
+      - name: Boundary
+        run: |
+          echo ENTRY649_PRODUCTION_DEPLOY=NO
+          echo ENTRY649_PRODUCTION_BLOCKER_EVENT_CREATED=NO
+          echo ENTRY649_ORDER_WRITE=NO
+          echo ENTRY649_ACCOUNTING_WRITE=NO
+          echo ENTRY649_OPERATOR_TASK_WRITE=NO
