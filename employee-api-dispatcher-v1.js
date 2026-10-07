@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'T12_ENTRY644_CORE_GENERAL_READY_V1_20261007';
+  var VERSION = 'T12_ENTRY647_AUTH_ATTENDANCE_RUNTIME_REPAIR_V1_20261007';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var AUTH_HEALTH_PATH = '/v1/employee/auth/health';
   var BRIDGE_HEALTH_PATH = '/v1/employee/legacy-action/health';
@@ -462,12 +462,37 @@
     return true;
   }
 
+  function authoritativeNativeHealthReady(auth) {
+    var requiredReady = Math.max(1, canaryRequiredNativeReadyCount());
+    return !!auth &&
+      auth.success === true &&
+      auth.schemaReady === true &&
+      auth.mode === 'NATIVE' &&
+      auth.envEnabled === true &&
+      auth.nativeOnly === true &&
+      auth.legacyBootstrapEnabled === false &&
+      auth.legacySessionEnrollEnabled === false &&
+      auth.plaintextStored !== true &&
+      Number(auth.nativeReadyCount || 0) >= requiredReady;
+  }
+
   async function ensureCanaryPreflight(action, params) {
     if (!canaryRouteEnabled(params || {})) return true;
     action = text(action);
     // Revocation/password recovery must remain available to an already-native
     // canary even if the compatibility bridge later becomes unhealthy.
     if (action === 'logout' || action === 'changePassword') return true;
+
+    // Entry647: a stale browser may still carry historical Canary frontend
+    // flags after the backend has already completed the global NATIVE cutover.
+    // Authoritative runtime health wins over that stale client state.
+    try {
+      var nativeHealth = await cloudGet(AUTH_HEALTH_PATH);
+      if (authoritativeNativeHealthReady(nativeHealth)) {
+        canaryPreflightCache = { key: canaryPreflightKey(), at: Date.now() };
+        return true;
+      }
+    } catch (nativeHealthErr) {}
 
     var bridgeFree = bridgeFreeCanaryConfigured();
     var minimum = canaryMinimumBridgePolicies();
@@ -808,6 +833,7 @@
     canaryMinimumBridgePolicies: canaryMinimumBridgePolicies,
     canaryRequiredNativeReadyCount: canaryRequiredNativeReadyCount,
     bridgeFreeCanaryConfigured: bridgeFreeCanaryConfigured,
+    authoritativeNativeHealthReady: authoritativeNativeHealthReady,
     ensureCanaryPreflight: ensureCanaryPreflight,
     bridgeEnabled: bridgeEnabled,
     employeeOpsMode: employeeOpsMode,

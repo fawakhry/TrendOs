@@ -1,0 +1,49 @@
+name: TrendOS Entry647 Auth Attendance Repo CI
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'attendance-v1.js'
+      - 'attendance-clockin-ui-v1.js'
+      - 'employee-api-dispatcher-v1.js'
+      - 'config.js'
+      - 'index.html'
+      - 'cloudflare-d1/src/frontend-static-worker.mjs'
+      - 'tests/entry647_employee_login_attendance_runtime_repair.test.mjs'
+      - '.github/workflows/trendos-entry647-auth-attendance-repo-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Entry647 qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check employee-api-dispatcher-v1.js
+          node --check attendance-v1.js
+          node --check attendance-clockin-ui-v1.js
+          node --check config.js
+          node --check cloudflare-d1/src/frontend-static-worker.mjs
+          node tests/attendance_d1_ui_contract_entry620.test.mjs
+          node tests/entry647_employee_login_attendance_runtime_repair.test.mjs
+          echo ENTRY647_REPO_GATE=PASS
+      - name: Boundary
+        shell: bash
+        run: |
+          echo ENTRY647_PRODUCTION_MUTATION=NO
+          echo ENTRY647_D1_MUTATION=NO
+          echo ENTRY647_ACCOUNTING_MUTATION=NO
+          echo ENTRY647_EASYSTORE_MUTATION=NO

@@ -119,9 +119,9 @@ var TRENDOS_AUTH_CRITICAL_MODULES_V1 = [
   ['trendResumeNoAutoRefreshV1Loader','trendos-resume-no-autorefresh-v1.js?v=20260930-a61-cloud-transport']
 ];
 var TRENDOS_AUTH_DEFERRED_MODULES_V1 = [
-  ['trendAttendanceV1Loader','attendance-v1.js?v=20261004-entry620-d1-state-contract'],
+  ['trendAttendanceV1Loader','attendance-v1.js?v=20261007-entry647-auth-attendance-repair'],
   ['trendAttendanceLiveTimerV1Loader','attendance-live-timer-v1.js?v=20260930-a61-cloud-transport'],
-  ['trendAttendanceClockinV1Loader','attendance-clockin-ui-v1.js?v=20260930-a61-cloud-transport'],
+  ['trendAttendanceClockinV1Loader','attendance-clockin-ui-v1.js?v=20261007-entry647-auth-attendance-repair'],
   ['trendPrayerPrepV1Loader','employee-prayer-prep-v1.js?v=20260930-a61-cloud-transport'],
   ['trendCleaningPrepV1Loader','employee-cleaning-prep-v1.js?v=20260930-a61-cloud-transport'],
   ['trendHrV1Loader','hr-v1.js?v=20260930-a61-cloud-transport'],
