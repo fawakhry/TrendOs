@@ -1,0 +1,59 @@
+name: EasyStore A2.10 Immediate Safe Close
+
+on:
+  push:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-a210-immediate-safe-close.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      API_CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/easystore-accounting-a2-20261005
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save wrangler@${WRANGLER_VERSION}
+      - name: Close A2.10 canary immediately
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/close.sql <<'SQL'
+          UPDATE employee_accounting_control_v1
+             SET mode='READONLY',policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1' AND mode IN ('READONLY','CANARY');
+          UPDATE employee_accounting_write_canary_v1
+             SET enabled=1,allowed_usernames_json='[]',allowed_actions_json='[]',
+                 max_amount=0,max_commands=0,commands_started=0,expires_at_ms=0,
+                 policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP
+           WHERE singleton=1 AND marker='EASYSTORE_A2_WRITE_CANARY_V1';
+          SQL
+          npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --file /tmp/close.sql >/tmp/close.log
+          curl -fsS "$API_URL/v1/employee/accounting/health?a210safeclose=$GITHUB_RUN_ID" > /tmp/h.json
+          node <<'NODE'
+          const fs=require('fs'),h=JSON.parse(fs.readFileSync('/tmp/h.json','utf8'));
+          if(h.mode!=='READONLY'||h.authoritativeWrites!==false)throw Error('backend not READONLY');
+          if(Number(h.writeCanaryAllowedUserCount||0)||Number(h.writeCanaryAllowedActionCount||0)||Number(h.writeCanaryMaxCommands||0)||Number(h.writeCanaryCommandsStarted||0))throw Error('canary not cleared');
+          if(Number(h.googleBusinessCalls||0)!==0)throw Error('google calls nonzero');
+          console.log('A210_IMMEDIATE_SAFE_CLOSE=PASS');
+          console.log('BACKEND_MODE=READONLY');
+          console.log('SERVER_USERS_ACTIONS=0/0');
+          console.log('COMMAND_BUDGET=0/0');
+          console.log('GOOGLE_BUSINESS_CALLS=0');
+          console.log('GENERAL_OPENED=NO');
+          NODE
