@@ -8,9 +8,11 @@ on:
     paths:
       - 'autonomous-printshop/production-shadow/**'
       - 'autonomous-printshop/core/operational-reality-v1.mjs'
+      - 'autonomous-printshop/core/deadline-risk-projection-v1.mjs'
       - 'autonomous-printshop/core/employee-supervisor-shadow-v1.mjs'
       - 'autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs'
       - 'autonomous-printshop/tests/production_shadow_worker_v1.test.mjs'
+      - 'autonomous-printshop/tests/deadline_risk_projection_v1.test.mjs'
       - '.github/workflows/autonomous-printshop-production-shadow-sidecar-deploy.yml'
 
 permissions:
@@ -65,6 +67,7 @@ jobs:
         run: |
           set -euo pipefail
           node autonomous-printshop/tests/operational_reality_v1.test.mjs
+          node autonomous-printshop/tests/deadline_risk_projection_v1.test.mjs
           node autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs
           node autonomous-printshop/tests/production_shadow_worker_v1.test.mjs
           node --check autonomous-printshop/production-shadow/worker.mjs

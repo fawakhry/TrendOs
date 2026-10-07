@@ -14,6 +14,9 @@ import {
 import {
   buildEvidenceAcquisitionPacketV1
 } from '../core/evidence-acquisition-packet-v1.mjs';
+import {
+  buildDeadlineRiskProjectionV1
+} from '../core/deadline-risk-projection-v1.mjs';
 
 function text(v){return String(v==null?'':v).trim();}
 function num(v,f=0){const n=Number(v);return Number.isFinite(n)?n:f;}
@@ -708,6 +711,7 @@ async function controlTowerSnapshot(env){
 
   const rows=await currentRows(env);
   const operations=buildOperationalRealityV1(rows,{});
+  const deadlineRisk=buildDeadlineRiskProjectionV1(rows,{atRiskHours:24,watchHours:48});
   const [supervisor,readiness,autonomyControl,decisionCounts]=await Promise.all([
     supervisorSnapshot(env,rows),
     readinessSnapshot(env,rows),
@@ -745,7 +749,8 @@ async function controlTowerSnapshot(env){
     },
     operations:{
       counts:operations.counts,
-      sourceKinds:sourceKindCounts(rows)
+      sourceKinds:sourceKindCounts(rows),
+      deadlineRisk
     },
     employees:{
       operatorCounts:supervisor.operatorCounts,
@@ -801,7 +806,10 @@ async function controlTowerSnapshot(env){
       employeeReviewRequired:reviewRequired,
       readinessBlocked:strictBlocked,
       activeOperatorTasks:activeTasks,
-      noStrictRecommendation:strictEligible===0 && baselineCandidates>0
+      noStrictRecommendation:strictEligible===0 && baselineCandidates>0,
+      deadlineOverdueOrders:Number(deadlineRisk.overdueOrders||0),
+      deadlineAtRisk24hOrders:Number(deadlineRisk.atRisk24hOrders||0),
+      deadlineUrgentImmediateRiskLines:Number(deadlineRisk.urgentImmediateRiskLines||0)
     },
     piiExposed:false,
     employeeIdentityExposed:false,

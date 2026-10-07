@@ -5,6 +5,7 @@ const worker=fs.readFileSync('autonomous-printshop/production-shadow/worker.mjs'
 const config=fs.readFileSync('autonomous-printshop/production-shadow/wrangler.toml','utf8');
 const evidencePilotCore=fs.readFileSync('autonomous-printshop/core/evidence-pilot-target-v1.mjs','utf8');
 const evidenceAcquisitionCore=fs.readFileSync('autonomous-printshop/core/evidence-acquisition-packet-v1.mjs','utf8');
+const deadlineRiskCore=fs.readFileSync('autonomous-printshop/core/deadline-risk-projection-v1.mjs','utf8');
 
 assert.match(config,/^name = "autonomous-printshop-shadow"$/m);
 assert.match(config,/^database_name = "trendos-main"$/m);
@@ -55,6 +56,15 @@ assert.match(worker,/READINESS_SHADOW/);
 assert.ok(worker.includes("path==='/readiness'"));
 assert.match(worker,/shadowLearning/);
 assert.match(worker,/attentionSignals/);
+assert.match(worker,/buildDeadlineRiskProjectionV1/);
+assert.match(worker,/deadlineRisk/);
+assert.match(worker,/deadlineOverdueOrders/);
+assert.match(worker,/deadlineAtRisk24hOrders/);
+assert.match(worker,/deadlineUrgentImmediateRiskLines/);
+assert.match(deadlineRiskCore,/READ_ONLY_AGGREGATE/);
+assert.match(deadlineRiskCore,/rawOrderIdsExposed:false/);
+assert.match(deadlineRiskCore,/rawLineIdsExposed:false/);
+assert.match(deadlineRiskCore,/customerPiiExposed:false/);
 assert.match(worker,/CONTROL_TOWER_SHADOW/);
 assert.ok(worker.includes("path==='/control-tower'"));
 assert.match(worker,/supervisorCoreVersion/);
