@@ -7,6 +7,7 @@ on:
     paths:
       - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
       - 'tests/easystore_a212_dept_line_canary.test.mjs'
+      - 'tests/easystore_a212_dept_line_tdz_regression.test.mjs'
       - '.github/workflows/easystore-a212-dept-line-qualification.yml'
 
 permissions:
@@ -38,6 +39,7 @@ jobs:
           node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
           node tests/easystore_a2_write_canary_policy_v1.test.mjs
           node tests/easystore_a212_dept_line_canary.test.mjs
+          node tests/easystore_a212_dept_line_tdz_regression.test.mjs
       - run: npm install --no-save wrangler@${WRANGLER_VERSION}
       - name: Prove Production remains closed on five-canary baseline
         shell: bash
