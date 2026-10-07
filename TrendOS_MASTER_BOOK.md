@@ -6403,3 +6403,29 @@ ROLLBACK_USED=NO
 MASTER_BOOK_RECORDED=YES
 ```
 - Next gate: qualify Content beyond READONLY without touching Accounting/EasyStore.
+
+
+#### Entry645 — Content R2 foundation — Attempt 1 BLOCKED_SAFE
+- التاريخ: 2026-10-07 Cairo.
+- الهدف: تجهيز R2 لـEmployee Content مع إبقاء Content `READONLY / epoch2`؛ لا GENERAL cutover في هذه المحاولة.
+- Workflow source commit: `d919b3b94c0ac7dc9a7ca9dfc6d9e80a96781d73`.
+- Run `37551605425` / Job `112568154452`.
+- Exact Runtime preflight = PASS: Auth=NATIVE 6/6، Bridge=false، Core=GENERAL/2، Content=READONLY/2 و`r2Ready=false`، Comms=READONLY، Ops=GENERAL، Accounting=READONLY/writeAuthorityMode=OFF.
+- R2 bucket step فشل قبل أي mutation: Cloudflare R2 API رجع HTTP 403 / code 10000 Authentication error. الـCI token الحالي لا يملك صلاحية list/create R2 buckets.
+- Worker settings patch/activation/postflight كلها SKIPPED؛ rollback غير مطلوب لأن الفشل قبل patch.
+- لا API code deploy، لا D1/business mutation، لا Accounting/EasyStore mutation.
+- Evidence: `docs/trendos/staging/ENTRY645_CONTENT_R2_FOUNDATION_ATTEMPT1_20261007.md`.
+- Safe next prerequisite: إنشاء bucket واحد فقط باسم `trendos-employee-content-files` من Cloudflare Dashboard، ثم استكمال binding qualification آليًا.
+```ini
+ENTRY645_ATTEMPT1=BLOCKED_SAFE
+CONTENT_MODE=READONLY
+CONTENT_POLICY_EPOCH=2
+CONTENT_R2_READY=false
+R2_API_AUTH=403
+WORKER_SETTINGS_MUTATION=NO
+D1_MUTATION=NO
+BUSINESS_DATA_MUTATION=NO
+ACCOUNTING_MUTATION=NO
+EASYSTORE_MUTATION=NO
+ROLLBACK_USED=NO
+```
