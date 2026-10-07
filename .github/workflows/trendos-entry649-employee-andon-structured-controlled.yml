@@ -105,7 +105,11 @@ jobs:
           if(ct.mode!=='READONLY') throw new Error('content drift');
           if(cm.mode!=='READONLY') throw new Error('comms drift');
           if(o.mode!=='GENERAL') throw new Error('ops drift');
-          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF'||Number(ac.googleBusinessCalls||0)!==0||ac.appsScriptBusinessAuthority!==false) throw new Error('accounting drift');
+          if(!['READONLY','CANARY'].includes(String(ac.mode||''))||String(ac.mode||'')==='GENERAL'||Number(ac.googleBusinessCalls||0)!==0||ac.appsScriptBusinessAuthority!==false) throw new Error('accounting safety drift');
+          if(String(ac.mode||'')==='READONLY'&&(ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF')) throw new Error('accounting readonly authority drift');
+          if(String(ac.mode||'')==='CANARY'&&(ac.authoritativeWrites!==true||String(ac.writeAuthorityMode||'')!=='CANARY_BOUNDED'||ac.writeCanaryEnabled!==true)) throw new Error('accounting canary boundary drift');
+          console.log('ENTRY649_ACCOUNTING_EXTERNAL_MODE='+String(ac.mode||''));
+          console.log('ENTRY649_ACCOUNTING_CONTROL_MUTATION=NO');
           if(s.success!==true||s.service!=='autonomous-printshop-employee-supervisor'||s.controlMode!=='SHADOW'||Number(s.controlEpoch)!==2||s.writesAccepted!==true||s.writeAuthority!=='AUTONOMOUS_EMPLOYEE_BLOCKER_EVENTS_ONLY') throw new Error('supervisor shadow drift');
           if(s.operatorTaskMode!=='OFF'||Number(s.operatorTasks||0)!==0||s.businessWrites!==false||s.orderWrite!==false||s.lineWrite!==false||s.accountingWrite!==false||s.employeeAssignment!==false) throw new Error('supervisor authority drift');
           fs.writeFileSync('/tmp/pre-blocker-events.txt',String(Number(s.eventRows||0)));
@@ -265,7 +269,9 @@ jobs:
           if(ct.mode!=='READONLY') throw new Error('content post drift');
           if(cm.mode!=='READONLY') throw new Error('comms post drift');
           if(o.mode!=='GENERAL') throw new Error('ops post drift');
-          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF') throw new Error('accounting post drift');
+          if(!['READONLY','CANARY'].includes(String(ac.mode||''))||String(ac.mode||'')==='GENERAL'||Number(ac.googleBusinessCalls||0)!==0||ac.appsScriptBusinessAuthority!==false) throw new Error('accounting post safety drift');
+          if(String(ac.mode||'')==='READONLY'&&(ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF')) throw new Error('accounting post readonly authority drift');
+          if(String(ac.mode||'')==='CANARY'&&(ac.authoritativeWrites!==true||String(ac.writeAuthorityMode||'')!=='CANARY_BOUNDED'||ac.writeCanaryEnabled!==true)) throw new Error('accounting post canary boundary drift');
           if(s.controlMode!=='SHADOW'||Number(s.controlEpoch)!==2||s.writesAccepted!==true||s.writeAuthority!=='AUTONOMOUS_EMPLOYEE_BLOCKER_EVENTS_ONLY') throw new Error('supervisor post drift');
           if(s.operatorTaskMode!=='OFF'||Number(s.operatorTasks||0)!==0||s.businessWrites!==false||s.orderWrite!==false||s.lineWrite!==false||s.accountingWrite!==false||s.employeeAssignment!==false) throw new Error('supervisor authority post drift');
           console.log('ENTRY649_BLOCKER_EVENTS_BEFORE='+before);
