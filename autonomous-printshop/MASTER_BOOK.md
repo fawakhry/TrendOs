@@ -5921,3 +5921,55 @@ Next highest-value migration gate after AP-071 is the **deadline-risk / overdue 
 
 Result: **PASS — MANAGER CENTER MIGRATION INVENTORY IS COMPLETE; STRUCTURED OWNER EXCEPTION MODEL IS LIVE IN AUTONOMOUS PRINTSHOP; OWNER VS AI VS RESPONSIBLE-ACTOR BOUNDARIES ARE EXPLICIT; LEGACY FALLBACK AND ACCOUNTING/CONTENT SAFETY BOUNDARIES REMAIN INTACT**.
 
+
+
+### AP-072 — Automatic print-folder classification removed; operator selects work folders explicitly
+
+Date: 2026-10-07.
+
+Owner requested eliminating automatic work-folder classification. The required local workflow is now explicit manual selection after the TrendOS human-start event creates the order root.
+
+Implementation commits:
+- `56545467b9cb2ed896944a91949c4235f0454cad` — manual work-folder mode, local API/UI, direct work-folder layout;
+- `0d5a9b9499e916de79dd965adaa38a0be83decf5` — Windows path-identity test correction.
+
+Behavior:
+- TrendOS human start still creates the order root automatically;
+- no product-name, department, heat-press, or keyword classifier creates work folders;
+- the local UI exposes explicit choices: `طباعة`, `تابلوهات`, `سبلميشن`, `كوشيه`, `استيكر`, `ليزر`;
+- selecting one creates a direct folder under the order plus `x`, e.g. `ORDER/سبلميشن/x`;
+- multiple work folders may be selected for the same order;
+- repeated selection is idempotent;
+- unknown folder keys are rejected;
+- the old `يحتاج تصنيف` operational concept is removed from the UI;
+- existing legacy route records are preserved rather than destructively migrated;
+- structured approval can reference an explicitly selected manual route without granting Design READY.
+
+Qualification:
+```ini
+AUTOMATIC_WORK_FOLDER_CLASSIFICATION=OFF
+ORDER_ROOT_AUTO_CREATE_ON_HUMAN_START=YES
+MANUAL_FOLDER_OPTIONS=6
+MULTI_FOLDER_PER_ORDER=YES
+MANUAL_FOLDER_HAS_X=YES
+DIRECT_LAYOUT=ORDER/<WORK_FOLDER>/x
+WINDOWS_PACKAGE_RUN=37634104770
+WINDOWS_PACKAGE_UNIT_TESTS=PASS
+WINDOWS_EXE_BUILD=PASS
+WINDOWS_PACKAGED_EXE_SMOKE=PASS
+WINDOWS_ARTIFACT_ID=11486774525
+WINDOWS_ARTIFACT_SHA256=03cdb4d3f002b615bdda4339fb53898485a924e9768b44e489b58c175c71aeaa
+```
+
+Safety boundary remains:
+```ini
+PLATFORM_BRIDGE_MODE=READ_ONLY
+PLATFORM_BUSINESS_WRITES=NO
+ORDER_STATUS_WRITE_FROM_PRINT_SERVER=NO
+EMPLOYEE_ASSIGNMENT_WRITE=NO
+OPERATOR_TASK_WRITE=NO
+ACCOUNTING_WRITE=NO
+X_FOLDER_EQUALS_AUTHORITATIVE_PRINTED=NO
+```
+
+Result: **PASS — ORDER ROOT CREATION REMAINS AUTOMATIC, WHILE ALL WORK-FOLDER CREATION IS NOW EXPLICIT OPERATOR SELECTION**.
