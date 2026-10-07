@@ -5627,3 +5627,53 @@ Evidence:
 `autonomous-printshop/evidence/AP069_MANAGER_CENTER_TO_OWNER_EXCEPTION_CONSOLE_20261007.md`.
 
 Result: **PASS — OWNER EXCEPTION CONSOLE IS LIVE IN AUTONOMOUS PRINTSHOP; MANAGER-CENTER UI RESPONSIBILITY MOVED WITHOUT MOVING TRENDOS DATA AUTHORITY**.
+
+
+### AP-070 — Operator-selectable Windows work-storage root
+
+Date: 2026-10-07.
+
+Owner requested the ability to choose where the local Print Server saves order work instead of keeping all work under the application directory.
+
+Implementation commit:
+`4c0b41e1af6cef3f084dbcf099582c876ebbc6c5`.
+
+Implemented:
+- visible `مكان حفظ الشغل` storage control in the local Arabic UI;
+- native Windows `اختيار فولدر` dialog;
+- manual absolute-path entry and `حفظ المسار` action;
+- writable-directory validation before accepting the path;
+- persisted `paths.ordersRoot` in `config/local.json`;
+- immediate runtime switch for newly created order folders without requiring an application restart;
+- `x` watcher root follows the new orders root immediately;
+- existing order folders are not moved automatically;
+- current storage root is exposed in local status/settings.
+
+Qualification:
+```ini
+PRINT_SERVER_CI_RUN=37627805152
+PRINT_SERVER_CI=PASS
+PYTHON_3_8_SYNTAX_GATE=PASS
+STORAGE_ROOT_CHANGE_TEST=PASS
+EXISTING_ORDER_AUTO_MOVE=NO
+WINDOWS_PACKAGE_RUN=37627805174
+WINDOWS_PACKAGE_RESULT=SUCCESS
+WINDOWS_EXE_BUILD=PASS
+WINDOWS_PACKAGED_EXE_SMOKE=PASS
+WINDOWS_PACKAGED_LIVE_TRENDOS_PROBE=PASS
+WINDOWS_ARTIFACT_ID=11485475728
+WINDOWS_ARTIFACT_SHA256=8dd5bd5cbf169eb6f048a96d191febea68f3553b36d75df0afdd200c5f3610b4
+```
+
+Safety boundary:
+```ini
+PLATFORM_BRIDGE_MODE=READ_ONLY
+PLATFORM_BUSINESS_WRITES=NO
+ORDER_STATUS_WRITE_FROM_PRINT_SERVER=NO
+EMPLOYEE_ASSIGNMENT_WRITE=NO
+OPERATOR_TASK_WRITE=NO
+ACCOUNTING_WRITE=NO
+EXISTING_ORDER_FILE_MOVE_ON_SETTING_CHANGE=NO
+```
+
+Result: **PASS — WINDOWS OPERATOR CAN SELECT AND PERSIST THE LOCAL WORK STORAGE ROOT; NEW ORDERS USE IT IMMEDIATELY**.
