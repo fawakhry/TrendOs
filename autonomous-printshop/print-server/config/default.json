@@ -1,0 +1,21 @@
+{
+  "server": {"host": "127.0.0.1", "port": 4782},
+  "paths": {
+    "ordersRoot": "./data/orders",
+    "readyRoot": "./data/ready",
+    "stateRoot": "./data/state"
+  },
+  "folder": {
+    "dateFormat": "%d-%m-%Y",
+    "namePattern": "{order_id} - {date} - {customer_name}",
+    "finishedFolderName": "x"
+  },
+  "trendos": {
+    "enabled": false,
+    "baseUrl": "https://trendos-d1-api.trendmall-contact.workers.dev",
+    "ordersPagePath": "/v1/edge/orders/02cr/page",
+    "bearerTokenEnv": "TRENDOS_EDGE_TOKEN",
+    "pollSeconds": 15,
+    "claimMode": "event_bridge"
+  }
+}

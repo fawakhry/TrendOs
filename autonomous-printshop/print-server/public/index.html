@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TrendOS Print Server</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-icon">▣</div><div><b>TrendOS</b><span>Print Server</span></div></div>
+      <button class="nav active">⌂ <span>الرئيسية</span></button>
+      <button class="nav">▤ <span>الأوردرات</span></button>
+      <button class="nav">✓ <span>الموافقات</span></button>
+      <button class="nav">▣ <span>جاهز للطباعة</span></button>
+      <button class="nav">▢ <span>المكتبة</span></button>
+      <button class="nav">⚙ <span>الإعدادات</span></button>
+      <div class="service-card">
+        <div><span class="dot"></span> الخدمة تعمل</div>
+        <small id="modeLabel">LOCAL</small>
+        <button id="refreshBtn">مزامنة الآن ↻</button>
+      </div>
+    </aside>
+    <main>
+      <header>
+        <div id="connectionStatus">● متصل بالسيرفر المحلي</div>
+        <div id="previewCapabilities">معاينة الملفات...</div>
+      </header>
+      <section class="stats">
+        <div class="stat"><strong id="countOrders">0</strong><span>أوردرات محلية</span></div>
+        <div class="stat"><strong id="countNeedsClass">0</strong><span>يحتاج تصنيف</span></div>
+        <div class="stat"><strong id="countFiles">0</strong><span>ملفات الأوردر</span></div>
+        <div class="stat green"><strong id="countFinished">0</strong><span>داخل x</span></div>
+      </section>
+      <section class="workspace">
+        <div class="orders-panel panel">
+          <div class="panel-title"><b>الأوردرات</b><input id="searchBox" placeholder="بحث بالرقم أو اسم العميل..."></div>
+          <div id="ordersList" class="orders-list"><div class="empty">لا توجد أوردرات محلية بعد</div></div>
+        </div>
+        <div class="folder-panel panel">
+          <div class="panel-title"><b id="orderTitle">اختر أوردر</b><span id="orderCustomer"></span></div>
+          <div id="folderTree" class="tree"><div class="empty">سيظهر هنا تقسيم الفولدرات الفعلي فقط</div></div>
+          <div class="safety">التجميع الجاهز تشغيلي فقط ولا يمنح Design READY.</div>
+        </div>
+        <div class="files-panel panel">
+          <div class="panel-title"><b>الملفات</b><span id="fileCountLabel">0 ملف</span></div>
+          <div id="filesList" class="files-list"><div class="empty">اختر أوردر</div></div>
+          <div class="preview-card">
+            <div class="preview-toolbar"><b>معاينة الملف</b><span id="previewMeta"></span></div>
+            <div id="previewArea" class="preview-area"><span>JPG / PNG / TIF / TIFF / DXF</span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
