@@ -31,6 +31,79 @@ function exception(input){
   });
 }
 
+function employeeBlockerException(reasonCode,count){
+  const code=upper(reasonCode);
+  const nCount=n(count);
+  if(!code||nCount<=0) return null;
+  const defs={
+    MACHINE_BREAKDOWN:{
+      severity:'CRITICAL',titleAr:'بلاغات عطل ماكينة',
+      reasonAr:nCount+' بلاغ Andon مفتوح بسبب عطل ماكينة.',
+      actor:'MACHINE_AGENT',actorAr:'Machine Agent',
+      aiState:AI_STATES.PREPARE_HUMAN_REVIEW,
+      owner:false,protectedDecision:false,
+      next:'وجّه الفحص والصيانة للمسؤول عن الماكينة، ولا تعتبر الماكينة READY قبل دليل مباشر جديد.'
+    },
+    MATERIAL_MISSING:{
+      severity:'HIGH',titleAr:'بلاغات خامة ناقصة',
+      reasonAr:nCount+' بلاغ Andon مفتوح بسبب خامة ناقصة.',
+      actor:'MATERIAL_AGENT',actorAr:'Material Agent',
+      aiState:AI_STATES.WAITING_EXTERNAL_EVIDENCE,
+      owner:false,protectedDecision:false,
+      next:'تحقق من مصدر الخامة والرصيد والربط بالبند؛ لا تخمّن توافر الخامة.'
+    },
+    WAITING_CUSTOMER:{
+      severity:'HIGH',titleAr:'بلاغات انتظار العميل',
+      reasonAr:nCount+' بلاغ Andon مفتوح في انتظار رد أو اعتماد العميل.',
+      actor:'COMMS_AGENT',actorAr:'Comms / Customer Service',
+      aiState:AI_STATES.PREPARE_HUMAN_REVIEW,
+      owner:false,protectedDecision:false,
+      next:'تابع العميل من قناة التواصل المعتمدة وسجل النتيجة؛ لا تغيّر حالة الإنتاج بالافتراض.'
+    },
+    PRICE_OR_OWNER_DECISION:{
+      severity:'HIGH',titleAr:'سعر أو قرار محمي مطلوب',
+      reasonAr:nCount+' بلاغ Andon مفتوح يحتاج سعرًا أو قرارًا لا يملكه الـAI.',
+      actor:'OWNER',actorAr:'المالك',
+      aiState:AI_STATES.OWNER_DECISION_REQUIRED,
+      owner:true,protectedDecision:true,
+      next:'راجع السياق واتخذ القرار صراحة؛ لا يسمح للـAI بإصدار سعر أو قرار محمي.'
+    },
+    QUALITY_ISSUE:{
+      severity:'HIGH',titleAr:'بلاغات مشكلة جودة',
+      reasonAr:nCount+' بلاغ Andon مفتوح بسبب مشكلة جودة.',
+      actor:'EMPLOYEE_SUPERVISOR',actorAr:'Employee Supervisor',
+      aiState:AI_STATES.PREPARE_HUMAN_REVIEW,
+      owner:false,protectedDecision:false,
+      next:'راجع المشكلة مع المشرف وحدد إعادة العمل أو الإيقاف وفق الإجراء التشغيلي؛ لا تُنشئ حكم أداء على الموظف.'
+    },
+    HELP_NEEDED:{
+      severity:'MEDIUM',titleAr:'طلبات مساعدة من الموظفين',
+      reasonAr:nCount+' بلاغ Andon مفتوح لطلب مساعدة تشغيلية.',
+      actor:'EMPLOYEE_SUPERVISOR',actorAr:'Employee Supervisor',
+      aiState:AI_STATES.PREPARE_HUMAN_REVIEW,
+      owner:false,protectedDecision:false,
+      next:'اعرض الطلب للمشرف وساعد في إزالة العائق بدون استنتاج إهمال أو عقوبة.'
+    }
+  };
+  const d=defs[code]; if(!d) return null;
+  return exception({
+    id:'EMPLOYEE_BLOCKER_'+code,
+    domain:'EMPLOYEE_BLOCKER',
+    severity:d.severity,
+    titleAr:d.titleAr,
+    reasonAr:d.reasonAr,
+    responsibleActor:d.actor,
+    responsibleActorAr:d.actorAr,
+    aiState:d.aiState,
+    aiCanResolveNow:false,
+    ownerActionRequired:d.owner,
+    protectedDecision:d.protectedDecision,
+    count:nCount,
+    signalCode:code,
+    nextActionAr:d.next
+  });
+}
+
 function blockerException(kind, blocker){
   const k=upper(kind);
   const code=text(blocker);
@@ -68,6 +141,8 @@ export function buildOwnerExceptionModelV1(state={}){
   const learning=state.shadowLearning||{};
   const evidence=state.evidenceAcquisition||{};
   const canary=state.operatorTaskCanary||{};
+  const employeeBlockerState=state.employees&&state.employees.blockers||{};
+  const employeeBlockerSummary=employeeBlockerState.summary||{};
   const exceptions=[];
   const push=x=>{ if(x && !exceptions.some(y=>y.id===x.id)) exceptions.push(x); };
 
@@ -87,6 +162,15 @@ export function buildOwnerExceptionModelV1(state={}){
     aiState:AI_STATES.CONTROL_REVIEW_REQUIRED,ownerActionRequired:true,protectedDecision:true,signalCode:readinessMode,
     nextActionAr:'راجع بوابة Readiness قبل السماح بأي Operator Task.'
   }));
+  const employeeBlockerMode=upper(employeeBlockerState.control&&employeeBlockerState.control.mode||'OFF');
+  if(employeeBlockerMode!=='SHADOW') push(exception({
+    id:'EMPLOYEE_BLOCKER_CONTROL_REVIEW',domain:'CONTROL_PLANE',severity:'HIGH',titleAr:'Structured Andon خارج SHADOW',
+    reasonAr:'Employee Supervisor blocker control='+employeeBlockerMode+' بينما المسار المؤهل الحالي هو SHADOW.',
+    responsibleActor:'CONTROL_PLANE',responsibleActorAr:'Control Plane',
+    aiState:AI_STATES.CONTROL_REVIEW_REQUIRED,aiCanResolveNow:false,ownerActionRequired:true,protectedDecision:true,signalCode:employeeBlockerMode,
+    nextActionAr:'راجع سجل تحكم Employee Supervisor قبل الاعتماد على استقبال بلاغات Andon.'
+  }));
+
   if(operatorTaskMode!=='OFF') push(exception({
     id:'OPERATOR_TASK_AUTHORITY_ACTIVE',domain:'OPERATOR_TASK',severity:'CRITICAL',titleAr:'Operator Task لم يعد OFF',
     reasonAr:'أي انتقال من OFF هو قرار محمي ويجب أن يكون له إثبات CANARY صريح.',responsibleActor:'OWNER',responsibleActorAr:'المالك',
@@ -121,6 +205,11 @@ export function buildOwnerExceptionModelV1(state={}){
     aiState:AI_STATES.WAITING_EXTERNAL_EVIDENCE,aiCanResolveNow:false,ownerActionRequired:false,count:missingDueLines,signalCode:'DEADLINE_DATA_GAP',
     nextActionAr:'استكمل موعد التسليم في مصدر TrendOS؛ لا تخمّن موعدًا داخل Autonomous Printshop.'
   }));
+
+  const blockerReasonRows=Array.isArray(employeeBlockerSummary.byReason)?employeeBlockerSummary.byReason:[];
+  for(const row of blockerReasonRows){
+    push(employeeBlockerException(row&&row.key,row&&row.count));
+  }
 
   const review=n(signals.employeeReviewRequired);
   if(review>0) push(exception({
@@ -178,7 +267,7 @@ export function buildOwnerExceptionModelV1(state={}){
   return {
     version:OWNER_EXCEPTION_MODEL_VERSION,
     mode:'READ_ONLY_EXCEPTION_PROJECTION',
-    generatedFrom:'CONTROL_TOWER+READINESS_EVIDENCE+CANARY_GATE',
+    generatedFrom:'CONTROL_TOWER+EMPLOYEE_BLOCKERS+READINESS_EVIDENCE+CANARY_GATE',
     exceptions,
     summary:{
       total:exceptions.length,

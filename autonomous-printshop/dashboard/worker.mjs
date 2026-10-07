@@ -2,7 +2,7 @@ import { qualifyOperatorTaskCanaryV1 } from '../core/operator-task-canary-qualif
 import { buildOwnerExceptionModelV1, OWNER_EXCEPTION_MODEL_VERSION } from '../core/owner-exception-model-v1.mjs';
 const SHADOW_URL='https://autonomous-printshop-shadow.trendmall-contact.workers.dev';
 const READINESS_COLLECTOR_URL='https://autonomous-printshop-readiness-collector.trendmall-contact.workers.dev';
-const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_2_20261007';
+const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_3_20261007';
 
 function json(body,status=200){
   return new Response(JSON.stringify(body),{
@@ -285,11 +285,14 @@ async function load(){
     const schedule=d.source?.schedule||{};
     const evidence=d.evidenceAcquisition||{};
     const canary=d.operatorTaskCanary||{};
+    const blockerState=d.employees?.blockers||{};
+    const blockerCounts=blockerState.summary?.counts||{};
 
     q('#modes').innerHTML=[
       badge('Autonomy',controls.autonomy?.mode||'—',controls.autonomy?.mode==='SHADOW'?'warn':'off'),
       badge('Readiness',controls.readiness||'—',controls.readiness==='SHADOW'?'warn':'off'),
       badge('Operator Task',controls.operatorTask||'—',controls.operatorTask==='OFF'?'off':'ok'),
+      badge('Andon',blockerState.control?.mode||'—',blockerState.control?.mode==='SHADOW'?'warn':'off'),
       badge('المواعيد',String(schedule.scheduleRows||0)+'/'+String(schedule.nativeOrders||0),schedule.missingSchedule===0?'ok':'warn')
     ].join('');
 
@@ -310,6 +313,10 @@ async function load(){
       message+=' '+n(sig.employeeReviewRequired)+' حالة موظف تحتاج مراجعة تشغيلية.';
       if(cls==='ok') cls='warn';
     }
+    if(n(blockerCounts.open)>0){
+      message+=' '+n(blockerCounts.open)+' بلاغ Andon مفتوح.';
+      cls=n(blockerCounts.critical)>0?'danger':'warn';
+    }
     q('#signal').innerHTML='<div class="signal '+cls+'">'+esc(message)+'</div>';
 
     q('#kpis').innerHTML=[
@@ -318,7 +325,8 @@ async function load(){
       kpi('خطر خلال 24 ساعة',n(deadline.atRisk24hOrders),'مراقبة 48 ساعة: '+n(deadline.watch48hOrders)),
       kpi('جاهز صارم',n(ready.strictEligible),'Design + Material + Machine'),
       kpi('تحت التنفيذ',n(ops.inProgress),'حالة فعلية من TrendOS'),
-      kpi('متاح الآن',n(emp.available),n(emp.total)+' موظف معروف')
+      kpi('متاح الآن',n(emp.available),n(emp.total)+' موظف معروف'),
+      kpi('عوائق الموظفين',n(blockerCounts.open),'حرج '+n(blockerCounts.critical)+' • قرار مالك '+n(blockerCounts.ownerActionRequired))
     ].join('');
 
     const riskDepartments=Array.isArray(deadline.departments)?deadline.departments:[];

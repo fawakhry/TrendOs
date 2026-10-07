@@ -28,6 +28,12 @@ assert.match(worker,/لا يوجد قرار محمي منتظر منك الآن/
 assert.match(worker,/قرارات تحتاج تدخلك/);
 assert.match(worker,/ownerDecisionItems/);
 assert.match(worker,/employeeReviewRequired/);
+assert.ok(worker.includes("blockerCounts"));
+assert.ok(worker.includes("blockerState"));
+assert.ok(worker.includes("kpi('عوائق الموظفين'"));
+assert.ok(worker.includes("بلاغ Andon مفتوح"));
+assert.ok(worker.includes("badge('Andon'"));
+assert.ok(worker.includes("AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_3_20261007"));
 assert.match(worker,/readinessBlocked/);
 assert.match(worker,/Owner Only/);
 assert.match(worker,/trendosManagerCenterReplacementCandidate:true/);

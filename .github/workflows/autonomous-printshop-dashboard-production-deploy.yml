@@ -8,7 +8,9 @@ on:
       - candidate/t12-full-cloud-cutover-a56-20260929
     paths:
       - 'autonomous-printshop/dashboard/**'
+      - 'autonomous-printshop/core/owner-exception-model-v1.mjs'
       - 'autonomous-printshop/tests/dashboard_v1.test.mjs'
+      - 'autonomous-printshop/tests/owner_exception_model_v1.test.mjs'
       - '.github/workflows/autonomous-printshop-dashboard-production-deploy.yml'
 
 permissions:
@@ -36,7 +38,9 @@ jobs:
           node-version: '22'
 
       - name: Qualify dashboard read-only boundary
-        run: node autonomous-printshop/tests/dashboard_v1.test.mjs
+        run: |
+          node autonomous-printshop/tests/owner_exception_model_v1.test.mjs
+          node autonomous-printshop/tests/dashboard_v1.test.mjs
 
       - name: Main TrendOS pre-deploy health
         shell: bash
@@ -83,6 +87,9 @@ jobs:
           if(h.businessWrites!==false||h.employeeAssignment!==false) process.exit(3);
           if(s.success!==true||s.mode!=='CONTROL_TOWER_SHADOW') process.exit(4);
           if(s.writesAccepted!==false||s.d1Mutation!==false||s.employeeAssignment!==false) process.exit(5);
+          if(!s.employees||!s.employees.blockers||s.employees.blockers.control.mode!=='SHADOW') process.exit(8);
+          if(Number(s.employees.blockers.eventRows||0)!==0) process.exit(9);
+          if(Number(s.attentionSignals&&s.attentionSignals.employeeOpenBlockers||0)!==0) process.exit(10);
           if(!page.includes('مركز إدارة المطبعة الذاتية')||!page.includes('قرارات تحتاج تدخلك')) process.exit(6);
           console.log('DASHBOARD_LIVE=PASS');
           console.log('CONTROL_TOWER_UPSTREAM=PASS');
