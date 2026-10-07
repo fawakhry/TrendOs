@@ -1,0 +1,354 @@
+name: TrendOS Entry646 Manager Center Core Direct Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry646-manager-center-core-direct-controlled.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trendos-entry646-manager-center-core-direct-controlled
+  cancel-in-progress: false
+
+jobs:
+  stabilize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      FRONTEND_CONFIG: cloudflare-d1/wrangler.frontend.toml
+      LIVE_BASE_COMMIT: 2da755ca910b84911378c018d050cf806d8349d5
+      TARGET_BRANCH: candidate/t12-full-cloud-cutover-a56-20260929
+      NEW_CONFIG_TAG: 20261007-entry646-manager-center-core-direct
+      NEW_MANAGER_TAG: 20261007-entry646-core-direct
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Exact Runtime and center preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$QUALIFY_USERNAME"
+          test -n "$QUALIFY_PASSWORD"
+
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry646pre=$GITHUB_SHA-$(date +%s%N)" -o "/tmp/$f-pre.json"
+          done
+          curl --fail --silent --show-error --location "$FRONTEND_URL/?entry646pre=$GITHUB_SHA-$(date +%s%N)" -o /tmp/live-index.html
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry646pre=$GITHUB_SHA-$(date +%s%N)" -o /tmp/live-config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/manager-center-v1932.js?entry646pre=$GITHUB_SHA-$(date +%s%N)" -o /tmp/live-manager.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/trend-master-resilience-v1931.js?entry646pre=$GITHUB_SHA-$(date +%s%N)" -o /tmp/live-resilience.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry646pre=$GITHUB_SHA-$(date +%s%N)" -o /tmp/live-dispatcher.js
+
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-pre.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='NATIVE'||a.nativeOnly!==true||a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false||Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||a.plaintextStored!==false) throw new Error('auth drift');
+          if(b.enabled!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('bridge drift');
+          if(co.mode!=='GENERAL'||Number(co.policyEpoch||0)!==2||Number(co.googleBusinessCalls||0)!==0||co.appsScriptBusinessAuthority!==false) throw new Error('core drift');
+          if(ct.mode!=='READONLY') throw new Error('content drift');
+          if(cm.mode!=='READONLY') throw new Error('comms drift');
+          if(o.mode!=='GENERAL') throw new Error('ops drift');
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF'||Number(ac.googleBusinessCalls||0)!==0||ac.appsScriptBusinessAuthority!==false) throw new Error('accounting safety drift');
+          console.log('ENTRY646_RUNTIME_PREFLIGHT=PASS');
+          NODE
+
+          grep -Fq "trend-master-resilience-v1931.js" /tmp/live-config.js
+          grep -Fq "manager-center-v1932.js" /tmp/live-config.js
+          grep -Fq "trendMasterPanelResilienceV1" /tmp/live-manager.js
+          grep -Fq "getTrendMasterCenterV1931" /tmp/live-manager.js
+          grep -Fq "getTrendMasterPanelV1931" /tmp/live-resilience.js
+          if grep -Fq "getTrendMasterPanelV1931" /tmp/live-dispatcher.js; then
+            echo ENTRY646_UNEXPECTED_PANEL_ROUTE_PRESENT=YES
+            exit 41
+          fi
+          grep -Fq "getTrendMasterCenterV1931" /tmp/live-dispatcher.js
+          grep -Fq "getTrendMasterCenterV1931" cloudflare-d1/src/employee-core-native-v1.mjs
+          echo ENTRY646_CENTER_ROUTE_MISMATCH_CONFIRMED=PASS
+
+          git rev-parse HEAD:manager-center-v1932.js >/tmp/manager-start-blob.txt
+          git rev-parse HEAD:config.js >/tmp/config-start-blob.txt
+
+      - name: Patch Manager Center to qualified single Core snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          p=Path('manager-center-v1932.js')
+          s=p.read_text()
+          old="async function load(){if(st.busy)return;st.busy=true;try{if(window.trendMasterPanelResilienceV1&&typeof window.trendMasterPanelResilienceV1.readPanel==='function')await loadProgressive();else{const d=await api('getTrendMasterCenterV1931',{archivePage:1});render(d);}}catch(e){document.getElementById('mgr1932Body').innerHTML='<div class=\"mgr-empty\">'+esc(e.message)+'</div>';}finally{st.busy=false;}}"
+          new="async function load(){if(st.busy)return;st.busy=true;try{const d=await api('getTrendMasterCenterV1931',{archivePage:1});render(d);}catch(e){document.getElementById('mgr1932Body').innerHTML='<div class=\"mgr-empty\">'+esc(e.message)+'</div>';}finally{st.busy=false;}}"
+          if s.count(old)!=1:
+              raise SystemExit('manager load anchor count='+str(s.count(old)))
+          s=s.replace(old,new,1)
+          p.write_text(s)
+
+          p=Path('config.js')
+          s=p.read_text()
+          old="['trendManagerCenterV1932Loader','manager-center-v1932.js?v=20260930-a61-cloud-transport']"
+          new="['trendManagerCenterV1932Loader','manager-center-v1932.js?v=20261007-entry646-core-direct']"
+          if s.count(old)!=1:
+              raise SystemExit('manager loader anchor count='+str(s.count(old)))
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+
+          node --check manager-center-v1932.js
+          node --check config.js
+          grep -Fq "const d=await api('getTrendMasterCenterV1931',{archivePage:1});render(d);" manager-center-v1932.js
+          grep -Fq "manager-center-v1932.js?v=$NEW_MANAGER_TAG" config.js
+
+          mkdir -p tests
+          cat > tests/entry646_manager_center_core_direct.test.mjs <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const manager=fs.readFileSync('manager-center-v1932.js','utf8');
+          const config=fs.readFileSync('config.js','utf8');
+          const dispatcher=fs.readFileSync('employee-api-dispatcher-v1.js','utf8');
+          const core=fs.readFileSync('cloudflare-d1/src/employee-core-native-v1.mjs','utf8');
+          assert.match(manager,/async function load\(\)\{if\(st\.busy\)return;st\.busy=true;try\{const d=await api\('getTrendMasterCenterV1931',\{archivePage:1\}\);render\(d\);\}/);
+          assert.doesNotMatch(manager,/async function load\(\).*await loadProgressive\(\)/);
+          assert.match(config,/manager-center-v1932\.js\?v=20261007-entry646-core-direct/);
+          assert.match(dispatcher,/['\"]getTrendMasterCenterV1931['\"]/);
+          assert.doesNotMatch(dispatcher,/['\"]getTrendMasterPanelV1931['\"]/);
+          assert.match(core,/['\"]getTrendMasterCenterV1931['\"]/);
+          console.log('ENTRY646_MANAGER_CENTER_CORE_DIRECT_REPO=PASS');
+          console.log('ENTRY646_D1_MUTATION=NO');
+          console.log('ENTRY646_ACCOUNTING_MUTATION=NO');
+          NODE
+          node tests/entry646_manager_center_core_direct.test.mjs
+
+      - name: Commit qualified repo patch with concurrency guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          START_MANAGER="$(cat /tmp/manager-start-blob.txt)"
+          START_CONFIG="$(cat /tmp/config-start-blob.txt)"
+          git fetch --quiet origin "$TARGET_BRANCH"
+          test "$(git rev-parse origin/$TARGET_BRANCH:manager-center-v1932.js)" = "$START_MANAGER"
+          test "$(git rev-parse origin/$TARGET_BRANCH:config.js)" = "$START_CONFIG"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manager-center-v1932.js config.js tests/entry646_manager_center_core_direct.test.mjs
+          git commit -m "entry646: stabilize Manager Center on Core snapshot"
+
+          git fetch --quiet origin "$TARGET_BRANCH"
+          test "$(git rev-parse origin/$TARGET_BRANCH:manager-center-v1932.js)" = "$START_MANAGER"
+          test "$(git rev-parse origin/$TARGET_BRANCH:config.js)" = "$START_CONFIG"
+          git rebase "origin/$TARGET_BRANCH"
+          git push origin "HEAD:$TARGET_BRANCH"
+          git rev-parse HEAD >/tmp/entry646-repo-commit.txt
+          echo "ENTRY646_REPO_COMMIT=$(cat /tmp/entry646-repo-commit.txt)"
+
+      - name: Capture active frontend version
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-pre.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-pre.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend active version shape');
+          fs.writeFileSync('/tmp/pre-ui-version.txt',full[0].id);
+          console.log('ENTRY646_PRE_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+      - name: Build exact-live center-only frontend bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/livebase cloudflare-d1/frontend-dist
+          git worktree add --detach /tmp/livebase "$LIVE_BASE_COMMIT" >/dev/null
+          mkdir -p cloudflare-d1/frontend-dist
+          find /tmp/livebase -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) -print0 | xargs -0 -I{} cp "{}" cloudflare-d1/frontend-dist/
+
+          cp /tmp/live-index.html cloudflare-d1/frontend-dist/index.html
+          cp /tmp/live-config.js cloudflare-d1/frontend-dist/config.js
+          cp /tmp/live-dispatcher.js cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          cp /tmp/live-resilience.js cloudflare-d1/frontend-dist/trend-master-resilience-v1931.js
+          cp manager-center-v1932.js cloudflare-d1/frontend-dist/manager-center-v1932.js
+
+          python3 <<'PY'
+          from pathlib import Path
+          import re,os
+          p=Path('cloudflare-d1/frontend-dist/config.js')
+          s=p.read_text()
+          pat=r"\['trendManagerCenterV1932Loader','manager-center-v1932\.js\?v=[^']+'\]"
+          found=re.findall(pat,s)
+          if len(found)!=1:
+              raise SystemExit('live manager loader count='+str(len(found)))
+          s=re.sub(pat,"['trendManagerCenterV1932Loader','manager-center-v1932.js?v="+os.environ['NEW_MANAGER_TAG']+"']",s,count=1)
+          p.write_text(s)
+
+          p=Path('cloudflare-d1/frontend-dist/index.html')
+          s=p.read_text()
+          pat=r'config[.]js[?]v=[^\"]+'
+          found=re.findall(pat,s)
+          if len(found)!=1:
+              raise SystemExit('config tag count='+str(len(found)))
+          s=re.sub(pat,'config.js?v='+os.environ['NEW_CONFIG_TAG'],s,count=1)
+          p.write_text(s)
+          PY
+
+          node --check cloudflare-d1/frontend-dist/manager-center-v1932.js
+          node --check cloudflare-d1/frontend-dist/config.js
+          grep -Fq "manager-center-v1932.js?v=$NEW_MANAGER_TAG" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "config.js?v=$NEW_CONFIG_TAG" cloudflare-d1/frontend-dist/index.html
+          grep -Fq "const d=await api('getTrendMasterCenterV1931',{archivePage:1});render(d);" cloudflare-d1/frontend-dist/manager-center-v1932.js
+          echo ENTRY646_CENTER_BUNDLE=PASS
+
+      - name: Deploy center-only frontend with automatic rollback
+        id: deploy
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          PRE="$(cat /tmp/pre-ui-version.txt)"
+          DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = "1" ]; then
+              npx wrangler rollback "$PRE" --message "Entry646 Manager Center automatic rollback" --config "$FRONTEND_CONFIG" || true
+              echo ENTRY646_AUTOMATIC_ROLLBACK_ATTEMPTED=YES
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+
+          npx wrangler deploy --config "$FRONTEND_CONFIG" >/tmp/deploy.log
+          DEPLOYED=1
+
+          OK=0
+          for attempt in $(seq 1 25); do
+            suffix="$GITHUB_SHA-$attempt-$(date +%s)"
+            if curl --fail --silent --show-error --location "$FRONTEND_URL/?entry646post=$suffix" -o /tmp/post-index.html \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry646post=$suffix" -o /tmp/post-config.js \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/manager-center-v1932.js?entry646post=$suffix" -o /tmp/post-manager.js \
+              && curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry646post=$suffix" -o /tmp/post-dispatcher.js \
+              && grep -Fq "config.js?v=$NEW_CONFIG_TAG" /tmp/post-index.html \
+              && grep -Fq "manager-center-v1932.js?v=$NEW_MANAGER_TAG" /tmp/post-config.js \
+              && grep -Fq "const d=await api('getTrendMasterCenterV1931',{archivePage:1});render(d);" /tmp/post-manager.js \
+              && cmp -s /tmp/post-dispatcher.js /tmp/live-dispatcher.js; then
+                OK=1
+                echo "ENTRY646_PROPAGATION_ATTEMPT=$attempt"
+                break
+            fi
+            sleep 2
+          done
+          test "$OK" = "1"
+
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const source=fs.readFileSync('/tmp/post-dispatcher.js','utf8');
+          const calls=[];const realFetch=globalThis.fetch;
+          const downstream=async(action,params)=>({success:true,source:'downstream',action});
+          downstream.__trendosEdgeOrdersReadV1=true;
+          const windowObject={
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_V1:true,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1:false,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS:[],
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES:0,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT:6,
+            MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1:false,
+            MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES:[],
+            MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE:'GENERAL',
+            MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE:'GENERAL',
+            MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_COMMS_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_API_URL:process.env.API_URL,
+            MATBAGY_EDGE_ORDERS_API_URL:process.env.API_URL,
+            trendosSecureApiV1922:downstream
+          };
+          const tracked=async(url,options={})=>{calls.push(String(url));return realFetch(url,options);};
+          const sandbox={window:windowObject,console,URL,Set,Map,JSON,Error,Number,Date,Promise,AbortController,TextEncoder,setTimeout,clearTimeout,setInterval,clearInterval,Response,fetch:tracked};
+          vm.runInNewContext(source,sandbox,{filename:'entry646-live-dispatcher.js'});
+          (async()=>{
+            const username=String(process.env.QUALIFY_USERNAME||'').trim();
+            const password=String(process.env.QUALIFY_PASSWORD||'');
+            const login=await windowObject.trendosEmployeeApiV1('login',{username,password});
+            const token=String(login&&login.user&&login.user.token||'').trim();
+            if(login.success!==true||String(login.authSource||'')!=='d1-native-employee-v1'||!token) throw new Error('Native login failed');
+            console.log('::add-mask::'+token);
+            const d=await windowObject.trendosEmployeeApiV1('getTrendMasterCenterV1931',{username,token,archivePage:1});
+            if(!d||d.success!==true||!d.system||!Array.isArray(d.employeePerformance)||!Array.isArray(d.stockAlerts)||!d.debtControl) throw new Error('Manager Center snapshot incomplete');
+            if(calls.filter(u=>u.includes('/v1/employee/core')).length<1) throw new Error('Core center route missing');
+            if(calls.some(u=>u.includes('/v1/employee/legacy-action'))) throw new Error('legacy bridge called');
+            console.log('ENTRY646_MANAGER_CENTER_CORE_SNAPSHOT=PASS');
+            console.log('ENTRY646_LEGACY_BRIDGE_CALLS=0');
+            console.log('ENTRY646_BUSINESS_WRITE=NO');
+            const lo=await windowObject.trendosEmployeeApiV1('logout',{username,token});
+            if(lo.success!==true) throw new Error('logout failed');
+            console.log('ENTRY646_NATIVE_LOGOUT=PASS');
+          })().catch(e=>{console.error('ENTRY646_LIVE_SMOKE=FAIL '+String(e&&e.message||e));process.exit(31);});
+          NODE
+
+          for f in auth legacy-action core content comms ops accounting; do
+            curl --fail --silent --show-error "$API_URL/v1/employee/$f/health?entry646post=$GITHUB_SHA-$(date +%s%N)" -o "/tmp/$f-post.json"
+          done
+          node <<'NODE'
+          const fs=require('fs'),r=n=>JSON.parse(fs.readFileSync('/tmp/'+n+'-post.json','utf8'));
+          const a=r('auth'),b=r('legacy-action'),co=r('core'),ct=r('content'),cm=r('comms'),o=r('ops'),ac=r('accounting');
+          if(a.mode!=='NATIVE'||a.nativeOnly!==true||Number(a.nativeReadyCount||0)!==6) throw new Error('auth post drift');
+          if(b.enabled!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('bridge post drift');
+          if(co.mode!=='GENERAL'||Number(co.policyEpoch||0)!==2) throw new Error('core post drift');
+          if(ct.mode!=='READONLY') throw new Error('content post drift');
+          if(cm.mode!=='READONLY') throw new Error('comms post drift');
+          if(o.mode!=='GENERAL') throw new Error('ops post drift');
+          if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF') throw new Error('accounting post drift');
+          console.log('ENTRY646_RUNTIME_POSTFLIGHT=PASS');
+          NODE
+
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-post.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-post.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend post version shape');
+          fs.writeFileSync('/tmp/post-ui-version.txt',full[0].id);
+          console.log('ENTRY646_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          trap - ERR
+          echo ENTRY646=PASS
+          echo ENTRY646_ROLLBACK_USED=NO
+          echo ENTRY646_D1_MUTATION=NO
+          echo ENTRY646_ACCOUNTING_MUTATION=NO
+          echo ENTRY646_CONTENT_MUTATION=NO
+          echo ENTRY646_COMMS_MUTATION=NO
+
+      - name: Final
+        if: ${{ success() }}
+        shell: bash
+        run: |
+          echo "ENTRY646_REPO_COMMIT=$(cat /tmp/entry646-repo-commit.txt)"
+          echo "ENTRY646_PRE_FRONTEND_VERSION=$(cat /tmp/pre-ui-version.txt)"
+          echo "ENTRY646_POST_FRONTEND_VERSION=$(cat /tmp/post-ui-version.txt)"
+          echo ENTRY646_MANAGER_CENTER=CORE_DIRECT
+          echo ENTRY646=PASS
