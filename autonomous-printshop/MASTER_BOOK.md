@@ -5548,3 +5548,82 @@ ACCOUNTING_WRITE=NO
 ```
 
 Result: **PASS — RECOVERY WINDOWS PACKAGE BUILT; LOCAL BOOT ISOLATED FROM TRENDOS TRANSPORT AND STALE-PORT FAILURES**.
+
+
+### AP-069 — TrendOS Manager Center migrated to Autonomous Printshop Owner Exception Console
+
+Date: 2026-10-07.
+
+Owner explicitly approved moving the management-center responsibility into the Autonomous Printshop project because this is the correct domain for Control Tower / AI Supervisor / owner-exception management.
+
+Implementation commit:
+`00179b7e1b2c13b4bad27d577703d1abe08d381f`.
+
+Production deploy:
+```ini
+DASHBOARD_DEPLOY_RUN=37627488015
+DASHBOARD_DEPLOY=SUCCESS
+AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1=PASS
+DASHBOARD_MODE=READ_ONLY_OWNER_EXCEPTION_CONSOLE
+OWNER_EXCEPTION_CONSOLE=LIVE
+TRENDOS_MANAGER_CENTER_ROLE=MIGRATED_UI_RESPONSIBILITY
+MAIN_TRENDOS_PREDEPLOY=PASS
+MAIN_TRENDOS_POSTDEPLOY=PASS
+```
+
+The Autonomous Printshop dashboard now serves the management surface on:
+- `/`
+- `/dashboard`
+- `/owner`
+- `/manager-center`
+
+The new surface combines:
+- Control Tower summary;
+- owner-only exception cards;
+- employee/supervisor aggregate state;
+- readiness blockers;
+- evidence-acquisition blockers;
+- Operator Task CANARY gate;
+- next-action explanations;
+- Shadow-learning aggregate signals.
+
+The old 70/30 employee score is deliberately not adopted as management authority.
+
+Independent live verification proved:
+```ini
+HEALTH_MODE=READ_ONLY_OWNER_EXCEPTION_CONSOLE
+OWNER_EXCEPTION_CONSOLE=true
+CONTROL_TOWER=CONTROL_TOWER_SHADOW
+CONTROL_TOWER_SOURCE=trendos-main-d1
+BUSINESS_WRITE=NO
+EMPLOYEE_ASSIGNMENT=NO
+AUTOPILOT_EXECUTION=NO
+RAW_IDS_EXPOSED=NO
+PII_EXPOSED=NO
+```
+
+Observed live state at verification time:
+```ini
+CONTROL_TOWER_ROW_COUNT=615
+ORDINARY=85
+IN_PROGRESS=11
+CLOSED=519
+AVAILABLE_OPERATORS=2
+KNOWN_OPERATORS=4
+STRICT_ELIGIBLE=0
+READINESS_BLOCKED=85
+AUTONOMY_MODE=SHADOW
+READINESS_MODE=SHADOW
+OPERATOR_TASK_MODE=OFF
+```
+
+Authority boundary:
+- TrendOS D1 remains source of truth.
+- Autonomous Printshop owns the new management/exception UI responsibility.
+- Legacy TrendOS Manager Center is retained only as stabilized fallback in this checkpoint; it is not deleted.
+- No Accounting, EasyStore, Content, employee-assignment, Operator Task, or business-write authority changed.
+
+Evidence:
+`autonomous-printshop/evidence/AP069_MANAGER_CENTER_TO_OWNER_EXCEPTION_CONSOLE_20261007.md`.
+
+Result: **PASS — OWNER EXCEPTION CONSOLE IS LIVE IN AUTONOMOUS PRINTSHOP; MANAGER-CENTER UI RESPONSIBILITY MOVED WITHOUT MOVING TRENDOS DATA AUTHORITY**.
