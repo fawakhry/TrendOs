@@ -1,0 +1,121 @@
+name: TrendOS Entry647 Employee Login Attendance Diagnostic
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry647-employee-login-attendance-diagnostic.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry647-employee-login-attendance-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE: trendos-main
+      CONFIG: cloudflare-d1/wrangler.toml
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Runtime health and exact live assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry647=$GITHUB_SHA" -o /tmp/auth.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/ops/health?entry647=$GITHUB_SHA" -o /tmp/ops.json
+          suffix="$GITHUB_SHA-$(date +%s%N)"
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry647=$suffix" -o /tmp/config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry647=$suffix" -o /tmp/dispatcher.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/attendance-v1.js?entry647=$suffix" -o /tmp/attendance.js
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth.json','utf8'));
+          const o=JSON.parse(fs.readFileSync('/tmp/ops.json','utf8'));
+          if(a.mode!=='NATIVE'||a.nativeOnly!==true||a.envEnabled!==true||
+             Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||
+             a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false) throw new Error('auth runtime drift');
+          if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops runtime drift');
+          const c=fs.readFileSync('/tmp/config.js','utf8');
+          const d=fs.readFileSync('/tmp/dispatcher.js','utf8');
+          const at=fs.readFileSync('/tmp/attendance.js','utf8');
+          if(!c.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true')) throw new Error('live config native not global');
+          if(!c.includes('MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false')) throw new Error('live config canary not off');
+          if(!c.includes("MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE = 'GENERAL'")) throw new Error('live config ops not general');
+          if(!d.includes('T12_ENTRY644_CORE_GENERAL_READY_V1_20261007')) throw new Error('live dispatcher stale');
+          if(!at.includes('normalizeAttendanceBackendResponse')) throw new Error('live attendance normalizer missing');
+          console.log('ENTRY647_RUNTIME_AUTH_NATIVE_6_OF_6=PASS');
+          console.log('ENTRY647_RUNTIME_OPS_GENERAL_7=PASS');
+          console.log('ENTRY647_LIVE_CONFIG_GLOBAL_NATIVE=PASS');
+          console.log('ENTRY647_LIVE_CONFIG_CANARY_OFF=PASS');
+          console.log('ENTRY647_LIVE_ATTENDANCE_NORMALIZER=PASS');
+          NODE
+
+      - name: Read-only D1 attendance truth for Cairo today
+        shell: bash
+        run: |
+          set -euo pipefail
+          TODAY="$(node -e "console.log(new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()))")"
+          echo "ENTRY647_CAIRO_DATE=$TODAY"
+          npx wrangler d1 execute "$DATABASE" --remote --config "$CONFIG" --json --command "
+            SELECT COUNT(*) AS attendanceDays,
+                   COUNT(DISTINCT username_key) AS distinctEmployees,
+                   SUM(CASE WHEN ended_at_ms IS NULL THEN 1 ELSE 0 END) AS openDays,
+                   SUM(CASE WHEN clock_in_time IS NOT NULL AND TRIM(clock_in_time)<>'' THEN 1 ELSE 0 END) AS clockins
+              FROM employee_attendance_days_v1
+             WHERE date_key='$TODAY';
+            SELECT p.pulse_type AS pulseType, COUNT(*) AS n
+              FROM employee_attendance_pulses_v1 p
+              JOIN employee_attendance_days_v1 d ON d.attendance_id=p.attendance_id
+             WHERE d.date_key='$TODAY'
+             GROUP BY p.pulse_type
+             ORDER BY p.pulse_type;
+          " >/tmp/attendance-truth.json
+          node <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/attendance-truth.json','utf8'));
+          const rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Object.prototype.hasOwnProperty.call(v,'attendanceDays')||Object.prototype.hasOwnProperty.call(v,'pulseType'))rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);
+          const s=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'attendanceDays'))||{};
+          const starts=rows.find(r=>String(r.pulseType||'')==='start')||{};
+          console.log('ENTRY647_ATTENDANCE_DAYS_TODAY='+Number(s.attendanceDays||0));
+          console.log('ENTRY647_ATTENDANCE_DISTINCT_EMPLOYEES_TODAY='+Number(s.distinctEmployees||0));
+          console.log('ENTRY647_ATTENDANCE_OPEN_DAYS_TODAY='+Number(s.openDays||0));
+          console.log('ENTRY647_ATTENDANCE_CLOCKINS_TODAY='+Number(s.clockins||0));
+          console.log('ENTRY647_ATTENDANCE_START_PULSES_TODAY='+Number(starts.n||0));
+          console.log('ENTRY647_DIAGNOSTIC_MUTATION=NO');
+          NODE
+
+      - name: Repo contract checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check attendance-v1.js
+          node --check attendance-clockin-ui-v1.js
+          node --check employee-api-dispatcher-v1.js
+          node tests/attendance_d1_ui_contract_entry620.test.mjs
+          echo ENTRY647_REPO_ATTENDANCE_CONTRACT=PASS
+          echo ENTRY647_PRODUCTION_MUTATION=NO
+          echo ENTRY647_ACCOUNTING_MUTATION=NO
+          echo ENTRY647_EASYSTORE_MUTATION=NO
