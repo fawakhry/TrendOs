@@ -1,0 +1,189 @@
+name: Autonomous Printshop AP062 Book Append TEMP
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/autonomous-printshop-book-append-ap062-temp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  append-and-self-remove:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify canonical book boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f autonomous-printshop/MASTER_BOOK.md
+          grep -q '^### AP-061 ' autonomous-printshop/MASTER_BOOK.md
+          if grep -q '^### AP-062 ' autonomous-printshop/MASTER_BOOK.md; then
+            echo 'AP-062 already exists; refusing duplicate append.' >&2
+            exit 1
+          fi
+      - name: Append AP-062 only to canonical Autonomous Printshop book
+        shell: bash
+        run: |
+          cat >> autonomous-printshop/MASTER_BOOK.md <<'EOF'
+
+
+### AP-062 — TrendOS Print Server V0.1 repo/local qualified; live claim bridge remains closed
+
+Date: 2026-10-07.
+
+Owner requested a configurable local print-server program that preserves the shop's existing folder workflow while connecting future order-claim events to exact TrendOS `orderId + lineId` identity.
+
+#### Implemented V0.1
+
+Added under `autonomous-printshop/print-server/`:
+- local Python HTTP service and modular configuration;
+- Arabic RTL browser UI;
+- order-folder creation from normalized claimed-order events;
+- local JSON state + append-only audit ledger;
+- fail-closed line classifier;
+- central ready-queue copy from structured approval only;
+- local `x` folder watcher as a non-authoritative operational signal;
+- read-only TrendOS Orders adapter foundation;
+- real image/TIF/TIFF/DXF preview support;
+- Windows-oriented `start.bat` and CI.
+
+Folder policy is configurable and currently encodes the owner's real workflow:
+```ini
+HEAT_PRESS_TRUE=طباعة/فوتو/سبلميشن
+PHOTO_PRINT=طباعة/فوتو/طباعة
+PHOTO_TABLEAUX=طباعة/فوتو/تابلوهات
+DIGITAL_COUCHE=طباعة/ديجتال/كوشيه
+DIGITAL_STICKER=طباعة/ديجتال/استيكر
+LASER=ليزر
+FINISHED_SUBFOLDER=x
+CREATE_UNUSED_FOLDERS=NO
+UNKNOWN_CLASSIFICATION=FAIL_CLOSED
+```
+
+Order folder naming defaults to:
+`ORDER_ID - DD-MM-YYYY - CUSTOMER_NAME`.
+
+Only routes represented by real order lines are created. No empty full folder tree is forced for a customer who only needs one product family.
+
+#### Preview contract
+
+The local UI supports:
+```ini
+JPG_JPEG_PNG_WEBP_BMP_GIF=PREVIEW
+TIF_TIFF=PILLOW_DECODE_TO_PNG_PREVIEW
+DXF=EZDXF_PARSE_TO_SVG_PREVIEW
+DXF_METADATA=DIMENSIONS+LAYERS+ENTITY_COUNT
+PREVIEW_SCOPE=LOCAL_ORDERS_AND_READY_ROOTS_ONLY
+```
+
+DXF preview is a real vector rendering path for supported LINE/POLYLINE/CIRCLE/ARC/TEXT entities, not a generic file icon.
+
+#### Approval / ready aggregation boundary
+
+A file may enter the central ready aggregation only when:
+- order is registered locally;
+- exact line route is known;
+- structured decision is `APPROVE`;
+- structured source kind is allowed;
+- source file remains inside the canonical order folder;
+- approval subject SHA-256 exactly matches current file SHA-256.
+
+The source file remains canonical; the ready aggregation is a managed operational copy.
+
+Important:
+```ini
+READY_QUEUE_COPY_EQUALS_DESIGN_READY=NO
+FREE_TEXT_APPROVAL_ACCEPTED=NO
+APPROVAL_HASH_MISMATCH=REJECT
+X_FOLDER_EQUALS_AUTHORITATIVE_PRINTED=NO
+```
+
+Moving a file into `x` records `LOCAL_X_SIGNAL` only. It does not by itself mutate TrendOS line status, grant Design READY, or create Operator Task evidence.
+
+#### Qualification
+
+Implementation commit:
+`8c70507a957c4aa52ea1d2cb5232dfea753816b7`
+
+Local qualification before repository commit:
+```ini
+UNIT_TESTS=9/9_PASS
+LOCAL_SERVER_SMOKE=PASS
+STATUS_ROUTE=PASS
+ARABIC_UI_ROOT=PASS
+SIMULATED_ORDER_CLAIM_FOLDER_CREATION=PASS
+PYTHON_3_8_GRAMMAR_GATE=PASS
+```
+
+Windows GitHub Actions qualification:
+- Workflow: `Autonomous Printshop Print Server CI`;
+- Run `37555817025` = **SUCCESS**;
+- Windows unit tests = PASS;
+- Python 3.8 syntax gate = PASS.
+
+A separate legacy workflow also ran on the same commit:
+- `TrendOS A61 browser Cloud transport regression` Run `37555816935` = **FAILURE**;
+- failure is the stale static assertion in `tests/frontend_employee_api_dispatcher_a61.test.mjs` expecting `MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false`;
+- the Print Server commit did not change `config.js` or that A61 test;
+- the direct parent `57105454557167cf44e51a26c30dc2ceee46e45d` already had `MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true`;
+- therefore this A61 failure is recorded as a pre-existing/stale platform regression contract, not as a Print Server functional regression. It is not silently treated as green.
+
+#### Live TrendOS claim wiring boundary
+
+V0.1 exposes a normalized local event contract:
+`POST /api/events/order-claimed`.
+
+The exact live website employee-claim hook has **not** been guessed or activated. The repo contains a read-only Orders adapter, but Production wiring must wait until the exact qualified claim event/semantics are identified so the local server cannot create folders from a false inferred claim.
+
+```ini
+LIVE_TRENDOS_ORDER_CLAIM_BRIDGE=NOT_WIRED
+GUESSED_CLAIM_SEMANTICS=NO
+PRODUCTION_PRINT_SERVER_DEPLOY=NO
+PRODUCTION_BUSINESS_MUTATION=NO
+DESIGN_READY_WRITE=NO
+MATERIAL_READY_WRITE=NO
+MACHINE_READY_WRITE=NO
+OPERATOR_TASK_WRITE=NO
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+ACCOUNTING_WRITE=NO
+```
+
+#### Decision
+
+Result: **PASS — PRINT SERVER V0.1 REPO/LOCAL QUALIFIED; LIVE CLAIM BRIDGE REMAINS FAIL-CLOSED**.
+
+This V0.1 is an operational file-management tool and does not itself satisfy the external Design/Material/Machine readiness evidence required by the Autonomous Printshop control plane.
+
+Current readiness authority remains unchanged from AP-061:
+```ini
+DESIGN_READY=0
+MATERIAL_READY=0
+MACHINE_READY=0
+STRICT_ELIGIBLE=0
+OPERATOR_TASK_CONTROL=OFF
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+EXTERNAL_OPERATIONAL_EVIDENCE_REQUIRED=YES
+```
+
+Next Print Server gate:
+1. identify and verify the exact TrendOS employee order-claim event/transition;
+2. wire that event to the normalized local `ORDER_CLAIMED` bridge without browser guessing;
+3. install V0.1 on the target print-shop computer with real local root paths;
+4. run one bounded real-order folder-creation canary before any automatic cloud upload activation.
+EOF
+      - name: Commit book append and remove temporary helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/autonomous-printshop-book-append-ap062-temp.yml
+          git add autonomous-printshop/MASTER_BOOK.md
+          git commit -m 'docs(autonomous-printshop): record AP-062 print server v0.1'
+          git push origin HEAD:candidate/t12-full-cloud-cutover-a56-20260929
