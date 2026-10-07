@@ -6552,3 +6552,250 @@ PASSWORD_PERSISTED=NO
 ```
 
 Result: **PASS — FAST MODE IS BUILT AND WINDOWS-PACKAGED; TARGET-PC POPUP APPEARANCE REMAINS TO BE RUNTIME-PROVEN BY THE OWNER**.
+
+
+### AP-076 — Employee Andon frontend cut over to Structured Employee Supervisor service
+
+Date: 2026-10-07.
+
+This checkpoint continues directly from AP-074 and closes its declared employee-UI gap without creating a fake Production blocker.
+
+Truth priority:
+`Runtime truth > deployed > tested > repo-only > historical`.
+
+#### Gate K — idempotent replay hardening before frontend cutover
+
+Before wiring the employee UI, the Employee Supervisor writer was hardened so a retry with the same `idempotency_key` returns the original persisted event identity rather than a newly generated non-persisted blocker/event ID.
+
+Updated:
+- `autonomous-printshop/core/employee-blocker-event-writer-v1.mjs`;
+- `autonomous-printshop/employee-supervisor/worker.mjs`;
+- `autonomous-printshop/tests/employee_supervisor_service_v1.test.mjs`;
+- Employee Supervisor Production deploy workflow.
+
+Source commit:
+`f9f27e11cf8d3ef7d4fd6d0b6fa91230265b8a82`.
+
+Production deploy:
+```ini
+EMPLOYEE_SUPERVISOR_DEPLOY_RUN=37641486948
+EMPLOYEE_SUPERVISOR_DEPLOY=SUCCESS
+EMPLOYEE_SUPERVISOR_CLOUDFLARE_VERSION_ID=b9bd673d-cec0-4b7f-a188-146cb7cc7df2
+CONTROL_MODE=SHADOW
+CONTROL_EPOCH=2
+BLOCKER_EVENT_COUNT_INVARIANT=PASS
+MAIN_TRENDOS_PREDEPLOY=PASS
+MAIN_TRENDOS_POSTDEPLOY=PASS
+ORDER_WRITE=NO
+LINE_WRITE=NO
+ACCOUNTING_WRITE=NO
+EMPLOYEE_ASSIGNMENT=NO
+```
+
+#### Gate L — Structured Andon employee frontend repo qualification
+
+The legacy employee Andon UI was replaced in source with a direct client for:
+- `/blockers/report`;
+- `/blockers/my-open`;
+- `/blockers/resolve`.
+
+The new UI:
+- uses the already-authenticated employee's Native session username/token;
+- sends the token only as a Bearer header to the isolated Employee Supervisor service;
+- generates and retains a client request ID in session storage until the request succeeds;
+- has no call to `trendosEmployeeApiV1` for Andon;
+- has no `saveMatbagyNote`;
+- has no `OPS_REPLY`;
+- has no generic "تم حل المشكلة" button;
+- renders each employee-owned open blocker separately with its own resolve action.
+
+Source commit:
+`ea592e92b596d830ecbf9c443cc2755fbe2a156a`.
+
+Repo CI trigger commit:
+`2d685f771b8e3fed3635e8ca1153e61c1d27c7b7`.
+
+Qualification:
+```ini
+ENTRY649_REPO_CI_RUN=37642225075
+ENTRY649_REPO_CI=SUCCESS
+LEGACY_OPS_REPLY_CALLS=0
+NATIVE_SESSION_BEARER=PASS
+IDEMPOTENT_RETRY_CLIENT_ID=PASS
+GENERIC_RESOLVE_BUTTON=REMOVED
+PRODUCTION_DEPLOY_AT_THIS_GATE=NO
+```
+
+#### Gate M — exact-live TrendOS frontend cutover
+
+A controlled deployment workflow rebuilt from the currently live TrendOS frontend snapshot, replacing only:
+- `employee-andon-v1.js`;
+- the Andon service URL / structured feature flag / loader tag inside live `config.js`;
+- the `config.js` cache tag in live `index.html`.
+
+Unrelated live frontend assets were hashed before/after and preserved.
+
+Workflow source commits:
+- controlled workflow: `d5de73b84ff8c79279c9062e02e6e75d6ff1e506`;
+- workflow trigger: `6b620c27f0bf40106e0a1ef3cbd417c43b18657b`.
+
+The first two attempts stopped safely at preflight:
+```ini
+ENTRY649_ATTEMPT_1_RUN=37646577761
+ENTRY649_ATTEMPT_1=FAIL_PREDEPLOY_SAFE
+ENTRY649_ATTEMPT_1_FAILED_STEP=Exact Production preflight
+ENTRY649_ATTEMPT_1_DEPLOY_STEP=SKIPPED
+
+ENTRY649_ATTEMPT_2_RUN=37646656089
+ENTRY649_ATTEMPT_2=FAIL_PREDEPLOY_SAFE
+ENTRY649_ATTEMPT_2_FAILED_STEP=Exact Production preflight
+ENTRY649_ATTEMPT_2_DEPLOY_STEP=SKIPPED
+
+ROLLBACK_REQUIRED=NO
+PRODUCTION_FRONTEND_CHANGED_BY_FAILED_ATTEMPTS=NO
+```
+
+Reason:
+- Accounting had independently moved to `CANARY`, policy epoch 32;
+- authority was `CANARY_BOUNDED`, not GENERAL;
+- this task made no Accounting control mutation.
+
+The verification gate was corrected to accept only safe external Accounting states:
+- `READONLY + writeAuthorityMode=OFF`; or
+- `CANARY + writeAuthorityMode=CANARY_BOUNDED`;
+- `GENERAL` remains rejected.
+
+A concurrent Print Server commit advanced the branch:
+`b40ba90ffabc36a10cc2e6f6ac236814ac724810`.
+
+Lease result:
+```ini
+CONCURRENT_PRINT_SERVER_CHANGE=DETECTED
+ENTRY649_TARGET_WORKFLOW_CHANGED=NO
+OVERWRITE_CONCURRENT_WORK=NO
+```
+
+The corrected gate was rebased safely:
+`3d7bfb6608710f37a28255a62bffee5ae185ce01`.
+
+Final Production deployment:
+```ini
+ENTRY649_DEPLOY_RUN=37646897563
+ENTRY649_DEPLOY=SUCCESS
+ENTRY649_PRE_FRONTEND_VERSION=3950c36b-c3ee-4fd4-87b6-f6c2e2eabf03
+ENTRY649_POST_FRONTEND_VERSION=f96fc299-f98c-470a-9869-0e49a9752e73
+ENTRY649_PROPAGATION_ATTEMPT=1
+ENTRY649_FRONTEND_LEASE=PASS
+ENTRY649_UNRELATED_FRONTEND_ASSETS_PRESERVED=PASS
+ENTRY649_SUPERVISOR_CORS_PREFLIGHT=PASS
+ENTRY649_SUPERVISOR_CORS_POSTFLIGHT=PASS
+ENTRY649_ROLLBACK_USED=NO
+```
+
+No fake Production blocker was inserted:
+```ini
+ENTRY649_BLOCKER_EVENTS_BEFORE=0
+ENTRY649_BLOCKER_EVENTS_AFTER=0
+ENTRY649_SYNTHETIC_BLOCKER_CREATED=NO
+ENTRY649_PRODUCTION_BLOCKER_CANARY=NOT_CREATED_BY_POLICY
+```
+
+#### Final live Runtime proof
+
+TrendOS frontend:
+```ini
+EMPLOYEE_ANDON_UI=EMPLOYEE_ANDON_STRUCTURED_V2_20261007
+EMPLOYEE_SUPERVISOR_API=https://autonomous-printshop-employee-supervisor.trendmall-contact.workers.dev
+EMPLOYEE_ANDON_STRUCTURED_FLAG=true
+EMPLOYEE_ANDON_LOADER_TAG=20261007-entry649-structured-andon
+LEGACY_SAVE_MATBAGY_NOTE_IN_ANDON=NO
+LEGACY_OPS_REPLY_IN_ANDON=NO
+LEGACY_EMPLOYEE_API_DISPATCHER_FALLBACK_IN_ANDON=NO
+```
+
+Employee Supervisor:
+```ini
+SERVICE=autonomous-printshop-employee-supervisor
+CONTROL_MODE=SHADOW
+CONTROL_EPOCH=2
+EVENT_ROWS=0
+WRITES_ACCEPTED=true
+WRITE_AUTHORITY=AUTONOMOUS_EMPLOYEE_BLOCKER_EVENTS_ONLY
+OPERATOR_TASK_MODE=OFF
+OPERATOR_TASKS=0
+ORDER_WRITE=false
+LINE_WRITE=false
+ACCOUNTING_WRITE=false
+EMPLOYEE_ASSIGNMENT=false
+AUTH_AUTHORITY=TRENDOS_NATIVE_SESSION_CONSUMER
+```
+
+Current Control Tower / Owner Console runtime:
+```ini
+CONTROL_TOWER_MODE=CONTROL_TOWER_SHADOW
+NATIVE_ORDERS=397
+SCHEDULE_ROWS=397
+MISSING_SCHEDULE=0
+ROW_COUNT=638
+ORDINARY=104
+IN_PROGRESS=12
+FLY_PRINT=1
+CLOSED=521
+ACTIVE_LINES=117
+ACTIVE_ORDERS=114
+OVERDUE_ORDERS=17
+AT_RISK_24H_ORDERS=13
+WATCH_48H_ORDERS=35
+URGENT_IMMEDIATE_RISK_LINES=2
+EMPLOYEE_OPEN_BLOCKERS=0
+EMPLOYEE_CRITICAL_BLOCKERS=0
+EMPLOYEE_OWNER_DECISION_BLOCKERS=0
+READINESS_BLOCKED=104
+AUTONOMY_EVENTS=16
+OPERATOR_TASK=OFF
+```
+
+Final external Accounting truth after the transient bounded canary:
+```ini
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_POLICY_EPOCH=33
+ACCOUNTING_AUTHORITATIVE_WRITES=false
+ACCOUNTING_WRITE_AUTHORITY_MODE=OFF
+ACCOUNTING_GOOGLE_BUSINESS_CALLS=0
+ACCOUNTING_CONTROL_MUTATION_BY_ENTRY649=NO
+EASYSTORE_MUTATION_BY_ENTRY649=NO
+```
+
+Auth / bridge remained unchanged:
+```ini
+AUTH_MODE=NATIVE
+D1_NATIVE_READY=6/6
+FRONTEND_AUTH_CANARY=false
+LEGACY_BOOTSTRAP=false
+LEGACY_SESSION_ENROLL=false
+BACKEND_LEGACY_BRIDGE=false
+LEGACY_BRIDGE_ALLOWED_POLICIES=0
+PASSWORD_RESET=NO
+AUTH_CONTROL_MUTATION=NO
+```
+
+Manager Center migration inventory:
+```ini
+MC_11_EMPLOYEE_BLOCKER_ANDON=LIVE
+MC_11_TARGET=EMPLOYEE_SUPERVISOR
+MC_12_LEGACY_FREE_TEXT_OPS_REPLY=DROPPED
+LEGACY_MANAGER_CENTER_DISABLED=NO
+```
+
+Result: **PASS — THE PRODUCTION EMPLOYEE ANDON UI NOW USES THE AUTONOMOUS PRINTSHOP EMPLOYEE SUPERVISOR STRUCTURED APPEND-ONLY BLOCKER LEDGER; LEGACY OPS_REPLY / MATBAGY-NOTE ANDON WRITES ARE REMOVED FROM THE UI, WHILE ORDERS, ACCOUNTING, OPERATOR TASK, EMPLOYEE ASSIGNMENT, CONTENT/R2, AND AUTH AUTHORITY REMAIN OUTSIDE THIS MIGRATION.**
+
+Important runtime-evidence boundary:
+- no synthetic blocker was created just to prove the path;
+- therefore the first genuine employee blocker will be the first real business event through the new Production UI;
+- this does not block the cutover because repo qualification, Production asset proof, service health, CORS, idempotency, control mode, and authority boundaries are already proven.
+
+Next migration gaps:
+1. qualified read-only Comms pending-message aggregate in Control Tower / Owner Exception Console;
+2. read-only debt/payment/day-close warning signals without Accounting writes;
+3. Control Tower last-good/stale degraded-mode parity;
+4. protected archive-restore only after a separately qualified TrendOS backend contract.

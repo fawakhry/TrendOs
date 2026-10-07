@@ -111,8 +111,8 @@
       "legacy": "Employee Andon V1",
       "classification": "MOVE_TO_EMPLOYEE_SUPERVISOR",
       "target": "Structured Supervisor/Andon events",
-      "status": "PARTIAL",
-      "notes": "Structured append-only blocker ledger + isolated Employee Supervisor service are live in SHADOW; Control Tower and Owner Exception Console consume aggregate-only blocker signals. Employee UI cutover is still pending, so legacy free-text remains non-authoritative."
+      "status": "LIVE",
+      "notes": "Structured append-only blocker ledger, isolated Employee Supervisor service, Production employee Andon UI cutover, Control Tower aggregate projection, and Owner Exception Console routing are live in SHADOW. Production UI uses Native employee session bearer directly and no longer calls legacy saveMatbagyNote/OPS_REPLY. No synthetic Production blocker was created; first genuine employee report remains runtime evidence, not a deployment prerequisite."
     },
     {
       "id": "MC-12",
@@ -121,7 +121,7 @@
       "classification": "DROP_LEGACY",
       "target": "None",
       "status": "DROPPED",
-      "notes": "Future authority must be structured append-only events."
+      "notes": "Legacy free-text OPS_REPLY / Matbagy-note Andon authority is dropped. Entry649 Production employee Andon UI no longer calls saveMatbagyNote/OPS_REPLY; no fallback to the legacy path is present."
     },
     {
       "id": "MC-13",

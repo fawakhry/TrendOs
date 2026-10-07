@@ -6567,3 +6567,35 @@ ENTRY648_ALL_EMPLOYEES_LOGIN_CONFIRMED_BY_OWNER=YES
 EMPLOYEE_LOGIN_INCIDENT=CLOSED
 ADDITIONAL_RUNTIME_MUTATION=NO
 ```
+
+
+##### Entry649 — Structured Employee Andon frontend cutover to Autonomous Printshop
+- Date: 2026-10-07 Cairo.
+- This entry records only the direct TrendOS Production runtime change required by the Autonomous Printshop Manager Center migration. Architectural details are recorded in `autonomous-printshop/MASTER_BOOK.md` AP-076.
+- Production `employee-andon-v1.js` was cut from legacy `saveMatbagyNote / OPS_REPLY` to the isolated Autonomous Printshop Employee Supervisor structured blocker service.
+- The deployment rebuilt from the exact live frontend snapshot and preserved unrelated frontend assets.
+- No Auth policy, employee account, password, Accounting control, EasyStore, Content/R2, Operator Task, employee assignment, Order, or Line authority was changed.
+- No synthetic Production blocker event was created.
+
+```ini
+ENTRY649=PASS
+ENTRY649_DEPLOY_RUN=37646897563
+ENTRY649_PRE_FRONTEND_VERSION=3950c36b-c3ee-4fd4-87b6-f6c2e2eabf03
+ENTRY649_POST_FRONTEND_VERSION=f96fc299-f98c-470a-9869-0e49a9752e73
+ENTRY649_EMPLOYEE_ANDON=STRUCTURED_SHADOW_SERVICE
+ENTRY649_LEGACY_OPS_REPLY_FRONTEND=OFF
+ENTRY649_SYNTHETIC_BLOCKER_CREATED=NO
+EMPLOYEE_SUPERVISOR_CONTROL=SHADOW
+EMPLOYEE_SUPERVISOR_EPOCH=2
+EMPLOYEE_SUPERVISOR_EVENT_ROWS=0
+OPERATOR_TASK=OFF
+AUTH_MODE=NATIVE
+D1_NATIVE_READY=6/6
+BACKEND_LEGACY_BRIDGE=false
+ACCOUNTING_FINAL_MODE=READONLY
+ACCOUNTING_FINAL_POLICY_EPOCH=33
+ACCOUNTING_MUTATION_BY_ENTRY649=NO
+EASYSTORE_MUTATION=NO
+CONTENT_R2_MUTATION=NO
+ROLLBACK_USED=NO
+```
