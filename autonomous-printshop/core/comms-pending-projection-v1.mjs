@@ -17,8 +17,15 @@ export function buildCommsPendingProjectionV1(row={},options={}){
   const waitingReply=count(row.waitingReply);
   const managerEscalations=count(row.managerEscalations);
   const attentionConversations=count(row.attentionConversations);
-  const feedbackSendPending=count(row.feedbackSendPending);
-  const feedbackFollowupRequired=count(row.feedbackFollowupRequired);
+  const feedbackEnabledAtMs=Math.max(0,Number(row.feedbackEnabledAtMs)||0);
+  const feedbackOperational=feedbackEnabledAtMs>0;
+  const observedFeedbackSendPending=count(row.feedbackSendPending);
+  const observedFeedbackFollowupRequired=count(row.feedbackFollowupRequired);
+  const feedbackSendPending=feedbackOperational?observedFeedbackSendPending:0;
+  const feedbackFollowupRequired=feedbackOperational?observedFeedbackFollowupRequired:0;
+  const feedbackDormantSendBacklog=feedbackOperational?0:observedFeedbackSendPending;
+  const feedbackDormantFollowupBacklog=feedbackOperational?0:observedFeedbackFollowupRequired;
+  const feedbackDormantBacklog=feedbackDormantSendBacklog+feedbackDormantFollowupBacklog;
   const totalPendingSignals=attentionConversations+feedbackSendPending+feedbackFollowupRequired;
   const oldestAt=text(row.oldestAttentionAt);
   const oldestMs=attentionConversations>0?isoMs(oldestAt):0;
@@ -29,7 +36,9 @@ export function buildCommsPendingProjectionV1(row={},options={}){
     mode:'READ_ONLY_AGGREGATE',
     control:{
       mode:text(row.commsMode)||'OFF',
-      policyEpoch:epoch(row.commsPolicyEpoch)
+      policyEpoch:epoch(row.commsPolicyEpoch),
+      feedbackEnabledAtMs,
+      feedbackOperational
     },
     counts:{
       waitingReply,
@@ -37,6 +46,9 @@ export function buildCommsPendingProjectionV1(row={},options={}){
       attentionConversations,
       feedbackSendPending,
       feedbackFollowupRequired,
+      feedbackDormantSendBacklog,
+      feedbackDormantFollowupBacklog,
+      feedbackDormantBacklog,
       totalPendingSignals,
       ownerReviewSignals:managerEscalations+feedbackFollowupRequired
     },

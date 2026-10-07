@@ -557,6 +557,10 @@ async function commsPendingSnapshot(env){
          FROM employee_comms_control_v1
         WHERE singleton=1 AND marker='ENTRY614_EMPLOYEE_COMMS_V1'
         LIMIT 1) AS commsPolicyEpoch,
+      (SELECT feedback_enabled_at_ms
+         FROM employee_comms_control_v1
+        WHERE singleton=1 AND marker='ENTRY614_EMPLOYEE_COMMS_V1'
+        LIMIT 1) AS feedbackEnabledAtMs,
       (SELECT COUNT(*)
          FROM conversations
         WHERE lower(trim(direction))='in') AS waitingReply,
@@ -956,7 +960,8 @@ async function controlTowerSnapshot(env){
       commsWaitingReply:Number(commsPending&&commsPending.summary&&commsPending.summary.counts&&commsPending.summary.counts.waitingReply||0),
       commsManagerEscalations:Number(commsPending&&commsPending.summary&&commsPending.summary.counts&&commsPending.summary.counts.managerEscalations||0),
       commsFeedbackPending:Number(commsPending&&commsPending.summary&&commsPending.summary.counts&&commsPending.summary.counts.feedbackSendPending||0),
-      commsFeedbackFollowupRequired:Number(commsPending&&commsPending.summary&&commsPending.summary.counts&&commsPending.summary.counts.feedbackFollowupRequired||0)
+      commsFeedbackFollowupRequired:Number(commsPending&&commsPending.summary&&commsPending.summary.counts&&commsPending.summary.counts.feedbackFollowupRequired||0),
+      commsFeedbackDormantBacklog:Number(commsPending&&commsPending.summary&&commsPending.summary.counts&&commsPending.summary.counts.feedbackDormantBacklog||0)
     },
     piiExposed:false,
     employeeIdentityExposed:false,

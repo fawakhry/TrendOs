@@ -171,13 +171,20 @@ jobs:
           if(s.sendAuthority!==false||p.writesAccepted!==false||p.sendAuthority!==false||p.d1Mutation!==false) process.exit(5);
           if(s.rawPhoneExposed!==false||s.customerIdentityExposed!==false||s.rawOrderIdsExposed!==false||s.messageTextExposed!==false||s.employeeIdentityExposed!==false) process.exit(6);
           const sig=c.attentionSignals||{};
-          for(const k of ['commsPendingSignals','commsWaitingReply','commsManagerEscalations','commsFeedbackPending','commsFeedbackFollowupRequired']){
+          for(const k of ['commsPendingSignals','commsWaitingReply','commsManagerEscalations','commsFeedbackPending','commsFeedbackFollowupRequired','commsFeedbackDormantBacklog']){
             if(!Number.isFinite(Number(sig[k]))) process.exit(7);
+          }
+          if(Number(s.control.feedbackEnabledAtMs||0)===0){
+            if(s.control.feedbackOperational!==false) process.exit(8);
+            if(Number(s.counts.feedbackSendPending||0)!==0||Number(s.counts.feedbackFollowupRequired||0)!==0) process.exit(9);
+            if(Number(s.counts.totalPendingSignals||0)!==Number(s.counts.attentionConversations||0)) process.exit(10);
           }
           console.log('CONTROL_TOWER_COMMS_PENDING=PASS');
           console.log('COMMS_CONTROL_MODE='+String(s.control.mode));
           console.log('COMMS_POLICY_EPOCH='+String(s.control.policyEpoch));
           console.log('COMMS_PENDING_COUNTS='+JSON.stringify(s.counts||{}));
+          console.log('COMMS_FEEDBACK_OPERATIONAL='+String(s.control.feedbackOperational===true));
+          console.log('COMMS_FEEDBACK_DORMANT_BACKLOG='+String(Number(s.counts.feedbackDormantBacklog||0)));
           console.log('COMMS_SEND_AUTHORITY=NO');
           console.log('COMMS_PII_EXPOSED=NO');
           NODE
