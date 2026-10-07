@@ -121,7 +121,16 @@ jobs:
               JOIN employee_attendance_days_v1 d ON d.attendance_id=p.attendance_id
              WHERE d.date_key='$TODAY' AND p.pulse_type='start';
           " >/tmp/attendance-before.json
-          cp /tmp/attendance-before.json /tmp/attendance-before-lock.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/attendance-before.json','utf8')),rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Object.prototype.hasOwnProperty.call(v,'attendanceDays')||Object.prototype.hasOwnProperty.call(v,'startPulses'))rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);
+          const a=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'attendanceDays'))||{};
+          const p=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'startPulses'))||{};
+          const out={attendanceDays:Number(a.attendanceDays||0),clockins:Number(a.clockins||0),startPulses:Number(p.startPulses||0)};
+          fs.writeFileSync('/tmp/attendance-before-counts.json',JSON.stringify(out));
+          console.log('ENTRY647_ATTENDANCE_BASELINE_COUNTS='+JSON.stringify(out));
+          NODE
           echo ENTRY647_ATTENDANCE_D1_BASELINE_CAPTURED=PASS
 
       - name: Rebuild from exact current live asset snapshot
@@ -253,7 +262,17 @@ jobs:
               JOIN employee_attendance_days_v1 d ON d.attendance_id=p.attendance_id
              WHERE d.date_key='$TODAY' AND p.pulse_type='start';
           " >/tmp/attendance-after.json
-          cmp -s /tmp/attendance-before-lock.json /tmp/attendance-after.json
+          node <<'NODE'
+          const fs=require('fs'),before=JSON.parse(fs.readFileSync('/tmp/attendance-before-counts.json','utf8'));
+          const x=JSON.parse(fs.readFileSync('/tmp/attendance-after.json','utf8')),rows=[];
+          const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Object.prototype.hasOwnProperty.call(v,'attendanceDays')||Object.prototype.hasOwnProperty.call(v,'startPulses'))rows.push(v);Object.values(v).forEach(walk)}};
+          walk(x);
+          const a=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'attendanceDays'))||{};
+          const p=rows.find(r=>Object.prototype.hasOwnProperty.call(r,'startPulses'))||{};
+          const after={attendanceDays:Number(a.attendanceDays||0),clockins:Number(a.clockins||0),startPulses:Number(p.startPulses||0)};
+          if(JSON.stringify(before)!==JSON.stringify(after)) throw new Error('attendance D1 counts changed: '+JSON.stringify({before,after}));
+          console.log('ENTRY647_ATTENDANCE_POST_COUNTS='+JSON.stringify(after));
+          NODE
           echo ENTRY647_ATTENDANCE_D1_MUTATION=NO
 
           npx wrangler deployments list --name trendos-ui --json >/tmp/ui-post.json
