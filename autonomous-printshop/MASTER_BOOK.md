@@ -5332,3 +5332,72 @@ X_FOLDER_EQUALS_AUTHORITATIVE_PRINTED=NO
 Result: **PASS — LOCAL WINDOWS PRINT SERVER IS SOFTWARE-CONNECTED TO LIVE TRENDOS READ AUTHORITY; HUMAN START STATUS IS THE FOLDER-CREATION TRIGGER**.
 
 Operational activation on the target PC still requires the owner to open the V0.2 executable and authenticate using a normal TrendOS employee account. No password or session secret was embedded in the package or repository.
+
+
+### AP-065 — Windows TrendOS bridge 403 diagnosed as Cloudflare Error 1010 and client transport repaired
+
+Date: 2026-10-07.
+
+Owner reported the V0.2 Windows package could not connect and displayed:
+`TRENDOS_REJECTED:HTTP_403`.
+
+#### Runtime diagnosis
+
+A live transport probe against `/v1/employee/auth/login` from a Windows GitHub runner reproduced the failure specifically for Python `urllib` default requests.
+
+Observed Cloudflare response:
+```ini
+HTTP_STATUS=403
+CLOUDFLARE_ERROR=1010
+ERROR_NAME=browser_signature_banned
+DETAIL=The site owner has blocked access based on your browser's signature.
+```
+
+Control comparison from the same runner:
+- `curl.exe` requests reached the Worker;
+- Python `urllib` default User-Agent was blocked before Worker auth;
+- Python request with a browser-compatible User-Agent reached the Worker and returned the expected application-layer response for dummy credentials.
+
+This proves the reported 403 was transport/browser-signature blocking, not a bad employee password and not a disabled TrendOS native-auth runtime.
+
+#### Repair
+
+Final transport repair commit:
+`6052b525deefaa8294c15c6384184045342f2217`.
+
+The local client now sends a browser-compatible Windows User-Agent while retaining:
+- native employee login;
+- in-memory session token only;
+- no password persistence;
+- read-only `employee-core getRows` bridge;
+- no TrendOS business write authority.
+
+Final qualification:
+```ini
+PRINT_SERVER_CI_RUN=37611806359
+PRINT_SERVER_CI=PASS
+PYTHON_3_8_SYNTAX_GATE=PASS
+TRANSPORT_HEADER_UNIT_TEST=PASS
+WINDOWS_PACKAGE_RUN=37611806291
+WINDOWS_EXE_BUILD=PASS
+WINDOWS_PACKAGED_EXE_SMOKE=PASS
+WINDOWS_ARTIFACT_ID=11477633551
+WINDOWS_ARTIFACT_SHA256=77cefe86ccf02440b5051c483ff95a6eec452edb523d2611f58471dd1adb3a72
+```
+
+Intermediate repair commits produced CI failures while correcting a literal newline escaping mistake in `trendos_client.py`; those candidates were not delivered as final packages. Final CI and final packaged executable are green.
+
+Safety boundary remains:
+```ini
+CLOUDFLARE_SECURITY_RULE_WEAKENED=NO
+PLATFORM_BRIDGE_MODE=READ_ONLY
+ORDER_STATUS_WRITE_FROM_PRINT_SERVER=NO
+EMPLOYEE_ASSIGNMENT_WRITE=NO
+OPERATOR_TASK_WRITE=NO
+DESIGN_READY_WRITE=NO
+MATERIAL_READY_WRITE=NO
+MACHINE_READY_WRITE=NO
+ACCOUNTING_WRITE=NO
+```
+
+Result: **PASS — WINDOWS PRINT SERVER TRANSPORT REPAIRED FOR CLOUDFLARE ERROR 1010; FINAL EXE BUILT AND SMOKE-QUALIFIED**.
