@@ -5677,3 +5677,247 @@ EXISTING_ORDER_FILE_MOVE_ON_SETTING_CHANGE=NO
 ```
 
 Result: **PASS — WINDOWS OPERATOR CAN SELECT AND PERSIST THE LOCAL WORK STORAGE ROOT; NEW ORDERS USE IT IMMEDIATELY**.
+
+### AP-071 — Manager Center migration inventory + structured Owner Exception Model V1
+
+Date: 2026-10-07.
+
+This checkpoint continued from the current production truth only. AP-069 was already live, so the Manager Center migration was **not** rebuilt or repeated. The legacy TrendOS Manager Center remains a stabilized fallback.
+
+Starting repository truth:
+```ini
+BRANCH=candidate/t12-full-cloud-cutover-a56-20260929
+START_HEAD=f9b3e1154abd2dc5128ebc68f7dadb2be62c71a7
+START_LAST_ENTRY=AP-070
+AP069_OWNER_EXCEPTION_CONSOLE=ALREADY_LIVE
+LEGACY_MANAGER_CENTER=RETAINED_FALLBACK
+```
+
+Fresh pre-change live proof:
+```ini
+DASHBOARD_MODE=READ_ONLY_OWNER_EXCEPTION_CONSOLE
+OWNER_EXCEPTION_CONSOLE=true
+CONTROL_TOWER_MODE=CONTROL_TOWER_SHADOW
+CONTROL_TOWER_SOURCE=trendos-main-d1
+ROW_COUNT=618
+ORDINARY=88
+IN_PROGRESS=11
+CLOSED=519
+AVAILABLE_OPERATORS=2/4
+EMPLOYEE_REVIEW_REQUIRED=0
+STRICT_ELIGIBLE=0
+READINESS_BLOCKED=88
+AUTONOMY=SHADOW
+READINESS=SHADOW
+OPERATOR_TASK=OFF
+ACCOUNTING_MODE_OBSERVED=CANARY
+ACCOUNTING_EPOCH_OBSERVED=24
+MATERIAL_FROZEN=true
+BUSINESS_WRITES=NO
+EMPLOYEE_ASSIGNMENT=NO
+```
+
+The Accounting CANARY state was observed only as external runtime truth. This task did not change Accounting, EasyStore, or material write authority.
+
+#### Full Manager Center / Trend Master migration inventory
+
+Canonical machine-readable inventory:
+`autonomous-printshop/manifests/MANAGER_CENTER_MIGRATION_INVENTORY_V1.json`.
+
+| ID | Legacy function / signal | Classification | Current state / target |
+|---|---|---|---|
+| MC-01 | Admin-only manager surface | REUSE_UX_ONLY | LIVE as Owner Exception Console |
+| MC-02 | Progressive partial rendering / panel isolation | MOVE_TO_CONTROL_TOWER | PARTIAL; service isolation live, last-good/stale semantics still incomplete |
+| MC-03 | Active / in-progress / closed summary | MOVE_TO_CONTROL_TOWER | LIVE from TrendOS D1 aggregate |
+| MC-04 | Archived workload aggregate | MOVE_TO_CONTROL_TOWER | PARTIAL; closed aggregate live, dedicated archive aggregate not explicit |
+| MC-05 | Archive search and paging | TRENDOS_SOURCE_ONLY | Fallback/source UI only |
+| MC-06 | Restore archived order | BLOCKED_PENDING_BACKEND | Requires future protected TrendOS action contract |
+| MC-07 | Overdue / deadline attention | MOVE_TO_OWNER_EXCEPTION_CONSOLE | GAP; due facts exist but no explicit risk aggregate yet |
+| MC-08 | Employee raw throughput / active / completed / overdue telemetry | MOVE_TO_EMPLOYEE_SUPERVISOR | PARTIAL |
+| MC-09 | Employee 70/30 score | DROP_LEGACY | DROPPED as decision/performance authority |
+| MC-10 | Employee availability | MOVE_TO_EMPLOYEE_SUPERVISOR | LIVE; attendance is availability evidence only |
+| MC-11 | Andon blocker reasons | MOVE_TO_EMPLOYEE_SUPERVISOR | PARTIAL; taxonomy recovered, structured event authority pending |
+| MC-12 | Free-text OPS_REPLY / Andon notes as authority | DROP_LEGACY | DROPPED |
+| MC-13 | Employee next-action wording / two-way supervisor shell | MOVE_TO_EMPLOYEE_SUPERVISOR | PARTIAL; Shadow only, assignment OFF |
+| MC-14 | Low-stock / material shortage alerts | MOVE_TO_CONTROL_TOWER | BLOCKED pending authoritative operational material data |
+| MC-15 | Pending operational message queue count | MOVE_TO_CONTROL_TOWER | GAP; qualified Comms aggregate not yet surfaced |
+| MC-16 | Open WhatsApp / copy queued message | REUSE_UX_ONLY | Not migrated; COMMS remains READONLY |
+| MC-17 | Debt / payment warning signals | MOVE_TO_OWNER_EXCEPTION_CONSOLE | GAP; allowed read-only only |
+| MC-18 | Add/remove debt delivery restriction | BLOCKED_PENDING_BACKEND | No Autonomous Printshop finance/debt mutation |
+| MC-19 | Day-close blockers / readiness preview | MOVE_TO_OWNER_EXCEPTION_CONSOLE | GAP; read-only finance warning only |
+| MC-20 | Execute financial day close | DROP_LEGACY | FORBIDDEN in Autonomous Printshop |
+| MC-21 | Run legacy Trend Master automation now | DROP_LEGACY | Replaced architecturally by policy-governed agents |
+| MC-22 | Install hourly legacy automation | DROP_LEGACY | Legacy Apps Script scheduler not target architecture |
+| MC-23 | Panel errors / stale / partial-failure warnings | MOVE_TO_CONTROL_TOWER | PARTIAL |
+| MC-24 | Delivery policy display | TRENDOS_SOURCE_ONLY | Source context only |
+| MC-25 | Stock auto-deduct implementation flag | DROP_LEGACY | Not an owner decision surface |
+| MC-26 | Design readiness / approval exception | MOVE_TO_OWNER_EXCEPTION_CONSOLE | LIVE blocker signal; artifact/approval data currently empty |
+| MC-27 | Machine readiness / blocker exception | MOVE_TO_OWNER_EXCEPTION_CONSOLE | LIVE blocker signal; physical machine evidence still absent |
+| MC-28 | Material readiness / blocker exception | MOVE_TO_OWNER_EXCEPTION_CONSOLE | LIVE blocker signal; frozen during Accounting CANARY |
+| MC-29 | AI Shadow decisions / policy-block aggregate | MOVE_TO_CONTROL_TOWER | LIVE aggregate, no live execution inferred |
+| MC-30 | Owner-only protected decisions | MOVE_TO_OWNER_EXCEPTION_CONSOLE | LIVE aggregate; detailed decision queue future |
+| MC-31 | Operator Task CANARY qualification | MOVE_TO_OWNER_EXCEPTION_CONSOLE | LIVE read-only; authority still OFF |
+| MC-32 | Manual read-only refresh | REUSE_AS_IS | LIVE |
+
+Gap analysis after AP-069:
+1. The UI was live but exception semantics were still partly client-side and did not explicitly say who owns each blocker, what AI can/cannot do, or whether the owner actually needs to decide.
+2. Explicit overdue / at-risk order aggregation is still missing.
+3. Qualified low-stock alerts are blocked until authoritative operational material data exists.
+4. Qualified pending Comms queue signal is not yet surfaced in Control Tower.
+5. Debt/payment warnings and day-close blockers are not yet surfaced as read-only finance signals.
+6. Structured Andon event authority is not yet D1-native.
+7. Archive restore remains a protected backend-action gap and was not copied.
+8. Control Tower last-good/stale resilience is not yet at full Trend Master resilience parity.
+9. Detailed protected-decision queue is not yet exposed; only safe aggregate/gates are live.
+
+#### Gate A — Repo qualification
+
+Implemented:
+- `autonomous-printshop/core/owner-exception-model-v1.mjs`
+- `autonomous-printshop/manifests/MANAGER_CENTER_MIGRATION_INVENTORY_V1.json`
+- `autonomous-printshop/tests/owner_exception_model_v1.test.mjs`
+- CI wiring in `.github/workflows/autonomous-printshop-policy-v1-ci.yml`.
+
+Implementation commit:
+`0a8b5ca85656d7f1923237c46655285a2653fdc3`.
+
+The model is pure/read-only and normalizes:
+- production/readiness blockers;
+- employee review signals without turning them into performance judgments;
+- design/material/machine evidence blockers;
+- Control Plane drift;
+- Operator Task inconsistencies;
+- Owner Only decisions;
+- CANARY owner-selection gate;
+- Accounting transition state as **read-only protected finance signal** only.
+
+It returns for every exception:
+- what is wrong;
+- why;
+- responsible actor;
+- AI state/capability;
+- whether owner action is required;
+- whether the decision is protected;
+- next safe action.
+
+Qualification:
+```ini
+POLICY_CI_RUN=37631429765
+POLICY_CI=SUCCESS
+OWNER_EXCEPTION_MODEL_V1=PASS
+MANAGER_CENTER_MIGRATION_INVENTORY_V1=PASS
+ACCOUNTING_WRITE=NO
+EASYSTORE_MUTATION=NO
+CONTENT_MUTATION=NO
+OPERATOR_TASK_WRITE=NO
+EMPLOYEE_ASSIGNMENT=NO
+```
+
+#### Gate B — Read-only dashboard activation
+
+Integrated the qualified model into:
+- `autonomous-printshop/dashboard/worker.mjs`
+- `autonomous-printshop/tests/dashboard_v1.test.mjs`.
+
+Dashboard now surfaces structured exception cards with:
+- المشكلة / السبب;
+- المسؤول;
+- AI state;
+- `قرارك: مطلوب / غير مطلوب`;
+- next safe action.
+
+Implementation commit:
+`9fb27222a51a00aabae88865cbc4f1770f4309c3`.
+
+Qualification and production deployment:
+```ini
+POLICY_CI_RUN=37631868277
+POLICY_CI=SUCCESS
+DASHBOARD_DEPLOY_RUN=37631868278
+DASHBOARD_DEPLOY=SUCCESS
+DASHBOARD_READ_ONLY_TEST=PASS
+MAIN_TRENDOS_PREDEPLOY=PASS
+DASHBOARD_DRYRUN=PASS
+DASHBOARD_DEPLOYED=YES
+DASHBOARD_LIVE=PASS
+CONTROL_TOWER_UPSTREAM=PASS
+MAIN_TRENDOS_POSTDEPLOY=PASS
+DASHBOARD_MODE=READ_ONLY_OWNER_EXCEPTION_CONSOLE
+DASHBOARD_VERSION=AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_1_20261007
+OWNER_EXCEPTION_MODEL_VERSION=OWNER_EXCEPTION_MODEL_V1_20261007
+CLOUDFLARE_VERSION_ID=c1c02812-93ce-46df-abb3-efeda1e77288
+```
+
+Independent postflight live proof at 2026-10-07T13:53Z:
+```ini
+OWNER_EXCEPTION_MODEL=LIVE
+OWNER_EXCEPTION_MODEL_MODE=READ_ONLY_EXCEPTION_PROJECTION
+EXCEPTIONS=5
+OWNER_ACTION_REQUIRED=0
+WAITING_EXTERNAL_EVIDENCE=3
+PROTECTED_DECISIONS=1
+AI_OBSERVED_DECISIONS=14
+AI_AUTO_RECOMMENDATIONS=0
+AI_EXECUTION_STATE=SHADOW_NO_LIVE_EXECUTION
+
+ROW_COUNT=618
+ORDINARY=88
+IN_PROGRESS=11
+CLOSED=519
+AVAILABLE_OPERATORS=1/4
+EMPLOYEE_REVIEW_REQUIRED=1
+STRICT_ELIGIBLE=0
+READINESS_BLOCKED=88
+AUTONOMY=SHADOW
+READINESS=SHADOW
+OPERATOR_TASK=OFF
+
+ACCOUNTING_MODE_OBSERVED=CANARY
+ACCOUNTING_EPOCH_OBSERVED=26
+MATERIAL_FROZEN=true
+ACCOUNTING_CANARY_SIGNAL=READ_ONLY_ONLY
+ACCOUNTING_WRITE_FROM_AUTONOMOUS_PRINTSHOP=NO
+
+RAW_ORDER_IDS_EXPOSED=NO
+RAW_LINE_IDS_EXPOSED=NO
+EMPLOYEE_IDENTITY_EXPOSED=NO
+BUSINESS_WRITE=NO
+D1_MUTATION=NO
+EMPLOYEE_ASSIGNMENT=NO
+```
+
+Runtime drift observed during the task:
+```ini
+PRECHANGE_ACCOUNTING_EPOCH=24
+POSTFLIGHT_ACCOUNTING_EPOCH=26
+PRECHANGE_AVAILABLE_OPERATORS=2
+POSTFLIGHT_AVAILABLE_OPERATORS=1
+PRECHANGE_EMPLOYEE_REVIEW_REQUIRED=0
+POSTFLIGHT_EMPLOYEE_REVIEW_REQUIRED=1
+ROW_COUNT_STABLE=618
+RUNTIME_DRIFT_SOURCE=CONCURRENT_EXTERNAL_RUNTIME_ACTIVITY
+TASK_MUTATION_OF_ACCOUNTING=NO
+TASK_MUTATION_OF_EMPLOYEE_AUTH=NO
+```
+
+This drift was treated as runtime truth, not overwritten. The Owner Exception Model correctly surfaced the employee review condition without converting it into a performance judgment, and surfaced Accounting CANARY material freeze without acquiring Accounting authority.
+
+Safety boundary remains:
+```ini
+TRENDOS_SOURCE_OF_TRUTH=YES
+LEGACY_TRENDOS_MANAGER_CENTER_DISABLED=NO
+LEGACY_TRENDOS_MANAGER_CENTER_ROLE=STABILIZED_FALLBACK
+AUTH_REOPENED=NO
+ACCOUNTING_WRITE=NO
+EASYSTORE_MUTATION=NO
+CONTENT_MODE_CHANGE=NO
+R2_CREATED=NO
+OPERATOR_TASK_ACTIVATED=NO
+EMPLOYEE_ASSIGNMENT_WRITE=NO
+AUTOPILOT_EXECUTION=NO
+```
+
+Next highest-value migration gate after AP-071 is the **deadline-risk / overdue projection** in Control Tower, because it directly answers which orders are late or at risk without requiring any write authority. Finance/debt/day-close signals remain read-only-only and must not be used as an excuse to move Accounting authority.
+
+Result: **PASS — MANAGER CENTER MIGRATION INVENTORY IS COMPLETE; STRUCTURED OWNER EXCEPTION MODEL IS LIVE IN AUTONOMOUS PRINTSHOP; OWNER VS AI VS RESPONSIBLE-ACTOR BOUNDARIES ARE EXPLICIT; LEGACY FALLBACK AND ACCOUNTING/CONTENT SAFETY BOUNDARIES REMAIN INTACT**.
+
