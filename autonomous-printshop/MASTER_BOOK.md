@@ -4824,3 +4824,173 @@ OPERATOR_TASK_CANARY_READY=NO
 PROJECT_END_TO_END_FINISHED=NO
 NEXT_TRANSITION=REAL_EVIDENCE_ACQUISITION
 ```
+
+
+### AP-060 — Runtime refresh after AP-059; external evidence still absent
+
+Date: 2026-10-07.
+
+This checkpoint refreshed the live Autonomous Printshop and Accounting dependencies after AP-059. No previously executed architecture step was repeated and no readiness evidence was synthesized.
+
+Truth priority used:
+`Runtime truth > deployed > tested > repo-only > historical`.
+
+#### Repository / Actions refresh
+
+Current candidate branch head observed before this checkpoint:
+```ini
+BRANCH=candidate/t12-full-cloud-cutover-a56-20260929
+HEAD_COMMIT=db217eea8a83c58c05fe16325d6bd09a9c5511e3
+HEAD_MESSAGE=config: reconcile Entry644 Core GENERAL frontend state
+```
+
+Latest Autonomous Printshop policy run:
+- Run `37550673180` — **SUCCESS**.
+- Commit `d8cab9326bd6c12ad6c42804a78eb110090c1c28`.
+- Scope: record AP-058/AP-059 machine profile and new-chat checkpoint.
+
+The same branch also advanced through TrendOS Entry644 Core GENERAL work:
+- Repo CI Run `37550529017` — **SUCCESS** after earlier superseded failing attempts.
+- Runtime Arm Run `37550634418` — **SUCCESS**.
+- Frontend Controlled Run `37551016683` — **SUCCESS**.
+- Entry644 changes TrendOS Core runtime authority only; it does not create Design, Material, Machine, or Operator Task readiness evidence for Autonomous Printshop.
+
+#### Latest Accounting dependency
+
+EasyStore Accounting central book remains through **ACC-097** at this refresh.
+
+Live Accounting health:
+```ini
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_POLICY_EPOCH=10
+AUTHORITATIVE_WRITES=false
+WRITE_AUTHORITY_MODE=OFF
+SERVER_CANARY_ALLOWED_USERS=0
+SERVER_CANARY_ALLOWED_ACTIONS=0
+SERVER_CANARY_MAX_COMMANDS=0
+SERVER_CANARY_COMMANDS_STARTED=0
+GOOGLE_BUSINESS_CALLS=0
+APPS_SCRIPT_BUSINESS_AUTHORITY=false
+```
+
+Therefore:
+- no Accounting GENERAL authority was inferred;
+- no A2_CANARY row may be treated as operational stock truth;
+- Material remains diagnostic/blocker-only.
+
+#### Current TrendOS Production platform health
+
+```ini
+AUTH_MODE=NATIVE
+AUTH_NATIVE_READY=6/6
+LEGACY_ACTION_BRIDGE_ENABLED=false
+CORE_MODE=GENERAL
+CORE_POLICY_EPOCH=2
+OPS_MODE=GENERAL
+OPS_POLICY_EPOCH=7
+CONTENT_MODE=READONLY
+COMMS_MODE=READONLY
+ACCOUNTING_MODE=READONLY
+```
+
+Entry644 Core GENERAL is a platform advancement, not an Autonomous Printshop readiness transition.
+
+#### Live Autonomous Printshop runtime
+
+Readiness Collector / Dashboard / Control Tower / strict readiness agree:
+
+```ini
+CONTROL_TOWER_MODE=SHADOW
+AUTONOMY_MODE=SHADOW
+READINESS_MODE=SHADOW
+OPERATOR_TASK_CONTROL=OFF
+OPERATOR_TASK_ROWS=0
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+
+NATIVE_ORDERS=335
+SCHEDULE_ROWS=335
+MISSING_SCHEDULE=0
+SCHEDULE_POLICY_MISMATCHES=0
+
+BASELINE_CANDIDATES=54
+STRICT_ELIGIBLE=0
+STRICT_BLOCKED=54
+READINESS_EVIDENCE_ROWS=0
+
+DESIGN_ARTIFACTS=0
+DESIGN_APPROVALS=0
+DESIGN_PREFLIGHTS=0
+DESIGN_LINKED_BINDINGS=0
+DESIGN_CLOUD_ORDER_FILES=0
+DESIGN_CLOUD_LINE_LINKED_FILES=0
+DESIGN_READY=0
+DESIGN_BLOCKER=REAL_LINKED_APPROVED_PREFLIGHTED_ARTIFACT_MISSING
+
+ACCOUNTING_MATERIAL_ROWS_TOTAL=1
+ACCOUNTING_CANARY_MATERIAL_ROWS=1
+CANARY_ROWS_EXCLUDED_FROM_READINESS=true
+ACTIVE_OPERATIONAL_MATERIALS=0
+MATERIAL_SOURCE_LINKED_ROWS=0
+MATERIAL_SOURCE_LINKED_LINES=0
+MATERIAL_STOCK_MOVES=0
+MATERIAL_READY_EVIDENCE_ALLOWED=false
+MATERIAL_READY=0
+MATERIAL_BLOCKER=AUTHORITATIVE_MATERIAL_LINE_LINKAGE_MISSING
+
+MACHINE_IDENTITY_SCHEMA_READY=true
+MACHINE_IDENTITY_ROWS=0
+ACTIVE_MACHINES=0
+ACTIVE_MACHINE_OBSERVATIONS=0
+MACHINE_MAPPINGS=0
+MACHINE_READY=0
+MACHINE_BLOCKER=REGISTERED_MACHINE_DIRECT_OBSERVATION_AND_MAPPING_REQUIRED
+
+AVAILABLE_OPERATORS=0
+STRICT_RECOMMENDATION_EXISTS=false
+OPERATOR_TASK_CANARY_SYSTEM_PREREQUISITES=false
+OPERATOR_TASK_CANARY_ACTIVATION_QUALIFIED=false
+```
+
+Evidence pilot remains:
+```ini
+DEPARTMENT=ليزر
+PRIORITY=عاجل
+DUE=2026-10-07T23:59:59.000Z
+MACHINE_CLASS_HINT=LASER
+MISSING_KINDS=DESIGN,MATERIAL,MACHINE
+PURPOSE=EVIDENCE_ACQUISITION_ONLY
+EXTERNAL_EVIDENCE_REQUIRED=true
+ASSIGNMENT_ALLOWED=false
+TASK_CLAIM_ALLOWED=false
+READY_WRITE_ALLOWED=false
+OPERATOR_TASK_ACTIVATION_ALLOWED=false
+```
+
+#### Decision
+
+Result: **BLOCKED_SAFE — NO NEW QUALIFIED OPERATIONAL EVIDENCE APPEARED AFTER AP-059**.
+
+No Autonomous Printshop business mutation was performed.
+
+```ini
+SOFTWARE_ARCHITECTURE_QUALIFIED=YES
+SOFTWARE_POLICY_GAP=NO_KNOWN_BLOCKER
+EXTERNAL_OPERATIONAL_EVIDENCE_REQUIRED=YES
+DESIGN_READY=0
+MATERIAL_READY=0
+MACHINE_READY=0
+STRICT_ELIGIBLE=0
+AVAILABLE_OPERATORS=0
+OPERATOR_TASK_CANARY_READY=NO
+OPERATOR_TASK_ACTIVATED=NO
+LIVE_EMPLOYEE_ASSIGNMENT=NO
+PROJECT_END_TO_END_FINISHED=NO
+NEXT_TRANSITION=REAL_EVIDENCE_ACQUISITION
+```
+
+Next gate remains unchanged and fail-closed:
+1. real current Design artifact on an actual order/line with storage ref + SHA-256 + LINKED asset + structured Approval + evaluator-produced Preflight PASS;
+2. real non-canary operational Material with authoritative stock source + live line/material link + positive consumption;
+3. real Machine identity from nameplate or owner asset registry + serial/asset tag + direct current check/self-test + active line-machine mapping;
+4. only when the **same line** has Design READY + Material READY + Machine READY and an operator is available may Operator Task CANARY qualification proceed;
+5. no live employee assignment before the CANARY gate passes.
