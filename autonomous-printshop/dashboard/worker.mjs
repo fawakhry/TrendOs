@@ -1,7 +1,7 @@
 import { qualifyOperatorTaskCanaryV1 } from '../core/operator-task-canary-qualification-v1.mjs';
 const SHADOW_URL='https://autonomous-printshop-shadow.trendmall-contact.workers.dev';
 const READINESS_COLLECTOR_URL='https://autonomous-printshop-readiness-collector.trendmall-contact.workers.dev';
-const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_DASHBOARD_V1_20261006_STATE_PROXY';
+const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_20261007';
 
 function json(body,status=200){
   return new Response(JSON.stringify(body),{
@@ -57,7 +57,7 @@ const page=`<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>مركز المطبعة الذاتية</title>
+<title>مركز إدارة المطبعة الذاتية</title>
 <style>
 :root{
   font-family:Tahoma,Arial,sans-serif;
@@ -116,8 +116,8 @@ th{color:var(--muted);font-weight:700}
 <main id="app">
   <div class="top">
     <div>
-      <h1>مركز المطبعة الذاتية</h1>
-      <div class="sub">لوحة مراقبة تشغيلية — Shadow فقط، بدون تعيين موظفين أو تغيير أوردرات</div>
+      <h1>مركز إدارة المطبعة الذاتية</h1>
+      <div class="sub">Control Tower + Owner Exception Console — عرض فقط، بدون تعيين موظفين أو تغيير أوردرات</div>
     </div>
     <button class="refresh" id="refresh">تحديث</button>
   </div>
@@ -129,6 +129,11 @@ th{color:var(--muted);font-weight:700}
   </div>
 
   <div class="grid section" id="kpis"></div>
+
+  <div class="card section">
+    <h2>قرارات تحتاج تدخلك</h2>
+    <div id="ownerExceptions"></div>
+  </div>
 
   <div class="card section">
     <h2>جاهزية الشغل</h2>
@@ -181,6 +186,23 @@ function readinessBox(label,x={}){
     +'<span>غير معروف <b>'+n(x.unknown)+'</b></span>'
     +'</div></div>';
 }
+function ownerDecisionItems(d={}){
+  const sig=d.attentionSignals||{};
+  const controls=d.controls||{};
+  const ready=d.readiness||{};
+  const learn=d.shadowLearning||{};
+  const items=[];
+  if(n(sig.employeeReviewRequired)>0) items.push({kind:'danger',text:n(sig.employeeReviewRequired)+' حالة موظف تحتاج مراجعة تشغيلية.'});
+  if(n(sig.readinessBlocked)>0) items.push({kind:'warn',text:n(sig.readinessBlocked)+' بند غير مؤهل للتوجيه بسبب نقص أدلة الجاهزية.'});
+  if(sig.noStrictRecommendation===true && n(ready.baselineCandidates)>0) items.push({kind:'warn',text:'يوجد شغل منتظر لكن لا يوجد بند مؤهل بالكامل للتوجيه الآلي.'});
+  if(n(sig.activeOperatorTasks)>0) items.push({kind:'warn',text:n(sig.activeOperatorTasks)+' مهمة Operator Task نشطة؛ لا يتم فتح CANARY جديد قبل إغلاقها.'});
+  if(String(controls.autonomy&&controls.autonomy.mode||'OFF')!=='SHADOW') items.push({kind:'danger',text:'وضع Autonomy ليس SHADOW؛ راجع Control Plane قبل أي تجربة.'});
+  if(String(controls.readiness||'OFF')!=='SHADOW') items.push({kind:'danger',text:'بوابة Readiness ليست SHADOW.'});
+  if(n(learn.ownerOnly)>0) items.push({kind:'warn',text:n(learn.ownerOnly)+' قرار مصنف Owner Only في سجل التعلم.'});
+  if(!items.length) items.push({kind:'ok',text:'لا توجد استثناءات تشغيلية تتطلب تدخل المالك الآن.'});
+  return items;
+}
+
 function actionForBlocker(code){
   const map={
     REAL_LINKED_APPROVED_PREFLIGHTED_ARTIFACT_MISSING:'Design: اربط ملف تصميم حقيقي ببند حي مع SHA-256، ثم موافقة منظمة وPreflight PASS.',
@@ -255,6 +277,9 @@ async function load(){
       kpi('متاح الآن',n(emp.available),n(emp.total)+' موظف معروف')
     ].join('');
 
+    q('#ownerExceptions').innerHTML=ownerDecisionItems(d)
+      .map(x=>'<div class="signal '+esc(x.kind)+'">'+esc(x.text)+'</div>').join('');
+
     const cov=ready.coverage||{};
     q('#readiness').innerHTML=[
       readinessBox('التصميم',cov.DESIGN),
@@ -300,6 +325,7 @@ async function load(){
 
     q('#footer').textContent='آخر تحديث: '+(d.generatedAt?new Date(d.generatedAt).toLocaleString('ar-EG'):'—')+
       ' • المصدر: '+(d.source?.authority||'—')+
+      ' • Owner Console: Read-only'+
       ' • Raw IDs/PII: غير معروضة';
   }catch(e){
     err.textContent='تعذر تحميل لوحة المطبعة: '+(e&&e.message||e);
@@ -348,7 +374,7 @@ export default {
       }
     }
 
-    if(path==='/'||path==='/dashboard'){
+    if(path==='/'||path==='/dashboard'||path==='/owner'||path==='/manager-center'){
       return new Response(page,{
         status:200,
         headers:{
@@ -365,11 +391,13 @@ export default {
       return json({
         success:true,
         service:'autonomous-printshop-dashboard',
-        mode:'READ_ONLY_CONTROL_TOWER_UI',
+        mode:'READ_ONLY_OWNER_EXCEPTION_CONSOLE',
         upstream:SHADOW_URL+'/control-tower',
         readinessUpstream:READINESS_COLLECTOR_URL+'/evidence-status',
         dashboardVersion:DASHBOARD_VERSION,
         transport:'CLOUDFLARE_SERVICE_BINDING',
+        ownerExceptionConsole:true,
+        trendosManagerCenterReplacementCandidate:true,
         businessWrites:false,
         employeeAssignment:false
       });

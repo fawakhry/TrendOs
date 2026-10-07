@@ -79,14 +79,15 @@ jobs:
           const s=JSON.parse(fs.readFileSync('/tmp/state.json','utf8'));
           const page=fs.readFileSync('/tmp/page.html','utf8');
           if(h.success!==true||h.service!=='autonomous-printshop-dashboard') process.exit(1);
-          if(h.mode!=='READ_ONLY_CONTROL_TOWER_UI') process.exit(2);
+          if(h.mode!=='READ_ONLY_OWNER_EXCEPTION_CONSOLE') process.exit(2);
           if(h.businessWrites!==false||h.employeeAssignment!==false) process.exit(3);
           if(s.success!==true||s.mode!=='CONTROL_TOWER_SHADOW') process.exit(4);
           if(s.writesAccepted!==false||s.d1Mutation!==false||s.employeeAssignment!==false) process.exit(5);
-          if(!page.includes('مركز المطبعة الذاتية')) process.exit(6);
+          if(!page.includes('مركز إدارة المطبعة الذاتية')||!page.includes('قرارات تحتاج تدخلك')) process.exit(6);
           console.log('DASHBOARD_LIVE=PASS');
           console.log('CONTROL_TOWER_UPSTREAM=PASS');
-          console.log('DASHBOARD_MODE=READ_ONLY_CONTROL_TOWER_UI');
+          console.log('DASHBOARD_MODE=READ_ONLY_OWNER_EXCEPTION_CONSOLE');
+          console.log('OWNER_EXCEPTION_CONSOLE=PASS');
           NODE
 
       - name: Main TrendOS post-deploy health
@@ -103,6 +104,8 @@ jobs:
       - name: Safety conclusion
         run: |
           echo 'DASHBOARD=LIVE'
+          echo 'OWNER_EXCEPTION_CONSOLE=LIVE'
+          echo 'TRENDOS_MANAGER_CENTER_ROLE=MIGRATED_UI_RESPONSIBILITY'
           echo 'DATA_SOURCE=CONTROL_TOWER_SHADOW'
           echo 'D1_BINDING=NONE'
           echo 'BUSINESS_WRITE=NO'

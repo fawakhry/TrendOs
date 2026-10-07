@@ -10,7 +10,17 @@ assert.match(config,/^service = "autonomous-printshop-shadow"$/m);
 assert.match(config,/^binding = "READINESS_COLLECTOR"$/m);
 assert.match(config,/^service = "autonomous-printshop-readiness-collector"$/m);
 assert.doesNotMatch(config,/\[\[d1_databases\]\]/);
-assert.match(worker,/مركز المطبعة الذاتية/);
+assert.match(worker,/مركز إدارة المطبعة الذاتية/);
+assert.match(worker,/Owner Exception Console/);
+assert.match(worker,/قرارات تحتاج تدخلك/);
+assert.match(worker,/ownerDecisionItems/);
+assert.match(worker,/employeeReviewRequired/);
+assert.match(worker,/readinessBlocked/);
+assert.match(worker,/Owner Only/);
+assert.match(worker,/trendosManagerCenterReplacementCandidate:true/);
+assert.match(worker,/ownerExceptionConsole:true/);
+assert.ok(worker.includes("path==='/owner'"));
+assert.ok(worker.includes("path==='/manager-center'"));
 assert.match(worker,/\/control-tower/);
 assert.match(worker,/SHADOW_SERVICE_BINDING_REQUIRED/);
 assert.match(worker,/READINESS_COLLECTOR_SERVICE_BINDING_REQUIRED/);
@@ -32,7 +42,7 @@ assert.match(worker,/systemPrerequisitesQualified/);
 assert.match(worker,/operatorTaskCanary/);
 assert.match(worker,/CLOUDFLARE_SERVICE_BINDING/);
 assert.match(worker,/path==='\/state'/);
-assert.match(worker,/READ_ONLY_CONTROL_TOWER_UI/);
+assert.match(worker,/READ_ONLY_OWNER_EXCEPTION_CONSOLE/);
 assert.match(worker,/businessWrites:false/);
 assert.match(worker,/employeeAssignment:false/);
 assert.match(worker,/METHOD_NOT_ALLOWED/);
@@ -49,7 +59,8 @@ for(const forbidden of [
   assert.doesNotMatch(worker,forbidden);
 }
 
-console.log('AUTONOMOUS_PRINTSHOP_DASHBOARD_V1=PASS');
+console.log('AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1=PASS');
 console.log('DATA_SOURCE=CONTROL_TOWER_SHADOW_SERVICE_BINDING');
+console.log('TRENDOS_MANAGER_CENTER_ROLE=MIGRATED_TO_AUTONOMOUS_OWNER_CONSOLE');
 console.log('BUSINESS_WRITE=NO');
 console.log('EMPLOYEE_ASSIGNMENT=NO');
