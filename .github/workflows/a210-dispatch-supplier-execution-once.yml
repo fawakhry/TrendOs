@@ -1,0 +1,26 @@
+name: A2.10 Dispatch Supplier Execution Once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/a210-dispatch-supplier-execution-once.yml'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch qualified Supplier execution workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run easystore-a210-supplier-canary-execution.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref candidate/easystore-accounting-a2-20261005
+          echo A210_SUPPLIER_EXECUTION_DISPATCHED=YES
