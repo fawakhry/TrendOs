@@ -27,7 +27,7 @@ jobs:
       D1_CONFIG: cloudflare-d1/wrangler.toml
       DATABASE: trendos-main
       LIVE_BASE_COMMIT: 2da755ca910b84911378c018d050cf806d8349d5
-      EXPECTED_PRE_FRONTEND_VERSION: cfff20f6-5a9d-46cb-8dfb-6c378c4f0eb5
+      EXPECTED_PRE_FRONTEND_VERSION: e2717f15-5166-43ac-b1df-702d0e76642a
       EXPECTED_STALE_ATTENDANCE_HASH: 4472b66306a31c365a5a3e2b98e73dece85e93f1
       CACHE_TAG: 20261007-entry647-auth-attendance-repair
 
