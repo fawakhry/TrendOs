@@ -18,6 +18,11 @@ class TrendOSReadClient:
     business-write actions.
     """
 
+    USER_AGENT = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 TrendOS-Print-Server/0.2"
+    )
+
     def __init__(self, config: dict):
         self.config = config["trendos"]
         self._lock = threading.RLock()
@@ -58,7 +63,11 @@ class TrendOSReadClient:
             base + path,
             data=data,
             method="POST",
-            headers={\n                "Accept": "application/json",\n                "Content-Type": "application/json; charset=utf-8",\n                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 TrendOS-Print-Server/0.2",\n            },
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json; charset=utf-8",
+                "User-Agent": self.USER_AGENT,
+            },
         )
         try:
             with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -71,7 +80,13 @@ class TrendOSReadClient:
                 pass
             try:
                 body = json.loads(raw or "{}")
-                message = body.get("message") or body.get("code") or ("HTTP_%s" % exc.code)
+                message = (
+                    body.get("message")
+                    or body.get("detail")
+                    or body.get("title")
+                    or body.get("code")
+                    or ("HTTP_%s" % exc.code)
+                )
             except Exception:
                 message = "HTTP_%s" % exc.code
             raise TrendOSError("TRENDOS_REJECTED:%s" % message) from exc
@@ -82,7 +97,15 @@ class TrendOSReadClient:
         except ValueError as exc:
             raise TrendOSError("TRENDOS_INVALID_JSON") from exc
         if not isinstance(body, dict) or body.get("success") is False:
-            raise TrendOSError("TRENDOS_REJECTED:%s" % str(body.get("message") or body.get("code") or "UNKNOWN"))
+            raise TrendOSError(
+                "TRENDOS_REJECTED:%s"
+                % str(
+                    body.get("message")
+                    or body.get("detail")
+                    or body.get("code")
+                    or "UNKNOWN"
+                )
+            )
         return body
 
     def login(self, username: str, password: str) -> dict:
