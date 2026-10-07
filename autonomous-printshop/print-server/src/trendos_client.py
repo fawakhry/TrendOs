@@ -58,7 +58,7 @@ class TrendOSReadClient:
             base + path,
             data=data,
             method="POST",
-            headers={"Accept": "application/json", "Content-Type": "application/json; charset=utf-8"},
+            headers={\n                "Accept": "application/json",\n                "Content-Type": "application/json; charset=utf-8",\n                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 TrendOS-Print-Server/0.2",\n            },
         )
         try:
             with urllib.request.urlopen(req, timeout=timeout) as response:
