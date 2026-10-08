@@ -88,12 +88,13 @@ jobs:
 
           grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true" /tmp/live-config.js
           grep -Fq "T12_ENTRY650_CORE_ORDER_PAGE_READ_V1_20261008" /tmp/live-dispatcher.js
-          grep -Fq 'if (loadSession()) bootMain();' /tmp/live-app.js
           if grep -Fq "T12_ENTRY651_SESSION_RESTORE_VERIFY_V1_20261008" /tmp/live-app.js; then
-            echo ENTRY651_PRESTATE_ALREADY_PATCHED=YES
-            exit 31
+            grep -Fq 'api("verifyEmployeeSession", { username: username, token: token })' /tmp/live-app.js
+            echo ENTRY651_PRESTATE_FIRST_PATCH_LIVE=YES
+          else
+            grep -Fq 'if (loadSession()) bootMain();' /tmp/live-app.js
+            echo ENTRY651_LIVE_STALE_SESSION_PRESTATE_CONFIRMED=PASS
           fi
-          echo ENTRY651_LIVE_STALE_SESSION_PRESTATE_CONFIRMED=PASS
 
       - name: Rebuild exact live snapshot with app session repair only
         shell: bash
