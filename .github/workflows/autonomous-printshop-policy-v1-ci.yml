@@ -11,6 +11,7 @@ on:
       - 'autonomous-printshop/core/comms-pending-projection-v1.mjs'
       - 'autonomous-printshop/core/finance-warning-projection-v1.mjs'
       - 'autonomous-printshop/core/control-tower-last-good-v1.mjs'
+      - 'autonomous-printshop/core/control-tower-shared-last-good-v1.mjs'
       - 'autonomous-printshop/core/control-tower-panel-status-v1.mjs'
       - 'autonomous-printshop/core/trendos-operational-reality-read-adapter-v1.mjs'
       - 'autonomous-printshop/core/operator-task-authority-v1.mjs'
@@ -75,6 +76,7 @@ on:
       - 'autonomous-printshop/tests/comms_pending_projection_v1.test.mjs'
       - 'autonomous-printshop/tests/finance_warning_projection_v1.test.mjs'
       - 'autonomous-printshop/tests/control_tower_last_good_v1.test.mjs'
+      - 'autonomous-printshop/tests/control_tower_shared_last_good_v1.test.mjs'
       - 'autonomous-printshop/tests/control_tower_panel_status_v1.test.mjs'
       - 'autonomous-printshop/tests/dashboard_panel_status_v1.test.mjs'
       - 'autonomous-printshop/tests/dashboard_last_good_v1.test.mjs'
@@ -201,6 +203,8 @@ jobs:
         run: node autonomous-printshop/tests/finance_warning_projection_v1.test.mjs
       - name: Run Control Tower last-good fail-closed contract
         run: node autonomous-printshop/tests/control_tower_last_good_v1.test.mjs
+      - name: Run unbound shared-cache source contract
+        run: node autonomous-printshop/tests/control_tower_shared_last_good_v1.test.mjs
       - name: Run per-panel freshness and partial failure UI
         run: |
           node autonomous-printshop/tests/control_tower_panel_status_v1.test.mjs
