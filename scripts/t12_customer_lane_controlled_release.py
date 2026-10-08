@@ -154,7 +154,7 @@ def main():
   (ui_root/dest).write_bytes(subprocess.check_output(['git','show','2da755ca910b84911378c018d050cf806d8349d5:'+src]))
  (ui_root/'frontend-dist').symlink_to(dist,target_is_directory=True)
  run([WRANGLER,'deploy','--dry-run','--outdir',str(STATE/'ui-bundle'),'--config',str(ui_root/'wrangler.toml')])
- check(fingerprint(module('trendos-ui'))==fingerprint((STATE/'ui-bundle'/'frontend-static-worker.js').read_bytes()),'FRONTEND_WORKER_SOURCE_MISMATCH')
+ check(fingerprint(module('trendos-ui'))==fingerprint((STATE/'ui-bundle'/'index.js').read_bytes()),'FRONTEND_WORKER_SOURCE_MISMATCH')
  REPORT.update({'assetCount':len(names),'frontendChanged':sorted(patches),'frontendUnrelatedPreserved':True,'targetApiSha256':TARGET,'sourceRuntimeParity':'PASS'})
  check(active('trendos-d1-api')==pre_api and active('trendos-ui')==pre_ui and refs()==pre_refs,'PREPARE_LEASE_MOVED')
  if not DEPLOY:REPORT['state']='READONLY_PREPARE_PASS';return
