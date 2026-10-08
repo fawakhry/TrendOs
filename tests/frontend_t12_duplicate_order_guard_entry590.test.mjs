@@ -16,6 +16,13 @@ assert.match(html,/config\.js\?v=20261002-login-fast-surface/);
 // Existing same-key retry behavior must remain intact.
 assert.match(edge,/T12_PENDING_CREATE_STORAGE_KEY/);
 assert.match(edge,/rememberPendingCreate\(fingerprint, cloudKey\)/);
-assert.match(edge,/clearPendingCreate\(\)/);
+assert.match(edge,/clearPendingCreate\(fingerprint\)/);
 
-console.log('T12 duplicate-order frontend guard messaging PASS');
+// New fixed-key safety and deliberate-repeat contract.
+assert.match(edge,/createStorageKey\(fingerprint\)/);
+assert.match(edge,/localStorage\.setItem\(createStorageKey\(fingerprint\),value\)/);
+assert.match(edge,/crypto\.subtle\.digest\('SHA-256'/);
+assert.match(edge,/duplicateConfirmationOrderId/);
+assert.match(edge,/reason === 'duplicate-order-active-existing'/);
+assert.doesNotMatch(edge,/20 \* 60 \* 1000/);
+console.log('T12 duplicate-order frontend guard messaging + durable pending key PASS');
