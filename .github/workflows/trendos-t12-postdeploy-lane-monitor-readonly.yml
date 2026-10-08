@@ -1,0 +1,33 @@
+name: TrendOS T12 Postdeploy Lane Monitor Readonly
+on:
+  push:
+    branches: [audit/t12-customer-lane-runtime-20261008]
+    paths:
+      - 'scripts/t12_postdeploy_lane_monitor_readonly.py'
+      - 'scripts/t12_postdeploy_lane_monitor_aggregate.mjs'
+      - '.github/workflows/trendos-t12-postdeploy-lane-monitor-readonly.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: SELECT-only live follow-up with private identity aggregation
+        run: python3 scripts/t12_postdeploy_lane_monitor_readonly.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: t12-postdeploy-aggregate-monitor
+          path: /tmp/t12-postdeploy-monitor-sanitized.json
+          retention-days: 3
