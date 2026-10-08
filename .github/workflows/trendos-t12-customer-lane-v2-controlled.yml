@@ -1,0 +1,53 @@
+name: TrendOS T12 Customer Lane V2 Controlled Release
+on:
+  push:
+    branches: [audit/t12-customer-lane-runtime-20261008]
+    paths:
+      - '.github/workflows/trendos-t12-customer-lane-v2-controlled.yml'
+      - 'scripts/t12_customer_lane_controlled_release.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: trendos-t12-customer-lane-v2-controlled-release
+  cancel-in-progress: false
+jobs:
+  qualify-and-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: 'false'
+      T12_WRANGLER_BIN: /tmp/t12-release-tools/node_modules/.bin/wrangler
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pinned build tools
+        run: npm install --prefix /tmp/t12-release-tools --no-audit --no-fund wrangler@4.33.2
+      - name: Source and integration qualification
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/t12_customer_lane_controlled_release.py
+          node --experimental-sqlite tests/t12_general_create.test.mjs
+          node --experimental-sqlite tests/t12_customer_lane_partial.test.mjs
+          node tests/t12_create_key_durability.test.mjs
+          node tests/frontend_t12_duplicate_order_guard_entry590.test.mjs
+          node tests/entry652_employee_session_lifecycle_guard.test.mjs
+          node tests/entry652_employee_session_runtime_401_dispatch.test.mjs
+          node tests/entry651_employee_session_restore_guard.test.mjs
+          node tests/frontend_employee_session_isolation_entry533.test.mjs
+      - name: Exact live snapshot and read-only final preparation
+        run: python3 scripts/t12_customer_lane_controlled_release.py
+      - name: Retain sanitized result only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: t12-controlled-release-sanitized-result
+          path: /tmp/t12-qualified-release/sanitized-result.json
+          retention-days: 3
