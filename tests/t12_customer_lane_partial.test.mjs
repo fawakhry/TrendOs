@@ -64,7 +64,7 @@ const create=(db,id,department,fields={})=>createT12GeneralOrder(db,make(id,depa
 {
  const db=new D1();
  const print=await create(db,10,'طباعة');assert.equal(print.success,true);
- const multi=await create(db,11,'متعدد الأقسام');
+ const multi=await create(db,11,'متعدد الأقسام',{heatPress:'نعم'});
  assert.equal(multi.success,true,JSON.stringify(multi));
  assert.equal(multi.partialMultiDepartment,true);
  assert.deepEqual(multi.createdDepartments,['ليزر']);
@@ -75,6 +75,7 @@ const create=(db,id,department,fields={})=>createT12GeneralOrder(db,make(id,depa
  assert.equal(row.department,'ليزر');
  const line=db.raw.prepare('SELECT department,item_name AS name FROM t12_prod_lines WHERE order_id=?').get(multi.orderId);
  assert.equal(line.department,'ليزر');assert.equal(line.name,'Customer Artwork - ليزر');
+ assert.equal(db.raw.prepare('SELECT heat_press AS press,fly_print AS fly FROM t12_prod_lines WHERE order_id=?').get(multi.orderId).press,0,'Laser-only line must not inherit press flag');
  assert.equal(db.n('t12_prod_outbox'),2);assert.equal(db.n('t12_prod_events'),2);
  db.raw.prepare("INSERT INTO t12_prod_line_runtime (line_id,order_id,status,updated_by) VALUES (?,?,?,?)")
    .run(print.lineId,print.orderId,'تم التسليم','employee-print');
