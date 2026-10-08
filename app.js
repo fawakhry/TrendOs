@@ -3,6 +3,7 @@
 
   const REFRESH_MS = 0; // V1879: التحديث التلقائي كل 10 ثواني تم إيقافه
   const UI_VERSION = 'V1931_TREND_MASTER';
+  window.TRENDOS_ENTRY651_SESSION_RESTORE_GUARD = 'T12_ENTRY651_SESSION_RESTORE_VERIFY_V1_20261008';
 
   const screens = {
     service: "خدمة العملاء",
@@ -1695,6 +1696,57 @@ Trend Mall`;
     try { sessionStorage.removeItem("matbagy_user_name"); sessionStorage.removeItem("matbagy_username"); sessionStorage.removeItem("matbagy_session_token"); localStorage.removeItem("trendos_session"); localStorage.removeItem("matbagy_session_token"); localStorage.removeItem("MATBAGY_EMPLOYEE_SSO"); } catch(e) {}
     state.user = null;
     state.rows = [];
+  }
+
+  async function verifyRestoredEmployeeSessionV1() {
+    const restored = state.user || {};
+    const username = String(restored.username || restored.name || "").trim();
+    const token = String(restored.token || "").trim();
+
+    if (!username || !token) {
+      clearSession();
+      showLogin();
+      setMsg("loginMsg", "انتهت بيانات جلسة الدخول. سجل الدخول من جديد.", true);
+      return false;
+    }
+
+    try {
+      const res = await api("verifyEmployeeSession", { username: username, token: token });
+      if (!res || res.success !== true || !res.user) {
+        const rejected = new Error("Employee session rejected");
+        rejected.status = 401;
+        throw rejected;
+      }
+
+      state.user = Object.assign({}, restored, res.user, { token: token });
+      saveSession();
+      return true;
+    } catch (err) {
+      const status = Number(err && err.status || 0);
+      const code = String(err && err.code || "");
+      const message = String(err && err.message || "");
+      const rejected = status === 401 ||
+        code === "EMPLOYEE_API_HTTP_401" ||
+        /Employee session rejected|session rejected|جلسة.*مرفوض/i.test(message);
+
+      if (rejected) {
+        clearSession();
+      }
+
+      showLogin();
+      const usernameInput = $("username");
+      const passwordInput = $("password");
+      if (usernameInput) usernameInput.value = username;
+      if (passwordInput) passwordInput.value = "";
+      setMsg(
+        "loginMsg",
+        rejected
+          ? "انتهت جلسة الدخول القديمة. اكتب كلمة المرور وسجل الدخول من جديد."
+          : "تعذر التحقق من جلسة الدخول السحابية الآن. أعد المحاولة أو سجل الدخول من جديد.",
+        true
+      );
+      return false;
+    }
   }
 
   function saveCustomerSession() {
@@ -7939,10 +7991,12 @@ Trend Mall`;
     if (acc) acc.textContent = "💰 إيزي ستور الحسابات";
   }
 
-  document.addEventListener("DOMContentLoaded", function () {
+  document.addEventListener("DOMContentLoaded", async function () {
     wireEvents();
-    if (loadSession()) bootMain();
-    else if (loadCustomerSession()) bootCustomerMain();
+    if (loadSession()) {
+      const sessionValid = await verifyRestoredEmployeeSessionV1();
+      if (sessionValid) bootMain();
+    } else if (loadCustomerSession()) bootCustomerMain();
     else showEntryChoice();
     setTimeout(forceVisibleMainButtonsPatch13, 300);
     setTimeout(forceVisibleMainButtonsPatch13, 1200);

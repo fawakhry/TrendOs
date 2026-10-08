@@ -1,0 +1,206 @@
+name: TrendOS Entry651 Stale Employee Session Frontend Repair Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry651-stale-session-frontend-repair-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry651-stale-session-frontend-repair-controlled
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      FRONTEND_CONFIG: cloudflare-d1/wrangler.frontend.toml
+      LIVE_BASE_COMMIT: 2da755ca910b84911378c018d050cf806d8349d5
+      CACHE_TAG: 20261008-entry651-stale-session-verify
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Source qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check app.js
+          node tests/entry651_employee_session_restore_guard.test.mjs
+          grep -Fq "T12_ENTRY651_SESSION_RESTORE_VERIFY_V1_20261008" app.js
+          grep -Fq 'api("verifyEmployeeSession", { username: username, token: token })' app.js
+          echo ENTRY651_SOURCE_QUALIFICATION=PASS
+
+      - name: Production runtime preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry651pre=$GITHUB_SHA-$(date +%s%N)" -o /tmp/auth-pre.json
+          node <<'NODE'
+          const a=JSON.parse(require('fs').readFileSync('/tmp/auth-pre.json','utf8'));
+          if(a.success!==true||a.schemaReady!==true||a.mode!=='NATIVE'||a.envEnabled!==true||
+             a.nativeOnly!==true||Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||
+             a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false||
+             Number(a.mustChangeCount||0)!==0||a.plaintextStored!==false) {
+            throw new Error('employee auth runtime drift');
+          }
+          console.log('ENTRY651_AUTH_RUNTIME_PREFLIGHT=PASS');
+          NODE
+
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-pre.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-pre.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend active version shape '+JSON.stringify(full));
+          fs.writeFileSync('/tmp/pre-ui-version.txt',full[0].id);
+          console.log('ENTRY651_PRE_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          suffix="$GITHUB_SHA-$(date +%s%N)"
+          curl --fail --silent --show-error --location "$FRONTEND_URL/?entry651pre=$suffix" -o /tmp/live-index.html
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry651pre=$suffix" -o /tmp/live-config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/app.js?entry651pre=$suffix" -o /tmp/live-app.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry651pre=$suffix" -o /tmp/live-dispatcher.js
+
+          grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true" /tmp/live-config.js
+          grep -Fq "T12_ENTRY650_CORE_ORDER_PAGE_READ_V1_20261008" /tmp/live-dispatcher.js
+          grep -Fq 'if (loadSession()) bootMain();' /tmp/live-app.js
+          if grep -Fq "T12_ENTRY651_SESSION_RESTORE_VERIFY_V1_20261008" /tmp/live-app.js; then
+            echo ENTRY651_PRESTATE_ALREADY_PATCHED=YES
+            exit 31
+          fi
+          echo ENTRY651_LIVE_STALE_SESSION_PRESTATE_CONFIRMED=PASS
+
+      - name: Rebuild exact live snapshot with app session repair only
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/livebase cloudflare-d1/frontend-dist
+          git worktree add --detach /tmp/livebase "$LIVE_BASE_COMMIT" >/dev/null
+          mkdir -p cloudflare-d1/frontend-dist
+
+          while IFS= read -r src; do
+            name="$(basename "$src")"
+            curl --fail --silent --show-error --location               "$FRONTEND_URL/$name?entry651snapshot=$GITHUB_SHA-$(date +%s%N)"               -o "cloudflare-d1/frontend-dist/$name"
+          done < <(find /tmp/livebase -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) | sort)
+
+          cp app.js cloudflare-d1/frontend-dist/app.js
+
+          CACHE_TAG="$CACHE_TAG" python3 <<'PY'
+          from pathlib import Path
+          import os,re
+          tag=os.environ['CACHE_TAG']
+          p=Path('cloudflare-d1/frontend-dist/index.html')
+          s=p.read_text()
+          pat=r'app[.]js[?]v=[^"]+'
+          found=re.findall(pat,s)
+          if len(found)!=1:
+              raise SystemExit('app cache tag count='+str(len(found)))
+          p.write_text(re.sub(pat,'app.js?v='+tag,s,count=1))
+          PY
+
+          node --check cloudflare-d1/frontend-dist/app.js
+          grep -Fq "app.js?v=$CACHE_TAG" cloudflare-d1/frontend-dist/index.html
+          grep -Fq "T12_ENTRY651_SESSION_RESTORE_VERIFY_V1_20261008" cloudflare-d1/frontend-dist/app.js
+          test "$(git hash-object cloudflare-d1/frontend-dist/config.js)" = "$(git hash-object /tmp/live-config.js)"
+          test "$(git hash-object cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js)" = "$(git hash-object /tmp/live-dispatcher.js)"
+          echo ENTRY651_EXACT_LIVE_APP_REPAIR_BUNDLE=PASS
+
+      - name: Deploy frontend repair with rollback
+        id: deploy
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          PRE="$(cat /tmp/pre-ui-version.txt)"
+          DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = "1" ]; then
+              npx wrangler rollback "$PRE" --message "Entry651 stale employee session automatic rollback" --config "$FRONTEND_CONFIG" || true
+              echo ENTRY651_AUTOMATIC_ROLLBACK_ATTEMPTED=YES
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+
+          npx wrangler deploy --config "$FRONTEND_CONFIG" >/tmp/deploy.log
+          DEPLOYED=1
+
+          OK=0
+          for attempt in $(seq 1 30); do
+            suffix="$GITHUB_SHA-$attempt-$(date +%s%N)"
+            if curl --fail --silent --show-error --location "$FRONTEND_URL/?entry651post=$suffix" -o /tmp/post-index.html               && curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry651post=$suffix" -o /tmp/post-config.js               && curl --fail --silent --show-error --location "$FRONTEND_URL/app.js?entry651post=$suffix" -o /tmp/post-app.js               && curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry651post=$suffix" -o /tmp/post-dispatcher.js               && grep -Fq "app.js?v=$CACHE_TAG" /tmp/post-index.html               && grep -Fq "T12_ENTRY651_SESSION_RESTORE_VERIFY_V1_20261008" /tmp/post-app.js               && grep -Fq 'api("verifyEmployeeSession", { username: username, token: token })' /tmp/post-app.js               && grep -Fq "T12_ENTRY650_CORE_ORDER_PAGE_READ_V1_20261008" /tmp/post-dispatcher.js; then
+                OK=1
+                echo "ENTRY651_PROPAGATION_ATTEMPT=$attempt"
+                break
+            fi
+            sleep 2
+          done
+          test "$OK" = "1"
+
+          test "$(git hash-object /tmp/post-app.js)" = "$(git hash-object app.js)"
+          test "$(git hash-object /tmp/post-config.js)" = "$(git hash-object /tmp/live-config.js)"
+          test "$(git hash-object /tmp/post-dispatcher.js)" = "$(git hash-object /tmp/live-dispatcher.js)"
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry651post=$GITHUB_SHA-$(date +%s%N)" -o /tmp/auth-post.json
+          node <<'NODE'
+          const a=JSON.parse(require('fs').readFileSync('/tmp/auth-post.json','utf8'));
+          if(a.mode!=='NATIVE'||a.nativeOnly!==true||a.envEnabled!==true||
+             Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||
+             a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false||
+             Number(a.mustChangeCount||0)!==0||a.plaintextStored!==false) {
+            throw new Error('auth postflight drift');
+          }
+          console.log('ENTRY651_AUTH_RUNTIME_POSTFLIGHT=PASS');
+          NODE
+
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-post.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-post.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend post version shape');
+          fs.writeFileSync('/tmp/post-ui-version.txt',full[0].id);
+          console.log('ENTRY651_POST_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          trap - ERR
+          echo ENTRY651=PASS
+          echo ENTRY651_STALE_SESSION_AUTO_BOOT=NO
+          echo ENTRY651_REJECTED_SESSION_FORCES_RELOGIN=YES
+          echo ENTRY651_AUTH_BACKEND_CHANGED=NO
+          echo ENTRY651_BUSINESS_D1_MUTATION=NO
+          echo ENTRY651_ROLLBACK_USED=NO
+
+      - name: Final
+        if: ${{ success() }}
+        shell: bash
+        run: |
+          echo "ENTRY651_PRE_FRONTEND_VERSION=$(cat /tmp/pre-ui-version.txt)"
+          echo "ENTRY651_POST_FRONTEND_VERSION=$(cat /tmp/post-ui-version.txt)"
+          echo ENTRY651_EMPLOYEE_SESSION_RESTORE=VERIFIED_BEFORE_BOOT
+          echo ENTRY651=PASS
