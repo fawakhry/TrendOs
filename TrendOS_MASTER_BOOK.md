@@ -28,6 +28,26 @@
 
 > **قاعدة التسجيل:** كل خطوة جديدة تؤثر في Repo / Cloudflare / D1 / Apps Script / Production تُسجل هنا فورًا بالحالة الفعلية والدليل والخطوة التالية. ويشمل ذلك: كل محاولة ناجحة أو فاشلة، Runtime drift، rollback/restore، إصلاح hardening، workflow/run/job، deploy، تشخيص سبب الفشل، وفتح/إغلاق أي gate. لا تعتبر أي خطوة مكتملة قبل تسجيلها هنا. ممنوع تسجيل passwords أو Tokens أو password hashes أو session secrets.
 
+## Incident DUP-CREATE-20261008 — إصلاح منع تكرار الأوردرات (مرشح معزول، غير منشور)
+
+**الحالة:** `SOURCE_QUALIFIED / ISOLATED_CI_PASS / PRODUCTION_UNCHANGED` بتاريخ 2026-10-08. هذا الفصل على الفرع التجريبي `fix/t12-duplicate-create-durable-20261008` فقط، ولا يثبت أن المستخدمين يستفيدون من الإصلاح قبل مراجعة Production ونشر مصرح به.
+
+**دليل الحالة الأصلية (D1 SELECT-only بواسطة المالك):** 4764↔4765 فرق 804 ثانية؛ 4772↔4773 فرق 853 ثانية؛ 4773↔4775 فرق 223 ثانية. كل زوج متطابق في العميل والهاتف والقسم والأولوية والملاحظات والمصدر واسم البند والكمية وأعلام الطباعة وعدد البنود. توجد Order IDs مستقلة بالفعل. **نية العميل غير معروفة**؛ ممنوع اعتبار أحدها تكرارًا خاطئًا أو تعديل Status/حذف تلقائيًا.
+
+**السبب الهندسي:** `T12_DUPLICATE_ORDER_GUARD_WINDOW_MS=120000`، وبعد انتهاء المدة لا يُمنع Create مطابق؛ واجهة الموظف تنشئ Key جديدًا عند ضغطة جديدة؛ المعلّق السابق كان يُحفظ في `sessionStorage` لمدة 20 دقيقة فقط؛ تنظيف نموذج ناجح كان يأتي بعد إجراء واتساب اختياري؛ الوصف الافتراضي `أوردر جديد - طباعة` يضعف التمييز.
+
+**الإصلاح المرشح في GitHub (غير منشور):** 
+- `cloudflare-d1/src/t12-general-create.mjs`: الاحتفاظ بحارس الـ120 ثانية الذرّي ومفتاح Ledger دون تغيير. إضافة فحص read-only لبصمة العمل المحفوظة في `t12_prod_duplicate_order_guard` خلال **48 ساعة** مع تحقق من الحالة الفعلية في `t12_prod_line_runtime`. أوردر مطابق ما زال غير مُسلم/غير ملغى/غير مكرر يرجع `409 duplicate-order-active-existing` مع رقم الأوردر، ولا ينشأ رقم آخر.
+- يسمح بطلب مطابق **متعمد** فقط إذا أكّد الموظف رقم الأوردر المطابق الذي أعاده السيرفر عبر `duplicateConfirmationOrderId`، وبشرط انتهاء نافذة المنع القصيرة. أي Confirmation خاطئة أو قراءة D1 غير متاحة تفشل مغلقة.
+- `cloudflare-d1/src/t12-order-create-input-guard.mjs`: إضافة حقل التأكيد الوحيد؛ بقيت حقول `forceCreate` وBusiness Order ID محظورة.
+- `trendos-edge-orders-read-v1.js`: لكل Intent متعثر مفتاح ثابت مبني على SHA-256 ومخزن `localStorage` بلا اسم/هاتف/ملاحظات كنص؛ يستعاد عند Refresh/فتح تبويب جديد، ويُحذف فقط عند نجاح مؤكّد أو رفض نهائي معروف. Ledger idempotency لا يزال مرجع الاسترجاع السلطوي.
+- `app.js`: فرض كتابة وصف الشغل من الموظف؛ إظهار Confirmation صريح بمرجع الأوردر السابق؛ تنظيف النموذج وبدء Refresh بعد نجاح الحفظ **قبل** واتساب؛ أخطاء واتساب لا تعني خطأ CREATE.
+- **حدود التصميم:** مهلة الـ48 ساعة تخص اكتشاف تشابه Intent *بمفتاح جديد*، وليست TTL لسجل Ledger. تغيير بيانات البند يعني Intent مختلفًا؛ أكواد Browser أخرى غير نموذج الموظف تتطلب تأهيلًا منفصلًا؛ ترك أوردر مدة أكبر من 48 ساعة بلا قفل ليس مغطّى بحاجز التطابق الطويل. لا حذف تاريخي ولا D1 migration.
+
+**اختبارات GitHub Actions المعزولة:** `tests/t12_general_create.test.mjs` اختبرت SQLite D1 مع Migration 0005/0006/0007/0010: منع بعد 120 ثانية، تأكيد صحيح/خاطئ، إغلاق الأول، 48 ساعة، إعادة محاولة نفس Key، سباق Requests، والنشر ممنوع. `tests/frontend_t12_duplicate_order_guard_entry590.test.mjs` + `tests/t12_create_key_durability.test.mjs` تثبت الحماية بالواجهة ومحاكاة Reload ومفاتيح معلقة متعددة وعدم تخزين Customer PII بشكل واضح. Run `37769238385` = SUCCESS / steps all PASS. أول Run `37769059526` FAILED فقط بسبب assertion قديمة لإصدار cache tag للـHTML؛ تم تصحيح الاختبار دون تغيير Production، ثم إعادة الفحص Run `37769124803` SUCCESS.
+
+**انضباط النشر:** لا Auto-deploy، ولا WRITE D1، ولا تغيير `trendos-ui`/`trendos-d1-api`، ولا ربط Backend حي، ولا تغيير Auth/Accounting/Autonomous Printshop/EasyStore. قبل أي نشر مستقبلي: latest HEAD drift check → مراجعة Backend + frontend payload/contracts + CI → Production-read-only preflight لجدول guard وline runtime → owner-specific publish authorization مع rollback snapshot → canary/verification بدون CREATE تجاري تجريبي عشوائي. مصدر PREPARE/RESULT: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_DUPLICATE_CREATE_FIX_JOURNAL_2026-10-08.md`.
+
 ## 1. الحالة النشطة — Production baseline بعد Entry600
 
 ### Frontend
@@ -3209,6 +3229,9 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
 | التوثيق والأدلة | يشرح لماذا وكيف تغيّر النظام | `TrendOS_MASTER_BOOK.md`, `docs/trendos/`, `docs/trendos/blackbox/` | الكتاب للحالة الحية؛ §8A هو مدخل الأرشيف |
 
 ### 12.2 مسار نموذجي موثق — الأوردر الجديد
+
+> تنبيه إصلاح Incident DUP-CREATE-20261008 (candidate/Repo-only): أُضيفت حماية للأوردر المطابق المفتوح بعد نافذة الدقيقتين، وConfirmation محددة للطلب المستقل، ومفتاح Pending مستمر؛ جميعها **غير منشورة** حتى صلاحية وRuntime gate منفصلين. راجع فصل Incident أعلاه.
+
 
 بالبلدي: الموظف ينشئ الأوردر من الواجهة → الواجهة تستخدم مسار Cloud المؤهل → API `trendos-d1-api` يتحقق من الطلب ومنع التكرار → البيانات تُكتب في D1 → القراءة/الاسترجاع بعد Refresh تعود من مسار Edge/D1 المثبت.
 
