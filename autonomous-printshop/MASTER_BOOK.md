@@ -7198,3 +7198,16 @@ Final inventory:
 Result: **PASS for bounded last-good read-only Dashboard enhancement in Production; NOT CLAIMED as complete Control Tower last-good degraded-mode parity.**
 
 Next gate: explicit per-panel freshness/provenance and durable cross-isolate last-good (with approved safe storage design), plus controlled non-destructive failure proof before marking MC-02/MC-23 LIVE.
+
+
+### AP-081 — Source timestamp bounds diagnostic fallback freshness (staging)
+
+Date: 2026-10-08. Base candidate fe16c8b6d835dd372782e955fedf6d8fa84e865e.
+
+Confirmed defect: AP-080 accepted snapshots up to five minutes old, but degraded mode measured expiry from reception. An almost five-minute-old source could therefore remain visible for another five minutes.
+
+Fix: compute diagnostic age from generatedAt, retaining the observation-time rollback guard and the existing configured upper age limit. No persistent cache or new authority. Finance and protected decisions remain excluded.
+
+Verification: regression failed before the source change (60000 versus actual source age 61000); pure contract now passes source-age boundary, aged input, custom shorter TTL and clock rollback. Dashboard mocked outage/recovery and nearly-expired upstream snapshot now pass; expired response is HTTP 503 with no operationalDiagnostic. No Production outage or business write.
+
+Status: SOURCE_ONLY, staged for independent review and CI. Production AP-080 remains unchanged. MC-02 and MC-23 remain PARTIAL; durable cross-isolate storage still requires its separate qualified design.
