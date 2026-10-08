@@ -6798,3 +6798,10 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - target Worker SHA256=0c75704893862be91279911fbc21a04bb3f0350c5f21f55ed47e92a1e796d503؛ يحفظ Accounting/Core/Foundation. UI patchset فقط تحتاج snapshot حية كاملة قبل النشر.
 - التقرير والخطة ذات12 إجابة: docs/trendos/blackbox/منصة ترند/TRENDOS_T12_CUSTOMER_LANE_RUNTIME_AUDIT_2026-10-08.md.
 - SOURCE TESTS=PASS; LOCAL RUNTIME=PASS; LIVE AUDIT=RUNTIME_VERIFIED READONLY; DEPLOY/MIGRATION=NO. Production BLOCKED_SAFE حتى UI snapshot/preflight جديد وموافقة المالك، حسب تعليماته الصريحة. لا DROP/restore تلقائي أو أوردر تجاري اختباري.
+
+
+### تصريح المالك وبوابة النشر النهائية — 2026-10-08 Cairo / PREPARE PASS
+- المالك طلب صراحة «انشر» بعد عرض خطة النشر والتراجع؛ موافقته تشمل الإصلاح المؤهل و0012 وUI/API، دون أوردر تجاري اختباري.
+- READONLY run37820899084 / job113461365069 عند1fd9c8ca SUCCESS: اختبارات التكامل PASS، نسخة الحزمة الحية byte parity PASS، recovery reference متاح، API d7c65348 وUI9699b0d0 ثابتان، snapshot46 assets مع4patches فقط؛ بقية42 محفوظة. UI worker نفسه byte-matched أيضًا.
+- أدوات التجهيز تعثرت أولًا في urllib403 وcanonical asset redirects وفحص HTML ثم اسم ملف Wrangler dry-run؛ أصلحت النقل والفحص بعد التحقق المحلي، دون أي Production mutation. Runs37820257513 /37820411437 /37820505355 /37820608097 /37820730530 FAIL قبل deploy؛ لا تسجل نجاحًا لها.
+- يبدأ الآن controlled release مع CREATE pause/drain، 0012 additive فقط، version upload وtraffic switch للـAPI، UI snapshot، settings/full asset hash postflight، ثم إعادة GENERAL. لا DEPLOYED حتى نجاح الفحص الفعلي.
