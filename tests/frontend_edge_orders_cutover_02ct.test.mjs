@@ -3,6 +3,14 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const source = fs.readFileSync(new URL('../trendos-edge-orders-read-v1.js', import.meta.url), 'utf8');
+const indexSource = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const appScriptPos = indexSource.indexOf('src="app.js?');
+const edgeScriptPos = indexSource.indexOf('src="trendos-edge-orders-read-v1.js?');
+const dispatcherScriptPos = indexSource.indexOf('src="employee-api-dispatcher-v1.js?');
+assert.ok(appScriptPos >= 0, 'app.js must be loaded by index.html');
+assert.ok(edgeScriptPos > appScriptPos, 'Edge Orders router must load after app.js defines the secure API');
+assert.ok(dispatcherScriptPos > edgeScriptPos, 'Employee dispatcher must load after Edge Orders router so getRowsPageV1931 sees a ready Cloud router');
+
 assert.match(source, /\/v1\/edge\/orders\/02cr\/page/);
 assert.doesNotMatch(source, /requestKey\s*=\s*['"]\/v1\/edge\/orders\/page\?/);
 assert.match(source, /EDGE_MIRROR_STALE/);
