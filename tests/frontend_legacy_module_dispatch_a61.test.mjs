@@ -28,7 +28,6 @@ const cases = [
   ['manager-center-v1932.js','api',['getDashboard',{}],'getDashboard'],
   ['employee-manager-strips-v2.js','api',['getRows',{}],'getRows'],
   ['employee-ops-coach-v1.js','api',['getRows',{}],'getRows'],
-  ['employee-andon-v1.js','api',['getRows',{}],'getRows'],
   ['press-control-v1.js','directApi',[{username:'fixture',token:'test-token',op:'status'}],'pressControlV1'],
   ['work-queue-v1.js','directApi',[{username:'fixture',token:'test-token',op:'status'}],'workQueueV1'],
   ['operator-task-workflow-v2.js','materialApi',['gaberMaterialDailyReport',{}],'operatorTaskV2']
@@ -50,4 +49,8 @@ for (const [file, name, args, expected] of cases) {
   ctx.window.trendosEmployeeApiV1 = undefined;
   await assert.rejects(()=>ctx.invoke(...args),file+' must fail closed without dispatcher');
 }
-console.log(`A61_LEGACY_MODULE_DISPATCH=PASS (${cases.length} modules)`);
+const andon=fs.readFileSync('employee-andon-v1.js','utf8');
+assert.doesNotMatch(andon,/trendosEmployeeApiV1/,'Structured Andon must remain on isolated Employee Supervisor service');
+assert.match(andon,/\/blockers\/report/);
+assert.match(andon,/trendos:employee-session-invalid/);
+console.log(`A61_LEGACY_MODULE_DISPATCH=PASS (${cases.length} legacy-dispatch modules + isolated Andon)`);

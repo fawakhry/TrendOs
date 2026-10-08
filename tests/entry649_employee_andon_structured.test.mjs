@@ -21,10 +21,12 @@ assert.match(source,/HELP_NEEDED/);
 assert.doesNotMatch(source,/saveMatbagyNote/);
 assert.doesNotMatch(source,/OPS_REPLY/);
 assert.doesNotMatch(source,/trendosEmployeeApiV1/);
+assert.match(source,/trendos:employee-session-invalid/);
+assert.match(source,/if\(response\.status===401\)signalSessionInvalidV2\(\)/);
 assert.doesNotMatch(source,/data-andon="تم حل المشكلة"/);
 assert.match(config,/MATBAGY_EMPLOYEE_SUPERVISOR_API_URL = "https:\/\/autonomous-printshop-employee-supervisor\.trendmall-contact\.workers\.dev"/);
 assert.match(config,/MATBAGY_EMPLOYEE_ANDON_STRUCTURED_V1 = true/);
-assert.match(config,/employee-andon-v1\.js\?v=20261007-entry649-structured-andon/);
+assert.match(config,/employee-andon-v1\.js\?v=20261008-entry652-session-lifecycle/);
 
 const store=new Map();
 const sessionStorage={

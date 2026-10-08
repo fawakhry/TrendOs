@@ -5,6 +5,21 @@ on:
     branches:
       - candidate/t12-full-cloud-cutover-a56-20260929
     paths:
+      - 'app.js'
+      - 'config.js'
+      - 'index.html'
+      - 'employee-api-dispatcher-v1.js'
+      - 'trendos-edge-orders-read-v1.js'
+      - 'employee-andon-v1.js'
+      - 'tests/entry651_employee_session_restore_guard.test.mjs'
+      - 'tests/entry652_employee_session_lifecycle_guard.test.mjs'
+      - 'tests/entry652_employee_session_runtime_401_dispatch.test.mjs'
+      - 'tests/frontend_employee_session_isolation_entry533.test.mjs'
+      - 'tests/frontend_employee_api_dispatcher_a61.test.mjs'
+      - 'tests/frontend_legacy_module_dispatch_a61.test.mjs'
+      - 'tests/frontend_login_fast_surface_entry603.test.mjs'
+      - 'tests/frontend_orders_initial_edge_ready_entry577.test.mjs'
+      - 'tests/entry649_employee_andon_structured.test.mjs'
       - '.github/workflows/trendos-entry652-employee-session-lifecycle-guard-controlled.yml'
   workflow_dispatch:
 
