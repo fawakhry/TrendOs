@@ -1698,13 +1698,20 @@ Trend Mall`;
     state.rows = [];
   }
 
+  function clearRejectedRestoredEmployeeSessionV1() {
+    sessionStorage.removeItem("trendos_session");
+    try { sessionStorage.removeItem("matbagy_user_name"); sessionStorage.removeItem("matbagy_username"); sessionStorage.removeItem("matbagy_session_token"); localStorage.removeItem("trendos_session"); localStorage.removeItem("matbagy_session_token"); localStorage.removeItem("MATBAGY_EMPLOYEE_SSO"); } catch(e) {}
+    state.user = null;
+    state.rows = [];
+  }
+
   async function verifyRestoredEmployeeSessionV1() {
     const restored = state.user || {};
     const username = String(restored.username || restored.name || "").trim();
     const token = String(restored.token || "").trim();
 
     if (!username || !token) {
-      clearSession();
+      clearRejectedRestoredEmployeeSessionV1();
       showLogin();
       setMsg("loginMsg", "انتهت بيانات جلسة الدخول. سجل الدخول من جديد.", true);
       return false;
@@ -1730,7 +1737,7 @@ Trend Mall`;
         /Employee session rejected|session rejected|جلسة.*مرفوض/i.test(message);
 
       if (rejected) {
-        clearSession();
+        clearRejectedRestoredEmployeeSessionV1();
       }
 
       showLogin();

@@ -9,7 +9,9 @@ assert.match(app,/api\("verifyEmployeeSession",\s*\{\s*username:\s*username,\s*t
 assert.match(app,/state\.user\s*=\s*Object\.assign\(\{\},\s*restored,\s*res\.user,\s*\{\s*token:\s*token\s*\}\)/);
 assert.match(app,/status\s*===\s*401/);
 assert.match(app,/code\s*===\s*"EMPLOYEE_API_HTTP_401"/);
-assert.match(app,/if\s*\(rejected\)\s*\{\s*clearSession\(\);\s*\}/s);
+assert.match(app,/function clearRejectedRestoredEmployeeSessionV1\(\)[\s\S]*?sessionStorage\.removeItem\("trendos_session"\)[\s\S]*?state\.user\s*=\s*null/s);
+assert.match(app,/if\s*\(rejected\)\s*\{\s*clearRejectedRestoredEmployeeSessionV1\(\);\s*\}/s);
+assert.equal((app.match(/\bclearSession\(\);/g)||[]).length,1,'clearSession must remain explicit-logout only');
 assert.match(app,/showLogin\(\);[\s\S]*?usernameInput\.value\s*=\s*username/);
 assert.match(app,/انتهت جلسة الدخول القديمة/);
 assert.match(app,/document\.addEventListener\("DOMContentLoaded",\s*async function \(\)\s*\{[\s\S]*?if \(loadSession\(\)\) \{[\s\S]*?await verifyRestoredEmployeeSessionV1\(\)[\s\S]*?if \(sessionValid\) bootMain\(\)/);

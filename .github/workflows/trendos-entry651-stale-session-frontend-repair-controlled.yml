@@ -46,6 +46,7 @@ jobs:
           set -euo pipefail
           node --check app.js
           node tests/entry651_employee_session_restore_guard.test.mjs
+          node tests/frontend_employee_session_isolation_entry533.test.mjs
           grep -Fq "T12_ENTRY651_SESSION_RESTORE_VERIFY_V1_20261008" app.js
           grep -Fq 'api("verifyEmployeeSession", { username: username, token: token })' app.js
           echo ENTRY651_SOURCE_QUALIFICATION=PASS
