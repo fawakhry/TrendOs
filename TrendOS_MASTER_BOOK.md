@@ -28,6 +28,16 @@
 
 > **قاعدة التسجيل:** كل خطوة جديدة تؤثر في Repo / Cloudflare / D1 / Apps Script / Production تُسجل هنا فورًا بالحالة الفعلية والدليل والخطوة التالية. ويشمل ذلك: كل محاولة ناجحة أو فاشلة، Runtime drift، rollback/restore، إصلاح hardening، workflow/run/job، deploy، تشخيص سبب الفشل، وفتح/إغلاق أي gate. لا تعتبر أي خطوة مكتملة قبل تسجيلها هنا. ممنوع تسجيل passwords أو Tokens أو password hashes أو session secrets.
 
+## Gate النشر المتوقف بأمان — 2026-10-08 (LATEST VERIFIED RUNTIME)
+
+**الحالة الفعلية:** `BLOCKED_SAFE / NO_DEPLOY / PRODUCTION_UNCHANGED`. المالك طلب تنفيذ النشر، لكن فحص Production read-only أظهر أن سجل الأوردرات القديمة في D1 قديم **11.7 يوم** رغم أن `sheet_catalog.status=ready`. لذا لو نُشرت قاعدة منع التكرار «عميل + قسم» الآن، قد تمنع طلبات حقيقية بسبب أوردرات قديمة مُسلّمة ولم تنعكس حالتها في المرآة.
+
+**المصدر:** `.github/workflows/trendos-t12-customer-lane-production-readonly-preflight.yml` run `37772943058`, job `113296720143` (<https://github.com/fawakhry/TrendOs/actions/runs/37772943058>). PASS: اختبارات SQLite، صحة إنشاء الأوردر (GENERAL)، هوية النسخ الحية، وجود جميع جداول Legacy/Runtime. FAIL المقصود لحماية الإنتاج: `STALE_LEGACY_MIRROR_NEEDS_POLICY_REVIEW_BEFORE_DEPLOY`.
+
+**إحصائيات دون بيانات عملاء:** NativeOrders=466، NativeLines=501، NativeRuntime=456، LegacyRuntime=15، LegacyMirrorRows=768. نسخة API الحية وقت الفحص `T12_GENERAL_CREATE_20261001_DUP_GUARD_V1`، API deployment `0b99cc58-d1ef-48c1-b214-094887858827` version `d7c65348-a921-4f2e-8359-f3e30ce3a1eb`، UI deployment `3ee36d0a-b386-4fb2-aefe-e2e1d2f2695b` version `9699b0d0-8c21-4b5b-92fe-1983219110f6`.
+
+**الخطوة المطلوبة:** تأهيل مصدر حديث موثوق لحالة الأوردرات القديمة والتأكد من عدم false-positive blocking، ثم مراجعة سباق إنشاء طلبين متزامنين لنفس العميل والقسم ببصمتين مختلفتين، واختبار تكامل واجهة متعدد الأقسام، ومطابقة حزمة الإنتاج الحالية، وبعد كل بوابات النجاح فقط نُشر مراقب مع rollback. ممنوع اعتباره منشورًا أو تفعيل الحماية الجديدة قبل هذه الشروط. لا توجد كتابة D1 ولا أوردرات جديدة/محذوفة ولا تحديث Sheets.
+
 ## إصلاح تكرار الأوردرات حسب القسم — 2026-10-08 (آخر سياسة معتمدة، مرشح غير منشور)
 
 **بحث عربي:** تكرار الأوردرات / نفس القسم / طباعة وليزر / متعدد البنود / منع أوردر مفتوح / تكرار الطلب / عميل عنده طباعة / إنشاء ليزر فقط / partial multi / customer department lane.
