@@ -6,6 +6,7 @@ on:
       - fix/t12-duplicate-create-durable-20261008
     paths:
       - 'cloudflare-d1/src/t12-general-create.mjs'
+      - 'cloudflare-d1/src/t12-order-create-shadow-intent.mjs'
       - 'cloudflare-d1/src/t12-customer-lane-policy.mjs'
       - 'cloudflare-d1/src/t12-order-create-input-guard.mjs'
       - 'trendos-edge-orders-read-v1.js'
@@ -42,6 +43,7 @@ jobs:
           node --check app.js
           node --check trendos-edge-orders-read-v1.js
           node --check cloudflare-d1/src/t12-general-create.mjs
+          node --check cloudflare-d1/src/t12-order-create-shadow-intent.mjs
           node --check cloudflare-d1/src/t12-customer-lane-policy.mjs
           node --check cloudflare-d1/src/t12-order-create-input-guard.mjs
           node --check tests/t12_general_create.test.mjs
