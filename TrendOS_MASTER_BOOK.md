@@ -6631,3 +6631,38 @@ D1_MUTATION=NO
 MC_15=LIVE
 MC_16=NOT_MIGRATED
 ```
+
+
+##### Entry651 — Restored employee sessions verified before frontend boot
+- Date: 2026-10-08 Cairo.
+- Incident observed on Wael/print workstation: TrendOS restored the employee name and opened the main UI from browser session storage, while Cloud services rejected the stored token with `Employee session rejected`.
+- Root cause: `loadSession()` only checked for a stored token and the startup path called `bootMain()` immediately, without qualifying the restored employee session against the Native Cloud auth endpoint.
+- Backend/account status was healthy before the repair: Employee Auth `NATIVE`, `nativeOnly=true`, `6/6` native-ready users, `mustChangeCount=0`.
+- Frontend repair:
+  - restored employee sessions call `verifyEmployeeSession` before `bootMain()`;
+  - valid sessions preserve the existing token and refresh canonical user metadata;
+  - rejected/expired restored sessions are cleared by the dedicated startup-only `clearRejectedRestoredEmployeeSessionV1()` helper and returned to the employee login screen;
+  - the username is retained in the login form and the password field is cleared;
+  - transient verification/network failure does not boot the main UI.
+- Session-isolation boundary preserved: the original `clearSession()` remains explicit-logout-only; Entry533 session-isolation contract passes.
+- Controlled production deploy used exact-live frontend snapshot, replaced `app.js` only, preserved live config/dispatcher, and retained automatic rollback.
+- Production proof:
+```ini
+ENTRY651=PASS
+SOURCE_COMMIT=f8f188403d5c8b729d69159e6218773a155bbbaa
+DEPLOY_GATE_COMMIT=961b8d37cb73124fe0d8135066d0f5f2faa3fd79
+WORKFLOW_RUN=37767635255
+PRE_FRONTEND_VERSION=a24bff04-f0ea-484e-90c7-38be02ab57a1
+POST_FRONTEND_VERSION=42872c38-c1c9-4cae-9b93-de562dc9c477
+SESSION_RESTORE_VERIFY_GUARD=PASS
+ENTRY533_EMPLOYEE_SESSION_ISOLATION=PASS
+STALE_EMPLOYEE_SESSION_AUTO_BOOT=NO
+REJECTED_SESSION_FORCES_RELOGIN=YES
+AUTH_MODE=NATIVE
+NATIVE_READY=6/6
+MUST_CHANGE_COUNT=0
+AUTH_BACKEND_CHANGED=NO
+BUSINESS_D1_MUTATION=NO
+ROLLBACK_USED=NO
+```
+- Operator recovery: reload the affected workstation once; a stale token is now rejected before main UI boot and the employee is sent to the login form to enter the existing current password. No password reset is required solely for this incident.
