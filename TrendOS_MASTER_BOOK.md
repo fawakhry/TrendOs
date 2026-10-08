@@ -6747,3 +6747,11 @@ Current branch HEAD after regression-contract cleanup:
 `e7e4213284eb49dc6da80ccaaee77ef7d85a694f`.
 
 Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NOW GUARDED END-TO-END; STALE OR REJECTED SESSIONS FAIL CLOSED TO RELOGIN WITHOUT PASSWORD RESET OR BUSINESS-DATA MUTATION.**
+
+
+### Shared-source T12 lane guard restoration — 2026-10-08 Cairo / SOURCE_INTEGRATED
+- نشر Accounting A2.13 run37824155255 من1e349332 أعاد CREATE V1 بعد نشر V2 السابق؛ جرى رصد الرجوع أثناء تأهيل تعديل الوصف الاختياري. لا اعتبار لفحص Accounting وحده كفحص CREATE.
+- مصدر Shared candidate أضيفت إليه ملفات T12 الأربعة و0012 واختبارات backend المطابقة لإصلاح V2 المؤهل، مع lease parent0e3d35f0؛ لا تغييرات Accounting/AP/Auth/Content أو frontend في هذا commit.
+- الغرض: عمليات Accounting التي تدمج هذا shared base لاحقًا تحمل حماية customer+department بدل استبدالها بمصدر V1 قديم. سياسة Accounting READONLY37 محفوظة.
+- الحزمة الحية Accounting072bffff أعيد بناؤها byte-for-byte من merge-tree1e349332+0e3d35f0؛ overlay T12 وحده يعطي1d8fb904d48f2d48f2cfcc5b026dba94edddd094344a78af95e94f099d1ea52a ويحفظ Accounting/Core/Comms/Foundation.
+- سجل النشر والفحص الأخير يُحفظ على audit/t12-customer-lane-runtime-20261008؛ هذا commit هو حماية مصدر من reversion، وليس تنفيذ migration جديدة أو تغيير frontend تلقائيًا.

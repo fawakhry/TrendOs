@@ -46,8 +46,10 @@ export function buildT12OrderCreateShadowIntent(input={}, actor=''){
     qty:p.qty,
     priority:p.priority,
     status:'طلب جديد',
-    heatPress:p.heatPress,
-    flyPrint:p.flyPrint
+    // Press and fast-print flags only belong on the PRINT lane; multi
+    // department projection must never send a LASER-only line to the press.
+    heatPress:d.department==='طباعة'?p.heatPress:'لا',
+    flyPrint:d.department==='طباعة'?p.flyPrint:'لا'
   }));
 
   const activityPlan = Object.freeze({
