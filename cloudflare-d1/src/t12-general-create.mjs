@@ -1,10 +1,9 @@
 import { buildT12OrderCreateShadowIntent } from './t12-order-create-shadow-intent.mjs';
 import { classifyT12ClientRequestKey } from './t12-cloud-client-key-admission.mjs';
-import { readCustomerLanePartition } from './t12-customer-lane-policy.mjs';
+import { readCustomerLanePartition, customerLaneIdentityMaterial } from './t12-customer-lane-policy.mjs';
 
-export const T12_GENERAL_CREATE_VERSION='T12_GENERAL_CREATE_20261008_PER_DEPARTMENT_CREATE_CANDIDATE';
+export const T12_GENERAL_CREATE_VERSION='T12_GENERAL_CREATE_20261008_PER_DEPARTMENT_ATOMIC_CANDIDATE';
 export const T12_DUPLICATE_ORDER_GUARD_WINDOW_MS=120000;
-export const T12_OPEN_ORDER_DUPLICATE_LOOKBACK_MS=48*60*60*1000;
 const CREATE_MARKER='T12_PROD_CREATE_CANARY_V1';
 const GENERAL_MARKER='T12_GENERAL_CREATE_V1';
 
@@ -184,9 +183,35 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
     if(text(activeDuplicate.requestKey)===intent.requestKey)return fail('duplicate-guard-same-key-indeterminate-no-retry');
     return duplicateBlocked(activeDuplicate,nowMs);
   }
+  let identityKey;
+  try{identityKey=await sha256Hex(customerLaneIdentityMaterial(intent.identity));}
+  catch{return fail('customer-lane-identity-unavailable-no-retry');}
   const expiresAtMs=nowMs+T12_DUPLICATE_ORDER_GUARD_WINDOW_MS;
   const orderId=String(nextNo);
   const s=[];
+  // Each claim is atomically held by an open native order. A closed holder
+  // may be retired and replaced; parallel CREATE requests with distinct
+  // fingerprints cannot both claim the same lane in one SQLite transaction.
+  // Missing UNIQUE admission claims for historical orders are still covered
+  // by the preceding legacy + native read, and any race after cutover is
+  // covered by the new claim primary key. No D1 claim is created outside batch.
+  for(const lane of effectiveIntent.lines.map(line=>line.department)){
+    s.push(stmt(db,`
+      DELETE FROM t12_prod_customer_lane_claim
+       WHERE identity_key=? AND department=?
+         AND NOT EXISTS (
+           SELECT 1 FROM t12_prod_lines l
+           LEFT JOIN t12_prod_line_runtime rt ON rt.line_id=l.line_id
+            WHERE l.order_id=t12_prod_customer_lane_claim.order_id
+              AND l.department=t12_prod_customer_lane_claim.department
+              AND COALESCE(rt.status,l.status) NOT IN ('تم التسليم','ملغى','ملغي','مكرر')
+         )
+    `,identityKey,lane));
+    s.push(stmt(db,`
+      INSERT INTO t12_prod_customer_lane_claim
+        (identity_key,department,order_id,request_key) VALUES (?,?,?,?)
+    `,identityKey,lane,orderId,intent.requestKey));
+  }
   s.push(stmt(db,'DELETE FROM t12_prod_duplicate_order_guard WHERE fingerprint=? AND expires_at_ms<=?',duplicateFingerprint,nowMs));
   s.push(stmt(db,'INSERT INTO t12_prod_duplicate_order_guard (fingerprint,request_key,order_id,canonical_business_json,claimed_at_ms,expires_at_ms) VALUES (?,?,?,?,?,?)',
     duplicateFingerprint,intent.requestKey,'',canonicalBusinessJson,nowMs,expiresAtMs));
@@ -222,7 +247,17 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
     let recovered;try{recovered=await verifiedRead(db,intent,canonicalJson,safeActor,epoch);}catch{return fail('transaction-outcome-unknown-no-retry');}
     if(recovered.kind==='VERIFIED')return {...recovered.response,stored:false,idempotent:true,ambiguousAckRecovered:true,version:T12_GENERAL_CREATE_VERSION};
     if(recovered.kind==='CONFLICT')return fail('same-key-actor-payload-or-policy-conflict');
+    if(recovered.kind==='INDETERMINATE')return fail('transaction-outcome-unknown-no-retry');
+    // Re-evaluate after an atomic SQLite conflict: a parallel employee
+    // may have claimed PRINT while LASER is still free in a multi request.
+    // Retry once with the SAME idempotency key and recomputed lane projection.
+    // No failed batch can reserve the new business Order ID.
     try{
+      const current=await readCustomerLanePartition(db,intent.identity,intent.lines.map(l=>l.department));
+      if(!current.allowedDepartments.length)return laneBlocked(current);
+      if(options.__customerLaneRetry!==true){
+        return createT12GeneralOrder(db,input,actor,{...options,__customerLaneRetry:true});
+      }
       const duplicate=await activeDuplicateGuard(db,duplicateFingerprint,nowMs);
       if(duplicate&&text(duplicate.requestKey)!==intent.requestKey)return duplicateBlocked(duplicate,nowMs);
     }catch{return fail('transaction-outcome-unknown-no-retry');}
