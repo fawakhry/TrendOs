@@ -5763,6 +5763,10 @@ Trend Mall`;
       setMsg("addOrderStatus", external ? "رقم/علامة العميل والقسم مطلوبين." : "اسم الشات والقسم مطلوبين.", true);
       return;
     }
+    if (!params.itemName) {
+      setMsg("addOrderStatus", "اكتب وصف الشغل الحقيقي قبل إضافة الأوردر؛ الوصف الافتراضي لا يحدد المطلوب.", true);
+      return;
+    }
 
     if (createOrder._busy) {
       setMsg("addOrderStatus", "جاري تسجيل أوردر بالفعل. انتظر رد السيرفر حتى لا يتكرر الأوردر.", true);
@@ -5774,19 +5778,29 @@ Trend Mall`;
     btn.disabled = true;
     btn.textContent = "جاري الإضافة...";
 
+    let duplicateConfirmationOrderId = "";
     async function submitOnce(force) {
-      const sendParams = Object.assign({}, params, force ? { forceCreate: "YES" } : {});
+      const sendParams = Object.assign({}, params, force && duplicateConfirmationOrderId
+        ? {duplicateConfirmationOrderId: duplicateConfirmationOrderId} : {});
       return await api("createManualOrder", sendParams);
     }
 
     try {
       let res = await submitOnce(false);
       if (!res.success && res.needsConfirmation && res.warningOnly) {
-        const ok = confirm((res.message || "يوجد تشابه مع أوردر مفتوح.") + "\n\nهل تريد فتح أوردر جديد على مسؤوليتك؟");
-        if (!ok) {
-          setMsg("addOrderStatus", res.message || "تم إلغاء فتح الأوردر.", true);
+        const existingId = String(res.existingOrderId || "").trim();
+        if (!/^\d{4,16}$/.test(existingId)) {
+          setMsg("addOrderStatus", "تعذر التحقق من هوية الأوردر المشابه؛ لم يتم إنشاء أوردر جديد.", true);
           return;
         }
+        const ok = confirm((res.message || "يوجد أوردر مفتوح مطابق.") +
+          "\n\nلو العميل طلب شغلًا ثانيًا مستقلًا بنفس التفاصيل فقط، اضغط موافق. وإلا اضغط إلغاء وافتح الأوردر الموجود.");
+        if (!ok) {
+          if (res.openOrder) revealBlockedOpenOrder(res.openOrder, params.department);
+          setMsg("addOrderStatus", "تم منع التكرار. الأوردر المفتوح رقم " + existingId + ".", true);
+          return;
+        }
+        duplicateConfirmationOrderId = existingId;
         res = await submitOnce(true);
       }
 
@@ -5808,6 +5822,24 @@ Trend Mall`;
         alert("تنبيه قائمة منع التسليم\n\nالعميل: " + params.customerName + "\nالمديونية: " + (resDebtAmount ? (resDebtAmount + " ج") : "مسجلة على العميل") + "\n\nهذا العميل حدده ضياء؛ لا يتم التسليم حتى تصفير المديونية.");
       }
 
+      ["newCustomerName", "newCustomerPhone", "newItemName", "newAssignedTo", "newNotes"].forEach(function (id) {
+        const el = $(id);
+        if (el) el.value = "";
+      });
+      if (!external && $("newCustomerType")) $("newCustomerType").value = "";
+      if (external && $("newCustomerType")) $("newCustomerType").value = "خارجي / عابر";
+      $("newQty").value = 1;
+      if ($("newHeatPress")) $("newHeatPress").checked = false;
+      if ($("newFlyPrint")) $("newFlyPrint").checked = false;
+      updateHeatPressVisibility();
+      updateFlyPrintVisibility();
+      const suggestions = $("customerSuggestions");
+      if (suggestions) suggestions.classList.add("hidden");
+      state.editing = false;
+      loadRows(true); // V1925: فك زر التسجيل فور رد السيرفر، ثم اجلب القائمة المحدثة بالخلفية.
+
+      // Order commit already succeeded; WhatsApp errors are non-critical.
+      try {
       const phoneForWhatsApp = lightCustomerDigits(params.customerPhone);
       if (!external && phoneForWhatsApp.length >= 10) {
         const registrationRow = {
@@ -5830,21 +5862,10 @@ Trend Mall`;
         }
       }
 
-      ["newCustomerName", "newCustomerPhone", "newItemName", "newAssignedTo", "newNotes"].forEach(function (id) {
-        const el = $(id);
-        if (el) el.value = "";
-      });
-      if (!external && $("newCustomerType")) $("newCustomerType").value = "";
-      if (external && $("newCustomerType")) $("newCustomerType").value = "خارجي / عابر";
-      $("newQty").value = 1;
-      if ($("newHeatPress")) $("newHeatPress").checked = false;
-      if ($("newFlyPrint")) $("newFlyPrint").checked = false;
-      updateHeatPressVisibility();
-      updateFlyPrintVisibility();
-      const suggestions = $("customerSuggestions");
-      if (suggestions) suggestions.classList.add("hidden");
-      state.editing = false;
-      loadRows(true); // V1925: فك زر التسجيل فور رد السيرفر، ثم اجلب القائمة المحدثة بالخلفية.
+
+      } catch (whatsAppErr) {
+        setLoading("تم حفظ الأوردر رقم " + res.orderId + " بنجاح، لكن تعذرت متابعة رسالة واتساب.", true);
+      }
     } catch (err) {
       setMsg("addOrderStatus", err.message || "خطأ أثناء إضافة الأوردر.", true);
     } finally {
