@@ -7211,3 +7211,14 @@ Fix: compute diagnostic age from generatedAt, retaining the observation-time rol
 Verification: regression failed before the source change (60000 versus actual source age 61000); pure contract now passes source-age boundary, aged input, custom shorter TTL and clock rollback. Dashboard mocked outage/recovery and nearly-expired upstream snapshot now pass; expired response is HTTP 503 with no operationalDiagnostic. No Production outage or business write.
 
 Status: SOURCE_ONLY, staged for independent review and CI. Production AP-080 remains unchanged. MC-02 and MC-23 remain PARTIAL; durable cross-isolate storage still requires its separate qualified design.
+
+
+### AP-081 runtime completion and AP-082 per-panel source state
+
+AP-081: PR32 merged as 1a317046c5753ab0066da7ab767ad201c7e0f9e4. Exact baseline qualification run37828711785 PASS; controlled deployment run37828840033 PASS at 19:02 UTC, Dashboard version5d6c0034-1ea5-44fd-a2af-4a4194dae755, source SHA256 e2b2ef7456e3d2ed9f6375bc37e08bbaa418c322c748f268c91d635c716eb5c2. Settings hash unchanged; only two existing service bindings, no D1. Main T12 GENERAL V2/claim ready, Native Auth, Accounting READONLY39/OFF and Content/Comms READONLY unchanged. Prior AP-081 SOURCE_ONLY entry is historical and superseded for this specific expiry fix.
+
+AP-082 goal: implement the next MC-02/MC-23 per-panel freshness/provenance gate without introducing persistent storage. Dashboard V1.7 emits source/timestamp/age and availability separately for operations, deadlines, employees, blockers, readiness, communications, finance, learning and evidence. Snapshot freshness is explicitly distinct from financial-history completeness. Missing/failed subpanels display unavailable instead of zero; healthy panels stay visible. Evidence lacking a source timestamp is RECEIVED_AGE_UNKNOWN, never labelled fresh or sufficient for canary activation. Expired/future/invalid timestamps fail closed. No protected action or stale financial evidence is added.
+
+Local qualification PASS: pure panel contract, partial-failure Dashboard/DOM test, existing Dashboard read-only boundary and mocked upstream outage/recovery. A real Chromium run with every request intercepted locally proved unavailable Comms shows a dash, healthy waiting count7 remains visible, recovery allows observed zero, browser errors0 and Production requests0. Existing static Dashboard test updated for panelKpi wrapper and V1.7; initial old string assertion failed before that legitimate test adaptation.
+
+AP-082 status SOURCE_ONLY pending full CI and fresh runtime qualification. MC-02/MC-23 remain PARTIAL: durable cross-isolate storage not implemented or authorized by this read-only gate. No Production fault injected. Independent Cloudflare Workers Builds checks on AP-081 PR failed for trendos and historical preview worker; AP policy CI and exact Dashboard release qualification passed. No claim that all independent builds succeeded.
