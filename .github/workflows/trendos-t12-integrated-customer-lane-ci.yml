@@ -3,9 +3,11 @@ on:
   push:
     branches:
       - release/t12-customer-lane-safe-20261008
+      - audit/t12-customer-lane-runtime-20261008
     paths:
       - '.github/workflows/trendos-t12-integrated-customer-lane-ci.yml'
       - 'cloudflare-d1/src/t12-general-create.mjs'
+      - 'cloudflare-d1/src/t12-general-create-handler.mjs'
       - 'cloudflare-d1/src/t12-customer-lane-policy.mjs'
       - 'cloudflare-d1/src/t12-order-create-shadow-intent.mjs'
       - 'cloudflare-d1/migrations/0012_t12_customer_lane_claim.sql'
@@ -17,6 +19,7 @@ on:
       - 'tests/t12_customer_lane_partial.test.mjs'
       - 'tests/frontend_t12_duplicate_order_guard_entry590.test.mjs'
       - 'tests/t12_create_key_durability.test.mjs'
+      - 'scripts/t12_build_runtime_preserving_release.sh'
   workflow_dispatch:
 permissions:
   contents: read
@@ -36,6 +39,7 @@ jobs:
           set -euo pipefail
           for p in app.js trendos-edge-orders-read-v1.js config.js \
             cloudflare-d1/src/t12-general-create.mjs \
+            cloudflare-d1/src/t12-general-create-handler.mjs \
             cloudflare-d1/src/t12-customer-lane-policy.mjs \
             cloudflare-d1/src/t12-order-create-shadow-intent.mjs; do node --check "$p"; done
           grep -Fq 'CREATE TABLE IF NOT EXISTS t12_prod_customer_lane_claim' cloudflare-d1/migrations/0012_t12_customer_lane_claim.sql
@@ -55,7 +59,14 @@ jobs:
           node tests/t12_create_key_durability.test.mjs
           node tests/entry652_employee_session_lifecycle_guard.test.mjs
           node tests/entry652_employee_session_runtime_401_dispatch.test.mjs
+          node tests/entry651_employee_session_restore_guard.test.mjs
+          node tests/frontend_employee_session_isolation_entry533.test.mjs
           echo BROWSER_AND_ENTRY652_PARITY=PASS
+      - name: Exact live-source reconstruction and restricted offline release build
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/t12-release-tools --no-audit --no-fund wrangler@4.33.2
+          T12_WRANGLER_BIN=/tmp/t12-release-tools/node_modules/.bin/wrangler bash scripts/t12_build_runtime_preserving_release.sh "$GITHUB_SHA"
       - name: Safety
         run: |
           echo D1_PRODUCTION_WRITE=NO

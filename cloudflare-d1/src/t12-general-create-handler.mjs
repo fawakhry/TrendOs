@@ -57,6 +57,12 @@ async function duplicateGuardReady(db){
     return !!row;
   }catch{return false;}
 }
+async function customerLaneClaimReady(db){
+  try{
+    const found=await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='t12_prod_customer_lane_claim' LIMIT 1").first();
+    return !!found;
+  }catch{return false;}
+}
 async function readback(db,orderId){
   const id=text(orderId);
   if(!id)return {success:false,code:'order-id-required'};
@@ -90,13 +96,15 @@ export async function handleT12GeneralCreateRequest(req,env){
   if(path===HEALTH&&req.method==='GET'){
     const ctl=await control(env.DB);
     const guardReady=await duplicateGuardReady(env.DB);
-    const schemaReady=!!ctl&&text(ctl.marker)==='T12_GENERAL_CREATE_V1'&&guardReady;
+    const laneReady=await customerLaneClaimReady(env.DB);
+    const schemaReady=!!ctl&&text(ctl.marker)==='T12_GENERAL_CREATE_V1'&&guardReady&&laneReady;
     return json({
       success:schemaReady,
       service:'t12-general-create',
       version:T12_GENERAL_CREATE_VERSION,
       schemaReady,
       duplicateGuardReady:guardReady,
+      customerLaneClaimReady:laneReady,
       mode:schemaReady?text(ctl.mode):'UNKNOWN',
       canaryRemaining:schemaReady?Number(ctl.canaryRemaining||0):0,
       nextOrderNumber:schemaReady?Number(ctl.nextOrderNumber||0):0,

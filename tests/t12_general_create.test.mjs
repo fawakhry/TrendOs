@@ -56,6 +56,14 @@ class D1 {
   count(t){return Number(this.raw.prepare('SELECT COUNT(*) n FROM '+t).get().n);}
 }
 const actor='admin-owner';
+{
+ const db=new D1('GENERAL',0);db.raw.exec('DROP TABLE t12_prod_customer_lane_claim');
+ const response=await handleT12GeneralCreateRequest(new Request('https://x/v1/t12/orders/create/health'),{DB:db});
+ assert.equal(response.status,503,'Missing atomic admission schema must never report ready');
+ const health=await response.json();assert.equal(health.schemaReady,false);
+ assert.equal(health.customerLaneClaimReady,false);assert.equal(health.duplicateGuardReady,true);
+ assert.equal(db.count('t12_prod_orders'),0);
+}
 const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456',qty=1)=>({
   clientRequestId:key,
   customerMode:'خارجي / عابر',
@@ -231,6 +239,29 @@ const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456',qty=1)=>({
   assert.equal(replay.idempotent,true);
   assert.equal(replay.orderId,'4323');
   assert.equal(db.count('t12_prod_orders'),1);
+}
+
+{
+ const db=new D1('GENERAL',0);
+ const request={...input('cld1_1800000901000_OLDMULTIPRESS_1234567890123456'),department:'متعدد الأقسام',heatPress:'نعم'};
+ const first=await createT12GeneralOrder(db,request,actor);
+ assert.equal(first.success,true);
+ // Exact old deployed canonical format copied heatPress onto both lines.
+ // Seed that historical COMMITTED shape; never change a production row.
+ const record=db.raw.prepare('SELECT canonical_json FROM t12_prod_request_ledger WHERE request_key=?').get(request.clientRequestId);
+ const historical=JSON.parse(record.canonical_json);
+ for(const line of historical.lines){line.heatPress=historical.order.heatPress;line.flyPrint=historical.order.flyPrint;}
+ db.raw.prepare('UPDATE t12_prod_request_ledger SET canonical_json=?,response_json=? WHERE request_key=?')
+  .run(JSON.stringify(historical),JSON.stringify({success:true,cloudNative:true,orderId:first.orderId}),request.clientRequestId);
+ db.raw.prepare("UPDATE t12_prod_lines SET heat_press=1 WHERE request_key=? AND department='ليزر'").run(request.clientRequestId);
+ const replay=await createT12GeneralOrder(db,request,actor);
+ assert.equal(replay.success,true,'Same old committed press/multi attempt must retain its order number after upgrade');
+ assert.equal(replay.idempotent,true);assert.equal(replay.orderId,first.orderId);
+ assert.equal(db.count('t12_prod_orders'),1);
+ const changed=await createT12GeneralOrder(db,{...request,qty:2},actor);
+ assert.equal(changed.success,false);assert.equal(changed.reason,'same-key-actor-payload-or-policy-conflict');
+ const differentActor=await createT12GeneralOrder(db,request,'other-employee');
+ assert.equal(differentActor.success,false);assert.equal(differentActor.reason,'same-key-actor-payload-or-policy-conflict');
 }
 
 console.log('T12 general CREATE isolated PASS; open-lane rejection, different department, closed status, no override and replay PASS');

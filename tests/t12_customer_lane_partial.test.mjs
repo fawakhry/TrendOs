@@ -167,4 +167,39 @@ const create=(db,id,department,fields={})=>createT12GeneralOrder(db,make(id,depa
  assert.equal(db.raw.prepare("SELECT order_id FROM t12_prod_customer_lane_claim LIMIT 1").get().order_id,b.orderId);
 }
 
+{
+ const db=new D1();db.addLegacy({department:'مكبس',status:'جاهز للاستلام'});
+ const print=await create(db,90,'طباعة');
+ assert.equal(print.success,false,'Open legacy press must occupy PRINT');
+ assert.equal(print.existingOrderId,'2200');
+ const laser=await create(db,91,'ليزر');assert.equal(laser.success,true);
+ assert.equal(db.n('t12_prod_orders'),1);
+}
+{
+ const db=new D1();db.addLegacy({phone:'٠١٠٠٠٠٠٠١١١',customer:'Historic Alias',status:'جاهز للاستلام'});
+ const same=await create(db,92,'طباعة',{customerPhone:'+20 1000000111',customerName:'Current Alias'});
+ assert.equal(same.success,false,'Known Arabic legacy phone must retain identity across names');
+ assert.equal(same.existingOrderId,'2200');
+ const distinct=await create(db,93,'طباعة',{customerPhone:'01000000112',customerName:'Historic Alias'});
+ assert.equal(distinct.success,true,'Two known different phones must not be conflated by matching name');
+}
+{
+ const db=new D1();
+ const results=await Promise.all([
+  createT12GeneralOrder(db,make(94,'طباعة',{itemName:'EMPLOYEE A PRINT'}),'employee-a',{nowMs:1800001000000}),
+  createT12GeneralOrder(db,make(95,'متعدد الأقسام',{itemName:'EMPLOYEE B MULTI',heatPress:'نعم'}),'employee-b',{nowMs:1800001000000})
+ ]);
+ assert.equal(results[0].success,true,JSON.stringify(results));
+ assert.equal(results[1].success,true,'Second employee must save the available LASER lane');
+ assert.deepEqual(results[1].createdDepartments,['ليزر']);
+ assert.deepEqual(results[1].skippedDepartments,[{department:'طباعة',orderId:results[0].orderId}]);
+ assert.deepEqual(db.raw.prepare('SELECT department,COUNT(*) n FROM t12_prod_lines GROUP BY department ORDER BY department').all().map(x=>[x.department,Number(x.n)]),[['طباعة',1],['ليزر',1]]);
+ assert.equal(db.n('t12_prod_outbox'),2,'No queue for skipped PRINT');
+ assert.equal(db.n('t12_prod_customer_lane_claim'),2);
+ const replay=await createT12GeneralOrder(db,make(95,'متعدد الأقسام',{itemName:'EMPLOYEE B MULTI',heatPress:'نعم'}),'employee-b',{nowMs:1800001010000});
+ assert.equal(replay.success,true);assert.equal(replay.idempotent,true);
+ assert.equal(replay.orderId,results[1].orderId);
+ assert.equal(db.n('t12_prod_orders'),2);
+}
+
 console.log('T12 customer+department lane and partial multi create isolated + concurrent distinct-payload atomic claim PASS');

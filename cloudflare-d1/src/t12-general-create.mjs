@@ -2,7 +2,7 @@ import { buildT12OrderCreateShadowIntent } from './t12-order-create-shadow-inten
 import { classifyT12ClientRequestKey } from './t12-cloud-client-key-admission.mjs';
 import { readCustomerLanePartition, customerLaneIdentityMaterial } from './t12-customer-lane-policy.mjs';
 
-export const T12_GENERAL_CREATE_VERSION='T12_GENERAL_CREATE_20261008_PER_DEPARTMENT_ATOMIC_CANDIDATE';
+export const T12_GENERAL_CREATE_VERSION='T12_GENERAL_CREATE_20261008_PER_DEPARTMENT_ATOMIC_CANDIDATE_V2';
 export const T12_DUPLICATE_ORDER_GUARD_WINDOW_MS=120000;
 const CREATE_MARKER='T12_PROD_CREATE_CANARY_V1';
 const GENERAL_MARKER='T12_GENERAL_CREATE_V1';
@@ -91,12 +91,24 @@ async function verifiedRead(db,intent,canonicalJson,actor,epoch){
   const key=intent.requestKey;
   const l=await row(db.prepare('SELECT actor,policy_epoch AS policyEpoch,canonical_json AS canonicalJson,order_id AS orderId,status,response_json AS responseJson FROM t12_prod_request_ledger WHERE request_key=? LIMIT 1').bind(key));
   if(!l)return {kind:'MISSING'};
-  if(l.actor!==actor||l.policyEpoch!==epoch||l.canonicalJson!==canonicalJson)return {kind:'CONFLICT'};
+  if(l.actor!==actor||l.policyEpoch!==epoch)return {kind:'CONFLICT'};
   if(l.status!=='COMMITTED')return {kind:'INDETERMINATE'};
   let persisted;
   try{persisted=JSON.parse(l.responseJson||'{}');}catch{return {kind:'INDETERMINATE'};}
+  let replayIntent=intent;
+  if(l.canonicalJson!==canonicalJson){
+    // Before the lane release, press flags were copied onto every MULTI line.
+    // Accept only that exact old canonical shape on a COMMITTED old ledger;
+    // do not rewrite historical rows or relax actor/epoch/payload matching.
+    const historical={...intent,lines:intent.lines.map(line=>({
+      ...line,heatPress:intent.order.heatPress,flyPrint:intent.order.flyPrint
+    }))};
+    if(Object.prototype.hasOwnProperty.call(persisted,'createdDepartments')||
+       l.canonicalJson!==canonical(historical,actor,epoch))return {kind:'CONFLICT'};
+    replayIntent=historical;
+  }
   const created=Array.isArray(persisted.createdDepartments)?persisted.createdDepartments:null;
-  const effective=created?projectAllowedIntent(intent,created):intent;
+  const effective=created?projectAllowedIntent(replayIntent,created):replayIntent;
   if(!effective.lines.length)return {kind:'INDETERMINATE'};
   const o=await row(db.prepare('SELECT order_id AS orderId,request_key AS requestKey,department,priority,status,actor FROM t12_prod_orders WHERE request_key=? LIMIT 1').bind(key));
   if(!o||o.orderId!==l.orderId||o.requestKey!==key||o.department!==effective.order.department||o.priority!==effective.order.priority||o.status!=='طلب جديد'||o.actor!==actor)return {kind:'INDETERMINATE'};

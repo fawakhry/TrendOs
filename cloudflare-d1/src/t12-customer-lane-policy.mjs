@@ -6,13 +6,19 @@
 import { mapMirrorRows } from './edge-orders-read-v1.mjs';
 import { applyLegacyRuntimeOverlay, readLegacyRuntimeRows } from './t12-legacy-line-runtime.mjs';
 
-export const T12_CUSTOMER_LANE_POLICY_VERSION='T12_CUSTOMER_LANE_POLICY_20261008_CANDIDATE';
+export const T12_CUSTOMER_LANE_POLICY_VERSION='T12_CUSTOMER_LANE_POLICY_20261008_CANDIDATE_V2';
 const LEGACY_SHEET='بنود الأوردرات';
 const CLOSED=new Set(['تم التسليم','ملغى','ملغي','مكرر']);
 function text(v){return String(v==null?'':v).trim();}
 function normalizeName(v){return text(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[ةه]/g,'ه').replace(/\s+/g,' ').trim();}
 function digits(v){return text(v).replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/\D/g,'');}
 function phone(v){let d=digits(v);if(d.startsWith('0020'))d=d.slice(2);if(d.startsWith('20')&&d.length===12)d='0'+d.slice(2);if(/^1[0125]\d{8}$/.test(d))d='0'+d;return d;}
+function departmentLane(v){
+  const d=text(v),lower=d.toLowerCase();
+  if(d==='مكبس'||lower==='press'||lower==='heat press'||lower==='heat-press'||lower==='print'||lower==='printing')return 'طباعة';
+  if(lower==='laser')return 'ليزر';
+  return d;
+}
 export function sameCustomerIdentity(requested,row){
   const mode=text(requested&&requested.mode);
   const otherMode=text(row&&row.mode).toLowerCase();
@@ -39,12 +45,12 @@ export function customerLaneIdentityMaterial(identity){
 }
 export function isOpenDepartmentStatus(status){return !CLOSED.has(text(status));}
 export function partitionCustomerLanes(identity,wanted,rows){
-  const departments=[...new Set(wanted.map(text).filter(Boolean))];
+  const departments=[...new Set(wanted.map(departmentLane).filter(Boolean))];
   const blockers=new Map();
   for(const x of rows){
-    if(!departments.includes(text(x.department))||!sameCustomerIdentity(identity,x))continue;
+    const lane=departmentLane(x.department);
+    if(!departments.includes(lane)||!sameCustomerIdentity(identity,x))continue;
     if(!isOpenDepartmentStatus(x.status))continue;
-    const lane=text(x.department);
     if(!blockers.has(lane))blockers.set(lane,{department:lane,orderId:text(x.orderId),lineId:text(x.lineId)});
   }
   const blocked=departments.filter(d=>blockers.has(d)).map(d=>blockers.get(d));
@@ -78,7 +84,19 @@ export async function readCustomerLanePartition(db,identity,wanted){
     values:JSON.parse(r.valuesJson),display:JSON.parse(r.displayJson)
   }));
   // The legacy mapper expects (headers, rows, screen). Keep its arguments exact.
-  const historical=mapMirrorRows(JSON.parse(catalog.headersJson),mirrorRows,'service');
+  const headers=JSON.parse(catalog.headersJson);
+  const phoneHeaders=['رقم العميل الخارجي','رقم العميل','رقم الهاتف','Phone'];
+  let phoneColumn=headers.findIndex(h=>phoneHeaders.includes(text(h)));
+  if(phoneColumn<0)phoneColumn=16;
+  // The shared read mapper strips non-ASCII digits. Admission must preserve
+  // the original known phone, including Arabic digits, before name fallback.
+  const phonesByRow=new Map(mirrorRows.map(row=>{
+    const cells=Array.isArray(row.display)&&row.display.length?row.display:row.values;
+    return [row.rowNumber,phone(Array.isArray(cells)?cells[phoneColumn]:'')];
+  }));
+  const historical=mapMirrorRows(headers,mirrorRows,'service').map(row=>({
+    ...row,customerPhone:phonesByRow.get(row.rowNumber)||row.customerPhone
+  }));
   const latest=await readLegacyRuntimeRows({DB:db});
   const combined=(native.results||[]).concat(applyLegacyRuntimeOverlay(historical,latest).map(row=>({
     mode:row.customerMode|| (row.externalCustomerId?'external':'registered'),

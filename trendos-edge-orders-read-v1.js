@@ -633,14 +633,36 @@
     try { localStorage.setItem(createStorageKey(fingerprint),value); } catch(e) {
       try { sessionStorage.setItem(createStorageKey(fingerprint),value); } catch(_) {}
     }
+    var stored=readPendingCreate(fingerprint);
+    return !!stored && text(stored.cloudKey)===cloudKey;
+  }
+
+  async function migrateLegacyPendingCreate(fingerprint, username) {
+    // Read the old tab-only attempt without extending its plaintext storage.
+    // A deploy must not lose an unknown-outcome request merely because its
+    // pre-SHA256 fingerprint or the former 20-minute timeout has changed.
+    try {
+      var old=JSON.parse(sessionStorage.getItem(T12_PENDING_CREATE_STORAGE_KEY)||'null');
+      if (!old || !/^cld1_\d{13}_[A-Za-z0-9_-]{16,80}$/.test(text(old.cloudKey))) return null;
+      var fields=JSON.parse(old.fingerprint);
+      if (!Array.isArray(fields)||fields.length!==13||fields.some(function(x){return typeof x!=='string';})) return null;
+      var material=JSON.stringify([text(username)].concat(fields));
+      var digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(material));
+      var hash=Array.from(new Uint8Array(digest),function(b){return b.toString(16).padStart(2,'0');}).join('');
+      return hash===fingerprint?{fingerprint:fingerprint,cloudKey:text(old.cloudKey),legacy:true}:null;
+    } catch(e) { return null; }
   }
 
   function clearPendingCreate(fingerprint) {
     // Remove only the resolved intent. Other unresolved offline orders survive.
     if (!/^[a-f0-9]{64}$/.test(text(fingerprint))) return;
+    var resolved=readPendingCreate(fingerprint);
     try { localStorage.removeItem(createStorageKey(fingerprint)); } catch(e) {}
     try { sessionStorage.removeItem(createStorageKey(fingerprint)); } catch(e) {}
-    try { sessionStorage.removeItem(T12_PENDING_CREATE_STORAGE_KEY); } catch(e) {}
+    try {
+      var old=JSON.parse(sessionStorage.getItem(T12_PENDING_CREATE_STORAGE_KEY)||'null');
+      if (resolved&&old&&text(old.cloudKey)===text(resolved.cloudKey)) sessionStorage.removeItem(T12_PENDING_CREATE_STORAGE_KEY);
+    } catch(e) {}
   }
 
   function safeT12CreatePayload(params, cloudKey) {
@@ -784,13 +806,20 @@
     try { fingerprint = await t12CreateFingerprint(params || {}); }
     catch { return {success:false,code:'T12_FINGERPRINT_UNAVAILABLE',message:'تعذر حماية مفتاح تسجيل الأوردر. لم يتم إرسال الطلب.'}; }
     var pending = readPendingCreate(fingerprint);
+    if (!pending) pending=await migrateLegacyPendingCreate(fingerprint,params&&params.username);
     var cloudKey = pending && pending.fingerprint === fingerprint
       ? text(pending.cloudKey)
       : cloudCreateKeyFromLegacy(params && params.clientRequestId);
     if (!cloudKey) {
       return { success: false, code: 'T12_CLOUD_KEY_REQUIRED', message: 'تعذر إنشاء مفتاح آمن للأوردر. لم يتم الإرسال.' };
     }
-    rememberPendingCreate(fingerprint, cloudKey);
+    if (!rememberPendingCreate(fingerprint, cloudKey)) {
+      return {success:false,code:'T12_PENDING_CREATE_STORAGE_UNAVAILABLE',
+        message:'تعذر حفظ محاولة التسجيل على هذا الجهاز. لم يتم إرسال الأوردر؛ اسمح بتخزين بيانات الموقع ثم أعد المحاولة.'};
+    }
+    if (pending&&pending.legacy) {
+      try { sessionStorage.removeItem(T12_PENDING_CREATE_STORAGE_KEY); } catch(e) {}
+    }
 
     var payload = safeT12CreatePayload(params || {}, cloudKey);
     var token = await ensureSession();
