@@ -10,8 +10,8 @@ assert.match(edge,/existingOrderId/);
 assert.match(edge,/retryAfterMs/);
 assert.match(edge,/تم منع إنشاء أوردر مكرر/);
 assert.match(edge,/انتظر حوالي/);
-assert.match(config,/trendos-edge-orders-read-v1\.js\?v=20261002-legacy-line-runtime/);
-assert.match(html,/config\.js\?v=20261002-login-fast-surface/);
+assert.match(config,/trendos-edge-orders-read-v1\.js\?v=20261008-entry652-session-lifecycle/);
+assert.match(html,/config\.js\?v=20261008-entry652-session-lifecycle/);
 
 // Existing same-key retry behavior must remain intact.
 assert.match(edge,/T12_PENDING_CREATE_STORAGE_KEY/);
