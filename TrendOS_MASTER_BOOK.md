@@ -28,6 +28,22 @@
 
 > **قاعدة التسجيل:** كل خطوة جديدة تؤثر في Repo / Cloudflare / D1 / Apps Script / Production تُسجل هنا فورًا بالحالة الفعلية والدليل والخطوة التالية. ويشمل ذلك: كل محاولة ناجحة أو فاشلة، Runtime drift، rollback/restore، إصلاح hardening، workflow/run/job، deploy، تشخيص سبب الفشل، وفتح/إغلاق أي gate. لا تعتبر أي خطوة مكتملة قبل تسجيلها هنا. ممنوع تسجيل passwords أو Tokens أو password hashes أو session secrets.
 
+## إصلاح تكرار الأوردرات حسب القسم — 2026-10-08 (آخر سياسة معتمدة، مرشح غير منشور)
+
+**بحث عربي:** تكرار الأوردرات / نفس القسم / طباعة وليزر / متعدد البنود / منع أوردر مفتوح / تكرار الطلب / عميل عنده طباعة / إنشاء ليزر فقط / partial multi / customer department lane.
+
+**الحقيقة الحالية:** SOURCE-ONLY على فرع `fix/t12-duplicate-create-durable-20261008`، و**FINAL ISOLATED CI = PASS** في <https://github.com/fawakhry/TrendOs/actions/runs/37771963164> (run `37771963164`, job `113293468630`). **PRODUCTION لم يُنشر عليه هذا التعديل ولا يجوز وصف المشكلة بأنها أُصلحت حياً.**
+
+**القرار النهائي للمالك (يُلغي قاعدتي «أي أوردر مفتوح لنفس العميل» و«مطابقة نفس تفاصيل البند لمدة 48 ساعة»):** منع أوردر جديد لنفس العميل *في نفس القسم فقط* بصرف النظر عن اسم البند أو الكمية أو مرور الوقت؛ قسم طباعة لا يمنع قسم ليزر والعكس. «متعدد الأقسام» يفتح فقط الأقسام الخالية من أوردر مفتوح؛ لو للعميل طباعة مفتوحة ينشئ **ليزر فقط**، ولو له ليزر مفتوح ينشئ **طباعة فقط**، ولو الاثنان مفتوحان يرفض بالكامل دون تخصيص Order ID، ولو لا توجد أي أوردرات مفتوحة يفتح البندين طباعة + ليزر. وجود أي بند غير مقفل في القسم يعني القسم مشغول. «جاهز للاستلام» لا يزال مفتوحًا؛ حالات `تم التسليم` و`ملغى/ملغي` و`مكرر` مقفولة.
+
+**التنفيذ Repo-only:** `cloudflare-d1/src/t12-customer-lane-policy.mjs` يقرأ أوامر D1 الحالية مع `t12_prod_line_runtime` وأوامر Legacy من `sheet_rows` مع `t12_legacy_line_runtime` ويطابق هوية العميل؛ يفشل مغلقًا عند تعذر القراءة. `cloudflare-d1/src/t12-general-create.mjs` يفحص الأقسام قبل تخصيص Order ID، ويكوّن `effectiveIntent` ببنود وأحداث Queue للأقسام المسموح بها فقط ويحفظ الأقسام المنفذة/المرفوضة في Ledger لاستعادة نفس الرد عند إعادة المحاولة. `cloudflare-d1/src/t12-order-create-shadow-intent.mjs` يمنع إرسال أعلام المكبس والطباعة السريعة لبند ليزر، خاصة عند قبول ليزر وحده من طلب متعدد. `cloudflare-d1/src/t12-order-create-input-guard.mjs` يمنع bypass، و`app.js` + `trendos-edge-orders-read-v1.js` يعرضان أقسام التنفيذ والأقسام المرفوضة وأرقام أوردراتها. استمرّت حماية المفتاح الثابت للمحاولة بعد Refresh ومنع اعتبار خطأ واتساب فشل إنشاء.
+
+**اختبارات:** `tests/t12_general_create.test.mjs`، `tests/t12_customer_lane_partial.test.mjs`، `tests/frontend_t12_duplicate_order_guard_entry590.test.mjs`، `tests/t12_create_key_durability.test.mjs`. سابقة `37770746148` = PASS. متابعة المكبس `37770911983` = FAIL في *test replay فقط* بسبب تغيير `heatPress` مع نفس `clientRequestId`، وحُسم تعديل بيانات الاختبار إلى الطلب الأصلي في commit `c55caff4704c683517349e1d9879d2d9756c5497`. Run `37771963164` = **SUCCESS على جميع خطوات SQLite والواجهة**.
+
+**قيود الإطلاق والأمان:** لم يُعدل D1 Production، ولم تُحذف أو تُغيَّر الأوردرات القديمة؛ ولم يُنشر API/UI. يلزم اختبار read-only على حالة مرآة Legacy وتحديثاتها ونسخة Worker الفعلية، ثم اختبار قبول متكامل بدون CREATE تجاري تجريبي، ثم موافقة منفصلة على أي نشر مع Snapshot/Rollback. إذا المرآة التاريخية غير جاهزة تفشل محاولة CREATE مغلقة. مصدر محضر التنفيذ <https://github.com/fawakhry/TrendOs/blob/fix/t12-duplicate-create-durable-20261008/docs/trendos/blackbox/%D9%85%D9%86%D8%B5%D8%A9%20%D8%AA%D8%B1%D9%86%D8%AF/TRENDOS_T12_DUPLICATE_CREATE_FIX_JOURNAL_2026-10-08.md>.
+
+> **تنبيه تاريخي:** الفصل التالي `Incident DUP-CREATE-20261008` يحتفظ بتصور سابق (حارس 48 ساعة وتأكيد الموظف) كتاريخ تجريبي فقط، **وليس** السياسة النهائية. هذا الفصل هو القرار الأحدث في الفرع التجريبي.
+
 ## Incident DUP-CREATE-20261008 — إصلاح منع تكرار الأوردرات (مرشح معزول، غير منشور)
 
 **الحالة:** `SOURCE_QUALIFIED / ISOLATED_CI_PASS / PRODUCTION_UNCHANGED` بتاريخ 2026-10-08. هذا الفصل على الفرع التجريبي `fix/t12-duplicate-create-durable-20261008` فقط، ولا يثبت أن المستخدمين يستفيدون من الإصلاح قبل مراجعة Production ونشر مصرح به.
