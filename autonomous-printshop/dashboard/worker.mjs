@@ -1,8 +1,14 @@
 import { qualifyOperatorTaskCanaryV1 } from '../core/operator-task-canary-qualification-v1.mjs';
 import { buildOwnerExceptionModelV1, OWNER_EXCEPTION_MODEL_VERSION } from '../core/owner-exception-model-v1.mjs';
+import { createControlTowerLastGoodGateV1, CONTROL_TOWER_LAST_GOOD_VERSION } from '../core/control-tower-last-good-v1.mjs';
 const SHADOW_URL='https://autonomous-printshop-shadow.trendmall-contact.workers.dev';
 const READINESS_COLLECTOR_URL='https://autonomous-printshop-readiness-collector.trendmall-contact.workers.dev';
-const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_5_20261008';
+const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_6_20261008';
+const lastGoodGate=createControlTowerLastGoodGateV1();
+function degradedControlTowerResponse(){
+  const fallback=lastGoodGate.degraded();
+  return json(fallback,fallback.success?200:503);
+}
 
 function json(body,status=200){
   return new Response(JSON.stringify(body),{
@@ -108,6 +114,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 th{color:var(--muted);font-weight:700}
 .footer{margin:16px 0 4px;color:var(--muted);font-size:12px}
+.degraded .card,.degraded .section,.degraded #kpis,.degraded #modes,.degraded #signal,.degraded #financeStatus,.degraded #footer{display:none}
 .loading{opacity:.55;pointer-events:none}
 .error{display:none;background:#fef3f2;color:#b42318;border:1px solid #fecdca;padding:12px;border-radius:14px;margin-bottom:12px}
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.readiness{grid-template-columns:1fr}.top{align-items:center}h1{font-size:22px}}
@@ -124,6 +131,7 @@ th{color:var(--muted);font-weight:700}
     <button class="refresh" id="refresh">تحديث</button>
   </div>
   <div class="error" id="error"></div>
+  <div id="staleStatus" role="status" aria-live="polite"></div>
 
   <div class="card">
     <div class="badges" id="modes"></div>
@@ -275,6 +283,16 @@ async function load(){
     const r=await fetch('/state',{cache:'no-store'});
     const d=await r.json();
     if(!r.ok||d.success!==true) throw new Error(d.code||'تعذر تحميل الحالة');
+    if(d.status==='LAST_GOOD_STALE_DIAGNOSTIC_ONLY'){
+      app.classList.add('degraded');
+      const diag=d.operationalDiagnostic||{};
+      q('#staleStatus').innerHTML='<div class="signal warn"><div class="exception-title">بيانات قديمة — للمتابعة فقط / STALE</div>'+esc(d.displayWarningAr||'تعذر الوصول إلى Control Tower؛ لا تستخدم البيانات القديمة لاتخاذ قرار.')+'</div>'
+        +'<div class="signal warn">وقت آخر قراءة: '+esc(d.asOf||'غير معروف')+' • عمر البيانات: '+n(Math.ceil(n(d.ageMs)/1000))+' ثانية • ملخص تشغيلي سابق فقط: منتظر '+n(diag.waiting)+'، تحت التنفيذ '+n(diag.inProgress)+'، متأخر '+n(diag.overdueOrders)+'.</div>'
+        +'<div class="signal danger">مؤشرات Finance والديون والقرارات المحمية والجاهزية غير متاحة في وضع STALE، ولا يُسمح بأي تنفيذ أو اعتماد منها.</div>';
+      return;
+    }
+    app.classList.remove('degraded');
+    q('#staleStatus').innerHTML='';
 
     const ops=d.operations?.counts||{};
     const deadline=d.operations?.deadlineRisk||{};
@@ -410,6 +428,8 @@ async function load(){
       ' • Owner Console: Read-only'+
       ' • Raw IDs/PII: غير معروضة';
   }catch(e){
+    app.classList.add('degraded');
+    q('#staleStatus').innerHTML='<div class="signal danger">مصدر Control Tower غير متاح ولا توجد قراءة حديثة مؤهلة. لا يوجد إثبات حالي للحسابات أو الجاهزية أو قرارات المالك.</div>';
     err.textContent='تعذر تحميل لوحة المطبعة: '+(e&&e.message||e);
     err.style.display='block';
   }finally{
@@ -430,16 +450,16 @@ export default {
 
     if(path==='/state'||path==='/api/state'){
       try{
-        const controlResponse=await fetchControlTower(env);
-        const controlText=await controlResponse.text();
+        let controlResponse;
+        try{ controlResponse=await fetchControlTower(env); }
+        catch{ return degradedControlTowerResponse(); }
         let control={};
-        try{ control=JSON.parse(controlText||'{}'); }catch{}
-        if(!controlResponse.ok||control.success!==true){
-          return new Response(controlText,{
-            status:controlResponse.status,
-            headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}
-          });
-        }
+        try{ control=JSON.parse(await controlResponse.text()); }
+        catch{ return degradedControlTowerResponse(); }
+        if(!controlResponse.ok||control.success!==true) return degradedControlTowerResponse();
+        // Only fresh, read-only, PII-free sources may update the local diagnostic.
+        // Degraded values never flow through Owner Exception Model or Finance.
+        if(lastGoodGate.observe(control).success!==true) return degradedControlTowerResponse();
 
         let evidenceAcquisition={success:false,unavailable:true};
         try{
@@ -453,7 +473,7 @@ export default {
         const ownerExceptionModel=buildOwnerExceptionModelV1({...control,evidenceAcquisition,operatorTaskCanary});
         return json({...control,evidenceAcquisition,operatorTaskCanary,ownerExceptionModel});
       }catch(err){
-        return json({success:false,code:'CONTROL_TOWER_UPSTREAM_ERROR',message:String(err&&err.message||err)},502);
+        return degradedControlTowerResponse();
       }
     }
 
@@ -482,6 +502,8 @@ export default {
         ownerExceptionConsole:true,
         trendosManagerCenterReplacementCandidate:true,
         ownerExceptionModelVersion:OWNER_EXCEPTION_MODEL_VERSION,
+        lastGoodVersion:CONTROL_TOWER_LAST_GOOD_VERSION,
+        lastGoodCacheScope:'WORKER_ISOLATE_BEST_EFFORT',
         businessWrites:false,
         employeeAssignment:false
       });
