@@ -91,17 +91,26 @@ def main():
  baseline=build(BASE,'baseline');target=build(TARGET,'target')
  REPORT['contracts']='PASS';REPORT['baselineBundle']=fingerprint(baseline);REPORT['targetBundle']=fingerprint(target)
  version=active();REPORT['beforeVersion']=version
- check(fingerprint(live_bundle())==fingerprint(baseline),'LIVE_SOURCE_NOT_BASELINE')
+ live_fingerprint=fingerprint(live_bundle())
+ already_deployed=live_fingerprint==fingerprint(target)
+ check(already_deployed or live_fingerprint==fingerprint(baseline),'LIVE_SOURCE_NOT_BASELINE_OR_QUALIFIED_TARGET')
  live_settings=cf('/workers/scripts/'+WORKER+'/settings');before_hash=settings_hash(live_settings)
+ check(before_hash=='b6c8af2e85776f038a2c5dbe23543def9fa1ac00fd1742cb563dc62ab631aef9','QUALIFIED_SETTINGS_DRIFT')
  bindings=live_settings.get('bindings',[])
  check(len(bindings)==2 and {b.get('name'):b.get('service') for b in bindings}=={'SHADOW':'autonomous-printshop-shadow','READINESS_COLLECTOR':'autonomous-printshop-readiness-collector'} and all(b.get('type')=='service' for b in bindings),'BINDING_SCOPE_DRIFT')
  REPORT['settingsHash']=before_hash
  REPORT['mainBefore']=main_health()
  h=public(HOST+'/health');s=public(HOST+'/state')
- check(h.get('dashboardVersion')==BASE_VERSION and h.get('businessWrites') is False,'DASHBOARD_HEALTH_DRIFT')
+ check(h.get('dashboardVersion')==(TARGET_VERSION if already_deployed else BASE_VERSION) and h.get('businessWrites') is False,'DASHBOARD_HEALTH_DRIFT')
  check(s.get('mode')=='CONTROL_TOWER_SHADOW' and s.get('writesAccepted') is False and s.get('d1Mutation') is False,'UPSTREAM_NOT_READONLY')
  REPORT['beforeHealth']={k:h[k] for k in ['dashboardVersion','lastGoodVersion','businessWrites','employeeAssignment']}
  check(active()==version,'VERSION_LEASE_DRIFT')
+ if already_deployed:
+  if RELEASE_ID=='AP082':
+   check(s.get('panelStatus',{}).get('version')=='CONTROL_TOWER_PANEL_STATUS_V1_20261008','PANEL_METADATA_NOT_LIVE')
+   REPORT['panels']={k:{field:value for field,value in v.items() if field in ['state','source','asOf','ageMs','historicalCompletenessQualified','executionAllowed']} for k,v in s['panelStatus']['panels'].items()}
+  REPORT['afterVersion']=version;REPORT['runtimeSourceParity']='PASS';REPORT['deploymentPerformed']=False
+  REPORT['state']='ALREADY_DEPLOYED_VERIFIED';return
  REPORT['state']='QUALIFIED_READONLY'
  if not DEPLOY:return
  runtime=cf('/workers/scripts/'+WORKER+'/versions/'+version)['resources']['script_runtime']
