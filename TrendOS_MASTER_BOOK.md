@@ -6790,3 +6790,11 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - خمس ثغرات تأهيل أُثبتت باختبارات تفشل قبل الإصلاح ثم PASS محليًا على Node22: (1) Legacy press occupies PRINT، (2) حفظ Arabic phone للمقارنة بدون تعديل shared mapper، (3) health يفشل عند غياب claim schema، (4) storage failure يمنع POST، (5) ترقية المفتاح القديم وإعادة قراءة COMMITTED old multi/press تبقي رقم الأوردر. الأخير يسمح فقط بالشكل canonical القديم المطابق بنفس actor/epoch/payload؛ لا تغيير records أو auth.
 - اختبارات جديدة تطلب employee-a وemployee-b مختلفين، وتثبت PRINT واحد + LASER واحد بالضبط، skipped PRINT لا يحصل على queue، واسترجاع نفس multi request. هذا أقوى من assertion سابق يسمح LASER count<=1. ما زالت SQLite المحلية لا تساوي D1 Production acceptance.
 - Cache suffix للـconfig/app/edge يتقدم إلى `entry652-session-lifecycle-t12-lane-v2`، مع الحفاظ على Session Epoch والـdispatcher/Andon. الإصلاح الحالي SOURCE_ONLY، CI على المصدر الجديد وتجميع الحزمة النهائية قيد التأهيل؛ لا نشر أو migration أو CREATE على Production.
+
+
+### نتيجة تأهيل التدقيق — 2026-10-08 / SOURCE_ONLY
+- الإصلاحات في bb07cfbc؛ CI الأول37787138817 FAIL في offline package بسبب shallow checkout فقط، أُصلح fetch-depth0 في bc0531e3. CI37787934224 / job113347412039 SUCCESS بجميع الخطوات، بما فيها exact runtime reconstruction وrestricted target build.
+- Chromium + workerd + D1 محليين: response loss بعد COMMIT ثم reload/retry بنفس key يعيد نفس الأوردر؛ partial LASER وblocked PRINT، form/key clear بعد ACK، ProductionRequests=0. SELECT نهائي orders=2 lines=2 outbox=2 claims=2 laserWithoutPress=1 بما فيه seed؛ لا تكرار. Auth mock synthetic، لا ادعاء Production login. تعثر harness في card/mock edgeToken ثم صُحح قبل PASS؛ لا إخفاء إخفاق المصدر/CI السابق.
+- target Worker SHA256=0c75704893862be91279911fbc21a04bb3f0350c5f21f55ed47e92a1e796d503؛ يحفظ Accounting/Core/Foundation. UI patchset فقط تحتاج snapshot حية كاملة قبل النشر.
+- التقرير والخطة ذات12 إجابة: docs/trendos/blackbox/منصة ترند/TRENDOS_T12_CUSTOMER_LANE_RUNTIME_AUDIT_2026-10-08.md.
+- SOURCE TESTS=PASS; LOCAL RUNTIME=PASS; LIVE AUDIT=RUNTIME_VERIFIED READONLY; DEPLOY/MIGRATION=NO. Production BLOCKED_SAFE حتى UI snapshot/preflight جديد وموافقة المالك، حسب تعليماته الصريحة. لا DROP/restore تلقائي أو أوردر تجاري اختباري.
