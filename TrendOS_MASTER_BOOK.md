@@ -6842,3 +6842,5 @@ Accounting evidence: total request ledger6 and audit events6; prepared custody-c
 R2 bucket probe403: bucket existence UNKNOWN, no creation/binding mutation. Files remain blocked on a qualified dedicated-bucket/binding prerequisite.
 
 Independent AP-080 bug reproduced: fallback age measured reception rather than generatedAt, allowing an aged snapshot nearly ten minutes of display under a five-minute contract. Isolated AP-081 fixes expiry using source time and retains rollback guard. Source commit cbe270a553df6f7de326a6934f5f7fa978aa18ef, branch candidate/ap-081-source-freshness-20261008, draft PR https://github.com/fawakhry/TrendOs/pull/32 against candidate fe16. Pure and Dashboard expiry/outage/recovery tests PASS locally. Policy CI run37827973068 pending at documentation time. SOURCE_ONLY, no Production deployment; MC-02/MC-23 remain PARTIAL and durable storage requires separate qualification.
+
+AP-081 final qualification: Policy CI run37827973068 SUCCESS (autonomy-policy-contract). PR32 ready for review; no Production deployment or candidate merge performed.
