@@ -1,7 +1,8 @@
 import { buildT12OrderCreateShadowIntent } from './t12-order-create-shadow-intent.mjs';
 import { classifyT12ClientRequestKey } from './t12-cloud-client-key-admission.mjs';
+import { readCustomerLanePartition } from './t12-customer-lane-policy.mjs';
 
-export const T12_GENERAL_CREATE_VERSION='T12_GENERAL_CREATE_20261008_ACTIVE_REPEAT_GUARD_CANDIDATE';
+export const T12_GENERAL_CREATE_VERSION='T12_GENERAL_CREATE_20261008_PER_DEPARTMENT_CREATE_CANDIDATE';
 export const T12_DUPLICATE_ORDER_GUARD_WINDOW_MS=120000;
 export const T12_OPEN_ORDER_DUPLICATE_LOOKBACK_MS=48*60*60*1000;
 const CREATE_MARKER='T12_PROD_CREATE_CANARY_V1';
@@ -51,34 +52,31 @@ async function activeDuplicateGuard(db,fingerprint,nowMs){
      LIMIT 1
   `).bind(fingerprint,nowMs));
 }
-// Read-only complement to the 120-second atomic fingerprint reservation.
-// The existing guard row is retained after expiry and points to the last identical
-// business create, so we can detect a still-open order for 48h without a schema
-// migration or a write outside the original atomic D1 batch.
-async function recentOpenDuplicateGuard(db,fingerprint,nowMs){
-  return row(db.prepare(`
-    SELECT g.request_key AS requestKey, g.order_id AS orderId,
-           g.claimed_at_ms AS claimedAtMs
-      FROM t12_prod_duplicate_order_guard g
-      JOIN t12_prod_orders o ON o.order_id=g.order_id
-     WHERE g.fingerprint=? AND g.claimed_at_ms>=? AND g.order_id<>''
-       AND EXISTS (
-         SELECT 1 FROM t12_prod_lines l
-         LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
-          WHERE l.order_id=o.order_id
-            AND COALESCE(r.status,l.status) NOT IN ('تم التسليم','ملغى','مكرر')
-       )
-     LIMIT 1
-  `).bind(fingerprint,nowMs-T12_OPEN_ORDER_DUPLICATE_LOOKBACK_MS));
+// A partial multi-department create must allocate line IDs, outbox and event
+// payloads for allowed lanes only, without phantom lines for blocked lanes.
+function projectAllowedIntent(intent,allowed){
+  const lines=intent.lines.filter(line=>allowed.includes(line.department)).map((line,index)=>({
+    ...line,ordinal:index+1,provisionalLineRef:intent.provisionalRef+':line:'+String(index+1).padStart(2,'0')
+  }));
+  const queuePlans=lines.map(line=>({
+    ...intent.queuePlans.find(x=>x.department===line.department),
+    provisionalLineRef:line.provisionalLineRef
+  }));
+  const department=lines.length===1?lines[0].department:'متعدد الأقسام';
+  return {
+    ...intent,
+    order:{...intent.order,department},
+    lines,queuePlans,
+    activityPlan:{...intent.activityPlan,department}
+  };
 }
-function activeOrderDuplicateBlocked(guard,intent){
-  const orderId=text(guard&&guard.orderId);
-  return fail('duplicate-order-active-existing',{
-    duplicatePrevented:true,needsConfirmation:true,warningOnly:true,
-    existingOrderId:orderId,
-    openOrder:{orderId,departments:intent.lines.map(line=>line.department)},
-    requiresExplicitConfirmation:true,
-    lookbackMs:T12_OPEN_ORDER_DUPLICATE_LOOKBACK_MS
+function laneBlocked(partition){
+  return fail('customer-department-open-order-exists',{
+    duplicatePrevented:true,
+    existingOrderId:partition.blockedDepartments[0]?.orderId||'',
+    blockedDepartments:partition.blockedDepartments,
+    allowedDepartments:[],
+    message:'للعميل أوردر مفتوح في نفس القسم. لا يمكن إضافة أوردر جديد لهذا القسم.'
   });
 }
 function duplicateBlocked(guard,nowMs){
@@ -96,16 +94,27 @@ async function verifiedRead(db,intent,canonicalJson,actor,epoch){
   if(!l)return {kind:'MISSING'};
   if(l.actor!==actor||l.policyEpoch!==epoch||l.canonicalJson!==canonicalJson)return {kind:'CONFLICT'};
   if(l.status!=='COMMITTED')return {kind:'INDETERMINATE'};
+  let persisted;
+  try{persisted=JSON.parse(l.responseJson||'{}');}catch{return {kind:'INDETERMINATE'};}
+  const created=Array.isArray(persisted.createdDepartments)?persisted.createdDepartments:null;
+  const effective=created?projectAllowedIntent(intent,created):intent;
+  if(!effective.lines.length)return {kind:'INDETERMINATE'};
   const o=await row(db.prepare('SELECT order_id AS orderId,request_key AS requestKey,department,priority,status,actor FROM t12_prod_orders WHERE request_key=? LIMIT 1').bind(key));
-  if(!o||o.orderId!==l.orderId||o.requestKey!==key||o.department!==intent.order.department||o.priority!==intent.order.priority||o.status!=='طلب جديد'||o.actor!==actor)return {kind:'INDETERMINATE'};
+  if(!o||o.orderId!==l.orderId||o.requestKey!==key||o.department!==effective.order.department||o.priority!==effective.order.priority||o.status!=='طلب جديد'||o.actor!==actor)return {kind:'INDETERMINATE'};
   const lineIds=[];
-  for(const expected of intent.lines){
+  for(const expected of effective.lines){
     const x=await row(db.prepare('SELECT line_id AS lineId,order_id AS orderId,ordinal,department,assigned_to AS assignedTo,item_name AS itemName,qty,priority,status,heat_press AS heatPress,fly_print AS flyPrint FROM t12_prod_lines WHERE request_key=? AND ordinal=? LIMIT 1').bind(key,expected.ordinal));
     const expectedId=String(l.orderId)+'-'+String(expected.ordinal).padStart(2,'0');
     if(!x||x.lineId!==expectedId||x.orderId!==l.orderId||Number(x.ordinal)!==expected.ordinal||x.department!==expected.department||x.assignedTo!==expected.assignedTo||x.itemName!==expected.itemName||Number(x.qty)!==Number(expected.qty)||x.priority!==expected.priority||x.status!=='طلب جديد'||Number(x.heatPress)!==boolInt(expected.heatPress)||Number(x.flyPrint)!==boolInt(expected.flyPrint))return {kind:'INDETERMINATE'};
     lineIds.push(x.lineId);
   }
-  return {kind:'VERIFIED',response:{success:true,cloudNative:true,orderId:String(l.orderId),lineId:lineIds[0]||'',lineIds}};
+  return {kind:'VERIFIED',response:{
+    success:true,cloudNative:true,orderId:String(l.orderId),
+    lineId:lineIds[0]||'',lineIds,
+    createdDepartments:created||effective.lines.map(x=>x.department),
+    skippedDepartments:Array.isArray(persisted.skippedDepartments)?persisted.skippedDepartments:[],
+    partialMultiDepartment:!!persisted.partialMultiDepartment
+  }};
 }
 
 export async function createT12GeneralOrder(db,input={},actor='',options={}){
@@ -116,12 +125,6 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
   const aliases=['clientRequestId','requestId','idempotencyKey','idempotency_key'].filter(k=>Object.prototype.hasOwnProperty.call(input,k));
   if(aliases.length!==1||aliases[0]!=='clientRequestId'||typeof input.clientRequestId!=='string')return fail('exactly-one-raw-cloud-client-key-required');
   if(classifyT12ClientRequestKey(input.clientRequestId).kind!=='CLOUD_SYNTHETIC_ELIGIBLE')return fail('new-cloud-request-namespace-required');
-  // Confirmation only acknowledges a specific existing order reported by the
-  // server; it never disables the 120-second atomic duplicate reservation.
-  const confirmedOrderId=input.duplicateConfirmationOrderId===undefined?'':text(input.duplicateConfirmationOrderId);
-  if(confirmedOrderId && (typeof input.duplicateConfirmationOrderId!=='string'||!/^[0-9]{4,16}$/.test(confirmedOrderId)))
-    return fail('invalid-duplicate-confirmation-order-id');
-
   const intent=buildT12OrderCreateShadowIntent(input,safeActor);
   if(!intent.valid)return fail('canonical-business-intent-invalid',{details:intent.reason||'invalid-intent',errors:intent.errors||[]});
   if(intent.requestKey!==input.clientRequestId)return fail('cloud-client-key-normalization-refused');
@@ -160,8 +163,17 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
   const nextNo=Number(control.nextNo);
   if(!Number.isSafeInteger(nextNo)||nextNo<4323)return fail('next-order-number-invalid',{nextOrderNumber:nextNo});
 
+  // Cloud + historical mirror status checks are required, independent of item.
+  // No age limit and no employee override. One blocked lane must not block
+  // another lane from the same multi-department request.
+  let partition;
+  try{partition=await readCustomerLanePartition(db,intent.identity,intent.lines.map(l=>l.department));}
+  catch{return fail('customer-department-status-unavailable-no-retry');}
+  if(!partition.allowedDepartments.length)return laneBlocked(partition);
+  const effectiveIntent=projectAllowedIntent(intent,partition.allowedDepartments);
+  if(!effectiveIntent.lines.length)return fail('customer-department-empty-projection-no-retry');
   const nowMs=Number.isSafeInteger(Number(options.nowMs))&&Number(options.nowMs)>0?Number(options.nowMs):Date.now();
-  const canonicalBusinessJson=businessCanonical(intent);
+  const canonicalBusinessJson=businessCanonical(effectiveIntent);
   let duplicateFingerprint;
   try{duplicateFingerprint=await sha256Hex(canonicalBusinessJson);}
   catch{return fail('duplicate-guard-fingerprint-unavailable-no-retry');}
@@ -171,14 +183,6 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
   if(activeDuplicate){
     if(text(activeDuplicate.requestKey)===intent.requestKey)return fail('duplicate-guard-same-key-indeterminate-no-retry');
     return duplicateBlocked(activeDuplicate,nowMs);
-  }
-  let recentOpen;
-  try{recentOpen=await recentOpenDuplicateGuard(db,duplicateFingerprint,nowMs);}
-  catch{return fail('active-duplicate-read-unavailable-no-retry');}
-  if(recentOpen){
-    if(!confirmedOrderId || confirmedOrderId!==text(recentOpen.orderId))return activeOrderDuplicateBlocked(recentOpen,intent);
-  }else if(confirmedOrderId){
-    return fail('duplicate-confirmation-stale-recheck-required');
   }
   const expiresAtMs=nowMs+T12_DUPLICATE_ORDER_GUARD_WINDOW_MS;
   const orderId=String(nextNo);
@@ -190,20 +194,24 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
   s.push(stmt(db,"INSERT INTO t12_prod_request_ledger (request_key,actor,policy_epoch,canonical_json,order_id,status,response_json) SELECT ?,?,?,?,?,'PREPARED','{}' WHERE EXISTS(SELECT 1 FROM t12_prod_create_control WHERE singleton=1 AND marker='T12_PROD_CREATE_CANARY_V1' AND canary_remaining=0 AND next_order_number=?)",
     intent.requestKey,safeActor,epoch,canonicalJson,orderId,nextNo+1));
   s.push(stmt(db,"INSERT INTO t12_prod_orders (order_id,request_key,customer_mode,customer_name,customer_phone,external_customer_id,department,priority,status,source,notes,actor) SELECT order_id,request_key,?,?,?,?,?,?,'طلب جديد',?,?,? FROM t12_prod_request_ledger WHERE request_key=? AND status='PREPARED'",
-    intent.identity.mode,intent.identity.customerName,intent.identity.customerPhone,intent.identity.externalCustomerId,
-    intent.order.department,intent.order.priority,intent.order.source,intent.order.notes,safeActor,intent.requestKey));
-  for(const line of intent.lines){
+    effectiveIntent.identity.mode,effectiveIntent.identity.customerName,effectiveIntent.identity.customerPhone,effectiveIntent.identity.externalCustomerId,
+    effectiveIntent.order.department,effectiveIntent.order.priority,effectiveIntent.order.source,effectiveIntent.order.notes,safeActor,intent.requestKey));
+  for(const line of effectiveIntent.lines){
     s.push(stmt(db,"INSERT INTO t12_prod_lines (line_id,order_id,request_key,ordinal,department,assigned_to,item_name,qty,priority,status,heat_press,fly_print) SELECT order_id || '-' || printf('%02d',?),order_id,request_key,?,?,?,?,?,?,'طلب جديد',?,? FROM t12_prod_request_ledger WHERE request_key=? AND status='PREPARED'",
       line.ordinal,line.ordinal,line.department,line.assignedTo,line.itemName,line.qty,line.priority,boolInt(line.heatPress),boolInt(line.flyPrint),intent.requestKey));
   }
   s.push(stmt(db,"INSERT INTO t12_prod_events (request_key,event_key,order_id,event_type,payload_json) SELECT request_key,'activity',order_id,'order-create',? FROM t12_prod_request_ledger WHERE request_key=? AND status='PREPARED'",
-    JSON.stringify(intent.activityPlan),intent.requestKey));
-  for(const line of intent.lines){
-    const q=intent.queuePlans[line.ordinal-1];
+    JSON.stringify(effectiveIntent.activityPlan),intent.requestKey));
+  for(const line of effectiveIntent.lines){
+    const q=effectiveIntent.queuePlans[line.ordinal-1];
     s.push(stmt(db,"INSERT INTO t12_prod_outbox (request_key,event_key,order_id,line_id,event_type,status,payload_json) SELECT r.request_key,?,r.order_id,l.line_id,'trend-master-status-intent','pending',? FROM t12_prod_request_ledger r JOIN t12_prod_lines l ON l.request_key=r.request_key AND l.ordinal=? WHERE r.request_key=? AND r.status='PREPARED'",
       'queue:'+String(line.ordinal).padStart(2,'0'),JSON.stringify(q),line.ordinal,intent.requestKey));
   }
-  s.push(stmt(db,"UPDATE t12_prod_request_ledger SET status='COMMITTED',response_json=json_object('success',json('true'),'cloudNative',json('true'),'orderId',order_id) WHERE request_key=? AND status='PREPARED'",intent.requestKey));
+  const skipped=partition.blockedDepartments.map(b=>({department:b.department,orderId:b.orderId}));
+  const createdDepartments=effectiveIntent.lines.map(l=>l.department);
+  s.push(stmt(db,"UPDATE t12_prod_request_ledger SET status='COMMITTED',response_json=json_object('success',json('true'),'cloudNative',json('true'),'orderId',order_id,'createdDepartments',json(?),'skippedDepartments',json(?),'partialMultiDepartment',json(?)) WHERE request_key=? AND status='PREPARED'",
+    JSON.stringify(createdDepartments),JSON.stringify(skipped),
+    JSON.stringify(intent.lines.length>createdDepartments.length),intent.requestKey));
   s.push(stmt(db,'UPDATE t12_prod_duplicate_order_guard SET order_id=(SELECT order_id FROM t12_prod_request_ledger WHERE request_key=?),updated_at=CURRENT_TIMESTAMP WHERE fingerprint=? AND request_key=?',
     intent.requestKey,duplicateFingerprint,intent.requestKey));
   if(isCanary){
