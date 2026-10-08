@@ -67,12 +67,23 @@ jobs:
           for name,buf in [('LIVE',live),('BASE',base),('TARGET',target)]:
               print(name+'_SHA256='+hashlib.sha256(buf).hexdigest())
           if live!=base:
+              import difflib
+              prefix=0
+              for a,b in zip(live,base):
+                  if a!=b:break
+                  prefix+=1
+              print('LIVE_SIZE='+str(len(live)))
+              print('BASE_SIZE='+str(len(base)))
+              print('COMMON_PREFIX_BYTES='+str(prefix))
+              for token in [b'ENTRY650',b'ENTRY652',b'ENTRY647',b'T12_GENERAL_CREATE_20261001_DUP_GUARD_V1']:
+                  print('TOKEN_'+token.decode()+'_LIVE='+str(live.count(token))+'_BASE='+str(base.count(token)))
               raise SystemExit('LIVE_WORKER_BASELINE_DIFFERS_FROM_RELEASE_BASE; STOP_DEPLOY')
           if target==base:
               raise SystemExit('NO_WORKER_CHANGE')
           print('EXACT_LIVE_API_SOURCE_PARITY=PASS')
           PY
       - name: Cloudflare D1 Time Travel bookmark readiness only
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
