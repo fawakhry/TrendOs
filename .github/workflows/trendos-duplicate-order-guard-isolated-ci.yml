@@ -1,0 +1,65 @@
+name: TrendOS Duplicate Order Guard Isolated CI
+
+on:
+  push:
+    branches:
+      - fix/t12-duplicate-create-durable-20261008
+    paths:
+      - 'cloudflare-d1/src/t12-general-create.mjs'
+      - 'cloudflare-d1/src/t12-order-create-input-guard.mjs'
+      - 'trendos-edge-orders-read-v1.js'
+      - 'app.js'
+      - 'tests/t12_general_create.test.mjs'
+      - 'tests/frontend_t12_duplicate_order_guard_entry590.test.mjs'
+      - '.github/workflows/trendos-duplicate-order-guard-isolated-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t12-duplicate-create-isolated-ci-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  isolated-regression:
+    name: Isolated SQLite and frontend regression - no deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and exact safety boundaries
+        run: |
+          set -euo pipefail
+          node --check app.js
+          node --check trendos-edge-orders-read-v1.js
+          node --check cloudflare-d1/src/t12-general-create.mjs
+          node --check cloudflare-d1/src/t12-order-create-input-guard.mjs
+          node --check tests/t12_general_create.test.mjs
+          node --check tests/frontend_t12_duplicate_order_guard_entry590.test.mjs
+          grep -Fq "duplicateConfirmationOrderId" app.js
+          grep -Fq "recentOpenDuplicateGuard" cloudflare-d1/src/t12-general-create.mjs
+          grep -Fq "T12_DURABLE_CREATE_STORAGE_KEY" trendos-edge-orders-read-v1.js
+          echo DUPLICATE_ORDER_SOURCE_QUALIFICATION=PASS
+      - name: Real isolated D1 SQLite contract
+        run: |
+          set -euo pipefail
+          node --experimental-sqlite tests/t12_general_create.test.mjs
+          echo DUPLICATE_ORDER_SQLITE_CONTRACT=PASS
+      - name: Frontend message and durable-key contract
+        run: |
+          set -euo pipefail
+          node tests/frontend_t12_duplicate_order_guard_entry590.test.mjs
+          echo DUPLICATE_ORDER_FRONTEND_CONTRACT=PASS
+      - name: Deployment and data safety
+        run: |
+          echo "ISOLATED_CI=YES"
+          echo "PRODUCTION_DEPLOY=NO"
+          echo "PRODUCTION_D1_WRITE=NO"
+          echo "BUSINESS_CREATE=NO"
+          echo "GOOGLE_APPS_SCRIPT_WRITE=NO"
