@@ -6822,3 +6822,12 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - Content current Native readiness PASS:9reads،11networkless write denials،token/password scrub،missing session denied،401 invalidates،LegacyCalls0. Entry614 source PASS؛ Entry629 التاريخي FAIL18!=17 بسبب GETauth/health إضافي في Transitional Canary؛ لم يُغيّر الاختبار الأصلي أو dispatcher.
 - آخر AP candidate book0e3d35f0 قُرئ:AP079/AP080 LIVE؛MC02/23 durable/per-panel parity PARTIAL، لم يُمس العمل الموازي. لا نقل تلقائي إلى مالية/AP writes.
 - التقرير وخطة binding المحافظة على API V2: docs/trendos/staging/T12_POSTDEPLOY_MONITOR_AND_CONTENT_NEXT_GATE_20261008.md.
+
+
+### إلغاء إلزام الوصف + إصلاح رجوع API guard — 2026-10-08 21:38 Cairo / DEPLOYED PASS
+- طلب المالك إلغاء الوصف المطلوب: أزيل شرطitemName الفارغ فقط من createOrder؛ fallback موجود «أوردر جديد - القسم»،حفظالوصفالمكتوباختياريًا. app/index فقط في UI وcache suffixoptional-description؛44/46 assets محفوظة.
+- تأهيلFrontend كشف نشرAccounting37824155255 عند1e349332 أعادCREATEV1: API41af0719،source072bffff. FAIL37824309985 و37824520010 قبلmutation. أعيد بناء source byte-for-byte،overlay4T12modules يحفظAccounting/Core/Comms/Foundation ويعطي1d8fb904d48f2d48f2cfcc5b026dba94edddd094344a78af95e94f099d1ea52a.
+- APIef958004-b1b5-47a9-805e-a2be1577bc93 نشر في37825178166 لكنhealthpropagation سببFAIL قبلUI،CREATEبقيOFF. تمresumeمؤهلعلىنفسsource؛CLI--tag غيرمدعومشُخّصمحليًاوأُزيلقبلالنشرالنهائي.
+- run37825677687/job113477791656 عند83cdd817 SUCCESS؛UIbb8b38b2-e683-4b7f-b314-875f90d6a95a،APIsource1d8fb904،CREATEGENERAL/claimReadytrue؛schema0012موجودة دونmigrationإضافية،businesswritesNO،rollbackNO. فحصapp/index/livehealth مستقلPASS.
+- sharedcandidatefe16c8b6(parent0e3d35f0) يحملBackendT12+0012+tests+bookفقط معleaseوثبوتNodeSQLite،دونمسAccounting/AP/Auth/Frontend؛CI37825923492 و37825923374SUCCESS. لمنعAccountingmergesاللاحقةمنحملV1قديم.
+- تقريرالتفاصيل:docs/trendos/staging/T12_OPTIONAL_DESCRIPTION_AND_SHARED_GUARD_REPAIR_20261008.md. أوقفauto-pushللنشرالمكتمل؛لاclaimلمنعناشرينيتجاهلونsharedbase،leasesتبقىمطلوبة.

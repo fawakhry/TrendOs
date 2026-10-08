@@ -1,10 +1,5 @@
 name: TrendOS T12 Optional Description Frontend Fix
 on:
-  push:
-    branches: [audit/t12-customer-lane-runtime-20261008]
-    paths:
-      - '.github/workflows/trendos-t12-optional-description-controlled.yml'
-      - 'scripts/t12_optional_description_frontend_release.py'
   workflow_dispatch:
 permissions:
   contents: read
