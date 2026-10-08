@@ -33,6 +33,8 @@ jobs:
         run: |
           set -euo pipefail
           node --check app.js
+          node --experimental-sqlite tests/t12_general_create.test.mjs
+          node --experimental-sqlite tests/t12_customer_lane_partial.test.mjs
           node tests/t12_create_key_durability.test.mjs
           node tests/frontend_t12_duplicate_order_guard_entry590.test.mjs
           node tests/entry652_employee_session_lifecycle_guard.test.mjs
