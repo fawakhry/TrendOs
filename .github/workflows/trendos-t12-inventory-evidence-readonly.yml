@@ -1,0 +1,46 @@
+name: TrendOS T12 Sanitized Inventory Evidence Readonly Relay
+on:
+  push:
+    branches: [audit/t12-customer-lane-runtime-20261008]
+    paths: ['.github/workflows/trendos-t12-inventory-evidence-readonly.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Reuse completed read-only evidence without rerunning Production checks
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 37783628181
+          name: t12-live-bundle-sanitized-inventory
+          path: /tmp/t12-sanitized-inventory
+      - name: Expose sanitized metadata through check annotations only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('/tmp/t12-sanitized-inventory/t12-inventory-report.json').read_text())
+          assert report['deploy'] is False and report['productionBusinessWrite'] is False
+          def narrow(item):
+              return {k:item[k] for k in ['bytes','sha256','modules','nameWrapperCount'] if k in item}
+          safe={k:report[k] for k in ['checkedAtUTC','sourceHead','state','before','after','stableDeployment','mainModule','versionMetadata','d1','recoveryBookmarkAvailable'] if k in report}
+          safe['liveModules']={k:narrow(v) for k,v in report['liveModules'].items()}
+          safe['builds']={k:narrow(v) for k,v in report['builds'].items()}
+          safe['comparisons']={k:{**v,'liveOnlyFunctionCount':len(v['liveOnlyFunctions']),'buildOnlyFunctionCount':len(v['buildOnlyFunctions'])} for k,v in report.get('comparisons',{}).items()}
+          for v in safe['comparisons'].values():
+              del v['liveOnlyFunctions'];del v['buildOnlyFunctions']
+          body=json.dumps(safe,separators=(',',':'))
+          chunks=[body[i:i+3500] for i in range(0,len(body),3500)]
+          assert len(chunks)<=40
+          for i,chunk in enumerate(chunks):
+              encoded=chunk.replace('%','%25').replace('\r','%0D').replace('\n','%0A')
+              print(f'::notice title=T12_INVENTORY_PART_{i+1:03d}_OF_{len(chunks):03d}::{encoded}')
+          print('REUSED_RUN=37783628181; PRODUCTION_REREAD=NO; DEPLOY=NO; BUSINESS_WRITE=NO')
+          PY
