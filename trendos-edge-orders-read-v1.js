@@ -602,7 +602,7 @@
     try {
       var durable=JSON.parse(localStorage.getItem(T12_DURABLE_CREATE_STORAGE_KEY) || 'null');
       if (durable && /^[a-f0-9]{64}$/.test(text(durable.fingerprint)) &&
-          /^cld1_\\d{13}_[A-Za-z0-9_-]{16,80}$/.test(text(durable.cloudKey))) return durable;
+          /^cld1_\d{13}_[A-Za-z0-9_-]{16,80}$/.test(text(durable.cloudKey))) return durable;
     } catch(e) {}
     try {
       var legacy=JSON.parse(sessionStorage.getItem(T12_PENDING_CREATE_STORAGE_KEY) || 'null');
