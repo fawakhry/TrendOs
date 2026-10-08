@@ -76,3 +76,21 @@ PREPARE=COMMITTED; IMPLEMENTATION_PENDING.
 - Database impact = NONE in Production; unit-test databases are ephemeral SQLite, never actual D1 writes. No Cloudflare Worker deployment, no order CREATE, no Apps Script write, no existing order reclassification.
 - Pre-release OPEN GATES: check merged branch source against current `candidate/t12-full-cloud-cutover-a56-20260929` and production Worker assets; specifically verify D1 historical legacy mirror readiness/staleness and runtime overlays, concurrent creates, UI multi order workflow, state when only one lane is saved; re-run automated tests and obtain separate owner authorization for deploy with rollback. **Do not infer Production fixed from CI PASS.**
 - Handoff: Feature source branch `fix/t12-duplicate-create-durable-20261008`. Continue from commit `c55caff4704c683517349e1d9879d2d9756c5497` plus documentation updates; do not redo completed steps. NEXT_SAFE_ACTION = production read-only preflight / integrated browser acceptance, no deploy.
+
+## TASK CUSTOMER-LANE-ROUTING / PRODUCTION READONLY PREFLIGHT BLOCKED — 2026-10-08
+
+**Owner requested launch («نفذ»). Safety gate first; FINAL RESULT = BLOCKED_SAFE, NO DEPLOY.**
+- Source branch: `fix/t12-duplicate-create-durable-20261008`; isolated tests were green at run `37771963164`.
+- New **read-only, no-deploy GitHub Action**: `.github/workflows/trendos-t12-customer-lane-production-readonly-preflight.yml`, commit `99115a7cb294ef8a4c3f024b90b944d8a1fbb632`.
+- Action run <https://github.com/fawakhry/TrendOs/actions/runs/37772943058>, job `113296720143`:
+  - Local current-source validation and in-memory SQLite tests = PASS.
+  - Cloudflare API current CREATE = `T12_GENERAL_CREATE_20261001_DUP_GUARD_V1`, GENERAL and healthy; thus new lane logic **NOT deployed**.
+  - Pre API deployment `0b99cc58-d1ef-48c1-b214-094887858827` version `d7c65348-a921-4f2e-8359-f3e30ce3a1eb`; pre UI deployment `3ee36d0a-b386-4fb2-aefe-e2e1d2f2695b` version `9699b0d0-8c21-4b5b-92fe-1983219110f6`.
+  - Production D1 required tables = ALL PRESENT; mirror `sheet_catalog('بنود الأوردرات')` status = 'ready' but age of `synced_at` = **11.7 days**, hence not trustworthy for current open vs completed job decisions.
+  - Aggregates only: `nativeOrders=466`, `nativeLines=501`, `nativeRuntime=456`, `legacyRuntime=15`, `legacyMirrorRows=768`; no customer PII output.
+  - Specific fail-closed gate: `STALE_LEGACY_MIRROR_NEEDS_POLICY_REVIEW_BEFORE_DEPLOY`; run conclusion = FAILURE by design. Other safety invariants print `PRODUCTION_DEPLOY=NO`, `PRODUCTION_D1_WRITE=NO`, `BUSINESS_ORDER_CREATE=NO`, `GOOGLE_SHEETS_WRITE=NO`.
+- RISK: If the newly added per-department admission uses the 11.7-day-old historical mirror, recently delivered historical jobs can be falsely treated as open, blocking legitimate orders. Do not bypass the check or mark the stale mirror 'ready' as actual current-state proof.
+- Other OPEN production certification gate: concurrent cross-request customer+same-department create under distinct payload fingerprints must be proven atomic (the isolated test of identical fingerprints does not establish this).
+- **NEXT SAFE ACTION:** first establish a current authoritative legacy status source/reconciliation, with read-only evidence of freshness and no false-blocks; then qualify atomic cross-request lane race, UI partial-multi behavior and exact live API/UI asset integrity; require new source+runtime PASS before any monitored rollback-ready deploy.
+- **No deploy, no D1 mutation, no orders canceled/created, no secrets exposed.**
+
