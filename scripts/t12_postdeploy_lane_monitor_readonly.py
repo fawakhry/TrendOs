@@ -1,5 +1,6 @@
 """SELECT-only live follow-up. Emit aggregates; never customer rows or tokens."""
 import json,os,re,subprocess,sys,urllib.request
+from urllib.error import HTTPError
 from datetime import datetime,timezone
 from pathlib import Path
 from t12_live_bundle_inventory_readonly import extract_modules,fingerprint
@@ -20,6 +21,12 @@ def health(path):
 def main():
  REPORT['health']={k:health(p) for k,p in [('create','/v1/t12/orders/create/health'),('auth','/v1/employee/auth/health'),('accounting','/v1/employee/accounting/health'),('core','/v1/employee/core/health'),('content','/v1/employee/content/health'),('comms','/v1/employee/comms/health')]}
  c=REPORT['health']['create'];assert c['mode']=='GENERAL' and c['customerLaneClaimReady'] is True and 'ATOMIC_CANDIDATE_V2' in c['version']
+ # R2 read permission is probed without bucket creation or binding changes.
+ try:
+  bucket=cf('/r2/buckets/trendos-employee-content-files')
+  REPORT['contentR2Prerequisite']={'bucketRead':'PASS','dedicatedBucketExists':bucket.get('name')=='trendos-employee-content-files'}
+ except HTTPError as e:
+  REPORT['contentR2Prerequisite']={'bucketRead':'BLOCKED','httpStatus':e.code,'bucketExistence':'UNKNOWN','bucketCreated':False,'bindingChanged':False}
  REPORT['counts']=rows("SELECT (SELECT COUNT(*) FROM t12_prod_orders WHERE CAST(order_id AS INTEGER)>=4818) AS postdeployOrders,(SELECT COUNT(*) FROM t12_prod_lines WHERE CAST(order_id AS INTEGER)>=4818) AS postdeployLines,(SELECT COUNT(*) FROM t12_prod_customer_lane_claim) AS claims,(SELECT COUNT(*) FROM t12_prod_request_ledger WHERE CAST(order_id AS INTEGER)>=4818 AND status!='COMMITTED') AS uncommittedPostdeployLedgers,(SELECT COUNT(*) FROM t12_prod_request_ledger WHERE CAST(order_id AS INTEGER)>=4818 AND json_extract(response_json,'$.partialMultiDepartment')=1) AS partialMultiResponses,(SELECT COUNT(*) FROM t12_prod_request_ledger WHERE CAST(order_id AS INTEGER)>=4818 AND json_array_length(json_extract(response_json,'$.createdDepartments'))=2) AS fullMultiResponses,(SELECT COUNT(*) FROM t12_prod_customer_lane_claim c LEFT JOIN t12_prod_orders o ON o.order_id=c.order_id WHERE o.order_id IS NULL) AS orphanClaims")[0]
  REPORT['routing']=rows("SELECT (SELECT COUNT(*) FROM t12_prod_lines l JOIN t12_prod_request_ledger r ON r.request_key=l.request_key WHERE CAST(l.order_id AS INTEGER)>=4818 AND l.department NOT IN (SELECT value FROM json_each(r.response_json,'$.createdDepartments'))) AS unexpectedCreatedLanes,(SELECT COUNT(*) FROM t12_prod_outbox q JOIN t12_prod_lines l ON l.line_id=q.line_id JOIN t12_prod_request_ledger r ON r.request_key=q.request_key WHERE CAST(q.order_id AS INTEGER)>=4818 AND l.department IN (SELECT json_extract(value,'$.department') FROM json_each(r.response_json,'$.skippedDepartments'))) AS skippedLaneQueueEvents,(SELECT COUNT(*) FROM t12_prod_lines l WHERE CAST(l.order_id AS INTEGER)>=4818 AND l.department='ليزر' AND (l.heat_press!=0 OR l.fly_print!=0)) AS laserWithPrintFlags,(SELECT COUNT(*) FROM t12_prod_lines l WHERE CAST(l.order_id AS INTEGER)>=4818 AND NOT EXISTS (SELECT 1 FROM t12_prod_outbox q WHERE q.line_id=l.line_id AND q.event_key LIKE 'queue:%')) AS linesWithoutCreateQueue")[0]
  # Customer rows remain only in process memory and stdin to the mapper; never
