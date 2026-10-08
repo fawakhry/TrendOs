@@ -64,7 +64,8 @@ const createOrderEnd=app.indexOf('  function wireCustomerSearch()',createOrderSt
 assert.ok(createOrderStart>0&&createOrderEnd>createOrderStart);
 const form=app.slice(createOrderStart,createOrderEnd);
 assert.ok(form.indexOf('if (!params.itemName)')>0,'Work description must be required');
-assert.ok(form.includes('duplicateConfirmationOrderId = existingId'),'Deliberate repeat needs server-provided order ID');
+assert.ok(!form.includes('duplicateConfirmationOrderId'),'No employee bypass of an occupied department');
+assert.ok(form.includes('skippedDepartments'),'Partial multi-department create must show skipped lanes');
 assert.ok(!form.includes('forceCreate: "YES"'),'Blind force create must be removed');
 assert.ok(form.indexOf('loadRows(true)')<form.indexOf('const phoneForWhatsApp'),
   'Form must be finalized immediately after successful create before optional WhatsApp');
