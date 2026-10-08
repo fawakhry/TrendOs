@@ -645,8 +645,7 @@
       priority: text(p.priority),
       status: text(p.status) || 'طلب جديد',
       source: text(p.source),
-      notes: text(p.notes),
-      ...(p.duplicateConfirmationOrderId ? {duplicateConfirmationOrderId:text(p.duplicateConfirmationOrderId)} : {})
+      notes: text(p.notes)
     };
   }
 
@@ -700,11 +699,12 @@
     if (reason === 'general-create-off') return 'تسجيل الأوردرات الجديدة على Cloud غير مُفعّل بعد.';
     if (reason === 'registered-customer-phone-required') return 'العميل المسجل لازم يكون له رقم هاتف قبل فتح الأوردر.';
     if (reason === 'general-create-canary-not-armed') return 'اختبار إنشاء الأوردر غير مسلح حاليًا.';
-    if (reason === 'duplicate-order-active-existing') {
-      return 'يوجد أوردر مفتوح مطابق رقم ' + text(body&&body.existingOrderId) +
-        '. راجع الأوردر الموجود. لو العميل طلب شغلاً آخر مستقلاً بنفس التفاصيل، أكد فتح أوردر جديد.';
+    if (reason === 'customer-department-open-order-exists') {
+      var blocks = body && Array.isArray(body.blockedDepartments) ? body.blockedDepartments : [];
+      return 'لا يمكن إضافة أوردر جديد: العميل لديه أوردر مفتوح في ' +
+        blocks.map(function(b){ return text(b.department) + ' رقم ' + text(b.orderId); }).join('، ') +
+        '. يمكن إضافة قسم آخر غير مشغول فقط.';
     }
-    if (reason === 'duplicate-confirmation-stale-recheck-required') return 'تغيرت حالة الأوردر المشابه. راجع الأوردرات ثم أعد الإضافة.';
     if (reason === 'duplicate-order-window-active') {
       var existingOrderId = text(body && body.existingOrderId);
       var retrySeconds = Math.max(1, Math.ceil(Number(body && body.retryAfterMs || 0) / 1000));
@@ -825,8 +825,8 @@
 
     var reason = text(body && (body.reason || body.code));
     // Keep unknown-outcome keys. Only a definite business rejection can release it.
-    if (['duplicate-order-active-existing','duplicate-order-window-active',
-      'duplicate-confirmation-stale-recheck-required','canonical-business-intent-invalid',
+    if (['customer-department-open-order-exists','duplicate-order-window-active',
+      'canonical-business-intent-invalid',
       'same-key-actor-payload-or-policy-conflict'].includes(reason)) clearPendingCreate(fingerprint);
     if (body && !body.message) body.message = createFailureMessage(body);
     return body || { success: false, code: 'T12_CREATE_FAILED', message: 'تعذر تسجيل الأوردر الجديد على Cloud.' };
