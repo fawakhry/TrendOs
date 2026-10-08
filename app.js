@@ -5872,6 +5872,10 @@ Trend Mall`;
       setMsg("addOrderStatus", external ? "رقم/علامة العميل والقسم مطلوبين." : "اسم الشات والقسم مطلوبين.", true);
       return;
     }
+    if (!params.itemName) {
+      setMsg("addOrderStatus", "اكتب وصف الشغل الحقيقي قبل إضافة الأوردر؛ الوصف الافتراضي لا يحدد المطلوب.", true);
+      return;
+    }
 
     if (createOrder._busy) {
       setMsg("addOrderStatus", "جاري تسجيل أوردر بالفعل. انتظر رد السيرفر حتى لا يتكرر الأوردر.", true);
@@ -5883,21 +5887,9 @@ Trend Mall`;
     btn.disabled = true;
     btn.textContent = "جاري الإضافة...";
 
-    async function submitOnce(force) {
-      const sendParams = Object.assign({}, params, force ? { forceCreate: "YES" } : {});
-      return await api("createManualOrder", sendParams);
-    }
-
     try {
-      let res = await submitOnce(false);
-      if (!res.success && res.needsConfirmation && res.warningOnly) {
-        const ok = confirm((res.message || "يوجد تشابه مع أوردر مفتوح.") + "\n\nهل تريد فتح أوردر جديد على مسؤوليتك؟");
-        if (!ok) {
-          setMsg("addOrderStatus", res.message || "تم إلغاء فتح الأوردر.", true);
-          return;
-        }
-        res = await submitOnce(true);
-      }
+      // Server is the authority: no employee bypass of occupied departments.
+      const res = await api("createManualOrder", params);
 
       if (!res.success) {
         if (res.duplicateBlocked && res.openOrder) {
@@ -5912,31 +5904,18 @@ Trend Mall`;
       const resDebtAmount = numericAmount(res.debtAmount || resDebtInfo.amount || 0);
       const resHasDebt = !external && (res.debtHold === "نعم" || resDebtInfo.hasDebt || resDebtAmount > 0);
       const resDeliveryRestricted = res.deliveryDebtRestricted === true || res.deliveryDebtRestricted === "نعم";
-      setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId + " | التسليم المتوقع: " + expectedText + (external ? " | عميل خارجي بدون حفظ في العملاء" : (resHasDebt ? (resDeliveryRestricted ? " | تنبيه: العميل في قائمة منع التسليم" : " | مديونية مسجلة والتسليم مسموح") : "")), false);
+      const allowedLanes = Array.isArray(res.createdDepartments) ? res.createdDepartments.join(" و") : params.department;
+      const skippedLanes = Array.isArray(res.skippedDepartments)
+        ? res.skippedDepartments.map(x => x.department + " (الأوردر المفتوح " + x.orderId + ")").join("، ")
+        : "";
+      setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId +
+        " | القسم المنفذ: " + allowedLanes +
+        (skippedLanes ? " | لم تتم إضافة: " + skippedLanes : "") +
+        " | التسليم المتوقع: " + expectedText +
+        (external ? " | عميل خارجي بدون حفظ في العملاء" :
+          (resHasDebt ? (resDeliveryRestricted ? " | تنبيه: العميل في قائمة منع التسليم" : " | مديونية مسجلة والتسليم مسموح") : "")), false);
       if (resHasDebt && resDeliveryRestricted) {
         alert("تنبيه قائمة منع التسليم\n\nالعميل: " + params.customerName + "\nالمديونية: " + (resDebtAmount ? (resDebtAmount + " ج") : "مسجلة على العميل") + "\n\nهذا العميل حدده ضياء؛ لا يتم التسليم حتى تصفير المديونية.");
-      }
-
-      const phoneForWhatsApp = lightCustomerDigits(params.customerPhone);
-      if (!external && phoneForWhatsApp.length >= 10) {
-        const registrationRow = {
-          customer: params.customerName,
-          customerPhone: params.customerPhone,
-          orderId: res.orderId,
-          lineId: res.lineId,
-          itemName: params.itemName || ("أوردر جديد - " + params.department),
-          department: params.department,
-          status: "طلب جديد",
-          expectedDeliveryText: expectedText,
-          debtAmount: res.debtAmount || ((res.debtInfo || {}).amount) || 0,
-          debtHold: res.debtHold || ((res.debtInfo || {}).hasDebt ? "نعم" : "لا"),
-          deliveryDebtRestricted: res.deliveryDebtRestricted || false
-        };
-        const msg = buildWhatsAppMessage(registrationRow, "registered");
-        const copied = await copyWhatsAppMessage(params.customerPhone, msg);
-        if (copied && confirm("تم نسخ رسالة تسجيل الأوردر. افتح تبويب واتساب والصقها للعميل. هل تم إرسال الرسالة؟")) {
-          await recordRegistrationWhatsApp(res, params, msg);
-        }
       }
 
       ["newCustomerName", "newCustomerPhone", "newItemName", "newAssignedTo", "newNotes"].forEach(function (id) {
@@ -5954,6 +5933,35 @@ Trend Mall`;
       if (suggestions) suggestions.classList.add("hidden");
       state.editing = false;
       loadRows(true); // V1925: فك زر التسجيل فور رد السيرفر، ثم اجلب القائمة المحدثة بالخلفية.
+
+      // Order commit already succeeded; WhatsApp errors are non-critical.
+      try {
+      const phoneForWhatsApp = lightCustomerDigits(params.customerPhone);
+      if (!external && phoneForWhatsApp.length >= 10) {
+        const registrationRow = {
+          customer: params.customerName,
+          customerPhone: params.customerPhone,
+          orderId: res.orderId,
+          lineId: res.lineId,
+          itemName: params.itemName || ("أوردر جديد - " + params.department),
+          department: allowedLanes,
+          status: "طلب جديد",
+          expectedDeliveryText: expectedText,
+          debtAmount: res.debtAmount || ((res.debtInfo || {}).amount) || 0,
+          debtHold: res.debtHold || ((res.debtInfo || {}).hasDebt ? "نعم" : "لا"),
+          deliveryDebtRestricted: res.deliveryDebtRestricted || false
+        };
+        const msg = buildWhatsAppMessage(registrationRow, "registered");
+        const copied = await copyWhatsAppMessage(params.customerPhone, msg);
+        if (copied && confirm("تم نسخ رسالة تسجيل الأوردر. افتح تبويب واتساب والصقها للعميل. هل تم إرسال الرسالة؟")) {
+          await recordRegistrationWhatsApp(res, params, msg);
+        }
+      }
+
+
+      } catch (whatsAppErr) {
+        setLoading("تم حفظ الأوردر رقم " + res.orderId + " بنجاح، لكن تعذرت متابعة رسالة واتساب.", true);
+      }
     } catch (err) {
       setMsg("addOrderStatus", err.message || "خطأ أثناء إضافة الأوردر.", true);
     } finally {
