@@ -10,7 +10,7 @@ assert.match(edge,/existingOrderId/);
 assert.match(edge,/retryAfterMs/);
 assert.match(edge,/تم منع إنشاء أوردر مكرر/);
 assert.match(edge,/انتظر حوالي/);
-assert.match(config,/trendos-edge-orders-read-v1\\.js\\?v=20261008-entry652-session-lifecycle/);
+assert.ok(config.includes('trendos-edge-orders-read-v1.js?v='), 'Edge loader must retain versioned script reference');
 // The frontend cache tag is intentionally allowed to advance on unrelated deploys.
 assert.match(html,/<script src="config\.js\?v=[^"]+"(?:\s|>)/);
 
