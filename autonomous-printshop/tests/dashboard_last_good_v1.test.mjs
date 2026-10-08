@@ -48,6 +48,21 @@ const recovered=await (await worker.fetch(request(),env)).json();
 assert.equal(recovered.mode,'CONTROL_TOWER_SHADOW');
 assert.ok(recovered.ownerExceptionModel);
 assert.equal(recovered.finance.warnings.summary.dayClose.ready,false);
+// A late upstream snapshot retains only its remaining source-age budget.
+const realNow=Date.now;
+const clock=realNow();
+try{
+ Date.now=()=>clock;
+ live.generatedAt=new Date(clock-299000).toISOString();
+ assert.equal((await worker.fetch(request(),env)).status,200);
+ unavailable=true;
+ Date.now=()=>clock+1001;
+ const expired=await worker.fetch(request(),env);
+ const unavailableState=await expired.json();
+ assert.equal(expired.status,503);
+ assert.equal(unavailableState.success,false);
+ assert.ok(!('operationalDiagnostic' in unavailableState));
+}finally{Date.now=realNow;}
 console.log('CONTROL_TOWER_DASHBOARD_MOCK_OUTAGE_RECOVERY=PASS');
 console.log('STALE_FINANCE_AND_PROTECTED_DECISIONS_NOT_PROJECTED=PASS');
 console.log('NO_PRODUCTION_FAILURE_INJECTION=YES');

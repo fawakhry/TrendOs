@@ -19,6 +19,7 @@ assert.equal(gate.observe(source,clock).status,'FRESH_OBSERVED');
 const fallback=gate.degraded(clock+60000);
 assert.equal(fallback.status,'LAST_GOOD_STALE_DIAGNOSTIC_ONLY');
 assert.equal(fallback.cacheScope,'WORKER_ISOLATE_BEST_EFFORT');
+assert.equal(fallback.ageMs,61000);
 assert.equal(fallback.operationalDiagnostic.rowCount,714);
 assert.equal(fallback.operationalDiagnostic.overdueOrders,6);
 assert.equal(fallback.financialReadinessCurrent,false);
@@ -40,6 +41,18 @@ assert.equal(bad.observe({...source,rawOrderIdsExposed:true},clock).status,'UNAV
 assert.equal(bad.observe({...source,mode:'GENERAL'},clock).status,'UNAVAILABLE_FAIL_CLOSED');
 assert.equal(bad.observe({...source,generatedAt:'2026-10-08T12:30:00.000Z'},clock).status,'UNAVAILABLE_FAIL_CLOSED');
 assert.equal(bad.degraded(clock).status,'UNAVAILABLE_FAIL_CLOSED');
+// Receiving an already aged snapshot must not restart its freshness budget.
+const aged=createControlTowerLastGoodGateV1();
+const produced=clock-CONTROL_TOWER_LAST_GOOD_MAX_AGE_MS+1000;
+assert.equal(aged.observe({...source,generatedAt:new Date(produced).toISOString()},clock).success,true);
+assert.equal(aged.degraded(clock+1000).ageMs,CONTROL_TOWER_LAST_GOOD_MAX_AGE_MS);
+assert.equal(aged.degraded(clock+1001).code,'LAST_GOOD_EXPIRED');
+const shorter=createControlTowerLastGoodGateV1({maxAgeMs:30000});
+assert.equal(shorter.observe({...source,generatedAt:new Date(clock-31000).toISOString()},clock).success,true);
+assert.equal(shorter.degraded(clock).code,'LAST_GOOD_EXPIRED');
+const futureObservation=createControlTowerLastGoodGateV1();
+assert.equal(futureObservation.observe(source,clock).success,true);
+assert.equal(futureObservation.degraded(clock-1).code,'LAST_GOOD_EXPIRED');
 console.log('CONTROL_TOWER_LAST_GOOD_CONTRACT=PASS');
 console.log('STALE_FINANCE_PROTECTED_DECISIONS=EXCLUDED');
 console.log('CACHE_SCOPE=WORKER_ISOLATE_BEST_EFFORT');

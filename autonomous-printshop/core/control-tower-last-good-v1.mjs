@@ -46,8 +46,9 @@ export function createControlTowerLastGoodGateV1(options={}){
     },
     degraded(at=Date.now()){
       if(!Number.isFinite(at)||!lastGood) return fail('NO_QUALIFIED_LAST_GOOD');
-      const ageMs=at-lastGood.observedAt;
-      if(ageMs<0||ageMs>maxAgeMs) return fail('LAST_GOOD_EXPIRED');
+      // Freshness follows the source timestamp; observation cannot renew it.
+      const ageMs=at-Date.parse(lastGood.generatedAt);
+      if(at<lastGood.observedAt||ageMs<0||ageMs>maxAgeMs) return fail('LAST_GOOD_EXPIRED');
       return {
         success:true,status:'LAST_GOOD_STALE_DIAGNOSTIC_ONLY',
         version:CONTROL_TOWER_LAST_GOOD_VERSION,
