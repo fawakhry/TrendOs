@@ -21,6 +21,7 @@
   var T12_GENERAL_CREATE_PATH = '/v1/t12/orders/create';
   var T12_GENERAL_CREATE_HEALTH_PATH = '/v1/t12/orders/create/health';
   var T12_PENDING_CREATE_STORAGE_KEY = 'trendos_t12_pending_create_v1';
+  var T12_DURABLE_CREATE_STORAGE_KEY = 'trendos_t12_pending_create_sha256_v2';
   var SESSION_SKEW_MS = 30000;
   var DEFAULT_MAX_MIRROR_AGE_MS = 5 * 60 * 1000;
   var MAX_LOGICAL_FRESHNESS_AGE_MS = 15 * 60 * 1000;
@@ -586,14 +587,17 @@
     return jsonResponse(response);
   }
 
-  function t12CreateFingerprint(params) {
+  async function t12CreateFingerprint(params) {
     var p = params || {};
-    return JSON.stringify([
-      text(p.customerMode), text(p.customerExternalId || p.externalCustomerId),
+    // Never put clear-text customer names, phones or notes into durable storage.
+    var material = JSON.stringify([
+      text(p.username), text(p.customerMode), text(p.customerExternalId || p.externalCustomerId),
       text(p.customerName), text(p.customerPhone), text(p.department),
       text(p.heatPress), text(p.flyPrint), text(p.itemName), text(p.qty),
       text(p.priority), text(p.status), text(p.source), text(p.notes)
     ]);
+    var digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(material));
+    return Array.from(new Uint8Array(digest), function(b){ return b.toString(16).padStart(2,'0'); }).join('');
   }
 
   function cloudCreateKeyFromLegacy(raw) {
@@ -606,28 +610,37 @@
     return 'cld1_' + m[1] + '_' + suffix.slice(0, 80);
   }
 
-  function readPendingCreate() {
-    try {
-      var parsed = JSON.parse(sessionStorage.getItem(T12_PENDING_CREATE_STORAGE_KEY) || '{}');
-      if (!parsed || !parsed.cloudKey || !parsed.fingerprint || !parsed.createdAt) return null;
-      if (Date.now() - Number(parsed.createdAt) > 20 * 60 * 1000) {
-        sessionStorage.removeItem(T12_PENDING_CREATE_STORAGE_KEY);
-        return null;
-      }
-      return parsed;
-    } catch (e) { return null; }
+  function createStorageKey(fingerprint) {
+    return T12_DURABLE_CREATE_STORAGE_KEY + ':' + fingerprint;
+  }
+  function readPendingCreate(fingerprint) {
+    // Per-intent hashed keys avoid overwriting a prior unknown-outcome CREATE.
+    if (!/^[a-f0-9]{64}$/.test(text(fingerprint))) return null;
+    var parsed;
+    try { parsed=JSON.parse(localStorage.getItem(createStorageKey(fingerprint)) || 'null'); }
+    catch(e) { parsed=null; }
+    if (!parsed) {
+      try { parsed=JSON.parse(sessionStorage.getItem(createStorageKey(fingerprint)) || 'null'); }
+      catch(e) { parsed=null; }
+    }
+    if (parsed && parsed.fingerprint===fingerprint &&
+        /^cld1_\d{13}_[A-Za-z0-9_-]{16,80}$/.test(text(parsed.cloudKey))) return parsed;
+    return null;
   }
 
   function rememberPendingCreate(fingerprint, cloudKey) {
-    try {
-      sessionStorage.setItem(T12_PENDING_CREATE_STORAGE_KEY, JSON.stringify({
-        fingerprint: fingerprint, cloudKey: cloudKey, createdAt: Date.now()
-      }));
-    } catch (e) {}
+    var value=JSON.stringify({fingerprint:fingerprint,cloudKey:cloudKey,createdAt:Date.now()});
+    try { localStorage.setItem(createStorageKey(fingerprint),value); } catch(e) {
+      try { sessionStorage.setItem(createStorageKey(fingerprint),value); } catch(_) {}
+    }
   }
 
-  function clearPendingCreate() {
-    try { sessionStorage.removeItem(T12_PENDING_CREATE_STORAGE_KEY); } catch (e) {}
+  function clearPendingCreate(fingerprint) {
+    // Remove only the resolved intent. Other unresolved offline orders survive.
+    if (!/^[a-f0-9]{64}$/.test(text(fingerprint))) return;
+    try { localStorage.removeItem(createStorageKey(fingerprint)); } catch(e) {}
+    try { sessionStorage.removeItem(createStorageKey(fingerprint)); } catch(e) {}
+    try { sessionStorage.removeItem(T12_PENDING_CREATE_STORAGE_KEY); } catch(e) {}
   }
 
   function safeT12CreatePayload(params, cloudKey) {
@@ -700,6 +713,12 @@
     if (reason === 'general-create-off') return 'تسجيل الأوردرات الجديدة على Cloud غير مُفعّل بعد.';
     if (reason === 'registered-customer-phone-required') return 'العميل المسجل لازم يكون له رقم هاتف قبل فتح الأوردر.';
     if (reason === 'general-create-canary-not-armed') return 'اختبار إنشاء الأوردر غير مسلح حاليًا.';
+    if (reason === 'customer-department-open-order-exists') {
+      var blocks = body && Array.isArray(body.blockedDepartments) ? body.blockedDepartments : [];
+      return 'لا يمكن إضافة أوردر جديد: العميل لديه أوردر مفتوح في ' +
+        blocks.map(function(b){ return text(b.department) + ' رقم ' + text(b.orderId); }).join('، ') +
+        '. يمكن إضافة قسم آخر غير مشغول فقط.';
+    }
     if (reason === 'duplicate-order-window-active') {
       var existingOrderId = text(body && body.existingOrderId);
       var retrySeconds = Math.max(1, Math.ceil(Number(body && body.retryAfterMs || 0) / 1000));
@@ -761,8 +780,10 @@
       return { success: false, code: 'T12_GENERAL_CREATE_OFF', message: 'تسجيل الأوردرات الجديدة على Cloud غير مُفعّل بعد. لم يتم الإرسال إلى Apps Script.' };
     }
 
-    var fingerprint = t12CreateFingerprint(params || {});
-    var pending = readPendingCreate();
+    var fingerprint;
+    try { fingerprint = await t12CreateFingerprint(params || {}); }
+    catch { return {success:false,code:'T12_FINGERPRINT_UNAVAILABLE',message:'تعذر حماية مفتاح تسجيل الأوردر. لم يتم إرسال الطلب.'}; }
+    var pending = readPendingCreate(fingerprint);
     var cloudKey = pending && pending.fingerprint === fingerprint
       ? text(pending.cloudKey)
       : cloudCreateKeyFromLegacy(params && params.clientRequestId);
@@ -812,12 +833,15 @@
 
     var body = await t12JsonAnyStatus(response);
     if (body && body.success === true) {
-      clearPendingCreate();
+      clearPendingCreate(fingerprint);
       return body;
     }
 
     var reason = text(body && (body.reason || body.code));
-    if (!/unknown|not-verified|unavailable/i.test(reason) && response.status < 500) clearPendingCreate();
+    // Keep unknown-outcome keys. Only a definite business rejection can release it.
+    if (['customer-department-open-order-exists','duplicate-order-window-active',
+      'canonical-business-intent-invalid',
+      'same-key-actor-payload-or-policy-conflict'].includes(reason)) clearPendingCreate(fingerprint);
     if (body && !body.message) body.message = createFailureMessage(body);
     return body || { success: false, code: 'T12_CREATE_FAILED', message: 'تعذر تسجيل الأوردر الجديد على Cloud.' };
   }
