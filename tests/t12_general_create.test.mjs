@@ -10,6 +10,7 @@ const schema6=fs.readFileSync(new URL('../cloudflare-d1/migrations/0006_t12_oper
 const schema7=fs.readFileSync(new URL('../cloudflare-d1/migrations/0007_t12_general_create_control.sql',import.meta.url),'utf8');
 const schema10=fs.readFileSync(new URL('../cloudflare-d1/migrations/0010_t12_duplicate_order_guard.sql',import.meta.url),'utf8');
 const schema11=fs.readFileSync(new URL('../cloudflare-d1/migrations/0011_t12_legacy_line_runtime.sql',import.meta.url),'utf8');
+const schema12=fs.readFileSync(new URL('../cloudflare-d1/migrations/0012_t12_customer_lane_claim.sql',import.meta.url),'utf8');
 
 class Stmt {
   constructor(db,sql){this.db=db;this.sql=sql;this.params=[];}
@@ -27,6 +28,7 @@ class D1 {
     this.raw.exec(schema7);
     this.raw.exec(schema10);
     this.raw.exec(schema11);
+    this.raw.exec(schema12);
     this.raw.exec("CREATE TABLE sheet_catalog (sheet_name TEXT PRIMARY KEY,headers_json TEXT,status TEXT); CREATE TABLE sheet_rows (sheet_name TEXT,row_number INTEGER,values_json TEXT,display_json TEXT);");
     this.raw.prepare("INSERT INTO sheet_catalog (sheet_name,headers_json,status) VALUES (?,?,?)")
       .run('بنود الأوردرات',JSON.stringify(['رقم الأوردر','كود الأوردر','اسم الشات / المكتب','','القسم','رقم البند','اسم البند','الكمية','مسؤول القسم','الأولوية','الحالة','','','','','','رقم العميل الخارجي']), 'ready');
