@@ -47,3 +47,17 @@
 - Scope: isolated repo source, D1 in-memory SQLite tests, CI and book/handoff only; **NO Production deployment, NO D1 write, NO existing order mutation, NO business CREATE**.
 - Expected: early 409 with existing order ID, no override, no new business number, all status/identity/multi-section/legacy/race regressions; record CI and QA before calling PASS.
 - PREPARE outcome: COMMITTED TO JOURNAL only; implementation PENDING.
+
+## TASK CUSTOMER-LANE-ROUTING / STEP CORRECTION PREPARE — 2026-10-08 Cairo
+
+**Owner correction supersedes CUSTOMER-OPEN-ORDER-GUARD PREPARE directly above.** Do **not** globally block the customer. Match **customer + department lane** only:
+- PRINT open, requested PRINT => reject; LASER open, requested LASER => reject, irrespective of item description/quantity/age.
+- Existing PRINT must **not** block LASER and vice versa.
+- A multi-department request creates **only missing/open-free departments**; e.g. existing PRINT + new multi -> LASER line only; existing LASER + new multi -> PRINT line only; both open -> no new Order ID, return existing refs; neither open -> both.
+- Multi partial must use a coherent single-created-line ID `<orderId>-01` with correct effective order department and queue; never create phantom second line or duplicate outbox events.
+- Preserve idempotency: replay the **original** logical request even if status of existing orders changed. Persist original request canonical and a ledger projection of created/skipped departments.
+- Treat delivered, cancelled, duplicate as closed; ready-for-pickup is still open. Query Cloud-native lines plus historical mirror and legacy runtime.
+- Remove former deliberate-repeat bypass and 48-hour identical-item guard; this new explicit owner rule supersedes them.
+- Read/modify only isolated branch. No production writes/deploy. Add tests for multi partial, both open, cross department, reopened, multiple active lines and legacy; qualify CI and update MASTER_BOOK truth with clear supersession.
+
+PREPARE=COMMITTED; IMPLEMENTATION_PENDING.
