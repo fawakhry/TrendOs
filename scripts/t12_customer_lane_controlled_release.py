@@ -5,6 +5,7 @@ import hashlib,json,os,re,subprocess,sys,time,uuid
 from pathlib import Path
 from urllib.request import Request,urlopen
 from urllib.error import HTTPError
+from email import message_from_bytes
 from t12_live_bundle_inventory_readonly import extract_modules,fingerprint
 
 DEPLOY='--deploy' in sys.argv
@@ -23,6 +24,13 @@ def check(ok,label):
  if not ok:raise RuntimeError(label)
 def fetch(url,data=None,method='GET',headers=None):
  h=dict(headers or {})
+ if not url.startswith(API):
+  check(method=='GET' and data is None,'PUBLIC_WRITE_REFUSED')
+  header=STATE/'public-headers.tmp';body=STATE/'public-body.tmp'
+  p=subprocess.run(['curl','--fail','--silent','--show-error','--max-time','55','--dump-header',str(header),'--output',str(body),url],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+  check(p.returncode==0,'PUBLIC_GET_FAILED:'+url.split('?')[0].split('.workers.dev')[-1])
+  blocks=header.read_bytes().split(b'\r\n\r\n');block=[b for b in blocks if b.startswith(b'HTTP/')][-1]
+  return message_from_bytes(block.split(b'\r\n',1)[1]),body.read_bytes()
  if url.startswith(API):h['Authorization']='Bearer '+TOKEN
  try:
   with urlopen(Request(url,data=data,method=method,headers=h),timeout=55) as r:return r.headers,r.read()
@@ -106,6 +114,7 @@ def main():
  check(fingerprint(module('trendos-d1-api'))['sha256']==EXPECTED,'API_SOURCE_MOVED')
  pre_settings={w:settings(w) for w in ['trendos-d1-api','trendos-ui']}
  (STATE/'private-settings.json').write_text(json.dumps(pre_settings));os.chmod(STATE/'private-settings.json',0o600)
+ REPORT['settingsKeys']={w:sorted(x.keys()) for w,x in pre_settings.items()};REPORT['bindingTypes']={w:sorted({b['type'] for b in x['bindings']}) for w,x in pre_settings.items()}
  REPORT['preVersions']={'api':pre_api,'ui':pre_ui};REPORT['preHealth']=invariants('GENERAL')
  check(REPORT['preHealth']['schemaReady'] is True,'PRE_CREATE_UNHEALTHY')
  control=rows('SELECT marker,mode,canary_remaining,policy_epoch FROM t12_prod_general_create_control WHERE singleton=1')[0]
