@@ -1,0 +1,72 @@
+name: EasyStore A2.13 Consumed Budget Readonly Evidence
+'on':
+  push:
+    branches:
+    - candidate/easystore-accounting-a2-20261005
+    paths:
+    - .github/workflows/easystore-a213-consumed-budget-readonly-evidence.yml
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.sha }}
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    - run: npm install --no-save wrangler@4.33.2
+    - name: Read exact A2.13 D1 evidence; never arm or write
+      shell: bash
+      run: "set -euo pipefail\ncurl -fsS https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/accounting/health\
+        \ > /tmp/a213-diag-health.json\ncat > /tmp/a213-diag.sql <<'SQL'\nSELECT\n\
+        \              (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS\
+        \ materials,\n              (SELECT COUNT(*) FROM employee_accounting_templates_v1)\
+        \ AS templates,\n              (SELECT COUNT(*) FROM employee_accounting_parties_v1)\
+        \ AS parties,\n              (SELECT COUNT(*) FROM employee_accounting_party_balances_v1)\
+        \ AS partyBalances,\n              (SELECT COUNT(*) FROM employee_accounting_waste_v1)\
+        \ AS waste,\n              (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1)\
+        \ AS deptLines,\n              (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1)\
+        \ AS custodyCloses,\n              (SELECT COUNT(*) FROM employee_accounting_custody_events_v1)\
+        \ AS custodyEvents,\n              (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1)\
+        \ AS requestLedger,\n              (SELECT COUNT(*) FROM employee_accounting_events_v1)\
+        \ AS events,\n              (SELECT COUNT(*) FROM employee_accounting_stock_moves_v1)\
+        \ AS stockMoves,\n              (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1)\
+        \ AS partyLedger,\n              (SELECT COUNT(*) FROM employee_accounting_cashbox_v1)\
+        \ AS cashbox,\n              (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1)\
+        \ AS purchases,\n              (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1)\
+        \ AS dailyPurchases,\n              (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1)\
+        \ AS finalInvoices,\n              (SELECT COUNT(*) FROM employee_accounting_day_closes_v1)\
+        \ AS dayCloses;\nSELECT request_key,operation,actor,status FROM employee_accounting_request_ledger_v1\
+        \ WHERE request_key LIKE 'A213-CCLOSE-%';\nSELECT entity_type,entity_id,event_type,actor,request_key\
+        \ FROM employee_accounting_events_v1 WHERE request_key LIKE 'A213-CCLOSE-%';\n\
+        SELECT custody_close_id AS closeId,request_key AS requestKey,employee_key\
+        \ AS employee,department,work_date AS workDate,balance_before AS balanceBefore,settlement_type\
+        \ AS settlementType,settlement_amount AS settlementAmount,balance_after AS\
+        \ balanceAfter,actor FROM employee_accounting_custody_closes_v1 WHERE request_key\
+        \ LIKE 'A213-CCLOSE-%';\nSELECT COUNT(*) AS txGuard FROM employee_accounting_tx_guard_v1;\n\
+        SELECT mode,policy_epoch FROM employee_accounting_control_v1 WHERE singleton=1;\n\
+        SELECT allowed_usernames_json AS users,allowed_actions_json AS actions,max_amount\
+        \ AS maxAmount,max_commands AS maxCommands,commands_started AS commandsStarted,expires_at_ms\
+        \ AS expiresAtMs FROM employee_accounting_write_canary_v1 WHERE singleton=1;\n\
+        SQL\nnpx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml\
+        \ --json --file /tmp/a213-diag.sql > /tmp/a213-diag.json\nnode <<'NODE'\n\
+        const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/a213-diag.json','utf8')),groups=[];\n\
+        function walk(v){if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Array.isArray(v.results))groups.push(v.results);for(const\
+        \ [k,z]of Object.entries(v))if(k!=='results')walk(z)}}walk(x);\nconst rows=groups.flat(),c=rows.find(r=>r.materials!==undefined);\n\
+        if(!c)throw Error('No count snapshot');\nconsole.log('A213_DIAG_COUNTS='+JSON.stringify(c));\n\
+        for(const r of rows.filter(r=>r.request_key||r.closeId||r.mode||r.users!==undefined||r.txGuard!==undefined))console.log('A213_DIAG_ROW='+JSON.stringify(r));\n\
+        const base={materials:1,templates:1,parties:1,partyBalances:1,waste:1,deptLines:1,custodyCloses:0,custodyEvents:0,requestLedger:6,events:6,stockMoves:0,partyLedger:0,cashbox:0,purchases:0,dailyPurchases:0,finalInvoices:0,dayCloses:0};\n\
+        const unchanged=Object.entries(base).every(([k,v])=>Number(c[k])===v);\nconst\
+        \ q=rows.filter(r=>r.operation),e=rows.filter(r=>r.entity_type),cl=rows.filter(r=>r.closeId);\n\
+        console.log('A213_DIAG_CLASSIFICATION='+(unchanged&&q.length===0&&e.length===0&&cl.length===0?'BLOCKED_SAFE_ZERO_BUSINESS_REQUEST_EVENT_MUTATION':'EVIDENCE_REQUIRES_RECONCILIATION_DO_NOT_RETRY'));\n\
+        const h=JSON.parse(fs.readFileSync('/tmp/a213-diag-health.json','utf8'));\n\
+        console.log('A213_DIAG_HEALTH='+JSON.stringify(h));\nif(h.mode!=='READONLY'||h.authoritativeWrites!==false||Number(h.writeCanaryAllowedUserCount)||Number(h.writeCanaryAllowedActionCount)||Number(h.writeCanaryMaxCommands)||Number(h.writeCanaryCommandsStarted))throw\
+        \ Error('Server not closed');\nconsole.log('A213_DIAG_READONLY=PASS');\nconsole.log('GENERAL_OPENED=NO');\n\
+        console.log('DIAGNOSTIC_BUSINESS_MUTATION=NO');\nNODE\n"
