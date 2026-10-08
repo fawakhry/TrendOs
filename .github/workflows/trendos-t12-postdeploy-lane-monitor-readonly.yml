@@ -23,6 +23,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Current Native Content READONLY readiness
+        run: node tests/employee_content_native_readonly_current.test.mjs
       - name: SELECT-only live follow-up with private identity aggregation
         run: python3 scripts/t12_postdeploy_lane_monitor_readonly.py
       - uses: actions/upload-artifact@v4
