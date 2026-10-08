@@ -1,10 +1,5 @@
 name: AP081 Dashboard source-age controlled release
 on:
-  push:
-    branches: [audit/t12-customer-lane-runtime-20261008]
-    paths:
-      - scripts/ap081_dashboard_controlled_release.py
-      - .github/workflows/ap081-dashboard-controlled-release.yml
   workflow_dispatch:
     inputs:
       deploy:
