@@ -15,6 +15,11 @@ DEPLOY='--deploy' in sys.argv
 REPORT={'checkedAtUTC':datetime.now(timezone.utc).isoformat(),'source':TARGET,
  'deployAuthorized':DEPLOY,'businessWrite':False,'d1Mutation':False,
  'persistentCache':False,'productionFaultInjected':False,'state':'PREPARING'}
+RELEASE_ID='AP081'
+BASE_VERSION='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_6_20261008'
+TARGET_VERSION=BASE_VERSION
+EXPECTED_DIFF={'autonomous-printshop/core/control-tower-last-good-v1.mjs','autonomous-printshop/tests/control_tower_last_good_v1.test.mjs','autonomous-printshop/tests/dashboard_last_good_v1.test.mjs','autonomous-printshop/MASTER_BOOK.md'}
+CONTRACT_TESTS=['control_tower_last_good_v1','dashboard_last_good_v1','dashboard_v1','owner_exception_model_v1']
 
 def check(condition,code):
  if not condition:raise RuntimeError(code)
@@ -66,7 +71,8 @@ def build(commit,label):
  archive=STAGE/(label+'.tar')
  with archive.open('wb') as f:subprocess.run(['git','archive',commit,'autonomous-printshop'],stdout=f,check=True)
  with tarfile.open(archive) as f:f.extractall(root,filter='data')
- for test in ['control_tower_last_good_v1','dashboard_last_good_v1','dashboard_v1','owner_exception_model_v1']:
+ for test in CONTRACT_TESTS:
+  if label=='baseline' and not (root/('autonomous-printshop/tests/'+test+'.test.mjs')).exists():continue
   result=subprocess.run(['node','autonomous-printshop/tests/'+test+'.test.mjs'],cwd=root,capture_output=True)
   check(result.returncode==0,'CONTRACT_FAILED_'+label+'_'+test)
  out=STAGE/(label+'-bundle')
@@ -81,7 +87,7 @@ def settings_hash(settings):
 
 def main():
  diff=subprocess.check_output(['git','diff','--name-only',BASE,TARGET]).decode().splitlines()
- check(set(diff)=={'autonomous-printshop/core/control-tower-last-good-v1.mjs','autonomous-printshop/tests/control_tower_last_good_v1.test.mjs','autonomous-printshop/tests/dashboard_last_good_v1.test.mjs','autonomous-printshop/MASTER_BOOK.md'},'SOURCE_DIFF_SCOPE_DRIFT')
+ check(set(diff)==EXPECTED_DIFF,'SOURCE_DIFF_SCOPE_DRIFT')
  baseline=build(BASE,'baseline');target=build(TARGET,'target')
  REPORT['contracts']='PASS';REPORT['baselineBundle']=fingerprint(baseline);REPORT['targetBundle']=fingerprint(target)
  version=active();REPORT['beforeVersion']=version
@@ -92,14 +98,14 @@ def main():
  REPORT['settingsHash']=before_hash
  REPORT['mainBefore']=main_health()
  h=public(HOST+'/health');s=public(HOST+'/state')
- check(h.get('dashboardVersion')=='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_6_20261008' and h.get('businessWrites') is False,'DASHBOARD_HEALTH_DRIFT')
+ check(h.get('dashboardVersion')==BASE_VERSION and h.get('businessWrites') is False,'DASHBOARD_HEALTH_DRIFT')
  check(s.get('mode')=='CONTROL_TOWER_SHADOW' and s.get('writesAccepted') is False and s.get('d1Mutation') is False,'UPSTREAM_NOT_READONLY')
  REPORT['beforeHealth']={k:h[k] for k in ['dashboardVersion','lastGoodVersion','businessWrites','employeeAssignment']}
  check(active()==version,'VERSION_LEASE_DRIFT')
  REPORT['state']='QUALIFIED_READONLY'
  if not DEPLOY:return
  runtime=cf('/workers/scripts/'+WORKER+'/versions/'+version)['resources']['script_runtime']
- metadata={'main_module':'worker.js','bindings':bindings,'compatibility_date':runtime['compatibility_date'],'compatibility_flags':runtime.get('compatibility_flags',[]),'tags':live_settings.get('tags',[]),'usage_model':live_settings.get('usage_model','standard'),'annotations':{'workers/message':'Qualified AP081 diagnostic source-age expiry; read-only Dashboard only'}}
+ metadata={'main_module':'worker.js','bindings':bindings,'compatibility_date':runtime['compatibility_date'],'compatibility_flags':runtime.get('compatibility_flags',[]),'tags':live_settings.get('tags',[]),'usage_model':live_settings.get('usage_model','standard'),'annotations':{'workers/message':'Qualified '+RELEASE_ID+' read-only Dashboard only'}}
  for key in ['logpush','tail_consumers','observability']:
   if key in live_settings:metadata[key]=live_settings[key]
  if runtime.get('limits'):metadata['limits']=runtime['limits']
@@ -119,14 +125,20 @@ def main():
  check(settings_hash(cf('/workers/scripts/'+WORKER+'/settings'))==before_hash,'POSTFLIGHT_SETTINGS_DRIFT')
  REPORT['mainAfter']=main_health();check(REPORT['mainAfter']==REPORT['mainBefore'],'MAIN_BOUNDARY_POSTFLIGHT_DRIFT')
  h=public(HOST+'/health');s=public(HOST+'/state')
- check(h.get('businessWrites') is False and s.get('mode')=='CONTROL_TOWER_SHADOW' and s.get('d1Mutation') is False,'POSTFLIGHT_HEALTH_FAILED')
+ check(h.get('dashboardVersion')==TARGET_VERSION and h.get('businessWrites') is False and s.get('mode')=='CONTROL_TOWER_SHADOW' and s.get('d1Mutation') is False,'POSTFLIGHT_HEALTH_FAILED')
+ if RELEASE_ID=='AP082':
+  check(s.get('panelStatus',{}).get('version')=='CONTROL_TOWER_PANEL_STATUS_V1_20261008','PANEL_METADATA_NOT_LIVE')
+  REPORT['panels']={k:{field:value for field,value in v.items() if field in ['state','source','asOf','ageMs','historicalCompletenessQualified','executionAllowed']} for k,v in s['panelStatus']['panels'].items()}
  REPORT['afterVersion']=new;REPORT['runtimeSourceParity']='PASS';REPORT['state']='DEPLOYED_PASS'
 
-try:main()
-except Exception as e:
- REPORT['failureType']=type(e).__name__
- if isinstance(e,RuntimeError):REPORT['failureCode']=str(e)
- raise
-finally:
- Path('/tmp/ap081-sanitized-report.json').write_text(json.dumps(REPORT,indent=2))
- print('::notice title=AP081_CONTROLLED_RELEASE::'+json.dumps(REPORT,separators=(',',':')))
+def run_release():
+ try:main()
+ except Exception as e:
+  REPORT['failureType']=type(e).__name__
+  if isinstance(e,RuntimeError):REPORT['failureCode']=str(e)
+  raise
+ finally:
+  Path('/tmp/'+RELEASE_ID.lower()+'-sanitized-report.json').write_text(json.dumps(REPORT,indent=2))
+  print('::notice title='+RELEASE_ID+'_CONTROLLED_RELEASE::'+json.dumps(REPORT,separators=(',',':')))
+
+if __name__=='__main__':run_release()
