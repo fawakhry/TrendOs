@@ -5778,31 +5778,9 @@ Trend Mall`;
     btn.disabled = true;
     btn.textContent = "جاري الإضافة...";
 
-    let duplicateConfirmationOrderId = "";
-    async function submitOnce(force) {
-      const sendParams = Object.assign({}, params, force && duplicateConfirmationOrderId
-        ? {duplicateConfirmationOrderId: duplicateConfirmationOrderId} : {});
-      return await api("createManualOrder", sendParams);
-    }
-
     try {
-      let res = await submitOnce(false);
-      if (!res.success && res.needsConfirmation && res.warningOnly) {
-        const existingId = String(res.existingOrderId || "").trim();
-        if (!/^\d{4,16}$/.test(existingId)) {
-          setMsg("addOrderStatus", "تعذر التحقق من هوية الأوردر المشابه؛ لم يتم إنشاء أوردر جديد.", true);
-          return;
-        }
-        const ok = confirm((res.message || "يوجد أوردر مفتوح مطابق.") +
-          "\n\nلو العميل طلب شغلًا ثانيًا مستقلًا بنفس التفاصيل فقط، اضغط موافق. وإلا اضغط إلغاء وافتح الأوردر الموجود.");
-        if (!ok) {
-          if (res.openOrder) revealBlockedOpenOrder(res.openOrder, params.department);
-          setMsg("addOrderStatus", "تم منع التكرار. الأوردر المفتوح رقم " + existingId + ".", true);
-          return;
-        }
-        duplicateConfirmationOrderId = existingId;
-        res = await submitOnce(true);
-      }
+      // Server is the authority: no employee bypass of occupied departments.
+      const res = await api("createManualOrder", params);
 
       if (!res.success) {
         if (res.duplicateBlocked && res.openOrder) {
@@ -5817,7 +5795,16 @@ Trend Mall`;
       const resDebtAmount = numericAmount(res.debtAmount || resDebtInfo.amount || 0);
       const resHasDebt = !external && (res.debtHold === "نعم" || resDebtInfo.hasDebt || resDebtAmount > 0);
       const resDeliveryRestricted = res.deliveryDebtRestricted === true || res.deliveryDebtRestricted === "نعم";
-      setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId + " | التسليم المتوقع: " + expectedText + (external ? " | عميل خارجي بدون حفظ في العملاء" : (resHasDebt ? (resDeliveryRestricted ? " | تنبيه: العميل في قائمة منع التسليم" : " | مديونية مسجلة والتسليم مسموح") : "")), false);
+      const allowedLanes = Array.isArray(res.createdDepartments) ? res.createdDepartments.join(" و") : params.department;
+      const skippedLanes = Array.isArray(res.skippedDepartments)
+        ? res.skippedDepartments.map(x => x.department + " (الأوردر المفتوح " + x.orderId + ")").join("، ")
+        : "";
+      setMsg("addOrderStatus", "تم إضافة الأوردر: " + res.orderId +
+        " | القسم المنفذ: " + allowedLanes +
+        (skippedLanes ? " | لم تتم إضافة: " + skippedLanes : "") +
+        " | التسليم المتوقع: " + expectedText +
+        (external ? " | عميل خارجي بدون حفظ في العملاء" :
+          (resHasDebt ? (resDeliveryRestricted ? " | تنبيه: العميل في قائمة منع التسليم" : " | مديونية مسجلة والتسليم مسموح") : "")), false);
       if (resHasDebt && resDeliveryRestricted) {
         alert("تنبيه قائمة منع التسليم\n\nالعميل: " + params.customerName + "\nالمديونية: " + (resDebtAmount ? (resDebtAmount + " ج") : "مسجلة على العميل") + "\n\nهذا العميل حدده ضياء؛ لا يتم التسليم حتى تصفير المديونية.");
       }
@@ -5848,7 +5835,7 @@ Trend Mall`;
           orderId: res.orderId,
           lineId: res.lineId,
           itemName: params.itemName || ("أوردر جديد - " + params.department),
-          department: params.department,
+          department: allowedLanes,
           status: "طلب جديد",
           expectedDeliveryText: expectedText,
           debtAmount: res.debtAmount || ((res.debtInfo || {}).amount) || 0,
