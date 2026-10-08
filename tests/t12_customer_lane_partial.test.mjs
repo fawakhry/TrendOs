@@ -3,8 +3,8 @@ import fs from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { createT12GeneralOrder } from '../cloudflare-d1/src/t12-general-create.mjs';
 
-const migrations=[5,6,7,10,11].map(n=>{
- const names={5:'0005_t12_production_create_canary',6:'0006_t12_operational_runtime',7:'0007_t12_general_create_control',10:'0010_t12_duplicate_order_guard',11:'0011_t12_legacy_line_runtime'};
+const migrations=[5,6,7,10,11,12].map(n=>{
+ const names={5:'0005_t12_production_create_canary',6:'0006_t12_operational_runtime',7:'0007_t12_general_create_control',10:'0010_t12_duplicate_order_guard',11:'0011_t12_legacy_line_runtime',12:'0012_t12_customer_lane_claim'};
  return fs.readFileSync(new URL('../cloudflare-d1/migrations/'+names[n]+'.sql',import.meta.url),'utf8');
 });
 const HEADERS=['رقم الأوردر','كود الأوردر','اسم الشات / المكتب','','القسم','رقم البند','اسم البند','الكمية','مسؤول القسم','الأولوية','الحالة','','','','','','رقم العميل الخارجي'];
