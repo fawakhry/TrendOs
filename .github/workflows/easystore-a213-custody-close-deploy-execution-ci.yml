@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - candidate/easystore-accounting-a2-20261005
+      - fix/easystore-accounting-cloud-readiness-20261008
     paths:
       - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
       - 'tests/easystore_a213_custody_close_canary.test.mjs'
       - 'tests/easystore_a213_custody_close_workflow_invariants.test.mjs'
+      - 'tests/easystore_custody_close_behavior.test.mjs'
       - '.github/workflows/easystore-a213-custody-close-guard-readonly-deploy.yml'
       - '.github/workflows/easystore-a213-custody-close-canary-execution.yml'
       - '.github/workflows/easystore-a213-custody-close-deploy-execution-ci.yml'
@@ -22,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: candidate/easystore-accounting-a2-20261005
+          ref: ${{ github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -34,6 +36,7 @@ jobs:
           node tests/easystore_a2_write_canary_policy_v1.test.mjs
           node tests/easystore_a213_custody_close_canary.test.mjs
           node tests/easystore_a213_custody_close_workflow_invariants.test.mjs
+          node tests/easystore_custody_close_behavior.test.mjs
           echo A213_CUSTODY_CLOSE_DEPLOY_EXECUTION_QUALIFICATION=PASS
           echo SERVER_GUARD=PASS
           echo DEPLOY_WORKFLOW=MANUAL_ONLY

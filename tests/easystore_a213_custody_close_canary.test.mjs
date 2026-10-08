@@ -15,7 +15,8 @@ assert.ok(mod.includes("const current=(await custodySummariesV1(env,workDate)).f
 assert.ok(mod.includes("const balance=num(current.balance),amount=Math.abs(balance),movement=balance>0?'RETURN':balance<0?'EXTRA_PAYMENT':'';"));
 assert.ok(mod.includes("if(amount>0){"));
 assert.ok(mod.includes("INSERT INTO employee_accounting_custody_closes_v1"));
-assert.ok(mod.includes("await auditEventV1(env,ctx,'custody-close',closeId,'close'"));
+assert.ok(mod.includes("auditEventStatementV1(env,ctx,'custody-close',closeId,'close'"));
+assert.ok(mod.includes("employee-accounting-canary-custody-balance-blocked"));
 
 console.log('A213_CUSTODY_CLOSE_SERVER_GUARD=PASS');
 console.log('A213_REQUEST_PREFIX=A213-CCLOSE-');

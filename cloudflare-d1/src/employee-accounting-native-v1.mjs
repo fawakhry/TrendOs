@@ -69,14 +69,17 @@ async function commitCommandV1(env,ctx,response){
     .bind(JSON.stringify(response||{}),ctx.requestKey).run();
   return response;
 }
-async function auditEventV1(env,ctx,entityType,entityId,eventType,actor,payload={},autonomyLevel='HUMAN'){
-  await env.DB.prepare(`
+function auditEventStatementV1(env,ctx,entityType,entityId,eventType,actor,payload={},autonomyLevel='HUMAN'){
+  return env.DB.prepare(`
     INSERT INTO employee_accounting_events_v1
       (entity_type,entity_id,event_type,actor,payload_json,created_at_ms,request_key,correlation_id,source_system,evidence_refs_json,policy_epoch,autonomy_level)
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
   `).bind(text(entityType),text(entityId),text(eventType),text(actor),JSON.stringify(payload||{}),Date.now(),
     text(ctx&&ctx.requestKey),text(ctx&&ctx.correlationId),text(ctx&&ctx.sourceSystem)||'EasyStore',JSON.stringify(ctx&&ctx.evidence||[]),
-    Number(ctx&&ctx.policyEpoch||0),text(autonomyLevel)||'HUMAN').run();
+    Number(ctx&&ctx.policyEpoch||0),text(autonomyLevel)||'HUMAN');
+}
+async function auditEventV1(env,ctx,entityType,entityId,eventType,actor,payload={},autonomyLevel='HUMAN'){
+  await auditEventStatementV1(env,ctx,entityType,entityId,eventType,actor,payload,autonomyLevel).run();
 }
 
 function accountingMode(user){
@@ -1291,6 +1294,8 @@ async function closePurchaseCustodyV1(env,auth,b){
   if(old)return {success:true,duplicatePrevented:true,closeId:text(old.closeId),summary:(await custodySummariesV1(env,workDate)).find(x=>key(x.employee)===key(employee)&&x.department===department)||null,version:'A2_D1_ACCOUNTING_V1'};
   const current=(await custodySummariesV1(env,workDate)).find(x=>key(x.employee)===key(employee)&&x.department===department)||{balance:0};
   const balance=num(current.balance),amount=Math.abs(balance),movement=balance>0?'RETURN':balance<0?'EXTRA_PAYMENT':'';
+  const policy=await control(env);
+  if(policy.mode==='CANARY' && balance!==0)throw commandErrorV1('employee-accounting-canary-custody-balance-blocked','كاناري تقفيل العهدة يسمح فقط برصيد محسوب يساوي صفرًا، بلا تسوية أو حركة خزنة.');
   const ctx=await beginCommandV1(env,auth,'custody-close',{...b,employee,department,workDate,balance});
   if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
   const closeId=uid('CCL'),eventId=uid('CUS'),cashId=uid('CSH'),now=Date.now(),method=text(b.paymentMethod||'نقدي'),statements=[];
@@ -1299,10 +1304,10 @@ async function closePurchaseCustodyV1(env,auth,b){
     statements.push(env.DB.prepare("INSERT INTO employee_accounting_cashbox_v1(cashbox_tx_id,request_key,work_date,movement_type,party_name,department,amount,payment_method,ref_no,source,notes,actor,created_at_ms) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(cashId,ctx.requestKey+'-CASH',workDate,movement==='RETURN'?'CUSTODY_RETURN':'CUSTODY_EXTRA_PAYMENT',employee,department,amount,method,closeId,sourceSystemV1(b),text(b.notes),auth.user.username,now));
   }
   statements.push(env.DB.prepare("INSERT INTO employee_accounting_custody_closes_v1(custody_close_id,request_key,work_date,employee_key,department,balance_before,settlement_type,settlement_amount,balance_after,notes,actor,created_at_ms) VALUES(?,?,?,?,?,?,?,?,0,?,?,?)").bind(closeId,ctx.requestKey,workDate,employee,department,balance,movement||'NONE',amount,text(b.notes),auth.user.username,now));
-  await env.DB.batch(statements);
   const response={success:true,closeId,balanceBefore:balance,settlementType:movement||'NONE',settlementAmount:amount,balanceAfter:0,version:'A2_D1_ACCOUNTING_V1'};
-  await commitCommandV1(env,ctx,response);
-  await auditEventV1(env,ctx,'custody-close',closeId,'close',auth.user.username,{employee,department,workDate,balance,amount,movement});
+  statements.push(auditEventStatementV1(env,ctx,'custody-close',closeId,'close',auth.user.username,{employee,department,workDate,balance,amount,movement}));
+  statements.push(env.DB.prepare("UPDATE employee_accounting_request_ledger_v1 SET status='COMMITTED',response_json=?,updated_at=CURRENT_TIMESTAMP WHERE request_key=? AND status='PREPARED'").bind(JSON.stringify(response),ctx.requestKey));
+  await env.DB.batch(statements);
   return response;
 }
 
