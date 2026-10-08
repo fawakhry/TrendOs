@@ -1,9 +1,10 @@
 import { qualifyOperatorTaskCanaryV1 } from '../core/operator-task-canary-qualification-v1.mjs';
 import { buildOwnerExceptionModelV1, OWNER_EXCEPTION_MODEL_VERSION } from '../core/owner-exception-model-v1.mjs';
 import { createControlTowerLastGoodGateV1, CONTROL_TOWER_LAST_GOOD_VERSION } from '../core/control-tower-last-good-v1.mjs';
+import { buildControlTowerPanelStatusV1, CONTROL_TOWER_PANEL_STATUS_VERSION } from '../core/control-tower-panel-status-v1.mjs';
 const SHADOW_URL='https://autonomous-printshop-shadow.trendmall-contact.workers.dev';
 const READINESS_COLLECTOR_URL='https://autonomous-printshop-readiness-collector.trendmall-contact.workers.dev';
-const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_6_20261008';
+const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_7_20261008';
 const lastGoodGate=createControlTowerLastGoodGateV1();
 function degradedControlTowerResponse(){
   const fallback=lastGoodGate.degraded();
@@ -132,6 +133,7 @@ th{color:var(--muted);font-weight:700}
   </div>
   <div class="error" id="error"></div>
   <div id="staleStatus" role="status" aria-live="polite"></div>
+  <div id="panelStatus" class="section" role="status" aria-live="polite"></div>
 
   <div class="card">
     <div class="badges" id="modes"></div>
@@ -263,14 +265,14 @@ function actionForBlocker(code){
   return map[String(code||'')]||('راجع العائق: '+String(code||'UNKNOWN'));
 }
 
-function evidenceBox(label,x={}){
-  const ok=x.acquisitionReady===true;
+function evidenceBox(label,x={},fresh=false){
+  const ok=fresh&&x.acquisitionReady===true;
   const parts=Object.entries(x)
     .filter(([k,v])=>typeof v==='number'&&k!=='acquisitionReady')
     .map(([k,v])=>'<span>'+esc(k)+' <b>'+n(v)+'</b></span>')
     .join('');
   const stage=x.cloudStage?'<div class="hint">Cloud stage: '+esc(x.cloudStage)+(x.materialFrozen?' • Material frozen':'')+'</div>':'';
-  return '<div class="rbox"><div class="rtitle">'+esc(label)+' — '+(ok?'المصدر جاهز':'المصدر ناقص')+'</div>'
+  return '<div class="rbox"><div class="rtitle">'+esc(label)+' — '+(fresh?(ok?'المصدر جاهز':'المصدر ناقص'):'توقيت المصدر غير موثّق')+'</div>'
     +'<div class="rnums">'+parts+'</div>'
     +stage
     +(ok?'':'<div class="hint">'+esc(x.blocker||'UNKNOWN')+'</div>')
@@ -293,6 +295,17 @@ async function load(){
     }
     app.classList.remove('degraded');
     q('#staleStatus').innerHTML='';
+    const panels=d.panelStatus?.panels||{};
+    const labels={operations:'التشغيل',deadlines:'المواعيد',employees:'الموظفون',employeeBlockers:'عوائق الموظفين',readiness:'جاهزية الشغل',communications:'التواصل',finance:'الحسابات',learning:'سجل التعلم',evidence:'مصادر الأدلة'};
+    const available=id=>panels[id]?.displayAvailable===true;
+    const panelKpi=(id,label,value,hint)=>kpi(label,available(id)?value:'—',available(id)?hint:'بيانات هذا الجزء غير متاحة؛ لا تُفسّر كصفر.');
+    q('#panelStatus').innerHTML=Object.entries(labels).map(([id,label])=>{
+      const p=panels[id]||{};
+      const state=p.state==='FRESH'?'قراءة حديثة':p.state==='RECEIVED_AGE_UNKNOWN'?'وصلت القراءة؛ توقيت المصدر غير موثّق':'غير متاح';
+      const time=p.asOf?' • وقت القراءة: '+new Date(p.asOf).toLocaleString('ar-EG')+' • عمرها: '+Math.ceil(n(p.ageMs)/1000)+' ثانية':'';
+      const incomplete=id==='finance'&&p.historicalCompletenessQualified!==true?' • اكتمال التاريخ المالي غير مثبت':'';
+      return '<div class="badge '+(p.state==='FRESH'?'':'warn')+'">'+esc(label)+': '+esc(state+time+incomplete)+'</div>';
+    }).join('');
 
     const ops=d.operations?.counts||{};
     const deadline=d.operations?.deadlineRisk||{};
@@ -356,14 +369,14 @@ async function load(){
       : '<div class="signal warn"><div class="exception-title">تحذير الحسابات: SOURCE INCOMPLETE</div>بيانات الحسابات السحابية غير مكتملة أو غير مؤهلة. صفر المديونيات أو صفر الموانع لا يعني سلامة الحسابات، وإقفال اليوم غير مؤهل. الحالة: '+esc(financeDayClose.state||'UNKNOWN_SOURCE_COMPLETENESS')+' • Accounting: '+esc(financeControl.mode||'UNKNOWN')+'. لا توجد أي صلاحية تعديل مالية هنا.</div>';
 
     q('#kpis').innerHTML=[
-      kpi('منتظر تنفيذ',n(ops.ordinary),'الترتيب الأساسي قبل بوابة الجاهزية'),
-      kpi('أوردرات متأخرة',n(deadline.overdueOrders),'أقدم تأخير '+n(deadline.oldestOverdueHours)+' ساعة'),
-      kpi('خطر خلال 24 ساعة',n(deadline.atRisk24hOrders),'مراقبة 48 ساعة: '+n(deadline.watch48hOrders)),
-      kpi('جاهز صارم',n(ready.strictEligible),'Design + Material + Machine'),
-      kpi('تحت التنفيذ',n(ops.inProgress),'حالة فعلية من TrendOS'),
-      kpi('متاح الآن',n(emp.available),n(emp.total)+' موظف معروف'),
-      kpi('عوائق الموظفين',n(blockerCounts.open),'حرج '+n(blockerCounts.critical)+' • قرار مالك '+n(blockerCounts.ownerActionRequired)),
-      kpi('رسائل تنتظر رد',n(sig.commsWaitingReply),'تصعيد إداري '+n(sig.commsManagerEscalations)+(n(sig.commsFeedbackDormantBacklog)>0?' • Feedback مؤجل '+n(sig.commsFeedbackDormantBacklog)+' غير تشغيلي':''))
+      panelKpi('operations','منتظر تنفيذ',n(ops.ordinary),'الترتيب الأساسي قبل بوابة الجاهزية'),
+      panelKpi('deadlines','أوردرات متأخرة',n(deadline.overdueOrders),'أقدم تأخير '+n(deadline.oldestOverdueHours)+' ساعة'),
+      panelKpi('deadlines','خطر خلال 24 ساعة',n(deadline.atRisk24hOrders),'مراقبة 48 ساعة: '+n(deadline.watch48hOrders)),
+      panelKpi('readiness','جاهز صارم',n(ready.strictEligible),'Design + Material + Machine'),
+      panelKpi('operations','تحت التنفيذ',n(ops.inProgress),'حالة فعلية من TrendOS'),
+      panelKpi('employees','متاح الآن',n(emp.available),n(emp.total)+' موظف معروف'),
+      panelKpi('employeeBlockers','عوائق الموظفين',n(blockerCounts.open),'حرج '+n(blockerCounts.critical)+' • قرار مالك '+n(blockerCounts.ownerActionRequired)),
+      panelKpi('communications','رسائل تنتظر رد',n(sig.commsWaitingReply),'تصعيد إداري '+n(sig.commsManagerEscalations)+(n(sig.commsFeedbackDormantBacklog)>0?' • Feedback مؤجل '+n(sig.commsFeedbackDormantBacklog)+' غير تشغيلي':''))
     ].join('');
 
     const riskDepartments=Array.isArray(deadline.departments)?deadline.departments:[];
@@ -388,9 +401,9 @@ async function load(){
     ].join('');
 
     q('#evidenceSources').innerHTML=[
-      evidenceBox('Design',evidence.design||{}),
-      evidenceBox('Material',evidence.material||{}),
-      evidenceBox('Machine',evidence.machine||{})
+      evidenceBox('Design',evidence.design||{},panels.evidence?.state==='FRESH'),
+      evidenceBox('Material',evidence.material||{},panels.evidence?.state==='FRESH'),
+      evidenceBox('Machine',evidence.machine||{},panels.evidence?.state==='FRESH')
     ].join('');
 
     const systemOk=canary.systemPrerequisitesQualified===true;
@@ -417,11 +430,20 @@ async function load(){
     ).join('')||'<tr><td colspan="6">لا توجد بيانات أقسام</td></tr>';
 
     q('#learning').innerHTML=[
-      kpi('قرارات Shadow',n(learn.autonomyEvents),'سجل تعلم فقط'),
-      kpi('AI Auto مقترح',n(learn.recommendedAiAuto),'لم تُنفذ حيًا'),
-      kpi('Blocked',n(learn.blocked),'قرارات تم منعها بالسياسة'),
-      kpi('Owner Only',n(learn.ownerOnly),'قرارات محمية للمالك')
+      panelKpi('learning','قرارات Shadow',n(learn.autonomyEvents),'سجل تعلم فقط'),
+      panelKpi('learning','AI Auto مقترح',n(learn.recommendedAiAuto),'لم تُنفذ حيًا'),
+      panelKpi('learning','Blocked',n(learn.blocked),'قرارات تم منعها بالسياسة'),
+      panelKpi('learning','Owner Only',n(learn.ownerOnly),'قرارات محمية للمالك')
     ].join('');
+    const missing='<div class="signal warn">بيانات هذا الجزء غير متاحة؛ لا يمكن اعتبارها صفرًا أو جاهزية مؤكدة.</div>';
+    if(!available('readiness')) q('#readiness').innerHTML=missing;
+    if(!available('evidence')) q('#evidenceSources').innerHTML=missing;
+    if(!available('deadlines')) q('#deadlineDepartments').innerHTML='<tr><td colspan="5">بيانات المواعيد غير متاحة.</td></tr>';
+    if(!available('employees')) q('#departments').innerHTML='<tr><td colspan="6">بيانات الموظفين غير متاحة.</td></tr>';
+    if(!available('readiness')||!available('employees')||panels.evidence?.state!=='FRESH'){
+      q('#canaryGate').innerHTML='<div class="signal warn">لا يوجد إثبات حديث مكتمل للتفعيل؛ راجع مصادر الجاهزية والموظفين والأدلة.</div>';
+      q('#nextActions').innerHTML=missing+q('#nextActions').innerHTML;
+    }
 
     q('#footer').textContent='آخر تحديث: '+(d.generatedAt?new Date(d.generatedAt).toLocaleString('ar-EG'):'—')+
       ' • المصدر: '+(d.source?.authority||'—')+
@@ -471,7 +493,8 @@ export default {
 
         const operatorTaskCanary=operatorTaskCanaryState(control);
         const ownerExceptionModel=buildOwnerExceptionModelV1({...control,evidenceAcquisition,operatorTaskCanary});
-        return json({...control,evidenceAcquisition,operatorTaskCanary,ownerExceptionModel});
+        const panelStatus=buildControlTowerPanelStatusV1(control,evidenceAcquisition);
+        return json({...control,evidenceAcquisition,operatorTaskCanary,ownerExceptionModel,panelStatus});
       }catch(err){
         return degradedControlTowerResponse();
       }
@@ -503,6 +526,7 @@ export default {
         trendosManagerCenterReplacementCandidate:true,
         ownerExceptionModelVersion:OWNER_EXCEPTION_MODEL_VERSION,
         lastGoodVersion:CONTROL_TOWER_LAST_GOOD_VERSION,
+        panelStatusVersion:CONTROL_TOWER_PANEL_STATUS_VERSION,
         lastGoodCacheScope:'WORKER_ISOLATE_BEST_EFFORT',
         businessWrites:false,
         employeeAssignment:false
