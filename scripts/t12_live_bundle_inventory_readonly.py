@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sys
+import subprocess
 import urllib.request
 from datetime import datetime, timezone
 from email.parser import BytesParser
@@ -27,10 +28,20 @@ def fingerprint(data):
 def inventory(data):
     """Extract compiler module markers and identifiers, never string literals."""
     text = normalized(data).decode("utf-8", errors="strict")
-    modules = re.findall(r"^// ([A-Za-z0-9_./@-]+\.(?:mjs|js|ts))$", text, re.M)
+    markers = list(re.finditer(r"^// ([A-Za-z0-9_./@-]+\.(?:mjs|js|ts))$", text, re.M))
+    modules = [m.group(1) for m in markers]
+    segments = {}
+    for index, marker in enumerate(markers):
+        path = marker.group(1).replace("cloudflare-d1/", "").replace("../autonomous-printshop/", "autonomous-printshop/")
+        end = markers[index + 1].start() if index + 1 < len(markers) else len(text)
+        # Hash only the body so compiler comments with different cwd prefixes
+        # do not masquerade as module-code differences. Keep duplicated markers.
+        body = text[marker.end():end].strip().encode()
+        segments.setdefault(path, []).append(fingerprint(body))
     functions = re.findall(r"\bfunction\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\(", text)
     return {**fingerprint(data), "modules": sorted(set(modules)),
-            "functions": sorted(set(functions)), "nameWrapperCount": text.count("__name(")}
+            "functions": sorted(set(functions)), "nameWrapperCount": text.count("__name("),
+            "segments": segments, "moduleMarkerCount": len(markers)}
 
 
 def extract_modules(content_type, raw):
@@ -154,6 +165,19 @@ def main():
         except Exception as error:
             # No raw errors / response bodies: they may contain operational data.
             report["d1"][name] = {"state": "READ_UNVERIFIED", "errorType": type(error).__name__}
+    try:
+        # Raw legacy rows remain in runner memory, never in the public report.
+        def rows(sql):
+            return [r for block in cf_json(f"/d1/database/{db}/query", {"sql": sql}) for r in block.get("results", [])]
+        catalog = rows("SELECT headers_json AS headersJson FROM sheet_catalog WHERE sheet_name='بنود الأوردرات'")
+        raw_rows = rows("SELECT row_number AS rowNumber,values_json AS valuesJson,display_json AS displayJson FROM sheet_rows WHERE sheet_name='بنود الأوردرات' ORDER BY row_number")
+        runtime = rows("SELECT line_id AS lineId,order_id AS orderId,status FROM t12_legacy_line_runtime")
+        private_input = json.dumps({"headers": json.loads(catalog[0]["headersJson"]), "rows": raw_rows, "runtime": runtime})
+        agg = subprocess.run(["node", "scripts/t12_legacy_lane_readonly_aggregate.mjs"],
+            input=private_input, text=True, capture_output=True, check=True)
+        report["legacyEffectiveAggregates"] = json.loads(agg.stdout)
+    except Exception as error:
+        report["legacyEffectiveAggregates"] = {"state": "READ_UNVERIFIED", "errorType": type(error).__name__}
     report["after"] = active()
     bookmark_file = Path("/tmp/t12-private-recovery.json")
     if bookmark_file.exists():
@@ -168,6 +192,28 @@ def main():
     print("EXACT_MATCHES=" + json.dumps([name for name, r in report.get("comparisons", {}).items() if r["exactByteMatch"]]))
     print("INVENTORY_REPORT_WRITTEN=SANITIZED_METADATA_ONLY")
     print("DEPLOY=NO; PRODUCTION_BUSINESS_WRITE=NO; CUSTOMER_EXPORT=NO")
+    # Check annotations avoid requiring access to the separate artifact host.
+    # Keep a single compact report below the runner's per-step annotation cap.
+    small = {k: report[k] for k in ["checkedAtUTC", "before", "after", "stableDeployment", "mainModule", "d1", "legacyEffectiveAggregates", "recoveryBookmarkAvailable"] if k in report}
+    small["live"] = {k: {f: v[f] for f in ["bytes", "sha256", "nameWrapperCount", "moduleMarkerCount"]} for k, v in report["liveModules"].items()}
+    small["moduleDifferences"] = {}
+    for live in report["liveModules"].values():
+        for name, build in builds.items():
+            if "wrangler4332" not in name:
+                continue
+            changed = []
+            for key in sorted(set(live["segments"]) | set(build["segments"])):
+                a, b = live["segments"].get(key, []), build["segments"].get(key, [])
+                if a != b:
+                    changed.append({"module": key, "liveBytes": sum(x["bytes"] for x in a), "buildBytes": sum(x["bytes"] for x in b), "liveCopies": len(a), "buildCopies": len(b)})
+            small["moduleDifferences"][name] = changed
+    compact = json.dumps(small, separators=(",", ":"))
+    chunks = [compact[i:i+5000] for i in range(0, len(compact), 5000)]
+    if len(chunks) > 8:
+        raise ValueError("SANITIZED_ANNOTATION_REPORT_TOO_LARGE")
+    for i, chunk in enumerate(chunks):
+        chunk = chunk.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+        print(f"::notice title=T12_DETAILED_PART_{i+1:03d}_OF_{len(chunks):03d}::{chunk}")
     if not report["stableDeployment"] or main_module not in modules:
         raise ValueError("LIVE_DEPLOYMENT_DRIFT_OR_AMBIGUOUS_ENTRY")
 

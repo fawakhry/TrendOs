@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/trendos-t12-live-bundle-inventory-readonly.yml'
       - 'scripts/t12_live_bundle_inventory_readonly.py'
+      - 'scripts/t12_legacy_lane_readonly_aggregate.mjs'
   workflow_dispatch:
 permissions:
   contents: read
