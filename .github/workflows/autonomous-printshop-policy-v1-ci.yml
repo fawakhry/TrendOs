@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   push:
     paths:
+      # Include future source, tests and storage/security design changes in CI.
+      - 'autonomous-printshop/**'
       - 'autonomous-printshop/core/autonomy-policy-v1.mjs'
       - 'autonomous-printshop/core/autonomy-event-ledger-v1.mjs'
       - 'autonomous-printshop/core/operational-reality-v1.mjs'
@@ -154,6 +156,8 @@ on:
       - '.github/workflows/autonomous-printshop-policy-v1-ci.yml'
   pull_request:
     paths:
+      # Include future source, tests and storage/security design changes in CI.
+      - 'autonomous-printshop/**'
       - 'autonomous-printshop/core/autonomy-policy-v1.mjs'
       - 'autonomous-printshop/core/autonomy-event-ledger-v1.mjs'
       - 'autonomous-printshop/core/operational-reality-v1.mjs'
