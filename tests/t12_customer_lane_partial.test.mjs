@@ -132,4 +132,39 @@ const create=(db,id,department,fields={})=>createT12GeneralOrder(db,make(id,depa
  assert.equal(blocked.reason,'customer-department-status-unavailable-no-retry');
  assert.equal(db.n('t12_prod_orders'),0);
 }
-console.log('T12 customer+department lane and partial multi create isolated PASS');
+{
+ const db=new D1();
+ const results=await Promise.all([
+   create(db,60,'طباعة',{itemName:'Artwork Alpha',qty:1}),
+   create(db,61,'طباعة',{itemName:'Artwork Beta',qty:2})
+ ]);
+ assert.equal(results.filter(r=>r.success).length,1,JSON.stringify(results));
+ assert.equal(results.filter(r=>r.reason==='customer-department-open-order-exists').length,1,JSON.stringify(results));
+ assert.equal(db.n('t12_prod_orders'),1);
+ assert.equal(db.n('t12_prod_customer_lane_claim'),1);
+}
+{
+ const db=new D1();
+ const results=await Promise.all([
+   create(db,70,'طباعة',{itemName:'Artwork PRINT'}),
+   create(db,71,'متعدد الأقسام',{itemName:'Artwork BOTH'})
+ ]);
+ assert.ok(results.every(r=>r.success===true||r.reason==='customer-department-open-order-exists'),JSON.stringify(results));
+ const open=db.raw.prepare("SELECT department,COUNT(*) n FROM t12_prod_lines GROUP BY department").all();
+ assert.equal(open.find(x=>x.department==='طباعة')?.n,1,JSON.stringify(open));
+ assert.ok(Number(open.find(x=>x.department==='ليزر')?.n||0)<=1);
+ assert.equal(db.n('t12_prod_customer_lane_claim'),open.length);
+}
+{
+ const db=new D1();
+ const a=await create(db,80,'طباعة',{itemName:'FIRST DELIVERY'});
+ assert.equal(a.success,true);
+ db.raw.prepare("INSERT INTO t12_prod_line_runtime(line_id,order_id,status,updated_by) VALUES (?,?,?,?)")
+   .run(a.lineId,a.orderId,'تم التسليم','employee-print');
+ const b=await create(db,81,'طباعة',{itemName:'NEW INDEPENDENT JOB'});
+ assert.equal(b.success,true,JSON.stringify(b));
+ assert.equal(db.n('t12_prod_customer_lane_claim'),1,'Previously closed claim must be refreshed');
+ assert.equal(db.raw.prepare("SELECT order_id FROM t12_prod_customer_lane_claim LIMIT 1").get().order_id,b.orderId);
+}
+
+console.log('T12 customer+department lane and partial multi create isolated + concurrent distinct-payload atomic claim PASS');
