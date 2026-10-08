@@ -6831,3 +6831,14 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - run37825677687/job113477791656 عند83cdd817 SUCCESS؛UIbb8b38b2-e683-4b7f-b314-875f90d6a95a،APIsource1d8fb904،CREATEGENERAL/claimReadytrue؛schema0012موجودة دونmigrationإضافية،businesswritesNO،rollbackNO. فحصapp/index/livehealth مستقلPASS.
 - sharedcandidatefe16c8b6(parent0e3d35f0) يحملBackendT12+0012+tests+bookفقط معleaseوثبوتNodeSQLite،دونمسAccounting/AP/Auth/Frontend؛CI37825923492 و37825923374SUCCESS. لمنعAccountingmergesاللاحقةمنحملV1قديم.
 - تقريرالتفاصيل:docs/trendos/staging/T12_OPTIONAL_DESCRIPTION_AND_SHARED_GUARD_REPAIR_20261008.md. أوقفauto-pushللنشرالمكتمل؛لاclaimلمنعناشرينيتجاهلونsharedbase،leasesتبقىمطلوبة.
+
+
+### Continuation — 2026-10-08, read-only Production follow-up and AP source freshness fix
+
+User requested continuation. SELECT-only monitor run 37827786728 SUCCESS, checked 18:53:47 UTC: T12 GENERAL V2 customerLaneClaimReady=true; Native Auth 6/6; Accounting READONLY epoch39 writeAuthority OFF; Content/Comms READONLY, r2Ready=false. Postdeploy orders/lines/claims remain 0; stored anomalies 0. This is health proof pending real traffic, not a demonstrated employee rejection/replay.
+
+Accounting evidence: total request ledger6 and audit events6; prepared custody-close0, committed custody-close0, custody closes0, custody events0, cashbox movements0. Consumed command budget does not prove a business commit. Exact command failure reason remains unresolved; no canary rearmed or Accounting branch overwritten. Parallel Accounting branch advanced during inspection.
+
+R2 bucket probe403: bucket existence UNKNOWN, no creation/binding mutation. Files remain blocked on a qualified dedicated-bucket/binding prerequisite.
+
+Independent AP-080 bug reproduced: fallback age measured reception rather than generatedAt, allowing an aged snapshot nearly ten minutes of display under a five-minute contract. Isolated AP-081 fixes expiry using source time and retains rollback guard. Source commit cbe270a553df6f7de326a6934f5f7fa978aa18ef, branch candidate/ap-081-source-freshness-20261008, draft PR https://github.com/fawakhry/TrendOs/pull/32 against candidate fe16. Pure and Dashboard expiry/outage/recovery tests PASS locally. Policy CI run37827973068 pending at documentation time. SOURCE_ONLY, no Production deployment; MC-02/MC-23 remain PARTIAL and durable storage requires separate qualification.
