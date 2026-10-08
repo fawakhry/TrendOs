@@ -56,7 +56,7 @@ jobs:
         \ AS maxAmount,max_commands AS maxCommands,commands_started AS commandsStarted,expires_at_ms\
         \ AS expiresAtMs FROM employee_accounting_write_canary_v1 WHERE singleton=1;\n\
         SQL\nnpx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml\
-        \ --json --file /tmp/a213-diag.sql > /tmp/a213-diag.json\nnode <<'NODE'\n\
+        \ --json --command "$(cat /tmp/a213-diag.sql)" > /tmp/a213-diag.json\nnode <<'NODE'\n\
         const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/a213-diag.json','utf8')),groups=[];\n\
         function walk(v){if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(Array.isArray(v.results))groups.push(v.results);for(const\
         \ [k,z]of Object.entries(v))if(k!=='results')walk(z)}}walk(x);\nconst rows=groups.flat(),c=rows.find(r=>r.materials!==undefined);\n\
