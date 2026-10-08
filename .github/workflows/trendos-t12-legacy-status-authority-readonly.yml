@@ -1,0 +1,79 @@
+name: TrendOS T12 Legacy Status Authority Readonly Audit
+
+on:
+  push:
+    branches:
+      - fix/t12-duplicate-create-durable-20261008
+    paths:
+      - '.github/workflows/trendos-t12-legacy-status-authority-readonly.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Setup pinned D1 CLI
+        run: npm install --no-save wrangler@4.142.0
+      - name: Query archived mirror and runtime overlay read only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT headers_json AS headersJson,status,synced_at AS syncedAt,source_last_row AS sourceLastRow FROM sheet_catalog WHERE sheet_name='بنود الأوردرات';" > /tmp/legacy-catalog.json
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT row_number AS rowNumber,values_json AS valuesJson,display_json AS displayJson FROM sheet_rows WHERE sheet_name='بنود الأوردرات' ORDER BY row_number;" > /tmp/legacy-rows.json
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT line_id AS lineId,order_id AS orderId,status,notes,version FROM t12_legacy_line_runtime;" > /tmp/legacy-overlays.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import {mapMirrorRows} from './cloudflare-d1/src/edge-orders-read-v1.mjs';
+          import {applyLegacyRuntimeOverlay} from './cloudflare-d1/src/t12-legacy-line-runtime.mjs';
+          function load(path){
+            const data=JSON.parse(fs.readFileSync(path,'utf8'));
+            return (Array.isArray(data)?data:[data]).flatMap(x=>Array.isArray(x.results)?x.results:[]);
+          }
+          const catalog=load('/tmp/legacy-catalog.json');
+          const rows=load('/tmp/legacy-rows.json');
+          const rt=load('/tmp/legacy-overlays.json');
+          if(catalog.length!==1||catalog[0].status!=='ready'||!catalog[0].headersJson)throw Error('CATALOG_INVALID');
+          const mapped=mapMirrorRows(JSON.parse(catalog[0].headersJson),
+            rows.map(x=>({rowNumber:x.rowNumber,values:JSON.parse(x.valuesJson),display:JSON.parse(x.displayJson)})),'service');
+          const layered=applyLegacyRuntimeOverlay(mapped,rt);
+          const counts={},ids=new Set(),duplicates=[],unresolved=[];
+          for(const row of layered){
+            const status=String(row.status||'').trim();
+            counts[status]=(counts[status]||0)+1;
+            const key=String(row.orderId||'')+':'+String(row.lineId||'');
+            if(ids.has(key)&&duplicates.length<10)duplicates.push(key);
+            ids.add(key);
+            if(!['تم التسليم','ملغى','ملغي','مكرر','جاهز للاستلام'].includes(status)&&unresolved.length<20)
+              unresolved.push({orderId:row.orderId,lineId:row.lineId,status});
+          }
+          console.log('LEGACY_SNAPSHOT_DATE='+catalog[0].syncedAt);
+          console.log('LEGACY_ROWS='+rows.length);
+          console.log('LEGACY_MAPPED_ROWS='+mapped.length);
+          console.log('LEGACY_RUNTIME_OVERRIDES='+rt.length);
+          console.log('LEGACY_EFFECTIVE_STATUS_COUNTS='+JSON.stringify(counts));
+          console.log('LEGACY_IDENTITY_COLLISIONS_COUNT='+duplicates.length);
+          console.log('LEGACY_UNRESOLVED_OPEN_COUNT='+Object.entries(counts).filter(([k])=>!['تم التسليم','ملغى','ملغي','مكرر','جاهز للاستلام'].includes(k)).reduce((a,[,v])=>a+v,0));
+          if(duplicates.length)throw Error('LEGACY_DUPLICATE_LINE_IDS_NEED_REVIEW');
+          if(unresolved.length)throw Error('LEGACY_UNKNOWN_ACTIVE_STATES_NEED_RECONCILIATION');
+          if(mapped.length!==rows.length||mapped.length<700)throw Error('LEGACY_SNAPSHOT_INCOMPLETE');
+          console.log('LEGACY_RUNTIME_STATUS_AUDIT=PASS_NO_UNKNOWN_ACTIVE');
+          NODE
+      - name: Guarantee zero mutations
+        if: always()
+        run: |
+          echo D1_WRITE=NO
+          echo APP_SCRIPT_WRITE=NO
+          echo DEPLOY=NO
