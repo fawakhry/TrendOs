@@ -31,7 +31,7 @@
       "classification": "MOVE_TO_CONTROL_TOWER",
       "target": "Control Tower degraded-mode/read resilience",
       "status": "PARTIAL",
-      "notes": "Service-binding isolation is live; last-good/stale semantics remain a future resilience enhancement."
+      "notes": "AP-080: PII-free bounded worker-isolate best-effort last-good diagnostic now LIVE in Owner Console: up to 5min operational counts only, with strict stale provenance. No Finance, owner decisions, canary/readiness or assignment surfaced from stale data. Full per-panel isolation and durable multi-isolate resilience not yet proven; remains PARTIAL."
     },
     {
       "id": "MC-03",
@@ -220,7 +220,7 @@
       "classification": "MOVE_TO_CONTROL_TOWER",
       "target": "Control Tower health/degraded-mode signals",
       "status": "PARTIAL",
-      "notes": "Current service isolation is live; explicit stale-last-good surface is incomplete."
+      "notes": "AP-080: Owner Console LIVE explicit STALE diagnostic warning and fail-closed 503 if no qualified last-good; simulated outage/recovery PASS in CI and healthy Production postflight PASS. Real outage not induced; no durable cache or full Control Tower per-panel degraded parity, so remains PARTIAL."
     },
     {
       "id": "MC-24",

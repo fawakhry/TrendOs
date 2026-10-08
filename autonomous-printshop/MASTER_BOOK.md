@@ -7142,3 +7142,59 @@ Inventory after Production qualification:
 Result: PASS — Owner Exception Console finance read-only warnings live, with fail-closed source-completeness semantics and Accounting authority untouched.
 
 Next isolated gap: MC-02 and MC-23, Control Tower stale / last-good degraded-mode parity. Stale or cached finance signals must never be rendered as current financial safety evidence.
+
+### AP-080 — Control Tower last-good degraded-mode: bounded Dashboard fallback live, full parity partial
+
+Date: 2026-10-08 Cairo. Follows AP-079. No TrendOS Backend/Auth/Accounting write, Comms send, payment/debt restriction, day-close execution, Content/R2, employee assignment, Operator Task, or legacy Manager Center change.
+
+Architecture and limitation:
+- Read-only Control Tower remains authoritative current source; failing upstream cannot be interpreted as a clean state.
+- Bounded last-good stored in in-memory Worker isolate only (BEST_EFFORT). No durable/multi-isolate persistent guarantee; it is not a historical audit source.
+- Cache is filled only from fresh (max 5min), qualified `CONTROL_TOWER_SHADOW` snapshots from `trendos-main-d1`, with false raw-IDs/PII/write flags.
+- Degraded response contains a **diagnostic-only** subset: waiting, in progress, overdue, at-risk, row count, observed time and age. No Finance/debt/day-close, owner/protected decisions, employee identities, Operator Task CANARY state, source customer IDs, line IDs or readiness.
+- Strict 5-minute upper TTL; missing, expired or unqualified source returns an explicit fail-closed unavailable state (HTTP 503), never a fake live or READY response.
+- UI prominently marks STALE and hides earlier live sections on fallback. On full failure it also hides old live sections; normal state only reappears on fresh qualified recovery.
+- Service-binding failure or malformed upstream response is isolated to Dashboard; Control Tower and TrendOS write sources unchanged.
+- No synthetic Production outage was induced. The outage/recovery path passed deterministic Node integration tests with mocked Shadow failure; live Production only proved healthy path, deployed code/version, and protected authority boundaries.
+
+Gate P1 — Pure fail-closed diagnostic contract:
+- Core: `autonomous-printshop/core/control-tower-last-good-v1.mjs`.
+- Tests: `autonomous-printshop/tests/control_tower_last_good_v1.test.mjs`.
+- Isolated stage branch `candidate/ap-080-control-tower-last-good-contract-p1-20261008`.
+- Source commit: `c03bf6a167190acc3d1db918d2268440ad08f8a8`.
+- Staging Policy CI run 37779339884 SUCCESS; candidate CI 37779770808 SUCCESS.
+- After P1, no dashboard integration was active yet; P1 was not misreported as LIVE.
+
+Gate P2 — Owner Console bounded degraded mode:
+- Dashboard `autonomous-printshop/dashboard/worker.mjs` uses qualified P1 gate.
+- Diagnostic UI and state response keep stale Finance, readiness and protected actions out of the view.
+- New deterministic fake upstream outage/recovery tests at `autonomous-printshop/tests/dashboard_last_good_v1.test.mjs`.
+- Isolated stage branch `candidate/ap-080-control-tower-last-good-dashboard-p2-20261008`.
+- Initial stage commit a07f17e0bab4baf68e99f2c6ed249fea07fa4433; CI run 37780134932 FAIL. Root cause: the existing test's regex `/UPDATE\\s/i` matched the word "update" inside a harmless descriptive source comment, not business write logic. No Production deploy.
+- Corrected only the comment, without runtime behavior change: `c36e0ae8b70c88f8c2cd818aaa9e7bde4847176e`.
+- Staging CI run 37780293453 SUCCESS.
+- Safe promotion with fresh HEAD and target-file SHA rechecks; candidate Policy CI run 37780387317 SUCCESS.
+- Dashboard Production deploy run 37780388286 SUCCESS.
+- Cloudflare Production version `1ea4eec8-2566-4de7-b202-2f70583a7c4d`.
+- Dashboard `AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_6_20261008`.
+- Last-good contract `CONTROL_TOWER_LAST_GOOD_V1_20261008`.
+- Main TrendOS predeploy/postdeploy health PASS, Dashboard dry-run PASS, Dashboard live PASS.
+- Rollback used: NO. No Business / D1 / Accounting writes.
+
+Independent Production proof 2026-10-08T12:56:22Z:
+- `GET /health` shows V1.6 Dashboard, LastGood V1, cache scope WORKER_ISOLATE_BEST_EFFORT, businessWrites=false and employeeAssignment=false.
+- `GET /state` still returns fresh CONTROL_TOWER_SHADOW from trendos-main-d1 on healthy service binding.
+- Finance source still incomplete: Accounting READONLY epoch37, businessRows0, absenceQualified=false; dayClose UNKNOWN_SOURCE_COMPLETENESS, ready=false.
+- Finance owner warning FINANCE_SOURCE_INCOMPLETE still present; no new owner action implied.
+- `/control-tower` healthy, no D1 mutation / employee assignment.
+- The last-good failure path was verified through deterministic CI mocked outage/recovery, **not** through destructive Production fault injection.
+
+Final inventory:
+- MC-02 PARTIAL: bounded worker-isolate diagnostic fallback is live; durable multi-isolate cache and per-panel resilience parity pending.
+- MC-23 PARTIAL: explicit stale / fail-closed UI now live; actual Production fault not induced and full stale-last-good parity not proven.
+- MC-17 LIVE; MC-19 LIVE (AP-079), unchanged.
+- MC-18 NOT_MIGRATED; MC-20 FORBIDDEN_IN_AP.
+
+Result: **PASS for bounded last-good read-only Dashboard enhancement in Production; NOT CLAIMED as complete Control Tower last-good degraded-mode parity.**
+
+Next gate: explicit per-panel freshness/provenance and durable cross-isolate last-good (with approved safe storage design), plus controlled non-destructive failure proof before marking MC-02/MC-23 LIVE.
