@@ -6,8 +6,11 @@ import { createT12GeneralOrder } from '../cloudflare-d1/src/t12-general-create.m
 import { handleT12GeneralCreateRequest } from '../cloudflare-d1/src/t12-general-create-handler.mjs';
 
 const schema5=fs.readFileSync(new URL('../cloudflare-d1/migrations/0005_t12_production_create_canary.sql',import.meta.url),'utf8');
+const schema6=fs.readFileSync(new URL('../cloudflare-d1/migrations/0006_t12_operational_runtime.sql',import.meta.url),'utf8');
 const schema7=fs.readFileSync(new URL('../cloudflare-d1/migrations/0007_t12_general_create_control.sql',import.meta.url),'utf8');
 const schema10=fs.readFileSync(new URL('../cloudflare-d1/migrations/0010_t12_duplicate_order_guard.sql',import.meta.url),'utf8');
+const schema11=fs.readFileSync(new URL('../cloudflare-d1/migrations/0011_t12_legacy_line_runtime.sql',import.meta.url),'utf8');
+const schema12=fs.readFileSync(new URL('../cloudflare-d1/migrations/0012_t12_customer_lane_claim.sql',import.meta.url),'utf8');
 
 class Stmt {
   constructor(db,sql){this.db=db;this.sql=sql;this.params=[];}
@@ -21,8 +24,14 @@ class D1 {
     this.raw=new DatabaseSync(':memory:');
     this.raw.exec('PRAGMA foreign_keys=ON;');
     this.raw.exec(schema5);
+    this.raw.exec(schema6);
     this.raw.exec(schema7);
     this.raw.exec(schema10);
+    this.raw.exec(schema11);
+    this.raw.exec(schema12);
+    this.raw.exec("CREATE TABLE sheet_catalog (sheet_name TEXT PRIMARY KEY,headers_json TEXT,status TEXT); CREATE TABLE sheet_rows (sheet_name TEXT,row_number INTEGER,values_json TEXT,display_json TEXT);");
+    this.raw.prepare("INSERT INTO sheet_catalog (sheet_name,headers_json,status) VALUES (?,?,?)")
+      .run('بنود الأوردرات',JSON.stringify(['رقم الأوردر','كود الأوردر','اسم الشات / المكتب','','القسم','رقم البند','اسم البند','الكمية','مسؤول القسم','الأولوية','الحالة','','','','','','رقم العميل الخارجي']), 'ready');
     this.raw.prepare('UPDATE t12_prod_create_control SET next_order_number=4323,canary_remaining=0 WHERE singleton=1').run();
     this.raw.prepare('UPDATE t12_prod_general_create_control SET mode=?,canary_remaining=? WHERE singleton=1').run(mode,budget);
     this.turn=Promise.resolve(); this.failAt=0; this.ambiguous=false;
@@ -75,7 +84,7 @@ const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456',qty=1)=>({
   const db=new D1('GENERAL',0);
   const first=await createT12GeneralOrder(db,input('cld1_1790000021000_GENERALCREATE_1234567890123456'),actor,{canary:false});
   assert.equal(first.success,true); assert.equal(first.orderId,'4323');
-  const second=await createT12GeneralOrder(db,input('cld1_1790000021001_GENERALCREATE_1234567890123457',2),actor,{canary:false});
+  const second=await createT12GeneralOrder(db,{...input('cld1_1790000021001_GENERALCREATE_1234567890123457',2),department:'ليزر'},actor,{canary:false});
   assert.equal(second.success,true); assert.equal(second.orderId,'4324');
   assert.deepEqual(db.control(),{nextNo:4325,mode:'GENERAL',remaining:0});
 }
@@ -118,7 +127,7 @@ const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456',qty=1)=>({
     {canary:false,nowMs:now+1000}
   );
   assert.equal(duplicate.success,false);
-  assert.equal(duplicate.reason,'duplicate-order-window-active');
+  assert.equal(duplicate.reason,'customer-department-open-order-exists');
   assert.equal(duplicate.duplicatePrevented,true);
   assert.equal(duplicate.existingOrderId,'4323');
   assert.equal(db.count('t12_prod_orders'),1);
@@ -134,15 +143,16 @@ const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456',qty=1)=>({
     {canary:false,nowMs:now}
   );
   assert.equal(first.success,true);
-  const later=await createT12GeneralOrder(
-    db,
-    input('cld1_1800000220001_WINDOW_B_1234567890123457'),
-    actor,
-    {canary:false,nowMs:now+120001}
-  );
-  assert.equal(later.success,true);
-  assert.equal(later.orderId,'4324');
-  assert.equal(db.count('t12_prod_orders'),2);
+  const secondInput=input('cld1_1800000220001_WINDOW_B_1234567890123457');
+  const later=await createT12GeneralOrder(db,secondInput,actor,{canary:false,nowMs:now+120001});
+  assert.equal(later.success,false);
+  assert.equal(later.reason,'customer-department-open-order-exists');
+  assert.equal(later.existingOrderId,'4323');
+  assert.equal(db.count('t12_prod_orders'),1);
+  const forced=await createT12GeneralOrder(db,{...secondInput,duplicateConfirmationOrderId:'4323'},actor,{canary:false,nowMs:now+120003});
+  assert.equal(forced.success,false);
+  assert.equal(db.count('t12_prod_orders'),1);
+
 }
 {
   const db=new D1('GENERAL',0);
@@ -160,9 +170,9 @@ const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456',qty=1)=>({
     actor,
     {canary:false,nowMs:now+1000}
   );
-  assert.equal(changed.success,true);
-  assert.equal(changed.orderId,'4324');
-  assert.equal(db.count('t12_prod_orders'),2);
+  assert.equal(changed.success,false);
+  assert.equal(changed.reason,'customer-department-open-order-exists');
+  assert.equal(db.count('t12_prod_orders'),1);
 }
 {
   const db=new D1('GENERAL',0);
@@ -193,4 +203,34 @@ const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456',qty=1)=>({
   assert.equal(body.existingOrderId,'4323');
 }
 
-console.log('T12 general CREATE isolated PASS');
+{
+  const db=new D1('GENERAL',0),now=1800000600000;
+  const first=await createT12GeneralOrder(db,input('cld1_1800000600000_CLOSE_A_1234567890123456'),actor,{nowMs:now});
+  assert.equal(first.success,true);
+  db.raw.prepare("INSERT INTO t12_prod_line_runtime (line_id,order_id,status,updated_by) VALUES (?,?,?,?)")
+    .run('4323-01','4323','تم التسليم',actor);
+  const next=await createT12GeneralOrder(db,input('cld1_1800000730000_CLOSE_B_1234567890123457'),actor,{nowMs:now+130000});
+  assert.equal(next.success,true);
+  assert.equal(next.orderId,'4324');
+}
+{
+  const db=new D1('GENERAL',0),now=1800000800000;
+  const first=await createT12GeneralOrder(db,input('cld1_1800000800000_LONG_A_1234567890123456'),actor,{nowMs:now});
+  assert.equal(first.success,true);
+  const later=await createT12GeneralOrder(db,input('cld1_1800173600001_LONG_B_1234567890123457'),actor,{nowMs:now+48*60*60*1000+1000});
+  assert.equal(later.success,false);
+  assert.equal(later.reason,'customer-department-open-order-exists');
+  assert.equal(db.count('t12_prod_orders'),1);
+}
+{
+  const db=new D1('GENERAL',0),now=1800000900000;
+  const first=await createT12GeneralOrder(db,input('cld1_1800000900000_REPLAY_A_1234567890123456'),actor,{nowMs:now});
+  assert.equal(first.success,true);
+  const replay=await createT12GeneralOrder(db,input('cld1_1800000900000_REPLAY_A_1234567890123456'),actor,{nowMs:now+180000});
+  assert.equal(replay.success,true);
+  assert.equal(replay.idempotent,true);
+  assert.equal(replay.orderId,'4323');
+  assert.equal(db.count('t12_prod_orders'),1);
+}
+
+console.log('T12 general CREATE isolated PASS; open-lane rejection, different department, closed status, no override and replay PASS');
