@@ -1,8 +1,9 @@
 import { buildT12OrderCreateShadowIntent } from './t12-order-create-shadow-intent.mjs';
 import { classifyT12ClientRequestKey } from './t12-cloud-client-key-admission.mjs';
 
-export const T12_GENERAL_CREATE_VERSION='T12_GENERAL_CREATE_20261001_DUP_GUARD_V1';
+export const T12_GENERAL_CREATE_VERSION='T12_GENERAL_CREATE_20261008_ACTIVE_REPEAT_GUARD_CANDIDATE';
 export const T12_DUPLICATE_ORDER_GUARD_WINDOW_MS=120000;
+export const T12_OPEN_ORDER_DUPLICATE_LOOKBACK_MS=48*60*60*1000;
 const CREATE_MARKER='T12_PROD_CREATE_CANARY_V1';
 const GENERAL_MARKER='T12_GENERAL_CREATE_V1';
 
@@ -50,6 +51,36 @@ async function activeDuplicateGuard(db,fingerprint,nowMs){
      LIMIT 1
   `).bind(fingerprint,nowMs));
 }
+// Read-only complement to the 120-second atomic fingerprint reservation.
+// The existing guard row is retained after expiry and points to the last identical
+// business create, so we can detect a still-open order for 48h without a schema
+// migration or a write outside the original atomic D1 batch.
+async function recentOpenDuplicateGuard(db,fingerprint,nowMs){
+  return row(db.prepare(`
+    SELECT g.request_key AS requestKey, g.order_id AS orderId,
+           g.claimed_at_ms AS claimedAtMs
+      FROM t12_prod_duplicate_order_guard g
+      JOIN t12_prod_orders o ON o.order_id=g.order_id
+     WHERE g.fingerprint=? AND g.claimed_at_ms>=? AND g.order_id<>''
+       AND EXISTS (
+         SELECT 1 FROM t12_prod_lines l
+         LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
+          WHERE l.order_id=o.order_id
+            AND COALESCE(r.status,l.status) NOT IN ('تم التسليم','ملغى','مكرر')
+       )
+     LIMIT 1
+  `).bind(fingerprint,nowMs-T12_OPEN_ORDER_DUPLICATE_LOOKBACK_MS));
+}
+function activeOrderDuplicateBlocked(guard,intent){
+  const orderId=text(guard&&guard.orderId);
+  return fail('duplicate-order-active-existing',{
+    duplicatePrevented:true,needsConfirmation:true,warningOnly:true,
+    existingOrderId:orderId,
+    openOrder:{orderId,departments:intent.lines.map(line=>line.department)},
+    requiresExplicitConfirmation:true,
+    lookbackMs:T12_OPEN_ORDER_DUPLICATE_LOOKBACK_MS
+  });
+}
 function duplicateBlocked(guard,nowMs){
   return fail('duplicate-order-window-active',{
     duplicatePrevented:true,
@@ -85,6 +116,11 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
   const aliases=['clientRequestId','requestId','idempotencyKey','idempotency_key'].filter(k=>Object.prototype.hasOwnProperty.call(input,k));
   if(aliases.length!==1||aliases[0]!=='clientRequestId'||typeof input.clientRequestId!=='string')return fail('exactly-one-raw-cloud-client-key-required');
   if(classifyT12ClientRequestKey(input.clientRequestId).kind!=='CLOUD_SYNTHETIC_ELIGIBLE')return fail('new-cloud-request-namespace-required');
+  // Confirmation only acknowledges a specific existing order reported by the
+  // server; it never disables the 120-second atomic duplicate reservation.
+  const confirmedOrderId=input.duplicateConfirmationOrderId===undefined?'':text(input.duplicateConfirmationOrderId);
+  if(confirmedOrderId && (typeof input.duplicateConfirmationOrderId!=='string'||!/^[0-9]{4,16}$/.test(confirmedOrderId)))
+    return fail('invalid-duplicate-confirmation-order-id');
 
   const intent=buildT12OrderCreateShadowIntent(input,safeActor);
   if(!intent.valid)return fail('canonical-business-intent-invalid',{details:intent.reason||'invalid-intent',errors:intent.errors||[]});
@@ -135,6 +171,14 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
   if(activeDuplicate){
     if(text(activeDuplicate.requestKey)===intent.requestKey)return fail('duplicate-guard-same-key-indeterminate-no-retry');
     return duplicateBlocked(activeDuplicate,nowMs);
+  }
+  let recentOpen;
+  try{recentOpen=await recentOpenDuplicateGuard(db,duplicateFingerprint,nowMs);}
+  catch{return fail('active-duplicate-read-unavailable-no-retry');}
+  if(recentOpen){
+    if(!confirmedOrderId || confirmedOrderId!==text(recentOpen.orderId))return activeOrderDuplicateBlocked(recentOpen,intent);
+  }else if(confirmedOrderId){
+    return fail('duplicate-confirmation-stale-recheck-required');
   }
   const expiresAtMs=nowMs+T12_DUPLICATE_ORDER_GUARD_WINDOW_MS;
   const orderId=String(nextNo);
