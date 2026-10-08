@@ -165,8 +165,8 @@
       "legacy": "Trend Master debt panel",
       "classification": "MOVE_TO_OWNER_EXCEPTION_CONSOLE",
       "target": "Owner Exception Console read-only finance signals",
-      "status": "PARTIAL",
-      "notes": "Read-only finance warning projection is live in Autonomous Printshop Control Tower with fail-closed source-completeness semantics and CANARY-row exclusion. Current qualified runtime has no real finance business rows, so zero debt must NOT be treated as proof of no debt. Owner Exception Console routing is still pending. No Accounting/debt mutation is permitted."
+      "status": "LIVE",
+      "notes": "AP-079: LIVE read-only Finance customer-debt and supplier-payable observed-positive owner warning and FINANCE_SOURCE_INCOMPLETE on unqualified history. Current source 0 real finance rows is not proof of no debt. No Accounting write, debt restriction or payment mutation."
     },
     {
       "id": "MC-18",
@@ -183,8 +183,8 @@
       "legacy": "Trend Master day-close panel",
       "classification": "MOVE_TO_OWNER_EXCEPTION_CONSOLE",
       "target": "Read-only finance warning",
-      "status": "PARTIAL",
-      "notes": "Read-only day-close readiness/blocker projection is live in Control Tower. When finance source completeness is unqualified, state is UNKNOWN_SOURCE_COMPLETENESS and ready=false instead of claiming a clean close. Owner Exception Console routing is still pending. No day-close authority moved."
+      "status": "LIVE",
+      "notes": "AP-079: LIVE read-only observed day-close blockers and explicit source-incomplete owner warning. Day-close state remains UNKNOWN_SOURCE_COMPLETENESS and ready=false where source is incomplete. Execution remains Accounting-only."
     },
     {
       "id": "MC-20",

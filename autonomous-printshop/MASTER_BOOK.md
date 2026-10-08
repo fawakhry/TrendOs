@@ -7081,3 +7081,64 @@ Next finance step:
 1. project only the truthful finance source-incomplete / observed-positive warning model into Owner Exception Console;
 2. keep `MC-17` and `MC-19` PARTIAL until that Owner Console projection is qualified;
 3. never implement `MC-18` or `MC-20` as Autonomous Printshop writes.
+
+### AP-079 — Finance Owner Exception Console read-only signals live
+
+Date: 2026-10-08 Cairo. Gate O2 after AP-078. Runtime truth > deployed > tested > repo-only > historical.
+
+Scope: Owner Exception Console only. Existing Control Tower read-only finance source reused. No Auth, Accounting backend/control, debt restriction, payment, day close, EasyStore, Content/R2, employee assignment, Operator Task, or legacy Manager Center change.
+
+Starting checkpoint and runtime:
+- HEAD: 057b635350260627a9c7479623dc120653b11e90
+- MC-17=PARTIAL; MC-19=PARTIAL.
+- Accounting mode READONLY, policy epoch 37, source business rows 0, CANARY rows excluded 2.
+- Source absenceQualified=false, reason ACCOUNTING_FINANCE_DATA_NOT_POPULATED.
+- Day-close UNKNOWN_SOURCE_COMPLETENESS, ready=false.
+- Old Dashboard version AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_4_20261007.
+
+Implementation:
+- Owner Exception Model V1.1 consumes only the already-qualified Finance Warning read-only aggregate.
+- FINANCE_SOURCE_INCOMPLETE when snapshot missing, unsafe or historical completeness not proven. Explicitly warns that zero debt/zero blockers cannot be interpreted as clean.
+- FINANCE_CUSTOMER_DEBT_OBSERVED and FINANCE_SUPPLIER_PAYABLE_OBSERVED only for positive, source-qualified read-only observations. No party identity.
+- FINANCE_DAY_CLOSE_BLOCKERS_OBSERVED only for a positive observed blocker count. No day-close authority.
+- ownerActionRequired=false, aiCanResolveNow=false on all four warnings.
+- Dashboard V1.5 adds Finance control mode badge and source-incomplete warning, never claiming no debt or day-close readiness.
+- Negative, positive, missing-source, unsafe GENERAL-mode, no-PII and no-write tests added.
+- Safe isolated staging branch candidate/ap-079-finance-owner-exceptions-gate-o2-20261008.
+- Source implementation commit a56aa775eb534c03f23d5c4611b82e2cee8f985b promoted to candidate branch with exact expected-head lease after full staging CI PASS and target-file SHA recheck. No concurrent work overwritten.
+
+Qualification and deployment:
+- Staging Policy CI run 37777811474: SUCCESS.
+- Candidate Policy CI run 37777921099: SUCCESS.
+- Controlled Dashboard Production deploy run 37777921135: SUCCESS.
+- Cloudflare Dashboard production version fb00abff-95ac-41dd-9a79-f21fc043e538.
+- Dashboard version AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_5_20261008.
+- Owner model version OWNER_EXCEPTION_MODEL_V1_1_20261008.
+- FINANCE_OWNER_EXCEPTIONS_READ_ONLY=PASS.
+- FINANCE_SOURCE_INCOMPLETE_FAIL_CLOSED=PASS.
+- FINANCE_OWNER_DASHBOARD_UI=PASS.
+- MAIN_TRENDOS_PREDEPLOY=PASS; MAIN_TRENDOS_POSTDEPLOY=PASS; DASHBOARD_DRYRUN=PASS.
+- ROLLBACK_USED=NO.
+
+Independent Production runtime postflight: 2026-10-08T12:38:58Z from Dashboard /health, /state and Control Tower /control-tower:
+- Control Tower source trendos-main-d1; rowCount=714; nativeOrders=468.
+- Autonomy SHADOW; Readiness SHADOW; Operator Task OFF.
+- Accounting READONLY; epoch 37; business finance rows 0; CANARY excluded 2.
+- Day-close state UNKNOWN_SOURCE_COMPLETENESS, ready=false.
+- Owner Exception Model output includes FINANCE_SOURCE_INCOMPLETE, ownerActionRequired=false, aiCanResolveNow=false, responsibleActor=ACCOUNTING_SOURCE.
+- Total owner exceptions 9, total ownerActionRequired 0.
+- Accounting write=false; debt restriction write=false; day close write=false.
+- Business writes=false; D1 mutation=false; EasyStore mutation=false; Content mutation=false; Comms send=false; employee assignment=false.
+- Raw order IDs, party identities, customer PII not exposed. Legacy TrendOS Manager Center preserved.
+- Production has no observed positive debt or blocker rows at this time: these positive branches passed deterministic CI fixture tests and must not be described as actual Production debts.
+- RUNTIME_DRIFT: rows 714 and native orders 468 vs historical AP-078; sourced from live operational traffic, not this change.
+
+Inventory after Production qualification:
+- MC-17 Debt/payment read-only warning signals: LIVE.
+- MC-19 Day-close readiness preview: LIVE.
+- MC-18 Debt delivery restriction: NOT_MIGRATED (blocked; writes forbidden).
+- MC-20 Execute day close: FORBIDDEN_IN_AP.
+
+Result: PASS — Owner Exception Console finance read-only warnings live, with fail-closed source-completeness semantics and Accounting authority untouched.
+
+Next isolated gap: MC-02 and MC-23, Control Tower stale / last-good degraded-mode parity. Stale or cached finance signals must never be rendered as current financial safety evidence.
