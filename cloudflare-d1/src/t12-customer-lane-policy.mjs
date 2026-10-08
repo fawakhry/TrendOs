@@ -30,6 +30,13 @@ export function sameCustomerIdentity(requested,row){
   const a=normalizeName(requested&&requested.customerName),b=normalizeName(row&&row.customerName);
   return !!a&&a===b;
 }
+export function customerLaneIdentityMaterial(identity){
+  const mode=text(identity&&identity.mode)==='external'?'external':'registered';
+  const key=mode==='external'?digits(identity&&identity.externalCustomerId):phone(identity&&identity.customerPhone);
+  if((mode==='external'&&key.length<3)||(mode==='registered'&&key.length<10))
+    throw Error('customer-lane-strong-identity-required');
+  return mode+':'+key;
+}
 export function isOpenDepartmentStatus(status){return !CLOSED.has(text(status));}
 export function partitionCustomerLanes(identity,wanted,rows){
   const departments=[...new Set(wanted.map(text).filter(Boolean))];
