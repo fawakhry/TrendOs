@@ -1,0 +1,114 @@
+name: TrendOS T12 Customer Lane Production Readonly Preflight
+on:
+  push:
+    branches:
+      - fix/t12-duplicate-create-durable-20261008
+    paths:
+      - '.github/workflows/trendos-t12-customer-lane-production-readonly-preflight.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: trendos-t12-customer-lane-readonly-preflight
+  cancel-in-progress: false
+jobs:
+  readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Readonly local qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/t12-general-create.mjs
+          node --check cloudflare-d1/src/t12-customer-lane-policy.mjs
+          node --experimental-sqlite tests/t12_general_create.test.mjs
+          node --experimental-sqlite tests/t12_customer_lane_partial.test.mjs
+          echo LOCAL_SOURCE_QUALIFIED=PASS
+      - name: Read active runtime and version without mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          npm install --no-save wrangler@4.142.0 >/dev/null
+          curl --fail --silent --show-error "https://trendos-d1-api.trendmall-contact.workers.dev/v1/t12/orders/create/health" -o /tmp/order-health.json
+          npx wrangler deployments list --name trendos-d1-api --json > /tmp/api-deployments.json
+          npx wrangler deployments list --name trendos-ui --json > /tmp/ui-deployments.json
+          node <<'NODE'
+          const fs=require('fs');
+          const health=JSON.parse(fs.readFileSync('/tmp/order-health.json','utf8'));
+          if(!health.success||health.schemaReady!==true||health.mode!=='GENERAL')
+            throw new Error('ORDER_CREATE_HEALTH_NOT_READY');
+          console.log('LIVE_ORDER_CREATE_VERSION='+health.version);
+          for(const [name,path] of [['API','/tmp/api-deployments.json'],['UI','/tmp/ui-deployments.json']]){
+            const x=JSON.parse(fs.readFileSync(path,'utf8'));
+            const ds=(Array.isArray(x)?x:(x?.items||[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+            const d=ds[0]||{};
+            const full=(d.versions||[]).filter(v=>Number(v.percentage)===100);
+            if(!d.id||full.length!==1)throw new Error(name+'_DEPLOYMENT_UNKNOWN');
+            console.log('PRE_'+name+'_DEPLOYMENT='+d.id);
+            console.log('PRE_'+name+'_VERSION='+(full[0].version_id||full[0].id));
+          }
+          NODE
+          echo PRODUCTION_READ_ONLY=YES
+      - name: Read D1 legacy mirror and lane status integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          CONFIG=cloudflare-d1/wrangler.toml
+          DB=trendos-main
+          npx wrangler d1 execute "$DB" --remote --config "$CONFIG" --json --command "
+            SELECT sheet_name AS sheet, status, synced_at AS syncedAt, row_count AS rows
+              FROM sheet_catalog WHERE sheet_name='بنود الأوردرات';
+          " > /tmp/mirror.json
+          npx wrangler d1 execute "$DB" --remote --config "$CONFIG" --json --command "
+            SELECT name FROM sqlite_master WHERE type='table' AND name IN
+              ('t12_prod_orders','t12_prod_lines','t12_prod_line_runtime',
+               't12_legacy_line_runtime','sheet_catalog','sheet_rows');
+          " > /tmp/tables.json
+          npx wrangler d1 execute "$DB" --remote --config "$CONFIG" --json --command "
+            SELECT (SELECT COUNT(*) FROM t12_prod_orders) AS nativeOrders,
+                   (SELECT COUNT(*) FROM t12_prod_lines) AS nativeLines,
+                   (SELECT COUNT(*) FROM t12_prod_line_runtime) AS nativeRuntime,
+                   (SELECT COUNT(*) FROM t12_legacy_line_runtime) AS legacyRuntime,
+                   (SELECT COUNT(*) FROM sheet_rows WHERE sheet_name='بنود الأوردرات') AS legacyMirrorRows;
+          " > /tmp/counts.json
+          node <<'NODE'
+          const fs=require('fs');
+          const rows=p=>(Array.isArray(JSON.parse(fs.readFileSync(p,'utf8')))?JSON.parse(fs.readFileSync(p,'utf8')):[])
+            .flatMap(x=>Array.isArray(x.results)?x.results:[]);
+          const mirror=rows('/tmp/mirror.json');
+          const tables=rows('/tmp/tables.json');
+          const counts=rows('/tmp/counts.json');
+          const expected=['t12_prod_orders','t12_prod_lines','t12_prod_line_runtime','t12_legacy_line_runtime','sheet_catalog','sheet_rows'];
+          const found=new Set(tables.map(x=>String(x.name)));
+          if(expected.some(x=>!found.has(x)))throw new Error('REQUIRED_D1_TABLE_MISSING');
+          if(mirror.length!==1||mirror[0].status!=='ready'||!mirror[0].syncedAt)
+            throw new Error('LEGACY_MIRROR_NOT_READY');
+          const age=(Date.now()-Date.parse(mirror[0].syncedAt))/86400000;
+          if(!Number.isFinite(age))throw new Error('MIRROR_TIMESTAMP_INVALID');
+          console.log('MIRROR_AGE_DAYS='+age.toFixed(1));
+          console.log('LEGACY_MIRROR_STATUS='+mirror[0].status);
+          console.log('LANE_TABLES_PRESENT=YES');
+          console.log('ROW_COUNTS='+JSON.stringify(counts[0]||{}));
+          // A historic snapshot is NOT authoritative for current open orders.
+          if(age>2)throw new Error('STALE_LEGACY_MIRROR_NEEDS_POLICY_REVIEW_BEFORE_DEPLOY');
+          console.log('READONLY_D1_PREFLIGHT=PASS');
+          NODE
+      - name: Safety invariants
+        if: always()
+        run: |
+          echo 'PRODUCTION_DEPLOY=NO'
+          echo 'PRODUCTION_D1_WRITE=NO'
+          echo 'BUSINESS_ORDER_CREATE=NO'
+          echo 'GOOGLE_SHEETS_WRITE=NO'
