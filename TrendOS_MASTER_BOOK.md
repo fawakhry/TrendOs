@@ -28,6 +28,22 @@
 
 > **قاعدة التسجيل:** كل خطوة جديدة تؤثر في Repo / Cloudflare / D1 / Apps Script / Production تُسجل هنا فورًا بالحالة الفعلية والدليل والخطوة التالية. ويشمل ذلك: كل محاولة ناجحة أو فاشلة، Runtime drift، rollback/restore، إصلاح hardening، workflow/run/job، deploy، تشخيص سبب الفشل، وفتح/إغلاق أي gate. لا تعتبر أي خطوة مكتملة قبل تسجيلها هنا. ممنوع تسجيل passwords أو Tokens أو password hashes أو session secrets.
 
+## Entry: T12 Customer Lane Safe Release Gate — 2026-10-08
+
+**آخر حقيقة:** `BLOCKED_SAFE / REPO_RELEASE_CI_PASS / PROD_OLD_CREATE_VERSION`. المالك وافق على معالجة مرجع الحالات القديمة بعد فحص آمن وموافقة سابقة على نشر الإصلاح. لم يتم النشر لأن حزمة API الحية تختلف بشكل جوهري عن شجرة GitHub الأخيرة.
+
+**القانون النهائي للعميل + القسم:** الأوردر المفتوح في الطباعة يمنع طباعة جديدة فقط، والأوردر المفتوح في الليزر يمنع ليزر جديد فقط. «متعدد الأقسام» يفتح البند المتاح وحده (أو البندين إذا خاليين)، دون إنشاء مهمة للقسم المشغول. لا Override للموظف. "جاهز للاستلام" يبقى مفتوحًا حتى التسليم الفعلي.
+
+**أوردرات Legacy:** D1 frozen mirror به 767 بندًا فعليًا (768 شاملاً رأس الأعمدة)، مع 15 Runtime overlays. بالوضع النهائي: `638 تم التسليم + 73 جاهز للاستلام + 36 مكرر + 20 ملغى`، ولا توجد حالات أخرى مفتوحة. مقارنة Google Sheets الحي من خلال موصل Google مع D1 read-only أثبتت تطابق جميع هوية وقسم الـ73 بندًا «جاهز للاستلام»؛ FNV32 `orderId:lineId:department:phone:name = 68772830` في المصدرين. توجد 17 هوية تاريخية مكررة/متعارضة مغلقة أو جاهزة للاستلام؛ **لم نغيرها ولم نحذفها**. تقادم وقت مزامنة المرآة وحده ليس دليلًا على اختلاف الحالات الحالية، ولا يوجد مبرر لكتابة حالات عشوائية إلى D1.
+
+**حل السباق:** Migration additive غير مطبقة `cloudflare-d1/migrations/0012_t12_customer_lane_claim.sql`، و`cloudflare-d1/src/t12-general-create.mjs` يحتجز مفتاحًا فريدًا للعميل والقسم في نفس D1 batch المُنشئ للطلب والبنود، مع bounded retry للـMulti غير المتعارض؛ يمنع طلبين بالتوازي ولو اختلفت الأصناف/الكميات. الوحدة والسيرفر والواجهة واختبارات Entry652 الأخيرة = PASS على الفرع `release/t12-customer-lane-safe-20261008`، run `37779637589`.
+
+**بوابة Runtime:** Run `37779969426` فشل عن عمد في فحص التطابق الثنائي للـAPI: Live worker size=1,024,085 بايت SHA256=`f61e58185ec245b996dcf2aa139805d8bbac7d9d068aa7f8a7514835da3398d4`، بينما Source baseline bundle=858,902 بايت SHA256=`65ef2c5cc06735d2838ffaa1b8da4d2c46b5ff1666d9c403c6e8e913991f7872`. عدم التطابق حقيقي حتى بعد إصلاح مسار esbuild؛ **ممنوع رفع Worker من الشجرة الحالية، لأنه قد يمحو تغييرات Production غير محفوظة في المصدر نفسه**. API الحي ما زال `T12_GENERAL_CREATE_20261001_DUP_GUARD_V1`.
+
+**Backup/recovery:** Cloudflare D1 Time Travel bookmark متاح ومخفي؛ timestamp `2026-10-08T12:52:21Z`. هذا استرداد زمني مؤقت وليس Backup مستقل. GitHub repo **PUBLIC**؛ ممنوع تصدير ملف بيانات العملاء إلى Artifacts عامة. لم يحدث D1 write ولا schema apply ولا Deploy ولا UPDATE/DELETE أوردرات.
+
+**خطوة الاستكمال الوحيدة:** تحديد مصدر حزمة Worker الحالية بدقة، ربطه بأحدث الشجرة (فرع candidate تقدّم أثناء العمل إلى `c03bf6a167190acc3d1db918d2268440ad08f8a8`)، مراجعة وضع Frontend المحدث وإجراء source/runtime parity + integration ثم نشر مراقب مع Worker rollback، بعد كل البوابات. سجل التدقيق: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_CUSTOMER_LANE_RELEASE_PREFLIGHT_2026-10-08.md`. لا تعد تنفيذ خطوات READONLY/CI الناجحة من الصفر.
+
 ## 1. الحالة النشطة — Production baseline بعد Entry600
 
 ### Frontend
