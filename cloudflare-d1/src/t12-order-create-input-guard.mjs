@@ -18,7 +18,8 @@ const ACCEPTED=Object.freeze([
   'qty','quantity','الكمية',
   'status','orderStatus','الحالة',
   'priority','الأولوية',
-  'source','مصدر الطلب','notes','ملاحظات'
+  'source','مصدر الطلب','notes','ملاحظات',
+  'duplicateConfirmationOrderId' // scoped explicit second-order acknowledgement
 ]);
 const ACCEPTED_SET=new Set(ACCEPTED);
 const DANGEROUS=Object.freeze([
