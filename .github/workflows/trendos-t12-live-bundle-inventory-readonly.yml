@@ -1,0 +1,72 @@
+name: TrendOS T12 Live Bundle Inventory Readonly Audit
+on:
+  push:
+    branches: [audit/t12-customer-lane-runtime-20261008]
+    paths:
+      - '.github/workflows/trendos-t12-live-bundle-inventory-readonly.yml'
+      - 'scripts/t12_live_bundle_inventory_readonly.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: trendos-t12-live-bundle-readonly-audit
+  cancel-in-progress: false
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build offline variants without deployment or repository changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/t12-inventory-tools --no-audit --no-fund esbuild@0.25.10 wrangler@4.33.2
+          mkdir -p /tmp/t12-base /tmp/t12-inventory-builds
+          git archive 467c5e5fcd0e538a5b57692e630943d6ab500710 | tar -x -C /tmp/t12-base
+          for variant in base release; do
+            SOURCE="$GITHUB_WORKSPACE"
+            if [ "$variant" = base ]; then SOURCE=/tmp/t12-base; fi
+            (
+              cd "$SOURCE"
+              /tmp/t12-inventory-tools/node_modules/.bin/esbuild cloudflare-d1/production-shadow/index.js --bundle --format=esm --platform=browser --target=es2022 --outfile="/tmp/t12-inventory-builds/$variant-plain.js"
+              /tmp/t12-inventory-tools/node_modules/.bin/esbuild cloudflare-d1/production-shadow/index.js --bundle --format=esm --platform=browser --target=es2022 --keep-names --outfile="/tmp/t12-inventory-builds/$variant-keep-names.js"
+              cd cloudflare-d1
+              /tmp/t12-inventory-tools/node_modules/.bin/wrangler deploy --dry-run --outdir "/tmp/t12-inventory-builds/$variant-wrangler4332"
+            )
+          done
+          python3 -m py_compile scripts/t12_live_bundle_inventory_readonly.py
+          test -z "$(git status --porcelain --untracked-files=no)"
+      - name: Private recovery availability only (no export or restore)
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/t12-inventory-tools/node_modules/.bin/wrangler d1 time-travel info trendos-main --config cloudflare-d1/wrangler.toml --json > /tmp/t12-private-recovery.json
+      - name: Inspect live modules, exact build hashes, deployment metadata and SELECT-only schema
+        run: python3 scripts/t12_live_bundle_inventory_readonly.py
+      - name: Retain sanitized inventory only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: t12-live-bundle-sanitized-inventory
+          path: /tmp/t12-inventory-report.json
+          if-no-files-found: ignore
+          retention-days: 3
+      - name: Boundaries
+        if: always()
+        run: |
+          echo DEPLOY=NO
+          echo PRODUCTION_D1_MUTATION=NO
+          echo BUSINESS_CREATE=NO
+          echo AUTH_OR_ACCOUNTING_CHANGE=NO
+          echo LIVE_SOURCE_OR_CUSTOMER_EXPORT=NO

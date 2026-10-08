@@ -6763,3 +6763,15 @@ Current branch HEAD after regression-contract cleanup:
 `e7e4213284eb49dc6da80ccaaee77ef7d85a694f`.
 
 Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NOW GUARDED END-TO-END; STALE OR REJECTED SESSIONS FAIL CLOSED TO RELOGIN WITHOUT PASSWORD RESET OR BUSINESS-DATA MUTATION.**
+
+
+## Entry: تدقيق تكرار الأوردرات والحزمة الحية — 2026-10-08 Cairo / PREPARE
+
+- الهدف: متابعة `Customer + Department Lane` فقط من الإصدار `5029d95be3c7dc69feec9fe0cf58a659b5feda9c`؛ لا إعادة Auth/Accounting/AP أو أي نشر. فرع التدقيق المنفصل `audit/t12-customer-lane-runtime-20261008` يحفظ فروع العمل المتوازي.
+- أحدث refs بعد fetch: candidate=`0e3d35f0283773b2e0c65070fa91d46d3fd477be`، fix=`b8d4172ea3edce398a26f8334bae895330553e54`، release=`5029d95be3c7dc69feec9fe0cf58a659b5feda9c`. تغييرات candidate بعد baseline تخص AP-079/AP-080؛ لا تُمسح ولا تُدمج عشوائيًا.
+- Runtime مستقل في هذه الجلسة: GET create/health HTTP 200، `T12_GENERAL_CREATE_20261001_DUP_GUARD_V1`، `GENERAL`، nextOrderNumber=4796 وقت الفحص فقط. هذا دليل أن الإصلاح المرشح لم يحل التكرار على Production بعد.
+- GitHub API أعاد تأكيد run `37779637589` SUCCESS وكل خطوات job `113319183797` ناجحة؛ run `37779969426` FAILURE. لا اعتبار لفشل بوابة الحزمة كنجاح.
+- SOURCE_ONLY: الاختبارات المحلية القائمة نجحت، لكن probes SQLite جديدة كشفت قبول طباعة رغم Legacy مفتوح بقسم `مكبس`، وفقد phone بالأرقام العربية في legacy mapper عند اختلاف الاسم. كذلك health لا يفحص جدول 0012: يعلن schemaReady=true مع CREATE غير جاهز. هذه نتائج كود محلية؛ انتشار بيانات الحالات المتأثرة على Production غير مثبت بعد. لم تُغير الملفات التطبيقية.
+- حزم esbuild@0.25.10 أعادت SHA السابقة exact: BASE=`65ef2c5cc06735d2838ffaa1b8da4d2c46b5ff1666d9c403c6e8e913991f7872`، RELEASE=`09087d1a2fe72de00cde5a76585875ecd82ec65e2eed9e027153a7555b1ae777`. keepNames يغير الناتج؛ فرق البايتات لا يثبت وحده فقد وظائف، ولا يسمح بتجاوز بوابة تطابق المصدر.
+- الخطوة الجديدة الضرورية: workflow read-only باستخدام Cloudflare bindings الموجودة أصلًا في GitHub Actions، يفحص جميع JS modules والـentry الحقيقي ومقارنة plain/keepNames/Wrangler dry-run، وحالة 0012 عبر SELECT. لا نشر، لا CREATE تجاري، لا export بيانات العملاء أو الحزمة الحية إلى المستودع العام. التقرير المحتفظ به sanitized identifiers/hashes/schema aggregates فقط.
+- PREPARE=SOURCE_ONLY؛ نتيجة تشغيل الـworkflow لم تُثبت بعد. النشر `BLOCKED_SAFE` حتى حسم الحزمة والثغرات وإعادة التأهيل وخطة نشر يؤكدها المالك.
