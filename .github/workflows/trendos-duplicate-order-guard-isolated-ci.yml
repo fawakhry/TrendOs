@@ -8,6 +8,7 @@ on:
       - 'cloudflare-d1/src/t12-general-create.mjs'
       - 'cloudflare-d1/src/t12-order-create-shadow-intent.mjs'
       - 'cloudflare-d1/src/t12-customer-lane-policy.mjs'
+      - 'cloudflare-d1/migrations/0012_t12_customer_lane_claim.sql'
       - 'cloudflare-d1/src/t12-order-create-input-guard.mjs'
       - 'trendos-edge-orders-read-v1.js'
       - 'app.js'
@@ -52,6 +53,7 @@ jobs:
           node --check tests/t12_create_key_durability.test.mjs
           grep -Fq "skippedDepartments" app.js
           grep -Fq "readCustomerLanePartition" cloudflare-d1/src/t12-general-create.mjs
+          grep -Fq "t12_prod_customer_lane_claim" cloudflare-d1/src/t12-general-create.mjs
           grep -Fq "T12_DURABLE_CREATE_STORAGE_KEY" trendos-edge-orders-read-v1.js
           echo DUPLICATE_ORDER_SOURCE_QUALIFICATION=PASS
       - name: Real isolated D1 SQLite contract
