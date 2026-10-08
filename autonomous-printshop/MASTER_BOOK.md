@@ -7231,3 +7231,16 @@ AP-082 PR33 merged at7d20cfc463ce084ceaba8ac440dffa53512fe662. Existing automati
 AP-083: an unbound, store-injected shared diagnostic cache contract implements a strict allowlisted record, generatedAt+5min absolute expiry, skipped late snapshots rather than extended KV minimum TTL, no Finance/PII/protected state, failed storage fail-closed, and best-effort cross-instance restoration. Tests using one shared in-memory fake and two adapter instances PASS including expiry boundary, malformed record, injected extra field, invalid counts, tampered expiry and storage failures. External storage writes0.
 
 Exact proposed storage scope and activation gates: autonomous-printshop/docs/AP083_SHARED_LAST_GOOD_STORAGE_DESIGN.md. SOURCE_ONLY; no runtime imports, binding, namespace, migration or activation. Requires approved dedicated namespace/design and controlled staging storage proof before integration. MC-02/MC-23 remain PARTIAL.
+
+
+### AP-084 — Fail-closed diagnostic counts, CI scope and Staging access gate (SOURCE_ONLY)
+
+Date: 2026-10-08. Origin: review on GitHub after AP-083 draft PR #34. New isolated branch `review/ap083-failclosed-ci-staging-gates-20261008`, stacked draft PR #36 on AP-083; **not** the Production auto-deploy candidate.
+
+Confirmed review risks: (1) AP-080 `count(undefined)` / malformed counts could become a false zero in cached diagnostic Last-Good; (2) policy workflow PR path filters omitted future storage and tests; (3) Dashboard owner routes `/state`, `/api/state`, `/owner`, `/manager-center` lack visible source authentication and `workers_dev=true`, while actual Cloudflare Access configuration remains unverified; (4) AP-083 GitHub KV design differs from a DO design claimed in an **unavailable local** Codex handoff.
+
+Source-only fixes: strict five-aggregate safe integer validation before observing Last-Good, no coercion of missing/bad values to zero, preservation of prior qualified cache on failed refresh, and new pure/shared-cache regression cases. Policy CI push and PR path filters now include `autonomous-printshop/**`. Added an optional GET-only Staging Access denial smoke test refusing known Production origins and a release gate document `docs/AP084_STAGING_ACCESS_AND_STORAGE_RELEASE_GATE.md`.
+
+Status: PR #36 DRAFT. No merge/publish. Policy CI run 37833095645 was in progress when this entry was prepared; completion to be recorded separately. No verified Cloudflare security policy, isolated Staging URL, paid resource, runtime import, KV binding, DO binding or remote outage/recovery trial was introduced. GitHub changes only; Production and finance untouched.
+
+Required next gate: finish policy CI, inspect Cloudflare perimeter and direct workers.dev bypass, obtain the missing DO source for KV-vs-DO design decision, approve isolated permissions/resources, and perform live Staging safety tests. **MC-02 / MC-23 remain PARTIAL**, Operator Task OFF, no autonomous execution qualification or protected authority change.
