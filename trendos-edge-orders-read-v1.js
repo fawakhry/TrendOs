@@ -596,30 +596,36 @@
     return 'cld1_' + m[1] + '_' + suffix.slice(0, 80);
   }
 
-  function readPendingCreate() {
-    // A request with an unknown ACK must keep its key through refresh/tab close.
-    // Storage holds only the SHA-256 fingerprint, request key and timestamp (no PII).
-    try {
-      var durable=JSON.parse(localStorage.getItem(T12_DURABLE_CREATE_STORAGE_KEY) || 'null');
-      if (durable && /^[a-f0-9]{64}$/.test(text(durable.fingerprint)) &&
-          /^cld1_\d{13}_[A-Za-z0-9_-]{16,80}$/.test(text(durable.cloudKey))) return durable;
-    } catch(e) {}
-    try {
-      var legacy=JSON.parse(sessionStorage.getItem(T12_PENDING_CREATE_STORAGE_KEY) || 'null');
-      if (legacy && /^[a-f0-9]{64}$/.test(text(legacy.fingerprint)) && text(legacy.cloudKey)) return legacy;
-    } catch(e) {}
+  function createStorageKey(fingerprint) {
+    return T12_DURABLE_CREATE_STORAGE_KEY + ':' + fingerprint;
+  }
+  function readPendingCreate(fingerprint) {
+    // Per-intent hashed keys avoid overwriting a prior unknown-outcome CREATE.
+    if (!/^[a-f0-9]{64}$/.test(text(fingerprint))) return null;
+    var parsed;
+    try { parsed=JSON.parse(localStorage.getItem(createStorageKey(fingerprint)) || 'null'); }
+    catch(e) { parsed=null; }
+    if (!parsed) {
+      try { parsed=JSON.parse(sessionStorage.getItem(createStorageKey(fingerprint)) || 'null'); }
+      catch(e) { parsed=null; }
+    }
+    if (parsed && parsed.fingerprint===fingerprint &&
+        /^cld1_\d{13}_[A-Za-z0-9_-]{16,80}$/.test(text(parsed.cloudKey))) return parsed;
     return null;
   }
 
   function rememberPendingCreate(fingerprint, cloudKey) {
     var value=JSON.stringify({fingerprint:fingerprint,cloudKey:cloudKey,createdAt:Date.now()});
-    try { localStorage.setItem(T12_DURABLE_CREATE_STORAGE_KEY,value); } catch(e) {
-      try { sessionStorage.setItem(T12_PENDING_CREATE_STORAGE_KEY,value); } catch(_) {}
+    try { localStorage.setItem(createStorageKey(fingerprint),value); } catch(e) {
+      try { sessionStorage.setItem(createStorageKey(fingerprint),value); } catch(_) {}
     }
   }
 
-  function clearPendingCreate() {
-    try { localStorage.removeItem(T12_DURABLE_CREATE_STORAGE_KEY); } catch(e) {}
+  function clearPendingCreate(fingerprint) {
+    // Remove only the resolved intent. Other unresolved offline orders survive.
+    if (!/^[a-f0-9]{64}$/.test(text(fingerprint))) return;
+    try { localStorage.removeItem(createStorageKey(fingerprint)); } catch(e) {}
+    try { sessionStorage.removeItem(createStorageKey(fingerprint)); } catch(e) {}
     try { sessionStorage.removeItem(T12_PENDING_CREATE_STORAGE_KEY); } catch(e) {}
   }
 
@@ -763,7 +769,7 @@
     var fingerprint;
     try { fingerprint = await t12CreateFingerprint(params || {}); }
     catch { return {success:false,code:'T12_FINGERPRINT_UNAVAILABLE',message:'تعذر حماية مفتاح تسجيل الأوردر. لم يتم إرسال الطلب.'}; }
-    var pending = readPendingCreate();
+    var pending = readPendingCreate(fingerprint);
     var cloudKey = pending && pending.fingerprint === fingerprint
       ? text(pending.cloudKey)
       : cloudCreateKeyFromLegacy(params && params.clientRequestId);
@@ -813,7 +819,7 @@
 
     var body = await t12JsonAnyStatus(response);
     if (body && body.success === true) {
-      clearPendingCreate();
+      clearPendingCreate(fingerprint);
       return body;
     }
 
@@ -821,7 +827,7 @@
     // Keep unknown-outcome keys. Only a definite business rejection can release it.
     if (['duplicate-order-active-existing','duplicate-order-window-active',
       'duplicate-confirmation-stale-recheck-required','canonical-business-intent-invalid',
-      'same-key-actor-payload-or-policy-conflict'].includes(reason)) clearPendingCreate();
+      'same-key-actor-payload-or-policy-conflict'].includes(reason)) clearPendingCreate(fingerprint);
     if (body && !body.message) body.message = createFailureMessage(body);
     return body || { success: false, code: 'T12_CREATE_FAILED', message: 'تعذر تسجيل الأوردر الجديد على Cloud.' };
   }
