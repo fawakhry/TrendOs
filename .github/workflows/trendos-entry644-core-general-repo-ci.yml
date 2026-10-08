@@ -8,6 +8,7 @@ on:
       - 'employee-api-dispatcher-v1.js'
       - 'docs/trendos/staging/ENTRY644_CORE_GENERAL_CUTOVER_MANIFEST.json'
       - 'tests/entry644_employee_core_general_dispatch.test.mjs'
+      - 'tests/entry650_employee_core_order_page_read.test.mjs'
       - 'cloudflare-d1/src/employee-core-native-v1.mjs'
       - '.github/workflows/trendos-entry644-core-general-repo-ci.yml'
 
@@ -32,6 +33,7 @@ jobs:
           node --check employee-api-dispatcher-v1.js
           node --check cloudflare-d1/src/employee-core-native-v1.mjs
           node tests/entry644_employee_core_general_dispatch.test.mjs
+          node tests/entry650_employee_core_order_page_read.test.mjs
           node tests/entry614_zero_google_employee_business_coverage.test.mjs
           echo ENTRY644_REPO_GATE=PASS
       - name: Boundary
