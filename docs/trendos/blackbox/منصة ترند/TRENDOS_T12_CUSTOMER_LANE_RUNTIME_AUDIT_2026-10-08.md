@@ -1,5 +1,23 @@
 # تدقيق تكرار الأوردرات — 2026-10-08
 
+## تحديث النشر الفعلي — 2026-10-08 الساعة21:04 بتوقيت القاهرة
+
+**DEPLOYED / RUNTIME_VERIFIED / PASS** بعد تصريح المالك «انشر» واجتياز read-only preparation run37820899084.
+
+- [Controlled release run37821119685](https://github.com/fawakhry/TrendOs/actions/runs/37821119685) / job113462098265 عند source4b6f30235af84aa6fd28065d9062c2e634f79023: SUCCESS، جميع خطوات التأهيل والنشر والفحص ناجحة.
+- API version الجديد `17532b03-dd10-4fe3-81ab-2ff58e101113`؛ بصمة source الحي تطابق target `0c75704893862be91279911fbc21a04bb3f0350c5f21f55ed47e92a1e796d503`.
+- UI version الجديد `0fc0bbe2-c078-49b2-ac2e-1c23b90ff0d4`؛ snapshot46 ملفًا، أربعة patches فقط؛ بقية42 byte-matched بعد النشر. Worker UI نفسه طابق المصدر الحي قبل النشر.
+- migration0012 وحدها طُبقت مع سجل d1_migrations؛ تحقق من الجدول وPK/index وclaims0 خلال نافذة الانتقال. لم تُطبق بقية migrations أو يعاد كتابة Legacy.
+- CREATE أوقف مؤقتًا وصُرفت الطلبات الجارية؛ snapshot عند drain orders496 / lines533 / ledger496 / nextNumber4818 بقي مطابقًا حتى نهاية النافذة. policy epoch والعداد والجلسات ثابتة؛ أعيد GENERAL بعد فحص API/UI. هذه أرقام وقت النافذة وليست قيدًا على طلبات الأعمال المستقبلية.
+- live create health الآن `T12_GENERAL_CREATE_20261008_PER_DEPARTMENT_ATOMIC_CANDIDATE_V2`، schemaReady=true، customerLaneClaimReady=true، GENERAL. Auth NATIVE6/6 mustChange0؛ Accounting READONLY37 / writesOFF؛ CoreGENERAL2.
+- فُحصت جميع settings/bindings مقارنة بالنسخ السابقة، باستثناء annotations الخاصة برسالة النشر فقط. Secret values بقيت لدى Cloudflare؛ لا export.
+- تحقق مستقل من هذه البيئة بعد انتهاء النشر: app/config/index/edge تطابق source بالبايت، وGET health للأوردرات/Auth/Accounting/Core PASS. لا CREATE تجاري اختباري أو Google write أو business status write. لم يُستخدم rollback.
+- التراجع المتاح: API السابقd7c65348 وUI السابق9699b0d0، مع0012 inert ودون DROP/restore تلقائي؛ لا يفتح V1 قبل مراجعة أي طلبات حقيقية دخلت بعد النشر.
+- أُزيل auto-push trigger للنشر بعد نجاح العملية؛ workflow يدوي وread-only افتراضيًا. أي نشر جديد يتطلب lease وتأهيل وتصريحًا مناسبًا جديدًا، وليس إعادة استخدام موافقة هذه العملية بلا حدود.
+
+الإجابات التالية توثق التدقيق **قبل هذا النشر**؛ حالات BLOCKED_SAFE القديمة مرجع تاريخي وقد حُسمت بواباتها في التحديث أعلاه.
+
+
 الحالة: **SOURCE_ONLY / اختبارات التأهيل PASS / نشر Production BLOCKED_SAFE**.
 لم يحدث Deploy أو Migration أو إنشاء أوردر تجاري على Production. قراءة Runtime وD1 هنا مستقلة ومؤرخة؛ ليست إثباتًا على حالة مستقبلية.
 

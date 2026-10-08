@@ -6805,3 +6805,11 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - READONLY run37820899084 / job113461365069 عند1fd9c8ca SUCCESS: اختبارات التكامل PASS، نسخة الحزمة الحية byte parity PASS، recovery reference متاح، API d7c65348 وUI9699b0d0 ثابتان، snapshot46 assets مع4patches فقط؛ بقية42 محفوظة. UI worker نفسه byte-matched أيضًا.
 - أدوات التجهيز تعثرت أولًا في urllib403 وcanonical asset redirects وفحص HTML ثم اسم ملف Wrangler dry-run؛ أصلحت النقل والفحص بعد التحقق المحلي، دون أي Production mutation. Runs37820257513 /37820411437 /37820505355 /37820608097 /37820730530 FAIL قبل deploy؛ لا تسجل نجاحًا لها.
 - يبدأ الآن controlled release مع CREATE pause/drain، 0012 additive فقط، version upload وtraffic switch للـAPI، UI snapshot، settings/full asset hash postflight، ثم إعادة GENERAL. لا DEPLOYED حتى نجاح الفحص الفعلي.
+
+
+### النشر الفعلي Customer Lane V2 — 2026-10-08 21:04 Cairo / DEPLOYED PASS
+- موافقة المالك «انشر» نُفذت بعد كل gates: run37821119685 / job113462098265 SUCCESS عند4b6f3023، مع0012 additive فقط، نسخة API17532b03-dd10-4fe3-81ab-2ff58e101113 وUI0fc0bbe2-c078-49b2-ac2e-1c23b90ff0d4.
+- Live API SHA256=0c75704893862be91279911fbc21a04bb3f0350c5f21f55ed47e92a1e796d503 exact؛ Accounting/Core/Foundation محفوظة من Runtime الأصلي. UI46 assets؛4patches و42 unchanged. Settings/bindings/secrets-presence محفوظة؛ annotations رسالة النشر فقط تختلف.
+- CREATE pause/drain ثم GENERAL؛ schemaReady/customerLaneClaimReady=true، runtimeversion T12_GENERAL_CREATE_20261008_PER_DEPARTMENT_ATOMIC_CANDIDATE_V2. snapshot أثناء النافذة orders496/lines533/ledger496/next4818 ثابت؛ claims0 بعد0012 قبل فتح CREATE. لم تتغير business orders/statuses أو allocator أو policyepoch. لا Google write أو أوردر تجاري اختباري.
+- Auth NATIVE6/6 mustChange0؛ Accounting READONLY epoch37 writesOFF؛ CoreGENERAL epoch2. GET وفحص assets مستقل من workspace PASS بعد النشر. ROLLBACK_USED=NO.
+- التقرير السابق الآن يتصدره تحديث DEPLOYED بالتوقيت والنسخ وخطة rollback؛ علامات BLOCKED_SAFE القديمة موثقة تاريخيًا، لا تصف الحالة الجديدة. أُوقف auto-push deploy بعد نجاح العملية؛ التشغيل القادم يدوي read-only افتراضيًا وبـlease جديدة للنشر المصرح به.

@@ -1,10 +1,5 @@
 name: TrendOS T12 Customer Lane V2 Controlled Release
 on:
-  push:
-    branches: [audit/t12-customer-lane-runtime-20261008]
-    paths:
-      - '.github/workflows/trendos-t12-customer-lane-v2-controlled.yml'
-      - 'scripts/t12_customer_lane_controlled_release.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -42,8 +37,8 @@ jobs:
           node tests/entry652_employee_session_runtime_401_dispatch.test.mjs
           node tests/entry651_employee_session_restore_guard.test.mjs
           node tests/frontend_employee_session_isolation_entry533.test.mjs
-      - name: Owner-authorized exact-live preparation and controlled Production release
-        run: python3 scripts/t12_customer_lane_controlled_release.py --deploy
+      - name: Read-only preparation (completed release needs a new approved lease)
+        run: python3 scripts/t12_customer_lane_controlled_release.py
       - name: Retain sanitized result only
         if: always()
         uses: actions/upload-artifact@v4
