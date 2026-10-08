@@ -1,5 +1,5 @@
 """Authorized frontend-only fix: optional order description, exact live overlay."""
-import json,os,hashlib,subprocess,time
+import json,os,hashlib,subprocess,time,re
 from pathlib import Path
 import t12_customer_lane_controlled_release as release
 R=release;report={'state':'PREPARING','backendDeploy':False,'d1Write':False,'descriptionOptional':True}
@@ -9,7 +9,16 @@ try:
  pre=R.active('trendos-ui');api=R.active('trendos-d1-api')
  report['preVersions']={'ui':pre,'api':api}
  api_hash=R.fingerprint(R.module('trendos-d1-api'))['sha256'];report['apiSourceSha256']=api_hash
- pre_health=R.invariants('GENERAL');R.check(pre_health['createVersion'] in ('T12_GENERAL_CREATE_20261001_DUP_GUARD_V1','T12_GENERAL_CREATE_20261008_PER_DEPARTMENT_ATOMIC_CANDIDATE_V2'),'UNQUALIFIED_CREATE_VERSION')
+ mode=R.health('/v1/t12/orders/create/health')['mode']
+ if mode=='OFF':
+  R.check(api_hash=='1d8fb904d48f2d48f2cfcc5b026dba94edddd094344a78af95e94f099d1ea52a','NOT_OUR_PAUSED_REPAIR_SOURCE')
+  pre_health=R.invariants('OFF');R.check(pre_health['claimReady'] is True,'RESUME_GUARD_NOT_READY')
+  control=R.rows('SELECT mode,policy_epoch FROM t12_prod_general_create_control WHERE singleton=1')[0]
+  R.check(control['mode']=='OFF' and control['policy_epoch']=='owner_fresh_start_20260926','RESUME_CONTROL_DRIFT')
+  stats=R.stats();paused=True;pre_health['createMode']='GENERAL'
+  report.update(resumingOurPausedRepair=True,controlOnly=True,d1Write=True)
+ else:pre_health=R.invariants('GENERAL')
+ R.check(pre_health['createVersion'] in ('T12_GENERAL_CREATE_20261001_DUP_GUARD_V1','T12_GENERAL_CREATE_20261008_PER_DEPARTMENT_ATOMIC_CANDIDATE_V2'),'UNQUALIFIED_CREATE_VERSION')
  before_settings=R.settings('trendos-ui');api_settings=R.settings('trendos-d1-api')
  dist=R.STATE/'frontend-dist';dist.mkdir(exist_ok=True);before={}
  for name in names:
@@ -55,14 +64,21 @@ try:
   R.check(R.active('trendos-d1-api')==api and R.active('trendos-ui')==pre,'REPAIR_VERSION_MOVED')
   new_api=R.upload_api(fixed,api);R.traffic('trendos-d1-api',new_api);api_changed=True
   R.check(R.fingerprint(R.module('trendos-d1-api'))['sha256']==new_hash,'REPAIR_HASH_MISMATCH')
-  fixed_health=R.invariants('OFF');R.check(fixed_health['claimReady'] is True,'REPAIR_HEALTH_FAILED')
+  for attempt in range(15):
+   fixed_health=R.invariants('OFF')
+   if fixed_health['claimReady'] is True:break
+   time.sleep(2)
+  R.check(fixed_health['claimReady'] is True,'REPAIR_HEALTH_FAILED')
   R.check(R.normalized_settings(R.settings('trendos-d1-api'))==R.normalized_settings(api_settings),'REPAIR_SETTINGS_CHANGED')
   report['backendDeploy']=True;report['parallelAccountingCoreCommsPreserved']=True
   api=new_api;api_hash=new_hash
   pre_health=dict(fixed_health);pre_health['createMode']='GENERAL'
+ R.check(R.active('trendos-ui')==pre,'FRONTEND_LEASE_MOVED_BEFORE_DEPLOY')
  attempted=True
- R.run([R.WRANGLER,'deploy','--config',str(front/'wrangler.toml'),'--keep-vars','--tag',os.environ['GITHUB_SHA']])
- post=R.active('trendos-ui');R.check(post!=pre,'VERSION_UNCHANGED');report['postUiVersion']=post
+ output=R.run([R.WRANGLER,'deploy','--config',str(front/'wrangler.toml'),'--keep-vars'])
+ own_version=re.search(r'Current Version ID:\s*([a-f0-9-]{36})',output)
+ R.check(own_version is not None,'DEPLOY_VERSION_NOT_CAPTURED')
+ post=own_version.group(1);R.check(R.active('trendos-ui')==post and post!=pre,'VERSION_UNCHANGED_OR_MOVED');report['postUiVersion']=post
  for attempt in range(15):
   ok=True
   for name in names:
@@ -87,8 +103,7 @@ except Exception as e:
  if paused:report['createPaused']=True
  if attempted and not completed:
   current=R.active('trendos-ui');version=R.cf('/workers/scripts/trendos-ui/versions/'+current)
-  annotations=version.get('metadata',{}).get('annotations',{})
-  if current!=pre and annotations.get('workers/tag')==os.environ['GITHUB_SHA']:
+  if 'post' in locals() and current==post and current!=pre:
    R.traffic('trendos-ui',pre);report['rollbackUsed']=True
   else:report['rollback']='NO_OVERWRITE_OF_UNLEASED_VERSION'
  raise
