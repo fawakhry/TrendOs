@@ -1,0 +1,58 @@
+name: EasyStore Agent Native Connection Readonly
+on:
+  push:
+    branches: [candidate/easystore-accounting-a2-20261005]
+    paths: [.github/workflows/easystore-agent-native-connection-readonly.yml]
+permissions:
+  contents: read
+concurrency:
+  group: easystore-agent-native-connection-readonly
+  cancel-in-progress: false
+jobs:
+  connection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify existing Diaa session and accounting read access only
+        env:
+          EMPLOYEE_TOKEN: ${{ secrets.TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const base='https://trendos-d1-api.trendmall-contact.workers.dev';
+          const username='ضياء';
+          const token=process.env.EMPLOYEE_TOKEN;
+          if(!token){console.error('AGENT_SECRET_BINDING=ABSENT');process.exit(1);}
+          console.log('AGENT_SECRET_BINDING=PRESENT');
+          async function request(path,body,headers={}) {
+            const r=await fetch(base+path,{method:body?'POST':'GET',redirect:'error',signal:AbortSignal.timeout(20000),headers:{'content-type':'application/json',...headers},...(body?{body:JSON.stringify(body)}:{})});
+            let data;try{data=await r.json();}catch{throw Error('NON_JSON_RESPONSE');}
+            return {status:r.status,data};
+          }
+          function closed(h){if(h.success!==true||h.mode!=='READONLY'||h.authoritativeWrites!==false||h.writeCanaryAllowedUserCount!==0||h.writeCanaryAllowedActionCount!==0||h.writeCanaryMaxCommands!==0||h.writeCanaryCommandsStarted!==0||h.writeCanaryExpiresAtMs!==0)throw Error('SERVER_NOT_CLOSED');}
+          (async()=>{
+            const pre=await request('/v1/employee/accounting/health');closed(pre.data);
+            const session=await request('/v1/employee/auth/session',{username,token});
+            console.log('AGENT_NATIVE_SESSION_HTTP='+session.status);
+            if(session.status!==200||session.data.success!==true){
+              console.error('AGENT_NATIVE_SESSION=REJECTED');
+              console.error('AGENT_NATIVE_SESSION_REASON='+String(session.data.reason||'not-authorized').replace(/[^a-zA-Z0-9_-]/g,''));
+              process.exitCode=1;return;
+            }
+            const u=session.data.user||{};
+            if(String(u.username||u.name||session.data.username||'').trim()!==username)throw Error('ACTOR_MISMATCH');
+            if(session.data.authSource!=='d1-native-employee-v1')throw Error('NATIVE_AUTH_REQUIRED');
+            const read=await request('/v1/employee/accounting',{action:'easyStoreSystemHealth',username},{authorization:'Bearer '+token});
+            console.log('AGENT_ACCOUNTING_READ_HTTP='+read.status);
+            if(read.status!==200||read.data.success!==true||read.data.authSource!=='d1-native-employee-v1'||read.data.permissions?.mode!=='full')throw Error('ACCOUNTING_READ_NOT_QUALIFIED');
+            const post=await request('/v1/employee/accounting/health');closed(post.data);
+            if(post.data.policyEpoch!==pre.data.policyEpoch)throw Error('POLICY_CHANGED_DURING_READ');
+            console.log('AGENT_ACTOR=ضياء');
+            console.log('AGENT_NATIVE_CONNECTION=PASS');
+            console.log('AGENT_ACCOUNTING_READ=PASS');
+            console.log('AGENT_FINANCIAL_COMMANDS_SENT=0');
+            console.log('AGENT_SERVER_READONLY=PASS');
+            console.log('GENERAL_OPENED=NO');
+          })().catch(()=>{console.error('AGENT_CONNECTION=FAILED_SAFE_NO_AUTOMATIC_RETRY');process.exitCode=1;});
+          NODE
