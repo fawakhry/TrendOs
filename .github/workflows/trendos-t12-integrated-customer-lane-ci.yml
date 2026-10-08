@@ -1,0 +1,64 @@
+name: TrendOS T12 Integrated Customer Lane Release Qualification
+on:
+  push:
+    branches:
+      - release/t12-customer-lane-safe-20261008
+    paths:
+      - '.github/workflows/trendos-t12-integrated-customer-lane-ci.yml'
+      - 'cloudflare-d1/src/t12-general-create.mjs'
+      - 'cloudflare-d1/src/t12-customer-lane-policy.mjs'
+      - 'cloudflare-d1/src/t12-order-create-shadow-intent.mjs'
+      - 'cloudflare-d1/migrations/0012_t12_customer_lane_claim.sql'
+      - 'app.js'
+      - 'trendos-edge-orders-read-v1.js'
+      - 'config.js'
+      - 'index.html'
+      - 'tests/t12_general_create.test.mjs'
+      - 'tests/t12_customer_lane_partial.test.mjs'
+      - 'tests/frontend_t12_duplicate_order_guard_entry590.test.mjs'
+      - 'tests/t12_create_key_durability.test.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integrated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and exact migration
+        run: |
+          set -euo pipefail
+          for p in app.js trendos-edge-orders-read-v1.js config.js \
+            cloudflare-d1/src/t12-general-create.mjs \
+            cloudflare-d1/src/t12-customer-lane-policy.mjs \
+            cloudflare-d1/src/t12-order-create-shadow-intent.mjs; do node --check "$p"; done
+          grep -Fq 'CREATE TABLE IF NOT EXISTS t12_prod_customer_lane_claim' cloudflare-d1/migrations/0012_t12_customer_lane_claim.sql
+          grep -Fq 'signalEmployeeSessionInvalidV2' trendos-edge-orders-read-v1.js
+          grep -Fq 'skippedDepartments' app.js
+          echo SOURCE_QUALIFICATION=PASS
+      - name: Transactional D1 and simultaneous CREATE tests
+        run: |
+          set -euo pipefail
+          node --experimental-sqlite tests/t12_general_create.test.mjs
+          node --experimental-sqlite tests/t12_customer_lane_partial.test.mjs
+          echo ATOMIC_CUSTOMER_DEPARTMENT_SQLITE=PASS
+      - name: Frontend idempotency and native session regression
+        run: |
+          set -euo pipefail
+          node tests/frontend_t12_duplicate_order_guard_entry590.test.mjs
+          node tests/t12_create_key_durability.test.mjs
+          node tests/entry652_employee_session_lifecycle_guard.test.mjs
+          node tests/entry652_employee_session_runtime_401_dispatch.test.mjs
+          echo BROWSER_AND_ENTRY652_PARITY=PASS
+      - name: Safety
+        run: |
+          echo D1_PRODUCTION_WRITE=NO
+          echo PRODUCTION_DEPLOY=NO
+          echo GOOGLE_WRITE=NO
+          echo BUSINESS_CREATE=NO
