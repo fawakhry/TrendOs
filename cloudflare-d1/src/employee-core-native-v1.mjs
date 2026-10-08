@@ -2,7 +2,7 @@ import { verifyEmployeeSessionCloudFirst } from './cloud-session-bridge-v3.mjs';
 
 const ROOT='/v1/employee/core';
 const HEALTH=ROOT+'/health';
-const READ_ACTIONS=new Set(['getRows','getDashboard','getActivityLog','getTrendMasterCenterV1931']);
+const READ_ACTIONS=new Set(['getRows','getRowsPageV1931','getDashboard','getActivityLog','getTrendMasterCenterV1931']);
 const WRITE_ACTIONS=new Set(['bulkUpdateDepartmentStatusV1926','archiveDeliveredDepartmentV1926','updateLine','markCustomerNotified']);
 const STATUSES=new Set(['طلب جديد','بدأ التنفيذ','تحت التنفيذ','جاهز للاستلام','تم التسليم','متوقف','مكرر','ملغى']);
 const DEFAULT_ORIGINS=[
@@ -361,9 +361,19 @@ export async function handleEmployeeCoreNativeRequest(request,env){
   const a=await authenticate(request,body,env);if(!a.ok)return json({success:false,message:a.message},a.status||401,cors(request,env));
   try{
     let out;
-    if(action==='getRows'){
+    if(action==='getRows'||action==='getRowsPageV1931'){
       const screen=text(body.screen)||'service';if(!screenAllowed(a.user,screen))out={success:false,message:'غير مصرح لك بعرض أوردرات هذا القسم.'};
-      else {const rows=await coreRows(env,screen);out={success:true,rows,dashboard:dashboard(rows,screen),version:'ENTRY614_D1_EMPLOYEE_CORE_V1'};}
+      else {
+        const rows=await coreRows(env,screen);
+        out={
+          success:true,
+          rows,
+          dashboard:dashboard(rows,screen),
+          serverPaged:false,
+          dataSource:'employee-core-d1',
+          version:'ENTRY650_D1_EMPLOYEE_CORE_PAGE_ALIAS_V1'
+        };
+      }
     }else if(action==='getDashboard'){
       const screen=text(body.screen)||'service';if(!screenAllowed(a.user,screen))out={success:false,message:'غير مصرح لك بعرض أوردرات هذا القسم.'};
       else {const rows=await coreRows(env,screen);out={success:true,dashboard:dashboard(rows,screen),version:'ENTRY614_D1_EMPLOYEE_CORE_V1'};}
