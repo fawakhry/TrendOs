@@ -61,7 +61,7 @@ jobs:
           grep -F "BASE+'/legacy-update'" cloudflare-d1/src/t12-operational-runtime-handler.mjs
           grep -F 'applyLegacyRuntimeOverlay' cloudflare-d1/src/edge-orders-read-02cr-canary.mjs
           grep -F 'MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED = true' config.js
-          grep -F '20261002-legacy-line-runtime' config.js
-          grep -F 'config.js?v=20261002-login-fast-surface' index.html
+          grep -F 'trendos-edge-orders-read-v1.js?v=20261008-entry652-session-lifecycle' config.js
+          grep -F 'config.js?v=20261008-entry652-session-lifecycle' index.html
           grep -F 'delivery-debt-restricted' cloudflare-d1/src/t12-operational-runtime-handler.mjs
           echo 'ENTRY597_STATIC_SAFETY=PASS'

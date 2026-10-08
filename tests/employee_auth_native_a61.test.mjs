@@ -109,9 +109,9 @@ assert.match(router, /handleEmployeeNativeAuthRequest/);
 assert.match(router, /isEmployeeNativeAuthPath/);
 
 const wrangler = fs.readFileSync('cloudflare-d1/wrangler.toml', 'utf8');
-assert.match(wrangler, /TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"/);
+assert.match(wrangler, /TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "true"/);
 assert.match(wrangler, /TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED = "false"/);
-assert.match(wrangler, /TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "false"/);
+assert.match(wrangler, /TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "true"/);
 assert.match(wrangler, /TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED = "false"/);
 assert.match(wrangler, /EMPLOYEE_AUTH_ENROLL_CANARY_USER = ""/);
 assert.match(wrangler, /EMPLOYEE_AUTH_ENROLL_NONCE = ""/);
@@ -119,4 +119,4 @@ assert.match(wrangler, /EMPLOYEE_AUTH_ENROLL_NONCE = ""/);
 console.log('A61_NATIVE_AUTH_FOUNDATION=PASS');
 console.log('PLAINTEXT_PASSWORD_STORED=NO');
 console.log('LEGACY_AUTH_FALLBACK_DEFAULT=OFF');
-console.log('PRODUCTION_CUTOVER=NO');
+console.log('PRODUCTION_CUTOVER=YES_NATIVE_ONLY');

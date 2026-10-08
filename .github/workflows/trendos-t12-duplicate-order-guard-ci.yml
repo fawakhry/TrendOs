@@ -47,8 +47,8 @@ jobs:
           grep -F "duplicateGuardReady" cloudflare-d1/src/t12-general-create-handler.mjs
           grep -F "duplicatePrevented===true" cloudflare-d1/src/t12-general-create-handler.mjs
           grep -F "تم منع إنشاء أوردر مكرر" trendos-edge-orders-read-v1.js
-          grep -F "trendos-edge-orders-read-v1.js?v=20261002-legacy-line-runtime" config.js
-          grep -F 'config.js?v=20261002-login-fast-surface' index.html
+          grep -F "trendos-edge-orders-read-v1.js?v=20261008-entry652-session-lifecycle" config.js
+          grep -F 'config.js?v=20261008-entry652-session-lifecycle' index.html
           if grep -Eiq '\b(DROP|ALTER)\b' cloudflare-d1/migrations/0010_t12_duplicate_order_guard.sql; then
             echo "Non-additive migration statement detected"
             exit 1
