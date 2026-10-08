@@ -1,0 +1,238 @@
+name: TrendOS Entry650 Order Page Frontend Hotfix Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry650-order-page-frontend-hotfix-controlled.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry650-order-page-frontend-hotfix-controlled
+  cancel-in-progress: false
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QUALIFY_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+      QUALIFY_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      FRONTEND_CONFIG: cloudflare-d1/wrangler.frontend.toml
+      LIVE_BASE_COMMIT: 2da755ca910b84911378c018d050cf806d8349d5
+      CACHE_TAG: 20261008-entry650-core-order-page-read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Source qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check employee-api-dispatcher-v1.js
+          node tests/entry650_employee_core_order_page_read.test.mjs
+          grep -Fq "T12_ENTRY650_CORE_ORDER_PAGE_READ_V1_20261008" employee-api-dispatcher-v1.js
+          grep -Fq "requestedAction === 'getRowsPageV1931' ? 'getRows' : requestedAction" employee-api-dispatcher-v1.js
+          echo ENTRY650_SOURCE_QUALIFICATION=PASS
+
+      - name: Production runtime preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/core/health?entry650pre=$GITHUB_SHA-$(date +%s%N)" -o /tmp/core-pre.json
+          node <<'NODE'
+          const fs=require('fs');
+          const c=JSON.parse(fs.readFileSync('/tmp/core-pre.json','utf8'));
+          if(c.success!==true||c.schemaReady!==true||c.mode!=='GENERAL'||
+             Number(c.policyEpoch||0)!==2||Number(c.googleBusinessCalls||0)!==0||
+             c.appsScriptBusinessAuthority!==false) throw new Error('employee core runtime drift');
+          console.log('ENTRY650_CORE_RUNTIME_PREFLIGHT=PASS');
+          NODE
+
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-pre.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-pre.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend active version shape '+JSON.stringify(full));
+          fs.writeFileSync('/tmp/pre-ui-version.txt',full[0].id);
+          console.log('ENTRY650_PRE_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          suffix="$GITHUB_SHA-$(date +%s%N)"
+          curl --fail --silent --show-error --location "$FRONTEND_URL/?entry650pre=$suffix" -o /tmp/live-index.html
+          curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry650pre=$suffix" -o /tmp/live-config.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/app.js?entry650pre=$suffix" -o /tmp/live-app.js
+          curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry650pre=$suffix" -o /tmp/live-dispatcher.js
+
+          grep -Fq "MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE = 'GENERAL'" /tmp/live-config.js
+          grep -Fq "T12_ENTRY647_AUTH_ATTENDANCE_RUNTIME_REPAIR_V1_20261007" /tmp/live-dispatcher.js
+          echo ENTRY650_LIVE_PRESTATE_CONFIRMED=PASS
+
+      - name: Rebuild exact live snapshot with dispatcher hotfix only
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/livebase cloudflare-d1/frontend-dist
+          git worktree add --detach /tmp/livebase "$LIVE_BASE_COMMIT" >/dev/null
+          mkdir -p cloudflare-d1/frontend-dist
+
+          while IFS= read -r src; do
+            name="$(basename "$src")"
+            curl --fail --silent --show-error --location               "$FRONTEND_URL/$name?entry650snapshot=$GITHUB_SHA-$(date +%s%N)"               -o "cloudflare-d1/frontend-dist/$name"
+          done < <(find /tmp/livebase -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) | sort)
+
+          cp employee-api-dispatcher-v1.js cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+
+          CACHE_TAG="$CACHE_TAG" python3 <<'PY'
+          from pathlib import Path
+          import os,re
+          tag=os.environ['CACHE_TAG']
+          p=Path('cloudflare-d1/frontend-dist/index.html')
+          s=p.read_text()
+          pat=r'employee-api-dispatcher-v1[.]js[?]v=[^"]+'
+          found=re.findall(pat,s)
+          if len(found)!=1:
+              raise SystemExit('dispatcher cache tag count='+str(len(found)))
+          p.write_text(re.sub(pat,'employee-api-dispatcher-v1.js?v='+tag,s,count=1))
+          PY
+
+          node --check cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          grep -Fq "employee-api-dispatcher-v1.js?v=$CACHE_TAG" cloudflare-d1/frontend-dist/index.html
+          grep -Fq "T12_ENTRY650_CORE_ORDER_PAGE_READ_V1_20261008" cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          test "$(git hash-object cloudflare-d1/frontend-dist/app.js)" = "$(git hash-object /tmp/live-app.js)"
+          test "$(git hash-object cloudflare-d1/frontend-dist/config.js)" = "$(git hash-object /tmp/live-config.js)"
+          echo ENTRY650_EXACT_LIVE_HOTFIX_BUNDLE=PASS
+
+      - name: Deploy frontend hotfix with rollback
+        id: deploy
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          PRE="$(cat /tmp/pre-ui-version.txt)"
+          DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = "1" ]; then
+              npx wrangler rollback "$PRE" --message "Entry650 order page automatic rollback" --config "$FRONTEND_CONFIG" || true
+              echo ENTRY650_AUTOMATIC_ROLLBACK_ATTEMPTED=YES
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+
+          npx wrangler deploy --config "$FRONTEND_CONFIG" >/tmp/deploy.log
+          DEPLOYED=1
+
+          OK=0
+          for attempt in $(seq 1 30); do
+            suffix="$GITHUB_SHA-$attempt-$(date +%s%N)"
+            if curl --fail --silent --show-error --location "$FRONTEND_URL/?entry650post=$suffix" -o /tmp/post-index.html               && curl --fail --silent --show-error --location "$FRONTEND_URL/config.js?entry650post=$suffix" -o /tmp/post-config.js               && curl --fail --silent --show-error --location "$FRONTEND_URL/app.js?entry650post=$suffix" -o /tmp/post-app.js               && curl --fail --silent --show-error --location "$FRONTEND_URL/employee-api-dispatcher-v1.js?entry650post=$suffix" -o /tmp/post-dispatcher.js               && grep -Fq "employee-api-dispatcher-v1.js?v=$CACHE_TAG" /tmp/post-index.html               && grep -Fq "T12_ENTRY650_CORE_ORDER_PAGE_READ_V1_20261008" /tmp/post-dispatcher.js               && grep -Fq "requestedAction === 'getRowsPageV1931' ? 'getRows' : requestedAction" /tmp/post-dispatcher.js; then
+                OK=1
+                echo "ENTRY650_PROPAGATION_ATTEMPT=$attempt"
+                break
+            fi
+            sleep 2
+          done
+          test "$OK" = "1"
+
+          test "$(git hash-object /tmp/post-app.js)" = "$(git hash-object /tmp/live-app.js)"
+          test "$(git hash-object /tmp/post-config.js)" = "$(git hash-object /tmp/live-config.js)"
+          test "$(git hash-object /tmp/post-dispatcher.js)" = "$(git hash-object employee-api-dispatcher-v1.js)"
+          echo ENTRY650_UNRELATED_FRONTEND_ASSETS_PRESERVED=PASS
+
+          if [ -n "$QUALIFY_USERNAME" ] && [ -n "$QUALIFY_PASSWORD" ]; then
+            node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const source=fs.readFileSync('/tmp/post-dispatcher.js','utf8');
+          const realFetch=globalThis.fetch;
+          const calls=[];
+          const downstream=async(action,params)=>({success:true,source:'edge',action,params});
+          downstream.__trendosEdgeOrdersReadV1=true;
+          const windowObject={
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_V1:true,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1:false,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS:[],
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES:0,
+            MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT:6,
+            MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1:false,
+            MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES:[],
+            MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE:'GENERAL',
+            MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE:'GENERAL',
+            MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_COMMS_CUTOVER_MODE:'READONLY',
+            MATBAGY_EMPLOYEE_API_URL:process.env.API_URL,
+            MATBAGY_EDGE_ORDERS_API_URL:process.env.API_URL,
+            trendosSecureApiV1922:downstream
+          };
+          const tracked=async(url,options={})=>{calls.push(String(url));return realFetch(url,options);};
+          const sandbox={window:windowObject,console,URL,Set,Map,JSON,Error,Number,Date,Promise,AbortController,TextEncoder,setTimeout,clearTimeout,setInterval,clearInterval,Response,fetch:tracked};
+          vm.runInNewContext(source,sandbox,{filename:'entry650-live-dispatcher.js'});
+          (async()=>{
+            const username=String(process.env.QUALIFY_USERNAME||'').trim();
+            const password=String(process.env.QUALIFY_PASSWORD||'');
+            const login=await windowObject.trendosEmployeeApiV1('login',{username,password});
+            const token=String(login&&login.user&&login.user.token||'').trim();
+            if(login.success!==true||!token) throw new Error('native login failed');
+            console.log('::add-mask::'+token);
+            const rows=await windowObject.trendosEmployeeApiV1('getRowsPageV1931',{
+              username,token,screen:'service',page:1,pageSize:5,statusFilter:'__ACTIVE__'
+            });
+            if(rows.success!==true||!Array.isArray(rows.rows)||rows.serverPaged!==false) {
+              throw new Error('Entry650 live page adapter failed');
+            }
+            if(calls.some(u=>u.includes('/v1/edge/orders/02cr/page'))) throw new Error('stale mirror route was called');
+            if(!calls.some(u=>u.includes('/v1/employee/core'))) throw new Error('employee core route missing');
+            console.log('ENTRY650_AUTHENTICATED_ORDER_PAGE=PASS rows='+rows.rows.length);
+            console.log('ENTRY650_STALE_MIRROR_ROUTE_CALLED=NO');
+            await windowObject.trendosEmployeeApiV1('logout',{username,token});
+          })().catch(e=>{console.error('ENTRY650_LIVE_SMOKE=FAIL '+String(e&&e.message||e));process.exit(31);});
+          NODE
+          else
+            echo ENTRY650_AUTHENTICATED_SMOKE=SKIPPED_NO_QUALIFY_SECRET
+          fi
+
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-post.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-post.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend post version shape');
+          fs.writeFileSync('/tmp/post-ui-version.txt',full[0].id);
+          console.log('ENTRY650_POST_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          trap - ERR
+          echo ENTRY650=PASS
+          echo ENTRY650_ROLLBACK_USED=NO
+
+      - name: Final
+        if: ${{ success() }}
+        shell: bash
+        run: |
+          echo "ENTRY650_PRE_FRONTEND_VERSION=$(cat /tmp/pre-ui-version.txt)"
+          echo "ENTRY650_POST_FRONTEND_VERSION=$(cat /tmp/post-ui-version.txt)"
+          echo ENTRY650_ORDER_PAGE_SOURCE=EMPLOYEE_CORE_D1
+          echo ENTRY650=PASS
