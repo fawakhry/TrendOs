@@ -18,6 +18,7 @@ window.MATBAGY_EDGE_ORDERS_API_URL = "https://trendos-d1-api.trendmall-contact.w
 window.MATBAGY_EMPLOYEE_API_URL = window.MATBAGY_EDGE_ORDERS_API_URL;
 window.MATBAGY_EMPLOYEE_SUPERVISOR_API_URL = "https://autonomous-printshop-employee-supervisor.trendmall-contact.workers.dev";
 window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true;
+window.MATBAGY_EMPLOYEE_AUTH_SESSION_EPOCH = 1;
 window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1 = false;
 window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS = [];
 window.MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES = 0;
@@ -116,7 +117,7 @@ function trendLoadModuleV1932(id, src){
 // unauthenticated entry/login screen. Critical Cloud routing starts only after
 // an employee session exists; non-critical tools are queued after first paint.
 var TRENDOS_AUTH_CRITICAL_MODULES_V1 = [
-  ['trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20261002-legacy-line-runtime'],
+  ['trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20261008-entry652-session-lifecycle'],
   ['trendResumeNoAutoRefreshV1Loader','trendos-resume-no-autorefresh-v1.js?v=20260930-a61-cloud-transport']
 ];
 var TRENDOS_AUTH_DEFERRED_MODULES_V1 = [
@@ -133,7 +134,7 @@ var TRENDOS_AUTH_DEFERRED_MODULES_V1 = [
   ['trendCustomerFeedbackV1Loader','customer-feedback-v1.js?v=20260930-a61-cloud-transport'],
   ['trendEmployeeManagerStripsV2Loader','employee-manager-strips-v2.js?v=20260930-a61-cloud-transport'],
   ['trendEmployeeManagerStripsDragV2Loader','employee-manager-strips-drag-v2.js?v=20260930-a61-cloud-transport'],
-  ['trendEmployeeAndonV1Loader','employee-andon-v1.js?v=20261007-entry649-structured-andon'],
+  ['trendEmployeeAndonV1Loader','employee-andon-v1.js?v=20261008-entry652-session-lifecycle'],
   ['trendGoLiveAutopilotV1Loader','go-live-autopilot-v1.js?v=20260930-a61-cloud-transport'],
   ['trendOperationsHubV1Loader','operations-hub-v1.js?v=20260930-a61-cloud-transport']
 ];

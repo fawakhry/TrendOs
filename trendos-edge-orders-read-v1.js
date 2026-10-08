@@ -199,6 +199,19 @@
     return body;
   }
 
+  function signalEmployeeSessionInvalidV2(source) {
+    if (typeof window.dispatchEvent !== 'function') return false;
+    try {
+      var detail = { status:401, code:'EMPLOYEE_SESSION_REJECTED', source:source || 'trendos-edge-orders-read-v1' };
+      if (typeof window.CustomEvent === 'function') {
+        window.dispatchEvent(new window.CustomEvent('trendos:employee-session-invalid', { detail:detail }));
+      } else {
+        window.dispatchEvent({ type:'trendos:employee-session-invalid', detail:detail });
+      }
+      return true;
+    } catch (e) { return false; }
+  }
+
   function currentUser() {
     var saved = {};
     try { saved = JSON.parse(sessionStorage.getItem('trendos_session') || '{}').user || {}; } catch (e) {}
@@ -379,6 +392,7 @@
       headers: { 'accept': 'application/json', 'content-type': 'application/json' },
       body: JSON.stringify({ username: user.username, token: user.token })
     });
+    if (response.status === 401) signalEmployeeSessionInvalidV2('edge-orders-session-exchange');
     var body = await jsonResponse(response);
     session.token = text(body.edgeToken);
     session.expiresAt = Date.parse(body.expiresAt || '') || (Date.now() + Math.max(60000, Number(body.expiresIn || 600) * 1000));

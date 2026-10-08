@@ -1,0 +1,260 @@
+name: TrendOS Entry652 Employee Session Lifecycle Guard Controlled
+
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/trendos-entry652-employee-session-lifecycle-guard-controlled.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-entry652-employee-session-lifecycle-guard-controlled
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      FRONTEND_URL: https://trendos-ui.trendmall-contact.workers.dev
+      FRONTEND_CONFIG: cloudflare-d1/wrangler.frontend.toml
+      LIVE_BASE_COMMIT: 2da755ca910b84911378c018d050cf806d8349d5
+      CACHE_TAG: 20261008-entry652-session-lifecycle
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+
+      - name: Source qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check app.js
+          node --check employee-api-dispatcher-v1.js
+          node --check trendos-edge-orders-read-v1.js
+          node --check employee-andon-v1.js
+          node --check config.js
+          node tests/entry651_employee_session_restore_guard.test.mjs
+          node tests/entry652_employee_session_lifecycle_guard.test.mjs
+          node tests/entry652_employee_session_runtime_401_dispatch.test.mjs
+          node tests/frontend_employee_session_isolation_entry533.test.mjs
+          node tests/frontend_employee_api_dispatcher_a61.test.mjs
+          node tests/frontend_login_fast_surface_entry603.test.mjs
+          node tests/entry649_employee_andon_structured.test.mjs
+          echo ENTRY652_SOURCE_QUALIFICATION=PASS
+
+      - name: Production preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry652pre=$GITHUB_SHA-$(date +%s%N)" -o /tmp/auth-pre.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry652pre=$GITHUB_SHA-$(date +%s%N)" -o /tmp/bridge-pre.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth-pre.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge-pre.json','utf8'));
+          if(a.success!==true||a.schemaReady!==true||a.mode!=='NATIVE'||a.envEnabled!==true||
+             a.nativeOnly!==true||Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||
+             Number(a.mustChangeCount||0)!==0||a.legacyBootstrapEnabled!==false||
+             a.legacySessionEnrollEnabled!==false||a.plaintextStored!==false) throw new Error('AUTH_RUNTIME_DRIFT');
+          if(b.enabled!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('LEGACY_BRIDGE_DRIFT');
+          console.log('ENTRY652_AUTH_PREFLIGHT=PASS');
+          NODE
+
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-pre.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-pre.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend active version shape '+JSON.stringify(full));
+          fs.writeFileSync('/tmp/pre-ui-version.txt',full[0].id);
+          console.log('ENTRY652_PRE_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          suffix="$GITHUB_SHA-$(date +%s%N)"
+          for name in index.html config.js app.js employee-api-dispatcher-v1.js trendos-edge-orders-read-v1.js employee-andon-v1.js attendance-v1.js manager-center-v1932.js; do
+            curl --fail --silent --show-error --location "$FRONTEND_URL/$name?entry652pre=$suffix-$name" -o "/tmp/live-$name"
+          done
+
+          grep -Fq "T12_ENTRY651_SESSION_RESTORE_VERIFY_V1_20261008" /tmp/live-app.js
+          grep -Fq "T12_ENTRY650_CORE_ORDER_PAGE_READ_V1_20261008" /tmp/live-employee-api-dispatcher-v1.js
+          grep -Fq "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true" /tmp/live-config.js
+          grep -Fq "MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false" /tmp/live-config.js
+          echo ENTRY652_LIVE_PRESTATE=PASS
+
+      - name: Build exact-live lifecycle-guard bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/livebase cloudflare-d1/frontend-dist
+          git worktree add --detach /tmp/livebase "$LIVE_BASE_COMMIT" >/dev/null
+          mkdir -p cloudflare-d1/frontend-dist
+
+          while IFS= read -r src; do
+            name="$(basename "$src")"
+            curl --fail --silent --show-error --location               "$FRONTEND_URL/$name?entry652snapshot=$GITHUB_SHA-$(date +%s%N)"               -o "cloudflare-d1/frontend-dist/$name"
+          done < <(find /tmp/livebase -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) | sort)
+
+          cp app.js cloudflare-d1/frontend-dist/app.js
+          cp employee-api-dispatcher-v1.js cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          cp trendos-edge-orders-read-v1.js cloudflare-d1/frontend-dist/trendos-edge-orders-read-v1.js
+          cp employee-andon-v1.js cloudflare-d1/frontend-dist/employee-andon-v1.js
+
+          CACHE_TAG="$CACHE_TAG" python3 <<'PY'
+          from pathlib import Path
+          import os,re
+          tag=os.environ['CACHE_TAG']
+
+          p=Path('cloudflare-d1/frontend-dist/config.js')
+          s=p.read_text()
+          if 'window.MATBAGY_EMPLOYEE_AUTH_SESSION_EPOCH' not in s:
+              anchor='window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true;'
+              if s.count(anchor)!=1: raise SystemExit('native auth anchor count='+str(s.count(anchor)))
+              s=s.replace(anchor,anchor+'\nwindow.MATBAGY_EMPLOYEE_AUTH_SESSION_EPOCH = 1;',1)
+          else:
+              s=re.sub(r'window\.MATBAGY_EMPLOYEE_AUTH_SESSION_EPOCH\s*=\s*\d+\s*;','window.MATBAGY_EMPLOYEE_AUTH_SESSION_EPOCH = 1;',s,count=1)
+          s=re.sub(r'trendos-edge-orders-read-v1\.js\?v=[^\'"]+','trendos-edge-orders-read-v1.js?v='+tag,s,count=1)
+          s=re.sub(r'employee-andon-v1\.js\?v=[^\'"]+','employee-andon-v1.js?v='+tag,s,count=1)
+          p.write_text(s)
+
+          p=Path('cloudflare-d1/frontend-dist/index.html')
+          s=p.read_text()
+          for asset in ['config.js','app.js','employee-api-dispatcher-v1.js']:
+              pat=re.escape(asset)+r'\?v=[^"]+'
+              if len(re.findall(pat,s))!=1: raise SystemExit(asset+' cache tag count invalid')
+              s=re.sub(pat,asset+'?v='+tag,s,count=1)
+          p.write_text(s)
+          PY
+
+          node --check cloudflare-d1/frontend-dist/app.js
+          node --check cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          node --check cloudflare-d1/frontend-dist/trendos-edge-orders-read-v1.js
+          node --check cloudflare-d1/frontend-dist/employee-andon-v1.js
+          node --check cloudflare-d1/frontend-dist/config.js
+          grep -Fq "MATBAGY_EMPLOYEE_AUTH_SESSION_EPOCH = 1" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "trendos-edge-orders-read-v1.js?v=$CACHE_TAG" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "employee-andon-v1.js?v=$CACHE_TAG" cloudflare-d1/frontend-dist/config.js
+          grep -Fq "T12_ENTRY652_SESSION_LIFECYCLE_GUARD_V1_20261008" cloudflare-d1/frontend-dist/app.js
+          grep -Fq "signalEmployeeSessionInvalidV2" cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          grep -Fq "edge-orders-session-exchange" cloudflare-d1/frontend-dist/trendos-edge-orders-read-v1.js
+          grep -Fq "signalSessionInvalidV2" cloudflare-d1/frontend-dist/employee-andon-v1.js
+          echo ENTRY652_EXACT_LIVE_BUNDLE=PASS
+
+      - name: Recheck frontend lease before deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-lease.json
+          PRE="$(cat /tmp/pre-ui-version.txt)"
+          PRE="$PRE" node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-lease.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1||full[0].id!==process.env.PRE) throw new Error('frontend lease moved '+JSON.stringify(full));
+          console.log('ENTRY652_FRONTEND_LEASE=PASS');
+          NODE
+
+      - name: Deploy lifecycle guard with automatic rollback
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          PRE="$(cat /tmp/pre-ui-version.txt)"
+          DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = "1" ]; then
+              npx wrangler rollback "$PRE" --message "Entry652 employee session lifecycle automatic rollback" --config "$FRONTEND_CONFIG" || true
+              echo ENTRY652_AUTOMATIC_ROLLBACK_ATTEMPTED=YES
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+
+          npx wrangler deploy --config "$FRONTEND_CONFIG" >/tmp/deploy.log
+          DEPLOYED=1
+
+          OK=0
+          for attempt in $(seq 1 30); do
+            suffix="$GITHUB_SHA-$attempt-$(date +%s%N)"
+            for name in index.html config.js app.js employee-api-dispatcher-v1.js trendos-edge-orders-read-v1.js employee-andon-v1.js attendance-v1.js manager-center-v1932.js; do
+              curl --fail --silent --show-error --location "$FRONTEND_URL/$name?entry652post=$suffix-$name" -o "/tmp/post-$name" || true
+            done
+            if grep -Fq "config.js?v=$CACHE_TAG" /tmp/post-index.html               && grep -Fq "app.js?v=$CACHE_TAG" /tmp/post-index.html               && grep -Fq "employee-api-dispatcher-v1.js?v=$CACHE_TAG" /tmp/post-index.html               && grep -Fq "MATBAGY_EMPLOYEE_AUTH_SESSION_EPOCH = 1" /tmp/post-config.js               && grep -Fq "trendos-edge-orders-read-v1.js?v=$CACHE_TAG" /tmp/post-config.js               && grep -Fq "employee-andon-v1.js?v=$CACHE_TAG" /tmp/post-config.js               && grep -Fq "T12_ENTRY652_SESSION_LIFECYCLE_GUARD_V1_20261008" /tmp/post-app.js               && grep -Fq "forceEmployeeReloginV2" /tmp/post-app.js               && grep -Fq "signalEmployeeSessionInvalidV2" /tmp/post-employee-api-dispatcher-v1.js               && grep -Fq "edge-orders-session-exchange" /tmp/post-trendos-edge-orders-read-v1.js               && grep -Fq "signalSessionInvalidV2" /tmp/post-employee-andon-v1.js; then
+                OK=1
+                echo "ENTRY652_PROPAGATION_ATTEMPT=$attempt"
+                break
+            fi
+            sleep 2
+          done
+          test "$OK" = "1"
+
+          test "$(git hash-object /tmp/post-app.js)" = "$(git hash-object app.js)"
+          test "$(git hash-object /tmp/post-employee-api-dispatcher-v1.js)" = "$(git hash-object employee-api-dispatcher-v1.js)"
+          test "$(git hash-object /tmp/post-trendos-edge-orders-read-v1.js)" = "$(git hash-object trendos-edge-orders-read-v1.js)"
+          test "$(git hash-object /tmp/post-employee-andon-v1.js)" = "$(git hash-object employee-andon-v1.js)"
+          test "$(git hash-object /tmp/post-config.js)" = "$(git hash-object cloudflare-d1/frontend-dist/config.js)"
+          test "$(git hash-object /tmp/post-index.html)" = "$(git hash-object cloudflare-d1/frontend-dist/index.html)"
+          test "$(git hash-object /tmp/post-attendance-v1.js)" = "$(git hash-object /tmp/live-attendance-v1.js)"
+          test "$(git hash-object /tmp/post-manager-center-v1932.js)" = "$(git hash-object /tmp/live-manager-center-v1932.js)"
+          echo ENTRY652_UNRELATED_ASSETS_PRESERVED=PASS
+
+          curl --fail --silent --show-error "$API_URL/v1/employee/auth/health?entry652post=$GITHUB_SHA-$(date +%s%N)" -o /tmp/auth-post.json
+          curl --fail --silent --show-error "$API_URL/v1/employee/legacy-action/health?entry652post=$GITHUB_SHA-$(date +%s%N)" -o /tmp/bridge-post.json
+          node <<'NODE'
+          const fs=require('fs');
+          const a=JSON.parse(fs.readFileSync('/tmp/auth-post.json','utf8'));
+          const b=JSON.parse(fs.readFileSync('/tmp/bridge-post.json','utf8'));
+          if(a.mode!=='NATIVE'||a.nativeOnly!==true||Number(a.userCount||0)!==6||Number(a.nativeReadyCount||0)!==6||
+             Number(a.mustChangeCount||0)!==0||a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false||
+             a.plaintextStored!==false) throw new Error('AUTH_POSTFLIGHT_DRIFT');
+          if(b.enabled!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('BRIDGE_POSTFLIGHT_DRIFT');
+          console.log('ENTRY652_AUTH_POSTFLIGHT=PASS');
+          NODE
+
+          npx wrangler deployments list --name trendos-ui --json >/tmp/ui-post.json
+          node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/ui-post.json','utf8'));
+          const ds=(Array.isArray(x)?x:(x&&Array.isArray(x.items)?x.items:[])).slice().sort((a,b)=>Date.parse(b.created_on||0)-Date.parse(a.created_on||0));
+          const full=(((ds[0]||{}).versions)||[]).map(v=>({id:String(v.version_id||v.id||''),p:Number(v.percentage||0)})).filter(v=>v.id&&v.p===100);
+          if(full.length!==1) throw new Error('frontend post version shape');
+          fs.writeFileSync('/tmp/post-ui-version.txt',full[0].id);
+          console.log('ENTRY652_POST_FRONTEND_VERSION='+full[0].id);
+          NODE
+
+          trap - ERR
+          echo ENTRY652=PASS
+          echo ENTRY652_BOOT_VERIFY=YES
+          echo ENTRY652_RUNTIME_401_FORCE_RELOGIN=YES
+          echo ENTRY652_SESSION_EPOCH=1
+          echo ENTRY652_PERIODIC_REVERIFY=5_MINUTES
+          echo ENTRY652_AUTH_BACKEND_CHANGED=NO
+          echo ENTRY652_PASSWORD_RESET=NO
+          echo ENTRY652_BUSINESS_D1_MUTATION=NO
+          echo ENTRY652_ROLLBACK_USED=NO
+
+      - name: Final
+        if: ${{ success() }}
+        run: |
+          echo "ENTRY652_PRE_FRONTEND_VERSION=$(cat /tmp/pre-ui-version.txt)"
+          echo "ENTRY652_POST_FRONTEND_VERSION=$(cat /tmp/post-ui-version.txt)"
+          echo ENTRY652_EMPLOYEE_SESSION_LIFECYCLE=HARDENED

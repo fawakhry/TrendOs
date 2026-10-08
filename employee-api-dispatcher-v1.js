@@ -12,6 +12,7 @@
   'use strict';
 
   var VERSION = 'T12_ENTRY650_CORE_ORDER_PAGE_READ_V1_20261008';
+  window.TRENDOS_ENTRY652_SESSION_LIFECYCLE_GUARD = 'T12_ENTRY652_SESSION_LIFECYCLE_GUARD_V1_20261008';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var AUTH_HEALTH_PATH = '/v1/employee/auth/health';
   var BRIDGE_HEALTH_PATH = '/v1/employee/legacy-action/health';
@@ -325,6 +326,29 @@
     return err;
   }
 
+  function signalEmployeeSessionInvalidV2(response, body) {
+    if (!response || Number(response.status || 0) !== 401) return false;
+    var url = String(response.url || '');
+    var message = text(body && body.message);
+    if (/\/v1\/employee\/auth\/login(?:$|[?#])/i.test(url)) return false;
+    if (/\/v1\/employee\/auth\/password\/change(?:$|[?#])/i.test(url) &&
+        !/Employee session rejected|session rejected/i.test(message)) return false;
+    if (typeof window.dispatchEvent !== 'function') return false;
+    try {
+      var detail = {
+        status: 401,
+        code: text(body && body.code) || 'EMPLOYEE_API_HTTP_401',
+        source: 'employee-api-dispatcher-v1'
+      };
+      if (typeof window.CustomEvent === 'function') {
+        window.dispatchEvent(new window.CustomEvent('trendos:employee-session-invalid', { detail: detail }));
+      } else {
+        window.dispatchEvent({ type:'trendos:employee-session-invalid', detail:detail });
+      }
+      return true;
+    } catch (e) { return false; }
+  }
+
   async function readJson(response) {
     var raw = await response.text();
     var body = {};
@@ -333,6 +357,7 @@
       throw routeError('EMPLOYEE_API_INVALID_JSON', 'رد Cloud Employee API غير صالح.');
     }
     if (!response.ok) {
+      signalEmployeeSessionInvalidV2(response, body);
       var e = routeError(
         body.code || 'EMPLOYEE_API_HTTP_' + response.status,
         body.message || 'فشل طلب Cloud Employee API (' + response.status + ').'

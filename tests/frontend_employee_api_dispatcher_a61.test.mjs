@@ -141,7 +141,7 @@ assert.equal(edgeCalls.at(-1).action,'createManualOrder');
 
 // Static frontend contract.
 const config=fs.readFileSync('config.js','utf8');
-assert.match(config,/MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false/);
+assert.match(config,/MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true/);
 assert.match(config,/MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false/);
 assert.match(config,/MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES = \[\]/);
 
@@ -169,9 +169,9 @@ for(const file of [
 }
 
 console.log('A61_FRONTEND_EMPLOYEE_DISPATCHER=PASS');
-console.log('DEFAULT_OFF_PRESERVES_LEGACY_TRANSPORT=YES');
+console.log('NATIVE_AUTH_PRODUCTION_DEFAULT=ON');
 console.log('NATIVE_TOKEN_TO_APPS_SCRIPT=NO');
 console.log('MULTIPLEXED_POLICY=ACTION_PLUS_OP');
 console.log('HYBRID_ORDER_FALLBACK_USES_BRIDGE=YES');
-console.log('PRODUCTION_ENABLEMENT=NO');
+console.log('PRODUCTION_ENABLEMENT=YES');
 

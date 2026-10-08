@@ -28,7 +28,7 @@ assert.equal(typeof window.trendosLoadAuthenticatedModulesV1,'function');
 
 window.trendosLoadAuthenticatedCriticalV1();
 assert.equal(appended.length,2,'critical authenticated modules should be edge router + resume guard only');
-assert.match(appended[0].src,/trendos-edge-orders-read-v1\.js\?v=20261002-legacy-line-runtime/);
+assert.match(appended[0].src,/trendos-edge-orders-read-v1\.js\?v=20261008-entry652-session-lifecycle/);
 assert.match(appended[1].src,/trendos-resume-no-autorefresh-v1\.js/);
 
 window.trendosLoadAuthenticatedModulesV1();
@@ -50,8 +50,8 @@ assert.ok(
   'authenticated loader should start before main boot requests data'
 );
 
-assert.match(index,/config\.js\?v=20261002-login-fast-surface/);
-assert.match(index,/app\.js\?v=20261002-login-fast-surface/);
+assert.match(index,/config\.js\?v=20261008-entry652-session-lifecycle/);
+assert.match(index,/app\.js\?v=20261008-entry652-session-lifecycle/);
 assert.doesNotMatch(config,/^trendLoadModuleV1932\(/m,'config must not eagerly invoke runtime module loader');
 
 console.log('ENTRY603_LOGIN_FAST_SURFACE=PASS');

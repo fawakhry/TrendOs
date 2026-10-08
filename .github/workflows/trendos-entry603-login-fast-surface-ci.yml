@@ -38,15 +38,15 @@ jobs:
         run: node tests/frontend_orders_initial_edge_ready_entry577.test.mjs
       - name: Preserve duplicate guard frontend
         run: node tests/frontend_t12_duplicate_order_guard_entry590.test.mjs
-      - name: Preserve A61 dispatcher OFF state
+      - name: Preserve A61 dispatcher routing contract
         run: node tests/frontend_employee_api_dispatcher_a61.test.mjs
       - name: Static boundaries
         run: |
           set -euo pipefail
-          grep -F "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false;" config.js
+          grep -F "window.MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true;" config.js
           grep -F "window.MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false;" config.js
-          grep -F "config.js?v=20261002-login-fast-surface" index.html
-          grep -F "app.js?v=20261002-login-fast-surface" index.html
+          grep -F "config.js?v=20261008-entry652-session-lifecycle" index.html
+          grep -F "app.js?v=20261008-entry652-session-lifecycle" index.html
           grep -F "trendosLoadAuthenticatedModulesV1" app.js
           echo 'ENTRY603_STATIC=PASS'
           echo 'PRODUCTION_MUTATION=NO'

@@ -37,6 +37,15 @@
     return e;
   }
   function reasonLabel(code){return REASONS[txt(code)]||txt(code)||'عائق';}
+  function signalSessionInvalidV2(){
+    if(typeof window.dispatchEvent!=='function')return false;
+    try{
+      const detail={status:401,code:'EMPLOYEE_SUPERVISOR_HTTP_401',source:'employee-andon-v1'};
+      if(typeof window.CustomEvent==='function')window.dispatchEvent(new window.CustomEvent('trendos:employee-session-invalid',{detail}));
+      else window.dispatchEvent({type:'trendos:employee-session-invalid',detail});
+      return true;
+    }catch(e){return false;}
+  }
   function randomId(){
     if(window.crypto&&typeof window.crypto.randomUUID==='function')return window.crypto.randomUUID();
     return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12);
@@ -87,6 +96,7 @@
     let out={};
     try{out=JSON.parse(raw||'{}');}catch(e){throw error('EMPLOYEE_SUPERVISOR_INVALID_JSON','رد خدمة المشرف غير صالح.');}
     if(!response.ok||out.success===false){
+      if(response.status===401)signalSessionInvalidV2();
       const e=error(out.code||('EMPLOYEE_SUPERVISOR_HTTP_'+response.status),out.message||out.code||'فشل طلب خدمة المشرف.');
       e.status=response.status;e.body=out;throw e;
     }

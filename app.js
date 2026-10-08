@@ -4,6 +4,11 @@
   const REFRESH_MS = 0; // V1879: التحديث التلقائي كل 10 ثواني تم إيقافه
   const UI_VERSION = 'V1931_TREND_MASTER';
   window.TRENDOS_ENTRY651_SESSION_RESTORE_GUARD = 'T12_ENTRY651_SESSION_RESTORE_VERIFY_V1_20261008';
+  window.TRENDOS_ENTRY652_SESSION_LIFECYCLE_GUARD = 'T12_ENTRY652_SESSION_LIFECYCLE_GUARD_V1_20261008';
+  const EMPLOYEE_SESSION_GUARD_INTERVAL_MS_V2 = 5 * 60 * 1000;
+  let employeeSessionGuardTimerV2 = null;
+  let employeeSessionGuardLastCheckMsV2 = 0;
+  let employeeSessionReloginInProgressV2 = false;
 
   const screens = {
     service: "خدمة العملاء",
@@ -1667,8 +1672,17 @@ Trend Mall`;
     if (view) view.classList.remove("hidden");
   }
 
+  function employeeAuthSessionEpochV2() {
+    const n = Number(window.MATBAGY_EMPLOYEE_AUTH_SESSION_EPOCH || 1);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
+  }
+
   function saveSession() {
-    sessionStorage.setItem("trendos_session", JSON.stringify({ user: state.user, screen: state.screen }));
+    sessionStorage.setItem("trendos_session", JSON.stringify({
+      user: state.user,
+      screen: state.screen,
+      authSessionEpoch: employeeAuthSessionEpochV2()
+    }));
     try {
       const u = state.user || {};
       sessionStorage.setItem("matbagy_user_name", u.name || u.username || "");
@@ -1683,6 +1697,11 @@ Trend Mall`;
     try {
       const data = JSON.parse(sessionStorage.getItem("trendos_session") || "null");
       if (data && data.user && data.user.token) {
+        const storedEpoch = Number(data.authSessionEpoch || 1);
+        if (storedEpoch !== employeeAuthSessionEpochV2()) {
+          clearRejectedRestoredEmployeeSessionV1();
+          return false;
+        }
         state.user = data.user;
         state.screen = data.screen || "service";
         return true;
@@ -1726,6 +1745,7 @@ Trend Mall`;
       }
 
       state.user = Object.assign({}, restored, res.user, { token: token });
+      employeeSessionGuardLastCheckMsV2 = Date.now();
       saveSession();
       return true;
     } catch (err) {
@@ -1755,6 +1775,94 @@ Trend Mall`;
       return false;
     }
   }
+
+  function employeeSessionRejectedV2(err) {
+    const status = Number(err && err.status || 0);
+    const code = String(err && err.code || "");
+    const message = String(err && err.message || "");
+    return status === 401 ||
+      code === "EMPLOYEE_API_HTTP_401" ||
+      /Employee session rejected|session rejected|جلسة.*مرفوض/i.test(message);
+  }
+
+  function stopEmployeeSessionGuardV2() {
+    if (employeeSessionGuardTimerV2) clearInterval(employeeSessionGuardTimerV2);
+    employeeSessionGuardTimerV2 = null;
+  }
+
+  function forceEmployeeReloginV2(reason) {
+    if (employeeSessionReloginInProgressV2) return false;
+    const current = state.user || {};
+    const username = String(current.username || current.name || "").trim();
+    if (!username && !current.token) return false;
+
+    employeeSessionReloginInProgressV2 = true;
+    stopEmployeeSessionGuardV2();
+    try { stopUrgentNotificationTimer(); } catch (e) {}
+    try { stopRefresh(); } catch (e) {}
+    clearRejectedRestoredEmployeeSessionV1();
+    showLogin();
+
+    const usernameInput = $("username");
+    const passwordInput = $("password");
+    if (usernameInput) usernameInput.value = username;
+    if (passwordInput) passwordInput.value = "";
+    setMsg(
+      "loginMsg",
+      "انتهت جلسة الموظف أو تم إلغاؤها. سجل الدخول مرة أخرى للمتابعة.",
+      true
+    );
+
+    setTimeout(function(){ employeeSessionReloginInProgressV2 = false; }, 500);
+    return true;
+  }
+
+  async function verifyLiveEmployeeSessionV2(force) {
+    const u = state.user || {};
+    const username = String(u.username || u.name || "").trim();
+    const token = String(u.token || "").trim();
+    if (!username || !token) return false;
+    if (typeof document !== "undefined" && document.hidden && force !== true) return true;
+
+    const now = Date.now();
+    if (force !== true && now - employeeSessionGuardLastCheckMsV2 < EMPLOYEE_SESSION_GUARD_INTERVAL_MS_V2) return true;
+    employeeSessionGuardLastCheckMsV2 = now;
+
+    try {
+      const res = await api("verifyEmployeeSession", { username: username, token: token });
+      if (!res || res.success !== true || !res.user) {
+        const rejected = new Error("Employee session rejected");
+        rejected.status = 401;
+        throw rejected;
+      }
+      state.user = Object.assign({}, u, res.user, { token: token });
+      saveSession();
+      return true;
+    } catch (err) {
+      if (employeeSessionRejectedV2(err)) forceEmployeeReloginV2("verify");
+      return false;
+    }
+  }
+
+  function startEmployeeSessionGuardV2() {
+    stopEmployeeSessionGuardV2();
+    employeeSessionGuardLastCheckMsV2 = Date.now();
+    employeeSessionGuardTimerV2 = setInterval(function(){
+      verifyLiveEmployeeSessionV2(false).catch(function(){});
+    }, EMPLOYEE_SESSION_GUARD_INTERVAL_MS_V2);
+  }
+
+  window.trendosForceEmployeeReloginV2 = forceEmployeeReloginV2;
+  window.trendosVerifyEmployeeSessionV2 = verifyLiveEmployeeSessionV2;
+  window.addEventListener("trendos:employee-session-invalid", function(){
+    forceEmployeeReloginV2("runtime-401");
+  });
+  window.addEventListener("focus", function(){
+    verifyLiveEmployeeSessionV2(false).catch(function(){});
+  });
+  document.addEventListener("visibilitychange", function(){
+    if (!document.hidden) verifyLiveEmployeeSessionV2(false).catch(function(){});
+  });
 
   function saveCustomerSession() {
     sessionStorage.setItem("matbagy_platform_customer_session", JSON.stringify({ customer: state.customer }));
@@ -4137,6 +4245,7 @@ Trend Mall`;
     loadInitialRowsWhenEdgeReady();
     updateUrgentNotificationButton();
     startRefresh();
+    startEmployeeSessionGuardV2();
     if (state.urgentNotificationEnabled) startUrgentNotificationTimer();
   }
 
@@ -6067,6 +6176,7 @@ Trend Mall`;
   }
 
   function logout() {
+    stopEmployeeSessionGuardV2();
     stopUrgentNotificationTimer();
     try { const u = state.user || {}; api("logout", { username: u.username || u.name || "", token: u.token || "" }).catch(function(){}); } catch (e) {}
     clearSession();
