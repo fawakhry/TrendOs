@@ -554,6 +554,7 @@ function workDateKeyV1(value){
 }
 function accountingDepartmentV1(value){
   const k=key(value);
+  if(k==='عام')return 'عام';
   if(k.includes('ليزر')||k.includes('laser'))return 'ليزر';
   if(k.includes('طباع')||k.includes('print'))return 'طباعة';
   if(k.includes('كل')||k.includes('all')||k.includes('اجمالي')||k.includes('إجمالي'))return 'كل الأقسام';
