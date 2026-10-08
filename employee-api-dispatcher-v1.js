@@ -596,9 +596,19 @@
     delete p.confirmPassword;
     delete p.employeePassword;
 
-    p.action = text(action);
+    var requestedAction = text(action);
+    // Entry650: the production Core endpoint already has authoritative getRows.
+    // Adapt the V1931 page-shaped frontend request locally so order loading no
+    // longer depends on the retired/stale Google mirror freshness path.
+    p.action = requestedAction === 'getRowsPageV1931' ? 'getRows' : requestedAction;
     p.username = username;
-    return cloudPost(CORE_PATH, p, token);
+    var out = await cloudPost(CORE_PATH, p, token);
+    if (requestedAction === 'getRowsPageV1931' && out && out.success === true) {
+      out.serverPaged = false;
+      out.dataSource = out.dataSource || 'employee-core-d1';
+      out.version = out.version || 'ENTRY650_D1_EMPLOYEE_CORE_PAGE_ADAPTER_V1';
+    }
+    return out;
   }
 
   async function employeeContentNative(action, params) {
