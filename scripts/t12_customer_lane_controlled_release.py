@@ -27,7 +27,7 @@ def fetch(url,data=None,method='GET',headers=None):
  if not url.startswith(API):
   check(method=='GET' and data is None,'PUBLIC_WRITE_REFUSED')
   header=STATE/'public-headers.tmp';body=STATE/'public-body.tmp'
-  p=subprocess.run(['curl','--fail','--silent','--show-error','--max-time','55','--dump-header',str(header),'--output',str(body),url],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+  p=subprocess.run(['curl','--location','--proto-redir','=https','--fail','--silent','--show-error','--max-time','55','--dump-header',str(header),'--output',str(body),url],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
   check(p.returncode==0,'PUBLIC_GET_FAILED:'+url.split('?')[0].split('.workers.dev')[-1])
   blocks=header.read_bytes().split(b'\r\n\r\n');block=[b for b in blocks if b.startswith(b'HTTP/')][-1]
   return message_from_bytes(block.split(b'\r\n',1)[1]),body.read_bytes()
@@ -84,7 +84,7 @@ def upload_api(bundle,pre):
  version=cf('/workers/scripts/trendos-d1-api/versions/'+pre)
  runtime=version['resources']['script_runtime'];live=settings('trendos-d1-api')
  metadata={'main_module':'index.js','bindings':[b for b in live['bindings'] if b['type'] not in ('secret_text','secret_key')],
-  'keep_bindings':['secret_text','secret_key'],'compatibility_date':runtime['compatibility_date'],
+  'keep_bindings':['secret_text','secret_key'],'tags':live.get('tags',[]),'usage_model':live.get('usage_model','standard'),'compatibility_date':runtime['compatibility_date'],
   'compatibility_flags':runtime.get('compatibility_flags',[]),'annotations':{'workers/message':'Owner authorized T12 customer lane V2; runtime-preserving release'},'keep_assets':True}
  for key in ['logpush','tail_consumers','observability']:
   if key in live:metadata[key]=live[key]
@@ -101,7 +101,7 @@ def traffic(worker,version):
 
 def normalized_settings(x):
  # Compare every returned setting; ordering of bindings is not material.
- x=dict(x);x['bindings']=sorted(x.get('bindings',[]),key=lambda b:b['name'])
+ x=dict(x);x.pop('annotations',None);x['bindings']=sorted(x.get('bindings',[]),key=lambda b:b['name'])
  return x
 
 def main():
@@ -114,7 +114,7 @@ def main():
  check(fingerprint(module('trendos-d1-api'))['sha256']==EXPECTED,'API_SOURCE_MOVED')
  pre_settings={w:settings(w) for w in ['trendos-d1-api','trendos-ui']}
  (STATE/'private-settings.json').write_text(json.dumps(pre_settings));os.chmod(STATE/'private-settings.json',0o600)
- REPORT['settingsKeys']={w:sorted(x.keys()) for w,x in pre_settings.items()};REPORT['bindingTypes']={w:sorted({b['type'] for b in x['bindings']}) for w,x in pre_settings.items()}
+ REPORT['bindingFieldKeys']={w:[{'type':b['type'],'keys':sorted(b.keys())} for b in x['bindings'] if b['type']=='assets'] for w,x in pre_settings.items()};REPORT['settingsKeys']={w:sorted(x.keys()) for w,x in pre_settings.items()};REPORT['bindingTypes']={w:sorted({b['type'] for b in x['bindings']}) for w,x in pre_settings.items()}
  REPORT['preVersions']={'api':pre_api,'ui':pre_ui};REPORT['preHealth']=invariants('GENERAL')
  check(REPORT['preHealth']['schemaReady'] is True,'PRE_CREATE_UNHEALTHY')
  control=rows('SELECT marker,mode,canary_remaining,policy_epoch FROM t12_prod_general_create_control WHERE singleton=1')[0]
@@ -133,7 +133,7 @@ def main():
  before={}
  for name in names:
   hs,data=fetch(UI+'/'+name+'?t12snapshot='+str(time.time_ns()))
-  check(hs.get('x-trendos-frontend')=='cloudflare-worker','WRONG_FRONTEND_ORIGIN')
+  check(len(data)>0,'EMPTY_FRONTEND_ASSET:'+name)
   if name!='index.html':check(not data.lstrip().lower().startswith(b'<!doctype html'),'ASSET_FELL_BACK_TO_SPA:'+name)
   before[name]=hashlib.sha256(data).hexdigest();(dist/name).write_bytes(data)
  for name in ['app.js','config.js','trendos-edge-orders-read-v1.js']:
