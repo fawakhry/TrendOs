@@ -13,7 +13,7 @@ concurrency:
 jobs:
   execute:
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 18
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -99,9 +99,19 @@ jobs:
                  policy_epoch=policy_epoch+1,updated_at=CURRENT_TIMESTAMP
            WHERE singleton=1 AND marker='EASYSTORE_A2_WRITE_CANARY_V1';
           SQL
-            npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --file /tmp/disable.sql >/tmp/cleanup.log 2>&1 || true
+            if ! npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --file /tmp/disable.sql >/tmp/cleanup.log 2>&1; then
+              echo 'A213_EXEC_CLEANUP=FAILED_REQUIRES_READONLY_RECONCILIATION' >&2
+              return 1
+            fi
+            curl -fsS "$API_URL/v1/employee/accounting/health?a213cleanup=$GITHUB_RUN_ID" > /tmp/cleanup-health.json || return 1
+            node <<'NODE' || return 1
+          const fs=require('fs'),h=JSON.parse(fs.readFileSync('/tmp/cleanup-health.json','utf8'));
+          if(h.mode!=='READONLY'||h.authoritativeWrites!==false)throw Error('cleanup did not restore READONLY');
+          if(Number(h.writeCanaryAllowedUserCount||0)||Number(h.writeCanaryAllowedActionCount||0)||Number(h.writeCanaryMaxCommands||0)||Number(h.writeCanaryCommandsStarted||0)||Number(h.writeCanaryExpiresAtMs||0))throw Error('cleanup scope or budget remains active');
+          console.log('A213_EXEC_CLEANUP_VERIFIED=PASS');
+          NODE
           }
-          trap cleanup EXIT ERR
+          trap 'rc=$?; cleanup || rc=1; exit "$rc"' EXIT
 
           EXPIRES="$(( $(date +%s%3N) + 15*60*1000 ))"
           cat > /tmp/arm.sql <<SQL

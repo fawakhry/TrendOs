@@ -59,6 +59,7 @@ jobs:
           node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
           node tests/easystore_a2_write_canary_policy_v1.test.mjs
           node tests/easystore_a213_custody_close_canary.test.mjs
+          node tests/easystore_custody_close_behavior.test.mjs
           echo A213_DEPLOY_SOURCE_TESTS=PASS
 
       - run: npm install --no-save wrangler@${WRANGLER_VERSION}
