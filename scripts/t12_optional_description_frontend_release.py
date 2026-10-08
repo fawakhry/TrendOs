@@ -7,7 +7,8 @@ BASE='d247bf3e';names=subprocess.check_output(['git','ls-tree','--name-only','2d
 pre=None;attempted=False;completed=False
 try:
  pre=R.active('trendos-ui');api=R.active('trendos-d1-api')
- R.check(pre=='0fc0bbe2-c078-49b2-ac2e-1c23b90ff0d4' and api=='17532b03-dd10-4fe3-81ab-2ff58e101113','LIVE_VERSION_MOVED')
+ report['preVersions']={'ui':pre,'api':api}
+ api_hash=R.fingerprint(R.module('trendos-d1-api'))['sha256'];report['apiSourceSha256']=api_hash
  pre_health=R.invariants('GENERAL');R.check(pre_health['claimReady'] is True,'LANE_GUARD_NOT_READY')
  before_settings=R.settings('trendos-ui');api_settings=R.settings('trendos-d1-api')
  dist=R.STATE/'frontend-dist';dist.mkdir(exist_ok=True);before={}
@@ -41,7 +42,7 @@ try:
   if ok:break
   time.sleep(2)
  R.check(ok,'POST_ASSET_MISMATCH')
- R.check(R.active('trendos-d1-api')==api and R.invariants('GENERAL')==pre_health,'BACKEND_DRIFT')
+ R.check(R.active('trendos-d1-api')==api and R.invariants('GENERAL')==pre_health and R.fingerprint(R.module('trendos-d1-api'))['sha256']==api_hash,'BACKEND_DRIFT')
  R.check(R.normalized_settings(R.settings('trendos-ui'))==R.normalized_settings(before_settings),'UI_SETTINGS_CHANGED')
  R.check(R.normalized_settings(R.settings('trendos-d1-api'))==R.normalized_settings(api_settings),'API_SETTINGS_CHANGED')
  report.update(state='DEPLOYED_VERIFIED',preUiVersion=pre,apiVersionUnchanged=api,assetsChecked=len(names),changedAssets=patches,otherAssetsPreserved=True,rollbackUsed=False)
