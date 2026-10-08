@@ -21,6 +21,8 @@ def health(path):
 def main():
  REPORT['health']={k:health(p) for k,p in [('create','/v1/t12/orders/create/health'),('auth','/v1/employee/auth/health'),('accounting','/v1/employee/accounting/health'),('core','/v1/employee/core/health'),('content','/v1/employee/content/health'),('comms','/v1/employee/comms/health')]}
  c=REPORT['health']['create'];assert c['mode']=='GENERAL' and c['customerLaneClaimReady'] is True and 'ATOMIC_CANDIDATE_V2' in c['version']
+ # Only aggregate command state, without actors, request keys or payloads.
+ REPORT['accountingCustodyEvidence']=rows("SELECT (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,(SELECT COUNT(*) FROM employee_accounting_request_ledger_v1 WHERE operation='custody-close' AND status='PREPARED') AS preparedCustodyCloses,(SELECT COUNT(*) FROM employee_accounting_request_ledger_v1 WHERE operation='custody-close' AND status='COMMITTED') AS committedCustodyCloses,(SELECT COUNT(*) FROM employee_accounting_events_v1) AS auditEvents,(SELECT COUNT(*) FROM employee_accounting_custody_closes_v1) AS custodyCloses,(SELECT COUNT(*) FROM employee_accounting_custody_events_v1) AS custodyEvents,(SELECT COUNT(*) FROM employee_accounting_cashbox_v1) AS cashboxMovements")[0]
  # R2 read permission is probed without bucket creation or binding changes.
  try:
   bucket=cf('/r2/buckets/trendos-employee-content-files')
