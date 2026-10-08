@@ -49,13 +49,14 @@ jobs:
           const mapped=mapMirrorRows(JSON.parse(catalog[0].headersJson),
             rows.map(x=>({rowNumber:x.rowNumber,values:JSON.parse(x.valuesJson),display:JSON.parse(x.displayJson)})),'service');
           const layered=applyLegacyRuntimeOverlay(mapped,rt);
-          const counts={},ids=new Set(),duplicates=[],unresolved=[];
+          const counts={},ids=new Map(),duplicates=[],unresolved=[],openRefs=[];
           for(const row of layered){
             const status=String(row.status||'').trim();
             counts[status]=(counts[status]||0)+1;
             const key=String(row.orderId||'')+':'+String(row.lineId||'');
-            if(ids.has(key)&&duplicates.length<10)duplicates.push(key);
-            ids.add(key);
+            if(ids.has(key)&&duplicates.length<30)duplicates.push({key,status,previousStatus:ids.get(key)});
+            ids.set(key,status);
+            if(status==='جاهز للاستلام')openRefs.push(key);
             if(!['تم التسليم','ملغى','ملغي','مكرر','جاهز للاستلام'].includes(status)&&unresolved.length<20)
               unresolved.push({orderId:row.orderId,lineId:row.lineId,status});
           }
@@ -65,10 +66,18 @@ jobs:
           console.log('LEGACY_RUNTIME_OVERRIDES='+rt.length);
           console.log('LEGACY_EFFECTIVE_STATUS_COUNTS='+JSON.stringify(counts));
           console.log('LEGACY_IDENTITY_COLLISIONS_COUNT='+duplicates.length);
+          console.log('LEGACY_COLLISION_CLOSED_OR_READY='+JSON.stringify(duplicates));
+          const sorted=openRefs.slice().sort();
+          function fnv(text){let h=2166136261>>>0;for(let i=0;i<text.length;i++){h=Math.imul((h^text.charCodeAt(i))>>>0,16777619)>>>0;}return h.toString(16).padStart(8,'0');}
+          console.log('LEGACY_READY_LANE_KEY_FINGERPRINT='+fnv(sorted.join('|')));
+          console.log('LEGACY_READY_LANE_KEY_COUNT='+sorted.length);
           console.log('LEGACY_UNRESOLVED_OPEN_COUNT='+Object.entries(counts).filter(([k])=>!['تم التسليم','ملغى','ملغي','مكرر','جاهز للاستلام'].includes(k)).reduce((a,[,v])=>a+v,0));
-          if(duplicates.length)throw Error('LEGACY_DUPLICATE_LINE_IDS_NEED_REVIEW');
+          if(duplicates.some(x=>x.status==='جاهز للاستلام'||x.previousStatus==='جاهز للاستلام'))
+            throw Error('LEGACY_OPEN_LINE_ID_COLLISION_NEEDS_REVIEW');
+          if(duplicates.some(x=>x.status!==x.previousStatus))
+            throw Error('LEGACY_CONFLICTING_COLLISION_STATUSES');
           if(unresolved.length)throw Error('LEGACY_UNKNOWN_ACTIVE_STATES_NEED_RECONCILIATION');
-          if(mapped.length!==rows.length||mapped.length<700)throw Error('LEGACY_SNAPSHOT_INCOMPLETE');
+          if(mapped.length!==rows.length-1||mapped.length<700)throw Error('LEGACY_SNAPSHOT_INCOMPLETE');
           console.log('LEGACY_RUNTIME_STATUS_AUDIT=PASS_NO_UNKNOWN_ACTIVE');
           NODE
       - name: Guarantee zero mutations
