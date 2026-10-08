@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'T12_ENTRY647_AUTH_ATTENDANCE_RUNTIME_REPAIR_V1_20261007';
+  var VERSION = 'T12_ENTRY650_CORE_ORDER_PAGE_READ_V1_20261008';
   var DEFAULT_EDGE_API = 'https://trendos-d1-api.trendmall-contact.workers.dev';
   var AUTH_HEALTH_PATH = '/v1/employee/auth/health';
   var BRIDGE_HEALTH_PATH = '/v1/employee/legacy-action/health';
@@ -65,6 +65,7 @@
   // control plane and frontend mode are both explicitly promoted.
   var CORE_READ_ACTIONS = new Set([
     'getRows',
+    'getRowsPageV1931',
     'getDashboard',
     'getActivityLog',
     'getTrendMasterCenterV1931'
