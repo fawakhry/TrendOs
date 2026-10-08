@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { buildOwnerExceptionModelV1 } from '../core/owner-exception-model-v1.mjs';
+import { buildFinanceWarningProjectionV1 } from '../core/finance-warning-projection-v1.mjs';
 
 const state={
   controls:{autonomy:{mode:'SHADOW'},readiness:'SHADOW',operatorTask:'OFF'},
@@ -82,3 +83,37 @@ console.log('MANAGER_CENTER_MIGRATION_INVENTORY_V1=PASS');
 
 const blockerControlDrift=buildOwnerExceptionModelV1({controls:{autonomy:{mode:'SHADOW'},readiness:'SHADOW',operatorTask:'OFF'},employees:{blockers:{control:{mode:'OFF'},summary:{byReason:[]}}}});
 assert.ok(blockerControlDrift.exceptions.some(x=>x.id==='EMPLOYEE_BLOCKER_CONTROL_REVIEW'&&x.ownerActionRequired));
+
+
+const emptyFinance=buildFinanceWarningProjectionV1({accountingMode:'READONLY',accountingPolicyEpoch:37,sourceBusinessRows:0,canaryRowsExcluded:2});
+const incomplete=buildOwnerExceptionModelV1({...state,finance:{warnings:{success:true,summary:emptyFinance}}});
+const sourceGap=incomplete.exceptions.find(x=>x.id==='FINANCE_SOURCE_INCOMPLETE');
+assert.ok(sourceGap&&sourceGap.ownerActionRequired===false&&sourceGap.domain==='FINANCE_SIGNAL');
+assert.ok(sourceGap.reasonAr.includes('صفر المديونية'));
+assert.ok(!incomplete.exceptions.some(x=>x.id==='FINANCE_CUSTOMER_DEBT_OBSERVED'||x.id==='FINANCE_DAY_CLOSE_BLOCKERS_OBSERVED'));
+assert.equal(emptyFinance.dayClose.ready,false);
+assert.equal(emptyFinance.dayClose.state,'UNKNOWN_SOURCE_COMPLETENESS');
+assert.equal(incomplete.authorityBoundaries.accountingWrite,false);
+const positiveFinance=buildFinanceWarningProjectionV1({
+  accountingMode:'READONLY',accountingPolicyEpoch:45,sourceBusinessRows:8,
+  customerDebtParties:2,customerDebtAmount:250,supplierPayableParties:1,supplierPayableAmount:100,
+  pendingPurchases:2,openDeptLines:1
+});
+const observedFinance=buildOwnerExceptionModelV1({...state,finance:{warnings:{success:true,summary:positiveFinance}}});
+for(const id of ['FINANCE_SOURCE_INCOMPLETE','FINANCE_CUSTOMER_DEBT_OBSERVED','FINANCE_SUPPLIER_PAYABLE_OBSERVED','FINANCE_DAY_CLOSE_BLOCKERS_OBSERVED']){
+  const item=observedFinance.exceptions.find(x=>x.id===id);
+  assert.ok(item,id);
+  assert.equal(item.ownerActionRequired,false,id);
+  assert.equal(item.aiCanResolveNow,false,id);
+}
+assert.equal(observedFinance.exceptions.find(x=>x.id==='FINANCE_DAY_CLOSE_BLOCKERS_OBSERVED').count,3);
+assert.equal(positiveFinance.dayClose.ready,false);
+const unsafeFinance=buildFinanceWarningProjectionV1({accountingMode:'GENERAL',sourceBusinessRows:9,customerDebtParties:5,customerDebtAmount:300});
+const unsafeOwner=buildOwnerExceptionModelV1({...state,finance:{warnings:{success:true,summary:unsafeFinance}}});
+assert.ok(unsafeOwner.exceptions.some(x=>x.id==='FINANCE_SOURCE_INCOMPLETE'));
+assert.ok(!unsafeOwner.exceptions.some(x=>x.id==='FINANCE_CUSTOMER_DEBT_OBSERVED'));
+const missingOwner=buildOwnerExceptionModelV1(state);
+assert.ok(missingOwner.exceptions.some(x=>x.id==='FINANCE_SOURCE_INCOMPLETE'));
+assert.equal(JSON.stringify(observedFinance).includes('CUSTOMER_SECRET'),false);
+console.log('FINANCE_OWNER_EXCEPTIONS_READ_ONLY=PASS');
+console.log('FINANCE_SOURCE_INCOMPLETE_FAIL_CLOSED=PASS');

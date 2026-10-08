@@ -2,7 +2,7 @@ import { qualifyOperatorTaskCanaryV1 } from '../core/operator-task-canary-qualif
 import { buildOwnerExceptionModelV1, OWNER_EXCEPTION_MODEL_VERSION } from '../core/owner-exception-model-v1.mjs';
 const SHADOW_URL='https://autonomous-printshop-shadow.trendmall-contact.workers.dev';
 const READINESS_COLLECTOR_URL='https://autonomous-printshop-readiness-collector.trendmall-contact.workers.dev';
-const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_4_20261007';
+const DASHBOARD_VERSION='AUTONOMOUS_PRINTSHOP_OWNER_EXCEPTION_CONSOLE_V1_5_20261008';
 
 function json(body,status=200){
   return new Response(JSON.stringify(body),{
@@ -128,6 +128,7 @@ th{color:var(--muted);font-weight:700}
   <div class="card">
     <div class="badges" id="modes"></div>
     <div id="signal"></div>
+    <div id="financeStatus"></div>
   </div>
 
   <div class="grid section" id="kpis"></div>
@@ -290,6 +291,10 @@ async function load(){
     const commsState=d.communications?.pending||{};
     const commsSummary=commsState.summary||{};
     const commsCounts=commsSummary.counts||{};
+    const financeSummary=d.finance?.warnings?.summary||{};
+    const financeSource=financeSummary.source||{};
+    const financeControl=financeSummary.control||{};
+    const financeDayClose=financeSummary.dayClose||{};
 
     q('#modes').innerHTML=[
       badge('Autonomy',controls.autonomy?.mode||'—',controls.autonomy?.mode==='SHADOW'?'warn':'off'),
@@ -297,6 +302,7 @@ async function load(){
       badge('Operator Task',controls.operatorTask||'—',controls.operatorTask==='OFF'?'off':'ok'),
       badge('Andon',blockerState.control?.mode||'—',blockerState.control?.mode==='SHADOW'?'warn':'off'),
       badge('Comms',commsSummary.control?.mode||'—',commsSummary.control?.mode==='READONLY'?'off':'warn'),
+      badge('Finance',financeControl.mode||'غير مؤهل',financeControl.readModeSafe===true?'off':'warn'),
       badge('المواعيد',String(schedule.scheduleRows||0)+'/'+String(schedule.nativeOrders||0),schedule.missingSchedule===0?'ok':'warn')
     ].join('');
 
@@ -326,6 +332,10 @@ async function load(){
       if(cls==='ok') cls='warn';
     }
     q('#signal').innerHTML='<div class="signal '+cls+'">'+esc(message)+'</div>';
+    const financeComplete=financeSource.absenceQualified===true&&financeControl.readModeSafe===true;
+    q('#financeStatus').innerHTML=financeComplete
+      ? '<div class="signal ok">حالة مصدر Finance مؤهلة للقراءة؛ التنفيذ المالي يظل في Accounting فقط.</div>'
+      : '<div class="signal warn"><div class="exception-title">تحذير الحسابات: SOURCE INCOMPLETE</div>بيانات الحسابات السحابية غير مكتملة أو غير مؤهلة. صفر المديونيات أو صفر الموانع لا يعني سلامة الحسابات، وإقفال اليوم غير مؤهل. الحالة: '+esc(financeDayClose.state||'UNKNOWN_SOURCE_COMPLETENESS')+' • Accounting: '+esc(financeControl.mode||'UNKNOWN')+'. لا توجد أي صلاحية تعديل مالية هنا.</div>';
 
     q('#kpis').innerHTML=[
       kpi('منتظر تنفيذ',n(ops.ordinary),'الترتيب الأساسي قبل بوابة الجاهزية'),

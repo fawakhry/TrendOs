@@ -1,4 +1,4 @@
-export const OWNER_EXCEPTION_MODEL_VERSION='OWNER_EXCEPTION_MODEL_V1_20261007';
+export const OWNER_EXCEPTION_MODEL_VERSION='OWNER_EXCEPTION_MODEL_V1_1_20261008';
 
 function n(v){ const x=Number(v||0); return Number.isFinite(x)?x:0; }
 function text(v){ return String(v==null?'':v).trim(); }
@@ -229,6 +229,63 @@ export function buildOwnerExceptionModelV1(state={}){
     nextActionAr:'راجع سبب التصعيد من مصدر المحادثة؛ لا يصدر Owner Console ردًا أو قرارًا ماليًا تلقائيًا.'
   }));
 
+
+  // Finance warnings are observed signals, never Accounting authority.
+  // No finance snapshot, unsafe read mode or incomplete history must never
+  // become an implicit "no debt" / "ready for day close" assertion.
+  const financeEnvelope=state.finance&&state.finance.warnings;
+  const finance=financeEnvelope&&financeEnvelope.summary||{};
+  const financeSource=finance.source||{};
+  const financeControl=finance.control||{};
+  const financeDebts=finance.debt||{};
+  const financeDayClose=finance.dayClose||{};
+  const financeWarnings=finance.warnings||{};
+  const financeReadSafe=financeEnvelope&&financeEnvelope.success===true
+    && finance.mode==='READ_ONLY_AGGREGATE'
+    && financeControl.readModeSafe===true
+    && (upper(financeControl.mode)==='READONLY'||upper(financeControl.mode)==='CANARY');
+  const financePositiveQualified=financeReadSafe
+    && financeSource.positiveSignalsQualified===true
+    && financeSource.sourceDataPresent===true;
+  const financeSourceIncomplete=!financeReadSafe||financeSource.absenceQualified!==true;
+  if(financeSourceIncomplete) push(exception({
+    id:'FINANCE_SOURCE_INCOMPLETE',domain:'FINANCE_SIGNAL',severity:'HIGH',
+    titleAr:'مصدر الحسابات السحابية غير مكتمل',
+    reasonAr:'لا يمكن اعتبار صفر المديونية أو صفر موانع إقفال اليوم دليلًا على السلامة المالية؛ اكتمال بيانات الحسابات غير مؤهل'
+      +(financeSource.reason?(' ('+text(financeSource.reason)+')'):'')+'.',
+    responsibleActor:'ACCOUNTING_SOURCE',responsibleActorAr:'مصدر Accounting / مسؤول الحسابات',
+    aiState:AI_STATES.WAITING_EXTERNAL_EVIDENCE,aiCanResolveNow:false,
+    ownerActionRequired:false,protectedDecision:false,signalCode:'FINANCE_SOURCE_INCOMPLETE',
+    nextActionAr:'تحقق من اكتمال وترحيل بيانات الحسابات في مصدرها المخوّل؛ لا تعدّل مديونية أو تنفّذ إقفال يوم من هذا المركز.'
+  }));
+  if(financePositiveQualified && financeWarnings.customerDebtObserved===true && n(financeDebts.customerParties)>0) push(exception({
+    id:'FINANCE_CUSTOMER_DEBT_OBSERVED',domain:'FINANCE_SIGNAL',severity:'HIGH',
+    titleAr:'مديونيات عملاء موجبة مرصودة',
+    reasonAr:'رُصدت مديونيات موجبة تخص '+n(financeDebts.customerParties)+' طرف، بإجمالي '+n(financeDebts.customerAmount)+'؛ هذه إشارة قراءة فقط ولا تثبت اكتمال كشف المديونية.',
+    responsibleActor:'ACCOUNTING_SOURCE',responsibleActorAr:'مسؤول الحسابات',
+    aiState:AI_STATES.PREPARE_HUMAN_REVIEW,aiCanResolveNow:false,ownerActionRequired:false,protectedDecision:false,
+    count:n(financeDebts.customerParties),signalCode:'FINANCE_CUSTOMER_DEBT_OBSERVED',
+    nextActionAr:'راجع المديونية من Accounting المصدر؛ لا تغيّر قيود التسليم أو المدفوعات من Owner Console.'
+  }));
+  if(financePositiveQualified && financeWarnings.supplierPayableObserved===true && n(financeDebts.supplierParties)>0) push(exception({
+    id:'FINANCE_SUPPLIER_PAYABLE_OBSERVED',domain:'FINANCE_SIGNAL',severity:'HIGH',
+    titleAr:'مستحقات موردين موجبة مرصودة',
+    reasonAr:'رُصدت مستحقات موجبة تخص '+n(financeDebts.supplierParties)+' مورد، بإجمالي '+n(financeDebts.supplierAmount)+'؛ لا يُستنتج من القراءة اكتمال جميع المستحقات.',
+    responsibleActor:'ACCOUNTING_SOURCE',responsibleActorAr:'مسؤول الحسابات',
+    aiState:AI_STATES.PREPARE_HUMAN_REVIEW,aiCanResolveNow:false,ownerActionRequired:false,protectedDecision:false,
+    count:n(financeDebts.supplierParties),signalCode:'FINANCE_SUPPLIER_PAYABLE_OBSERVED',
+    nextActionAr:'راجع المصدر المالي المخوّل؛ لا تنشئ صرفًا أو تعديل مديونية من Owner Console.'
+  }));
+  if(financePositiveQualified && financeWarnings.dayCloseBlocked===true && n(financeDayClose.blockers)>0) push(exception({
+    id:'FINANCE_DAY_CLOSE_BLOCKERS_OBSERVED',domain:'FINANCE_SIGNAL',severity:'HIGH',
+    titleAr:'موانع إقفال يوم مرصودة',
+    reasonAr:'رُصد '+n(financeDayClose.blockers)+' مانع لإقفال اليوم في المصدر المالي؛ هذا ملخص قراءة فقط وليس تصريحًا بإقفال اليوم.',
+    responsibleActor:'ACCOUNTING_SOURCE',responsibleActorAr:'مسؤول الحسابات',
+    aiState:AI_STATES.PREPARE_HUMAN_REVIEW,aiCanResolveNow:false,ownerActionRequired:false,protectedDecision:false,
+    count:n(financeDayClose.blockers),signalCode:'FINANCE_DAY_CLOSE_BLOCKERS_OBSERVED',
+    nextActionAr:'راجع تفاصيل الموانع داخل Accounting فقط؛ صلاحية تنفيذ إقفال اليوم غير متاحة في Autonomous Printshop.'
+  }));
+
   const review=n(signals.employeeReviewRequired);
   if(review>0) push(exception({
     id:'EMPLOYEE_REVIEW_REQUIRED',domain:'EMPLOYEE',severity:'HIGH',titleAr:'حالة موظف تحتاج مراجعة تشغيلية',
@@ -285,7 +342,7 @@ export function buildOwnerExceptionModelV1(state={}){
   return {
     version:OWNER_EXCEPTION_MODEL_VERSION,
     mode:'READ_ONLY_EXCEPTION_PROJECTION',
-    generatedFrom:'CONTROL_TOWER+EMPLOYEE_BLOCKERS+COMMS_PENDING+READINESS_EVIDENCE+CANARY_GATE',
+    generatedFrom:'CONTROL_TOWER+EMPLOYEE_BLOCKERS+COMMS_PENDING+FINANCE_WARNINGS+READINESS_EVIDENCE+CANARY_GATE',
     exceptions,
     summary:{
       total:exceptions.length,
