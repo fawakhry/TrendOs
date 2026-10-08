@@ -28,6 +28,10 @@ Before integration or activation:
 2. Create one dedicated namespace, bind it only to the read-only Dashboard and
    preserve its existing service bindings/settings under fresh source leases.
 3. Qualify storage permissions and a two-isolate, non-destructive staging test.
+   Populate the single record only from a trusted scheduled event, at most once
+   per minute (maximum 1,440 attempted refreshes/day). Public Dashboard GETs
+   read the record and must never call the storage observer. No new public
+   write route is permitted; the scheduler is default OFF until qualification.
 4. Integrate behind an explicit default-OFF flag. Verify upstream recovery clears
    stale UI and stale Finance/protected state never enters the cache.
 5. Publish only after source CI, runtime parity and settings qualification pass.
