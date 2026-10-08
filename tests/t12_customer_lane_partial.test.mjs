@@ -79,7 +79,7 @@ const create=(db,id,department,fields={})=>createT12GeneralOrder(db,make(id,depa
  assert.equal(db.n('t12_prod_outbox'),2);assert.equal(db.n('t12_prod_events'),2);
  db.raw.prepare("INSERT INTO t12_prod_line_runtime (line_id,order_id,status,updated_by) VALUES (?,?,?,?)")
    .run(print.lineId,print.orderId,'تم التسليم','employee-print');
- const replay=await create(db,11,'متعدد الأقسام');
+ const replay=await create(db,11,'متعدد الأقسام',{heatPress:'نعم'});
  assert.equal(replay.success,true,JSON.stringify(replay));
  assert.equal(replay.idempotent,true);assert.deepEqual(replay.lineIds,['4324-01']);
  assert.equal(db.n('t12_prod_orders'),2);
