@@ -11,6 +11,7 @@ on:
       - 'app.js'
       - 'tests/t12_general_create.test.mjs'
       - 'tests/frontend_t12_duplicate_order_guard_entry590.test.mjs'
+      - 'tests/t12_create_key_durability.test.mjs'
       - '.github/workflows/trendos-duplicate-order-guard-isolated-ci.yml'
   workflow_dispatch:
 
@@ -42,6 +43,7 @@ jobs:
           node --check cloudflare-d1/src/t12-order-create-input-guard.mjs
           node --check tests/t12_general_create.test.mjs
           node --check tests/frontend_t12_duplicate_order_guard_entry590.test.mjs
+          node --check tests/t12_create_key_durability.test.mjs
           grep -Fq "duplicateConfirmationOrderId" app.js
           grep -Fq "recentOpenDuplicateGuard" cloudflare-d1/src/t12-general-create.mjs
           grep -Fq "T12_DURABLE_CREATE_STORAGE_KEY" trendos-edge-orders-read-v1.js
@@ -55,6 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           node tests/frontend_t12_duplicate_order_guard_entry590.test.mjs
+          node tests/t12_create_key_durability.test.mjs
           echo DUPLICATE_ORDER_FRONTEND_CONTRACT=PASS
       - name: Deployment and data safety
         run: |
