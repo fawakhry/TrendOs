@@ -19,11 +19,11 @@ assert.match(edge,/T12_PENDING_CREATE_STORAGE_KEY/);
 assert.match(edge,/rememberPendingCreate\(fingerprint, cloudKey\)/);
 assert.match(edge,/clearPendingCreate\(fingerprint\)/);
 
-// New fixed-key safety and deliberate-repeat contract.
+// New fixed-key safety and occupied-department refusal contract.
 assert.match(edge,/createStorageKey\(fingerprint\)/);
 assert.match(edge,/localStorage\.setItem\(createStorageKey\(fingerprint\),value\)/);
 assert.match(edge,/crypto\.subtle\.digest\('SHA-256'/);
-assert.match(edge,/duplicateConfirmationOrderId/);
-assert.match(edge,/reason === 'duplicate-order-active-existing'/);
+assert.doesNotMatch(edge,/duplicateConfirmationOrderId/);
+assert.match(edge,/reason === 'customer-department-open-order-exists'/);
 assert.doesNotMatch(edge,/20 \* 60 \* 1000/);
 console.log('T12 duplicate-order frontend guard messaging + durable pending key PASS');
