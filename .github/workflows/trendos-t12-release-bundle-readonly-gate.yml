@@ -30,7 +30,7 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/t12-bundles
           git worktree add --detach /tmp/t12-base "$BASE_SHA" >/dev/null
-          npx --yes esbuild@0.25.10 /tmp/t12-base/cloudflare-d1/production-shadow/index.js --bundle --format=esm --platform=browser --target=es2022 --outfile=/tmp/t12-bundles/base.js >/dev/null
+          ( cd /tmp/t12-base && npx --yes esbuild@0.25.10 cloudflare-d1/production-shadow/index.js --bundle --format=esm --platform=browser --target=es2022 --outfile=/tmp/t12-bundles/base.js >/dev/null )
           npx --yes esbuild@0.25.10 cloudflare-d1/production-shadow/index.js --bundle --format=esm --platform=browser --target=es2022 --outfile=/tmp/t12-bundles/target.js >/dev/null
           node --check /tmp/t12-bundles/target.js
           echo SOURCE_BUNDLE_CHECK=PASS
