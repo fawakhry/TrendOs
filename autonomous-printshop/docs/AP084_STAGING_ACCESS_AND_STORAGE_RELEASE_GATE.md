@@ -13,7 +13,7 @@ This checkpoint adds source hardening and tests to AP-083. It does not promote A
 
 ## 2. Owner console access is a mandatory gate
 
-The current Dashboard Worker source has GET `/state` and `/api/state` routes that return owner exception details without an in-Worker identity check. Its `wrangler.toml` includes `workers_dev = true`. The current Production deploy workflow also issues unauthenticated `curl` to `/state`. **This is a material exposure risk; actual perimeter policy/exposure has not been verified.**
+The current Dashboard Worker source has GET `/state` and `/api/state` routes that return owner exception details without an in-Worker identity check. Its `wrangler.toml` includes `workers_dev = true`. The current Production deploy workflow also issues unauthenticated `curl` to `/state`. **Confirmed exposure:** an external unauthenticated GET on 2026-10-08 returned successful Owner Dashboard V1.7 health JSON and a successful live `CONTROL_TOWER_SHADOW` `/state` JSON payload from the default Worker origin. The Cloudflare Access configuration itself remains unreadable, but the effective default-host access gate has **FAILED**. No private business values are copied into this book.
 
 Before enabling any new Staging Dashboard route or merging a security-sensitive runtime change:
 
@@ -23,7 +23,9 @@ Before enabling any new Staging Dashboard route or merging a security-sensitive 
 4. Run the opt-in, **GET-only** `node autonomous-printshop/tests/staging_owner_console_access_smoke_v1.mjs` with `AUTONOMOUS_PRINTSHOP_STAGING_URL=https://<dedicated-staging-origin>/`. The script refuses the known Production host and requests an explicit staging/preview hostname. No endpoints are inferred by default.
 5. If Cloudflare policy cannot be inspected or the unauthenticated test fails, record `ACCESS_GATE=BLOCKED`. Do not deploy a new publicly reachable Staging console.
 
-This checkpoint cannot establish Cloudflare Access policy from GitHub source alone. Fixing the perimeter is a separate authorized Cloudflare configuration change; never publish an unprotected Staging console first and promise to add Access later.
+**IMMEDIATE PRODUCTION OWNER ACTION REQUIRED:** prevent anonymous access on the Worker origin itself, not only on an alternative custom domain. Set an Access policy or disable the raw public Worker route after providing a verified, Access-protected replacement. Verify authorization for all JSON/HTML routes from a logged-out client and ensure the dashboard continues working for the approved owner. This remediation is **not performed here** because this GitHub-only review has no authorized Cloudflare Access configuration channel. Do not publish unprotected Staging.
+
+The external read proved access to current read-only operational aggregates; it does not prove unauthorized business mutation or access to personal records.
 
 ## 3. Fail-closed aggregate patch
 
@@ -43,6 +45,7 @@ The GitHub Actions printshop policy CI now triggers for any `autonomous-printsho
 
 ## 5. Current explicit decisions
 
+- `PRODUCTION_ANONYMOUS_OWNER_STATE_ACCESS=CONFIRMED`; `ACCESS_GATE=FAILED` and requires immediate authorized Cloudflare remediation.
 - `STAGING_DEPLOYED=NO`; `STAGING_CLOUD_TEST=NOT_RUN`; `NEW_CLOUDFLARE_RESOURCE=NO`.
 - `STORAGE_BACKEND_DECISION=DEFERRED_PENDING_LOCAL_DO_SOURCE`.
 - `PRODUCTION_MUTATED=NO`; `OPERATOR_TASK=OFF`; `FINANCE_AUTHORITY=UNCHANGED`.
