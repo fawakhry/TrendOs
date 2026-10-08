@@ -5872,10 +5872,6 @@ Trend Mall`;
       setMsg("addOrderStatus", external ? "رقم/علامة العميل والقسم مطلوبين." : "اسم الشات والقسم مطلوبين.", true);
       return;
     }
-    if (!params.itemName) {
-      setMsg("addOrderStatus", "اكتب وصف الشغل الحقيقي قبل إضافة الأوردر؛ الوصف الافتراضي لا يحدد المطلوب.", true);
-      return;
-    }
 
     if (createOrder._busy) {
       setMsg("addOrderStatus", "جاري تسجيل أوردر بالفعل. انتظر رد السيرفر حتى لا يتكرر الأوردر.", true);

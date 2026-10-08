@@ -217,9 +217,10 @@ def main():
      if active('trendos-d1-api')==target_version:traffic('trendos-d1-api',pre_api);REPORT['apiRollback']='PASS';REPORT['rollbackUsed']=True
     except Exception:REPORT['apiRollback']='FAILED_REQUIRES_OPERATOR'
 
-try:main()
-except Exception as e:
- REPORT['error']=str(e);REPORT.setdefault('state','BLOCKED_SAFE');raise
-finally:
- (STATE/'sanitized-result.json').write_text(json.dumps(REPORT,indent=2))
- print('::notice title=T12_CONTROLLED_RELEASE_RESULT::'+json.dumps(REPORT,separators=(',',':')))
+if __name__ == "__main__":
+ try:main()
+ except Exception as e:
+  REPORT['error']=str(e);REPORT.setdefault('state','BLOCKED_SAFE');raise
+ finally:
+  (STATE/'sanitized-result.json').write_text(json.dumps(REPORT,indent=2))
+  print('::notice title=T12_CONTROLLED_RELEASE_RESULT::'+json.dumps(REPORT,separators=(',',':')))
