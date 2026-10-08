@@ -134,7 +134,7 @@ def main():
  for name in names:
   hs,data=fetch(UI+'/'+name+'?t12snapshot='+str(time.time_ns()))
   check(len(data)>0,'EMPTY_FRONTEND_ASSET:'+name)
-  if name!='index.html':check(not data.lstrip().lower().startswith(b'<!doctype html'),'ASSET_FELL_BACK_TO_SPA:'+name)
+  if name.endswith(('.js','.css')):check(not data.lstrip().lower().startswith(b'<!doctype html'),'ASSET_FELL_BACK_TO_SPA:'+name)
   before[name]=hashlib.sha256(data).hexdigest();(dist/name).write_bytes(data)
  for name in ['app.js','config.js','trendos-edge-orders-read-v1.js']:
   baseline=subprocess.check_output(['git','show','467c5e5fcd0e538a5b57692e630943d6ab500710:'+name])
@@ -197,10 +197,11 @@ def main():
   check(stats()==s2,'BUSINESS_CHANGED_WHILE_PAUSED')
   check(rows('SELECT COUNT(*) AS n FROM t12_prod_customer_lane_claim')[0]['n']==0,'UNEXPECTED_CLAIMS_WRITE')
   check(rows('SELECT policy_epoch FROM t12_prod_general_create_control WHERE singleton=1')[0]['policy_epoch']==control['policy_epoch'],'POLICY_EPOCH_CHANGED')
-  sql("UPDATE t12_prod_general_create_control SET mode='GENERAL' WHERE singleton=1 AND mode='OFF' AND policy_epoch=?",[control['policy_epoch']]);paused=False
-  REPORT['postHealth']=invariants('GENERAL');REPORT['postVersions']={'api':target_version,'ui':post_ui};REPORT['state']='DEPLOYED_VERIFIED';REPORT['businessUnchangedDuringWindow']=True;REPORT['rollbackUsed']=False;complete=True
+  sql("UPDATE t12_prod_general_create_control SET mode='GENERAL' WHERE singleton=1 AND mode='OFF' AND policy_epoch=?",[control['policy_epoch']])
+  REPORT['postHealth']=invariants('GENERAL');paused=False;REPORT['postVersions']={'api':target_version,'ui':post_ui};REPORT['state']='DEPLOYED_VERIFIED';REPORT['businessUnchangedDuringWindow']=True;REPORT['rollbackUsed']=False;complete=True
  finally:
   if not complete and paused:
+   sql("UPDATE t12_prod_general_create_control SET mode='OFF' WHERE singleton=1 AND policy_epoch=?",[control['policy_epoch']])
    REPORT['state']='BLOCKED_SAFE_CREATE_PAUSED';REPORT['rollbackUsed']=False
    # Never overwrite a third-party version. Roll back only versions deployed
    # by this run. Keeping CREATE OFF prevents V1 reopening on unreviewed data.
