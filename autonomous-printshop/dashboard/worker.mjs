@@ -457,7 +457,7 @@ export default {
         try{ control=JSON.parse(await controlResponse.text()); }
         catch{ return degradedControlTowerResponse(); }
         if(!controlResponse.ok||control.success!==true) return degradedControlTowerResponse();
-        // Only fresh, read-only, PII-free sources may update the local diagnostic.
+        // Only fresh, read-only, PII-free sources may refresh the local diagnostic.
         // Degraded values never flow through Owner Exception Model or Finance.
         if(lastGoodGate.observe(control).success!==true) return degradedControlTowerResponse();
 
