@@ -37,3 +37,13 @@
 - No production write / new business order / synthetic customer tests authorized. Unknown intent for 4764/4765, 4772/4773/4775 — no cancellation or status changes.
 - NEXT_ONE_SAFE_STEP: review this isolated branch and obtain owner approval of 48h matching + intentional-repeat workflow; deployment remains BLOCKED until separate authorization.
 
+
+## TASK CUSTOMER-OPEN-ORDER-GUARD / STEP PREPARE — 2026-10-08 Cairo
+- Owner explicit requirement: **رفض إنشاء أي أوردر جديد للعميل طالما لديه أي أوردر مفتوح، بغض النظر عن تطابق البنود والقسم والوقت**. No employee override/confirmation.
+- Branch starts at `531ad18376d6b421a24d2798c8249810ab0b9e19`; source candidate HEAD remains `cb94646b05e94d68ce408a26dffa8b6132452c96` at read-only check.
+- Read sources before write: `t12-general-create.mjs`, `t12-read-overlay.mjs`, `t12-legacy-line-runtime.mjs`, `edge-orders-read-v1.mjs`, 0005/0006/0010/0011 migrations, browser `app.js`, tests.
+- Interpretation: treat status `تم التسليم`, `ملغى/ملغي`, `مكرر` as closed; `جاهز للاستلام` and `في قسم التسليمات` are **open** until actual delivery. Multi-line order is open if **any** line remains open. Match registered customer by normalized phone, else unambiguous normalized name when a phone is missing; transient customer by external ID / full phone, never mix with registered.
+- Check Cloud-native lines with current `t12_prod_line_runtime` overlay AND historical `sheet_rows` lines with `t12_legacy_line_runtime` overlay. Missing/unavailable state fails closed. Same request-key confirmed replay returns existing order without making a new one.
+- Scope: isolated repo source, D1 in-memory SQLite tests, CI and book/handoff only; **NO Production deployment, NO D1 write, NO existing order mutation, NO business CREATE**.
+- Expected: early 409 with existing order ID, no override, no new business number, all status/identity/multi-section/legacy/race regressions; record CI and QA before calling PASS.
+- PREPARE outcome: COMMITTED TO JOURNAL only; implementation PENDING.
