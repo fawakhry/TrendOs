@@ -1,0 +1,120 @@
+name: EasyStore Agent Native Login Readonly
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: easystore-agent-native-login-readonly
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: One native sign-in, read-only qualification, and session revocation
+        shell: bash
+        env:
+          EMPLOYEE_USERNAME: ${{ secrets.TRENDOS_PROD_QUALIFY_USERNAME }}
+          EMPLOYEE_PASSWORD: ${{ secrets.TRENDOS_PROD_QUALIFY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const base = 'https://trendos-d1-api.trendmall-contact.workers.dev';
+          const username = String(process.env.EMPLOYEE_USERNAME || '').trim();
+          const password = String(process.env.EMPLOYEE_PASSWORD || '');
+          if (username !== 'ضياء' || !password) {
+            console.error('AGENT_CREDENTIAL_BINDING=ABSENT_OR_ACTOR_MISMATCH');
+            process.exit(1);
+          }
+          async function request(path, body, bearer) {
+            const headers = { accept: 'application/json', 'content-type': 'application/json' };
+            if (bearer) headers.authorization = 'Bearer ' + bearer;
+            const response = await fetch(base + path, {
+              method: body ? 'POST' : 'GET',
+              headers,
+              redirect: 'error',
+              signal: AbortSignal.timeout(20000),
+              ...(body ? { body: JSON.stringify(body) } : {})
+            });
+            const data = await response.json().catch(() => ({}));
+            return { status: response.status, data };
+          }
+          function assertClosed(h) {
+            if (h.success !== true || h.mode !== 'READONLY' ||
+                h.authoritativeWrites !== false ||
+                Number(h.writeCanaryAllowedUserCount || 0) !== 0 ||
+                Number(h.writeCanaryAllowedActionCount || 0) !== 0 ||
+                Number(h.writeCanaryMaxCommands || 0) !== 0 ||
+                Number(h.writeCanaryCommandsStarted || 0) !== 0 ||
+                Number(h.writeCanaryExpiresAtMs || 0) !== 0) {
+              throw Error('ACCOUNTING_NOT_READONLY');
+            }
+          }
+          (async () => {
+            let token = '';
+            let policyEpoch = null;
+            let passed = false;
+            try {
+              const pre = await request('/v1/employee/accounting/health');
+              assertClosed(pre.data);
+              policyEpoch = pre.data.policyEpoch;
+              const login = await request('/v1/employee/auth/login', { username, password });
+              if (login.status !== 200 || login.data.success !== true ||
+                  login.data.authSource !== 'd1-native-employee-v1' ||
+                  String(login.data.user?.username || login.data.user?.name || '').trim() !== username ||
+                  !login.data.user?.token) {
+                throw Error('NATIVE_LOGIN_NOT_QUALIFIED_HTTP_' + login.status);
+              }
+              token = login.data.user.token;
+              const verify = await request('/v1/employee/auth/session', { username, token });
+              if (verify.status !== 200 || verify.data.success !== true ||
+                  verify.data.authSource !== 'd1-native-employee-v1') {
+                throw Error('NATIVE_SESSION_NOT_QUALIFIED_HTTP_' + verify.status);
+              }
+              const accounting = await request('/v1/employee/accounting',
+                { action: 'easyStoreSystemHealth', username }, token);
+              if (accounting.status !== 200 || accounting.data.success !== true ||
+                  accounting.data.authSource !== 'd1-native-employee-v1' ||
+                  accounting.data.permissions?.mode !== 'full') {
+                throw Error('ACCOUNTING_READ_NOT_QUALIFIED_HTTP_' + accounting.status);
+              }
+              const post = await request('/v1/employee/accounting/health');
+              assertClosed(post.data);
+              if (post.data.policyEpoch !== policyEpoch) throw Error('ACCOUNTING_POLICY_CHANGED');
+              passed = true;
+              console.log('AGENT_NATIVE_CONNECTION=PASS');
+              console.log('AGENT_ACCOUNTING_READ=PASS');
+              console.log('AGENT_FINANCIAL_COMMANDS_SENT=0');
+              console.log('AGENT_SERVER_READONLY=PASS');
+              console.log('GENERAL_OPENED=NO');
+            } catch (err) {
+              console.error('AGENT_NATIVE_CONNECTION=FAILED_SAFE');
+              console.error('AGENT_ERROR_CODE=' + String(err.message || 'UNKNOWN').replace(/[^A-Z0-9_]/g, '').slice(0, 90));
+              process.exitCode = 1;
+            } finally {
+              if (token) {
+                try {
+                  const logout = await request('/v1/employee/auth/logout', { username, token });
+                  if (logout.status !== 200 || logout.data.success !== true) throw Error('LOGOUT_FAILED');
+                  console.log('AGENT_EPHEMERAL_SESSION_REVOKED=YES');
+                } catch (err) {
+                  console.error('AGENT_EPHEMERAL_SESSION_REVOKED=UNVERIFIED');
+                  process.exitCode = 1;
+                }
+              }
+              try {
+                const final = await request('/v1/employee/accounting/health');
+                assertClosed(final.data);
+                if (policyEpoch !== null && final.data.policyEpoch !== policyEpoch) {
+                  throw Error('FINAL_POLICY_CHANGED');
+                }
+                console.log('AGENT_FINAL_SERVER_READONLY=PASS');
+              } catch (err) {
+                console.error('AGENT_FINAL_SERVER_READONLY=UNVERIFIED');
+                process.exitCode = 1;
+              }
+              if (!passed) process.exitCode = 1;
+            }
+          })();
+          NODE
