@@ -63,7 +63,7 @@ assert.equal(calls.length,1);
 assert.equal(calls[0].url,'https://trendos-d1-api.example.test/v1/employee/core');
 assert.equal(calls[0].options.headers.authorization,'Bearer native-token');
 const sent=JSON.parse(calls[0].options.body);
-assert.equal(sent.action,'getRowsPageV1931');
+assert.equal(sent.action,'getRows');
 assert.equal(sent.screen,'print');
 assert.equal(Object.prototype.hasOwnProperty.call(sent,'token'),false);
 
