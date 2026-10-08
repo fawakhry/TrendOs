@@ -10,6 +10,7 @@ on:
       - 'autonomous-printshop/core/deadline-risk-projection-v1.mjs'
       - 'autonomous-printshop/core/comms-pending-projection-v1.mjs'
       - 'autonomous-printshop/core/finance-warning-projection-v1.mjs'
+      - 'autonomous-printshop/core/control-tower-last-good-v1.mjs'
       - 'autonomous-printshop/core/trendos-operational-reality-read-adapter-v1.mjs'
       - 'autonomous-printshop/core/operator-task-authority-v1.mjs'
       - 'autonomous-printshop/core/operator-task-canary-qualification-v1.mjs'
@@ -72,6 +73,7 @@ on:
       - 'autonomous-printshop/tests/deadline_risk_projection_v1.test.mjs'
       - 'autonomous-printshop/tests/comms_pending_projection_v1.test.mjs'
       - 'autonomous-printshop/tests/finance_warning_projection_v1.test.mjs'
+      - 'autonomous-printshop/tests/control_tower_last_good_v1.test.mjs'
       - 'autonomous-printshop/tests/trendos_operational_reality_read_adapter_v1.test.mjs'
       - 'autonomous-printshop/tests/autonomous_printshop_shadow_route_v1.test.mjs'
       - 'autonomous-printshop/tests/operator_task_authority_v1.test.mjs'
@@ -193,6 +195,8 @@ jobs:
         run: node autonomous-printshop/tests/comms_pending_projection_v1.test.mjs
       - name: Run finance warning projection contract
         run: node autonomous-printshop/tests/finance_warning_projection_v1.test.mjs
+      - name: Run Control Tower last-good fail-closed contract
+        run: node autonomous-printshop/tests/control_tower_last_good_v1.test.mjs
       - name: Run TrendOS reality read adapter contract
         run: node autonomous-printshop/tests/trendos_operational_reality_read_adapter_v1.test.mjs
       - name: Run production shadow route contract
