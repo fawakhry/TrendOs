@@ -6950,3 +6950,134 @@ Next Manager Center gaps remain:
 1. read-only debt/payment/day-close warnings without Accounting writes;
 2. Control Tower stale/last-good degraded-mode parity;
 3. protected archive-restore only after a separately qualified TrendOS backend contract.
+
+
+### AP-078 — Read-only Finance warning projection qualified in Control Tower
+
+Date: 2026-10-07; checkpoint recorded 2026-10-08.
+
+This checkpoint continues the Manager Center migration after AP-077. It moves only read-only finance/debt/day-close **signals** into the Autonomous Printshop Control Tower. It does not move Accounting authority, debt restrictions, payment mutations, or day-close execution.
+
+#### Gate O1 — finance warning projection
+
+Source commit:
+`63b23dae3b16313f30f46f39aee40348d097e46f`
+
+Added:
+- `autonomous-printshop/core/finance-warning-projection-v1.mjs`;
+- `autonomous-printshop/tests/finance_warning_projection_v1.test.mjs`;
+- read-only finance snapshot inside `autonomous-printshop/production-shadow/worker.mjs`;
+- Control Tower finance attention signals;
+- explicit exclusion of CANARY rows;
+- fail-closed source-completeness semantics.
+
+Qualified Accounting/D1 sources include:
+- `employee_accounting_control_v1`;
+- `employee_accounting_party_balances_v1`;
+- `employee_accounting_final_invoices_v1`;
+- `employee_accounting_dept_lines_v1`;
+- `employee_accounting_purchase_invoices_v1`;
+- `employee_accounting_daily_purchases_v1`;
+- `employee_accounting_custody_events_v1`;
+- `employee_accounting_custody_closes_v1`;
+- `employee_accounting_day_closes_v1`.
+
+Safety semantics:
+- `READONLY` or bounded `CANARY` may be observed read-only;
+- `GENERAL` is not accepted as a safe read-source state for this projection;
+- CANARY rows are excluded from business finance counts;
+- positive observed finance warnings may be surfaced;
+- absence is never treated as proof unless source completeness is separately qualified;
+- when source completeness is unknown, day-close state is `UNKNOWN_SOURCE_COMPLETENESS` and `ready=false`.
+
+Initial deployment attempt:
+```ini
+RUN=37657868326
+RESULT=FAIL_POSTDEPLOY_VERIFICATION
+CAUSE=CONTROL_TOWER_PROPAGATION_TIMING
+BUSINESS_WRITE=NO
+ACCOUNTING_WRITE=NO
+ROLLBACK_REQUIRED=NO
+```
+
+First retry-workflow patch:
+`8053d317e7b588ad67b6196a7a773a90f3376a6e`
+
+That patch introduced invalid workflow YAML before jobs could run. It was corrected immediately by:
+`22dd436aae46dab776b5253933501f0a56dc8686`
+
+Final qualified Production Shadow run:
+```ini
+RUN=37658280607
+RESULT=SUCCESS
+PRODUCTION_SHADOW_VERSION=238f4a10-aba2-4657-a044-427f4fffea1e
+FINANCE_PROPAGATION_ATTEMPT=1
+CONTROL_TOWER_FINANCE_WARNINGS=PASS
+MAIN_TRENDOS_POSTDEPLOY=PASS
+```
+
+Runtime finance truth at qualification:
+```ini
+ACCOUNTING_MODE=READONLY
+ACCOUNTING_POLICY_EPOCH=37
+FINANCE_SOURCE_DATA_PRESENT=false
+FINANCE_SOURCE_REASON=ACCOUNTING_FINANCE_DATA_NOT_POPULATED
+FINANCE_SOURCE_BUSINESS_ROWS=0
+FINANCE_CANARY_ROWS_EXCLUDED=2
+
+CUSTOMER_DEBT_PARTIES=0
+CUSTOMER_DEBT_AMOUNT=0
+SUPPLIER_PAYABLE_PARTIES=0
+SUPPLIER_PAYABLE_AMOUNT=0
+
+DAY_CLOSE_PENDING_PURCHASES=0
+DAY_CLOSE_OPEN_DEPT_LINES=0
+DAY_CLOSE_UNCLASSIFIED_PURCHASES=0
+DAY_CLOSE_UNCLASSIFIED_FINAL_INVOICES=0
+DAY_CLOSE_CUSTODY_SETTLEMENT_REQUIRED=0
+DAY_CLOSE_INTEGRITY_FAILURES=0
+DAY_CLOSE_BLOCKERS=0
+DAY_CLOSE_STATE=UNKNOWN_SOURCE_COMPLETENESS
+DAY_CLOSE_READY=false
+```
+
+Important interpretation:
+- the zero finance counts above are **not** proof that no debt or day-close blocker exists;
+- real finance business rows were not populated in the qualified source at this checkpoint;
+- therefore the only truthful owner-facing state is source-incomplete/unknown, not "finance clean".
+
+Authority/privacy postflight:
+```ini
+ACCOUNTING_WRITE=NO
+DEBT_RESTRICTION_WRITE=NO
+DAY_CLOSE_WRITE=NO
+D1_MUTATION=NO
+CUSTOMER_PII_EXPOSED=NO
+PARTY_IDENTITY_EXPOSED=NO
+RAW_ORDER_IDS_EXPOSED=NO
+RAW_INVOICE_IDS_EXPOSED=NO
+EMPLOYEE_IDENTITY_EXPOSED=NO
+```
+
+Manager Center inventory after this checkpoint:
+```ini
+MC_17_DEBT_PAYMENT_WARNING_SIGNALS=PARTIAL
+MC_17_CONTROL_TOWER=LIVE
+MC_17_OWNER_EXCEPTION_CONSOLE=PENDING
+
+MC_18_DEBT_DELIVERY_RESTRICTION=BLOCKED_PENDING_BACKEND
+MC_18_AUTONOMOUS_PRINTSHOP_MUTATION=FORBIDDEN
+
+MC_19_DAY_CLOSE_READINESS_PREVIEW=PARTIAL
+MC_19_CONTROL_TOWER=LIVE
+MC_19_OWNER_EXCEPTION_CONSOLE=PENDING
+
+MC_20_EXECUTE_DAY_CLOSE=FORBIDDEN_IN_AP
+```
+
+Result: **PASS — FAIL-CLOSED READ-ONLY FINANCE SIGNALS ARE LIVE IN THE AUTONOMOUS PRINTSHOP CONTROL TOWER, BUT OWNER CONSOLE ROUTING MUST NOT CLAIM ZERO DEBT OR READY-TO-CLOSE WHILE THE FINANCE BUSINESS SOURCE IS UNPOPULATED.**
+
+Next finance step:
+1. project only the truthful finance source-incomplete / observed-positive warning model into Owner Exception Console;
+2. keep `MC-17` and `MC-19` PARTIAL until that Owner Console projection is qualified;
+3. never implement `MC-18` or `MC-20` as Autonomous Printshop writes.

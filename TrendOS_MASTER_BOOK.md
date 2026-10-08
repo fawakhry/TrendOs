@@ -6666,3 +6666,84 @@ BUSINESS_D1_MUTATION=NO
 ROLLBACK_USED=NO
 ```
 - Operator recovery: reload the affected workstation once; a stale token is now rejected before main UI boot and the employee is sent to the login form to enter the existing current password. No password reset is required solely for this incident.
+
+
+##### Entry652 — Permanent Employee Session Lifecycle Guard
+- Date: 2026-10-08 Cairo.
+- This entry closes the class of stale employee-session failures that produced a half-open TrendOS UI such as `Employee session rejected` after a previously stored browser token became invalid.
+- Entry651 already prevented stale sessions from booting without Cloud verification. Entry652 hardens the full employee-session lifecycle after boot as well.
+
+Implemented layers:
+1. Boot verification remains mandatory before `bootMain()`.
+2. Session Epoch contract added through `MATBAGY_EMPLOYEE_AUTH_SESSION_EPOCH=1`; future major Auth migrations can invalidate stored browser sessions centrally by incrementing the epoch.
+3. Runtime 401/session-rejected guard added so employee API rejection dispatches one central `trendos:employee-session-invalid` event.
+4. The central runtime guard stops refresh/timers, clears only the rejected restored employee session, and returns the employee to the login screen instead of leaving a half-working UI.
+5. Periodic Cloud session re-verification runs every 5 minutes while active.
+6. Session re-verification is also triggered when the browser regains focus / visibility.
+7. Structured Andon and Edge order/session exchange paths participate in the same invalid-session event contract.
+8. Entry533 isolation remains preserved: the original `clearSession()` stays explicit-logout-only.
+9. No password reset, account reset, Auth-backend mutation, or business D1 mutation was required.
+
+Primary implementation commit:
+`e3a41512297c88f448bea0c773e75f3edc6c21b7`
+
+Follow-up regression-contract alignment:
+- `6ef0129bab6c914fbca53b742dab748315bccbbb`
+- `7176d6135ee36457c696a36932928472e47c02ca`
+- `e7e4213284eb49dc6da80ccaaee77ef7d85a694f`
+
+Controlled Production deploy:
+```ini
+WORKFLOW=TrendOS Entry652 Employee Session Lifecycle Guard Controlled
+RUN=37770495211
+RESULT=SUCCESS
+PRE_FRONTEND_VERSION=42872c38-c1c9-4cae-9b93-de562dc9c477
+POST_FRONTEND_VERSION=9699b0d0-8c21-4b5b-92fe-1983219110f6
+PROPAGATION_ATTEMPT=9
+UNRELATED_ASSETS_PRESERVED=PASS
+ROLLBACK_USED=NO
+```
+
+Qualification:
+```ini
+ENTRY651_SESSION_RESTORE_VERIFY_GUARD=PASS
+ENTRY652_EMPLOYEE_SESSION_LIFECYCLE_GUARD=PASS
+ENTRY652_RUNTIME_401_DISPATCH=PASS
+ENTRY533_EMPLOYEE_SESSION_ISOLATION=PASS
+A61_FRONTEND_EMPLOYEE_DISPATCHER=PASS
+ENTRY603_LOGIN_FAST_SURFACE=PASS
+ENTRY649_EMPLOYEE_ANDON_STRUCTURED_REPO=PASS
+
+BOOT_VERIFY=YES
+RUNTIME_401_FORCE_RELOGIN=YES
+SESSION_EPOCH=1
+PERIODIC_REVERIFY=5_MINUTES
+FOCUS_VISIBILITY_REVERIFY=YES
+WRONG_OLD_PASSWORD_401_INVALIDATES=NO
+NATIVE_TOKEN_TO_APPS_SCRIPT=NO
+```
+
+Auth runtime remained unchanged:
+```ini
+AUTH_MODE=NATIVE
+NATIVE_ONLY=true
+USER_COUNT=6
+NATIVE_READY=6
+MUST_CHANGE_COUNT=0
+LEGACY_BOOTSTRAP=false
+LEGACY_SESSION_ENROLL=false
+PLAINTEXT_STORED=false
+AUTH_BACKEND_CHANGED=NO
+PASSWORD_RESET=NO
+BUSINESS_D1_MUTATION=NO
+```
+
+Operational effect:
+- a stale/expired/revoked employee session can no longer keep the main UI half-open;
+- the employee is returned to login once, using the existing current password;
+- future major Auth migrations can invalidate old browser sessions centrally by incrementing the frontend Auth Session Epoch instead of manual cache/session cleanup per workstation.
+
+Current branch HEAD after regression-contract cleanup:
+`e7e4213284eb49dc6da80ccaaee77ef7d85a694f`.
+
+Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NOW GUARDED END-TO-END; STALE OR REJECTED SESSIONS FAIL CLOSED TO RELOGIN WITHOUT PASSWORD RESET OR BUSINESS-DATA MUTATION.**

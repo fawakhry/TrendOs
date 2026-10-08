@@ -165,8 +165,8 @@
       "legacy": "Trend Master debt panel",
       "classification": "MOVE_TO_OWNER_EXCEPTION_CONSOLE",
       "target": "Owner Exception Console read-only finance signals",
-      "status": "GAP",
-      "notes": "Permitted as read-only warning only; Accounting authority stays separate."
+      "status": "PARTIAL",
+      "notes": "Read-only finance warning projection is live in Autonomous Printshop Control Tower with fail-closed source-completeness semantics and CANARY-row exclusion. Current qualified runtime has no real finance business rows, so zero debt must NOT be treated as proof of no debt. Owner Exception Console routing is still pending. No Accounting/debt mutation is permitted."
     },
     {
       "id": "MC-18",
@@ -175,7 +175,7 @@
       "classification": "BLOCKED_PENDING_BACKEND",
       "target": "Protected TrendOS/Accounting-adjacent action contract",
       "status": "NOT_MIGRATED",
-      "notes": "No Autonomous Printshop finance/debt mutation."
+      "notes": "Still blocked. Autonomous Printshop has no authority to add/remove debt delivery restrictions; no debt mutation is exposed."
     },
     {
       "id": "MC-19",
@@ -183,8 +183,8 @@
       "legacy": "Trend Master day-close panel",
       "classification": "MOVE_TO_OWNER_EXCEPTION_CONSOLE",
       "target": "Read-only finance warning",
-      "status": "GAP",
-      "notes": "May be displayed as signal only; no close authority is moved."
+      "status": "PARTIAL",
+      "notes": "Read-only day-close readiness/blocker projection is live in Control Tower. When finance source completeness is unqualified, state is UNKNOWN_SOURCE_COMPLETENESS and ready=false instead of claiming a clean close. Owner Exception Console routing is still pending. No day-close authority moved."
     },
     {
       "id": "MC-20",
@@ -193,7 +193,7 @@
       "classification": "DROP_LEGACY",
       "target": "Accounting authority only",
       "status": "FORBIDDEN_IN_AP",
-      "notes": "Autonomous Printshop must never own authoritative accounting close writes."
+      "notes": "Still forbidden in Autonomous Printshop. Day close / financial close remains Accounting authority only; no authoritative accounting close writes are moved."
     },
     {
       "id": "MC-21",
