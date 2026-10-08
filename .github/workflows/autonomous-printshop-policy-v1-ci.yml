@@ -209,6 +209,8 @@ jobs:
         run: node autonomous-printshop/tests/control_tower_last_good_v1.test.mjs
       - name: Run unbound shared-cache source contract
         run: node autonomous-printshop/tests/control_tower_shared_last_good_v1.test.mjs
+      - name: Syntax-check opt-in Staging access smoke (no network)
+        run: node --check autonomous-printshop/tests/staging_owner_console_access_smoke_v1.mjs
       - name: Run per-panel freshness and partial failure UI
         run: |
           node autonomous-printshop/tests/control_tower_panel_status_v1.test.mjs
