@@ -80,6 +80,9 @@ def main():
                     # Regression: legacy-theme 1fr !important previously won the cascade.
                     columns = tools.evaluate("(e) => getComputedStyle(e).gridTemplateColumns")
                     assert len(columns.split()) == 2, (width, columns)
+                    logout_width = page.locator('#logoutBtn').evaluate('(x)=>x.getBoundingClientRect().width')
+                    normal_width = page.locator('#refreshBtn').evaluate('(x)=>x.getBoundingClientRect().width')
+                    assert logout_width >= 1.8 * normal_width, (width, logout_width, normal_width)
                     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), width
                     page.locator("#refreshBtn").click()
                     assert page.evaluate('window.calls.filter(x=>x==="refreshBtn").length') == 1
