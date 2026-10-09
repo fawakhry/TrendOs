@@ -6780,3 +6780,12 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - **موانع التشغيل:** Cloudflare Workers Builds لفروع `trendos` و`trendos-tasks-v3-t1-preview-20260914` تعرض FAILURE حتى على base commit قبل UI-001؛ لم تُسترجع build logs، فلا يُدّعى السبب. لم تحدث promote أو merge أو frontend version. يحتاج Staging live-browser role smoke وفحص نشر `trendos-ui` الصحيح.
 - **الكتاب التفصيلي:** [UI Book PR #37](https://github.com/fawakhry/TrendOs/pull/37) — `docs/interface/MASTER_BOOK.md`، إدخال `UI-001-BROWSER`.
 - **قرار التثبيت:** `SOURCE_BROWSER_CI_PASS / DEPLOY_BLOCKED / NOT_FIXED`. rollback عند الحاجة: إزالة استيرادي JS/CSS فقط من `index.html` في نفس فرع المصدر مع regression check؛ لا عمليات مالية، جلسات أو D1 migrations.
+
+### UI-001-final-browser — QA / responsive actions — 2026-10-09
+
+- تم إصلاح CSS rule conflict: ثيم `matbagy_theme_v1860.css` كان يفرض عمودًا واحدًا بـ`!important`، والآن `trendos-ui01-mobile-tools.css` يعرض عمودين على الهاتف فقط باستثناء `#logoutBtn` في صف كامل العرض.
+- `tests/trendos_ui01_mobile_tools_browser_smoke.py` يشغل Chromium فعليًا على 360/390/690/720/721/1280px؛ يفحص القائمة، عدم إظهار الأزرار المحمية CSS، عدم تجاوز العرض، استمرار click handler، Escape، Logout visual layout، desktop compatibility. اختبارات معزولة بلا APIs أو بيانات حقيقية.
+- Evidence: source commit `8b61cc45d9f6b774922b23709e16d03e60b5a486`؛ [UI-001 Node+Chromium workflow 37973776782](https://github.com/fawakhry/TrendOs/actions/runs/37973776782) **SUCCESS** و[A61 transport regression 37973776723](https://github.com/fawakhry/TrendOs/actions/runs/37973776723) **SUCCESS**.
+- بناء Cloudflare للـ`trendos` و`trendos-tasks-v3-t1-preview-20260914` لا يزال FAILURE؛ نفس النوع ظاهر على baseline قبل أول تعديل، لكن السبب التفصيلي غير معروف دون Cloudflare logs.
+- **الحالة الرسمية:** `SOURCE_BROWSER_CI_PASS / NO_STAGING / NO_PRODUCTION_DEPLOY / NOT_FIXED`؛ [PR #38](https://github.com/fawakhry/TrendOs/pull/38) Draft. لا migrations أو تغييرات data / auth / financial writes. لا ترقية للجزء إلى FIXED إلا بموافقة وبوابة نشر واختبار حقيقي.
+- [كتاب الواجهة](https://github.com/fawakhry/TrendOs/pull/37) `docs/interface/MASTER_BOOK.md` إدخال `UI-001-FINAL-CODE-REVIEW`.
