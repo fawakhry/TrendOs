@@ -6769,3 +6769,14 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - **الحالة:** `SOURCE_ONLY / CONTRACT_CI_PASS / NOT_FIXED / NOT_LIVE`. لا توجد دعوى «واجهة شغالة» قبل Cloudflare/build/mobile-role/security/postdeploy evidence.
 - **الرجوع:** عند الرفض أو الخطأ يلغى استيرادا CSS/JS في index؛ تغييرات Backend = صفر. لا دمج أو نشر دون موافقة وبوابة تحقق.
 
+
+### UI-001-CHROMIUM — responsive browser regression after theme precedence fix (2026-10-09)
+
+- **هدف المالك:** تحسين الواجهة «جزء جزء واللي يشتغل يتثبت» دون التأثير على أنظمة الأوردرات أو الحسابات.
+- **الملفات/الوظيفة/المكان:** `trendos-ui01-mobile-tools.css` يضيف `grid-template-columns:repeat(2,minmax(0,1fr))!important` عند <=720px داخل `#mainView .top-actions.tm-ui01-mobile-tools` حتى يتغلب على قاعدة Matbagy Theme القديمة ذات `grid-template-columns:1fr!important`. ملف `trendos-ui01-mobile-tools.js` يبقي كل الزرار الأصلية ومعالجاتها بلا تغيير. لا تغيير backend أو write.
+- **اختبارات مرئية معزولة:** Chromium على أحجام 360/390/690/720/721/1280 PASS، بما فيها عمودان في الموبايل وعمود القائمة الأصلية على الأجهزة الأكبر، استمرار صلاحيات CSS `.hidden`، click handler، Escape، إغلاق menu عند الخروج، overflow=0. **هذه محاكاة محلية بعناصر اصطناعية، وليست staging أو production.**
+- **اختبار تكرار آلي:** `tests/trendos_ui01_mobile_tools_browser_smoke.py` داخل `.github/workflows/trendos-ui01-mobile-tools-ci.yml`، يعيد Chromium على GitHub دون خادم API. `tests/trendos_ui01_mobile_tools.test.mjs` يثبت قيد `!important`.
+- **أدلة source:** [PR #38](https://github.com/fawakhry/TrendOs/pull/38) Draft؛ HEAD عند إجراء التأهيل `3bf3135ee131541c20b9ab311e7071bf601f8a0f`. [UI-001 Chromium+Node CI 37973360327](https://github.com/fawakhry/TrendOs/actions/runs/37973360327) **SUCCESS** و[A61 regression 37973360156](https://github.com/fawakhry/TrendOs/actions/runs/37973360156) **SUCCESS**.
+- **موانع التشغيل:** Cloudflare Workers Builds لفروع `trendos` و`trendos-tasks-v3-t1-preview-20260914` تعرض FAILURE حتى على base commit قبل UI-001؛ لم تُسترجع build logs، فلا يُدّعى السبب. لم تحدث promote أو merge أو frontend version. يحتاج Staging live-browser role smoke وفحص نشر `trendos-ui` الصحيح.
+- **الكتاب التفصيلي:** [UI Book PR #37](https://github.com/fawakhry/TrendOs/pull/37) — `docs/interface/MASTER_BOOK.md`، إدخال `UI-001-BROWSER`.
+- **قرار التثبيت:** `SOURCE_BROWSER_CI_PASS / DEPLOY_BLOCKED / NOT_FIXED`. rollback عند الحاجة: إزالة استيرادي JS/CSS فقط من `index.html` في نفس فرع المصدر مع regression check؛ لا عمليات مالية، جلسات أو D1 migrations.
