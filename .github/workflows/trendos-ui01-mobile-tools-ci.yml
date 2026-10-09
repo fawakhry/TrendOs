@@ -1,0 +1,50 @@
+name: UI-01 mobile tools contract
+
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'trendos-ui01-mobile-tools.js'
+      - 'trendos-ui01-mobile-tools.css'
+      - 'tests/trendos_ui01_mobile_tools.test.mjs'
+      - 'tests/trendos_ui01_mobile_tools_browser_smoke.py'
+      - '.github/workflows/trendos-ui01-mobile-tools-ci.yml'
+  push:
+    branches:
+      - 'review/ui01-mobile-top-actions-20261009'
+    paths:
+      - 'index.html'
+      - 'trendos-ui01-mobile-tools.js'
+      - 'trendos-ui01-mobile-tools.css'
+      - 'tests/trendos_ui01_mobile_tools.test.mjs'
+      - 'tests/trendos_ui01_mobile_tools_browser_smoke.py'
+      - '.github/workflows/trendos-ui01-mobile-tools-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  ui01-mobile-tools:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify mobile employee tools contract (no backend)
+        run: node --test tests/trendos_ui01_mobile_tools.test.mjs
+
+  ui01-responsive-chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated browser test runtime
+        run: |
+          python -m pip install playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Real Chromium mobile and desktop UI-001 regression (no app server)
+        run: python tests/trendos_ui01_mobile_tools_browser_smoke.py

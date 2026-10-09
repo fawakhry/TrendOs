@@ -6755,3 +6755,37 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - الغرض: عمليات Accounting التي تدمج هذا shared base لاحقًا تحمل حماية customer+department بدل استبدالها بمصدر V1 قديم. سياسة Accounting READONLY37 محفوظة.
 - الحزمة الحية Accounting072bffff أعيد بناؤها byte-for-byte من merge-tree1e349332+0e3d35f0؛ overlay T12 وحده يعطي1d8fb904d48f2d48f2cfcc5b026dba94edddd094344a78af95e94f099d1ea52a ويحفظ Accounting/Core/Comms/Foundation.
 - سجل النشر والفحص الأخير يُحفظ على audit/t12-customer-lane-runtime-20261008؛ هذا commit هو حماية مصدر من reversion، وليس تنفيذ migration جديدة أو تغيير frontend تلقائيًا.
+
+
+### UI-001 — mobile topbar action organization (SOURCE_ONLY, 2026-10-09)
+
+- **بحث عربي:** تنظيم أزرار الموظف / قائمة الأدوات / واجهة الموبايل / واجهة ترند مول / UI-01 / top-actions.
+- **قرار المالك:** تنفيذ واجهة TrendOS جزءًا جزءًا، واختبار كل جزء وتثبيته فقط بعد إثبات النجاح. واجهة المالك محمية وتخضع لـAutonomous Printshop access gate مستقل.
+- **الكتاب الخاص:** [`docs/interface/MASTER_BOOK.md` — فرع التوثيق + PR #37](https://github.com/fawakhry/TrendOs/pull/37)، قسم UI-001. لا يُنسخ كتاب Autonomous Printshop إلى هذا الكتاب.
+- **PR الكود:** [#38](https://github.com/fawakhry/TrendOs/pull/38) Draft؛ الفرع `review/ui01-mobile-top-actions-20261009` من `candidate/t12-full-cloud-cutover-a56-20260929` commit `7d20cfc463ce084ceaba8ac440dffa53512fe662`. هذا الـEntry موجود فقط في PR الكود ولم يُنشر.
+- **الدخول ومكان الظهور:** `index.html` يستورد `trendos-ui01-mobile-tools.css` بعد ثيم مطبعجي و`trendos-ui01-mobile-tools.js` بعد ملفات تشغيل الواجهة. الوحدة تعمل فقط على `#mainView .top-actions` للمستخدم بعد دخوله، وعند عرض <=720px؛ تُبقي الزر الأصلي وكل عناصره ومُعالجات النقر. على الكمبيوتر شريط الأزرار كما هو. الواجهة تعمل حتى لو فشل تحميل وحدة التحسين: تبقى الأزرار القديمة ظاهرة.
+- **خريطة الكود:** `trendos-ui01-mobile-tools.js` -> DOM toolbar existing buttons فقط -> لا Backend/API -> لا D1/R2/Apps Script/Session mutation -> state visual `data-ui01-open` و`aria-expanded`؛ `trendos-ui01-mobile-tools.css` -> CSS responsive؛ `tests/trendos_ui01_mobile_tools.test.mjs` -> اختبارات pure Node؛ `.github/workflows/trendos-ui01-mobile-tools-ci.yml` -> GitHub CI no deploy.
+- **دليل الاختبار:** [UI test workflow 37971599789](https://github.com/fawakhry/TrendOs/actions/runs/37971599789) SUCCESS على `45df16e9467fd972cbc682b53795d5bd62f49269`. [A61 transport regression 37971599713](https://github.com/fawakhry/TrendOs/actions/runs/37971599713) انتهى SUCCESS وفق الـcheck run. **ملاحظة:** اثنان من Cloudflare Workers Builds على نفس الرأس = FAILURE، ولم يُسترجع سبب الفشل بعد؛ لذلك تحقق Cloudflare/متصفح فعلي وStaging وProduction لم يكتمل، ولم تُفعّل الوحدة في Production.
+- **الحالة:** `SOURCE_ONLY / CONTRACT_CI_PASS / NOT_FIXED / NOT_LIVE`. لا توجد دعوى «واجهة شغالة» قبل Cloudflare/build/mobile-role/security/postdeploy evidence.
+- **الرجوع:** عند الرفض أو الخطأ يلغى استيرادا CSS/JS في index؛ تغييرات Backend = صفر. لا دمج أو نشر دون موافقة وبوابة تحقق.
+
+
+### UI-001-CHROMIUM — responsive browser regression after theme precedence fix (2026-10-09)
+
+- **هدف المالك:** تحسين الواجهة «جزء جزء واللي يشتغل يتثبت» دون التأثير على أنظمة الأوردرات أو الحسابات.
+- **الملفات/الوظيفة/المكان:** `trendos-ui01-mobile-tools.css` يضيف `grid-template-columns:repeat(2,minmax(0,1fr))!important` عند <=720px داخل `#mainView .top-actions.tm-ui01-mobile-tools` حتى يتغلب على قاعدة Matbagy Theme القديمة ذات `grid-template-columns:1fr!important`. ملف `trendos-ui01-mobile-tools.js` يبقي كل الزرار الأصلية ومعالجاتها بلا تغيير. لا تغيير backend أو write.
+- **اختبارات مرئية معزولة:** Chromium على أحجام 360/390/690/720/721/1280 PASS، بما فيها عمودان في الموبايل وعمود القائمة الأصلية على الأجهزة الأكبر، استمرار صلاحيات CSS `.hidden`، click handler، Escape، إغلاق menu عند الخروج، overflow=0. **هذه محاكاة محلية بعناصر اصطناعية، وليست staging أو production.**
+- **اختبار تكرار آلي:** `tests/trendos_ui01_mobile_tools_browser_smoke.py` داخل `.github/workflows/trendos-ui01-mobile-tools-ci.yml`، يعيد Chromium على GitHub دون خادم API. `tests/trendos_ui01_mobile_tools.test.mjs` يثبت قيد `!important`.
+- **أدلة source:** [PR #38](https://github.com/fawakhry/TrendOs/pull/38) Draft؛ HEAD عند إجراء التأهيل `3bf3135ee131541c20b9ab311e7071bf601f8a0f`. [UI-001 Chromium+Node CI 37973360327](https://github.com/fawakhry/TrendOs/actions/runs/37973360327) **SUCCESS** و[A61 regression 37973360156](https://github.com/fawakhry/TrendOs/actions/runs/37973360156) **SUCCESS**.
+- **موانع التشغيل:** Cloudflare Workers Builds لفروع `trendos` و`trendos-tasks-v3-t1-preview-20260914` تعرض FAILURE حتى على base commit قبل UI-001؛ لم تُسترجع build logs، فلا يُدّعى السبب. لم تحدث promote أو merge أو frontend version. يحتاج Staging live-browser role smoke وفحص نشر `trendos-ui` الصحيح.
+- **الكتاب التفصيلي:** [UI Book PR #37](https://github.com/fawakhry/TrendOs/pull/37) — `docs/interface/MASTER_BOOK.md`، إدخال `UI-001-BROWSER`.
+- **قرار التثبيت:** `SOURCE_BROWSER_CI_PASS / DEPLOY_BLOCKED / NOT_FIXED`. rollback عند الحاجة: إزالة استيرادي JS/CSS فقط من `index.html` في نفس فرع المصدر مع regression check؛ لا عمليات مالية، جلسات أو D1 migrations.
+
+### UI-001-final-browser — QA / responsive actions — 2026-10-09
+
+- تم إصلاح CSS rule conflict: ثيم `matbagy_theme_v1860.css` كان يفرض عمودًا واحدًا بـ`!important`، والآن `trendos-ui01-mobile-tools.css` يعرض عمودين على الهاتف فقط باستثناء `#logoutBtn` في صف كامل العرض.
+- `tests/trendos_ui01_mobile_tools_browser_smoke.py` يشغل Chromium فعليًا على 360/390/690/720/721/1280px؛ يفحص القائمة، عدم إظهار الأزرار المحمية CSS، عدم تجاوز العرض، استمرار click handler، Escape، Logout visual layout، desktop compatibility. اختبارات معزولة بلا APIs أو بيانات حقيقية.
+- Evidence: source commit `8b61cc45d9f6b774922b23709e16d03e60b5a486`؛ [UI-001 Node+Chromium workflow 37973776782](https://github.com/fawakhry/TrendOs/actions/runs/37973776782) **SUCCESS** و[A61 transport regression 37973776723](https://github.com/fawakhry/TrendOs/actions/runs/37973776723) **SUCCESS**.
+- بناء Cloudflare للـ`trendos` و`trendos-tasks-v3-t1-preview-20260914` لا يزال FAILURE؛ نفس النوع ظاهر على baseline قبل أول تعديل، لكن السبب التفصيلي غير معروف دون Cloudflare logs.
+- **الحالة الرسمية:** `SOURCE_BROWSER_CI_PASS / NO_STAGING / NO_PRODUCTION_DEPLOY / NOT_FIXED`؛ [PR #38](https://github.com/fawakhry/TrendOs/pull/38) Draft. لا migrations أو تغييرات data / auth / financial writes. لا ترقية للجزء إلى FIXED إلا بموافقة وبوابة نشر واختبار حقيقي.
+- [كتاب الواجهة](https://github.com/fawakhry/TrendOs/pull/37) `docs/interface/MASTER_BOOK.md` إدخال `UI-001-FINAL-CODE-REVIEW`.
