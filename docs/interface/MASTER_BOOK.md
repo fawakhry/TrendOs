@@ -226,7 +226,8 @@
 |---|---|---|---|
 | UI-000 | الكتاب والخريطة المقترحة | DOCUMENTATION_ONLY | يُملأ برابط commit/PR لهذا الكتاب |
 | UI-00 | الأمن وخط الأساس | BLOCKED_BY_OWNER_CONSOLE_ACCESS_GATE_FOR_PRIVATE_VIEW | [AP-085](https://github.com/fawakhry/TrendOs/blob/review/ap083-failclosed-ci-staging-gates-20261008/autonomous-printshop/MASTER_BOOK.md) |
-| UI-01..UI-10 | تنفيذ الواجهة واختبارات التثبيت | PLANNED / NOT STARTED | غير موجود؛ لا يُختلق |
+| UI-01 | أدوات الموظف على الموبايل — أول جزء من App Shell | SOURCE_ONLY / UI CONTRACT CI PASS / NOT FIXED | [PR #38](https://github.com/fawakhry/TrendOs/pull/38) |
+| UI-02..UI-10 | بقية واجهات المنصة | PLANNED / NOT STARTED | غير موجود؛ لا يُختلق |
 
 **قاعدة التحديث:** كل إدخال جديد يُضاف بالتاريخ مع إثبات SHA/CI ولا يغيّر حقائق قديمة دون إيضاح من صححها ومصدره. أول مرحلة تنفيذ لا تبدأ إلا بعد baseline واستهداف جزء محدد.
 
@@ -250,3 +251,22 @@
 6. يُضاف commit/PR لهذا الكتاب هنا بعد التأكد من كتابته على GitHub.
 
 — نهاية تأسيس الكتاب؛ الإدخالات التالية يجب أن تسجل ما تم تنفيذه واختباره وتثبيته فعلًا.
+
+## 11. UI-001 — أول تنفيذ كود: تجميع أزرار الموظف على الموبايل — 2026-10-09
+
+- **الحالة:** `SOURCE_ONLY / NODE_CONTRACT_CI_PASS / STAGING_NOT_VERIFIED / NOT_FIXED`.
+- **طلب المالك:** البدء جزءًا جزءًا، وأن يُثبت كل جزء بعد عمله واختباره. كتاب TrendOS هو الدليل على الكود المصدر، وليس مصدرًا ثانيًا للواجهة.
+- **المرجع التقني:** `TrendOS_MASTER_BOOK.md` على `candidate/t12-full-cloud-cutover-a56-20260929`؛ قرئ كتابه الكامل (6,758 سطرًا) قبل أول تعديل، بما فيه تعليمات §0، خريطة الكود §12، السجل حتى Entry648 والـT12 guard الأخير.
+- **PR كود مستقل:** [#38 — UI-01](https://github.com/fawakhry/TrendOs/pull/38) — Draft، يقترح الدمج في `candidate/t12-full-cloud-cutover-a56-20260929` فقط بعد بوابات تحقق.
+- **الفرع:** `review/ui01-mobile-top-actions-20261009`، انطلق من `7d20cfc463ce084ceaba8ac440dffa53512fe662`. لا تعديل لفرع candidate أو main مباشرة.
+- **الحد الوظيفي:** زر `☰ قائمة الأدوات` في مساحة `#mainView .top-actions` عند عرض هاتف حتى 720px، يفتح/يغلق كل أزرار الموظف القائمة أصلًا. لا حذف ولا نقل DOM ولا تغيير handler أو API أو server permissions. على الكمبيوتر (721px فأعلى) يبقى شريط الأدوات الأصلي. لا تغيير شاشة Login أو Customer Portal.
+- **الملفات:** `trendos-ui01-mobile-tools.js`؛ `trendos-ui01-mobile-tools.css`؛ رابطا CSS/JS إضافيان في `index.html`؛ `tests/trendos_ui01_mobile_tools.test.mjs`؛ `.github/workflows/trendos-ui01-mobile-tools-ci.yml`.
+- **حالات الاختبار:** عدم تكرار mount؛ الحفاظ على كائنات الأزرار الأصلية وكلاسات `hidden`؛ فتح وإغلاق `aria-expanded`؛ زر Escape والتركيز؛ غلق عند Desktop / Logout؛ استمرار handler؛ تأخير تشغيل الكود حتى `DOMContentLoaded`؛ عدم استخدام `fetch` أو تخزين محلي أو تغيير HTML ديناميكي.
+- **GitHub UI CI:** [Run 37971599789](https://github.com/fawakhry/TrendOs/actions/runs/37971599789) **SUCCESS** على commit `45df16e9467fd972cbc682b53795d5bd62f49269`. كذلك [Run 37971570913](https://github.com/fawakhry/TrendOs/actions/runs/37971570913) SUCCESS.
+- **GitHub A61 browser Cloud transport regression:** run `37971599713` **SUCCESS** في مراجعة checks على نفس SHA.
+- **تحذير:** Cloudflare Workers Builds على SHA ذاته أظهر `trendos` و`trendos-tasks-v3-t1-preview-20260914` **FAILURE**. مصدر الخطأ لم يُشخص بعد، ولا يجوز تسميته إصلاحًا ناجحًا أو تجاهله عند قرار النشر. لا دليل على أنه ناتج عن كود UI-01 أو مستقل عنه حتى تحقيق build logs.
+- **غير المؤهل بعد:** تجربة متصفح هاتف على نسخة TrendOS كاملة ببيانات منقحة وجلسات موظفين حقيقية مخولة؛ اختبار staging معزول؛ إثبات cloud build؛ موافقة نشر وpostdeploy smoke؛ لم يُسجل أي Live deployment.
+- **قاعدة التثبيت:** ممنوع تحويل UI-001 إلى `FIXED` حتى انغلاق كل بوابات الأمن والـbuild والنشر والتحقق من أن كل دور ما زال يصل إلى وظائفه. `UI-00` أمن لوحة المالك مطلوب قبل توصيل Owner Console (موضوع مستقل عن هذا الجزء).
+- **الرجوع:** حذف استيراد ملف CSS وJS من `index.html` (أو revert PR إذا لم يُدمج) يُعيد شريط أدوات الموظف الحالي كما كان؛ لا تغيير بيانات / migrations / sessions / المالية.
+- **الخطوة التالية:** Diagnose Cloudflare build failure، Browser mobile/desktop role smoke على بيئة معزولة، ثم قرار اعتماد النشر. الاحتفاظ بالفرع Draft إلى ذلك الحين.
+
