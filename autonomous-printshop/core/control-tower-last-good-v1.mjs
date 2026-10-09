@@ -1,9 +1,9 @@
 export const CONTROL_TOWER_LAST_GOOD_VERSION='CONTROL_TOWER_LAST_GOOD_V1_20261008';
 export const CONTROL_TOWER_LAST_GOOD_MAX_AGE_MS=5*60*1000;
 
-function count(value){
-  const n=Number(value);
-  return Number.isFinite(n)&&n>0?Math.trunc(n):0;
+// Never coerce a missing, malformed or negative source aggregate into a real zero.
+function validCount(value){
+  return Number.isSafeInteger(value)&&value>=0;
 }
 function fail(code){
   return {
@@ -19,7 +19,13 @@ function sourceQualified(source,at){
   if(source.writesAccepted!==false||source.d1Mutation!==false||source.employeeAssignment!==false) return false;
   if(source.piiExposed!==false||source.rawOrderIdsExposed!==false||source.rawLineIdsExposed!==false||source.employeeIdentityExposed!==false) return false;
   const produced=Date.parse(source.generatedAt);
-  return Number.isFinite(produced)&&produced<=at&&at-produced<=CONTROL_TOWER_LAST_GOOD_MAX_AGE_MS;
+  if(!Number.isFinite(produced)||produced>at||at-produced>CONTROL_TOWER_LAST_GOOD_MAX_AGE_MS)return false;
+  const counts=source.operations?.counts;
+  const risk=source.operations?.deadlineRisk;
+  // A partial snapshot is unavailable, not a snapshot with zero work.
+  return validCount(source.source.rowCount)&&
+    validCount(counts?.ordinary)&&validCount(counts?.inProgress)&&
+    validCount(risk?.overdueOrders)&&validCount(risk?.atRisk24hOrders);
 }
 export function createControlTowerLastGoodGateV1(options={}){
   const maxAgeMs=Number.isFinite(options.maxAgeMs)&&options.maxAgeMs>0
@@ -36,11 +42,11 @@ export function createControlTowerLastGoodGateV1(options={}){
       const deadlines=source.operations&&source.operations.deadlineRisk||{};
       lastGood=Object.freeze({
         observedAt:at,generatedAt:source.generatedAt,
-        rowCount:count(source.source.rowCount),
-        waiting:count(operations.ordinary),
-        inProgress:count(operations.inProgress),
-        overdueOrders:count(deadlines.overdueOrders),
-        atRisk24hOrders:count(deadlines.atRisk24hOrders)
+        rowCount:source.source.rowCount,
+        waiting:operations.ordinary,
+        inProgress:operations.inProgress,
+        overdueOrders:deadlines.overdueOrders,
+        atRisk24hOrders:deadlines.atRisk24hOrders
       });
       return {success:true,status:'FRESH_OBSERVED',observedAt:at,version:CONTROL_TOWER_LAST_GOOD_VERSION};
     },

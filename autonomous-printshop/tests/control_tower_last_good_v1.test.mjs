@@ -41,6 +41,32 @@ assert.equal(bad.observe({...source,rawOrderIdsExposed:true},clock).status,'UNAV
 assert.equal(bad.observe({...source,mode:'GENERAL'},clock).status,'UNAVAILABLE_FAIL_CLOSED');
 assert.equal(bad.observe({...source,generatedAt:'2026-10-08T12:30:00.000Z'},clock).status,'UNAVAILABLE_FAIL_CLOSED');
 assert.equal(bad.degraded(clock).status,'UNAVAILABLE_FAIL_CLOSED');
+
+// Missing, malformed or fabricated counts must never become zero in last-good.
+const incomplete=[
+  {...source,source:{authority:'trendos-main-d1'}},
+  {...source,operations:{}},
+  {...source,operations:{...source.operations,counts:{inProgress:22}}},
+  {...source,operations:{...source.operations,deadlineRisk:{overdueOrders:6}}},
+  {...source,operations:{...source.operations,counts:{ordinary:-1,inProgress:22}}},
+  {...source,operations:{...source.operations,counts:{ordinary:'47',inProgress:22}}},
+  {...source,operations:{...source.operations,counts:{ordinary:1.5,inProgress:22}}},
+  {...source,operations:{...source.operations,deadlineRisk:{overdueOrders:NaN,atRisk24hOrders:10}}},
+  {...source,operations:{...source.operations,deadlineRisk:{overdueOrders:6,atRisk24hOrders:Infinity}}}
+];
+for(const [index,partial] of incomplete.entries()){
+  const isolated=createControlTowerLastGoodGateV1();
+  assert.equal(isolated.observe(partial,clock).code,'LIVE_SOURCE_NOT_QUALIFIED','invalid aggregate '+index);
+  assert.equal(isolated.degraded(clock).success,false,'invalid aggregate not cached '+index);
+}
+const validZero=createControlTowerLastGoodGateV1();
+assert.equal(validZero.observe({...source,operations:{counts:{ordinary:0,inProgress:0},deadlineRisk:{overdueOrders:0,atRisk24hOrders:0}}},clock).success,true);
+assert.equal(validZero.degraded(clock).operationalDiagnostic.waiting,0);
+const preserved=createControlTowerLastGoodGateV1();
+assert.equal(preserved.observe(source,clock).success,true);
+assert.equal(preserved.observe({...source,operations:{counts:{ordinary:0},deadlineRisk:{}}},clock+1000).success,false);
+assert.equal(preserved.degraded(clock+1000).operationalDiagnostic.waiting,47);
+
 // Receiving an already aged snapshot must not restart its freshness budget.
 const aged=createControlTowerLastGoodGateV1();
 const produced=clock-CONTROL_TOWER_LAST_GOOD_MAX_AGE_MS+1000;

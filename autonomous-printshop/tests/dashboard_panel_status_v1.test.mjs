@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import worker from '../dashboard/worker.mjs';
 const live={success:true,mode:'CONTROL_TOWER_SHADOW',generatedAt:new Date().toISOString(),source:{authority:'trendos-main-d1',rowCount:10},
- operations:{counts:{ordinary:7,inProgress:2},deadlineRisk:{overdueOrders:1}},
+ operations:{counts:{ordinary:7,inProgress:2},deadlineRisk:{overdueOrders:1,atRisk24hOrders:0}},
  employees:{operatorCounts:{available:1,total:2},departments:{},blockers:{success:true,summary:{counts:{open:0}},control:{mode:'SHADOW'}}},
  readiness:{coverage:{},strictEligible:0},controls:{autonomy:{mode:'SHADOW'},readiness:'SHADOW',operatorTask:'OFF'},shadowLearning:{},
  communications:{pending:{success:false}},finance:{warnings:{success:true,summary:{control:{mode:'READONLY',readModeSafe:true},source:{absenceQualified:false},dayClose:{ready:false}}}},

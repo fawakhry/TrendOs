@@ -22,6 +22,10 @@ assert.equal((await second.degraded(clock-1)).success,false);
 assert.equal((await first.observe({...snapshot,generatedAt:new Date(clock-250000).toISOString()},clock)).code,'SOURCE_TOO_OLD_FOR_SHARED_STORAGE');
 assert.equal(writes,1);
 assert.equal((await first.observe({...snapshot,piiExposed:true},clock)).success,false);assert.equal(writes,1);
+assert.equal((await first.observe({...snapshot,operations:{...snapshot.operations,counts:{ordinary:7}}},clock)).code,'LIVE_SOURCE_NOT_QUALIFIED');
+assert.equal((await first.observe({...snapshot,source:{...snapshot.source,rowCount:undefined}},clock)).code,'LIVE_SOURCE_NOT_QUALIFIED');
+assert.equal((await first.observe({...snapshot,operations:{...snapshot.operations,deadlineRisk:{overdueOrders:-1,atRisk24hOrders:2}}},clock)).code,'LIVE_SOURCE_NOT_QUALIFIED');
+assert.equal(writes,1); // Invalid snapshots must not overwrite the qualified record.
 const original=payload;
 payload=JSON.stringify({...JSON.parse(original),finance:{ready:true}});
 assert.equal((await second.degraded(clock)).success,false);
