@@ -272,3 +272,17 @@
 - **تحقق نهائي من فرع الكود:** آخر HEAD موثق هنا `d12911ac0a19db51d877e2864c2c18970981e406` بعد تسجيل المرجع في `TrendOS_MASTER_BOOK.md`. UI CI [37971850357](https://github.com/fawakhry/TrendOs/actions/runs/37971850357) وA61 regression [37971850317](https://github.com/fawakhry/TrendOs/actions/runs/37971850317) كلاهما **SUCCESS**. لا يزال Workers Builds لـ `trendos` و `trendos-tasks-v3-t1-preview-20260914` **FAILURE** على نفس HEAD، ولم يتأكد نشر Staging أو Production. تبقى الحالة NOT_FIXED.
 - **تمييز السبب:** فحص GitHub check-runs للـbase commit `7d20cfc463ce084ceaba8ac440dffa53512fe662` نفسه أظهر فشل نفس خدمتي Cloudflare Workers Builds قبل UI-01؛ إذن هناك فشل سابق موثّق، ولا دليل حتى الآن أن تعديل الواجهة هو سبب الفشل أو أنه عالجه. يلزم الاطلاع على build logs وإثبات نجاح مسار نشر TrendOS المقصود قبل تثبيت الجزء.
 
+
+
+### UI-001-BROWSER — تثبيت جودة التصميم على مستوى الكود والمتصفح، دون نشر (2026-10-09)
+
+- **النتيجة:** `SOURCE_CI_PASS + ISOLATED_CHROMIUM_PASS + STAGING_NOT_TESTED + PRODUCTION_NOT_DEPLOYED`. **لا يُرفع الوسم إلى FIXED أو LIVE**.
+- **عيب UX اكتُشف أثناء الاختبار:** `matbagy_theme_v1860.css` يفرض `.top-actions {grid-template-columns:1fr!important}` عند عرض <=980px. أول نسخة من UI-001 استخدمت عمودين دون `!important`، فرسم Chromium القائمة في عمود واحد رغم اجتياز اختبارات JavaScript.
+- **الإصلاح الدقيق:** `trendos-ui01-mobile-tools.css` أضاف `!important` إلى `grid-template-columns: repeat(2,minmax(0,1fr))` داخل القاعدة الأكثر تحديدًا `#mainView .top-actions.tm-ui01-mobile-tools` عند <=720px فقط. لا يتغير تنقل العميل أو الكمبيوتر، ولا المنطق أو البيانات.
+- **اختبارات عدم العودة:** `tests/trendos_ui01_mobile_tools.test.mjs` يفحص أولوية CSS؛ `tests/trendos_ui01_mobile_tools_browser_smoke.py` يفحص Chromium الفعلي بالمقاسات `360,390,690,720,721,1280` مع محاكاة قاعدة الثيم المتعارضة، إخفاء أدوات الدور، بقاء handler، Escape، إغلاق عند الخروج، وسلامة العرض دون overflow.
+- **اختبار محلي:** Chromium HEADLESS على Fixture لا يتصل بـ API/جلسات موظفين؛ الست مقاسات PASS مع grid ثنائي الأعمدة على المحمول، واحتفاظ الكمبيوتر بالواجهة القديمة. هذه ليست شهادة موبايل حي ولا اختبار مستخدم حقيقي.
+- **GitHub Actions:** [UI-01 Browser+Node run 37973360327](https://github.com/fawakhry/TrendOs/actions/runs/37973360327) = SUCCESS بكل الوظائف بما فيها `ui01-responsive-chromium`. [A61 transport regression 37973360156](https://github.com/fawakhry/TrendOs/actions/runs/37973360156) = SUCCESS، على source head `3bf3135ee131541c20b9ab311e7071bf601f8a0f`.
+- **Cloudflare:** Worker Builds `trendos` و`trendos-tasks-v3-t1-preview-20260914` ما زالا FAILURE. كلا الاختبارين كان FAILURE حتى على source-base `7d20cfc463ce084ceaba8ac440dffa53512fe662` قبل كود UI-001؛ لذلك هما فشل سابق لا يصلح اتهام UI-001 بأنه سببه، **لكنّ سبب الفشل غير معروف من check summary وحده**. يلزم Cloudflare build logs + إثبات مسار نشر واجهة `trendos-ui` المقصودة.
+- **Security/Production gate:** PR [#38](https://github.com/fawakhry/TrendOs/pull/38) يظل Draft على فرع المراجعة؛ لم يُدمج ولم يُنشر. Owner Console AP-085 لا تتغير. لا ترقية لمرحلة LIVE أو NEXT UI slice بدون انتهاء smoke مصرح به على staging والقرار المناسب.
+- **خطوة المتابعة:** فحص Cloudflare logs/read-only وواجهة الموظف على staging مُعزول؛ التحقق من الدور ومن عدم كسر الجلسة/الزر؛ ثم تقرير مراجعة النشر والرجوع.
+
