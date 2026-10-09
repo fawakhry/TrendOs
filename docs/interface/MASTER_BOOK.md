@@ -269,4 +269,5 @@
 - **قاعدة التثبيت:** ممنوع تحويل UI-001 إلى `FIXED` حتى انغلاق كل بوابات الأمن والـbuild والنشر والتحقق من أن كل دور ما زال يصل إلى وظائفه. `UI-00` أمن لوحة المالك مطلوب قبل توصيل Owner Console (موضوع مستقل عن هذا الجزء).
 - **الرجوع:** حذف استيراد ملف CSS وJS من `index.html` (أو revert PR إذا لم يُدمج) يُعيد شريط أدوات الموظف الحالي كما كان؛ لا تغيير بيانات / migrations / sessions / المالية.
 - **الخطوة التالية:** Diagnose Cloudflare build failure، Browser mobile/desktop role smoke على بيئة معزولة، ثم قرار اعتماد النشر. الاحتفاظ بالفرع Draft إلى ذلك الحين.
+- **تحقق نهائي من فرع الكود:** آخر HEAD موثق هنا `d12911ac0a19db51d877e2864c2c18970981e406` بعد تسجيل المرجع في `TrendOS_MASTER_BOOK.md`. UI CI [37971850357](https://github.com/fawakhry/TrendOs/actions/runs/37971850357) وA61 regression [37971850317](https://github.com/fawakhry/TrendOs/actions/runs/37971850317) كلاهما **SUCCESS**. لا يزال Workers Builds لـ `trendos` و `trendos-tasks-v3-t1-preview-20260914` **FAILURE** على نفس HEAD، ولم يتأكد نشر Staging أو Production. تبقى الحالة NOT_FIXED.
 
