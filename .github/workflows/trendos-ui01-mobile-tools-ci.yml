@@ -1,0 +1,33 @@
+name: UI-01 mobile tools contract
+
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'trendos-ui01-mobile-tools.js'
+      - 'trendos-ui01-mobile-tools.css'
+      - 'tests/trendos_ui01_mobile_tools.test.mjs'
+      - '.github/workflows/trendos-ui01-mobile-tools-ci.yml'
+  push:
+    branches:
+      - 'review/ui01-mobile-top-actions-20261009'
+    paths:
+      - 'index.html'
+      - 'trendos-ui01-mobile-tools.js'
+      - 'trendos-ui01-mobile-tools.css'
+      - 'tests/trendos_ui01_mobile_tools.test.mjs'
+      - '.github/workflows/trendos-ui01-mobile-tools-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  ui01-mobile-tools:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify mobile employee tools contract (no backend)
+        run: node --test tests/trendos_ui01_mobile_tools.test.mjs
