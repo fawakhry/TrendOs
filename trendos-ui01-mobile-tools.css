@@ -1,0 +1,58 @@
+/* UI-01: employee mobile top actions, additive presentation only. */
+@media (min-width: 721px) {
+  #mainView .top-actions.tm-ui01-mobile-tools > .tm-ui01-toggle {
+    display: none !important;
+  }
+}
+@media (max-width: 720px) {
+  #mainView .top-actions.tm-ui01-mobile-tools {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch !important;
+    gap: 8px !important;
+    margin-top: 12px;
+  }
+  #mainView .top-actions.tm-ui01-mobile-tools > .tm-ui01-toggle {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 15px;
+    text-align: right;
+    border: 1px solid #b5dcd4 !important;
+    border-radius: 12px;
+    background: #ebf8f5 !important;
+    color: #086457 !important;
+    font-size: 14px;
+    font-weight: 800;
+  }
+  #mainView .top-actions.tm-ui01-mobile-tools > .tm-ui01-toggle::after {
+    content: '⌄';
+    display: inline-block;
+    font-size: 19px;
+    line-height: 1;
+  }
+  #mainView .top-actions.tm-ui01-mobile-tools[data-ui01-open="true"] > .tm-ui01-toggle::after {
+    content: '⌃';
+  }
+  #mainView .top-actions.tm-ui01-mobile-tools[data-ui01-open="false"] > :not(.tm-ui01-toggle) {
+    display: none !important;
+  }
+  #mainView .top-actions.tm-ui01-mobile-tools[data-ui01-open="true"] > button:not(.tm-ui01-toggle) {
+    min-width: 0 !important;
+    width: 100%;
+    margin: 0;
+    padding: 11px 8px;
+    white-space: normal;
+    line-height: 1.45;
+  }
+  #mainView .top-actions.tm-ui01-mobile-tools[data-ui01-open="true"] > button.hidden {
+    display: none !important;
+  }
+  #mainView .top-actions.tm-ui01-mobile-tools > .tm-ui01-toggle:focus-visible {
+    outline: 3px solid #1565e8 !important;
+    outline-offset: 2px;
+  }
+}
