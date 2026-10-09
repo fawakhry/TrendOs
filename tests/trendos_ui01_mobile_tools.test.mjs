@@ -101,6 +101,9 @@ test('UI-01 waits for the DOM when loaded early and does not touch customer-only
 
 test('UI-01 CSS has bounded mobile-only collapse, desktop-safe unhide, focus and hidden role preservation', () => {
   assert.match(css, /max-width:\s*720px/);
+  // Existing Matbagy theme sets .top-actions { grid-template-columns: 1fr !important } on phones.
+  // Our more-specific rule must itself use !important or the intended two-column layout silently fails.
+  assert.match(css, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)\s*!important/);
   assert.match(css, /min-width:\s*721px/);
   assert.match(css, /data-ui01-open="false"/);
   assert.match(css, /button\.hidden/);
