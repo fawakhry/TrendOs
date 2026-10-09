@@ -270,4 +270,5 @@
 - **الرجوع:** حذف استيراد ملف CSS وJS من `index.html` (أو revert PR إذا لم يُدمج) يُعيد شريط أدوات الموظف الحالي كما كان؛ لا تغيير بيانات / migrations / sessions / المالية.
 - **الخطوة التالية:** Diagnose Cloudflare build failure، Browser mobile/desktop role smoke على بيئة معزولة، ثم قرار اعتماد النشر. الاحتفاظ بالفرع Draft إلى ذلك الحين.
 - **تحقق نهائي من فرع الكود:** آخر HEAD موثق هنا `d12911ac0a19db51d877e2864c2c18970981e406` بعد تسجيل المرجع في `TrendOS_MASTER_BOOK.md`. UI CI [37971850357](https://github.com/fawakhry/TrendOs/actions/runs/37971850357) وA61 regression [37971850317](https://github.com/fawakhry/TrendOs/actions/runs/37971850317) كلاهما **SUCCESS**. لا يزال Workers Builds لـ `trendos` و `trendos-tasks-v3-t1-preview-20260914` **FAILURE** على نفس HEAD، ولم يتأكد نشر Staging أو Production. تبقى الحالة NOT_FIXED.
+- **تمييز السبب:** فحص GitHub check-runs للـbase commit `7d20cfc463ce084ceaba8ac440dffa53512fe662` نفسه أظهر فشل نفس خدمتي Cloudflare Workers Builds قبل UI-01؛ إذن هناك فشل سابق موثّق، ولا دليل حتى الآن أن تعديل الواجهة هو سبب الفشل أو أنه عالجه. يلزم الاطلاع على build logs وإثبات نجاح مسار نشر TrendOS المقصود قبل تثبيت الجزء.
 
