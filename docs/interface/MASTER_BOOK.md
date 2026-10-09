@@ -293,5 +293,5 @@
 - **منع الانحدار:** `tests/trendos_ui01_mobile_tools_browser_smoke.py` يتحقق أن عرض زر الخروج >= 1.8 من عرض زر عادي عند 360/390/690/720px، وأن دوره والموبايل لا يؤثران على أجهزة 721/1280px.
 - **المصدر بعد الاختبار:** `review/ui01-mobile-top-actions-20261009` commit `8b61cc45d9f6b774922b23709e16d03e60b5a486` هو source tested head وقت السجل. [UI-01 GitHub Actions 37973776782](https://github.com/fawakhry/TrendOs/actions/runs/37973776782) = **SUCCESS**: `ui01-mobile-tools` و `ui01-responsive-chromium`. [A61 regression 37973776723](https://github.com/fawakhry/TrendOs/actions/runs/37973776723) = **SUCCESS**.
 - **باقي الفشل:** Cloudflare Workers Builds اثنان = FAILURE على head نفسه كما حدث قبل تعديل UI-01؛ التفاصيل تحتاج Build Logs. يمنع ذلك اعتماد نشر جديد دون فحص مستقل لمسار نشر `trendos-ui`.
-- **قرار المرحلة:** `CODE_BROSWER_CI_PASS / DRAFT_PR_38 / NOT_DEPLOYED / NOT_FIXED`. كتابة `FIXED` لا تتم إلا بعد اعتماد staging/employee-role smoke ثم نشر مراقب مع rollback.
+- **قرار المرحلة:** `CODE_BROWSER_CI_PASS / DRAFT_PR_38 / NOT_DEPLOYED / NOT_FIXED`. كتابة `FIXED` لا تتم إلا بعد اعتماد staging/employee-role smoke ثم نشر مراقب مع rollback.
 
