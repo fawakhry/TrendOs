@@ -6755,3 +6755,17 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - الغرض: عمليات Accounting التي تدمج هذا shared base لاحقًا تحمل حماية customer+department بدل استبدالها بمصدر V1 قديم. سياسة Accounting READONLY37 محفوظة.
 - الحزمة الحية Accounting072bffff أعيد بناؤها byte-for-byte من merge-tree1e349332+0e3d35f0؛ overlay T12 وحده يعطي1d8fb904d48f2d48f2cfcc5b026dba94edddd094344a78af95e94f099d1ea52a ويحفظ Accounting/Core/Comms/Foundation.
 - سجل النشر والفحص الأخير يُحفظ على audit/t12-customer-lane-runtime-20261008؛ هذا commit هو حماية مصدر من reversion، وليس تنفيذ migration جديدة أو تغيير frontend تلقائيًا.
+
+
+### UI-001 — mobile topbar action organization (SOURCE_ONLY, 2026-10-09)
+
+- **بحث عربي:** تنظيم أزرار الموظف / قائمة الأدوات / واجهة الموبايل / واجهة ترند مول / UI-01 / top-actions.
+- **قرار المالك:** تنفيذ واجهة TrendOS جزءًا جزءًا، واختبار كل جزء وتثبيته فقط بعد إثبات النجاح. واجهة المالك محمية وتخضع لـAutonomous Printshop access gate مستقل.
+- **الكتاب الخاص:** [`docs/interface/MASTER_BOOK.md` — فرع التوثيق + PR #37](https://github.com/fawakhry/TrendOs/pull/37)، قسم UI-001. لا يُنسخ كتاب Autonomous Printshop إلى هذا الكتاب.
+- **PR الكود:** [#38](https://github.com/fawakhry/TrendOs/pull/38) Draft؛ الفرع `review/ui01-mobile-top-actions-20261009` من `candidate/t12-full-cloud-cutover-a56-20260929` commit `7d20cfc463ce084ceaba8ac440dffa53512fe662`. هذا الـEntry موجود فقط في PR الكود ولم يُنشر.
+- **الدخول ومكان الظهور:** `index.html` يستورد `trendos-ui01-mobile-tools.css` بعد ثيم مطبعجي و`trendos-ui01-mobile-tools.js` بعد ملفات تشغيل الواجهة. الوحدة تعمل فقط على `#mainView .top-actions` للمستخدم بعد دخوله، وعند عرض <=720px؛ تُبقي الزر الأصلي وكل عناصره ومُعالجات النقر. على الكمبيوتر شريط الأزرار كما هو. الواجهة تعمل حتى لو فشل تحميل وحدة التحسين: تبقى الأزرار القديمة ظاهرة.
+- **خريطة الكود:** `trendos-ui01-mobile-tools.js` -> DOM toolbar existing buttons فقط -> لا Backend/API -> لا D1/R2/Apps Script/Session mutation -> state visual `data-ui01-open` و`aria-expanded`؛ `trendos-ui01-mobile-tools.css` -> CSS responsive؛ `tests/trendos_ui01_mobile_tools.test.mjs` -> اختبارات pure Node؛ `.github/workflows/trendos-ui01-mobile-tools-ci.yml` -> GitHub CI no deploy.
+- **دليل الاختبار:** [UI test workflow 37971599789](https://github.com/fawakhry/TrendOs/actions/runs/37971599789) SUCCESS على `45df16e9467fd972cbc682b53795d5bd62f49269`. [A61 transport regression 37971599713](https://github.com/fawakhry/TrendOs/actions/runs/37971599713) انتهى SUCCESS وفق الـcheck run. **ملاحظة:** اثنان من Cloudflare Workers Builds على نفس الرأس = FAILURE، ولم يُسترجع سبب الفشل بعد؛ لذلك تحقق Cloudflare/متصفح فعلي وStaging وProduction لم يكتمل، ولم تُفعّل الوحدة في Production.
+- **الحالة:** `SOURCE_ONLY / CONTRACT_CI_PASS / NOT_FIXED / NOT_LIVE`. لا توجد دعوى «واجهة شغالة» قبل Cloudflare/build/mobile-role/security/postdeploy evidence.
+- **الرجوع:** عند الرفض أو الخطأ يلغى استيرادا CSS/JS في index؛ تغييرات Backend = صفر. لا دمج أو نشر دون موافقة وبوابة تحقق.
+
