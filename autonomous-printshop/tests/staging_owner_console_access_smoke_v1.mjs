@@ -24,8 +24,9 @@ function accessRedirect(response){
   }catch{return false;}
 }
 
-// Unauthenticated clients must not fetch HTML or JSON from a private owner console.
-for(const path of ['/state','/api/state','/owner','/manager-center']){
+// Unauthenticated clients must not fetch HTML or JSON from any owner-console entrypoint.
+// Include root/dashboard aliases: protecting only JSON URLs still exposes the owner UI.
+for(const path of ['/','/dashboard','/owner','/manager-center','/state','/api/state']){
   const response=await fetch(new URL(path,base),{
     method:'GET',redirect:'manual',cache:'no-store',
     headers:{accept:path.includes('state')?'application/json':'text/html'},
