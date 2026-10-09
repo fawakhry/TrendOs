@@ -286,3 +286,12 @@
 - **Security/Production gate:** PR [#38](https://github.com/fawakhry/TrendOs/pull/38) يظل Draft على فرع المراجعة؛ لم يُدمج ولم يُنشر. Owner Console AP-085 لا تتغير. لا ترقية لمرحلة LIVE أو NEXT UI slice بدون انتهاء smoke مصرح به على staging والقرار المناسب.
 - **خطوة المتابعة:** فحص Cloudflare logs/read-only وواجهة الموظف على staging مُعزول؛ التحقق من الدور ومن عدم كسر الجلسة/الزر؛ ثم تقرير مراجعة النشر والرجوع.
 
+
+### UI-001-FINAL-CODE-REVIEW — QA / logout layout / 2026-10-09
+
+- **تحسين تجربة الهاتف:** بعد تصحيح أعمدة الأدوات، صار زر **خروج** يشغل صفًا بعرض عمودين في نهاية القائمة، لتقليل النقر بالخطأ وتحسين الهرمية البصرية. القاعدة محصورة في `#logoutBtn` عند فتح قائمة أدوات الموظف بالموبايل فقط.
+- **منع الانحدار:** `tests/trendos_ui01_mobile_tools_browser_smoke.py` يتحقق أن عرض زر الخروج >= 1.8 من عرض زر عادي عند 360/390/690/720px، وأن دوره والموبايل لا يؤثران على أجهزة 721/1280px.
+- **المصدر بعد الاختبار:** `review/ui01-mobile-top-actions-20261009` commit `8b61cc45d9f6b774922b23709e16d03e60b5a486` هو source tested head وقت السجل. [UI-01 GitHub Actions 37973776782](https://github.com/fawakhry/TrendOs/actions/runs/37973776782) = **SUCCESS**: `ui01-mobile-tools` و `ui01-responsive-chromium`. [A61 regression 37973776723](https://github.com/fawakhry/TrendOs/actions/runs/37973776723) = **SUCCESS**.
+- **باقي الفشل:** Cloudflare Workers Builds اثنان = FAILURE على head نفسه كما حدث قبل تعديل UI-01؛ التفاصيل تحتاج Build Logs. يمنع ذلك اعتماد نشر جديد دون فحص مستقل لمسار نشر `trendos-ui`.
+- **قرار المرحلة:** `CODE_BROSWER_CI_PASS / DRAFT_PR_38 / NOT_DEPLOYED / NOT_FIXED`. كتابة `FIXED` لا تتم إلا بعد اعتماد staging/employee-role smoke ثم نشر مراقب مع rollback.
+
