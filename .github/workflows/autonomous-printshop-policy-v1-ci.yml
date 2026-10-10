@@ -237,6 +237,10 @@ jobs:
         run: node autonomous-printshop/tests/ap121_invalid_readiness_timestamp_failclosed.test.mjs
       - name: Run AP-122 Shadow D1 corrupt timestamp history gate
         run: node autonomous-printshop/tests/ap122_shadow_invalid_time_history_failclosed.test.mjs
+      - name: Run AP-123 guarded private first-line D1 review adapter
+        run: node autonomous-printshop/tests/ap123_private_first_line_d1_adapter.test.mjs
+      - name: Run AP-123 bound SELECT on isolated synthetic D1 schema
+        run: python3 autonomous-printshop/tests/ap123_private_first_line_sql_readonly.test.py
       - name: Run Shadow latest-readiness SQL contract (in-memory SQLite)
         run: python3 autonomous-printshop/tests/readiness_latest_evidence_sql_v1.py
       - name: Run evidence pilot target contract
