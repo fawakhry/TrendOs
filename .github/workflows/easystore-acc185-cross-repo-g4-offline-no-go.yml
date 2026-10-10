@@ -44,7 +44,7 @@ jobs:
           set -euo pipefail
           python3 tests/easystore_acc185_isolated_legacy_test_adapter.test.py
           python3 scripts/easystore_acc185_isolated_legacy_test_adapter.py isolated-easystore-source
-      - name: Run six upstream tests and two precisely marker-adapted tests without external access
+      - name: Run five original and two index-tag-adapted tests plus current A2.13 OFF source safety
         shell: bash
         run: |
           set -euo pipefail
@@ -57,8 +57,10 @@ jobs:
           node tests/department_accounting_scope_v1918.test.js
           node tests/dept_daily_purchases_v1917.test.js
           node tests/dept_daily_purchases_ui_v1917.test.js
-          node tests/easystore_a213_custody_close_frontend_canary.test.mjs
-          echo 'ACC185_PINNED_EASYSTORE_6_ORIGINAL_PLUS_2_TAG_ADAPTED_TESTS=PASS'
+          cd ..
+          node tests/easystore_acc185_pilot_off_contract.test.mjs
+          node scripts/easystore_acc185_pilot_off_contract.mjs isolated-easystore-source
+          echo 'ACC185_PINNED_EASYSTORE_5_ORIGINAL_2_TAG_ADAPTED_PLUS_CURRENT_A213_OFF=PASS'
       - name: Run TrendOS finance Worker originals, strict cross-repo action pairing and synthetic denials
         shell: bash
         env:
