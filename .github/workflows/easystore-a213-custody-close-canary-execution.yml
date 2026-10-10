@@ -12,6 +12,9 @@ concurrency:
 
 jobs:
   execute:
+    # Never execute the obsolete main-branch 30s finance monitor.
+    # Select the validated Accounting candidate branch in Run workflow.
+    if: github.ref == 'refs/heads/candidate/easystore-accounting-a2-20261005'
     runs-on: ubuntu-latest
     timeout-minutes: 18
     env:
