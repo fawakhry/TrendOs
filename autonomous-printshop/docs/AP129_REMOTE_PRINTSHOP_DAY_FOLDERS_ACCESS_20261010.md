@@ -37,7 +37,7 @@ Source (checked October 10, 2026):
 - Retain the older HOME PC Syncthing candidate at `C:\Users\Fannan\TrendMall-Sync` (previously setup began, not confirmed complete on shop PC). **Do not re-use Syncthing as an automatic mirror of all live customer work**; user specifically wants on-demand browse, drag/drop and one authoritative shop location. If Syncthing remains, scope to its separate explicitly approved exchange folder only. Avoid concurrent edits on same file.
 
 ### Blocking input for live setup
-**One essential detail:** the full Windows path to the **common parent folder that contains day folders** on the printshop PC, plus the Windows release if not known (can capture `winver` together after path). Do not request customer screenshots/photos or Windows passwords. Cannot claim network/share installed, or full remote access functioning, until actually tested on both physical devices with owner's cooperation and an authorized admin session.
+**AP-130 update:** Actual shop day path provided. The proposed common root is D:\print\الشغل; this scope requires onsite confirmation. Next required checks: printshop Windows version via winver, and whether ديجتال / فوتو are inside the actual 10-10 folder.
 
 ### Acceptance criteria (not yet verified)
 - Printshop remains single source of truth; same `day\ديجتال|فوتو\customer work` visible at shop and remotely.
