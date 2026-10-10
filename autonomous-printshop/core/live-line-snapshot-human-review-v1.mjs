@@ -88,9 +88,16 @@ export function buildLiveLineSnapshotHumanReviewV1({
   if(!date||!today)return deny('DUE_DATE_UNVERIFIED');
   if(date<=today)return deny(date<today?'OVERDUE_HUMAN_ESCALATION':
     'DUE_TODAY_HUMAN_REVIEW');
-  const evidence=reviewPrivateSameLineProvenanceV1({
-    privateLineKey:key,events,nowMs:now,sourceAccessVerified:true
-  });
+  // Malformed event objects (cyclic, BigInt, unexpected accessors) must
+  // not crash a review route or leak private diagnostic exception contents.
+  let evidence;
+  try{
+    evidence=reviewPrivateSameLineProvenanceV1({
+      privateLineKey:key,events,nowMs:now,sourceAccessVerified:true
+    });
+  }catch{
+    return deny('PRIVATE_EVIDENCE_INPUT_UNVERIFIED');
+  }
   // The evidence source and D1 freshness remain caller-attested. Even a
   // syntactically valid private packet cannot certify source provenance.
   return {
