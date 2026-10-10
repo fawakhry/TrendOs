@@ -29,3 +29,20 @@ Scope: DOC_WRITE for this PREPARE, then a single GitHub workflow addition that r
 Expected condition: Production diagnostic result with evidence link and zero requested writes.
 
 Status at PREPARE: NOT_STARTED; pending readback of this file and separate workflow commit.
+
+## ACC-145 / Step 01 — VERIFIED RESULT (2026-10-10)
+- Implementation branch HEAD (workflow commit): `05bf49d94d9aa35526593142eaa271eb282fe56b`.
+- Added exactly `.github/workflows/easystore-d1-readonly-resume-20261010.yml`; derived from previously successful checkpoint audit. No production source files modified.
+- Workflow file Git blob readback: `84a86b1a304414388b2f3b90a8dfd56568d30adc`.
+- GitHub Actions run: https://github.com/fawakhry/TrendOs/actions/runs/38046689276
+- Job id: `114197539891`; conclusion: **SUCCESS**.
+- Verified API version: `2b40f622-60ce-4d70-83d1-b334ddc42833`; Accounting mode `READONLY`; policy epoch `39`; schema ready `true`.
+- Financial authoritative writes: `false`; accounting Google business calls observed in this endpoint: `0`; frontend write mode `OFF`, global writes `false`, allowed frontend canary actions `[]`.
+- Server canary allowlist: 0 users and 0 actions. Guards asserted command budget zero and no commands started.
+- Exact count snapshot: materials=1, templates=1, parties=1, deptLines=1, waste=1, partyBalances=1, custodyCloses=0, custodyEvents=0, stockMoves=0, finalInvoices=0, cashbox=0, purchases=0, dailyPurchases=0, dayCloses=0, partyLedger=0, txGuard=0, requestLedger=6, events=6. Total business rows=18.
+- Approved baseline drift: none. `ACCOUNTING_RUNTIME_CHECKPOINT=PASS`, `PRODUCTION_MUTATION=NO`.
+- Conclusion: **COMMITTED_VERIFIED** (new GitHub workflow + run), **READ_VERIFIED** (Production read-only snapshot). Not evidence of financial-write readiness, authenticated EasyStore SSO, or A2.13 success.
+- No secrets, employee session tokens, customer identities or financial payloads recorded.
+
+## ACC-145 / Step 02 — next one safe step
+Investigate stale 4-canary and 5-canary baseline expectations in A2.11/A2.12 CI **offline only**. Compare expected counts with present six-canary base. Do not rewrite production D1 or rearm A2.13. Require a separate reviewed test change; keep historical baseline tests if they assert replay history.
