@@ -11,12 +11,13 @@ const piece=(a,b)=>{
 };
 const modeBody=piece('function accountingMode(user){','function departmentForMode(mode){');
 const permissionsBody=piece('function permissions(auth){','async function event(');
+const departmentBody=piece('function departmentForMode(mode){','async function control(env){');
 const authBody=piece('async function authenticate(request,body,env){','function permissions(auth){');
 const context={
   text:value=>String(value??'').trim(),
   key:value=>String(value??'').trim().toLowerCase()
 };
-vm.runInNewContext(modeBody+permissionsBody+
+vm.runInNewContext(modeBody+departmentBody+permissionsBody+
   '\nthis.accountingMode=accountingMode; this.permissions=permissions;',context);
 const mode=context.accountingMode;
 const cases=[
