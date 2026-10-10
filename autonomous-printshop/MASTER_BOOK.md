@@ -7389,3 +7389,20 @@ Actions and non-actions:
 Gate results: `WORKER_LEVEL_ACCESS=NOT_CONFIGURED (UI VERIFIED)`; `ANONYMOUS_HTTP_CURRENT=NOT_RETESTED`; `PRODUCTION_MUTATION=NO`; `STAGING_ISOLATION=NOT_VERIFIED`; `MC-02=PARTIAL`; `MC-23=PARTIAL`; `Operator Task=OFF (last documented)`; `Accounting=READONLY epoch39 (last documented)`.
 
 Next execution: Ask owner to open **Protect this Worker behind Access** only to inspect the dialog, without selecting **Apply Access** or completing any billed Zero Trust enrollment. Obtain the offered authentication policy options (without owner identifiers). Then produce an exact owner-only protection and authorized CI smoke change-order with rollback, request explicit authorization, and verify anonymous denial on every private route plus approved owner access after application. Never test by disabling upstream Production or by creating unapproved Staging.
+
+
+### AP-088 — Worker-level Access dialog inspected; owner-only policy unselected (2026-10-10, READ ONLY)
+
+Evidence: Owner-supplied screenshot of Cloudflare > Workers & Pages > `autonomous-printshop-dashboard` > Production > Access > **Manage Worker access** modal. No credentials, owner identifiers, operational JSON or secrets reproduced.
+
+Observed precisely:
+- The modal has Scope choices `Previews only` and `All traffic`; its currently selected option is `Previews only`. This is a pre-application modal, NOT proof that preview Access is currently active.
+- `Authentication policy` shows `+ Add policy` with no selected policy visible. The actual policy options and any existing tenant-level policies have NOT been inspected.
+- An `Apply Access` control exists in the modal, but there is NO evidence it has been clicked or that any Worker Access configuration was applied. Do not interpret this screen as effective protection.
+- Source review from AP-087 remains decisive: the existing production deployment workflow performs anonymous GETs to `/health`, `/state`, and `/`; Worker-level `All traffic` could break its verification unless the release procedure is first adapted to authorized reads. Worker-level `Previews only` would not close the known production owner-state exposure.
+
+Actions: screenshot inspected without Cloudflare mutation; requested that owner open the `+ Add policy` dropdown strictly for read-only inspection and send only the choices, without applying Access or revealing identity, email or secret. No staging/worker/storage resource was created or changed. No CANARY or business action.
+
+Gate status: `WORKER_ACCESS_CONFIGURATION=NOT_APPLIED_OR_VERIFIED`; `OWNER_AUTH_POLICY=NOT_SELECTED_IN_MODAL`; `OWNER_CONSOLE_ACCESS_GATE=FAILED`; `CLOUDFLARE_PRODUCTION_CHANGE=NO`; `MC-02=PARTIAL`; `MC-23=PARTIAL`. The candidate auto-deployment branch remains untouched.
+
+Next safe gate: review available policy options and existing authorized owner identity flow; prepare a specific All-traffic owner-only perimeter change with a valid authenticated postdeploy check and rollback BEFORE requesting explicit production approval. Do not activate unreviewed policy or bypass safeguards.
