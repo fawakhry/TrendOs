@@ -8227,3 +8227,25 @@ STATUS / GATES / NEXT:
 - `AP119_UNTRUSTED_SNAPSHOT_ACCESSORS=TESTED_FAIL_CLOSED`; `AP119_PRIVATE_ERROR_LEAK=NO`; `AP119_CORRUPT_THEN_VALID_RECOVERY=TESTED`; `AP119_OWNER_HOST_INTEGRATION=SOURCE_ONLY`; `AP119_D1_READ_WRITE=NONE`; `AP119_OPERATOR_ASSIGNMENT=OFF`; `AP119_PRODUCTION_DEPLOY=NO`.
 - Production candidate last verified unchanged at `7d20cfc463ce084ceaba8ac440dffa53512fe662`; Operator Task OFF / Autonomy SHADOW are last documented, not refreshed. Owner Access authentication, live source consistency, real same-line DESIGN/MATERIAL/MACHINE authority and MC-02/23 durable storage remain separate BLOCKED_SAFE/PARTIAL gates.
 - This documentation-only commit requires its own exact-SHA GitHub CI check before completion. NEXT: never promote caller-attested snapshots as independently authenticated, continue reviewing atomic backend-before-action boundaries and real trusted-source evidence acquisition on isolated safe branches. Production or protected D1 writes require explicit approval.
+
+
+### AP-120 — Acquisition packet reports latest same-time evidence ambiguity, never lexical READY (2026-10-10; TESTED / SOURCE_ONLY)
+
+AP / DISCOVERY:
+- Continued from AP-119 documentation HEAD `09bfb3e5748f4d1f4731ee1960d651872aab219a` (AP-119 source CI `38067743528` and docs CI `38067839031`, SUCCESS). Safe development branch `feature/ap120-acquisition-evidence-tie-review-20261010`.
+- The existing `buildEvidenceAcquisitionPacketV1` private diagnostic `buildEvidenceReviewV1` picked the latest fact with identical `observedAtMs` using `evidenceId.localeCompare`. For the same line/kind, a contradictory BLOCKED and READY with the same observed time could display `READY_STATE_MISMATCH_REVIEW` depending on arbitrary ID ordering instead of showing that the latest source state is ambiguous. This was a source-confirmed diagnostic correctness risk, distinct from AP-118 readiness projection. It does not prove a live D1 data error or that any task was assigned.
+
+FILES / CHANGE / TEST:
+1. `autonomous-printshop/core/evidence-acquisition-packet-v1.mjs`: newest evidence timestamp still wins, but **multiple records for the same selected private line/kind at the same latest timestamp** now force a sanitized `AMBIGUOUS_LATEST_EVIDENCE` review status. Older ties clear when a strictly newer record arrives; invalid observation time and newer expired/blocking evidence continue to deny qualification. Never choose lexical ID to resolve a tie. No raw source data included in packet and no authority flags upgraded.
+2. `autonomous-printshop/tests/ap120_acquisition_evidence_same_time_review.test.mjs`: synthetic DESIGN conflicting READY/BLOCKED in both orders; duplicate READY state also ambiguous; strictly later BLOCKED and expired BLOCKED override old tie; cross-kind and cross-line isolated. Assert no raw line, customer/source IDs or WRITE/assignment authority exposed. All fixtures synthetic.
+3. `.github/workflows/autonomous-printshop-policy-v1-ci.yml`: add explicit AP-120 contract near the original acquisition packet test. No deploy config, D1 mutation, protected route or Worker edit.
+
+COMMITS / CI:
+- Source diagnostic fix `55ffea67cd6b27a63f4993c50d1890bba635c4e3`, new test `4a8323ded3c3cd77a431808852524e84e004c4e6`, CI integration HEAD `8e00e92f12b66cb26355491bfd9385193bf404f9`.
+- [AP-120 policy CI 38068004687](https://github.com/fawakhry/TrendOs/actions/runs/38068004687) **COMPLETED SUCCESS** at source HEAD `8e00e92f12b66cb26355491bfd9385193bf404f9`; new test and entire policy job succeeded. Source changes exactly three paths above. This is CI on private synthetic source only, NOT live Cloudflare deployment or a real same-line evidence examination.
+- Documentation-only commit is separate; independently confirm its exact-SHA GitHub CI before calling it verified.
+
+PRODUCTION / STATUS / NEXT:
+- `AP120_EQUAL_TIME_ACQUISITION_AMBIGUITY=TESTED`, `AP120_CROSS_LINE_ISOLATION=TESTED`, `AP120_REAL_D1_EVIDENCE=NOT_VERIFIED`, `AP120_AUTONOMY_RELEASE=BLOCKED_SAFE`, `AP120_D1_WRITES=0`, `AP120_PRODUCTION_DEPLOY=NO`. Production candidate independently verified at `7d20cfc463ce084ceaba8ac440dffa53512fe662` (unchanged).
+- Operator Task OFF, Autonomy SHADOW remain last documented only; private Owner Console Access gate and MC-02/23 cross-isolate storage unclosed; no actual first-line DESIGN SHA/structured approval/preflight, MATERIAL stock/consumption or MACHINE physical identity/health source established here.
+- NEXT: Source-independent protected read-only access proof and one actual same-line manual evidence review, with post-observation current D1 status recheck. Do not invent assets, machines or promote any synthetic READY to VERIFIED LIVE. Never auto-route work or publish Production without separate authorization.
