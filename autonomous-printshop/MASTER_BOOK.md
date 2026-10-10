@@ -7704,3 +7704,29 @@ NEXT EXECUTION:
 3. If (and only if) D1 has a qualified operational baseline candidate, obtain Design/Material/Machine same-line complete current evidence through protected service with proper authorization and human review. Do not fabricate candidate, expose public owner routes, activate Operator Task, or bypass owner/finance protected actions.
 
 The AP-099 book-only commit must have its own CI outcome checked after writing. GitHub source CI success does not cancel the two independent Cloudflare build failures.
+
+
+### AP-100 — Cloudflare "Missing entry-point" proven from owner Build log, target-isolation gate tested (2026-10-10, SOURCE_ONLY)
+
+REQUEST / VERIFIED EVIDENCE:
+- Owner supplied actual `trendos` Cloudflare Workers Builds screenshot and complete failed log for a `feature/ap099-d1-readonly-inventory-20261010` branch commit `74a27f1`, Build `94c60a60...`. Build initializes, clones repository, installs Wrangler v4.149.0, then fails with `[ERROR] Missing entry-point to Worker script or to assets directory` on `npx wrangler versions upload`. Screenshot confirms **Root directory `/`, Build command None, Deploy command `npx wrangler versions upload`**. Root cause for this *particular failing build*: **repository-root project entry point/config absent**. This is not a source compilation failure and does not indicate live Production Worker was broken.
+- READ exact GitHub source at preceding AP-099 review branch `74a27f1ba058d129e0d0a893fc16167d813b8640`: no root `wrangler.toml`, `wrangler.json(c)` or `package.json`; existing `cloudflare-d1/wrangler.toml` points to **`trendos-d1-api`** not target **`trendos`**, `cloudflare-d1/wrangler.frontend.toml` points to `trendos-ui`, and `autonomous-printshop/production-shadow/wrangler.toml` points to `autonomous-printshop-shadow`. The specific `trendos` live deployment's source/config and binding parity remain **UNVERIFIED**. Do not blindly set root directory `cloudflare-d1` or `--config cloudflare-d1/wrangler.toml`: that could upload to a different Worker and cross production boundaries.
+- GitHub builds check runs independently report another failing Worker `trendos-tasks-v3-t1-preview-20260914`; **its detailed Cloudflare stderr is not available** and its root cause is separately UNKNOWN. The AP feature/audit branch repeatedly triggers both unrelated Workers; their automatic branch trigger/path scope likely needs inspection.
+- Official Cloudflare documentation source checked 2026-10-10: `Settings > Build > Branch control` can disable preview builds or change branch behavior, and `Settings > Build > Build watch paths` can include/exclude monorepo paths. Updating settings applies to subsequent builds. No settings change was made by the assistant.
+
+IMPLEMENT — isolated branch `feature/ap100-cloudflare-build-target-gate-20261010`:
+- Source/test commit `485932cbc1bac2176c47b3f93385ea0e04bff601` modified exactly 3 files:
+  - `autonomous-printshop/tests/cloudflare_build_target_gate_v1.test.mjs`: CI source preflight replays screenshot build settings (no auth/network), asserts repo root Wrangler entrypoint is missing, verifies each actual repo Wrangler config's named Worker and existing main file, rejects misrouting target `trendos` or preview Worker to `trendos-d1-api` or `autonomous-printshop-shadow`. Does NOT execute Wrangler or upload a version.
+  - `autonomous-printshop/diagnostics/AP100_CLOUDFLARE_BUILDS_CORRECTION.md`: documented concrete Cloudflare branch/watch-path inspection and safe release sequencing; NOT a script to mutate Cloudflare.
+  - `.github/workflows/autonomous-printshop-policy-v1-ci.yml`: wired AP-100 safety preflight to existing policy CI; no Production workflows, aliases or cloud bindings changed.
+- Exact source SHA [Autonomous Printshop Policy CI 38058356601](https://github.com/fawakhry/TrendOs/actions/runs/38058356601) **COMPLETED SUCCESS**; AP-100 and previous AP-099 SQL test steps both SUCCESS, no failed job steps. Previous AP-099 D1 inventory remains OFFLINE TESTED / no authenticated live D1 query.
+
+OWNER-CONTROLLED NEXT STEP (NOT EXECUTED):
+1. In Cloudflare `Workers & Pages → trendos → Settings → Build → Branch control`, inspect non-production preview-build trigger for `feature/ap*` and `audit/*`. Decide whether to disable previews for unrelated feature branches or narrow approved build branch/path filters after checking whether any active preview flow depends on these builds. Do not use one-way Worker Previews migration to fix a missing entrypoint.
+2. Determine intended source/entrypoint and Cloudflare bindings of **`trendos`** before adjusting `Root directory` or Wrangler invocation. Existing `cloudflare-d1/wrangler.toml` targets `trendos-d1-api`, NOT `trendos`. No retry or upload before target parity.
+3. Independently inspect the `trendos-tasks-v3-t1-preview-20260914` failed build log if diagnosing that Worker. Only the `trendos` log was given.
+4. Proceed with authorized D1 read-only inventory and same-line candidate evidence checks only through authenticated Cloudflare console; never use unprotected Worker Owner routes to bypass auth.
+
+GATES:
+`AP100_LOG_ROOT_CAUSE=VERIFIED_OWNER_SCREENSHOT`; `AP100_REPO_WORKER_TARGET_MISMATCH=SOURCE_TESTED`; `AP100_CI=SUCCESS`; `CLOUDFLARE_BUILDS_CONFIGURATION_FIXED=NO`; `AP099_D1_LIVE=NOT_RUN`; `PRODUCTION_DEPLOY=NO`; `OPERATOR_TASK=OFF_LAST_DOCUMENTED`; `CANDIDATE_BASELINE_HEAD=7d20cfc463ce084ceaba8ac440dffa53512fe662`; `BUSINESS_WRITES=0`.
+This AP-100 book-only documentation commit needs its own exact CI outcome checked separately. Do not claim Cloudflare build success.
