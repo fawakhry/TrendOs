@@ -1,0 +1,43 @@
+name: ACC-172 Historical Qualification Readonly Six-Canary Regression
+
+on:
+  push:
+    branches:
+      - fix/acc172-historical-readonly-six-baseline-20261010
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'tests/easystore_acc172_historical_baseline_regression.test.mjs'
+      - '.github/workflows/easystore-a211-waste-qualification.yml'
+      - '.github/workflows/easystore-a212-dept-line-qualification.yml'
+      - '.github/workflows/easystore-a213-custody-close-qualification.yml'
+      - '.github/workflows/easystore-acc172-historical-readonly.yml'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+
+permissions:
+  contents: read
+
+jobs:
+  offline-six-canary-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify old qualification workflows are now safe-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check tests/easystore_acc172_historical_baseline_regression.test.mjs
+          node tests/easystore_acc172_historical_baseline_regression.test.mjs
+      - name: Mark no financial operation attempted
+        run: |
+          {
+            echo '## ACC-172 six-canary baseline static qualification'
+            echo 'Only checked in YAML and Node source inspected; no D1 or Cloudflare credentials.'
+            echo 'Historical A2.11 and A2.12 CANARY operations were NOT repeated.'
+            echo 'The standalone test is not approval to enable production finance writes.'
+          } >> "$GITHUB_STEP_SUMMARY"
