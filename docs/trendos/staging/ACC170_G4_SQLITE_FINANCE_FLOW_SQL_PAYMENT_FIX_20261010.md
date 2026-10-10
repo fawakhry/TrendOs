@@ -31,3 +31,9 @@ Release status: **SOURCE FIX QUALIFIED OFFLINE; PRODUCTION FINANCIAL FLOW NOT AC
 - G5: no rollback deploy or general finance unlock.
 - Next: after PR CI/review merge the narrow SQL source fix; track separate explicit Cloudflare deployment approval and then true transaction acceptance on an authorized environment. No live financial execution from this test.
 - **Five original finance acceptance gates remain OPEN; source fix is not the same thing as deployed/reconciled financial closeout.**
+
+## PR #51 final-head review and acceptance boundary
+- [PR #51 ACC-170 integration run 38069531837](https://github.com/fawakhry/TrendOs/actions/runs/38069531837) completed **SUCCESS** on documentation-present code head `efa5523ff4927daa4c18a1cc18bf7b025b946ddd`.
+- Unrelated but PR-triggered safety suite [ACC-166 38069531834](https://github.com/fawakhry/TrendOs/actions/runs/38069531834), [ACC-165 live GET safe-idle 38069531875](https://github.com/fawakhry/TrendOs/actions/runs/38069531875) and [A61 regression 38069531871](https://github.com/fawakhry/TrendOs/actions/runs/38069531871) all completed successful jobs.
+- Patch review confirms the only financial source edit is adding the omitted binding placeholder to `payment_paid` INSERT. All other changed files: new isolated test, its CI, master book and this evidence file. A successful CI authorizes *code merge of this source-only fix*, not Cloudflare deploy or financial activity.
+- Production **still must be considered potentially affected by the old SQL version** until an expressly approved Cloudflare deployment is executed and independently verified; do not infer an unperformed live purchase/reversal acceptance.
