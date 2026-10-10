@@ -4,7 +4,7 @@ Status: **G2/G3 PENDING; PRODUCTION FINANCE NO-GO**.
 
 ## Scope / actual findings
 - ACC-165 is already merged in PR #46; no ACC-162/163 repeat and no old financial/supplier pilot replays.
-- Inspected `cloudflare-d1/src/employee-accounting-native-v1.mjs` and native auth source. The current finance-mode resolver mixes session role with legacy name/department hints; authentication can fall back to request-body role/department when trusted session fields are absent. This is a potential authorization boundary weakness pending owner-reviewed mapping, not proof of a real account breach.
+- Inspected `cloudflare-d1/src/employee-accounting-native-v1.mjs` and native auth source. The current finance-mode resolver mixes the authenticated session role with legacy name/department hints. **Correction ACC-167:** its `b.role` / `b.department` fallback comes from `v.body`, the *verified session response*, not the raw browser request body. A forged client role does not override a trusted role in the isolated negative test. This is a potential authorization boundary weakness pending owner-reviewed mapping, not proof of a real account breach.
 - New `tests/easystore_acc166_role_boundary_audit.test.mjs` exercises actual checked-in mode/permission functions in an isolated VM with synthetic employee records, checks presence of the session verification path and reports the role source risks as NO-GO. No real tokens, users or finance API requests.
 - Employee financial grants are not changed. Issue #40 remains open for identity/role mapping, negative scenario signoff and controlled safe server hardening.
 
