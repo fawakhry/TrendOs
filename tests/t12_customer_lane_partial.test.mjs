@@ -115,8 +115,9 @@ const create=(db,id,department,fields={})=>createT12GeneralOrder(db,make(id,depa
 {
  const db=new D1();
  const legacyLine=db.addLegacy({status:'جاهز للاستلام'});
- const blocked=await create(db,40,'طباعة');assert.equal(blocked.success,false,JSON.stringify(blocked));
- assert.equal(blocked.existingOrderId,'2200');assert.equal(db.n('t12_prod_orders'),0);
+ const allowed=await create(db,40,'طباعة');assert.equal(allowed.success,true,JSON.stringify(allowed));
+ assert.equal(db.n('t12_prod_orders'),1);
+ assert.equal(JSON.parse(db.raw.prepare('SELECT values_json FROM sheet_rows LIMIT 1').get().values_json)[10],'جاهز للاستلام');
  const other=await create(db,41,'ليزر');assert.equal(other.success,true,JSON.stringify(other));
  const db2=new D1();const l2=db2.addLegacy({status:'طلب جديد'});
  db2.raw.prepare("INSERT INTO t12_legacy_line_runtime (line_id,order_id,status,updated_by) VALUES (?,?,?,?)")
@@ -169,7 +170,7 @@ const create=(db,id,department,fields={})=>createT12GeneralOrder(db,make(id,depa
 }
 
 {
- const db=new D1();db.addLegacy({department:'مكبس',status:'جاهز للاستلام'});
+ const db=new D1();db.addLegacy({department:'مكبس',status:'طلب جديد'});
  const print=await create(db,90,'طباعة');
  assert.equal(print.success,false,'Open legacy press must occupy PRINT');
  assert.equal(print.existingOrderId,'2200');
@@ -177,7 +178,7 @@ const create=(db,id,department,fields={})=>createT12GeneralOrder(db,make(id,depa
  assert.equal(db.n('t12_prod_orders'),1);
 }
 {
- const db=new D1();db.addLegacy({phone:'٠١٠٠٠٠٠٠١١١',customer:'Historic Alias',status:'جاهز للاستلام'});
+ const db=new D1();db.addLegacy({phone:'٠١٠٠٠٠٠٠١١١',customer:'Historic Alias',status:'طلب جديد'});
  const same=await create(db,92,'طباعة',{customerPhone:'+20 1000000111',customerName:'Current Alias'});
  assert.equal(same.success,false,'Known Arabic legacy phone must retain identity across names');
  assert.equal(same.existingOrderId,'2200');
@@ -205,7 +206,7 @@ const create=(db,id,department,fields={})=>createT12GeneralOrder(db,make(id,depa
 
 {
  const db=new D1();
- db.addLegacy({department:'ليزر',status:'جاهز للاستلام',updatedAt:'2026-10-01T12:00:00Z'});
+ db.addLegacy({department:'ليزر',status:'طلب جديد',updatedAt:'2026-10-01T12:00:00Z'});
  db.addLegacy({department:'ليزر',status:'تم التسليم',updatedAt:'2026-10-02T12:00:00Z'});
  const created=await create(db,101,'ليزر');
  assert.equal(created.success,false,'Conflicting mirror-only copies remain fail-closed without native authority');
@@ -217,7 +218,7 @@ const create=(db,id,department,fields={})=>createT12GeneralOrder(db,make(id,depa
  const db=new D1();
  db.addLegacy({department:'ليزر',status:'تم التسليم',updatedAt:'2026-10-01T12:00:00Z'});
  db.addLegacy({department:'ليزر',status:'جاهز للاستلام',updatedAt:'2026-10-02T12:00:00Z'});
- assert.equal((await create(db,103,'ليزر')).success,false,'A currently ready but undelivered line remains open');
+ assert.equal((await create(db,103,'ليزر')).success,true,'Ready pickup permits new work without recording delivery');
 }
 {
  const db=new D1();const old=await create(db,104,'ليزر');assert.equal(old.success,true);
@@ -226,3 +227,21 @@ const create=(db,id,department,fields={})=>createT12GeneralOrder(db,make(id,depa
  assert.equal((await create(db,105,'ليزر',{itemName:'New laser artwork'})).success,true,'Closed native authority must supersede its historical open mirror');
 }
 console.log('T12 customer+department lane and partial multi create isolated + concurrent distinct-payload atomic claim PASS');
+
+for (const department of ['ليزر','طباعة']) {
+ const db=new D1();const old=await create(db,110,department);assert.equal(old.success,true);
+ db.raw.prepare("INSERT INTO t12_prod_line_runtime(line_id,order_id,status,updated_by) VALUES (?,?,?,?)").run(old.lineId,old.orderId,'جاهز للاستلام','employee-a');
+ const results=await Promise.all([create(db,111,department,{itemName:'New job A'}),create(db,112,department,{itemName:'New job B'})]);
+ assert.equal(results.filter(r=>r.success).length,1,JSON.stringify(results));
+ assert.equal(results.filter(r=>r.reason==='customer-department-open-order-exists').length,1);
+ assert.equal(db.n('t12_prod_orders'),2);assert.equal(db.n('t12_prod_customer_lane_claim'),1);
+ assert.equal(db.raw.prepare('SELECT status FROM t12_prod_line_runtime WHERE line_id=?').get(old.lineId).status,'جاهز للاستلام');
+ const replay=await create(db,110,department);assert.equal(replay.idempotent,true);assert.equal(replay.orderId,old.orderId);
+ assert.equal(db.n('t12_prod_orders'),2);
+}
+{
+ const db=new D1();db.addLegacy({department:'ليزر',status:'جاهز للاستلام'});
+ db.addLegacy({orderId:'2201',department:'ليزر',status:'طلب جديد'});
+ assert.equal((await create(db,120,'ليزر')).success,false,'Another unfinished order must still block');
+}
+console.log('Ready pickup release, unchanged old status, concurrent new work and retry protection PASS');

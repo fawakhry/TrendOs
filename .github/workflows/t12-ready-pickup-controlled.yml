@@ -1,11 +1,11 @@
-name: T12 blocked order visible controlled UI release
+name: T12 ready pickup controlled API release
 on:
   workflow_dispatch:
     inputs:
       deploy:
         type: boolean
         default: false
-        description: Publish only the qualified three UI assets
+        description: Publish only the qualified ready pickup API policy
 permissions:
   contents: read
 concurrency:
@@ -33,13 +33,13 @@ jobs:
           DEPLOY: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy == true }}
         run: |
           if [ "$DEPLOY" = true ]; then
-            python3 scripts/t12_blocked_order_frontend_release.py --deploy
+            python3 scripts/t12_ready_pickup_controlled_release.py --deploy
           else
-            python3 scripts/t12_blocked_order_frontend_release.py
+            python3 scripts/t12_ready_pickup_controlled_release.py
           fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: t12-blocked-order-ui-evidence
-          path: /tmp/t12-blocked-order-ui-sanitized.json
+          name: t12-ready-pickup-api-evidence
+          path: /tmp/t12-ready-pickup-sanitized.json
           retention-days: 3

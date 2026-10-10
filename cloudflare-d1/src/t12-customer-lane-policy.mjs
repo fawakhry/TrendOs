@@ -6,9 +6,9 @@
 import { mapMirrorRows } from './edge-orders-read-v1.mjs';
 import { applyLegacyRuntimeOverlay, readLegacyRuntimeRows } from './t12-legacy-line-runtime.mjs';
 
-export const T12_CUSTOMER_LANE_POLICY_VERSION='T12_CUSTOMER_LANE_POLICY_20261010_EFFECTIVE_LINES_V3';
+export const T12_CUSTOMER_LANE_POLICY_VERSION='T12_CUSTOMER_LANE_POLICY_20261010_READY_PICKUP_V4';
 const LEGACY_SHEET='بنود الأوردرات';
-const CLOSED=new Set(['تم التسليم','ملغى','ملغي','مكرر']);
+const CLOSED=new Set(['جاهز للاستلام','تم التسليم','ملغى','ملغي','مكرر']);
 function text(v){return String(v==null?'':v).trim();}
 function normalizeName(v){return text(v).toLowerCase().replace(/[إأآا]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[ةه]/g,'ه').replace(/\s+/g,' ').trim();}
 function digits(v){return text(v).replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/\D/g,'');}

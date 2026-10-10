@@ -117,7 +117,7 @@ function trendLoadModuleV1932(id, src){
 // unauthenticated entry/login screen. Critical Cloud routing starts only after
 // an employee session exists; non-critical tools are queued after first paint.
 var TRENDOS_AUTH_CRITICAL_MODULES_V1 = [
-  ['trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20261008-entry652-session-lifecycle-t12-lane-v2-20261010-blocked-order-visible'],
+  ['trendEdgeOrdersReadV1Loader','trendos-edge-orders-read-v1.js?v=20261008-entry652-session-lifecycle-t12-lane-v2-20261010-ready-pickup-v4'],
   ['trendResumeNoAutoRefreshV1Loader','trendos-resume-no-autorefresh-v1.js?v=20260930-a61-cloud-transport']
 ];
 var TRENDOS_AUTH_DEFERRED_MODULES_V1 = [

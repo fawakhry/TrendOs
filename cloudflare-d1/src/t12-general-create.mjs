@@ -216,7 +216,7 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
            LEFT JOIN t12_prod_line_runtime rt ON rt.line_id=l.line_id
             WHERE l.order_id=t12_prod_customer_lane_claim.order_id
               AND l.department=t12_prod_customer_lane_claim.department
-              AND COALESCE(rt.status,l.status) NOT IN ('تم التسليم','ملغى','ملغي','مكرر')
+              AND COALESCE(rt.status,l.status) NOT IN ('جاهز للاستلام','تم التسليم','ملغى','ملغي','مكرر')
          )
     `,identityKey,lane));
     s.push(stmt(db,`

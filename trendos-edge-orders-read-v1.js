@@ -739,7 +739,7 @@
       var blocks = body && Array.isArray(body.blockedDepartments) ? body.blockedDepartments : [];
       return 'لا يمكن إضافة أوردر جديد: العميل لديه أوردر مفتوح في ' +
         blocks.map(function(b){ return text(b.department) + ' رقم ' + text(b.orderId); }).join('، ') +
-        '. لو كان جاهزًا للاستلام فهو يظل مفتوحًا حتى تسجيل التسليم الفعلي. تم عرض الأوردر الموجود للمراجعة.';
+        '. يمكنك إضافة أوردر جديد عندما تصبح حالة الأوردر الموجود جاهز للاستلام. تم عرض الأوردر الموجود للمراجعة.';
     }
     if (reason === 'duplicate-order-window-active') {
       var existingOrderId = text(body && body.existingOrderId);

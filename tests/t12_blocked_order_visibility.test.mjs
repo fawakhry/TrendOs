@@ -8,7 +8,7 @@ const end=edge.indexOf('  async function t12CreateManualOrder(params)',start);
 const message=vm.runInNewContext(`(function(){function text(v){return String(v==null?'':v).trim();}${edge.slice(start,end)}return createFailureMessage;})()`);
 const body={success:false,reason:'customer-department-open-order-exists',message:'Generic server text',existingOrderId:'7001',blockedDepartments:[{department:'ليزر',orderId:'7001'}]};
 assert.match(message(body),/ليزر رقم 7001/);
-assert.match(message(body),/جاهزًا للاستلام/);
+assert.match(message(body),/يمكنك إضافة أوردر جديد/);
 const nodes=new Map(['tableSearch','statusFilter','priorityFilter','heatPressFilter'].map(id=>[id,{value:'__ACTIVE__'}]));
 let loaded=0,scrolled=0;
 nodes.set('ordersTable',{scrollIntoView(){scrolled++;}});

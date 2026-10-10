@@ -5,7 +5,7 @@ import t12_customer_lane_controlled_release as R
 from ap081_dashboard_controlled_release import main_health
 
 DEPLOY='--deploy' in __import__('sys').argv
-BASE='99ba54a8'
+BASE='bd24f773d414b13c40161235ecce924b07697b38'
 REPORT={'state':'PREPARING','deployAuthorized':DEPLOY,'backendDeploy':False,'businessWrite':False,'d1Write':False,'customerStatusWrite':False}
 STATE=Path('/tmp/t12-blocked-order-ui');STATE.mkdir(exist_ok=True)
 try:
@@ -22,7 +22,7 @@ try:
   _,data=R.fetch(R.UI+'/'+name+'?blockedOrder='+str(time.time_ns()))
   R.check(data and not (name.endswith(('.js','.css')) and data.lstrip().lower().startswith(b'<!doctype html')),'ASSET_INVALID')
   (dist/name).write_bytes(data);before[name]=hashlib.sha256(data).hexdigest()
- patches=['app.js','trendos-edge-orders-read-v1.js','config.js','index.html']
+ patches=['trendos-edge-orders-read-v1.js','config.js','index.html']
  for name in patches:
   R.check((dist/name).read_bytes()==subprocess.check_output(['git','show',BASE+':'+name]),'PATCH_BASE_DRIFT_'+name)
   (dist/name).write_bytes(Path(name).read_bytes())
