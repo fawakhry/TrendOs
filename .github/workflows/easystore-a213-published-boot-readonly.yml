@@ -3,9 +3,10 @@ name: ACC-162 A2.13 Published UI Boot Readonly Gate
 on:
   push:
     branches:
-      - fix/a213-prearm-live-ui-bootstrap-20261010
+      - test/a213-complete-browser-handoff-readonly-20261010
     paths:
       - 'tests/easystore_a213_published_boot_gate.test.mjs'
+      - 'tests/easystore_a213_sso_button_lifecycle.test.mjs'
       - '.github/workflows/easystore-a213-published-boot-readonly.yml'
 
 permissions:
@@ -36,6 +37,7 @@ jobs:
           node --check /tmp/easystore-live-app.js
           node tests/easystore_a213_published_boot_gate.test.mjs /tmp/easystore-live-config.js /tmp/easystore-live-app.js --expect-off
           node tests/easystore_a213_published_boot_gate.test.mjs /tmp/easystore-live-config.js /tmp/easystore-live-app.js --simulate-canary
+          node tests/easystore_a213_sso_button_lifecycle.test.mjs /tmp/easystore-live-config.js /tmp/easystore-live-app.js
           node tests/easystore_a213_custody_close_workflow_invariants.test.mjs
           node tests/easystore_a213_timeout_monitor_regression.test.mjs
           node <<'NODE'
