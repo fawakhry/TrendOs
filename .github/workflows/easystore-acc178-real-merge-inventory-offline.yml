@@ -7,7 +7,7 @@ on:
     paths:
       - '.github/workflows/easystore-acc178-real-merge-inventory-offline.yml'
       - 'scripts/easystore_acc178_reconcile_book.py'
-      - 'tests/easystore_acc178_book_reconcile.test.mjs'
+      - 'tests/easystore_acc178_book_reconcile.test.py'
   pull_request:
     branches:
       - candidate/easystore-accounting-a2-20261005
