@@ -7595,3 +7595,36 @@ GATES AND NEXT:
 - Next executable gate: read-only current non-PII production readiness evidence inventory through an authorized secure channel, strictly same-line and source-provenance qualified, then present one human-verifiable acquisition packet. If current state cannot be verified, remain BLOCKED_SAFE rather than inferring order eligibility. Existing Cloudflare security gate is deferred for manual interaction, not waived for deployment.
 
 This AP-096 documentation-only commit will trigger another CI; check its resulting run and do not assume success in advance.
+
+
+### AP-097 — Same-line evidence acquisition reason triage in Production Shadow SOURCE (2026-10-10, TESTED / SOURCE_ONLY)
+
+Scope and provenance:
+- User instructed execute AP-097 on the Autonomous Printshop only, continuing from AP-096. Only canonical book `autonomous-printshop/MASTER_BOOK.md` is updated; no accounting workstream, accounting book, EasyStore frontend, staff, cashbox, Google Sheets, financial ledger or Operations business data was modified.
+- READ previous `feature/ap096-same-line-evidence-pilot-20261010` HEAD `17f7a51be2b848f9bd2e6696c1fead080587dd2e`, canonical AP-096 latest, core acquisition packet and pilot selector, AP-094 readiness projection, AP-095 latest-per-line/kind Shadow SQL, and existing CI.
+- Current deficiency: acquisition packet listed required evidence fields but did NOT explain why a selected line/kind was missing: no matching evidence, a current BLOCKED/UNKNOWN observation, expired latest record, future clock, or evidence/source mismatch. Operator could not distinguish what to verify next. No claim is made that this deficiency caused a live incident.
+
+IMPLEMENT (isolated branch `feature/ap097-evidence-acquisition-triage-20261010`):
+- Source commit `a888b99c7d3860f560d950c0b415c05fa49e4a1a` modified exactly these 4 paths: `autonomous-printshop/core/evidence-acquisition-packet-v1.mjs`, `autonomous-printshop/production-shadow/worker.mjs`, `autonomous-printshop/tests/evidence_acquisition_packet_v1.test.mjs`, `autonomous-printshop/tests/production_shadow_worker_v1.test.mjs`.
+- Added **diagnostic-only / review-only** per-missing-kind `review.statusByKind` in the existing acquisition packet. Enumerated, nonidentifying status codes: `NO_RECORDED_EVIDENCE`, `EVIDENCE_BLOCKED`, `EVIDENCE_EXPIRED`, `FUTURE_OBSERVATION`, `INVALID_EXPIRY`, `SOURCE_TIME_UNVERIFIED`, `SOURCE_CLOCK_UNVERIFIED`, `SOURCE_LINE_UNVERIFIED`, `EVIDENCE_UNKNOWN`, and `READY_STATE_MISMATCH_REVIEW`. All are acquisition/review diagnostics; they never assert production evidence is qualified.
+- The classifier compares only the **same internal order-line key** and required DESIGN/MATERIAL/MACHINE kind. It selects latest timestamp/evidence-ID first, then checks expiry and state, matching AP-094/AP-095 fail-closed semantics. Different-line records cannot satisfy or explain the chosen pilot line. Invalid timestamps are source-unknown, never a reason to use older READY.
+- The resulting public packet emits only allowlisted status strings, requirements and preexisting safe pilot metadata. **Never exports raw line/order IDs, sourceRef/sourceVersion/evidence IDs, customer/employee identity, machine serial/tag or original event objects.** Corrected dynamic kind validation to `Object.hasOwn(REQUIREMENTS,x)` so prototype property names are not interpreted as evidence requirements; machine class hint now uses a fixed enum.
+- The `production-shadow/worker.mjs` readiness snapshot uses one consistent observation clock and passes the internal selected line key and in-memory evidence only into packet creation; the existing `/readiness` and `/control-tower` packet surfaces inherit the new diagnostics without new routes, bindings, service permissions or writes.
+- Second source/test commit `1f14e4e93197c4e8d58a9cfc8053f09bb519a3f1` extended the existing `evidence_pilot_same_line_v1.test.mjs` integration: A line missing MATERIAL while B has MATERIAL reports `NO_RECORDED_EVIDENCE` for A, legitimate completed A leaves B needing DESIGN, and a later expired BLOCKED MATERIAL for A produces `EVIDENCE_EXPIRED` and no task recommendation. No real orders, credentials, source transactions or write operations.
+
+TEST / VERIFY:
+- Exact source commit `a888b99c7d3860f560d950c0b415c05fa49e4a1a`, [Autonomous Printshop Policy CI 38054369421](https://github.com/fawakhry/TrendOs/actions/runs/38054369421): **COMPLETED SUCCESS**. Packet contract and isolated Production Shadow Worker contract steps PASS.
+- Exact end-to-end synthetic integration commit `1f14e4e93197c4e8d58a9cfc8053f09bb519a3f1`, [Autonomous Printshop Policy CI 38054479268](https://github.com/fawakhry/TrendOs/actions/runs/38054479268): **COMPLETED SUCCESS**. Same-line acquisition integration, packet contract and isolated Shadow Worker contract all passed; policy job had no failed steps.
+- GitHub compare AP-096 HEAD to current source HEAD confirms five files (packet logic, Shadow Worker, packet test, same-line integration test, Shadow source contract); no Cloudflare config, migration, production baseline or unrelated accounting changed. Production candidate branch remained at `7d20cfc463ce084ceaba8ac440dffa53512fe662` when checked.
+- Evidence classification **TESTED / SOURCE_ONLY**, not DEPLOYED or VERIFIED LIVE. The actual owner dashboard/Cloudflare Worker runtime cannot be called fully qualified and authenticated via the current tool session; do not manufacture live Order/Line evidence.
+
+GUARDS / OUTCOME:
+- `AP097_EVIDENCE_REASON_TRIAGE=TESTED_PASS`; `AP097_SAME_LINE_ISOLATION=TESTED_PASS`; `AP097_SOURCE_PRIVACY_ALLOWLIST=TESTED_PASS`; `AP097_ZERO_BUSINESS_WRITES=PASS`; `AP097_PRODUCTION_DEPLOY=NO`; `CANDIDATE_PUSH=NO`.
+- `Operator Task=OFF`, `Autonomy/Readiness=SHADOW`, `Accounting=READONLY epoch39` remain LAST DOCUMENTED states rather than new live checks; `MC-02/MC-23=PARTIAL`; real Design/Material/Machine evidence parity remains unverified. The Owner Console Access security gate remains FAILED / BLOCKED_SAFE and the user deferred manual hardening, not new public Production exposure.
+
+NEXT EXECUTION:
+1. Obtain only authorized, privacy-preserving, fresh read-only production readiness summary of a real candidate's missing kinds/triage through a protected channel, WITHOUT exposing raw customer/employee/order identifiers; if unavailable, mark LIVE_EVIDENCE=BLOCKED_SAFE.
+2. Independently qualify same-line real DESIGN private asset SHA/approval/preflight, MATERIAL active stock/consumption/authoritative ledger, MACHINE registry serial/asset tag and operator/self-test mapping, before any real recommendation becomes actionable.
+3. Review AP-094 through AP-097 source+tests for an explicitly authorized controlled release after access/security and Cloudflare Staging qualification. No Operator Task CANARY/GENERAL, real dispatch, employee, finance, production config, credential or paid resource changes without owner sign-off.
+
+This AP-097 book-only checkpoint commit's CI is separate from the two proven source CI runs; verify its exact SHA/run after writing.
