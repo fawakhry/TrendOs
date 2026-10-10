@@ -66,3 +66,53 @@ jobs:
           print("AP126_REAL_FIRST_LINE_DESIGN_MATERIAL_MACHINE=NOT_VERIFIED")
           print("AP126_D1_BUSINESS_ROWS_EXPOSED=NO; D1_WRITES=0; PRODUCTION_DEPLOY=NO")
           PY
+
+      - name: Review anonymous real first-line cross-source record footprint
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 autonomous-printshop/tests/ap126b_first_line_source_footprint_readonly.test.py
+          SQL="$(python3 - <<'PY'
+          from pathlib import Path
+          import sqlite3,re
+          src=Path("autonomous-printshop/diagnostics/AP126B_D1_FIRST_LINE_SOURCE_FOOTPRINT_READONLY.sql").read_text()
+          code=" ".join(x.strip() for x in src.splitlines()
+              if x.strip() and not x.lstrip().startswith("--"))
+          assert code.startswith("WITH ") and code.endswith(";") and code.count(";")==1
+          assert sqlite3.complete_statement(code)
+          assert not re.search(r"\b(?:INSERT|UPDATE|DELETE|REPLACE|CREATE|DROP|ALTER|PRAGMA|ATTACH|DETACH|VACUUM)\b",code,re.I)
+          print(code)
+          PY
+          )"
+          OUT="$RUNNER_TEMP/ap126b_footprint.json"
+          if ! npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config "$CONFIG" --json --command "$SQL" >"$OUT" 2>"$RUNNER_TEMP/ap126b_stderr"; then
+            echo "AP126B_LIVE_LINE_FOOTPRINT=BLOCKED_SAFE"
+            exit 1
+          fi
+          python3 - "$OUT" <<'PY'
+          import json,sys
+          fields=["cloudLineFile","cloudDesignHashCandidate","designArtifact","designApproval","designPreflight","designAssetBinding","materialLine","materialCatalogMatch","machineMappingHistory","machineRegistryViaMapping","machineIdentityHistory","machineObservationHistory"]
+          try:
+            payload=json.load(open(sys.argv[1]))
+            assert isinstance(payload,list) and len(payload)==1
+            assert payload[0].get('success') is True
+            rows=payload[0].get('results')
+            assert isinstance(rows,list) and len(rows)==1
+            row=rows[0]
+            assert set(row)==set(fields)|{'anonymousSampleCount','sampleDepartmentClass'}
+            assert row['anonymousSampleCount'] in (0,1)
+            assert row['sampleDepartmentClass'] in ('PRINT','LASER','NO_SAMPLE')
+            assert all(type(row[k]) is int and row[k] in (0,1) for k in fields)
+          except Exception:
+            print("AP126B_LIVE_LINE_FOOTPRINT=BLOCKED_SAFE")
+            sys.exit(1)
+          print("AP126B_ANONYMOUS_FIRST_LINE_SAMPLE="+
+            ("YES" if row['anonymousSampleCount']==1 else "NO"))
+          print("AP126B_SAMPLE_DEPARTMENT_CLASS="+row['sampleDepartmentClass'])
+          for k in fields:
+            print("AP126B_SOURCE_"+k+"="+
+                ("RECORD_FOUND_UNVERIFIED" if row[k] else "NO_RECORD"))
+          print("AP126B_LIVE_D1_READ=SUCCESS")
+          print("AP126B_DESIGN_MATERIAL_MACHINE_REAL_PROOF=NOT_VERIFIED")
+          print("AP126B_AUTO_ASSIGNMENT=OFF; D1_WRITES=0; PRODUCTION_DEPLOY=NO")
+          PY
