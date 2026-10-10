@@ -6854,3 +6854,14 @@ AP-081 final qualification: Policy CI run37827973068 SUCCESS (autonomy-policy-co
 - UI release38038848148 / job114174889503 DEPLOYED_PASS، نسخة7122e8bc-5340-4a03-bf33-1d54148d477d.46 assets،4patches(app/edge/config/index) و42preserved؛ UIworker byte parity/settings PASS. API734e4610-ae41-4cfb-9096-891d07015610،sha ca850aa78e6e682a389b309bcf72a078fe56a0f5d771089cbd98d69bb47df2d3 محفوظ. GET مستقلapp source hash PASS. لا backend deploy أو D1/Google/customer status write.
 - وجد التدقيق أيضًا2stale open mirror laser rows تحت هويات اختارتها القراءة مغلقة. إصلاح source selectEffectiveCustomerLaneRows يقدّم Native فقط على نفسorder+line؛ حالاتmirror-only المتعارضة تبقىfailclosed،readyundelivered يبقىمحميًا،Nativeclosed+mirroropen يسمحشغلًا جديدًا،والتزامن/replay PASS. لم ننشر هذاBackendfix ولم نستخدمه لتجاوز الأوردر4569.
 - سجل تنفيذ الخارطةالحالي:docs/trendos/TRENDOS_ROADMAP_EXECUTION_2026-10-08.md. AP081/AP082 DEPLOYED؛AP083 SOURCE_ONLY PR34 معCIpolicyPASS. دعوى اكتمال المشروع كله غير موجودة. R2permission403 مستمرة،AccountingREADONLY39/OFF. إعدادstart_skill/network draft saved requiresPublishtrue،لاpublicationأوfresh-taskrestorationproof.
+
+
+### 10 أكتوبر 2026 — قاعدة قبول شغل جديد من «جاهز للاستلام»
+
+قرار صاحب المنصة: يسمح بفتح أوردر جديد لنفس العميل في نفس القسم عندما يكون السابق جاهزًا للاستلام. هذا قرار قبول شغل جديد فقط؛ لا يغيّر حالة القديم ولا يُسجّل تسليمًا أو دفعة مالية. الأوردرات الجاري تنفيذها تظل تمنع إنشاء أوردر آخر في نفس القسم، وأوردر قسم آخر مستقل.
+
+V4 تطبّق هذا الاستثناء على قراءة Native وLegacy وعلى تحرير claim الذري. تجربة SQLite للطباعة والليزر أثبتت أن طلبين مختلفين متزامنين بعد الجاهز ينشئان أوردرًا جديدًا واحدًا فقط، مع بقاء القديم جاهزًا. إعادة مفتاح سابق ترجع الأوردر الأصلي؛ نافذة منع نفس المحتوى لا تُلغى. اختلافات mirror-only التي تحتوي طلبًا جاريًا تظل تمنع الإنشاء، وسلطة Native على نفس Order ID+Line ID محفوظة.
+
+CI38044884549 و38044933469 PASS. تأهيل API قراءة فقط38044900857 PASS أعاد بناء النسخة الحية ca850aa78e قبل تغيير ثلاثة modules فقط، والهدف9f43a4fa1156eb84bf441121583dbe70a29ab65681539f0830c8971ce6e0df75. تأهيل الواجهة38044889572 PASS غيّر رسالة القاعدة وثلاثة assets فقط وحافظ على43. نتائج النشر والتحقق الحي تُضاف بعد اكتمالها، ولا تُعتبر هذه الفقرة إثبات نشر.
+
+نشر API38044954186 PASS، نسخة2b40f622-60ce-4d70-83d1-b334ddc42833 وSHA9f43a4fa1156eb84bf441121583dbe70a29ab65681539f0830c8971ce6e0df75. health الحية تعلن T12_CUSTOMER_LANE_POLICY_20261010_READY_PICKUP_V4، GENERAL، schema/duplicate/claim ready. إيقاف CREATE المؤقت ثم إعادة فتحه تم مع ثبات عدد الأوردرات والبنود والledger والallocator طوال نافذة النشر؛ لا migration ولا كتابة حالة عميل. Auth NATIVE والحسابات READONLY epoch39/Core GENERAL epoch2/Content وComms READONLY محفوظة. إصلاح سلطة Native V3 لم يعد SOURCE_ONLY: نُشر داخل V4. لا تُنشر نسخة T12V2 القديمة من المرشح المشترك دون حمل ملفات السياسة V4 الثلاثة وإعادة التأهيل أمام النسخة الحية الحالية.

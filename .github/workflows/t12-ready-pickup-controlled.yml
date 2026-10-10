@@ -1,8 +1,5 @@
 name: T12 ready pickup controlled API release
 on:
-  push:
-    branches: [audit/t12-customer-lane-runtime-20261008]
-    paths: [.github/workflows/t12-ready-pickup-controlled.yml]
   workflow_dispatch:
     inputs:
       deploy:
@@ -31,7 +28,7 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --prefix /tmp/t12-blocked-ui-tools --no-save wrangler@4.33.2
-      - name: Qualify exact live UI or publish bounded patch
+      - name: Qualify exact live API or publish ready pickup policy
         env:
           DEPLOY: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy == true }}
         run: |
