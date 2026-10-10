@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: \${{ github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
       - name: Read exact pinned shared revision and analyze real git merge in a disposable checkout
         shell: bash
@@ -76,5 +76,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: acc178-offline-unmerged-paths
-          path: \${{ runner.temp }}/acc178-unmerged.txt
+          path: ${{ runner.temp }}/acc178-unmerged.txt
           retention-days: 7
