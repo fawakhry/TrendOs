@@ -7904,3 +7904,29 @@ REVIEW:
 NEXT: qualify the privacy-safe manual first-pilot review packet so free-text source fields cannot escape into public Shadow diagnostics; test without untrusted data leakage. Obtain authenticated owner-console aggregate due review separately when permitted and record separately.
 
 This AP-107 documentation-only commit requires new exact-SHA CI check.
+
+
+### AP-108 — Allowlisted Owner/Shadow evidence-pilot packet metadata, no free-text echo (2026-10-10, TESTED / SOURCE_ONLY)
+
+READ / discovery:
+- Continued immediately after AP-107 owner instruction **"كمل بدون توقف"**. Safe review base `feature/ap107-printshop-due-audit-20261010` HEAD `6e77d34e9d553e14c423a8233c3ad1379149f35f`; AP-107 source CI `38062730340` SUCCESS and AP-107 documentation CI `38062872003` SUCCESS.
+- Reviewed existing `core/evidence-acquisition-packet-v1.mjs`, `core/evidence-pilot-target-v1.mjs`, `core/real-pilot-source-audit-v1.mjs`, `core/readiness-evidence-v1.mjs`, packet tests and Shadow code consumers. Identified a **source-confirmed diagnostic privacy weakness**: the first-pilot packet already strips raw line/order/customer identifiers and validates the machine-class hint, but echoes unconstrained `pilot.department`, `pilot.priority` and `pilot.dueIso` free text. If a noncanonical/private value reaches one of those fields, the resulting packet could propagate it into Shadow diagnostics. This is a proactive input-hardening finding, **not evidence of a real customer-data leak**.
+- AP-106 D1 owner Console read-only results: among 39 printing preliminary source lines, 16 overdue / 14 due today / 9 upcoming by SQLite UTC date; AP-107 strict Cairo-local formatting query is **NOT executed on live D1** and its historical counts are unchanged. AP-102 showed 0 `autonomous_readiness_evidence` rows; no same-line DESIGN/MATERIAL/MACHINE readiness is established.
+
+IMPLEMENT — branch `feature/ap108-private-pilot-metadata-gate-20261010`, source commit `fa1e20a178d798b40c11b729791030c019402978`, exactly two code/test paths:
+1. `autonomous-printshop/core/evidence-acquisition-packet-v1.mjs`: `safeDepartment` only accepts fixed recognized department names (including `طباعة`, `ليزر`, `تصميم`, `تشطيب` and explicit printshop variants), otherwise `UNKNOWN`; `safePriority` only accepts known `عادي`, `عاجل`, allowed urgent variants and `VIP`, otherwise `UNKNOWN`; `safeDueIso` requires a canonical exact ISO UTC-millisecond timestamp and actual calendar validity, otherwise empty string. Existing `machineClassHint` allowlist remains. Unknown metadata does **not** increase readiness; the packet is still read-only acquisition, not a dispatch permit. No raw customer/order/line ID is added.
+2. `autonomous-printshop/tests/evidence_acquisition_packet_v1.test.mjs`: real departmental and priority metadata retained, synthetic private string stuffed into each metadata field is NOT echoed, fake order/line IDs remain absent, malformed/noncanonical/invalid UTC dates rejected, accepted canonical timestamp preserved. Existing packet and Shadow contract tests retained.
+- No new D1 endpoint, database writes, employee task, financial action, CI workflow edit or Cloudflare Worker deployment. Unknown newly introduced department names will be reported as `UNKNOWN` until explicitly reviewed and allowlisted on a separate versioned change; no guessing arbitrary external labels.
+
+TEST / review:
+- Exact SHA `fa1e20a178d798b40c11b729791030c019402978`, [Autonomous Printshop Policy CI 38063014704](https://github.com/fawakhry/TrendOs/actions/runs/38063014704) **COMPLETED SUCCESS**, specifically acquisition packet contract SUCCESS, AP-107 SQLite date gate SUCCESS and all remaining CI steps SUCCESS; no failed jobs.
+- Compare from AP-107 book head shows exactly the packet source and packet test modified. Production candidate auto-deploy branch independently remained `7d20cfc463ce084ceaba8ac440dffa53512fe662`; no candidate push, merge or staging/production deployment occurred.
+- Source evidence classification = **TESTED / SOURCE_ONLY**. No claim of live authenticated D1 pilot, public endpoint mitigation, or Owner Console Access gate passing. Prior Owner Console Access and MC-02/MC-23 durable storage remain BLOCKED_SAFE/PARTIAL.
+- `AP108_META_PII_FAIL_CLOSED=TESTED_PASS`; `AP108_PACKET_ASSIGNMENT_ALLOWED=false`; `AP108_REAL_D1_EVIDENCE=NOT_VERIFIED`; `AP108_BUSINESS_WRITES=0`; `PRODUCTION_DEPLOY=NO`.
+
+NEXT:
+1. If owner can execute a **second** authorized D1 Console SELECT, run the newly tested `AP107_D1_PRINTING_DATE_TRIAGE_READONLY.sql` to validate local date formats and safe review buckets; results should remain aggregate-only.
+2. Present the observed overdue printing lines to authorized owner/staff for non-automated escalation. Obtain protected same-line Design asset approval/preflight, Material stock/consumption source, and Machine registered serial/health proof before selecting one review pilot. Strict evidence remains absent from the last observed table.
+3. Keep all future changes and failed stages appended to this one book with exact commit and CI. Do not activate Operator Task, Cloudflare Access, paid resources, Production or accounting rights without their respective approvals.
+
+This documentation-only AP-108 commit has separate GitHub CI; check exact outcome after creation.
