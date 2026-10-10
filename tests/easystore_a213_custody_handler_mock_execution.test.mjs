@@ -17,6 +17,7 @@ function setup({mode='CANARY',sessionValid=true}={}){
       const stmt={sql:String(sql),bindings:[]};
       state.sql.push(stmt);
       const chain={
+        sql:stmt.sql,
         bind(...args){stmt.bindings=args;return chain;},
         async first(){
           if(stmt.sql.includes("FROM employee_accounting_control_v1"))
