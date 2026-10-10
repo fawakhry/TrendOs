@@ -1,0 +1,40 @@
+name: ACC-181 G3 Zero-Opening Owner Direction (NO-GO Offline)
+on:
+  push:
+    branches:
+      - decision/acc181-g3-zero-opening-cutover-20261010
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'docs/trendos/staging/ACC181_G3_ZERO_OPENING_DECISION.json'
+      - 'scripts/acc181_zero_opening_direction_preflight.mjs'
+      - 'tests/acc181_zero_opening_direction_preflight.test.mjs'
+      - '.github/workflows/easystore-acc181-g3-zero-opening-offline.yml'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+permissions:
+  contents: read
+jobs:
+  verify-unactivated-zero-cutover-intent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prove owner choice is not finance migration or activation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/acc181_zero_opening_direction_preflight.mjs
+          node tests/acc181_zero_opening_direction_preflight.test.mjs
+          node scripts/acc181_zero_opening_direction_preflight.mjs
+          {
+            echo '## ACC-181: owner chose NEW books, NO prior balances imported'
+            echo 'Scope recorded; not a signed cutover date, validated inventory, opening cash, or forgiven legacy obligations.'
+            echo 'G3 remains OPEN; G1/G2/G4/G5 also OPEN.'
+            echo 'GitHub static tests only. No Cloudflare/Worker/Pages D1 access, writes, live migration, grants, reset or deploy.'
+          } >> "$GITHUB_STEP_SUMMARY"
