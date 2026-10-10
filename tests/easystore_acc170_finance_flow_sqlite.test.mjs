@@ -134,6 +134,11 @@ try{
  assert.equal(count('employee_accounting_stock_moves_v1'),1);
  assert.equal(count('employee_accounting_cashbox_v1'),1);
  assert.equal(one('SELECT amount FROM employee_accounting_cashbox_v1').amount,20);
+ const paymentLedger=one(
+   "SELECT amount,effect FROM employee_accounting_party_ledger_v1 WHERE operation='payment_paid' AND party_id=?",sid);
+ assert.equal(Number(paymentLedger.amount),20,'supplier paid amount must be written to ledger');
+ assert.equal(Number(paymentLedger.effect),-1);
+
  const beforeDup=count('employee_accounting_request_ledger_v1');
  const dupeBuy=await send('saveEasyStorePurchaseV2',{
    requestId:'ACC170-BUY-DUP-0001',supplierId:sid,materialId:mid,
@@ -178,6 +183,22 @@ try{
  const receipts=one("SELECT SUM(amount) AS sum FROM employee_accounting_cashbox_v1 WHERE movement_type='CUSTOMER_RECEIPT'").sum;
  assert.equal(receipts,25);
  assert.equal(count('employee_accounting_tx_guard_v1'),0);
+ const report=await send('getDailyDepartmentReportV1920',{
+   department:'طباعة',workDate:'2099-12-31'
+ });
+ assert.equal(report.success,true,'actual finance report handler '+JSON.stringify(report));
+ assert.ok(report.report,'daily finance report must be produced from real SQLite data');
+ const dayClose=await send('closeDepartmentDayV1920',{
+   requestId:'ACC170-DAY-CLOSE-0001',department:'طباعة',workDate:'2099-12-31'
+ });
+ assert.equal(dayClose.success,true,'day-close '+JSON.stringify(dayClose));
+ assert.ok(dayClose.reportHash,'auditable day-close report hash');
+ assert.equal(count('employee_accounting_day_closes_v1'),1);
+ const repeatedClose=await send('closeDepartmentDayV1920',{
+   requestId:'ACC170-DAY-CLOSE-DUP-0001',department:'طباعة',workDate:'2099-12-31'
+ });
+ assert.equal(repeatedClose.duplicatePrevented,true);
+ assert.equal(count('employee_accounting_day_closes_v1'),1);
  const oldCounts={
    purchases:count('employee_accounting_purchase_invoices_v1'),
    final:count('employee_accounting_final_invoices_v1'),
@@ -205,6 +226,7 @@ try{
  console.log('ACC170_SQLITE_REAL_WORKER_PURCHASE_REVERSAL=PASS');
  console.log('ACC170_SQLITE_REAL_WORKER_DIRECT_SALE_CUSTOMER_STOCK=PASS');
  console.log('ACC170_SQLITE_DUPLICATE_INVOICE_AND_REVERSAL_GUARDS=PASS');
+ console.log('ACC170_SQLITE_DAILY_REPORT_AND_DAY_CLOSE=PASS');
  console.log('ACC170_SQLITE_VERIFIED_ROLE_SPOOF_DENIED=PASS');
  console.log('ACC170_SQLITE_READONLY_FINANCIAL_POST_DENIED=PASS');
  console.log('ACC170_PRODUCTION_D1_WRITES=ZERO');
