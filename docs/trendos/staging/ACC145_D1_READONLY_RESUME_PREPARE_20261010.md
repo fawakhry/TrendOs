@@ -58,3 +58,19 @@ HEAD_BEFORE: `3d1ca8a320970311ee245416e44d93f219b14fa2`. Accounting source branc
 - Expected: GitHub Actions SUCCESS with both A2.11 and A2.12 guards plus current closed-state baseline verified. Readback the workflow and test after commit; check run conclusion and actual logs. Historical workflows are unchanged. No cloud mutations.
 - STOP on mismatch/partial result; never claim this validates A2.13 custody-close execution or general finance writes.
 Status: PREPARED; separate code commit pending.
+
+
+## ACC-146 / Step 01 — VERIFIED RESULT (2026-10-10)
+- Test commit `9b33e5a3a00dd4465a18504e5e59dbcadd865832`; new workflow commit `a7594e8a1489a9b927f35ce62cae25a409a5b39c`.
+- Workflow file `.github/workflows/easystore-acc146-a211-a212-current-qualification.yml` readback Git blob `08ee755bd064250424a5ff2b2bb63b99dec058b7`; test file `tests/easystore_acc146_baseline_lineage.test.mjs` blob `34b1b34e5f265f176c18a2f2835481b6c57d5061`.
+- Live read-only workflow **SUCCESS**: https://github.com/fawakhry/TrendOs/actions/runs/38047096908; job `114198716103`.
+- Log proof: `A211_WASTE_CANARY_SERVER_GUARD=PASS`, `A212_DEPT_LINE_SERVER_GUARD=PASS`, `A212_DEPT_LINE_TDZ_REGRESSION=PASS`, `ACC146_HISTORICAL_A211_A212_BASELINES_PRESERVED=PASS`, `ACC146_CURRENT_SIX_CANARY_CLOSED_BASELINE_TEST=PASS`, `ACC146_A211_A212_GUARD_TESTS=PASS`.
+- Verified Production in same run: `ACCOUNTING_CHECKPOINT_MODE=READONLY`, `POLICY_EPOCH=39`, `TOTAL_BUSINESS_ROWS=18`, `ACCOUNTING_RUNTIME_CHECKPOINT=PASS`, `PRODUCTION_MUTATION=NO`.
+- Independent frontend transport regression run 38047099172 **SUCCESS**.
+- Historical workflow files remained unchanged. The historical A2.11/A2.12 jobs are correctly classified as obsolete time-scoped pre-canary gates, not new production failures.
+- Result: **COMMITTED_VERIFIED + TESTED + LATEST VERIFIED READONLY LIVE**. No A2.13 success claim; no write authority.
+
+## ACC-147 / Step 00 — PREPARE for SSO source-level gap audit
+- Next task: inspect current TrendOS→EasyStore employee session transfer (especially cross-origin browser restrictions, nonce, opener and source origin checks) and native D1 session verification, **REPO READ ONLY** until an exact repair is justified.
+- Do not use TinyFish, do not capture browser tokens, do not ask for employee password, and do not mutate production; pursue offline tests and isolated branch only.
+- If source currently has no authenticated cross-origin handoff, prepare a least-privilege scoped fix with regression tests, and record gate before modifications.
