@@ -1,0 +1,68 @@
+name: AP-126 First-Line Source Coverage Readonly
+on:
+  push:
+    branches:
+      - feature/ap126-first-line-source-footprint-readonly-20261010
+    paths:
+      - '.github/workflows/autonomous-printshop-ap126-source-coverage-readonly.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ap126-source-coverage-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  source-coverage:
+    if: github.ref == 'refs/heads/feature/ap126-first-line-source-footprint-readonly-20261010'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SQL_FILE: autonomous-printshop/diagnostics/AP126_LIVE_FIRST_LINE_SOURCE_SCHEMAS_READONLY.sql
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate SQL and local synthetic SQLite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 autonomous-printshop/tests/ap126_d1_first_line_source_schemas_readonly.test.py
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          echo "AP126_STORED_CLOUDFLARE_CREDENTIALS=INJECTED"
+      - name: Query only sqlite_master schema coverage on D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          SQL="$(python3 - "$SQL_FILE" <<'PY'
+          import pathlib,sys
+          src=pathlib.Path(sys.argv[1]).read_text()
+          print(' '.join(x.strip() for x in src.splitlines() if x.strip() and not x.lstrip().startswith('--')))
+          PY
+          )"
+          OUT="$RUNNER_TEMP/ap126_result.json"
+          if ! npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config "$CONFIG" --json --command "$SQL" >"$OUT" 2>"$RUNNER_TEMP/ap126_stderr"; then
+            echo "AP126_LIVE_SCHEMA_QUERY=BLOCKED_SAFE"
+            exit 1
+          fi
+          python3 - "$OUT" <<'PY'
+          import json,sys
+          fields=["cloudFiles","designArtifacts","designApprovals","designPreflights","designBindings","materialDeptLines","materialCatalog","materialControl","machineMappings","machineRegistry","machineObservations","machineIdentity"]
+          try:
+            payload=json.load(open(sys.argv[1]))
+            assert isinstance(payload,list) and len(payload)==1
+            assert payload[0].get('success') is True
+            rows=payload[0].get('results')
+            assert isinstance(rows,list) and len(rows)==1
+            row=rows[0]
+            assert set(row)==set(fields)
+            assert all(type(row[k]) is int and row[k] in (0,1) for k in fields)
+          except Exception:
+            print("AP126_LIVE_SCHEMA_RESULT=BLOCKED_SAFE")
+            sys.exit(1)
+          for key in fields:print("AP126_SCHEMA_"+key+"="+("PRESENT" if row[key] else "ABSENT"))
+          print("AP126_LIVE_D1_SCHEMA_READ=SUCCESS")
+          print("AP126_REAL_FIRST_LINE_DESIGN_MATERIAL_MACHINE=NOT_VERIFIED")
+          print("AP126_D1_BUSINESS_ROWS_EXPOSED=NO; D1_WRITES=0; PRODUCTION_DEPLOY=NO")
+          PY
