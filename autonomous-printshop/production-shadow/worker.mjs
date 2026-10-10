@@ -950,6 +950,12 @@ async function readinessInputs(env){
                confidence,
                observed_at_ms AS observedAtMs,
                expires_at_ms AS expiresAtMs,
+               MAX(CASE
+                     WHEN typeof(observed_at_ms)<>'integer' OR observed_at_ms<=0
+                     THEN 1 ELSE 0
+                   END) OVER (
+                 PARTITION BY line_id,evidence_kind
+               ) AS invalidTimeInHistory,
                DENSE_RANK() OVER (
                  PARTITION BY line_id,evidence_kind
                  ORDER BY observed_at_ms DESC
@@ -957,7 +963,8 @@ async function readinessInputs(env){
           FROM autonomous_readiness_evidence
       )
       SELECT evidenceId,lineId,evidenceKind,evidenceState,sourceKind,
-             sourceRef,sourceVersion,confidence,observedAtMs,expiresAtMs
+             sourceRef,sourceVersion,confidence,observedAtMs,expiresAtMs,
+             invalidTimeInHistory
         FROM ranked
        WHERE evidenceRank=1
     `).all()
@@ -983,7 +990,8 @@ async function readinessInputs(env){
       sourceVersion:text(r.sourceVersion),
       confidence:Number(r.confidence||0),
       observedAtMs:Number(r.observedAtMs||0),
-      expiresAtMs:r.expiresAtMs==null?null:Number(r.expiresAtMs)
+      expiresAtMs:r.expiresAtMs==null?null:Number(r.expiresAtMs),
+      invalidTimeInHistory:Number(r.invalidTimeInHistory)===1
     }))
   };
 }
