@@ -17,8 +17,7 @@ function reviewProof(kind,event){
   if(kind==='DESIGN'){
     if(!/^[0-9a-fA-F]{64}$/.test(text(event.sourceVersion)))
       return 'DESIGN_SHA256_OR_VERSION_MISSING';
-    if(raw.assetBindingState!=='READY'||raw.preflightResult!=='PASS'&&
-      raw.reason!=='DESIGN_ASSET_LINKED_APPROVED_AND_PREFLIGHT_PASS')
+    if(raw.assetBindingState!=='READY'||raw.preflightResult!=='PASS')
       return 'DESIGN_BINDING_OR_PREFLIGHT_UNVERIFIED';
     if(!['CUSTOMER_APPROVED','OWNER_APPROVED','POLICY_APPROVED'].includes(raw.approvalState))
       return 'DESIGN_APPROVAL_UNVERIFIED';
@@ -64,11 +63,25 @@ export function reviewPrivateSameLineProvenanceV1({
           time(a.observedAtMs??a.observed_at_ms));
         const latest=matching[0];
         const observed=time(latest.observedAtMs??latest.observed_at_ms);
+        // Equal-time, non-identical competing facts cannot be ordered safely.
+        // Reject rather than depending on caller event array ordering.
+        const sameInstant=matching.filter(e=>
+          time(e.observedAtMs??e.observed_at_ms)===observed);
+        const signatures=new Set(sameInstant.map(e=>JSON.stringify([
+          e.state??e.evidenceState??e.evidence_state,
+          e.expiresAtMs??e.expires_at_ms,
+          e.sourceKind??e.source_kind,
+          e.sourceRef??e.source_ref,
+          e.sourceVersion??e.source_version,
+          e.evidence
+        ])));
+        const ambiguous=signatures.size>1;
         const expires=time(latest.expiresAtMs??latest.expires_at_ms);
         const state=text(latest.state??latest.evidenceState??latest.evidence_state).toUpperCase();
         const sourceKind=text(latest.sourceKind??latest.source_kind).toUpperCase();
         const sourceRef=text(latest.sourceRef??latest.source_ref);
-        if(observed>clock)status='FUTURE_OBSERVATION';
+        if(ambiguous)status='AMBIGUOUS_LATEST_EVIDENCE';
+        else if(observed>clock)status='FUTURE_OBSERVATION';
         else if(!expires||expires<=observed)status='EXPIRY_UNVERIFIED';
         else if(expires<=clock)status='LATEST_EVIDENCE_EXPIRED';
         else if(state==='BLOCKED')status='EVIDENCE_BLOCKED';
