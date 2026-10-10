@@ -34,7 +34,11 @@ export function latestReadinessEvidenceV1(events=[],nowMs=Date.now()){
     const expiresAtMs=expiresRaw==null||expiresRaw===''?null:Number(expiresRaw);
     if(!lineId||!READINESS_KINDS.includes(kind)) continue;
     const key=lineId+'::'+kind;
-    if(!Number.isFinite(observedAtMs)||observedAtMs<=0){
+    // Source-only D1 adapter attaches a per-line/kind window flag:
+    // the latest ranked row alone cannot reveal a malformed older timestamp.
+    if(raw.invalidTimeInHistory===true || raw.invalid_time_in_history===true)
+      invalidTimelineKeys.add(key);
+    if(!Number.isSafeInteger(observedAtMs)||observedAtMs<=0){
       // An undatable event cannot be ordered against existing READY.
       // Fail closed for the whole line/kind, not by ignoring the event.
       invalidTimelineKeys.add(key);
