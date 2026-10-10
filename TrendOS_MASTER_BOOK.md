@@ -4545,3 +4545,10 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 - `ACC-157`: source commit [60a0261](https://github.com/fawakhry/TrendOs/commit/60a02618f2936452466734e805afd6cbc233fa33), [read-only CI 38052986686](https://github.com/fawakhry/TrendOs/actions/runs/38052986686) SUCCESS. Live D1 health is READONLY epoch39, zero allowed commands/users, frontend public HTTP available, EasyStore PR #23 not deployed. No financial writes. Fully working financial accounting NOT verified; source, parity, role and true Diaa SSO still blocked.
 - `ACC-158`: documented exact owner-approval release order for **frontend-only** [EasyStore PR #23](https://github.com/fawakhry/EasyStore/pull/23), production main baseline `cf03dfe8`, PR head `ce332dfe`, precisely 4-file change, source CI PASS, with Pages auto-publish risk, login smoke and rollback. No merge/deployment authorized/executed. This release cannot enable D1 writes or bypass A2.13 DO_NOT_RETRY.
 - See [ACC145–158 accounting ledger](docs/trendos/staging/ACC145_D1_READONLY_RESUME_PREPARE_20261010.md) for test details and controlled rollout checklist.
+
+
+### Accounting ACC-159 — 2026-10-10 read-only archival row inventory
+
+- Scanned A1:H60 on 20 accounting tabs in three Google Sheets workbooks, without disclosing or copying cell values: current CLEAN_START 0 occupied data-row positions, PRE_CLEANUP 2026-09-03 archive 99, historical STAGING 2026-09-04 82. PRE_D1 2026-08-29 backup spot checks also found historical populated rows.
+- These are occupied row positions only, NOT verified financial transactions, opening balances, source authority, or D1 parity. Historical STAGING is not Production authority. No imports, writes or reconciliation were performed.
+- Specific counts, limited scan scope and blocked gates are in [ACC-159 archive discovery ledger](docs/trendos/staging/ACC145_D1_READONLY_RESUME_PREPARE_20261010.md). ACC-157 READONLY CI 38052986686 succeeded. A2.13 remains DO_NOT_RETRY; EasyStore frontend PR #23 remains unmerged until a controlled owner-approved release. Full financial Go-Live still BLOCKED_SAFE.
