@@ -1,0 +1,69 @@
+name: ACC-149 EasyStore Published Read Routing Contract
+
+on:
+  push:
+    branches:
+      - audit/easystore-d1-readonly-resume-20261010
+    paths:
+      - '.github/workflows/easystore-acc149-read-routing-readonly-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch public EasyStore deployed source by GET only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --max-time 40 "https://fawakhry.github.io/EasyStore/app.js?acc149=$GITHUB_RUN_ID" -o /tmp/acc149-app.js
+          curl -fsSL --max-time 40 "https://fawakhry.github.io/EasyStore/config.js?acc149=$GITHUB_RUN_ID" -o /tmp/acc149-config.js
+      - name: Prove every declared frontend accounting action is covered and writes fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('node:fs'),assert=require('node:assert/strict');
+          const app=fs.readFileSync('/tmp/acc149-app.js','utf8');
+          const cfg=fs.readFileSync('/tmp/acc149-config.js','utf8');
+          function actionSet(name){
+            const m=app.match(new RegExp('const '+name+' = new Set\\(\\[([^\\]]+)\\]\\);'));
+            assert.ok(m, 'ACTION_SET_MISSING_'+name);
+            return new Set([...m[1].matchAll(/['"]([^'"]+)['"]/g)].map(x=>x[1]));
+          }
+          const read=actionSet('D1_ACCOUNTING_READ_ACTIONS');
+          const closed=actionSet('A213_ACCOUNTING_WRITE_ACTIONS_FAIL_CLOSED');
+          const bounded=actionSet('D1_ACCOUNTING_WRITE_ACTIONS');
+          const calls=new Set([...app.matchAll(/\\bapi\\(\\s*(['"])([^'"]+)\\1/g)].map(x=>x[2]));
+          const all=[...app.matchAll(/\\bapi\\(\\s*([^,\\)]+)/g)].map(x=>x[1].trim());
+          const dynamic=all.filter(x=>x!=='action'&&!/^['"]/.test(x));
+          assert.equal(dynamic.length,0,'DYNAMIC_ACTION_CALL_UNCLASSIFIED');
+          assert.equal(calls.size,33,'FRONTEND_ACTION_CENSUS_CHANGED_REVIEW_REQUIRED');
+          assert.equal(read.size,11,'D1_READ_SET_CHANGED_REVIEW_REQUIRED');
+          assert.equal(closed.size,24,'CLOSED_WRITE_SET_CHANGED_REVIEW_REQUIRED');
+          assert.equal(bounded.size,1,'BOUNDED_WRITE_SET_CHANGED_REVIEW_REQUIRED');
+          assert.ok(bounded.has('closePurchaseCustodyV1920')&&closed.has('closePurchaseCustodyV1920'),'CANARY_NOT_BOUNDED');
+          assert.equal([...calls].filter(x=>!read.has(x)&&!closed.has(x)).length,0,'UNCLASSIFIED_ACTION_TO_LEGACY');
+          assert.equal([...read].filter(x=>closed.has(x)).length,0,'READ_WRITE_SET_OVERLAP');
+          assert.ok(/EASYSTORE_ACCOUNTING_D1_READONLY\\s*=\\s*true/.test(cfg),'D1_READ_NOT_ENABLED');
+          assert.ok(/EASYSTORE_ACCOUNTING_D1_WRITES\\s*=\\s*false/.test(cfg),'FRONTEND_GENERAL_WRITE_NOT_OFF');
+          assert.ok(/EASYSTORE_ACCOUNTING_D1_WRITE_MODE\\s*=\\s*['"]OFF['"]/.test(cfg),'FRONTEND_CANARY_MODE_NOT_OFF');
+          assert.ok(/EASYSTORE_ACCOUNTING_D1_WRITE_CANARY_ACTIONS\\s*=\\s*\\[\\]/.test(cfg),'FRONTEND_CANARY_ACTIONS_NOT_EMPTY');
+          const failIndex=app.indexOf("if(accountingWriteRequested && writeMode!=='CANARY')");
+          const legacyIndex=app.indexOf("const endpoint=String(window.MATBAGY_SECURE_API_PROXY_URL");
+          assert.ok(failIndex>0&&legacyIndex>failIndex,'FINANCIAL_FALLBACK_GUARD_NOT_BEFORE_LEGACY');
+          console.log('ACC149_PUBLISHED_FRONTEND_CALLED_ACTIONS='+calls.size);
+          console.log('ACC149_PUBLISHED_D1_READ_ACTIONS='+read.size);
+          console.log('ACC149_PUBLISHED_CLOSED_WRITE_ACTIONS='+closed.size);
+          console.log('ACC149_PUBLISHED_BOUNDED_CANARY_ACTIONS='+bounded.size);
+          console.log('ACC149_UNCLASSIFIED_ACTIONS=0');
+          console.log('ACC149_DYNAMIC_ACTION_CALLS=0');
+          console.log('ACC149_FRONTEND_FINANCIAL_FALLBACK=BLOCKED');
+          console.log('ACC149_PRODUCTION_MUTATION=NO');
+          NODE
