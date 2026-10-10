@@ -7571,3 +7571,27 @@ RESULT: `AP095_SOURCE_ONLY=PASS`; `DB_NEWEST_BEFORE_TTL=TESTED`; `SHADOW_LIVE_DE
 NEXT: Advance existing evidence-acquisition packet against same-line qualified Design/Material/Machine data, preserve IDs/PII exclusion, and test with synthetic missing/partial events on a separate review-only change. Later review AP-094/AP-095 together before any approved baseline promotion. No CANARY or unprotected Owner Console deployment.
 
 AP-095 documentation-only commit and its exact subsequent CI run should be checked separately after the write.
+
+
+### AP-096 — Same-line Design/Material/Machine evidence acquisition integration proof (2026-10-10, TESTED / SOURCE_ONLY)
+
+READ/VERIFY:
+- Continued from AP-095's documented branch head `7e4712fe20f65037701946ccf0ddea8c422e61c3` onto isolated development branch `feature/ap096-same-line-evidence-pilot-20261010`. Read canonical `autonomous-printshop/MASTER_BOOK.md` through AP-095, existing `readiness-evidence-v1.mjs`, `evidence-pilot-target-v1.mjs`, `evidence-acquisition-packet-v1.mjs` and production-shadow projection.
+- Goal: independently prove a DESIGN proof from order line A never combines with MATERIAL or MACHINE proofs from line B to qualify either line, while the existing pilot packet precisely names missing kinds and emits no raw IDs or PII.
+
+IMPLEMENT:
+- Source/test commit `459fb4f9563148bbc7af6713cd97755a9a0c8c91`, two paths only:
+  1. `autonomous-printshop/tests/evidence_pilot_same_line_v1.test.mjs`: deterministic synthetic end-to-end projection integration of `buildReadinessQualifiedRealityV1` -> `selectEvidencePilotTargetV1` -> `buildEvidenceAcquisitionPacketV1`. Tests two lines, disjoint evidence by kind, no strict recommendation, missing MATERIAL for line A, requirement packet missing-kind precision and absence of IDs/customer/employee identity. Tests legitimate complete same-line recovery (only line A eligible, while B remains the acquisition target missing DESIGN). Reintroduces newer expired MATERIAL BLOCKED for A and proves AP-094/AP-095 fail-closed downgrade with no recommendation or assignment. Does not touch Cloudflare, D1, staff, stock, accounting or business orders.
+  2. `.github/workflows/autonomous-printshop-policy-v1-ci.yml`: inserted standalone `Run same-line Design Material Machine evidence acquisition integration` after pilot-target contract; existing tests kept.
+- No new service, data store, API route, access policy, operator automation or deployment wiring; production baseline remains separate. This is **integration test hardening**, not real evidence completion.
+
+TEST:
+- Exact GitHub Actions Autonomous Printshop Policy V1 CI `38051871276` at `459fb4f9563148bbc7af6713cd97755a9a0c8c91`: **COMPLETED SUCCESS**. Inspected `autonomy-policy-contract` SUCCESS; `Run readiness evidence contract`, AP-095 SQLite SQL integration and `Run same-line Design Material Machine evidence acquisition integration` all SUCCESS. Earlier AP-095 documentation CI `38051764632` also COMPLETED SUCCESS.
+- GitHub compare parent `7e4712fe20f65037701946ccf0ddea8c422e61c3` => `459fb4f9563148bbc7af6713cd97755a9a0c8c91` confirms exactly two paths, with no runtime code modifications. No Cloudflare staging test or runtime health claim.
+
+GATES AND NEXT:
+- Same-line assembly risk: VERIFIED TESTED FAIL_CLOSED for synthetic fixtures only. A real order still needs authoritative DESIGN asset SHA256/approval/preflight, MATERIAL authoritative active stock+consumption+same-line linkage, MACHINE registered ID/nameplate+observation+same-line mapping. No real Design/Material/Machine evidence was created or fabricated.
+- `OPERATOR_TASK=OFF`, `AUTONOMY/READINESS=SHADOW`, `ACCOUNTING=READONLY epoch39` remain historical, NOT re-measured live. `OWNER_CONSOLE_ACCESS_GATE=FAILED`; `STAGING_CLOUD=NOT_QUALIFIED`; `MC-02/MC-23=PARTIAL`; `PRODUCTION_MUTATION=NO`; `CANDIDATE_PUSH=NO`; `WORKER_DEPLOY=NO`.
+- Next executable gate: read-only current non-PII production readiness evidence inventory through an authorized secure channel, strictly same-line and source-provenance qualified, then present one human-verifiable acquisition packet. If current state cannot be verified, remain BLOCKED_SAFE rather than inferring order eligibility. Existing Cloudflare security gate is deferred for manual interaction, not waived for deployment.
+
+This AP-096 documentation-only commit will trigger another CI; check its resulting run and do not assume success in advance.
