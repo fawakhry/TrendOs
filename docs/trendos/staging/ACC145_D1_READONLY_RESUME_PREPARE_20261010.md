@@ -167,3 +167,16 @@ Production state proved up to 2026-10-10: `READONLY`, no financial write authori
 - `ACC145_D1_READONLY_RESUME_PREPARE_20261010.md` remains detailed append-only record; this index is for discovery/handoff.
 - STOP if concurrent book blob changes; reconcile before retry.
 Status: PREPARED.
+
+## ACC-150 / Step 01 — VERIFIED book update
+- Canonical Accounting checkpoint indexed append-only into `TrendOS_MASTER_BOOK.md` on the isolated audit branch only.
+- Book commit: `fba1b0b92bd7bad61316960ab6d48a43c4819ca2`. Readback Git blob: `ef4fd83728dcadbe8ea220b84808e79866458dc5`. Existing master preserved; no T12/main book modification.
+- Draft accounting PR #39 title/body updated with ACC145–150 evidence and explicit do-not-merge automatically.
+- Result: **COMMITTED_VERIFIED / DOC_ONLY**.
+
+## ACC-151 / Step 00 — PREPARE read-only legacy source parity discovery
+- Exact connected native Sheets file selected by its repository config ID: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`, `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`.
+- Drive metadata read confirms 91 tabs, including active accounting group (`حسابات - فواتير الأقسام`, `حسابات - الفواتير النهائية`, `حسابات - مسودات الفواتير`, `حسابات - فواتير الشراء`, `حسابات - الخامات`, `حسابات - تقفيل العهد`, etc.). Grid rowCount metadata reflects allocation, NOT active data count.
+- Next read-only action: examine bounded tab ranges, aggregate non-empty row counts **without emitting identities/amounts or cell content**. This detects un-migrated legacy factual records; it is not a complete financial parity check.
+- Do NOT edit any Sheet cells or run Apps Script/migrations. Missing source data or non-unique keys must be marked UNKNOWN, not inferred.
+Status: PREPARED, awaiting bounded source-only reads.
