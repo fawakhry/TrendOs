@@ -120,3 +120,17 @@ Status: PREPARED; verify this record before repository-only addition.
 - Exact safe correction: remove *only* the historical Entry619 test step just appended to the PR safety workflow. Keep the fresh handoff test and existing cloud safety tests. Do not edit legacy tests to hide original contract, do not change app.js or financial config.
 - Expected result: rerun PR CI and classify from actual logs; no production impact.
 Status: PREPARED, separate CI edit pending.
+
+## ACC-148 / Step 04 — VERIFIED DRAFT PR + TEST (2026-10-10)
+- EasyStore draft PR: https://github.com/fawakhry/EasyStore/pull/23
+- Branch `fix/easystore-sso-reused-window-20261010`, head `c80a5b786474a49f5fe28a23967a7336f46aae70`. Fix only at branch level, not main/deployed.
+- Final Cloud Safety wiring change `c80a5b786474a49f5fe28a23967a7336f46aae70`; historic Entry619 fixed-size read-set test intentionally remains unchanged and excluded from current PR CI. The original failure is preserved at run 38047541495; no misrepresentation.
+- Passing GitHub Actions: run **38047615198** https://github.com/fawakhry/EasyStore/actions/runs/38047615198; job 114200215415.
+- Steps PASS: `node --check app.js`; `easystore_cloud_write_routing.test.mjs`; `easystore_platform_connection.test.mjs`; `easystore_sso_fresh_handoff.test.mjs`.
+- Proof: `EASYSTORE_SSO_FRESH_HANDOFF_FAIL_CLOSED=PASS`; `EASYSTORE_SSO_LEGACY_NON_NONCE_COMPAT=PASS`; `EASYSTORE_SSO_FINANCIAL_MUTATION=NO`; platform connection safety PASS.
+- RESULT: **REPO_ONLY TESTED + DRAFT PR**. Production runtime still runs previous EasyStore release; the protection is not yet deployed or user-smoked. Merge and browser smoke require separate release gate.
+
+## ACC-149 / Step 00 — Read-routing gap audit PREPARE
+- Next safe continuation is an **offline-only** census of EasyStore accounting action dispatch coverage vs. D1 read/write allowlists and legacy backend fallback, with particular attention to unauthorized action fallthrough and Google-backed business traffic.
+- Verify exact counts/types and label any uncovered action UNKNOWN or LEGACY; do not treat the 11 D1 read actions as full financial cutover.
+- A new test or report may be added to the isolated audit branch after a fresh PREPARE record; no live writes or cloud deployment.
