@@ -37,7 +37,17 @@ export function createSharedControlTowerLastGoodV1(store){
    // never extend their lifetime just to meet storage's minimum TTL.
    const expiration=Math.floor(record.expiresAt/1000);
    if(expiration-Math.ceil(at/1000)<60)return unavailable('SOURCE_TOO_OLD_FOR_SHARED_STORAGE');
-   if(!store||typeof store.put!=='function')return unavailable('SHARED_STORAGE_UNAVAILABLE');
+   if(!store||typeof store.put!=='function'||typeof store.get!=='function')
+    return unavailable('SHARED_STORAGE_UNAVAILABLE');
+   // Best-effort single-reader/source-time rollback guard. KV does not provide
+   // transactions or compare-and-swap: this is NOT distributed race safety.
+   // A fresh qualified snapshot may replace an invalid previous cache record.
+   try{
+    const priorValue=await store.get(KEY);
+    const previous=typeof priorValue==='string'?JSON.parse(priorValue):priorValue;
+    if(valid(previous)&&Date.parse(previous.asOf)>=Date.parse(record.asOf))
+      return unavailable('SHARED_SOURCE_ROLLBACK_OR_REPLAY');
+   }catch{return unavailable('SHARED_STORAGE_READ_FAILED');}
    try{await store.put(KEY,JSON.stringify(record),{expiration});}
    catch{return unavailable('SHARED_STORAGE_WRITE_FAILED');}
    return {success:true,status:'SHARED_DIAGNOSTIC_OBSERVED',expiresAt:record.expiresAt,
