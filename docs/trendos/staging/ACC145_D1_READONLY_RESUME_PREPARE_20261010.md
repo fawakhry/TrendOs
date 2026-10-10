@@ -84,3 +84,16 @@ Status: PREPARED; separate code commit pending.
 - No frontend/API deploy, D1 migration or command, financial data mutation, or password action.
 - STOP on any runtime mismatch; record the specific missing contract without changing Production.
 Status: PREPARED; verify this record before repository-only addition.
+
+## ACC-147 / Step 02 — VERIFIED RESULT (2026-10-10)
+- Isolated workflow `.github/workflows/easystore-acc147-live-sso-readonly-audit.yml` commit `b9dc13f1e3a389ab1c2b44415bca05be2f7308fc`, verified Git blob `bf83aa8b8dfacf628a048aab10a813c521f377c6`.
+- Public GET-only deployed asset qualification: run **38047282560** https://github.com/fawakhry/TrendOs/actions/runs/38047282560, job **114199245882**, SUCCESS.
+- Exact observed: `ACC147_LIVE_TRENDOS_SSO_SENDER=PASS`, `ACC147_LIVE_EASYSTORE_SSO_RECEIVER=PASS`, `ACC147_LIVE_NONCE_ORIGIN_ACK_CONTRACT=PASS`, `ACC147_LIVE_ACCOUNTING_READONLY=PASS`, `ACC147_LIVE_POLICY_EPOCH=39`, `ACC147_PRODUCTION_MUTATION=NO`.
+- `ACC147_AUTHENTICATED_BROWSER_SESSION_VERIFIED=NO` (real Diya employee session not supplied and not impersonated). No token/authentication credentials were collected.
+- Current Cloudflare deployed TrendOS SSO sender exists; prior `main` source missing it is historical, not current runtime state. No production rewrite justified.
+- Result: **COMMITTED_VERIFIED + VERIFIED LIVE DEPLOYED SOURCE**. Does not prove authenticated data read or employee browser SSO smoke.
+
+## ACC-148 / Step 00 — READ ONLY SOURCE REVIEW
+- Inspect EasyStore `readSso()` + `ensureTrendosSso()` under cross-origin reused browser-window conditions: stale cached SSO session could outrank fresh `ssoNonce` while the true sender is still pending.
+- Scope: OFFLINE code audit first. If reproduced through isolated test, fix only EasyStore frontend via **draft PR**, not main/production, with a fail-closed fresh-handoff gate that prevents old session reuse.
+- No expiry relaxation, no sharing session tokens, no live account data or D1 mutation.
