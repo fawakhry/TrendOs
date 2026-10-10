@@ -192,3 +192,16 @@ Status: PREPARED, awaiting bounded source-only reads.
 
 ## ACC-152 / next safe scope
 - PREPARE only a schema/entity-level parity manifest, grounded in existing TrendOS Accounting blackbox and D1 migrations, that maps `Orders/OrderLines` to invoices and stock movements and distinguishes empty legacy Accounting tables from populated Operations tables. Do not copy records, commit identifiable data, or assert cutover readiness until a financial owner signs the source/target mapping.
+
+## ACC-152 / Step 00B — PREPARE schema-only parity manifest
+- Confirmed legacy headers via bounded first-row reads only:
+  - `حسابات - فواتير الأقسام`: `ID`, `رقم الأوردر`, `رقم البند` → potential `accounting_line_id`, `order_id`, `line_id`.
+  - `حسابات - الفواتير النهائية`: `رقم الفاتورة`, `رقم الأوردر` → potential `invoice_no`, `order_id`.
+  - `حسابات - الخامات`: `ID` → potential `material_id`.
+  - `حسابات - حركة المخزون`: `ID`, `رقم الأوردر`, `رقم البند` → potential stock move/order/line IDs.
+  - `حسابات - الخزنة`: duplicate legacy labels `id` and `ID` plus names; source primary-key selection is **UNKNOWN** pending authoritative mapping.
+- Migration source proof: `cloudflare-d1/migrations/0015_employee_accounting_zero_google_v1.sql` and `0022_employee_accounting_day_ops_v1.sql` define these target tables and textual primary keys.
+- Proposed exact action: isolated doc `docs/trendos/staging/ACC152_ACCOUNTING_SOURCE_D1_PARITY_MANIFEST_20261010.json`, static contract test `tests/easystore_acc152_source_parity_manifest.test.mjs`, and repo-only CI `.github/workflows/easystore-acc152-parity-manifest-ci.yml`; validate schema not data, never read or print actual customer rows.
+- Expected status: `SCHEMA_MAPPED_ONLY`, not `PARITY_VERIFIED`; current production finance remains READONLY; user decision needed for authoritative historical opening balances.
+- No D1 or Sheets mutation, no financial transactions, no deploy, no Google token/material download.
+Status PREPARED.
