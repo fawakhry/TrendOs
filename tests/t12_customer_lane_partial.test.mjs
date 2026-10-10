@@ -245,3 +245,10 @@ for (const department of ['ليزر','طباعة']) {
  assert.equal((await create(db,120,'ليزر')).success,false,'Another unfinished order must still block');
 }
 console.log('Ready pickup release, unchanged old status, concurrent new work and retry protection PASS');
+
+{
+ const db=new D1();const old=await create(db,130,'ليزر');assert.equal(old.success,true);
+ db.raw.prepare("INSERT INTO t12_prod_line_runtime(line_id,order_id,status,updated_by) VALUES (?,?,?,?)").run(old.lineId,old.orderId,'جاهز للاستلام','employee-a');
+ const repeated=await create(db,131,'ليزر');assert.equal(repeated.success,false,'Ready state must not disable identical-payload duplicate window');
+ assert.equal(db.n('t12_prod_orders'),1);
+}
