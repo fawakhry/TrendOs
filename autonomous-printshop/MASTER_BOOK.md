@@ -8155,3 +8155,27 @@ LIMITS / CLASSIFICATION:
 NEXT:
 1. Qualified, access-controlled READ-ONLY private source adapters and explicit owner/staff selected internal line, with fresh protected backend recheck before any human decision. Require DESIGN real stored SHA/structured approval/preflight and verified expiry, MATERIAL live authoritative stock/consumption and MACHINE nameplate/serial/health/mapping from the same line; fail closed on any missing source.
 2. Retain review-only workflow and small number of owner steps: no new AP-113 repeated live inventory, no Cloudflare settings or D1 mutations. Do not activate automatic routing, Operator Task, worker deploy, finance actions or physical machine operation without the separate protection and go/no-go gates.
+
+
+### AP-117 — Malformed private evidence cannot crash or leak from AP-116 human review (2026-10-10; TESTED / SOURCE_ONLY)
+
+AP / GOAL / DISCOVERY:
+- AP-117 follows AP-116 at `7e9c0e60f93d1d28b7d45a4ba5e5ef0ab56c566a` (AP-116 source CI `38066853429` SUCCESS, doc CI `38066960313` SUCCESS). Safe branch `feature/ap117-private-evidence-malformed-failclosed-20261010`; production candidate unchanged.
+- Security/source review found a concrete malformed-private-evidence failure: AP-116's review function directly called AP-110's per-kind precheck, which computes JSON signatures for equal-time evidence conflicts. Malformed in-memory event payloads containing cyclic objects or BigInt, or getters throwing during private line key inspection, can cause unhandled exceptions. There was no direct raw-field JSON output, but an uncaught exception could break the calling owner UI/service or expose stack/diagnostic details depending on handler. This is a synthetic source risk, **not an observed Production leak or Cloudflare failure**.
+- Requirement: reject corrupted source input entirely with fixed nonidentifying reason code; never reuse an older valid READY or emit private error contents.
+
+FILES / CODE:
+1. `autonomous-printshop/core/live-line-snapshot-human-review-v1.mjs`: wrap `reviewPrivateSameLineProvenanceV1` invocation inside a bounded `try/catch`, returning the existing fail-closed `deny()` packet with new static reason `PRIVATE_EVIDENCE_INPUT_UNVERIFIED` if any malformed source event causes an exception. No exception text, source refs, stack, IDs or raw values are surfaced; fresh valid record still permits **HUMAN_REVIEW_ONLY**, not auto dispatch. Do not change source authentication claims, snapshot age bound or readiness authority.
+2. `autonomous-printshop/tests/ap117_private_evidence_malformed_failclosed.test.mjs`: new deterministic synthetic cases for cyclic `event.evidence`, BigInt payload, and a deliberately throwing private field getter containing a fake customer secret. All are rejected BLOCKED_SAFE with NO private IDs/source/error leakage, NO write flags or task selection. Valid source after rejection still processes human-only, proving stateless recovery.
+3. `.github/workflows/autonomous-printshop-policy-v1-ci.yml`: adds dedicated AP-117 test after AP-116 without changing deployment, database migration or Worker settings.
+
+COMMITS / CI:
+- Core fix `4185eae95a0b2bd7cc59ef3926ead21c3b35f604`; regression test `acef4f7cb8e1f7f18e35688468959a5c7d4879a7`; CI integration source HEAD `933e81a365e9a33105dd37d9504a31545ce843fd`.
+- [AP-117 Source CI 38067081609](https://github.com/fawakhry/TrendOs/actions/runs/38067081609) exact source HEAD `933e81a365e9a33105dd37d9504a31545ce843fd`: **COMPLETED SUCCESS**, dedicated AP-117 malformed event contract succeeded, full `autonomy-policy-contract` had no failed steps.
+- Compare AP-116 docs head to AP-117 source head: exactly the three files above. No customer/order data, real D1, Cloudflare request or real machine/stock/design asset used.
+
+STATUS / PRODUCTION / NEXT:
+- `AP117_MALFORMED_PRIVATE_EVENT=TESTED_FAIL_CLOSED`; `AP117_PRIVATE_EXCEPTION_ECHO=NO`; `AP117_VALID_RECOVERY=TESTED`; `AP117_REAL_D1_LINE=NOT_VERIFIED`; `AP117_DESIGN_MATERIAL_MACHINE_REAL_EVIDENCE=NOT_VERIFIED`; `AP117_DEPLOY=SOURCE_ONLY`; `AP117_D1_MUTATIONS=0`; `AP117_TASK_ASSIGNMENTS=0`; `AP117_PRODUCTION_DEPLOY=NO`.
+- Production candidate `candidate/t12-full-cloud-cutover-a56-20260929` verified unchanged at `7d20cfc463ce084ceaba8ac440dffa53512fe662`. Operator Task OFF and Autonomy/Readiness SHADOW are last documented, not freshly reverified. Protected Owner Console perimeter, MC-02/23 durable storage and real same-line source evidence are separate unresolved gates. Do not promote production or auto-operate printers.
+- This book documentation commit must have its **own exact-SHA CI check** after writing.
+- NEXT: secure host-side read-only integration of a human-selected private order line with verified auth and freshly checked D1 source, explicit customer design SHA/approval/preflight, material stock/consumption and machine serial/health mapping. Only after independently verified same-line evidence, approved protected storage/staging and owner authorization may workflow autonomy be reconsidered. No need to repeat historical D1 aggregate counts while staff update the system.
