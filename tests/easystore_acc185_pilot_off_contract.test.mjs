@@ -27,11 +27,13 @@ deny(app.replace("a213PilotServerReady=false","a213PilotServerReady=true"),cfg,"
 deny(app.replace("a213CustodyClosePilotEligible()","a213CustodyCloseCanaryEnabled()"),
     cfg,"PILOT_SCREEN_LACKS_SERVER_ELIGIBILITY");
 deny(app.replace("a213PilotServerReady && ",""),cfg,"PILOT_SERVER_ARM_GUARD_MISSING");
-for(const guard of ["Number(h.writeCanaryMaxCommands)===1",
-                    "Number(h.writeCanaryCommandsStarted)===0",
-                    "Number(h.writeCanaryMaxAmount)===0",
-                    "expiry>Date.now()+10000"]){
-  deny(app.replace(guard,"true"),cfg,"_");
+for(const [guard,reason] of [
+  ["Number(h.writeCanaryMaxCommands)===1","SINGLE_COMMAND_WINDOW_NOT_ENFORCED"],
+  ["Number(h.writeCanaryCommandsStarted)===0","CONSUMED_WINDOW_NOT_REJECTED"],
+  ["Number(h.writeCanaryMaxAmount)===0","NONZERO_AMOUNT_NOT_REJECTED"],
+  ["expiry>Date.now()+10000","EXPIRY_NOT_ENFORCED"]
+]){
+  deny(app.replace(guard,"true"),cfg,reason);
 }
 deny(app,cfg.replace("= 'OFF'","= 'CANARY'"),"CANARY_MODE_NOT_OFF");
 deny(app,cfg.replace("= false","= true"),"FINANCE_WRITES_NOT_OFF");
