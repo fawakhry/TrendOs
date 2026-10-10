@@ -1,0 +1,29 @@
+name: ACC-152 Accounting Schema-Only Parity Manifest
+
+on:
+  push:
+    branches:
+      - audit/easystore-d1-readonly-resume-20261010
+    paths:
+      - 'docs/trendos/staging/ACC152_ACCOUNTING_SOURCE_D1_PARITY_MANIFEST_20261010.json'
+      - 'tests/easystore_acc152_source_parity_manifest.test.mjs'
+      - '.github/workflows/easystore-acc152-parity-manifest-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify schema mapping without accessing live financial records
+        run: |
+          set -euo pipefail
+          node tests/easystore_acc152_source_parity_manifest.test.mjs
+          echo ACC152_NO_LIVE_DATA_COPIED=PASS
+          echo ACC152_PRODUCTION_MUTATION=NO

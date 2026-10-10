@@ -1,0 +1,72 @@
+name: ACC-147 TrendOS EasyStore Live SSO Readonly Audit
+
+on:
+  push:
+    branches:
+      - audit/easystore-d1-readonly-resume-20261010
+    paths:
+      - '.github/workflows/easystore-acc147-live-sso-readonly-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch public deployed source and D1 health (GET only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          suffix="$GITHUB_RUN_ID-$GITHUB_SHA"
+          curl -fsSL --max-time 35 "https://trendos-ui.trendmall-contact.workers.dev/config.js?acc147=$suffix" -o /tmp/acc147-trend-config.js
+          curl -fsSL --max-time 35 "https://trendos-ui.trendmall-contact.workers.dev/app.js?acc147=$suffix" -o /tmp/acc147-trend-app.js
+          curl -fsSL --max-time 35 "https://fawakhry.github.io/EasyStore/config.js?acc147=$suffix" -o /tmp/acc147-easy-config.js
+          curl -fsSL --max-time 35 "https://fawakhry.github.io/EasyStore/app.js?acc147=$suffix" -o /tmp/acc147-easy-app.js
+          curl -fsS  --max-time 35 "https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/accounting/health?acc147=$suffix" -o /tmp/acc147-health.json
+      - name: Assert current live source cross-origin SSO and closed financial policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('node:fs');
+          const read=n=>fs.readFileSync('/tmp/acc147-'+n,'utf8');
+          const trendApp=read('trend-app.js'),trendConfig=read('trend-config.js');
+          const easyApp=read('easy-app.js'),easyConfig=read('easy-config.js');
+          const h=JSON.parse(read('health.json'));
+          const check=(ok,why)=>{if(!ok)throw Error('ACC147_FAIL_CLOSED_'+why)};
+          check(trendApp.includes('function entry619PostEmployeeSso('),'SENDER_MISSING');
+          check(trendApp.includes("type:'TRENDOS_EMPLOYEE_SSO_V1'"),'MESSAGE_CONTRACT_MISSING');
+          check(trendApp.includes("EASYSTORE_EMPLOYEE_SSO_ACK_V1"),'ACK_MISSING');
+          check(trendApp.includes('child.postMessage('),'SENDER_POSTMESSAGE_MISSING');
+          check(trendApp.includes('entry619PostEmployeeSso(child,url.origin,nonce,u,params)'),'TARGET_ORIGIN_MISSING');
+          check(trendApp.includes('ssoNonce:nonce'),'NONCE_MISSING');
+          check(trendApp.includes('if(!u.token)'), 'TOKEN_GATE_MISSING');
+          check(trendConfig.includes('https://fawakhry.github.io/EasyStore/'),'TREND_TARGET_NOT_EASYSTORE');
+          check(easyApp.includes("'TRENDOS_EMPLOYEE_SSO_V1'"),'RECEIVER_MISSING');
+          check(easyApp.includes('TRENDOS_SSO_ALLOWED_ORIGINS.has'),'ORIGIN_GATE_MISSING');
+          check(easyApp.includes('event.source !== window.opener'),'OPENER_GATE_MISSING');
+          check(easyApp.includes('expectedNonce'),'NONCE_GATE_MISSING');
+          check(easyApp.includes('Math.abs(Date.now() - issuedAt) > 30000'),'FRESHNESS_GATE_MISSING');
+          check(easyApp.includes('EASYSTORE_EMPLOYEE_SSO_ACK_V1'),'ACK_RECEIVER_MISSING');
+          check(easyApp.includes("sessionStorage.setItem('EASYSTORE_SESSION_V1922'"),'SESSION_STORE_MISSING');
+          check(easyApp.includes('ensureTrendosSso()'),'SESSION_WAIT_MISSING');
+          check(/EASYSTORE_ACCOUNTING_D1_READONLY\s*=\s*true/.test(easyConfig),'D1_READ_NOT_ON');
+          check(/EASYSTORE_ACCOUNTING_D1_WRITES\s*=\s*false/.test(easyConfig),'FRONTEND_WRITES_NOT_OFF');
+          check(/EASYSTORE_ACCOUNTING_D1_WRITE_MODE\s*=\s*['"]OFF['"]/.test(easyConfig),'FRONTEND_MODE_NOT_OFF');
+          check(/EASYSTORE_ACCOUNTING_D1_WRITE_CANARY_ACTIONS\s*=\s*\[\]/.test(easyConfig),'CANARY_ACTIONS_NOT_EMPTY');
+          check(h.success===true&&h.mode==='READONLY'&&h.authoritativeWrites===false,'SERVER_NOT_READONLY');
+          check(Number(h.writeCanaryAllowedUserCount||0)===0&&Number(h.writeCanaryAllowedActionCount||0)===0,'CANARY_ALLOWLIST_OPEN');
+          check(Number(h.writeCanaryMaxCommands||0)===0&&Number(h.writeCanaryCommandsStarted||0)===0,'CANARY_COMMAND_BUDGET_NOT_ZERO');
+          console.log('ACC147_LIVE_TRENDOS_SSO_SENDER=PASS');
+          console.log('ACC147_LIVE_EASYSTORE_SSO_RECEIVER=PASS');
+          console.log('ACC147_LIVE_NONCE_ORIGIN_ACK_CONTRACT=PASS');
+          console.log('ACC147_LIVE_ACCOUNTING_READONLY=PASS');
+          console.log('ACC147_LIVE_POLICY_EPOCH='+String(h.policyEpoch));
+          console.log('ACC147_AUTHENTICATED_BROWSER_SESSION_VERIFIED=NO');
+          console.log('ACC147_PRODUCTION_MUTATION=NO');
+          NODE

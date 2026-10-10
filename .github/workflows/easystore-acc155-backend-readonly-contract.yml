@@ -1,0 +1,30 @@
+name: ACC-155 D1 Accounting READONLY Backend Contract
+
+on:
+  push:
+    branches:
+      - audit/easystore-d1-readonly-resume-20261010
+    paths:
+      - 'tests/easystore_acc155_backend_readonly_boundary.test.mjs'
+      - '.github/workflows/easystore-acc155-backend-readonly-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  closed-accounting:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exercise mocked control and rejected financial/read requests
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node tests/easystore_acc155_backend_readonly_boundary.test.mjs
+          echo ACC155_LIVE_FINANCIAL_MUTATION=NO
