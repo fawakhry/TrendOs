@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """ACC-182: fail-closed provenance, role, source and config diff negative tests."""
 import json
-from copy import deepcopy
 from pathlib import Path
-from scripts.easystore_acc182_offline_worker_release_manifest import (
-    CandidateBlocked, PINNED_SHARED, read_sources, verify_source_contract,
+import importlib.util
+spec = importlib.util.spec_from_file_location(
+    "acc182", "scripts/easystore_acc182_offline_worker_release_manifest.py"
+)
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+CandidateBlocked, PINNED_SHARED, read_sources, verify_source_contract = (
+    m.CandidateBlocked, m.PINNED_SHARED, m.read_sources, m.verify_source_contract
 )
 
 ACCOUNTING = "a" * 40
