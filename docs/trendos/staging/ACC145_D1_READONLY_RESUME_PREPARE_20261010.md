@@ -180,3 +180,15 @@ Status: PREPARED.
 - Next read-only action: examine bounded tab ranges, aggregate non-empty row counts **without emitting identities/amounts or cell content**. This detects un-migrated legacy factual records; it is not a complete financial parity check.
 - Do NOT edit any Sheet cells or run Apps Script/migrations. Missing source data or non-unique keys must be marked UNKNOWN, not inferred.
 Status: PREPARED, awaiting bounded source-only reads.
+
+## ACC-151 / Step 01 — VERIFIED READ-ONLY SOURCE ACCOUNTING INVENTORY (2026-10-10)
+- Connected Google Drive/Sheets metadata confirms the historical source is `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`, exactly the spreadsheet ID referenced by TrendOS `config.js`; 91 sheet tabs, 21 prefixed `حسابات -`.
+- Bounded **no-write, no-raw-data-export** reads of all 21 accounting tabs, each `A1:H60`: 1 header row returned for each, **0 non-empty rows after header** within the checked 8 columns/60 rows.
+- Additional wide-range spot checks `A1:BS60` (department invoices/materials), `A1:AK60` (final invoices), `A1:Z60` (invoice drafts), `A1:AC60` (draft archive) also found **0 populated rows after header**. Separate archive `A61:D1000` returned zero rows. This is bounded evidence only: no assertion that every column/entire workbook is empty or that no alternate financial data source exists.
+- Cross-check that reads are functional (not a connector always returning empty): operational `العملاء!A1:D300` has **247** nonempty rows beyond header, `الأوردرات!A1:D300` **222**, `بنود الأوردرات!A1:D300` **250**; these are nonempty-row counts, **not** reconciled unique IDs, net financial balances or D1 row matches. No individual name/amount/item data persisted in the checkpoint.
+- Comparison with D1 account preview canary rows (18 as of ACC-145) is **not a parity claim**, because these are different entity domains and the D1 state contains controlled synthetic tests.
+- Source/target financial-cutover gate still NOT PASSED. Must first identify every authoritative financial source and version, then compare stable Order/Line IDs, invoices, balances, stock/treasury and idempotent event mappings; preserve historical values. No migration or cleanup permitted from this snapshot.
+- Result: **CONNECTED LEGACY SOURCE BOUNDED READ_VERIFIED**; no Sheets mutation, Cloudflare write, Apps Script execution or D1 alteration.
+
+## ACC-152 / next safe scope
+- PREPARE only a schema/entity-level parity manifest, grounded in existing TrendOS Accounting blackbox and D1 migrations, that maps `Orders/OrderLines` to invoices and stock movements and distinguishes empty legacy Accounting tables from populated Operations tables. Do not copy records, commit identifiable data, or assert cutover readiness until a financial owner signs the source/target mapping.
