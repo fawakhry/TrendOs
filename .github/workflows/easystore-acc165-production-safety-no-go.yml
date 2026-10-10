@@ -1,0 +1,64 @@
+name: ACC-165 Accounting Production Safety / NO-GO Review
+
+on:
+  push:
+    branches:
+      - audit/acc165-accounting-release-no-go-readonly-20261010
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'tests/easystore_a213_production_golive_decision.test.mjs'
+      - 'tests/easystore_a213_published_boot_gate.test.mjs'
+      - 'tests/easystore_a213_sso_button_lifecycle.test.mjs'
+      - '.github/workflows/easystore-a213-custody-close-canary-execution.yml'
+      - '.github/workflows/easystore-acc165-production-safety-no-go.yml'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: acc165-accounting-readonly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  finance-safe-idle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download published assets and server health by GET only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 2 --max-time 35 "https://fawakhry.github.io/EasyStore/app.js?acc165=$GITHUB_RUN_ID" -o /tmp/acc165-app.js
+          curl -fsSL --retry 2 --max-time 35 "https://fawakhry.github.io/EasyStore/config.js?acc165=$GITHUB_RUN_ID" -o /tmp/acc165-config.js
+          curl -fsS --retry 2 --max-time 35 "https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/accounting/health?acc165=$GITHUB_RUN_ID" -o /tmp/acc165-health.json
+      - name: Execute published browser boot and SSO lifecycle against mock health
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check /tmp/acc165-app.js
+          node tests/easystore_a213_published_boot_gate.test.mjs /tmp/acc165-config.js /tmp/acc165-app.js --expect-off
+          node tests/easystore_a213_published_boot_gate.test.mjs /tmp/acc165-config.js /tmp/acc165-app.js --simulate-canary
+          node tests/easystore_a213_sso_button_lifecycle.test.mjs /tmp/acc165-config.js /tmp/acc165-app.js
+          node tests/easystore_a213_custody_close_workflow_invariants.test.mjs
+          node tests/easystore_a213_timeout_monitor_regression.test.mjs
+      - name: Decide SAFE-IDLE, never authorize financial launch
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/easystore_a213_production_golive_decision.test.mjs /tmp/acc165-config.js /tmp/acc165-app.js /tmp/acc165-health.json .github/workflows/easystore-a213-custody-close-canary-execution.yml
+      - name: Save non-sensitive NO-GO decision
+        uses: actions/upload-artifact@v4
+        with:
+          name: acc165-readonly-financial-no-go
+          path: artifacts/acc165-golive-decision.json
+          retention-days: 14
