@@ -158,6 +158,7 @@ jobs:
               echo 'ACC183_BUNDLE_COMPILATION_FAILED_NO_DEPLOY'
               exit 1
             }
+          find "$RUNNER_TEMP/acc183-bundle" -maxdepth 2 -type f -printf 'ACC183_OUTPUT_FILE=%P bytes=%s\n' | LC_ALL=C sort
           echo 'ACC183_WRANGLER_BUNDLE_DRY_RUN=PASS'
           echo 'ACC183_NO_PRODUCTION_CREDENTIALS_IN_RUNNER=PASS'
           echo 'ACC183_DEPLOYMENT=NOT_EXECUTED'
