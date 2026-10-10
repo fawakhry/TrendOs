@@ -1278,7 +1278,7 @@ async function savePurchaseCustodyV1(env,auth,b){
   if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
   const id=uid('CUS'),cash=uid('CSH'),now=Date.now(),method=text(b.paymentMethod||'نقدي');
   await env.DB.batch([
-    env.DB.prepare("INSERT INTO employee_accounting_custody_events_v1(custody_event_id,request_key,work_date,employee_key,department,movement_type,amount,payment_method,ref_no,notes,actor,created_at_ms) VALUES(?,?,?,?,?,'HANDOFF',?,?,?,?,?,?,?)").bind(id,ctx.requestKey,workDate,employee,department,amount,method,text(b.refNo),text(b.notes),auth.user.username,now),
+    env.DB.prepare("INSERT INTO employee_accounting_custody_events_v1(custody_event_id,request_key,work_date,employee_key,department,movement_type,amount,payment_method,ref_no,notes,actor,created_at_ms) VALUES(?,?,?,?,?,'HANDOFF',?,?,?,?,?,?)").bind(id,ctx.requestKey,workDate,employee,department,amount,method,text(b.refNo),text(b.notes),auth.user.username,now),
     env.DB.prepare("INSERT INTO employee_accounting_cashbox_v1(cashbox_tx_id,request_key,work_date,movement_type,party_name,department,amount,payment_method,ref_no,source,notes,actor,created_at_ms) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(cash,ctx.requestKey+'-CASH',workDate,'CUSTODY_HANDOFF',employee,department,amount,method,id,sourceSystemV1(b),text(b.notes),auth.user.username,now)
   ]);
   const response={success:true,id,summary:(await custodySummariesV1(env,workDate)).find(x=>key(x.employee)===key(employee)&&x.department===department)||null,version:'A2_D1_ACCOUNTING_V1'};
