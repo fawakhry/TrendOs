@@ -85,7 +85,7 @@ function makeRequest({token='MOCK-NON-PRODUCTION',action='closePurchaseCustodyV1
   const {handler,env,state}=setup();
   const response=await handler(makeRequest(),env);
   const result=await response.json();
-  assert.equal(response.status,200,'in-memory guarded zero-balance canary should finish');
+  assert.equal(response.status,200,'in-memory guarded zero-balance canary should finish: '+JSON.stringify(result));
   assert.equal(result.success,true,JSON.stringify(result));
   assert.equal(result.balanceBefore,0);
   assert.equal(result.settlementAmount,0);
