@@ -7628,3 +7628,41 @@ NEXT EXECUTION:
 3. Review AP-094 through AP-097 source+tests for an explicitly authorized controlled release after access/security and Cloudflare Staging qualification. No Operator Task CANARY/GENERAL, real dispatch, employee, finance, production config, credential or paid resource changes without owner sign-off.
 
 This AP-097 book-only checkpoint commit's CI is separate from the two proven source CI runs; verify its exact SHA/run after writing.
+
+
+### AP-098 — First real order-source inventory; legacy Google Sheets sample has NO open pilot; D1 qualification BLOCKED_SAFE (2026-10-10)
+
+OWNER REQUEST / SCOPE:
+- The owner authorized continuing Autonomous Printshop and the AP-098 first-real-order readiness review. This checkpoint belongs ONLY to `autonomous-printshop/MASTER_BOOK.md`; no accounting or EasyStore implementation in this step. Source branch `feature/ap097-evidence-acquisition-triage-20261010` at `5081f1bef486e06bc9c93390fff2cefc620f74e2`; isolated implementation branch `feature/ap098-real-pilot-source-gate-20261010`. The Production auto-deploy candidate remains `7d20cfc463ce084ceaba8ac440dffa53512fe662` as independently inspected.
+- Evidence hierarchy **VERIFIED LIVE RUNTIME > DEPLOYED > TESTED > REPO_ONLY > HISTORICAL**. Google Drive-connected native `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY` workbook was inspected by authorized read-only metadata/range calls. The inspection is a bounded operational SOURCE OBSERVATION, **not** an authenticated Cloudflare D1 production readiness check, and not proof of source parity or live operational completeness.
+
+READ / REAL BOUNDED OBSERVATION:
+- The workbook has `الأوردرات` 223 allocated rows and `بنود الأوردرات` 251 allocated rows including headers, by Google Sheets metadata; row allocations alone are not transaction counts.
+- Inspected header schema and only minimal operational columns in `بنود الأوردرات` for rows **2–251**: order and line IDs were used only in-memory to verify presence and count, along with department, priority, status, expected delivery date, debt/fly-print flags. No customer names, phones, amounts, file links, text notes, raw IDs or data rows were emitted to the assistant or GitHub.
+- The **250 bounded populated rows** each had both an order ID, a line ID, department, priority and a due-date field present. This is non-PII bounded completeness evidence, not D1 parity or due-date policy verification. Status distribution from the actual selected Google Sheets values: `تم التسليم=129`, `جاهز للاستلام=73`, `مكرر=28`, `ملغى=20`. Total **250**. These four states are closed/non-dispatchable in the existing `operational-reality-v1.mjs` contract. In this bounded Sheet window, `OPEN_PILOT_CANDIDATES=0`.
+- Critically: this does **NOT** imply `D1_CLOUD_OPEN_CANDIDATES=0` or `REAL_PILOT_ELIGIBLE=0`. The Production Shadow Worker reads qualified `employee_core_lines_v1` and `t12_prod_lines` plus runtime overlays in D1, not this Google Sheet snapshot; qualified live D1 candidate rows were **not** accessed through an authenticated channel in this execution.
+
+IMPLEMENT — read-only source qualification in review branch:
+- Source-only commit `1a04d2886e50265f881a7fb649c433659d2f4258` changed exactly:
+  1. `autonomous-printshop/core/real-pilot-source-audit-v1.mjs`: new pure diagnostic helper to return **aggregate-only** operational counts. It never emits raw ID, source references, customer/employee fields, or authorizes writes or operator task assignment. A real-pilot evidence acquisition packet is created ONLY if caller supplies a D1 Shadow qualified + authorized + snapshot-complete + 5-minute-fresh source envelope; an unknown/legacy Sheets source, incomplete snapshot, unauthorized read, stale or future clock returns `sourceQualified=false`, `strictEligible=null`, no candidate packet. **That envelope is a caller-attested advisory input, not a replacement for backend authentication/Cloudflare perimeter enforcement.** Even with valid synthetic D1 fixtures, strict Design/Material/Machine same-line evidence remains mandatory and the helper never grants task assignment or a financial action.
+  2. `autonomous-printshop/tests/real_pilot_source_audit_v1.test.mjs`: in-memory synthetic IDs replay the **observed aggregate status histogram only**, 250 closed, 0 source-qualified pilot; reject legacy/stale/unauthorized/incomplete snapshots; verify cross-line evidence cannot satisfy MATERIAL; valid same-line Design/Material/Machine evidence may produce a read-only strict count but not dispatch rights; verify no private identifiers leak.
+  3. `.github/workflows/autonomous-printshop-policy-v1-ci.yml`: added the new test to existing Autonomous Printshop policy CI, no deploy workflow change.
+- No Worker binding, D1 migration, live API, Operator Task mode, Cloudflare Access, staff or business/financial data modification occurred.
+
+TEST / REVIEW:
+- Exact `1a04d2886e50265f881a7fb649c433659d2f4258`, [Autonomous Printshop Policy V1 CI 38056132760](https://github.com/fawakhry/TrendOs/actions/runs/38056132760) = **COMPLETED SUCCESS**, no failing job steps. New source qualification step, AP-096 same-line pilot integration and AP-097 acquisition packet tests all PASS.
+- Tests are synthetic and code-bounded; real Google Sheets status histogram was independently observed via read-only connector, but **not** imported as raw rows and not part of CI's live D1 execution. This is stronger than synthetic alone for the bounded historical source observation, but NOT a real active pilot qualification.
+- Source security caution: this branch uses no newly exposed public endpoint; do not GET unprotected Production Owner Console routes or enable Operator Task to force a candidate.
+
+GATE SUMMARY:
+- `AP098_LEGACY_BOUNDED_ACTIVE_PILOT=0_OF_250` (SOURCE OBSERVATION ONLY).
+- `AP098_LIVE_D1_CANDIDATE_COUNT=UNKNOWN`; `AP098_REAL_DESIGN_MATERIAL_MACHINE_SAME_LINE=NOT_VERIFIED`; `AP098_PILOT_READY=BLOCKED_SAFE`.
+- `AP098_SOURCE_GATE_SYNTHETIC_CI=PASS`; `OPERATOR_TASK_ACTIVATION=NO`; `PRODUCTION_MUTATION=NO`; `CANDIDATE_BASELINE_PUSH=NO`.
+- `OWNER_CONSOLE_ACCESS=FAILED` and `MC-02/MC-23=PARTIAL` remain preexisting independent launch blockers; the owner's decision to defer manual security work does not waive them.
+
+NEXT ALLOWED EXECUTION:
+1. Obtain an authorized, authenticated, bounded **read-only D1 Shadow readiness snapshot** (the existing `/readiness` protected path after access remediation, or an independently approved Cloudflare-native authorized D1 aggregate query). No unauthenticated private route requests or customer/order exports. Inspect strict eligibility, source status and per-kind evidence counts only.
+2. If D1 has any current eligible baseline candidates, qualify one by verified Design asset SHA/approval/preflight, active material stock/consumption/same-line link, and physical machine identity/observation mapping. If D1 source is empty or unavailable, `NO_REAL_PILOT` or `BLOCKED_SAFE`, respectively; never fabricate a pilot.
+3. Only after qualifying controlled cloud storage/Staging, security and human-reviewed rollout, request explicit authorization for Production changes. No Operator Task CANARY/GENERAL without separate owner approval.
+
+The AP-098 book-only commit's CI is independent; verify it separately after pushing.
