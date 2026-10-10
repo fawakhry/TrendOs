@@ -62,6 +62,10 @@ assert.equal(evidence.filter(x=>x.state==='READY').length,2);
 assert.equal(evidence.filter(x=>x.state==='BLOCKED').length,1);
 assert.ok(evidence.every(x=>x.sourceKind==='DESIGN_PREFLIGHT'));
 assert.ok(evidence.every(x=>x.sourceVersion===H));
+assert.ok(evidence.every(x=>x.evidence.preflightResult==='PASS'));
+assert.ok(evidence.every(x=>['REQUIRED','NOT_REQUIRED_BY_POLICY'].includes(x.evidence.approvalGate)));
+assert.equal(evidence.find(x=>x.lineId==='30-1').evidence.approvalPolicyRef,
+  'recipe:KIDS_WEDDING_15X21@1');
 
 const savedOnly=projectDesignProductionReadinessV1({
   artifacts:[{artifactId:'s1',lineId:'60-1',contentSha256:H,caseId:'DESIGN-2026-SAVED',versionId:'V1',createdAtMs:1}],
