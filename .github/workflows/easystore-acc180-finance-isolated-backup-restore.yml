@@ -1,0 +1,72 @@
+name: ACC-180 Finance Backup SQL + SQLite Isolated Restore (Synthetic, NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - safety/acc180-finance-backup-sqlite-isolated-restore-20261010
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'scripts/easystore_acc180_finance_backup_isolated_restore.py'
+      - 'tests/easystore_acc180_finance_backup_isolated_restore.test.py'
+      - '.github/workflows/easystore-acc180-finance-isolated-backup-restore.yml'
+      - 'cloudflare-d1/migrations/0015_employee_accounting_zero_google_v1.sql'
+      - 'cloudflare-d1/migrations/0020_employee_accounting_party_master_v1.sql'
+      - 'cloudflare-d1/migrations/0021_employee_accounting_material_dimensions_v1.sql'
+      - 'cloudflare-d1/migrations/0022_employee_accounting_day_ops_v1.sql'
+      - 'cloudflare-d1/migrations/0023_employee_accounting_command_audit_v1.sql'
+      - 'cloudflare-d1/migrations/0024_employee_accounting_party_balances_v1.sql'
+      - 'cloudflare-d1/migrations/0025_employee_accounting_final_reversal_day_close_v1.sql'
+      - 'cloudflare-d1/migrations/0026_employee_accounting_tx_guard_v1.sql'
+      - 'cloudflare-d1/migrations/0027_employee_accounting_direct_sale_cost_v1.sql'
+      - 'cloudflare-d1/migrations/0028_employee_accounting_write_canary_v1.sql'
+      - 'cloudflare-d1/migrations/0029_employee_accounting_canary_mode_v1.sql'
+      - 'cloudflare-d1/migrations/0030_employee_accounting_write_canary_budget_v1.sql'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+
+permissions:
+  contents: read
+
+jobs:
+  verify-isolated-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Restore from actual checked-in finance D1 schema and fake ledger only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/easystore_acc180_finance_backup_isolated_restore.py
+          python3 -m py_compile tests/easystore_acc180_finance_backup_isolated_restore.test.py
+          python3 tests/easystore_acc180_finance_backup_isolated_restore.test.py
+          python3 scripts/easystore_acc180_finance_backup_isolated_restore.py --out artifacts/acc180-synthetic-only-backup-restore.json
+          python3 - <<'PY'
+          import json
+          report=json.load(open('artifacts/acc180-synthetic-only-backup-restore.json'))
+          assert report['finance_release_decision']=='NO_GO'
+          assert report['actual_cloudflare_d1_backup_created'] is False
+          assert report['actual_production_backup_restored'] is False
+          assert report['production_mutations']==0
+          print('ACC180_NO_PRODUCTION_BACKUP_RESTORE_OR_FINANCE_APPROVAL=PASS')
+          PY
+          {
+            echo '## ACC-180: Restorable SYNTHETIC finance SQLite only'
+            echo 'Actual checked-in finance schema migrations, dummy balances, materials and request ledger exercised.'
+            echo 'SQL export restored into isolated SQLite file; native SQLite backup independently restored; all tables/data/schema match.'
+            echo 'Corrupt, truncated, replay-tampered and disabled READONLY guard restore cases fail closed.'
+            echo '**NO production D1 export/backup/restore, Cloudflare token, Wrangler, live financial POST, deployment or emergency rollback.**'
+            echo 'Release still **NO_GO**; real protected production backup and isolated restore require separate authorization, encryption, retention and owner signoff.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve only non-sensitive, synthetic, aggregate proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: acc180-synthetic-sqlite-backup-restore-no-go
+          path: artifacts/acc180-synthetic-only-backup-restore.json
+          retention-days: 14
