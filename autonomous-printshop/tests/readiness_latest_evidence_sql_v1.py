@@ -17,7 +17,9 @@ assert start >= 0 and end > index, "SHADOW_QUERY_NOT_LOCATED"
 query = SOURCE[start + len(prefix):end]
 assert "FROM autonomous_readiness_evidence" in query
 assert "PARTITION BY line_id,evidence_kind" in query
-assert "ORDER BY observed_at_ms DESC,evidence_id DESC" in query
+assert "DENSE_RANK() OVER" in query
+assert "ORDER BY observed_at_ms DESC" in query
+assert "evidence_id DESC" not in query
 assert "WHERE evidenceRank=1" in query
 assert "expires_at_ms>?" not in query, "EXPIRED_RECORDS_PREMATURELY_FILTERED"
 assert "?" not in query, "UNEXPECTED_LIVE_BIND"
@@ -42,7 +44,7 @@ events = [
   # A future-dated newer event must be retained for fail-closed projection.
   ("m-old-b", "synthetic-b", "MACHINE", "READY", now - 9000, now + 30000),
   ("m-future-b", "synthetic-b", "MACHINE", "READY", now + 1000, now + 4000),
-  # Deterministic tie-break by evidence ID, NOT row retrieval order.
+  # All conflicting facts at the newest timestamp must survive to projection.
   ("a-tie", "synthetic-c", "MATERIAL", "READY", now - 700, now + 30000),
   ("z-tie", "synthetic-c", "MATERIAL", "BLOCKED", now - 700, now + 30000),
   # Nonexpired newer READY must permit ordinary recovery.
@@ -53,19 +55,24 @@ db.executemany("""INSERT INTO autonomous_readiness_evidence
  (evidence_id,line_id,evidence_kind,evidence_state,
   observed_at_ms,expires_at_ms,source_kind,source_ref,source_version,confidence)
  VALUES (?,?,?,?,?,?,'SYSTEM','synthetic','1',1.0)""", events)
-out = {(row["lineId"], row["evidenceKind"]): row for row in db.execute(query)}
+out = list(db.execute(query))
+by = {}
+for row in out:
+    by.setdefault((row["lineId"], row["evidenceKind"]), []).append(row)
 expected = {
-  ("synthetic-a", "MACHINE"): "m-new-expired",
-  ("synthetic-a", "DESIGN"): "d-good",
-  ("synthetic-b", "MACHINE"): "m-future-b",
-  ("synthetic-c", "MATERIAL"): "z-tie",
-  ("synthetic-d", "DESIGN"): "new-ready"
+  ("synthetic-a", "MACHINE"): {"m-new-expired"},
+  ("synthetic-a", "DESIGN"): {"d-good"},
+  ("synthetic-b", "MACHINE"): {"m-future-b"},
+  ("synthetic-c", "MATERIAL"): {"a-tie", "z-tie"},
+  ("synthetic-d", "DESIGN"): {"new-ready"}
 }
-assert len(out) == len(expected), "DUPLICATE_OR_MISSING_LINE_KIND"
-assert {key: row["evidenceId"] for key,row in out.items()} == expected
-assert out[("synthetic-a", "MACHINE")]["expiresAtMs"] <= now
-assert out[("synthetic-b", "MACHINE")]["observedAtMs"] > now
-assert out[("synthetic-d", "DESIGN")]["expiresAtMs"] > now
+assert len(by) == len(expected), "MISSING_LINE_KIND"
+assert {key: {r["evidenceId"] for r in vals} for key,vals in by.items()} == expected
+assert len(out) == 6, "LATEST_EQUAL_TIME_EVENTS_MUST_SURVIVE"
+assert by[("synthetic-a", "MACHINE")][0]["expiresAtMs"] <= now
+assert by[("synthetic-b", "MACHINE")][0]["observedAtMs"] > now
+assert by[("synthetic-d", "DESIGN")][0]["expiresAtMs"] > now
+print("AP118_SHADOW_EQUAL_TIMESTAMP_CONFLICT_PRESERVED=PASS")
 print("AP095_SHADOW_SQL_NEWEST_BEFORE_TTL=PASS")
 print("AP095_EXPIRED_BLOCKER_NOT_PREMATURELY_FILTERED=PASS")
 print("AP095_SQLITE_IN_MEMORY_ONLY=YES; PRODUCTION_REQUESTS=0; BUSINESS_WRITES=0")
