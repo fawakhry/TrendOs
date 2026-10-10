@@ -235,6 +235,8 @@ jobs:
         run: node autonomous-printshop/tests/evidence_pilot_target_v1.test.mjs
       - name: Run same-line Design Material Machine evidence acquisition integration
         run: node autonomous-printshop/tests/evidence_pilot_same_line_v1.test.mjs
+      - name: Run real-pilot source qualification (legacy vs fresh D1 synthetic)
+        run: node autonomous-printshop/tests/real_pilot_source_audit_v1.test.mjs
       - name: Run evidence acquisition packet contract
         run: node autonomous-printshop/tests/evidence_acquisition_packet_v1.test.mjs
       - name: Run readiness evidence writer contract
