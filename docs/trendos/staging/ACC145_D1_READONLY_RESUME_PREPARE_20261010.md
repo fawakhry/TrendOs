@@ -74,3 +74,13 @@ Status: PREPARED; separate code commit pending.
 - Next task: inspect current TrendOS→EasyStore employee session transfer (especially cross-origin browser restrictions, nonce, opener and source origin checks) and native D1 session verification, **REPO READ ONLY** until an exact repair is justified.
 - Do not use TinyFish, do not capture browser tokens, do not ask for employee password, and do not mutate production; pursue offline tests and isolated branch only.
 - If source currently has no authenticated cross-origin handoff, prepare a least-privilege scoped fix with regression tests, and record gate before modifications.
+
+## ACC-147 / Step 01 — PREPARED target to verify live SSO deployment
+- Source review: `candidate/t12-full-cloud-cutover-a56-20260929` app.js defines `entry619PostEmployeeSso` with exact `targetOrigin`, matching ACK `origin+source+nonce`, and 8.5s bounded sends; `openAccounting` requires a nonempty TrendOS employee token and passes a fresh `ssoNonce` URL query (no bearer token in URL).
+- `fawakhry/EasyStore` main app.js accepts `TRENDOS_EMPLOYEE_SSO_V1` only from allowlisted origins, requires opener-source agreement and matching nonce issued within 30s, then sends SSO ACK. No separate EasyStore password.
+- `fawakhry/TrendOs` main is an older source and lacks this entry619 sender; main source must not be silently treated as serving production, which is Cloudflare `trendos-ui`.
+- Proposed action: new **read-only** GitHub workflow scoped to this isolated audit branch and its own file, fetching **public runtime assets** `trendos-ui` config/app and `fawakhry.github.io/EasyStore` config/app, and `trendos-d1-api` accounting health. No employee login/session/token collection. Verify SSO sender+receiver contract exists LIVE, EasyStore writes remain OFF, server READONLY, and record exact pass/fail with run link.
+- Source evidence is NOT proof that a real user session handoff succeeds. Real authenticated browser smoke is separately required by the owner, without transferring tokens to GitHub.
+- No frontend/API deploy, D1 migration or command, financial data mutation, or password action.
+- STOP on any runtime mismatch; record the specific missing contract without changing Production.
+Status: PREPARED; verify this record before repository-only addition.
