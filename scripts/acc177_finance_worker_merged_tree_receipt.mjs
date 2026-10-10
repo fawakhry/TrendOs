@@ -53,7 +53,53 @@ export function acc177Receipt({accountingSha,sharedSha,mergedTreeSha,overlap,acc
   note:'Git worktree-only merge tree. Exact source SHA and shared commit may change before an authorized release; revalidate everything and approve a pinned artifact separately.'
  };
 }
+
+export function acc177BlockedReceipt({accountingSha,sharedSha,overlap,accountingSource,sharedSource}){
+ if(![accountingSha,sharedSha].every(hex40))throw Error('ACC177_SHA_PIN_INVALID');
+ if(!Array.isArray(overlap)||overlap.some(p=>typeof p!=='string'))throw Error('ACC177_OVERLAP_INVALID');
+ const unsafe=overlap.filter(p=>!allowedOverlap.includes(p));
+ if(unsafe.length===0)throw Error('ACC177_NO_UNAPPROVED_OVERLAP');
+ if(typeof accountingSource!=='string'||typeof sharedSource!=='string')throw Error('ACC177_SOURCE_MISSING');
+ return {
+  schema:'ACC177_ACCOUNTING_SHARED_WORKER_LEGACY_GUARD_BLOCKED_V1',
+  source_accounting_commit:accountingSha,
+  source_shared_base_commit:sharedSha,
+  original_finance_worker_sha256:sum(accountingSource),
+  shared_finance_worker_sha256:sum(sharedSource),
+  exact_unsafe_overlap_paths:unsafe,
+  merged_tree_created:false,
+  integrated_merged_tree_tests_executed:false,
+  existing_legacy_deploy_guard:'BLOCKED_BY_UNAPPROVED_OVERLAP',
+  release_decision:'NO_GO',
+  release_authorized:false,
+  production_deploy_executed:false,
+  financial_http_post_executed:false,
+  d1_production_dml_executed:false,
+  note:'This is a successful fail-closed predeploy diagnostic, NOT a successful runtime merge and NOT deployment approval.'
+ };
+}
+
 if(process.argv[1]&&path.resolve(process.argv[1])===path.resolve(new URL(import.meta.url).pathname)){
+
+ if(process.argv[2]==='--blocked'){
+  const [_,accountingSha,sharedSha,overlapFile,accountingFile,sharedFile,outFile]=process.argv.slice(2);
+  try{
+   if(![accountingSha,sharedSha,overlapFile,accountingFile,sharedFile,outFile].every(Boolean))
+    throw Error('ACC177_BLOCKED_MANIFEST_ARGUMENTS_MISSING');
+   const receipt=acc177BlockedReceipt({
+    accountingSha,sharedSha,
+    overlap:fs.readFileSync(overlapFile,'utf8').split(/\r?\n/).filter(Boolean),
+    accountingSource:fs.readFileSync(accountingFile,'utf8'),
+    sharedSource:fs.readFileSync(sharedFile,'utf8')
+   });
+   fs.mkdirSync(path.dirname(outFile),{recursive:true});
+   fs.writeFileSync(outFile,JSON.stringify(receipt,null,2)+'\n');
+   console.log('ACC177_EXISTING_PRODUCTION_DEPLOY_GUARD=BLOCKED');
+   console.log('ACC177_MERGE_TREE=NOT_CREATED');
+   console.log('ACC177_RELEASE_DECISION=NO_GO');
+   console.log('ACC177_PRODUCTION_DEPLOY=NOT_EXECUTED');
+  }catch(e){console.error('ACC177_FAIL_CLOSED='+String(e.message));process.exitCode=1;}
+ } else {
  const [accountingSha,sharedSha,mergedTreeSha,overlapFile,accountingFile,mergedFile,outFile]=process.argv.slice(2);
  try {
   if([accountingSha,sharedSha,mergedTreeSha,overlapFile,accountingFile,mergedFile,outFile].some(x=>!x))
@@ -74,4 +120,5 @@ if(process.argv[1]&&path.resolve(process.argv[1])===path.resolve(new URL(import.
   console.log('ACC177_RELEASE_DECISION=NO_GO');
   console.log('ACC177_PRODUCTION_DEPLOY=NOT_EXECUTED');
  }catch(e){console.error('ACC177_FAIL_CLOSED='+String(e.message));process.exitCode=1;}
+ }
 }
