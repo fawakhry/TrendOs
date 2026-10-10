@@ -1,0 +1,53 @@
+name: ACC-166 Finance Role Boundary and Opening Reconciliation (Offline)
+on:
+  push:
+    branches:
+      - audit/acc166-permissions-opening-readonly-20261010
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'tests/easystore_acc166_role_boundary_audit.test.mjs'
+      - 'tests/easystore_acc166_opening_reconciliation.test.mjs'
+      - 'scripts/easystore_acc166_opening_reconcile.mjs'
+      - '.github/workflows/easystore-acc166-permissions-opening-readonly.yml'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+
+permissions:
+  contents: read
+
+jobs:
+  offline-evidence-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify audit and reconciling utility syntax
+        run: |
+          set -euo pipefail
+          node --check tests/easystore_acc166_role_boundary_audit.test.mjs
+          node --check scripts/easystore_acc166_opening_reconcile.mjs
+          node --check tests/easystore_acc166_opening_reconciliation.test.mjs
+      - name: Audit finance-role trust boundaries without employee sessions
+        run: node tests/easystore_acc166_role_boundary_audit.test.mjs
+      - name: Reconcile synthetic opening balances and reject missing approvals
+        run: node tests/easystore_acc166_opening_reconciliation.test.mjs
+      - name: Summarize actual acceptance boundary
+        shell: bash
+        run: |
+          {
+            echo '## ACC-166: non-financial verification'
+            echo '- Accounting role baseline: checked-in source tested with synthetic users.'
+            echo '- Role mapping needs owner-reviewed matrix: **NO-GO**.'
+            echo '- Opening balance comparer: synthetic and fail-closed tests only.'
+            echo '- Actual employee grants, balances and legacy source: **NOT VERIFIED**.'
+            echo '- D1 / Cloudflare / authenticated financial transactions: **NONE**.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: acc166-role-risk-no-go
+          path: artifacts/acc166-role-boundary.json
+          retention-days: 14
