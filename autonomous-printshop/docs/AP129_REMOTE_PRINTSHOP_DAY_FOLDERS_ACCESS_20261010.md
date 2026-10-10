@@ -45,3 +45,47 @@ Source (checked October 10, 2026):
 - Unauthorized/non-enrolled device cannot connect; Windows share prompts for account credentials; no WAN port 445 exposure.
 - Staff continue to save/print/approve designs exactly as before; NO production D1 or Operator Task modifications.
 - Separate off-machine BACKUP/versioning and recovery still required; a shared Windows folder is **not backup**, even if remote-accessible.
+
+
+## AP-130 owner-confirmed current shop day path (2026-10-10)
+
+Owner supplied EXACT current working folder on printshop Windows machine:
+
+\`\`\`text
+D:\print\الشغل\10-2026\Tooday\10-10
+\`\`\`
+
+This is **the day folder**, NOT the share root. Do not mistakenly share only \`...\Tooday\10-10\`, which would break access to other days. The currently inferred common root (PENDING confirmation that the folder contains only intended shop work) is:
+
+\`\`\`text
+D:\print\الشغل
+\`\`\`
+
+The **observed hierarchy** is now \`<work root>\<month-year>\Tooday\<short-day>\`, with \`Tooday\` written **exactly that way**, not "Today". The earlier assumption that a workday directory always has the flat form \`1-1-2026\` directly under the common root was INCORRECT for this owner's supplied current folder. Do not rename the folders or migrate customer files.
+
+Expected category targets based on the prior owner's description, **NOT YET VERIFIED ON THIS DISK**:
+
+\`\`\`text
+D:\print\الشغل\
+└── 10-2026\
+    └── Tooday\
+        └── 10-10\
+            ├── ديجتال\  (expected, not independently checked)
+            └── فوتو\    (expected, not independently checked)
+\`\`\`
+
+Use the literal actual path above as authority, not illustrative diagrams. The next two branches, \`ديجتال\` and \`فوتو\`, are expected by earlier owner account but have not yet been confirmed under THIS exact \`10-10\` folder. **Never auto-create them.**
+
+New source layout mode \`MONTH_TOODAY_DAY\` converts known ISO date \`2026-10-10\` to relative selectors:
+
+- \`10-2026\Tooday\10-10\ديجتال\`
+- \`10-2026\Tooday\10-10\فوتو\`
+
+\`FLAT_DAY\` remains backward-compatible for historical \`1-1-2026\ديجتال\` folders. These selectors are for a future host: they do not touch Windows disk, mount SMB, change ACLs or prove actual folder existence.
+
+**Immediate shop-side verification before installing any VPN or exposing a share:**
+1. Confirm the Windows version with \`Win+R\` → \`winver\` on SHOP computer. Current NetBird client supports Windows 10/11; unsupported Windows 7/8 only have obsolete unpatched builds — do not place a customer-file share on those.
+2. Open \`D:\print\الشغل\10-2026\Tooday\10-10\` and confirm \`ديجتال\` and \`فوتو\` folders are actually underneath it, without uploading any customer screenshots.
+3. Confirm \`D:\print\الشغل\` contains only work intended for owner access (not unrelated protected staff/personal files). Only then configure restricted SMB share from THIS parent across months, over private NetBird network, using a non-admin Windows account and least privilege. If the root contains broader content, share a properly scoped alternative or use a protected file agent; don't widen access silently.
+
+**Security + data semantics:** Keep shop folder original, disable unsolicited mirror sync, never expose TCP 445 to the public router, do not allow guest/Everyone share, test one fake-file transfer in both directions and check no overwrite before touching real orders. Current AP-130 is **SOURCE_ONLY TESTED; actual OS, area subfolders, NetBird, share and transfers NOT VERIFIED**.
