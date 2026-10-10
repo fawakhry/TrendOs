@@ -1,0 +1,35 @@
+name: ACC-174 Offline Department Purchase Custody and Approval SQLite
+on:
+  push:
+    branches:
+      - test/acc174-dept-purchase-custody-sqlite-20261010
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'tests/easystore_acc174_department_purchase_custody_sqlite.test.mjs'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'cloudflare-d1/migrations/**'
+      - '.github/workflows/easystore-acc174-dept-custody-sqlite.yml'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+permissions:
+  contents: read
+jobs:
+  exact-worker-sqlite-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parse native finance handler and integrated department test
+        run: |
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --check tests/easystore_acc174_department_purchase_custody_sqlite.test.mjs
+      - name: Simulate real finance route in local in-memory SQLite only
+        run: node --experimental-sqlite tests/easystore_acc174_department_purchase_custody_sqlite.test.mjs
+      - name: Preserve Production no-go
+        run: |
+          echo 'ACC-174 is a synthetic in-memory SQLite integration only.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Production financial transactions, role grants, Cloudflare deployments and D1 writes were NOT performed.' >> "$GITHUB_STEP_SUMMARY"
