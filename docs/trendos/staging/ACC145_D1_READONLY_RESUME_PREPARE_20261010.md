@@ -286,3 +286,33 @@ IMPLEMENT (separate audit branch only):
 VERIFICATION: final CI run and SHA will be attached after this commit finishes. Even if probe PASSES, only HTTP access and READONLY current safety have been proven; full financial go-live remains BLOCKED by authoritative source, opening balances, line/stock parity, real Diaa SSO and server role matrix. A2.13 MUST NOT be retried. No CANARY/GENERAL flag change was authorized.
 
 NEXT: use read-only evidence to identify the exact controlled EasyStore frontend-only release approval (PR #23), perform real owner-supervised Diaa SSO smoke after explicit permission and approved deploy, then separately reconcile legacy opening balances and permission matrix before any financial writes.
+
+
+## ACC-157 / VERIFIED — live READONLY public-health and release check
+
+- Source commit `60a02618f2936452466734e805afd6cbc233fa33`; CI [run 38052986686](https://github.com/fawakhry/TrendOs/actions/runs/38052986686), job `114215724769` **SUCCESS**. Verified exact non-private log markers:
+  - `ACC157_LIVE_D1_READONLY_BOUNDARY=PASS`, `ACC157_LIVE_POLICY_EPOCH=39`, `ACC157_CANARY_ALLOWLIST_AND_BUDGET=ZERO`.
+  - `ACC157_PUBLIC_EASYSTORE_FRONTEND_HTTP=PASS_NOT_SSO_PROOF`.
+  - `ACC157_SSO_PR23=DRAFT_NOT_PRODUCTION`, `ACC157_DIAA_REAL_BROWSER_SSO=NOT_VERIFIED`.
+  - `ACC157_HISTORICAL_LEDGER_PARITY=BLOCKED_UNVERIFIED_SOURCE`, `ACC157_FULL_FINANCIAL_GO_LIVE=BLOCKED_SAFE`.
+  - `ACC157_FINANCIAL_WRITES=0`, `ACC157_A213_RETRY=FORBIDDEN`.
+- These are freshly executed GET-only status and public GitHub metadata probes, not authenticated financial reconciliation or functional SSO. No customer identities, account transaction values or credentials copied.
+
+## ACC-158 / OWNER APPROVAL NEEDED — controlled EasyStore frontend-only SSO release order
+
+READ/REVIEW:
+- `fawakhry/EasyStore` production `main` HEAD `cf03dfe8a38350b5c08e56452f3ab31593fd49b0`; prior [Pages deployment 37828843692](https://github.com/fawakhry/EasyStore/actions/runs/37828843692) and Cloud Safety 37828845046 both SUCCESS.
+- [Draft PR #23](https://github.com/fawakhry/EasyStore/pull/23), head `ce332dfec4a084ae89b4527ff19cc1a26d0b566f`, is OPEN/DRAFT, mergeable/clean, ahead seven commits, and contains exactly four files: `app.js`, `.github/workflows/easystore-cloud-safety-ci.yml`, `tests/easystore_sso_fresh_handoff.test.mjs`, `tests/easystore_sso_opener_role_replay.test.mjs`.
+- [EasyStore Cloud Safety run 38048937400](https://github.com/fawakhry/EasyStore/actions/runs/38048937400) SUCCESS for the exact PR head; this includes stale popup rejection, opener/origin/nonce/timestamp/one-use replay limits and role navigation reset. No finance API, D1 backend schema, employee permissions or cash/stock data files changed in the PR.
+- Full current finance go-live is NOT authorized by this source-only release. Missing financial opening balances, authoritative ledgers, historical source-to-target parity and the real Diaa browser SSO remain independent blockers. ACC-156 role matrix issue #40 remains open. A2.13 remains DO_NOT_RETRY.
+
+Proposed narrowly scoped change **NOT EXECUTED**:
+1. Owner specifically approves **EasyStore PR #23 frontend-only** merge into EasyStore `main`, which triggers GitHub Pages automatic production publish. No TrendOS main/candidate merge, no accounting API deployment, no finance mode unlock. Verify the 4-file diff and the exact SHA again immediately before merge.
+2. Observe Pages build and Cloud Safety results. A failed build or role mismatch is an immediate STOP; never infer success from a merged Git ref.
+3. After deploy, owner opens TrendOS as real Diaa and launches EasyStore on the SAME logged-in browser session. Confirm role/tab initialization and read-only accounting navigation; observe only pass/fail metadata and never copy bearer token, session cookie, customer data or staff identifiers.
+4. Rollback if navigation/authentication regression: revert only PR #23 frontend changes to the last known EasyStore `main` version, let Pages redeploy and re-check login/Cloud Safety. No financial data rollback is needed because no write was authorized.
+5. Independently resolve financial-source custody/opening balance parity and precise finance owner role-grant matrix before presenting any write canary for separate explicit approval.
+
+Risks: automatic public Pages publication on merge, interruption of live SSO/shell for current users, stale browser tabs/cached JS and rollback redeploy delay. **Owner explicit production approval required before Step 1.** This approval must NOT be treated as permission to run A2.13, change mode, or write accounts.
+
+Status `ACC157_READONLY_ACCEPTANCE=TESTED_SUCCESS`; `ACC158_FRONTEND_RELEASE=PROPOSED_NOT_APPLIED`; `FULL_FINANCIAL_ACCOUNTING=BLOCKED_SAFE`; `PRODUCTION_MUTATION_BY_THIS_GATE=NO`.
