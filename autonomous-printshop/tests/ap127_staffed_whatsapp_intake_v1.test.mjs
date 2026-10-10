@@ -114,8 +114,7 @@ a=expect({workType:'PRINT_READY',customerProofRequested:true},
  'CUSTOM_PROOF_NOT_PREPARED');
 assert.equal(a.approvalGate,'CUSTOMER_APPROVAL_REQUIRED');
 // Case: Whatsapp "OK" text is NOT a structured version-specific receipt.
-expect({workType:'CUSTOM_DESIGN',designOrProofPrepared:true,
- proofSentToCustomer:true,proofSha256:SHA,whatsappMessage:'موافق'},
+expect({...design,customerApprovalReceipt:null,whatsappMessage:'موافق'},
  'AWAITING_CUSTOMER_APPROVAL_RECEIPT');
 const versionChanged={...design,finalFileSha256:OTHER};
 assert.equal(route(versionChanged).status,'CUSTOMER_APPROVAL_REVISION_MISMATCH');
