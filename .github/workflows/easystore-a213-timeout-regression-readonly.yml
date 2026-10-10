@@ -6,6 +6,7 @@ on:
       - fix/a213-custody-monitor-settlement-20261010
     paths:
       - 'tests/easystore_a213_timeout_monitor_regression.test.mjs'
+      - 'tests/easystore_a213_custody_handler_mock_execution.test.mjs'
       - '.github/workflows/easystore-a213-custody-close-canary-execution.yml'
       - '.github/workflows/easystore-a213-timeout-regression-readonly.yml'
 
@@ -30,6 +31,7 @@ jobs:
           node tests/easystore_a213_custody_close_canary.test.mjs
           node tests/easystore_a213_custody_close_workflow_invariants.test.mjs
           node tests/easystore_a213_timeout_monitor_regression.test.mjs
+          node tests/easystore_a213_custody_handler_mock_execution.test.mjs
           echo ACC157_D1_COMMANDS=ZERO
           echo ACC157_PRODUCTION_MUTATION=NO
       - name: Verify actual D1 accounting mode remains READONLY (GET only)
