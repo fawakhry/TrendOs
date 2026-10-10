@@ -1,5 +1,8 @@
 name: T12 ready pickup controlled API release
 on:
+  push:
+    branches: [audit/t12-customer-lane-runtime-20261008]
+    paths: [.github/workflows/t12-ready-pickup-controlled.yml]
   workflow_dispatch:
     inputs:
       deploy:
