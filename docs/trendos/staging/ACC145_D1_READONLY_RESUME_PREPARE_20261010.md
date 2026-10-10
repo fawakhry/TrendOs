@@ -105,3 +105,10 @@ Status: PREPARED; verify this record before repository-only addition.
 - Test in EasyStore Cloud Safety PR, do not merge or deploy automatically. A source-only PASS is not real user smoke.
 - Expected PREPARE outcome: branch/draft PR, CI PASS, no changed business data, financial `OFF/READONLY`.
 - STOP if change touches backend financial authority, payment actions, or production.
+
+## ACC-148 / Step 02 — Isolated fix code READBACK pending CI
+- EasyStore isolated branch: `fix/easystore-sso-reused-window-20261010` from original main `cf03dfe8a38350b5c08e56452f3ab31593fd49b0`.
+- Test commit `782780480e51d8b1d667435eaa83a69f97caecb8`: `tests/easystore_sso_fresh_handoff.test.mjs` uses fake local storage and synthetic strings only; asserts nonce handoff clears old browser token and legacy non-nonce behavior persists.
+- Targeted code commit `a9048e45f145403db32fddad0d533d4b6d1b3c5d`: `app.js` adds a single nonce-bound early guard in `readSso()`, drops cached session for fresh TrendOS popup, and awaits verified message; no changes to D1 financial write policy or APIs.
+- Preflight for next repo-only change: extend `.github/workflows/easystore-cloud-safety-ci.yml` by one explicit `node tests/easystore_sso_fresh_handoff.test.mjs` step on PR. Existing tests must remain intact.
+- Expected: draft PR against EasyStore main, run PR CI and verify new guard plus old cloud safety tests, without merging to main or deploying. If CI fails, diagnose and update only isolated branch.
