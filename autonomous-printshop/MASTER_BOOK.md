@@ -7666,3 +7666,41 @@ NEXT ALLOWED EXECUTION:
 3. Only after qualifying controlled cloud storage/Staging, security and human-reviewed rollout, request explicit authorization for Production changes. No Operator Task CANARY/GENERAL without separate owner approval.
 
 The AP-098 book-only commit's CI is independent; verify it separately after pushing.
+
+
+### AP-099 — D1 candidate aggregate-only SQL + exact Cloudflare build failure attribution (2026-10-10, TESTED / SOURCE_ONLY)
+
+USER INTENT / SCOPE:
+- Owner requested EXECUTE the AP-099 follow-up to AP-098: diagnose failed Cloudflare Workers Builds and review real D1 candidate availability. This work belongs solely to Autonomous Printshop canonical `autonomous-printshop/MASTER_BOOK.md`. No EasyStore accounting development, financial workflow or unrelated book was modified.
+- Safe branch `feature/ap099-d1-readonly-inventory-20261010` descends from AP-098 `f5e5f536b49925a8cf8fd608ded5945bf3a9fd4f`. The candidate production auto-deploy branch remained independently confirmed at `7d20cfc463ce084ceaba8ac440dffa53512fe662`. Never merge or deploy this audit branch by default.
+
+READ / VERIFIED CLOUD BUILD FINDING:
+- Inspected exact GitHub check-run metadata for both AP-098 `f5e5f536...` and AP-099 code `bfb94531614304d0a4927e3f46843e9f8fe9ffc1`. Two Cloudflare-integrated checks consistently concluded **FAILURE**, corresponding to `Workers Builds: trendos` and `Workers Builds: trendos-tasks-v3-t1-preview-20260914`; independent `autonomy-policy-contract` GitHub Actions concluded **SUCCESS**. These are different Workers from `autonomous-printshop-shadow`; do not attribute root cause to printshop source without build logs.
+- For AP-099 code SHA, Cloudflare reported build identifiers `eda5a47f-f60d-4174-a076-27561f868e21` and `bc548b3b-45bb-4689-b041-c2603974fcca` respectively. GitHub Checks API exposes names, failed conclusions, Cloudflare Dashboard build URLs and **zero Cloudflare check annotations**, but no build stderr, compiler diagnostic, or root-cause message. `CLOUDFLARE_BUILD_CAUSE=NOT_VERIFIED`; do not assert dependency, root, preview branch, syntax or token cause.
+- Checked TinyFish connected Browser Context Profiles: Cloudflare audit profile exists but `signed_in_sites=[]`. There is no user-authorized authenticated Cloudflare Dashboard session available to inspect build logs/D1. Do not try an unauthenticated public owner-console GET, assume a past browser screenshot grants backend access, or ask for Cloudflare API keys in chat.
+- The exact next blocker for build root cause is the **Cloudflare Dashboard build log**, under Workers & Pages -> the named Workers -> Builds -> failing build ID. This inspection is READ ONLY and requires a signed-in Cloudflare browser; no build retry or Worker configuration change is approved.
+
+READ / D1 DATA AUTHORITY:
+- Reviewed `autonomous-printshop/production-shadow/worker.mjs` production-source `currentRows(env)`: eligible operational line sources are `employee_core_lines_v1` (joined to active core orders, nonarchived, with legacy runtime status) and `t12_prod_lines` (joined to native orders, nonarchived, with native runtime status/schedule), with native lines replacing legacy line keys. `autonomous_readiness_evidence` contains per-line DESIGN/MATERIAL/MACHINE status history; AP-094/AP-095 choose newest observation BEFORE checking TTL to prevent older READY resurrection.
+- AP-098's Google Sheets bounded check saw 250 closed/non-dispatchable rows in `بنود الأوردرات` (129 delivered, 73 ready-for-collection, 28 duplicate, 20 canceled). That is a Google source-only observation, not D1 parity, not Proof D1 has no open orders, and was not re-imported here.
+
+IMPLEMENT / TEST:
+- Source commit `bfb94531614304d0a4927e3f46843e9f8fe9ffc1` contains three paths ONLY:
+  1. `autonomous-printshop/diagnostics/AP099_D1_SHADOW_AGGREGATE_READONLY.sql`: review-only, read-only SQLite statement mirroring relevant legacy+native Shadow source paths, native-overrides-legacy line ranking and nonarchived filtering. Aggregates count current line keys, statuses, preliminary potential baseline lines, per-kind missing current READY signal, all-three current READY signals, and source duplication. Latest evidence is selected per **same line + kind** BEFORE expiry/clock validation. Query result is fixed, numerical, aggregate-only columns: no order/line IDs, customer/staff fields or raw evidence references. Output never authorizes dispatch or impersonates full Production source qualification.
+  2. `autonomous-printshop/tests/ap099_d1_aggregate_sql_readonly.test.py`: executes the **exact SQL file** in in-memory SQLite with only fabricated fixtures to prove native precedence, archive/inactive exclusion, closed/new counts, missing evidence on expired newer MATERIAL (older READY must not revive), no IDs in the result schema, and no DML/DDL statements in the SQL.
+  3. `.github/workflows/autonomous-printshop-policy-v1-ci.yml`: invokes new AP-099 Python/SQLite regression in the existing source-only policy test job; no Cloudflare tokens, deployments, D1 binding, migration, access-policy or write permissions added.
+- GitHub Actions `Autonomous Printshop Policy V1 CI` [run 38057084128](https://github.com/fawakhry/TrendOs/actions/runs/38057084128) on `bfb94531614304d0a4927e3f46843e9f8fe9ffc1`: **COMPLETED SUCCESS**. Inspected job `autonomy-policy-contract`, new `Run AP-099 D1 aggregate SQL in isolated in-memory SQLite` step SUCCESS; all previous test steps retained and no failed jobs.
+- The SQL has NOT been executed against live D1. It requires explicit approval of database target and an authenticated Cloudflare console / qualified protected backend channel. It is an optional operator-visible diagnostic query only, not a Cloudflare API action in this session.
+- Precise caveat: status/due/fly flags and D1 evidence READY + TTL are **necessary source signals, not sufficient strict eligibility**. The SQL does not independently re-verify protected customer restrictions, source authority/provenance, machine physical identification, D1 snapshot completeness, model release gates or clock-source validity. `allThreeSignalsReady` must never be represented as independently qualified Operator Task eligibility. If the table/schema or query fails, treat it as `BLOCKED_SAFE`, not as zero candidates.
+
+GATES:
+- `AP099_AGGREGATE_SQL_IN_MEMORY_TESTED=PASS`, `AP099_REAL_D1_PRODUCTION_QUERY=NOT_RUN`, `AP099_REAL_ACTIVE_PILOT=UNKNOWN`, `CLOUDFLARE_BUILDS=FAILED_ON_TWO_UNRELATED_WORKERS`, `CLOUDFLARE_BUILD_ROOT_CAUSE=UNKNOWN`.
+- `OPERATOR_TASK=OFF`, `AUTONOMY/READINESS=SHADOW` are LAST DOCUMENTED, not re-verified live. `MC-02/MC-23=PARTIAL`; `OWNER_CONSOLE_ACCESS_GATE=FAILED` from prior screenshots and historical anonymous route observation. No Staging Durable Object isolation or actual owner-only secure backend session was established.
+- `PRODUCTION_MUTATION=NO`, `CANDIDATE_BRANCH_PUSH=NO`, `BUSINESS_OR_FINANCE_WRITE=NO`, `CANARY_TRIGGER=NO`.
+
+NEXT EXECUTION:
+1. With owner-authorized signed-in Cloudflare console, READ both failed Build logs to establish error source and check whether Cloudflare branch builds are unintentionally attached to unrelated Workers. No build retry or auto-deploy without explicit approval.
+2. Independently confirm selected D1 database is the correct `trendos-main` production source and READ the vetted aggregate-only SQL through its authenticated D1 console without copying full rows or credentials. Record aggregate counts and any schema/parity errors in this book; do not mark source VERIFIED LIVE solely from aggregate presence.
+3. If (and only if) D1 has a qualified operational baseline candidate, obtain Design/Material/Machine same-line complete current evidence through protected service with proper authorization and human review. Do not fabricate candidate, expose public owner routes, activate Operator Task, or bypass owner/finance protected actions.
+
+The AP-099 book-only commit must have its own CI outcome checked after writing. GitHub source CI success does not cancel the two independent Cloudflare build failures.
