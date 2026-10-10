@@ -143,3 +143,19 @@ Status: PREPARED, separate CI edit pending.
 - The static census does NOT establish that every Google legacy code path in other products is migrated, nor any financial write readiness.
 - Expected: Actions PASS with counts logged and `PRODUCTION_MUTATION=NO`. A failure is a BLOCKED classification gap; never auto-deploy or enable accounting writes.
 Status: PREPARED.
+
+## ACC-149 / Step 02 — VERIFIED READ-ONLY PRODUCTION FRONTEND CLASSIFICATION
+- Code commit `69823ee375164807404a82a4e3ad7186cb33d437`; quoting-only workflow correction `55c40d6df3014f958e9bdea6b748b74c4f96170c`, file blob `0843d9353ca73eea7b8494ed2321b35cfdd79316`.
+- Initial run `38047798607` FAIL due to JavaScript regexp escaping in newly created diagnostic workflow (diagnostic tooling only); corrected without changing production or app code. Do not treat old tooling failure as a production regression.
+- Final GitHub Actions run `38047828371`: https://github.com/fawakhry/TrendOs/actions/runs/38047828371, job `114200826375`, **SUCCESS**.
+- Live deployed EasyStore GET-only source audit: `ACC149_PUBLISHED_FRONTEND_CALLED_ACTIONS=33`, `ACC149_PUBLISHED_D1_READ_ACTIONS=11`, `ACC149_PUBLISHED_CLOSED_WRITE_ACTIONS=24`, `ACC149_PUBLISHED_BOUNDED_CANARY_ACTIONS=1`, `ACC149_UNCLASSIFIED_ACTIONS=0`, `ACC149_DYNAMIC_ACTION_CALLS=0`, `ACC149_FRONTEND_FINANCIAL_FALLBACK=BLOCKED`, `ACC149_PRODUCTION_MUTATION=NO`.
+- The one bounded canary action is contained in the 24 blocked writes and disabled by live frontend OFF. This is source-level proof only; it does not authorize a real write.
+- Result: **VERIFIED LIVE DEPLOYED FRONTEND SOURCE**. No D1 changes.
+
+## Accounting handoff / next safe gates after ACC-149
+1. Confirm with owner that EasyStore draft PR #23 may undergo controlled frontend release. Its CI passed (38047615198), but production still has the old cached-window SSO behavior. Without owner release authorization do not merge/deploy.
+2. A real Diya session smoke must verify nonce-based popup handoff from the production TrendOS UI into EasyStore, and permissions/health. No TinyFish, passwords, or token disclosure required. Current CI only tests code/runtime contract, not an authenticated browser session.
+3. Before **any** financial operation, perform new independent D1 counts, idempotency/unknown outcome reconciliation for A2.13, cashbox/stock invariants, cloud shared bundle/other lanes nonregression, explicit owner-approved one-command scope and signed rollback plan. The consumed/failed A2.13 execution must **never be blindly retried**.
+4. Data parity and real opening balances/invoices/payment authority are NOT proven migrated from legacy Google/Apps Script into D1. No full cloud accounting closeout claim until read-only source→target parity and financial acceptance pass.
+
+Production state proved up to 2026-10-10: `READONLY`, no financial write authorization, no financial D1 mutations from ACC-145–149.
