@@ -1,0 +1,80 @@
+name: ACC-178 Offline Shared/Accounting Real Merge Inventory (NO DEPLOY)
+on:
+  push:
+    branches:
+      - test/acc178-shared-accounting-merge-conflict-inventory-20261010
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-acc178-real-merge-inventory-offline.yml'
+      - 'scripts/easystore_acc178_reconcile_book.py'
+      - 'tests/easystore_acc178_book_reconcile.test.mjs'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+
+permissions:
+  contents: read
+
+jobs:
+  discover-actual-merge-conflicts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SHARED_SHA: 7d20cfc463ce084ceaba8ac440dffa53512fe662
+      SHARED_REF: candidate/t12-full-cloud-cutover-a56-20260929
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: \${{ github.sha }}
+          fetch-depth: 0
+      - name: Read exact pinned shared revision and analyze real git merge in a disposable checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACCOUNTING_SHA="$(git rev-parse HEAD)"
+          git fetch --no-tags origin "refs/heads/$SHARED_REF"
+          SHARED_ACTUAL="$(git rev-parse FETCH_HEAD)"
+          if [[ "$SHARED_ACTUAL" != "$SHARED_SHA" ]]; then
+            echo "ACC178_SHARED_HEAD_DRIFT=BLOCKED"
+            exit 1
+          fi
+          BASE="$(git merge-base "$ACCOUNTING_SHA" "$SHARED_SHA")"
+          echo "ACC178_ACCOUNTING_SHA=$ACCOUNTING_SHA"
+          echo "ACC178_SHARED_SHA=$SHARED_SHA"
+          echo "ACC178_COMMON_BASE=$BASE"
+          DIR="$RUNNER_TEMP/acc178-disposable-merge"
+          git worktree add --detach "$DIR" "$ACCOUNTING_SHA"
+          set +e
+          git -C "$DIR" -c user.name='ACC178 Offline Review' -c user.email='offline@example.invalid' merge --no-commit --no-ff "$SHARED_SHA" > "$RUNNER_TEMP/acc178-merge-output.log" 2>&1
+          RC=$?
+          set -e
+          git -C "$DIR" status --porcelain=v1 > "$RUNNER_TEMP/acc178-status.txt"
+          git -C "$DIR" diff --name-only --diff-filter=U | LC_ALL=C sort > "$RUNNER_TEMP/acc178-unmerged.txt"
+          echo "ACC178_GIT_MERGE_RESULT=$RC"
+          echo "ACC178_UNMERGED_COUNT=$(wc -l < "$RUNNER_TEMP/acc178-unmerged.txt")"
+          echo "ACC178_UNMERGED_PATHS_BEGIN"
+          cat "$RUNNER_TEMP/acc178-unmerged.txt"
+          echo "ACC178_UNMERGED_PATHS_END"
+          {
+            echo '## ACC-178 isolated real git merge analysis'
+            echo "Accounting commit: $ACCOUNTING_SHA"
+            echo "Shared commit: $SHARED_SHA"
+            echo "Common base: $BASE"
+            echo "Git merge exit code: $RC (nonzero is an expected diagnostic, not release success)"
+            echo '### Unresolved file paths'
+            cat "$RUNNER_TEMP/acc178-unmerged.txt"
+            echo '### Interpretation'
+            echo 'This is a disposable, uncommitted merge with NO Cloudflare, no D1, no financial POST and NO release authorization.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$RC" == 0 ]]; then
+            echo 'ACC178_MERGED_TREE_REHEARSAL=CONFLICT_FREE'
+          else
+            echo 'ACC178_MERGED_TREE_REHEARSAL=CONFLICTED_NO_DEPLOY'
+          fi
+          echo 'ACC178_PRODUCTION_DEPLOY=NOT_EXECUTED'
+      - name: Save only non-sensitive conflict-path report
+        uses: actions/upload-artifact@v4
+        with:
+          name: acc178-offline-unmerged-paths
+          path: \${{ runner.temp }}/acc178-unmerged.txt
+          retention-days: 7
