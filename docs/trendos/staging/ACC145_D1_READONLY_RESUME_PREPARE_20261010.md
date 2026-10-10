@@ -316,3 +316,14 @@ Proposed narrowly scoped change **NOT EXECUTED**:
 Risks: automatic public Pages publication on merge, interruption of live SSO/shell for current users, stale browser tabs/cached JS and rollback redeploy delay. **Owner explicit production approval required before Step 1.** This approval must NOT be treated as permission to run A2.13, change mode, or write accounts.
 
 Status `ACC157_READONLY_ACCEPTANCE=TESTED_SUCCESS`; `ACC158_FRONTEND_RELEASE=PROPOSED_NOT_APPLIED`; `FULL_FINANCIAL_ACCOUNTING=BLOCKED_SAFE`; `PRODUCTION_MUTATION_BY_THIS_GATE=NO`.
+
+
+## ACC-159 — Read-only bounded backup inventory (2026-10-10)
+
+Read-only Google Sheets metadata and A1:H60 cell-presence inspection compared 20 identical accounting tabs from three TrendOS Operations workbooks: current CLEAN_START (0 occupied data-row positions), archival PRE_CLEANUP 2026-09-03 (99), and historical STAGING 2026-09-04 (82). This excludes headers, but includes possible drafts, fixtures and non-financial rows. These numbers are NOT counts of verified transactions.
+
+Selected PRE_CLEANUP data-row positions: department invoices 18, final invoices 3, materials 2, invoice drafts 59 within scan, cashbox 4; corresponding historical STAGING counts: 18, 3, 2, 45, 1. A fourth PRE_D1 2026-08-29 archive spot check found cashbox 4, final invoices 3, department invoices 18, materials 2, drafts 47. Only the first 60 rows of columns A:H were inspected.
+
+Do not treat these backups as authoritative financial books. No identities, transaction values, or balances were displayed or copied. This is a discovery lead for historical source parity, NOT authorization to import, write, or reconcile finances. Source-of-truth approval and opening cash, debt and stock proof are still missing. A2.13 DO_NOT_RETRY; EasyStore SSO frontend PR #23 not merged or deployed. ACC-157 runtime READONLY epoch39 and CI 38052986686 SUCCESS; ACC-158 documentation CI 38053142803 SUCCESS. No Production or business data mutations in ACC-159.
+
+Next: identify authoritative historic EasyStore financial source and validate aggregate ledgers under finance-owner supervision; separately approve controlled frontend-only SSO PR #23 before real employee browser smoke.
