@@ -245,6 +245,8 @@ jobs:
         run: python3 autonomous-printshop/tests/ap107_d1_due_triage_sql_readonly.test.py
       - name: Run AP-109 safe first-pilot aggregate human-review contract
         run: node autonomous-printshop/tests/first_pilot_aggregate_review_v1.test.mjs
+      - name: Run AP-110 private same-line provenance precheck contract
+        run: node autonomous-printshop/tests/private_line_provenance_review_v1.test.mjs
       - name: Run evidence acquisition packet contract
         run: node autonomous-printshop/tests/evidence_acquisition_packet_v1.test.mjs
       - name: Run readiness evidence writer contract
