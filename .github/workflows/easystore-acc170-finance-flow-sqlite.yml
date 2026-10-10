@@ -1,0 +1,42 @@
+name: ACC-170 Offline Finance Flow SQLite Integration
+on:
+  push:
+    branches:
+      - test/acc170-finance-flow-sqlite-20261010
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'tests/easystore_acc170_finance_flow_sqlite.test.mjs'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'cloudflare-d1/migrations/**'
+      - '.github/workflows/easystore-acc170-finance-flow-sqlite.yml'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+
+permissions:
+  contents: read
+
+jobs:
+  local-sqlite-integration-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check finance integration syntax
+        run: node --check tests/easystore_acc170_finance_flow_sqlite.test.mjs
+      - name: Execute real Worker and migrations with fake SQLite-only finance
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-sqlite tests/easystore_acc170_finance_flow_sqlite.test.mjs
+      - name: Record acceptance boundary
+        run: |
+          {
+            echo '## ACC-170: actual Worker SQL, but entirely in memory'
+            echo 'Test data: synthetic customer/supplier/material/purchase/sale/reversal.'
+            echo 'No production D1/Cloudflare credential or authenticated finance traffic.'
+            echo 'Success here is NOT live accounting acceptance or permission to enable finance writes.'
+          } >> "$GITHUB_STEP_SUMMARY"
