@@ -4498,3 +4498,14 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   - Accounting stays D1 READONLY;
   - actions outside the 17-policy bridge fail closed.
 - No Production mutation occurred in this repo gate.
+
+
+### ACC-157 — A2.13 monitor timeout fix (2026-10-10) / no financial retry
+
+- **Correct lane:** Supplier A2.10 was already completed and safely closed ([original supplier closure](.github/a210-supplier-final-closure-result.txt)); A2.11 waste and A2.12 dept-line canaries previously passed. No rework or retest of supplier production.
+- A2.13 custody close live attempt [37825991019](https://github.com/fawakhry/TrendOs/actions/runs/37825991019) consumed one command budget but produced no proven custody-close transaction; read-only [37827293806](https://github.com/fawakhry/TrendOs/actions/runs/37827293806) confirmed zero new close, cashbox, stock, financial ledger or A213 request/event, and restored READONLY/zero budget.
+- Identified monitor defect: EasyStore D1 fetch allows 90 seconds, while A2.13 GitHub workflow failed when observed command budget had not settled after approximately 30 seconds. **Defect in premature observation window is verified; original request failure's full cause is NOT proven.**
+- On isolated branch `fix/a213-custody-monitor-settlement-20261010` the manual-only execution workflow now uses a bounded 120-second wall-clock observation and labels ambiguous outcomes `UNKNOWN_OUTCOME_DO_NOT_RETRY`. No CANARY scope, SQL writer, command budget, cleanup, or deploy changed.
+- CI [run 38052120740](https://github.com/fawakhry/TrendOs/actions/runs/38052120740) **SUCCESS**: preserves historical A2.13 one-user/one-action/one-command/zero-value and automatic cleanup guards; executes 90/119/120-second timer boundary tests; executes actual zero-balance Worker handler logic against a **mock, isolated D1** including guarded request ledger+atomic close/event batch and rejects unauthenticated/READONLY calls. No real financial writes.
+- Latest Production GET health was observed in the same run: mode `READONLY`, zero command budget and zero allowed users/actions. This work never dispatched a financial execution workflow.
+- Detailed append-only evidence: [ACC157 A2.13 checkpoint](docs/trendos/staging/ACC157_A213_CUSTODY_TIMEOUT_RECONCILIATION_20261010.md). **A2.13 live acceptance remains NOT PASSED / DO NOT REPEAT without new explicit one-command authorization and reconciled prior outcome.**
