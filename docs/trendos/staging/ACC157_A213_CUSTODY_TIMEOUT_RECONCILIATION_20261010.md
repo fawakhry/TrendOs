@@ -48,3 +48,15 @@ PREPARE=RECORDED; TEST/VERIFY=PENDING.
 - If a local SQL error occurs, capture only synthetic SQL/error metadata in GitHub CI, fix the test when clearly a harness defect, or separately propose a server fix if an actual production-source SQL/DDL incompatibility is confirmed. Preserve evidence of any failures.
 - No customer data, financial payloads, secrets or new D1 business writes. **No retry of actual A2.13**.
 Status: PREPARED.
+
+## ACC-158 / VERIFIED (2026-10-10) — real SQLite engine, synthetic isolated business flow
+- Added `tests/easystore_a213_sqlite_migration_integration.test.mjs`, commit `870dc029b52c56a84ae4e1646d3e943d453525d7`. It constructs a fresh *in-memory* real SQLite database from checked-in accounting migration files 0015, 0020–0030; no historical data, credentials, or Cloudflare access.
+- Included in the existing read-only ACC-157 GitHub CI, commit `d8caf3bc894415b8dd1862384943df22a95667d7`; Node 22 built-in SQLite with `--experimental-sqlite`, executes the **unmodified native Accounting handler source** against an async D1 adapter backed by an actual SQLite transaction.
+- **Verified PASS:** https://github.com/fawakhry/TrendOs/actions/runs/38053563248, job `114217385375`:
+  - `ACC158_REAL_SQLITE_MIGRATIONS_APPLIED=PASS`
+  - `ACC158_REAL_SQLITE_CUSTODY_TRANSACTION=PASS` — one synthetic zero-value close, one COMMITTED request ledger, one immutable audit event.
+  - `ACC158_REAL_SQLITE_IDEMPOTENCY_SECOND_COMMAND_BLOCKED=PASS` — replay of same request key gives duplicatePrevented without new writes; different key cannot consume a second command.
+  - `ACC158_POST_RESERVATION_PRE_LEDGER_FAILURE_SAFETY=PASS` — injected *local-only* SQL ledger abort results in one consumed budget but no ledger, custody close or event, demonstrating this ambiguous state can arise if there is a failure after reservation.
+  - `ACC158_NO_PRODUCTION_D1_ACCESS_OR_FINANCIAL_WRITE=PASS`; existing safety regressions and Production GET-only health also PASS with READONLY, zero budget.
+- **Interpretation:** local source and current checked-in migration DDL are compatible on the A2.13 zero-balance path. It does *not* prove the deployed Cloudflare Worker, a live employee token, or the original 8 Oct frontend/API call succeeded. The injected abort models a possible failure category; it is not evidence that this exact SQL error occurred historically.
+- **Disposition:** SCHEMA_COMPATIBILITY_TESTED, LIVE_FINANCIAL_CANARY_STILL_BLOCKED; prior A2.13 unknown outcome remains DO_NOT_RETRY pending independently reviewed release and explicit fresh one-command authorization.
