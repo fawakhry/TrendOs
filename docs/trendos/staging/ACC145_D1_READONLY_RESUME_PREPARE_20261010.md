@@ -159,3 +159,11 @@ Status: PREPARED.
 4. Data parity and real opening balances/invoices/payment authority are NOT proven migrated from legacy Google/Apps Script into D1. No full cloud accounting closeout claim until read-only source→target parity and financial acceptance pass.
 
 Production state proved up to 2026-10-10: `READONLY`, no financial write authorization, no financial D1 mutations from ACC-145–149.
+
+## ACC-150 / Step 00 — PREPARE canonical master-book index
+- Target `TrendOS_MASTER_BOOK.md` on **isolated audit branch only**, based on `candidate/easystore-accounting-a2-20261005`. This source book is older than separate T12 4.22; do not touch or overwrite T12/master/main.
+- Proposed action: append one concise accounting checkpoint referencing ACC-145–149, their exact CI runs, draft PR #23, Production READONLY and blocked A2.13. Preserve every existing master-book line unchanged.
+- Verify readback hash, link source; no production writes, deployments or financial transaction.
+- `ACC145_D1_READONLY_RESUME_PREPARE_20261010.md` remains detailed append-only record; this index is for discovery/handoff.
+- STOP if concurrent book blob changes; reconcile before retry.
+Status: PREPARED.
