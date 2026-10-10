@@ -7836,3 +7836,46 @@ NEXT SOURCE CHECK:
 - No cloud credentials or confidential business data required in GitHub; `PRODUCTION_WRITES=0`.
 
 STATUS: `AP105_PRINTING_PRELIMINARY=39`; `AP105_LASER_PRELIMINARY=25`; `AP105_MARKED_URGENT=0`; `AP105_PILOT_QUALIFIED=NO`; `AP105_LIVE_DATA_QUERY=OWNER_D1_CONSOLE_AGGREGATE`; `AP105_OPERATOR_DISPATCH=OFF`. Documentation commit CI outcome to be verified independently.
+
+
+### AP-106 — Owner Cloudflare D1 printing due-date distribution + mandatory every-step project record (2026-10-10)
+
+#### READ — owner-provided verified D1 Console observation
+- On 2026-10-10 the owner executed the previously prepared **SELECT-only** query in authenticated Cloudflare `trendos-main` D1 Console and supplied a result screenshot. The SQL uses current nonarchived legacy/native line sources, runtime status, `ROW_NUMBER` native-precedence deduplication and filters for `طلب جديد` / `طباعة` / nonempty due date / non-Fly-Print.
+- The result contains only a due-date category and count (no raw order/line/customer/employee identifiers):
+  - `ميعاد فات` / **overdue = 16**
+  - `تسليم اليوم` / **due today = 14**
+  - `تسليم قادم` / **due future = 9**
+  - `تاريخ يحتاج مراجعة` / **unparseable by SQLite date() = 0 in the output**.
+  - **Total = 39** preliminary printing lines; this reconciles exactly to AP-105 printing 39 and AP-104 overall 64 new lines.
+- These are date-bucket signals according to SQLite `date(due)` and `date('now')` in **UTC**, not verified Egypt-local SLA deadlines. `date(due)` is not equivalent to the JS source's full `parseDue` acceptance and does not establish correct local-time or valid machine capacity. In particular, the `16` overdue cases should be flagged for **human review**, not auto-reassigned or dispatched.
+- AP-102 stored `autonomous_readiness_evidence` was **0**; no newly qualified same-line DESIGN / MATERIAL / MACHINE fact or live write permission was provided. `STRICT_ELIGIBLE=NOT_PROVEN`, `FIRST_PRINT_RUN=NOT_STARTED`, `OPERATOR_TASK=OFF_LAST_DOCUMENTED`.
+- Production writes **0**; no Cloudflare build/deploy/retry, no customer/order/raw SQL result file attached, and no accounting edits.
+
+#### OWNER DIRECTIVE — every earlier and future step belongs in this ONE canonical book
+- Owner explicitly required: **كل خطوة بنعملها قديم أو جديدة لازم تتسجل** — record every past and new step. Make this an operational acceptance rule, not an optional summary. Sole canonical source: `fawakhry/TrendOs/autonomous-printshop/MASTER_BOOK.md`. Do **not** use `TrendOS_MASTER_BOOK.md` or an accounting book to record autonomous printshop changes.
+- Mandatory sequential record fields for EVERY step, including unsuccessful/aborted work and manual Cloudflare reads:
+  1. **AP step ID / date / objective / affected subsystem** (include source and branch);
+  2. **READ**: exact available baseline HEAD, scope/source, source confidence (`OWNER_CONSOLE_OBSERVATION`, `VERIFIED_LIVE`, `TESTED`, `REPO_ONLY`, `HISTORICAL`, `NOT_VERIFIED`), limitations;
+  3. **ACTION**: command/SQL category, paths or safe settings changed, precise scope, explicit `NO_ACTION` where only inspected;
+  4. **RESULT**: counts, PASS/FAIL/BLOCKED_SAFE, build/test IDs, output interpretation, material negative findings;
+  5. **REVIEW**: expected vs actual, risk and source-of-truth parity, protected/financial/employee authority checks, exact known vs unknown;
+  6. **PRODUCTION/WRITES**: `DEPLOY YES/NO`, D1/business writes `YES/NO`, protected access approval, reason for any incomplete gate;
+  7. **NEXT + owner dependency**, if any; and follow up with exact **book commit SHA and documentation CI run/status** on completion.
+- The record is **append-only**: do not silently erase or rewrite previous source outcomes. Corrections need a new AP entry explicitly referencing the original step. If a tool fails, record the failure accurately once recoverable; never create fake PASS evidence. Prioritize new work on the existing safe review branch; don't push to candidate Production auto-deploy.
+- Treat screenshots, logs and cloud queries as evidence *in this chat*; only save **minimum operational metadata** into the book. Never store raw PII, passwords, tokens, cookies, unredacted Cloudflare screenshots, actual source IDs, protected accounting or employee values.
+
+#### RETROSPECTIVE BOOK INDEX / completeness review on AP-106
+- Read current canonical book on HEAD `6a26f0b3af7ac6a83d5fb7ba43cf9fe9f7b1ff34`. It already has numbered `AP-001` through `AP-105` coverage as main headings **except AP-083**, which is documented within the combined heading `AP-082 runtime completion / AP-083 shared-cache contract prepared` and is referenced explicitly again in AP-084/AP-086. This is a **heading/index format gap, not proof AP-083 is undocumented**. Do not duplicate or invent AP-083 implementation or Cloudflare deployment.
+- Index of the most recent execution chain, all preexisting detailed step entries: `AP-086–091` Cloudflare Access/MFA owner screenshots; `AP-092–093` fail-closed source-only Owner Console verification; `AP-094–097` readiness evidence, latest SQL, same-line pilot, missing-reason triage; `AP-098–099` legacy/D1 source qualification and read-only inventory; `AP-100` verified `trendos` missing root Worker entrypoint error; `AP-101` owner Preview Builds OFF; `AP-102` live D1 raw counts 221 legacy / 577 native / 0 evidence; `AP-103` 788 distinct current line keys / 64 new / 6 in progress; `AP-104` 64 preliminary new lines with due populated and zero Fly Print; `AP-105` printing 39 / laser 25 / no urgency via SQL rule; `AP-106` printing dates 16 overdue / 14 due today / 9 future.
+- Older AP-001–AP-085 records remain historical as written, with statuses **not retroactively upgraded** to LIVE based on later findings. A future gap audit may map individual commit SHAs and CI jobs, but absence of an independently verified SHA must remain `NOT_VERIFIED`, not fabricated.
+- This entry records the new owner recordkeeping directive and the AP-106 observed D1 result; it does not represent a claim that every historical UI click had already been independently audited and reconstructed.
+
+#### NEXT SAFE WORK
+1. Prioritize review of **16 overdue** printing lines with the owner before any auto dispatch; choose a first pilot by protected/manual authorization, not automatically by counts or date bucket.
+2. Reconcile due dates with Egypt-local business clock and valid parsed formats; then obtain independently source-qualified same-line DESIGN, MATERIAL and MACHINE evidence, as existing table `autonomous_readiness_evidence` is empty. No synthetic READY insertion in live DB.
+3. Continue to log each step sequentially in THIS book and verify CI before claiming completion. Source-only Cloudflare and private Operator Task gates remain BLOCKED_SAFE until separately approved.
+
+STATUS: `AP106_PRINTING_OVERDUE=16`, `AP106_PRINTING_TODAY=14`, `AP106_PRINTING_FUTURE=9`, `AP106_PRINTING_TOTAL=39`, `AP106_OWNER_CONSOLE_SELECT=OBSERVED_SUCCESS`, `AP106_EVERY_STEP_BOOK_RULE=ACTIVE_IN_REVIEW_BOOK`, `PRODUCTION_WRITES=0`, `DEPLOY=NO`.
+
+Documentation CI for this AP-106 commit requires its own exact-SHA result verification; do not claim PASS before it finishes.
