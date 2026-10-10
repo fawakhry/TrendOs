@@ -7546,3 +7546,28 @@ NEXT:
 3. Return to Cloudflare access hardening before exposing a new Owner Console deployment. The owner's deferral is **not permission to deploy an unprotected console**.
 
 The AP-094 documentation-only commit is added next, on the safe development branch, and its CI Run ID must be verified separately.
+
+
+### AP-095 — SHADOW readiness DB must choose newest fact BEFORE expiry filter (2026-10-10, SOURCE_ONLY)
+
+Purpose and precedence: Continuation of AP-094's fail-closed readiness logic. Highest evidence is GitHub TESTED, **not** Cloudflare deployed or live Production. The owner's explicit request was to continue implementation and defer manual Cloudflare protection steps; that is not authorization to deploy an unprotected Worker.
+
+READ / VERIFY:
+- Reviewed canonical `autonomous-printshop/MASTER_BOOK.md` through AP-094 from source HEAD `b7b9cee51ac7099fd9c9ab04689a5c3f172563c6`. Created isolated `feature/ap095-shadow-latest-evidence-sql-20261010` from that exact SHA. Auto-deploy candidate `candidate/t12-full-cloud-cutover-a56-20260929` was separately read and remains `7d20cfc463ce084ceaba8ac440dffa53512fe662`.
+- Reviewed AP-094 `latestReadinessEvidenceV1` newest-record-before-expiry logic and actual `autonomous-printshop/production-shadow/worker.mjs` `readinessInputs` SQL. Found the actual DB query `WHERE expires_at_ms IS NULL OR expires_at_ms>?`, filtering expired events BEFORE the JS newest selection. Therefore real Shadow reads could still promote older READY even though AP-094's in-memory tests passed. This is a source-confirmed cross-layer fail-closed hazard, **not** a claim about an observed live incident.
+
+IMPLEMENT — exact source commit `250aee389277f89878c35fd1d4ebc5c0668a65ce`, 3 files:
+1. `autonomous-printshop/production-shadow/worker.mjs`: replaced premature TTL WHERE with SQLite `ROW_NUMBER() OVER (PARTITION BY line_id,evidence_kind ORDER BY observed_at_ms DESC,evidence_id DESC)` and `evidenceRank=1`. This returns only the latest recorded event per line/kind, including expired/future-dated events, so AP-094 pure projection can then reject it and mark the kind UNKNOWN instead of resurrecting an older READY. Deterministic tie-breaking matches the JS evidence-id ordering. Read-only SELECT; no database write or new binding.
+2. `autonomous-printshop/tests/readiness_latest_evidence_sql_v1.py`: new Python stdlib SQLite in-memory execution of the **actual extracted Worker SELECT**, with synthetic two-events same line/kind, expired-newer BLOCKED, future-newer READY, distinct kinds, timestamp ties, and valid recovery. No Production hostname/API touched, no PII.
+3. `.github/workflows/autonomous-printshop-policy-v1-ci.yml`: added one isolated Python SQL execution step after readiness evidence test, without changing any production deployment workflow.
+
+TEST / REVIEW:
+- Exact SHA GitHub Actions Autonomous Printshop Policy V1 CI Run `38051703940` **COMPLETED SUCCESS**. Job `autonomy-policy-contract` succeeded; inspected `Run readiness evidence contract`, `Run Shadow latest-readiness SQL contract (in-memory SQLite)`, and `Run readiness evidence writer contract` all SUCCESS. Previous AP-094 tests remain green.
+- GitHub compare against source parent `b7b9cee51ac7099fd9c9ab04689a5c3f172563c6` found precisely the three files above, a single code commit, no Worker deployment configuration changes. SQL was independently sanity-executed using isolated local SQLite before the GitHub commit. These are OFFLINE/TESTED, not Staging cloud evidence.
+- Production Protected Owner Console Access gate remains FAILED; no staging isolated storage/DO qualification; no config/billing/auth/financial/stock/employee modification; Operator Task OFF, Accounting READONLY epoch39 only as last documented. `MC-02=PARTIAL`, `MC-23=PARTIAL`. `STRICT_ELIGIBLE_LIVE=UNKNOWN` today; Design/Material/Machine same-line real evidence not proven.
+
+RESULT: `AP095_SOURCE_ONLY=PASS`; `DB_NEWEST_BEFORE_TTL=TESTED`; `SHADOW_LIVE_DEPLOY=NO`; `CANDIDATE_AUTO_DEPLOY_BRANCH_UNCHANGED`; `PRODUCTION_MUTATION=NO`; `BLOCKED_SAFE`.
+
+NEXT: Advance existing evidence-acquisition packet against same-line qualified Design/Material/Machine data, preserve IDs/PII exclusion, and test with synthetic missing/partial events on a separate review-only change. Later review AP-094/AP-095 together before any approved baseline promotion. No CANARY or unprotected Owner Console deployment.
+
+AP-095 documentation-only commit and its exact subsequent CI run should be checked separately after the write.
