@@ -1,0 +1,81 @@
+name: ACC-184 Financial Release STOP + Synthetic Rollback (NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - safety/acc184-g5-offline-release-stop-rollback-model-20261010
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-acc184-finance-release-stop-rollback-offline.yml'
+      - 'scripts/easystore_acc184_release_stop_rollback_model.py'
+      - 'tests/easystore_acc184_release_stop_rollback_model.test.py'
+      - 'docs/trendos/staging/ACC184_G5_RELEASE_STOP_INPUT_NO_GO_20261010.json'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+
+permissions:
+  contents: read
+
+jobs:
+  finance-stop-and-pure-rollback-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Strict offline historical receipt, release blockers and mock rollback negatives
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          CF_API_TOKEN: ''
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test -z "$CF_API_TOKEN"
+          python3 -m py_compile scripts/easystore_acc184_release_stop_rollback_model.py
+          python3 tests/easystore_acc184_release_stop_rollback_model.test.py
+          python3 scripts/easystore_acc184_release_stop_rollback_model.py \
+            --evidence docs/trendos/staging/ACC184_G5_RELEASE_STOP_INPUT_NO_GO_20261010.json \
+            --out artifacts/acc184-finance-release-stop-NO_GO.json
+          python3 - <<'PY'
+          import json
+          with open('artifacts/acc184-finance-release-stop-NO_GO.json') as f:
+              r=json.load(f)
+          assert r["release_decision"]=="NO_GO"
+          assert r["go_live_approval"] is False
+          assert r["owner_cutover_date"] is None
+          assert r["previous_live_worker_version"] is None
+          assert r["production_live_configuration_queried"] is False
+          assert r["mock_rollback"]["actual_live_rollback_executed"] is False
+          assert r["production_mutations"]==0
+          assert len(r["blocked_release_conditions"])==9
+          print("ACC184_FINANCE_GO=DENIED")
+          print("ACC184_OFFLINE_ONLY=PASS")
+          PY
+      - name: Regression of existing finance SQLite, permissions and Worker source guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/easystore_acc182_offline_worker_release_manifest.test.py
+          python3 tests/easystore_acc183_wrangler_dryrun_bundle_receipt.test.py
+          python3 tests/easystore_acc180_finance_backup_isolated_restore.test.py
+          node --experimental-sqlite tests/easystore_acc170_finance_flow_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc174_department_purchase_custody_sqlite.test.mjs
+          node tests/easystore_acc175_approved_finance_grants.test.mjs
+          echo 'ACC184_ACC170_ACC174_ACC175_ACC180_ACC182_ACC183_REGRESSION=PASS'
+      - name: Retain sanitized stop report only
+        uses: actions/upload-artifact@v4
+        with:
+          name: acc184-finance-no-go-synthetic-stop-report
+          path: artifacts/acc184-finance-release-stop-NO_GO.json
+          retention-days: 14
