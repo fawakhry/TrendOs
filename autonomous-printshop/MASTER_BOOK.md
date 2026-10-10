@@ -7818,3 +7818,21 @@ NEXT:
 2. Verify one **human-reviewed** same-line DESIGN SHA/preflight/approval, MATERIAL stock ledger+consumption, MACHINE registration+live capacity/health, with approved protected source access. Since evidence table is zero, remain BLOCKED_SAFE; never INSERT fabricated READY rows.
 3. Any actual dispatch or Operator Task activation requires separate owner go/no-go, source approvals, durable MC-02/23 and access/security gates.
 STATUS: `AP104_D1_NEW_LINES=64`, `AP104_NONEMPTY_DUE=64`, `AP104_FLY_PRINT_FLAG_1=0`, `AP104_PRELIMINARY_ONLY=64`, `AP104_STRICT_READY=NOT_PROVEN`, `DATA_WRITES=0`, `PRODUCTION_DEPLOY=NO`. Documentation-only GitHub CI must be independently checked.
+
+
+### AP-105 — Live D1 preliminary lines grouped into printing 39 and laser 25; urgency 0 (2026-10-10)
+
+EVIDENCE:
+- The owner executed the prior SELECT-only department/priority aggregation in authenticated Cloudflare `trendos-main` D1 Console and provided a screenshot of the SQL result table.
+- The previous identical-scope new-line screen AP-104 returned 64 rows after legacy/native source joins, archive exclusion and native-precedence deduplication, with all 64 due fields nonempty and 0 flagged Fly Print.
+- New screenshot returned exactly **`طباعة` 39 new line keys, 0 urgent**, and **`ليزر` 25 new line keys, 0 urgent**. Totals **64 new line keys, zero urgent by the SQL's matching logic** (`LIKE '%عاجل%'` or priority `VIP`); this does not prove other priority encodings don't exist.
+- Based on largest initial candidate pool, `طباعة` is chosen as the **FIRST HUMAN-REVIEW DEPARTMENT**; `ليزر` second. This is neither an approved operational assignment nor a machine/capability evaluation.
+- The previously observed `autonomous_readiness_evidence` count = **0** (AP-102). Real DESIGN, MATERIAL and MACHINE same-line authoritative readiness remains **UNVERIFIED**. There is no authority to create READY events, dispatch, or promote production based on these counts.
+- All observations were SQL SELECT aggregates only. No customer/order/employee IDs, row exports, D1 mutations, Cloudflare deployments, or Operator Task activation.
+
+NEXT SOURCE CHECK:
+- Determine date format/validity and whether the nonempty due dates are past/today/future for the 39 preliminary printing lines, using same source joins and native precedence; group counts only, no IDs, names or raw due values. Prefer conditional `date(due)` buckets and clearly mark unparseable formats for review. SQLite `date('now')` is UTC; dates near local-midnight must not be used for automatic dispatch.
+- Then select a single authorized, human-approved printing line for protected same-line design/material/machine provenance acquisition; do not expose identifiers publicly or fabricate evidence.
+- No cloud credentials or confidential business data required in GitHub; `PRODUCTION_WRITES=0`.
+
+STATUS: `AP105_PRINTING_PRELIMINARY=39`; `AP105_LASER_PRELIMINARY=25`; `AP105_MARKED_URGENT=0`; `AP105_PILOT_QUALIFIED=NO`; `AP105_LIVE_DATA_QUERY=OWNER_D1_CONSOLE_AGGREGATE`; `AP105_OPERATOR_DISPATCH=OFF`. Documentation commit CI outcome to be verified independently.
