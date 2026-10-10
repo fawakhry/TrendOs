@@ -46,3 +46,15 @@ Status at PREPARE: NOT_STARTED; pending readback of this file and separate workf
 
 ## ACC-145 / Step 02 — next one safe step
 Investigate stale 4-canary and 5-canary baseline expectations in A2.11/A2.12 CI **offline only**. Compare expected counts with present six-canary base. Do not rewrite production D1 or rearm A2.13. Require a separate reviewed test change; keep historical baseline tests if they assert replay history.
+
+
+## ACC-146 / Step 00 — PREPARE (2026-10-10)
+Task: ACC-146, Step 00. Classification: DOC_WRITE before REPO_ONLY test/workflow addition.
+HEAD_BEFORE: `3d1ca8a320970311ee245416e44d93f219b14fa2`. Accounting source branch remains `candidate/easystore-accounting-a2-20261005`. No Production mutation permitted.
+- Re-read historical `easystore-a211-waste-qualification.yml` and `easystore-a212-dept-line-qualification.yml`. A2.11 requires `requestLedger=4/events=4/waste=0/deptLines=0` and A2.12 requires `requestLedger=5/events=5/waste=1/deptLines=0`. These are **historical pre-canary gates**, not current state assertions.
+- The exact new verified production snapshot (run 38046689276) has `requestLedger=6/events=6/waste=1/deptLines=1`, all non-synthetic financial entities zero, `READONLY`, `OFF`, and no write budget.
+- Previous failed A2.11/A2.12 jobs reflect valid stale-baseline failures, not evidence of defective A2.11/A2.12 guard code. Do **not** mutate historical expected values or rerun past financial canaries.
+- Proposed exact files (audit branch only): one new `.github/workflows/easystore-acc146-a211-a212-current-qualification.yml` and one offline guard test `tests/easystore_acc146_baseline_lineage.test.mjs`. The workflow must run read-only A2.11/A2.12 source tests then current A145 Production D1 SELECT-only snapshot and fail closed if runtime diverges.
+- Expected: GitHub Actions SUCCESS with both A2.11 and A2.12 guards plus current closed-state baseline verified. Readback the workflow and test after commit; check run conclusion and actual logs. Historical workflows are unchanged. No cloud mutations.
+- STOP on mismatch/partial result; never claim this validates A2.13 custody-close execution or general finance writes.
+Status: PREPARED; separate code commit pending.
