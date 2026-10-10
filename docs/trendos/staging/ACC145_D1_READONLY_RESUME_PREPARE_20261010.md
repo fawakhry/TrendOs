@@ -97,3 +97,11 @@ Status: PREPARED; verify this record before repository-only addition.
 - Inspect EasyStore `readSso()` + `ensureTrendosSso()` under cross-origin reused browser-window conditions: stale cached SSO session could outrank fresh `ssoNonce` while the true sender is still pending.
 - Scope: OFFLINE code audit first. If reproduced through isolated test, fix only EasyStore frontend via **draft PR**, not main/production, with a fail-closed fresh-handoff gate that prevents old session reuse.
 - No expiry relaxation, no sharing session tokens, no live account data or D1 mutation.
+
+## ACC-148 / Step 01 — PREPARE bounded EasyStore frontend fix
+- Source proof, EasyStore `main` @ `cf03dfe8a38350b5c08e56452f3ab31593fd49b0`: `readSso()` reads `sessionStorage['EASYSTORE_SESSION_V1922']` and returns any stored token **before** checking `ssoNonce` from a newly opened TrendOS URL. `ensureTrendosSso()` returns true immediately when `user.token` is cached. Reusing a named popup therefore has a stale-credential/race hazard before new handoff is verified. The live sender/receiver both exist (ACC-147 PASS), but the old-session path should fail closed.
+- User-requested scope: continue safe implementation. Allowed target: isolated `fawakhry/EasyStore` branch `fix/easystore-sso-reused-window-20261010` from currently deployed main; **not** main or Cloudflare.
+- Proposed exact changes: add a test `tests/easystore_sso_fresh_handoff.test.mjs` demonstrating that a newly minted `from=trendos&employeeSSO=1&ssoNonce=...` must not reuse old `sessionStorage` credential, plus a minimal guard at start of `readSso()` to force fresh nonce-bound handoff. Preserve non-nonce legacy behavior; preserve allowlisted origin, ACK and timestamp validation. No user password or token logging.
+- Test in EasyStore Cloud Safety PR, do not merge or deploy automatically. A source-only PASS is not real user smoke.
+- Expected PREPARE outcome: branch/draft PR, CI PASS, no changed business data, financial `OFF/READONLY`.
+- STOP if change touches backend financial authority, payment actions, or production.
