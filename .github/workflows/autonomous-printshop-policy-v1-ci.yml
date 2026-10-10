@@ -255,6 +255,8 @@ jobs:
         run: node autonomous-printshop/tests/private_line_provenance_review_v1.test.mjs
       - name: Run AP-115 source producer to private same-line review integration
         run: node autonomous-printshop/tests/ap115_design_material_machine_producer_private_review.test.mjs
+      - name: Run AP-116 bounded first-line live-snapshot human review
+        run: node autonomous-printshop/tests/ap116_live_line_snapshot_human_review.test.mjs
       - name: Run evidence acquisition packet contract
         run: node autonomous-printshop/tests/evidence_acquisition_packet_v1.test.mjs
       - name: Run readiness evidence writer contract
