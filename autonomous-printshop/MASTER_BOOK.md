@@ -7879,3 +7879,28 @@ STATUS: `AP105_PRINTING_PRELIMINARY=39`; `AP105_LASER_PRELIMINARY=25`; `AP105_MA
 STATUS: `AP106_PRINTING_OVERDUE=16`, `AP106_PRINTING_TODAY=14`, `AP106_PRINTING_FUTURE=9`, `AP106_PRINTING_TOTAL=39`, `AP106_OWNER_CONSOLE_SELECT=OBSERVED_SUCCESS`, `AP106_EVERY_STEP_BOOK_RULE=ACTIVE_IN_REVIEW_BOOK`, `PRODUCTION_WRITES=0`, `DEPLOY=NO`.
 
 Documentation CI for this AP-106 commit requires its own exact-SHA result verification; do not claim PASS before it finishes.
+
+
+### AP-107 — Local-date fail-closed D1 due triage, synthetic execution and review gate (2026-10-10; TESTED / SOURCE_ONLY)
+
+READ and evidence:
+- Owner explicitly said **"كمل بدون توقف"**: continue implementing bounded safe printshop work, document every step in the **sole canonical** `autonomous-printshop/MASTER_BOOK.md`. Continued from AP-106 HEAD `00e620828036ddb3b5f47039f37e68bf8671ef9e` into isolated review branch `feature/ap107-printshop-due-audit-20261010`. Production auto-deploy candidate `candidate/t12-full-cloud-cutover-a56-20260929` independently remained `7d20cfc463ce084ceaba8ac440dffa53512fe662`, unchanged.
+- Prior AP-106 owner Cloudflare D1 Console SELECT grouped 39 `طباعة` lines: 16 `ميعاد فات`, 14 `تسليم اليوم`, 9 `تسليم قادم` using SQLite's UTC `date('now')`. These are source-observed counts for the prior time, **not revalidated** by the AP-107 SQL. There is no current authenticated Cloudflare D1 session in this tool environment.
+- Reviewed `core/operational-reality-v1.mjs` due parser and D1 `production-shadow/worker.mjs` legacy/native source joins. Found potential false assumptions from UTC-day boundaries, ambiguity of DD/MM/YYYY vs year-first dates, invalid calendar days, free text fly flags and timestamps. No evidence that a live order has already been misrouted; it is a preflight qualification concern.
+
+IMPLEMENT — exact source-only commit `adc82fd8ac963ca334913772253045019364c93e`:
+1. `autonomous-printshop/diagnostics/AP107_D1_PRINTING_DATE_TRIAGE_READONLY.sql`: aggregate-only SELECT for current nonarchived line source (active legacy + native precedence), new-state `طباعة` and `ليزر` lines, nonempty due and no fly bit=1. Returns ONLY `department`, allowlisted `dueBucket` and `lineCount`. No raw line/order/customer IDs or raw due values. UTC+03 Cairo-local day applies **specifically to 2026-10-10 observation** and must be updated if seasonal offset changes. Treats unfamiliar fly flag encodings, timestamps and unsupported date formats as human-review buckets rather than auto-converting; validates YYYY-MM-DD and two-digit DD/MM/YYYY dates via calendar round trip to reject impossible dates.
+2. `autonomous-printshop/tests/ap107_d1_due_triage_sql_readonly.test.py`: executes the exact SQL in in-memory SQLite with entirely synthetic core/native rows, archive/inactive/closed/fly exclusions, native precedence, overdue/today/future buckets, DD/MM/YYYY, impossible Feb 30, UTC timestamp and unknown fly flag. Asserts final schema contains only three aggregate fields, no DML/DDL/query side effects.
+3. `.github/workflows/autonomous-printshop-policy-v1-ci.yml`: runs AP-107 SQL contract alongside all earlier printshop policy tests. No production build/deploy workflows, configs, credential stores or D1 data altered.
+
+TEST:
+- GitHub Actions exact commit `adc82fd8ac963ca334913772253045019364c93e`, [Autonomous Printshop Policy V1 CI 38062730340](https://github.com/fawakhry/TrendOs/actions/runs/38062730340) **COMPLETED SUCCESS**. Specifically `Run AP-107 Cairo-local due date buckets via isolated SQLite` SUCCESS, remaining policy job no failing steps. This proves source SQL shape/fixture semantics, **not** current D1 dates or the correctness of all archived due formats.
+- No actual Cloudflare D1 query was issued in AP-107; no real print-job/employee/stock/finance changes; no automatic pilot selection. The real D1 readiness evidence table was last observed at **0** rows in AP-102.
+
+REVIEW:
+- **Do not automatically dispatch any of 16 overdue, 14 today or 9 future lines** merely because a due bucket looks plausible. Review overdue breaches with authorized staff, confirm Cairo-local service-day/time, design asset approval/preflight, live materials and machine identification/capacity per same line.
+- `AP107_SOURCE_CI=SUCCESS`, `AP107_D1_REAL_RUN=NO`, `AP107_AUTONOMY_RELEASE=BLOCKED_SAFE`, `D1_WRITES=0`, `PRODUCTION_DEPLOY=NO`, `CANDIDATE_PUSH=NO`, `MC02_MC23=PARTIAL`, `OWNER_CONSOLE_ACCESS=UNRESOLVED`.
+
+NEXT: qualify the privacy-safe manual first-pilot review packet so free-text source fields cannot escape into public Shadow diagnostics; test without untrusted data leakage. Obtain authenticated owner-console aggregate due review separately when permitted and record separately.
+
+This AP-107 documentation-only commit requires new exact-SHA CI check.
