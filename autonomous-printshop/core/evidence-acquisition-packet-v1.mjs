@@ -69,7 +69,7 @@ function buildEvidenceReviewV1(missingKinds,context={}){
     if(!lineId) status='SOURCE_LINE_UNVERIFIED';
     else if(!validClock) status='SOURCE_CLOCK_UNVERIFIED';
     else{
-      let newest=null, invalidTime=false;
+      let newest=null, invalidTime=false, sameTimeAmbiguous=false;
       for(const raw of events){
         if(!raw||typeof raw!=='object') continue;
         if(text(raw.lineId??raw.line_id)!==lineId) continue;
@@ -80,12 +80,17 @@ function buildEvidenceReviewV1(missingKinds,context={}){
           continue;
         }
         const id=text(raw.evidenceId??raw.evidence_id);
-        if(!newest||observedAtMs>newest.observedAtMs||
-          (observedAtMs===newest.observedAtMs&&id.localeCompare(newest.id)>0)){
+        if(!newest||observedAtMs>newest.observedAtMs){
           newest={raw,id,observedAtMs};
+          sameTimeAmbiguous=false;
+        }else if(observedAtMs===newest.observedAtMs){
+          // The display must not prefer READY over BLOCKED just because
+          // of lexical evidence ID. Multiple newest events require review.
+          sameTimeAmbiguous=true;
         }
       }
       if(invalidTime)status='SOURCE_TIME_UNVERIFIED';
+      else if(sameTimeAmbiguous)status='AMBIGUOUS_LATEST_EVIDENCE';
       else if(newest){
         const raw=newest.raw;
         const expiresRaw=raw.expiresAtMs??raw.expires_at_ms;
