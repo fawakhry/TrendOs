@@ -1,0 +1,151 @@
+name: ACC-178 Offline Shared/Accounting Real Merge Inventory (NO DEPLOY)
+on:
+  push:
+    branches:
+      - test/acc178-shared-accounting-merge-conflict-inventory-20261010
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-acc178-real-merge-inventory-offline.yml'
+      - 'scripts/easystore_acc178_reconcile_book.py'
+      - 'tests/easystore_acc178_book_reconcile.test.py'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+
+permissions:
+  contents: read
+
+jobs:
+  discover-actual-merge-conflicts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SHARED_SHA: 7d20cfc463ce084ceaba8ac440dffa53512fe662
+      SHARED_REF: candidate/t12-full-cloud-cutover-a56-20260929
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Read exact pinned shared revision and analyze real git merge in a disposable checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACCOUNTING_SHA="$(git rev-parse HEAD)"
+          git fetch --no-tags origin "refs/heads/$SHARED_REF"
+          SHARED_ACTUAL="$(git rev-parse FETCH_HEAD)"
+          if [[ "$SHARED_ACTUAL" != "$SHARED_SHA" ]]; then
+            echo "ACC178_SHARED_HEAD_DRIFT=BLOCKED"
+            exit 1
+          fi
+          BASE="$(git merge-base "$ACCOUNTING_SHA" "$SHARED_SHA")"
+          echo "ACC178_ACCOUNTING_SHA=$ACCOUNTING_SHA"
+          echo "ACC178_SHARED_SHA=$SHARED_SHA"
+          echo "ACC178_COMMON_BASE=$BASE"
+          DIR="$RUNNER_TEMP/acc178-disposable-merge"
+          git worktree add --detach "$DIR" "$ACCOUNTING_SHA"
+          set +e
+          git -C "$DIR" -c user.name='ACC178 Offline Review' -c user.email='offline@example.invalid' merge --no-commit --no-ff "$SHARED_SHA" > "$RUNNER_TEMP/acc178-merge-output.log" 2>&1
+          RC=$?
+          set -e
+          git -C "$DIR" status --porcelain=v1 > "$RUNNER_TEMP/acc178-status.txt"
+          git -C "$DIR" diff --name-only --diff-filter=U | LC_ALL=C sort > "$RUNNER_TEMP/acc178-unmerged.txt"
+          echo "ACC178_GIT_MERGE_RESULT=$RC"
+          echo "ACC178_UNMERGED_COUNT=$(wc -l < "$RUNNER_TEMP/acc178-unmerged.txt")"
+          echo "ACC178_UNMERGED_PATHS_BEGIN"
+          cat "$RUNNER_TEMP/acc178-unmerged.txt"
+          echo "ACC178_UNMERGED_PATHS_END"
+          {
+            echo '## ACC-178 isolated real git merge analysis'
+            echo "Accounting commit: $ACCOUNTING_SHA"
+            echo "Shared commit: $SHARED_SHA"
+            echo "Common base: $BASE"
+            echo "Git merge exit code: $RC (nonzero is an expected diagnostic, not release success)"
+            echo '### Unresolved file paths'
+            cat "$RUNNER_TEMP/acc178-unmerged.txt"
+            echo '### Interpretation'
+            echo 'This is a disposable, uncommitted merge with NO Cloudflare, no D1, no financial POST and NO release authorization.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$RC" == 0 ]]; then
+            echo 'ACC178_MERGED_TREE_REHEARSAL=CONFLICT_FREE'
+          else
+            echo 'ACC178_MERGED_TREE_REHEARSAL=CONFLICTED_NO_DEPLOY'
+          fi
+          echo 'ACC178_PRODUCTION_DEPLOY=NOT_EXECUTED'
+          echo "ACC178_REHEARSAL_DIR=$DIR" >> "$GITHUB_ENV"
+          echo "ACC178_ACCOUNTING_SHA=$ACCOUNTING_SHA" >> "$GITHUB_ENV"
+          echo "ACC178_COMMON_BASE=$BASE" >> "$GITHUB_ENV"
+      - name: Preserve exact shared master book and accounting append in disposable merged tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(cat "$RUNNER_TEMP/acc178-unmerged.txt")" != 'TrendOS_MASTER_BOOK.md' ]]; then
+            echo 'ACC178_UNEXPECTED_CONFLICT_SET=STOP'
+            exit 1
+          fi
+          git -C "$ACC178_REHEARSAL_DIR" show ':1:TrendOS_MASTER_BOOK.md' > "$RUNNER_TEMP/acc178-common-base-book.md"
+          git -C "$ACC178_REHEARSAL_DIR" show ':2:TrendOS_MASTER_BOOK.md' > "$RUNNER_TEMP/acc178-accounting-book.md"
+          git -C "$ACC178_REHEARSAL_DIR" show ':3:TrendOS_MASTER_BOOK.md' > "$RUNNER_TEMP/acc178-shared-book.md"
+          git show "$ACC178_ACCOUNTING_SHA:TrendOS_MASTER_BOOK.md" | cmp - "$RUNNER_TEMP/acc178-accounting-book.md"
+          git show "$SHARED_SHA:TrendOS_MASTER_BOOK.md" | cmp - "$RUNNER_TEMP/acc178-shared-book.md"
+          python3 tests/easystore_acc178_book_reconcile.test.py
+          python3 scripts/easystore_acc178_reconcile_book.py \
+            --base "$RUNNER_TEMP/acc178-common-base-book.md" \
+            --accounting "$RUNNER_TEMP/acc178-accounting-book.md" \
+            --shared "$RUNNER_TEMP/acc178-shared-book.md" \
+            --out "$ACC178_REHEARSAL_DIR/TrendOS_MASTER_BOOK.md" \
+            --report artifacts/acc178-merged-book-offline.json
+          git -C "$ACC178_REHEARSAL_DIR" add TrendOS_MASTER_BOOK.md
+          test -z "$(git -C "$ACC178_REHEARSAL_DIR" ls-files -u)"
+          # Pre-existing shared-branch workflow files contain trailing whitespace.
+          # Report it without rewriting shared platform files in an offline rehearsal.
+          if git -C "$ACC178_REHEARSAL_DIR" diff --cached --check > "$RUNNER_TEMP/acc178-whitespace.log" 2>&1; then
+            echo 'ACC178_MERGED_TREE_WHITESPACE_DIAGNOSTIC=CLEAN'
+          else
+            echo "ACC178_MERGED_TREE_SHARED_HISTORY_WHITESPACE_COUNT=$(grep -c 'trailing whitespace' "$RUNNER_TEMP/acc178-whitespace.log" || true)"
+            echo 'ACC178_WHITESPACE_WAS_NOT_CHANGED_TO_PRESERVE_SHARED_SOURCE=YES'
+          fi
+          MERGED_TREE_SHA="$(git -C "$ACC178_REHEARSAL_DIR" write-tree)"
+          echo "ACC178_MERGED_TREE_SHA=$MERGED_TREE_SHA" >> "$GITHUB_ENV"
+          echo "ACC178_RECONCILED_TREE_SHA=$MERGED_TREE_SHA"
+          echo 'ACC178_BOTH_MASTER_BOOKS_PRESERVED=PASS'
+      - name: Execute accounting and shared-platform regressions on the actual merged source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$ACC178_REHEARSAL_DIR"
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --check cloudflare-d1/src/index_v2.js
+          node --experimental-sqlite tests/easystore_acc170_finance_flow_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc174_department_purchase_custody_sqlite.test.mjs
+          node tests/easystore_acc175_approved_finance_grants.test.mjs
+          node tests/cloudflare_a51_production_shadow_customer_route.test.mjs
+          node --experimental-sqlite tests/t12_customer_native_search_a54.test.mjs
+          node tests/employee_auth_native_a61.test.mjs
+          echo 'ACC178_ACCOUNTING_AND_SHARED_REAL_MERGED_SOURCE_TESTS=PASS'
+      - name: Assert no accidental release authority from source merge and record provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const fs=require('fs'),p='artifacts/acc178-merged-book-offline.json',x=JSON.parse(fs.readFileSync(p,'utf8'));x.source_accounting_commit=process.env.ACC178_ACCOUNTING_SHA;x.source_shared_commit=process.env.SHARED_SHA;x.actual_disposable_merge_tree=process.env.ACC178_MERGED_TREE_SHA;x.release_authorized=false;x.production_mutations=0;if(x.finance_release_decision!=='NO_GO'||!x.shared_full_book_preserved_verbatim||!x.accounting_appended_history_preserved_verbatim)process.exit(1);fs.writeFileSync(p,JSON.stringify(x,null,2)+'\n');"
+          {
+            echo '## ACC-178 verified shared/accounting merged Git TREE (offline only)'
+            echo "Source accounting: $ACC178_ACCOUNTING_SHA"
+            echo "Source shared: $SHARED_SHA"
+            echo "Common base: $ACC178_COMMON_BASE"
+            echo "Disposable merged source tree: $ACC178_MERGED_TREE_SHA"
+            echo 'Shared master preserved byte-for-byte; accounting append-only history preserved byte-for-byte; no other source conflicts.'
+            echo 'Real Worker finance and independent T12 customer/auth tests executed on the merged tree.'
+            echo 'Finance release decision remains **NO_GO**: original production deploy overlap guard is unchanged; no D1 backup/restore, owner grant approval or real Worker deployment.'
+            echo 'No production D1 query, Cloudflare credential, Worker deploy, finance HTTP POST or frontend mutation.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo 'ACC178_MERGED_TREE_FINANCE_RELEASE=NO_GO'
+          echo 'ACC178_PRODUCTION_MUTATIONS=ZERO'
+      - name: Save only non-sensitive conflict-path report
+        uses: actions/upload-artifact@v4
+        with:
+          name: acc178-source-reconciled-tree-evidence
+          path: |
+            ${{ runner.temp }}/acc178-unmerged.txt
+            artifacts/acc178-merged-book-offline.json
+          retention-days: 7
