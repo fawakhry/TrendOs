@@ -270,3 +270,19 @@ Status: PREPARED / code pending.
 - Independent PR file review of EasyStore #23: exactly `app.js`, one pre-existing safety workflow and two new SSO regression tests; frontend application patch has 16 additions and one deletion, with no financial API/DB code changed.
 - **Required next owner gate:** approve (or decline) controlled EasyStore frontend-only release from PR #23; after deploy, perform browser smoke logged as Diaa from production TrendOS without sending tokens; until then live SSO remains UNVERIFIED. Financial-authority enablement remains blocked by #40 and data parity.
 Status: SECURITY_FINDING_RECORDED / ALL_SAFE_CI_PASS / WAITING_EXTERNAL_APPROVAL.
+
+
+## ACC-157 / 2026-10-10 — Owner two-hour accounting readiness gate (READ ONLY)
+
+Owner request: finish all accounts and have EasyStore working within two hours. This is a target, NOT a verified deadline or permission to bypass blocked financial release gates.
+
+READ: reviewed latest audit branch `a6e88dcf4675bfd6ce83952e6b5362cee2f69170`, live D1 READONLY evidence ACC-145, EasyStore #23 pending frontend-only SSO fix ACC-154, ACC-155 fail-closed server tests, ACC-156 authorization issue #40, historical A2.13 DO_NOT_RETRY, and ACC-152 schema-only manifest. A Google Drive metadata search for authoritative prior EasyStore/financial ledgers was inconclusive; no historical opening balances were sourced or copied.
+
+IMPLEMENT (separate audit branch only):
+- `tests/easystore_acc157_release_acceptance_gate.test.mjs`: new GET-only acceptance probe for deployed D1 financial health, published EasyStore HTTP availability, and EasyStore PR #23 release status, combined with manifest/source/parity and no-retry invariants. Never sends authentication or financial actions; never logs identities or HTTP bodies; all unknown states BLOCKED_SAFE.
+- `.github/workflows/easystore-acc157-release-acceptance-ci.yml`: bounded GitHub Actions run on the isolated `audit/easystore-acc157-acceptance-20261010`, Node 22, no Cloudflare secrets, no D1/Google mutations, no canary reattempt.
+- All existing financial workflows, production config, users, stock, roles, wages, supplier ledgers and published pages unchanged.
+
+VERIFICATION: final CI run and SHA will be attached after this commit finishes. Even if probe PASSES, only HTTP access and READONLY current safety have been proven; full financial go-live remains BLOCKED by authoritative source, opening balances, line/stock parity, real Diaa SSO and server role matrix. A2.13 MUST NOT be retried. No CANARY/GENERAL flag change was authorized.
+
+NEXT: use read-only evidence to identify the exact controlled EasyStore frontend-only release approval (PR #23), perform real owner-supervised Diaa SSO smoke after explicit permission and approved deploy, then separately reconcile legacy opening balances and permission matrix before any financial writes.

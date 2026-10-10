@@ -1,0 +1,34 @@
+name: ACC-157 Accounting Release Acceptance — READ ONLY
+
+on:
+  push:
+    branches:
+      - audit/easystore-acc157-acceptance-20261010
+    paths:
+      - 'tests/easystore_acc157_release_acceptance_gate.test.mjs'
+      - '.github/workflows/easystore-acc157-release-acceptance-ci.yml'
+      - 'docs/trendos/staging/ACC145_D1_READONLY_RESUME_PREPARE_20261010.md'
+      - 'TrendOS_MASTER_BOOK.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact audit commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify schema-only parity, current D1 health and frontend release status (GET only)
+        run: |
+          set -euo pipefail
+          node --check tests/easystore_acc157_release_acceptance_gate.test.mjs
+          node tests/easystore_acc157_release_acceptance_gate.test.mjs
+          echo 'ACC157_FINANCIAL_CANARY_OR_PRODUCTION_DEPLOY=NOT_RUN'

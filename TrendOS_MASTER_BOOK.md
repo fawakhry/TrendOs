@@ -4530,3 +4530,11 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 - **ACC-156 — accounting permissions release gate** ([tracking issue #40](https://github.com/fawakhry/TrendOs/issues/40)): Validate the authoritative employee role matrix and server-side permission checks before permitting D1 finance writes. Existing session verification and READONLY must remain enforced. Record any sensitive implementation findings only in a private maintainer/security review; the public checkpoint contains no employee identities, tokens or exploit details.
 - Historical A2.13 custody-close canary remains **DO_NOT_RETRY**; finance go-live **BLOCKED** until approved source/target ledger parity, role authorization, employee SSO smoke, and one-command financial acceptance. Nothing in ACC154–155 altered production or user financial data.
 - Detailed checkpoint: [ACC145–156 ledger](docs/trendos/staging/ACC145_D1_READONLY_RESUME_PREPARE_20261010.md).
+
+
+### Accounting ACC-157 — 2026-10-10 two-hour readiness read-only gate
+
+- Owner priority shifted to completing and operating existing EasyStore Accounting, not autonomous-printshop. The requested two-hour finish is a target, not a declaration of completion.
+- Safe isolated source branch `audit/easystore-acc157-acceptance-20261010` inherits ACC145–156 without merging or deploying. New GET-only accounting release audit `tests/easystore_acc157_release_acceptance_gate.test.mjs` and workflow `.github/workflows/easystore-acc157-release-acceptance-ci.yml`; excludes A2.13 reattempts, financial DML and authorization changes. Read-only controls and source manifest are independently checked; results recorded after CI.
+- EasyStore [PR #23](https://github.com/fawakhry/EasyStore/pull/23) is still draft; no real Diaa browser login proof. Historical financial source and opening cash/stock/debt balances remain unverified (ACC-152); ACC-156 [role gate #40](https://github.com/fawakhry/TrendOs/issues/40) still open. Full financial go-live must remain BLOCKED_SAFE.
+- The accounting append-only [ACC145–157 ledger](docs/trendos/staging/ACC145_D1_READONLY_RESUME_PREPARE_20261010.md) remains authoritative for this review. Do not claim publication or writable finances from green offline tests.
