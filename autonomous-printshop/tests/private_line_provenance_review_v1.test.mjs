@@ -13,7 +13,7 @@ const base=(line,kind,sourceKind,extra={})=>({
 });
 const design=base(A,'DESIGN','DESIGN_PREFLIGHT',{
   sourceVersion:'a'.repeat(64),
-  evidence:{assetBindingState:'READY',preflightResult:'PASS',approvalState:'OWNER_APPROVED',
+  evidence:{assetBindingState:'READY',preflightResult:'PASS',approvalGate:'REQUIRED',approvalState:'OWNER_APPROVED',
     artifactId:secret,contentSha256:'a'.repeat(64)}
 });
 const materialB=base(B,'MATERIAL','MATERIAL_LEDGER',{
@@ -51,6 +51,17 @@ assert.equal(audit([{...design,sourceRef:''}]).statusByKind.DESIGN,
   'SOURCE_PROVENANCE_REFERENCE_MISSING');
 assert.equal(audit([{...design,evidence:{...design.evidence,approvalState:'UNKNOWN'}}]).statusByKind.DESIGN,
   'DESIGN_APPROVAL_UNVERIFIED');
+assert.equal(audit([{...design,evidence:{...design.evidence,approvalGate:'UNKNOWN'}}])
+  .statusByKind.DESIGN,'DESIGN_APPROVAL_UNVERIFIED');
+assert.equal(audit([{...design,evidence:{...design.evidence,
+  approvalGate:'NOT_REQUIRED_BY_POLICY',approvalState:'POLICY_APPROVED',approvalPolicyRef:''}}])
+  .statusByKind.DESIGN,'DESIGN_APPROVAL_UNVERIFIED');
+assert.equal(audit([{...design,evidence:{...design.evidence,
+  approvalGate:'NOT_REQUIRED_BY_POLICY',approvalState:'POLICY_APPROVED',approvalPolicyRef:'POLICY-FAKE'}}])
+  .statusByKind.DESIGN,'DESIGN_EXTERNAL_PROVENANCE_REVIEW_REQUIRED');
+assert.equal(audit([{...design,evidence:{...design.evidence,
+  approvalGate:'REQUIRED',approvalState:'POLICY_APPROVED',approvalPolicyRef:'POLICY-FAKE'}}])
+  .statusByKind.DESIGN,'DESIGN_APPROVAL_UNVERIFIED');
 assert.equal(audit([{...machine,evidence:{machineId:'M',observationSource:'SENSOR',mappingSource:'OWNER'}}])
   .statusByKind.MACHINE,'MACHINE_ID_OR_DIRECT_CHECK_UNVERIFIED');
 
