@@ -62,7 +62,7 @@ def validate_bundle(source_receipt, source_sha, shared_sha, tree_sha, bundle_fil
              "BAD_BUNDLE_PATH")
         must(isinstance(content, bytes) and 0 < len(content) <= MAX_FILE_BYTES,
              "BUNDLE_EMPTY_OR_OVERSIZED")
-        must(name.endswith((".js", ".json", ".map", ".wasm", ".bin", ".txt")),
+        must(name.endswith((".js", ".json", ".map", ".wasm", ".bin", ".txt", ".md")),
              "UNEXPECTED_BUNDLE_FILE_EXTENSION")
         clean[name] = {"sha256": sha256(content), "byte_length": len(content)}
         if name.endswith(".js"):
