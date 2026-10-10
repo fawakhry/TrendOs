@@ -7962,3 +7962,32 @@ NEXT:
 1. In an authenticated owner Cloudflare D1 Console, if approved, run AP-107 SELECT-only Cairo-local aggregate and report **only bucket counts** (including invalid date/Fly). Do not export line/order IDs, customer data or raw dates.
 2. In a protected channel, collect ONE SAME-LINE DESIGN private asset SHA256+structured approval+preflight, MATERIAL authoritative active stock/consumption and MACHINE explicit registered machine ID/serial+operator health+mapping, with source proofs independently verified. Until then first-line pilot remains BLOCKED_SAFE with no line selected.
 3. Review MC-02/MC-23 multi-isolate durable staging and recovery without external mutation; do not infer live resilience from mocked tests. No Production, CANARY, material/stock/finance writes or automatic task assignment without distinct owner approval.
+
+
+### AP-110 — Same-line private DESIGN/MATERIAL/MACHINE provenance precheck, strict fail closed (2026-10-10; TESTED / SOURCE_ONLY)
+
+AP / OBJECTIVE:
+- AP-110; prepare the private technical review path for authoritative evidence for **the same physical order line** without exposing line/order IDs, source refs, hashes, customer info or machine serial. A reported `READY` state is NOT independent source verification or authority to assign work.
+- Branch `feature/ap110-private-same-line-provenance-review-20261010` from AP-109 documented HEAD `16a4b5cb9c3c5e13d4136a45d368b36cf4b945c7`. AP-109 source CI `38064310156` SUCCESS and AP-109 book CI `38064405749` SUCCESS.
+- Read actual source producers `design-production-evidence-v1.mjs` (`DESIGN_PREFLIGHT`), `material-readiness-candidate-v2.mjs` (`MATERIAL_LEDGER`), `machine-readiness-v1.mjs` (`MACHINE_AGENT`), `machine-observation-writer-v1.mjs`; checked existing readiness projection, same-line synthetic tests and protected-gate limitations.
+
+IMPLEMENT / FILES:
+1. `autonomous-printshop/core/private-line-provenance-review-v1.mjs`: new PURE in-memory diagnostics accepting a protected internal line key and up to 5000 candidate facts. For each DESIGN/MATERIAL/MACHINE kind considers only that exact internal line, rejects invalid clocks, future/expired latest evidence, unexpected sourceKind/state, missing protected source refs/version and missing design SHA256+approval+preflight, material positive consumption+sufficient stock and postcutover flag, machine direct operator/self-check and mapping. These checks can classify claims as `*_EXTERNAL_VERIFICATION_REQUIRED` but **never certify** claimed source provenance from an unattested payload. Even caller's `sourceAccessVerified=true` is labeled `CALLER_ATTESTED_NOT_INDEPENDENTLY_VERIFIED`. Latest event is examined before TTL (no resurrection); conflicting events at equal latest timestamp produce `AMBIGUOUS_LATEST_EVIDENCE`, avoiding nondeterministic READY selection. All output keys/statuses are allowlisted; no raw event data escapes.
+2. `autonomous-printshop/tests/private_line_provenance_review_v1.test.mjs`: synthetic two-line cross-join denial, all-three READY claims **still no authorization**, cutover/stock/source rejection, explicit design preflight requirement, missing machine direct check, future/expired/invalid and equal-timestamp conflict barriers, no private line/customer/serial/hash output.
+3. `.github/workflows/autonomous-printshop-policy-v1-ci.yml`: includes AP-110 standalone contract. No runtime import, D1 migration, access change, Worker deployment or readiness writer altered.
+
+COMMITS / TESTS / BUG FIX:
+- Source initial `ddbd6feedf7ba098c7b8575be1fd353a3d768114`; initial test `df9aee691613dd680dd1ea45755cc87ca38f11c6`; CI integration `ca79bf0952987b9faa7a2c1c23985aba2e2976f5`.
+- During static source review identified two fail-open risks in the diagnostic design itself: optional fallback from `reason` text for preflight could be forged, and equal-timestamp conflicting events could be order-dependent. Corrected explicitly in `d7916297f5a4ce60003f6fb80bdd03aab491b4c3` with strict preflight PASS and ambiguous conflict BLOCKED; regression tests extended in `788fc4fa662458b81e056fb6fbb30c9c18aae3ea`.
+- Exact [AP-110 policy CI 38064602207](https://github.com/fawakhry/TrendOs/actions/runs/38064602207): **COMPLETED SUCCESS** for HEAD `788fc4fa662458b81e056fb6fbb30c9c18aae3ea`, including dedicated private-line provenance test and preserved suite.
+- **TESTED** synthetic source contract; **SOURCE_ONLY** runtime. No real authenticated source files/asset SHA, stock ledger row, hardware nameplate/serial or machine live observation collected by this task. No private order chosen. AP-102 evidence table count 0 was historical; current D1 evidence remains UNVERIFIED. No claims of VERIFIED LIVE.
+
+PRODUCTION / BLOCKERS:
+- Operator Task=OFF / Autonomy=SHADOW are last documented states, not a new live measurement.
+- `AP110_SAME_LINE_ISOLATION=TESTED`; `AP110_EXTERNAL_SOURCE_PROOFS=NOT_VERIFIED`; `AP110_REVIEW_ONLY=true`; `AP110_PILOT_APPROVED=false`; `AP110_BUSINESS_WRITES=0`; `AP110_PRODUCTION_DEPLOY=NO`; `AP110_AUTO_ASSIGNMENT=NO`. Protected Owner Console unresolved; MC-02/MC-23 remain PARTIAL; cross-isolate durable failover not evidenced.
+- This documentation-only commit needs a separate exact-SHA CI check.
+
+NEXT:
+1. Authenticated OWNER D1 AP-107 SELECT aggregate for Cairo-local 16/14/9 reclassification; never export customer data.
+2. If owner-approved protected source access exists, verify ONE actual order line's Design artifact SHA/approval/preflight, Material authority/consumption and Machine physical identity/health through their real source systems; validate source trust separately. This pure diagnostic does not upgrade evidence to READY.
+3. Safely test MC-02/MC-23 stale/recovery/storage fail-closed behavior on isolated mocks/staging; no production faults/deploy/storage binding without approvals.
