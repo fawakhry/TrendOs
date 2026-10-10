@@ -1,0 +1,89 @@
+name: AP-124 Cloudflare D1 First Line Read-Only Proof
+
+on:
+  push:
+    branches:
+      - feature/ap124-github-secrets-d1-readonly-access-probe-20261010
+    paths:
+      - '.github/workflows/autonomous-printshop-ap124-d1-readonly-first-line.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ap124-d1-readonly-first-line-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  first-line-existence:
+    # A single intended isolated branch, never the protected production branch.
+    if: github.ref == 'refs/heads/feature/ap124-github-secrets-d1-readonly-access-probe-20261010'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      SQL_FILE: autonomous-printshop/diagnostics/AP124_GITHUB_SECRETS_D1_READONLY_FIRST_LINE_PRESENCE.sql
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate exact SELECT-only SQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 autonomous-printshop/tests/ap124_cloudflare_d1_readonly_first_line_presence.test.py
+          python3 - <<'PY'
+          import pathlib,re,sqlite3
+          sql=pathlib.Path("autonomous-printshop/diagnostics/AP124_GITHUB_SECRETS_D1_READONLY_FIRST_LINE_PRESENCE.sql").read_text()
+          body="\n".join(x for x in sql.splitlines() if not x.lstrip().startswith("--"))
+          assert body.lstrip().startswith("WITH\n")
+          assert sqlite3.complete_statement(body) and body.count(";")==1
+          assert not re.search(r"\b(?:INSERT|UPDATE|DELETE|REPLACE|CREATE|DROP|ALTER|PRAGMA|ATTACH|DETACH|VACUUM)\b",body,re.I)
+          assert "SELECT 1 AS connectionOk" in body and "futureReviewLineExists" in body
+          print("AP124_LOCAL_SQL_GATE=SELECT_ONLY")
+          PY
+      - name: Check stored Cloudflare credential presence without printing values
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${CLOUDFLARE_API_TOKEN:-}" || -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
+            echo "AP124_STORED_CLOUDFLARE_SECRETS=UNAVAILABLE"
+            exit 1
+          fi
+          echo "AP124_STORED_CLOUDFLARE_SECRETS=SUPPLIED"
+      - name: Query production D1 safely - no raw order identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESULT="$RUNNER_TEMP/ap124_d1_response.json"
+          if ! npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config "$CONFIG" --json --command "$(cat "$SQL_FILE")" > "$RESULT" 2> "$RUNNER_TEMP/ap124_wrangler_stderr"; then
+            echo "AP124_LIVE_D1_SELECT=FAILED"
+            echo "AP124_NO_RAW_D1_RESULT_PRINTED=YES"
+            exit 1
+          fi
+          python3 - "$RESULT" <<'PY'
+          import json,sys
+          try:
+            with open(sys.argv[1],encoding="utf-8") as fp:
+              payload=json.load(fp)
+            if not isinstance(payload,list) or len(payload)!=1:raise ValueError()
+            block=payload[0]
+            if block.get("success") is not True:raise ValueError()
+            rows=block.get("results")
+            if not isinstance(rows,list) or len(rows)!=1:raise ValueError()
+            row=rows[0]
+            if set(row)!={"connectionOk","futureReviewLineExists"}:raise ValueError()
+            if row["connectionOk"]!=1 or row["futureReviewLineExists"] not in (0,1):raise ValueError()
+          except Exception:
+            print("AP124_LIVE_D1_RESULT_SHAPE=BLOCKED_SAFE")
+            sys.exit(1)
+          print("AP124_LIVE_D1_SELECT=SUCCESS")
+          print("AP124_FIRST_LINE_FUTURE_REVIEW_EXISTS="+
+             ("YES" if row["futureReviewLineExists"]==1 else "NO"))
+          print("AP124_REAL_ORDER_CHOSEN=NO")
+          print("AP124_DESIGN_MATERIAL_MACHINE_VERIFIED=NO")
+          print("AP124_SOURCE_ONLY_HUMAN_REVIEW=YES; ASSIGNMENT=OFF")
+          print("AP124_D1_MUTATIONS=0; PRODUCTION_DEPLOY=NO")
+          PY
