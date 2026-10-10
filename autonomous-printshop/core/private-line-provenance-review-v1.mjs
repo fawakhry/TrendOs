@@ -19,8 +19,11 @@ function reviewProof(kind,event){
       return 'DESIGN_SHA256_OR_VERSION_MISSING';
     if(raw.assetBindingState!=='READY'||raw.preflightResult!=='PASS')
       return 'DESIGN_BINDING_OR_PREFLIGHT_UNVERIFIED';
-    if(!['CUSTOMER_APPROVED','OWNER_APPROVED','POLICY_APPROVED'].includes(raw.approvalState))
-      return 'DESIGN_APPROVAL_UNVERIFIED';
+    const approvalQualified=(raw.approvalGate==='REQUIRED'&&
+      (raw.approvalState==='CUSTOMER_APPROVED'||raw.approvalState==='OWNER_APPROVED'))||
+      (raw.approvalGate==='NOT_REQUIRED_BY_POLICY'&&
+        raw.approvalState==='POLICY_APPROVED'&&!!text(raw.approvalPolicyRef));
+    if(!approvalQualified) return 'DESIGN_APPROVAL_UNVERIFIED';
     return 'DESIGN_EXTERNAL_PROVENANCE_REVIEW_REQUIRED';
   }
   if(kind==='MATERIAL'){
