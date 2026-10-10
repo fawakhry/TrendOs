@@ -40,8 +40,8 @@ jobs:
           const read=actionSet('D1_ACCOUNTING_READ_ACTIONS');
           const closed=actionSet('A213_ACCOUNTING_WRITE_ACTIONS_FAIL_CLOSED');
           const bounded=actionSet('D1_ACCOUNTING_WRITE_ACTIONS');
-          const calls=new Set([...app.matchAll(/\\bapi\\(\\s*(['"])([^'"]+)\\1/g)].map(x=>x[2]));
-          const all=[...app.matchAll(/\\bapi\\(\\s*([^,\\)]+)/g)].map(x=>x[1].trim());
+          const calls=new Set([...app.matchAll(/\bapi\(\s*(['"])([^'"]+)\1/g)].map(x=>x[2]));
+          const all=[...app.matchAll(/\bapi\(\s*([^,\)]+)/g)].map(x=>x[1].trim());
           const dynamic=all.filter(x=>x!=='action'&&!/^['"]/.test(x));
           assert.equal(dynamic.length,0,'DYNAMIC_ACTION_CALL_UNCLASSIFIED');
           assert.equal(calls.size,33,'FRONTEND_ACTION_CENSUS_CHANGED_REVIEW_REQUIRED');
@@ -51,10 +51,10 @@ jobs:
           assert.ok(bounded.has('closePurchaseCustodyV1920')&&closed.has('closePurchaseCustodyV1920'),'CANARY_NOT_BOUNDED');
           assert.equal([...calls].filter(x=>!read.has(x)&&!closed.has(x)).length,0,'UNCLASSIFIED_ACTION_TO_LEGACY');
           assert.equal([...read].filter(x=>closed.has(x)).length,0,'READ_WRITE_SET_OVERLAP');
-          assert.ok(/EASYSTORE_ACCOUNTING_D1_READONLY\\s*=\\s*true/.test(cfg),'D1_READ_NOT_ENABLED');
-          assert.ok(/EASYSTORE_ACCOUNTING_D1_WRITES\\s*=\\s*false/.test(cfg),'FRONTEND_GENERAL_WRITE_NOT_OFF');
-          assert.ok(/EASYSTORE_ACCOUNTING_D1_WRITE_MODE\\s*=\\s*['"]OFF['"]/.test(cfg),'FRONTEND_CANARY_MODE_NOT_OFF');
-          assert.ok(/EASYSTORE_ACCOUNTING_D1_WRITE_CANARY_ACTIONS\\s*=\\s*\\[\\]/.test(cfg),'FRONTEND_CANARY_ACTIONS_NOT_EMPTY');
+          assert.ok(/EASYSTORE_ACCOUNTING_D1_READONLY\s*=\s*true/.test(cfg),'D1_READ_NOT_ENABLED');
+          assert.ok(/EASYSTORE_ACCOUNTING_D1_WRITES\s*=\s*false/.test(cfg),'FRONTEND_GENERAL_WRITE_NOT_OFF');
+          assert.ok(/EASYSTORE_ACCOUNTING_D1_WRITE_MODE\s*=\s*['"]OFF['"]/.test(cfg),'FRONTEND_CANARY_MODE_NOT_OFF');
+          assert.ok(/EASYSTORE_ACCOUNTING_D1_WRITE_CANARY_ACTIONS\s*=\s*\[\]/.test(cfg),'FRONTEND_CANARY_ACTIONS_NOT_EMPTY');
           const failIndex=app.indexOf("if(accountingWriteRequested && writeMode!=='CANARY')");
           const legacyIndex=app.indexOf("const endpoint=String(window.MATBAGY_SECURE_API_PROXY_URL");
           assert.ok(failIndex>0&&legacyIndex>failIndex,'FINANCIAL_FALLBACK_GUARD_NOT_BEFORE_LEGACY');
