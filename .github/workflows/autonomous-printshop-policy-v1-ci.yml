@@ -311,6 +311,8 @@ jobs:
         run: node autonomous-printshop/tests/dashboard_v1.test.mjs
       - name: Run dashboard bounded last-good outage/recovery contract
         run: node autonomous-printshop/tests/dashboard_last_good_v1.test.mjs
+      - name: Run protected Owner Console Service Auth source-only contract
+        run: node autonomous-printshop/tests/owner_console_protected_postdeploy_v1.test.mjs
       - name: Run Employee Supervisor shadow contract
         run: node autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs
       - name: Run Employee Supervisor structured blocker event contract
