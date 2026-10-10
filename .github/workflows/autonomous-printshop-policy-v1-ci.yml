@@ -233,6 +233,8 @@ jobs:
         run: python3 autonomous-printshop/tests/readiness_latest_evidence_sql_v1.py
       - name: Run evidence pilot target contract
         run: node autonomous-printshop/tests/evidence_pilot_target_v1.test.mjs
+      - name: Run same-line Design Material Machine evidence acquisition integration
+        run: node autonomous-printshop/tests/evidence_pilot_same_line_v1.test.mjs
       - name: Run evidence acquisition packet contract
         run: node autonomous-printshop/tests/evidence_acquisition_packet_v1.test.mjs
       - name: Run readiness evidence writer contract
