@@ -74,7 +74,7 @@ first_review_sample AS (
     AND n.dueDay>p.cairoDay
   ORDER BY n.dueDay ASC,n.department ASC,n.lineId ASC
   LIMIT 1
-),
+)
 SELECT
   (SELECT COUNT(*) FROM first_review_sample) AS anonymousSampleCount,
   COALESCE((SELECT CASE department WHEN 'طباعة' THEN 'PRINT' WHEN 'ليزر' THEN 'LASER' ELSE 'UNKNOWN' END FROM first_review_sample),'NO_SAMPLE') AS sampleDepartmentClass,
