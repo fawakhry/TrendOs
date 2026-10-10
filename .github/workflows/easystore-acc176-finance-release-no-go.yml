@@ -1,0 +1,71 @@
+name: ACC-176 Finance Release Readiness — Public GET Only / NO-GO
+
+on:
+  push:
+    branches:
+      - safety/acc176-readonly-finance-release-preflight-20261010
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'scripts/acc176_finance_release_readiness.mjs'
+      - 'tests/easystore_acc176_finance_release_readiness.test.mjs'
+      - '.github/workflows/easystore-acc176-finance-release-no-go.yml'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'cloudflare-d1/production-shadow/index.js'
+      - 'cloudflare-d1/wrangler.toml'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+
+permissions:
+  contents: read
+
+concurrency:
+  group: acc176-finance-release-no-go-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  read-only-version-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parse and test source release guards with synthetic negative cases
+        run: |
+          set -euo pipefail
+          node --check scripts/acc176_finance_release_readiness.mjs
+          node --check tests/easystore_acc176_finance_release_readiness.test.mjs
+          node tests/easystore_acc176_finance_release_readiness.test.mjs
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+      - name: Fetch deployed assets + backend health by public GET only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 2 --max-time 30 "https://fawakhry.github.io/EasyStore/config.js?acc176=${GITHUB_RUN_ID}" -o /tmp/acc176-public-config.js
+          curl -fsSL --retry 2 --max-time 30 "https://fawakhry.github.io/EasyStore/app.js?acc176=${GITHUB_RUN_ID}" -o /tmp/acc176-public-app.js
+          curl -fsS --retry 2 --max-time 30 "https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/accounting/health?acc176=${GITHUB_RUN_ID}" -o /tmp/acc176-public-health.json
+          node --check /tmp/acc176-public-app.js
+          node tests/easystore_a213_published_boot_gate.test.mjs /tmp/acc176-public-config.js /tmp/acc176-public-app.js --expect-off
+      - name: Record NO-GO with public safe-idle checks (no secrets or D1)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/acc176_finance_release_readiness.mjs /tmp/acc176-public-health.json /tmp/acc176-public-config.js /tmp/acc176-public-app.js artifacts/acc176-finance-release-no-go.json
+          node -e "const s=require('./artifacts/acc176-finance-release-no-go.json');if(s.release_decision!=='NO_GO'||s.production_mutations!==0||s.backup_verified!==false||s.deployment_artifact_locked!==false)process.exit(1)"
+          {
+            echo '## ACC-176 — Finance release is still NO-GO'
+            echo 'Public GET frontend is OFF; API is READONLY and has zero canary budget.'
+            echo 'Actual backup/restore verification, exact deploy artifact pin, owner approval and real finance acceptance remain OPEN.'
+            echo 'No production financial transaction, SQL write, Cloudflare deploy or actual rollback was attempted.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Persist non-sensitive readiness evidence only
+        uses: actions/upload-artifact@v4
+        with:
+          name: acc176-finance-release-no-go
+          path: artifacts/acc176-finance-release-no-go.json
+          retention-days: 14
