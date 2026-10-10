@@ -38,10 +38,7 @@ export function latestReadinessEvidenceV1(events=[],nowMs=Date.now()){
     const key=lineId+'::'+kind;
     const current=latest.get(key);
     const evidenceId=text(raw.evidenceId ?? raw.evidence_id);
-    if(!current || observedAtMs>current.observedAtMs || (
-      observedAtMs===current.observedAtMs &&
-      evidenceId.localeCompare(current.evidenceId)>0
-    )){
+    if(!current || observedAtMs>current.observedAtMs){
       const knownState=['READY','BLOCKED','UNKNOWN'].includes(state);
       latest.set(key,{
         evidenceId,lineId,kind,
@@ -52,6 +49,14 @@ export function latestReadinessEvidenceV1(events=[],nowMs=Date.now()){
         sourceVersion:text(raw.sourceVersion ?? raw.source_version),
         confidence:Number(raw.confidence ?? 1),
         observedAtMs,expiresAtMs
+      });
+    }else if(observedAtMs===current.observedAtMs){
+      // Two facts at the same timestamp cannot establish a trustworthy
+      // latest revision ordering. Keep UNKNOWN even if one claims READY,
+      // regardless of evidence IDs or iteration order. A strictly later
+      // event can resolve this ambiguity; an older event cannot.
+      latest.set(key,{
+        ...current,state:'UNKNOWN',value:null,ambiguousSameInstant:true
       });
     }
   }
