@@ -4509,3 +4509,12 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 - CI [run 38052120740](https://github.com/fawakhry/TrendOs/actions/runs/38052120740) **SUCCESS**: preserves historical A2.13 one-user/one-action/one-command/zero-value and automatic cleanup guards; executes 90/119/120-second timer boundary tests; executes actual zero-balance Worker handler logic against a **mock, isolated D1** including guarded request ledger+atomic close/event batch and rejects unauthenticated/READONLY calls. No real financial writes.
 - Latest Production GET health was observed in the same run: mode `READONLY`, zero command budget and zero allowed users/actions. This work never dispatched a financial execution workflow.
 - Detailed append-only evidence: [ACC157 A2.13 checkpoint](docs/trendos/staging/ACC157_A213_CUSTODY_TIMEOUT_RECONCILIATION_20261010.md). **A2.13 live acceptance remains NOT PASSED / DO NOT REPEAT without new explicit one-command authorization and reconciled prior outcome.**
+
+
+### ACC-158 — migration-backed A2.13 SQLite test PASS (2026-10-10)
+
+- Source lane remains A2.13 custody close only; supplier A2.10 is DONE, and no legacy stage was restarted.
+- [CI 38053563248](https://github.com/fawakhry/TrendOs/actions/runs/38053563248) **PASS**: Node SQLite `:memory:` applied existing 0015, 0020–0030 accounting migrations; actual accounting handler executed a *synthetic* zero-balance A2.13 canary; database enforced one committed close, one request ledger and one event with no stock, cashbox, supplier or custody settlement side effects. Same key replay did not duplicate, second new command was rejected.
+- An injected **local SQL failure after the one-command reservation** reproduced a budget-used/no-ledger/no-close state, showing why budget consumption alone is not proof of a completed financial request. It does **not** establish that this injected error caused the historical A2.13 production failure.
+- Active Production remains `READONLY` with zero write budget, checked by GET in the same CI. Neither ACC-157 nor ACC-158 ran the manual A2.13 execution workflow, wrote to D1, edited EasyStore's production frontend or changed real funds.
+- [Exact ACC-157/158 evidence record](docs/trendos/staging/ACC157_A213_CUSTODY_TIMEOUT_RECONCILIATION_20261010.md), [draft PR #41](https://github.com/fawakhry/TrendOs/pull/41). Real financial acceptance and replay remain **BLOCKED** pending explicit owner approval and reconciliation of real employee session/API error provenance.
