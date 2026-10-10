@@ -8249,3 +8249,25 @@ PRODUCTION / STATUS / NEXT:
 - `AP120_EQUAL_TIME_ACQUISITION_AMBIGUITY=TESTED`, `AP120_CROSS_LINE_ISOLATION=TESTED`, `AP120_REAL_D1_EVIDENCE=NOT_VERIFIED`, `AP120_AUTONOMY_RELEASE=BLOCKED_SAFE`, `AP120_D1_WRITES=0`, `AP120_PRODUCTION_DEPLOY=NO`. Production candidate independently verified at `7d20cfc463ce084ceaba8ac440dffa53512fe662` (unchanged).
 - Operator Task OFF, Autonomy SHADOW remain last documented only; private Owner Console Access gate and MC-02/23 cross-isolate storage unclosed; no actual first-line DESIGN SHA/structured approval/preflight, MATERIAL stock/consumption or MACHINE physical identity/health source established here.
 - NEXT: Source-independent protected read-only access proof and one actual same-line manual evidence review, with post-observation current D1 status recheck. Do not invent assets, machines or promote any synthetic READY to VERIFIED LIVE. Never auto-route work or publish Production without separate authorization.
+
+
+### AP-121 — Undatable readiness evidence must invalidate same-line/kind old READY (2026-10-10; TESTED / SOURCE_ONLY)
+
+AP / GOAL / DEFECT:
+- Continued from AP-120 documented HEAD `9c3294d99f9df52d0aad525b604bdb91a23471ac` (source CI `38068004687` SUCCESS, docs CI `38068091935` SUCCESS) on isolated `feature/ap121-readiness-invalid-time-failclosed-20261010`.
+- Discovered a second fail-open in the pure `latestReadinessEvidenceV1` projector: invalid, missing, negative or NaN `observedAtMs` was silently skipped, so an older valid READY fact on the **same line + evidence kind** remained selectable. When an event cannot be ordered, treating it as absent is unsafe for readiness projections. This is source confirmed and exercised synthetically, not observed as corrupt live D1 data. The Shadow SQL only exposes latest-ranked facts and a separate live DB parity proof is still required.
+
+FILES / IMPLEMENT / TEST:
+1. `autonomous-printshop/core/readiness-evidence-v1.mjs` tracks the exact internal line/kind of every undatable evidence record. After scanning, it deletes readiness projection entries for any poisoned key, regardless of previous or subsequent candidate READY facts in that array. This is deliberately conservative: an undatable event cannot be placed in source chronological order. Other line/kind evidence is unaffected. The existing tie and expiry protections from AP-118 remain. No source IDs are newly surfaced.
+2. `autonomous-printshop/tests/ap121_invalid_readiness_timestamp_failclosed.test.mjs`: synthetic positive READY DESIGN/MATERIAL/MACHINE baseline; inject MATERIAL observations with text/zero/negative/NaN/Infinity/null timestamps in both iteration orders. Assert `materialReady=null`, no eligible recommendation, and explicit other-line/kind isolation. No customer, machine, ledger or real Cloudflare source.
+3. `.github/workflows/autonomous-printshop-policy-v1-ci.yml`: add dedicated AP-121 readiness timestamp regression after AP-118 while keeping original readiness, Shadow SQLite, privacy and policy tests.
+
+COMMITS / RESULTS:
+- Source fix `018d7904949909bf764ca43eca6749fd65dd69e8`; synthetic test `c42bb74dde64e4d8b6a286b763ac1dfdeacf6f0d`; CI integration source HEAD `199a6db4d9df44ab888d01380e56b7b2d02f18fc`.
+- [AP-121 policy CI 38068241755](https://github.com/fawakhry/TrendOs/actions/runs/38068241755) on exact source HEAD **COMPLETED SUCCESS**, new AP-121 test and entire workflow without failed steps. Only three source/test/CI paths changed relative to AP-120. This is `TESTED` in-memory safety logic, not `VERIFIED LIVE`.
+- Production candidate independently checked unchanged at `7d20cfc463ce084ceaba8ac440dffa53512fe662`. No backend/worker deployment, D1 reads/writes, finance/machine changes, employee assignments, Operator Task activation or storage provisioning. This book commit needs independent exact-SHA CI check.
+
+STATUS / BLOCKERS / NEXT:
+- `AP121_MALFORMED_TIME_OLD_READY_BARRIER=TESTED`, `AP121_SAME_LINE_SCOPE=TESTED`, `AP121_SHADOW_SQL_FULL_INVALID_TIMELINE=NOT_VERIFIED_LIVE`, `AP121_REAL_FIRST_PILOT=BLOCKED_SAFE`, `AP121_PRODUCTION_DEPLOY=NO`, `AP121_D1_BUSINESS_WRITES=0`.
+- First real human-reviewed line still requires authorized read-only private source with same-line DESIGN asset hash/preflight/approval, MATERIAL authoritative stock+consumption and MACHINE physical identity/current direct check/mapping. Protected Owner Console and MC-02/23 durable cross-isolate recovery remain separate pending gates. Operator Task OFF / Autonomy SHADOW last documented only.
+- NEXT: inspect source SQL and snapshot completeness/identity barriers before any protected pilot; do not obtain fresh aggregate counts just because staff continue updating TrendOS, and do not authorize Production without explicit owner go/no-go.
