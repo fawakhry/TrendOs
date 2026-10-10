@@ -7314,3 +7314,47 @@ Architectural review (NOT backend approval):
 - Local checkout lookup: `/workspace/TrendOs`, `/mnt/data/TrendOs` and `/mnt/data/autonomous-printshop` were not mounted in this execution environment, independently reinforcing that local-only DO commits cannot be examined. No remote recreation or unverified diff.
 - This CI bookkeeping entry itself is documentation-only and triggers another policy CI; check its resulting run separately. No Cloudflare config access, no Production change, no deployment, no stage qualification and no authorized operator action occurred.
 
+
+
+### AP-086 — 2026-10-10 read-only handoff verification; Cloudflare access and durable Staging remain BLOCKED_SAFE
+
+Date: 2026-10-10 (Africa/Cairo). Evidence level: GitHub repository/CI = VERIFIED SOURCE/TESTED; 2026-10-08 Dashboard deployment = HISTORICAL DEPLOYED; Cloudflare current Production/Staging = NOT VERIFIED LIVE.
+Scope: READ -> VERIFY -> REVIEW -> DOCUMENT only. No deployment or Production/Cloudflare configuration mutation. Isolated documentation branch: \`audit/ap086-readonly-cloudflare-evidence-20261010\`, branched from reviewed HEAD \`11bcf1a76e71d4ca5b0ae0451b7621f2d966f7f6\`. The auto-deploy candidate branch was NOT targeted.
+
+Source and chronology:
+- Repository \`fawakhry/TrendOs\` accessible. Candidate baseline \`candidate/t12-full-cloud-cutover-a56-20260929\` verified HEAD \`7d20cfc463ce084ceaba8ac440dffa53512fe662\`; current \`main\` HEAD \`172bc062d9c23541e859dbf2a66bd7b733904c93\`. Do not treat main as the canonical AP source.
+- Canonical \`autonomous-printshop/MASTER_BOOK.md\` read from review HEAD \`11bcf1a...\`: blob \`3b38ff447075da3433ab249b9588fe327d3409e0\`, 7,317 lines before AP-086. AP-085 is the newest entry, after AP-084. The baseline candidate contains AP-082 but not AP-084/AP-085.
+- PR #34 and PR #36 are both OPEN DRAFT / UNMERGED. Review HEAD matches \`11bcf1a...\`; no newer AP branch revision found at this inspection. No automatic merge or push to candidate.
+- The independently reported local DO branch \`codex/ap-mc02-mc23-20261008\` was not found among remote branches; direct GitHub commit lookups for execution \`0cec057caedce903af54526f24f0d5794189d894\` and documentation prefix \`d1163638\` returned 422/no commit. \`/workspace/TrendOs\`, \`/mnt/data/TrendOs\` and \`/mnt/data/autonomous-printshop\` have no checkout here. The reported 65 local checks and Miniflare/workerd DO restart checks are HISTORICAL USER-REPORTED, not reproduced or source-reviewed; never reconstruct or attribute them to AP-083.
+
+Source boundary review (exact review-branch file blobs):
+- \`autonomous-printshop/core/control-tower-last-good-v1.mjs\` \`ffbf831bd081b58f3ab3fb638ea7cbb1480808e4\`: requires complete nonnegative safe-integer aggregate counts, qualified CONTROL_TOWER_SHADOW/trendos-main-d1, business/PII/write flags false; expiry derives from SOURCE \`generatedAt\`, capped at 300,000ms. Degraded output is diagnostic-only, excluding finance, owner decisions, identities, protected readiness/Operator Task authority; missing/partial input is rejected rather than silently zero-filled.
+- \`autonomous-printshop/core/control-tower-shared-last-good-v1.mjs\` \`21b31ff78560010f087c1dcb30d8c8fa958b835c\` is an **unbound, SOURCE_ONLY KV-like adapter** with an exact record allowlist and derived expiration; fake shared-store/two-adapter tests do not establish real cross-isolate Cloudflare persistence. No Worker import/binding/storage namespace. Local DO implementation unavailable for parity or cost comparison.
+- \`autonomous-printshop/core/control-tower-panel-status-v1.mjs\` \`435d589832debf3e23dabc7f45bc8df586732a2f\` distinguishes source timestamp/freshness from finance history completeness, and reports unknown/invalid/missing evidence separately. Readiness execution authority remains false.
+- \`autonomous-printshop/dashboard/worker.mjs\` \`bc1b5c32881a3d494c6688105b374c76f5a9c352\` and \`dashboard/wrangler.toml\` \`dac66bfbd197461157ec0c2906bec5f4285b6c0c\`: V1.7 source includes unauthenticated private GET routes; workers_dev=true, only two existing service bindings (SHADOW, READINESS_COLLECTOR), no declared staging environment or durable storage. This is **NOT proof** of Cloudflare actual current perimeter configuration.
+- \`autonomous-printshop/tests/staging_owner_console_access_smoke_v1.mjs\` \`b51b6cf6c97e9f5b917a358e4f6227b2981d5fd9\` checks six private routes GET-only, no redirects followed or bodies logged. URL-name guards are NOT staging isolation evidence. No live Staging smoke was run.
+- Production Dashboard workflow \`.github/workflows/autonomous-printshop-dashboard-production-deploy.yml\` has push deployment only for the candidate baseline branch and workflow_dispatch; importantly its postdeploy check performs unauthenticated GET \`/state\`. Worker-wide Access must not be enabled before an approved, verified health-check compatibility change.
+
+GitHub Actions and release facts:
+- Review-branch policy CI on \`11bcf1a...\`: PR run \`37939105818\` SUCCESS and push run \`37939101716\` SUCCESS on 2026-10-09. Inspected exact PR job \`autonomy-policy-contract\` steps: last-good, unbound shared-cache fake-store, panel partial failure, mocked dashboard outage/recovery and staging smoke syntax all SUCCESS. These results are TESTED/OFFLINE, not Cloudflare staging proof.
+- AP-082 historical Dashboard V1.7 controlled deploy evidence: run \`37829924120\` SUCCESS per canonical book, subsequent read-only source check \`37830223138\` SUCCESS. No claim of a fresh October-10 production runtime measurement.
+- GitHub PR #36 bot reports unsuccessful Cloudflare builds for unrelated \`trendos\` and historical preview worker at \`11bcf1a...\`; these do not prove an isolated authorized AP staging Worker nor negate the successful AP GitHub policy CI.
+- Current 2026-10-10 T12 lane CI/deploy runs are a different subsystem; their SUCCESS is not used to upgrade AP last-good runtime or readiness evidence.
+
+Cloudflare and Production safe-read attempt:
+- No direct Cloudflare token/account environment variables available in current execution environment; browser profile inventory has no confirmed signed-in Cloudflare site. No Cloudflare Access policy, custom route, Worker ID/version, KV/DO binding, dedicated Staging Worker or independent storage was read.
+- Status-only anonymous HTTPS GETs to Dashboard \`/health\`, \`/state\`, \`/api/state\`, \`/owner\`, \`/manager-center\` and TrendOS \`/v1/edge/health\`, with response body discarded and redirects not followed, each returned HTTP 000 / curl exit 6 (DNS resolution failure). Thus **LIVE NOT VERIFIED**, not access denied or healthy. Historical 2026-10-08 anonymous owner-state access remains an unresolved security concern: \`OWNER_CONSOLE_ACCESS_GATE=FAILED / REMEDIATION_PENDING\`.
+- No credentials, customer values, staff identities or Production response bodies were emitted. No Cloudflare API write, paid resource, D1/Finance/stock change, task assignment, source deploy or Production fault injection.
+
+Verification and risk:
+- New AP-086 local Cloudflare persistence/test runs: NOT RUN (no source DO checkout; no staging entitlement or origin). CI for this AP-086 documentation-only commit: PENDING at authoring; check exact resulting run separately. MC-02=PARTIAL and MC-23=PARTIAL. \`STORAGE_BACKEND_DECISION=DEFERRED\`; \`STAGING_CLOUD_TEST=NOT_RUN\`.
+- Existing reported 2026-10-08 controls remain historical: Control Tower/Autonomy/Readiness SHADOW; Operator Task OFF; Accounting READONLY epoch39; strictEligible=0, readinessEvidenceRows=0. Do not claim current LIVE counts or readiness; any unknown remains BLOCKED_SAFE.
+- No change to Production as an action of AP-086. External concurrent releases cannot be excluded without a qualified live read.
+
+Next exact executable gates:
+1. Obtain **authorized read-only Cloudflare access** through a supported, secure channel (not by pasting secrets). Inventory exact Dashboard Worker/routes, workers.dev/custom/preview URLs, Cloudflare Access applications and policies, non-secret environment/binding inventory and actual isolated Staging. Compare deployment workflow \`/state\` anonymous dependency.
+2. Present a reviewed Worker-wide Access All-traffic owner-only change order, with compatibility test, rollback and independent unauthenticated + authorized-owner proof; perform Production policy mutation only after explicit owner approval.
+3. Recover the original local DO commits/patch or git bundle through the user's original environment; verify original SHAs and diff against AP-083 before choosing KV/DO. Independently approve any resource creation.
+4. Only on proven non-Production Staging, use synthetic data and demonstrate source healthy/outage/partial/timeout, collector failure, recovery, absolute TTL expiration, two real isolates/restart and storage fault; verify no finance, readiness, owner decisions or protected actions enter diagnostic fallback. Keep MC-02/MC-23 PARTIAL until those Cloudflare proofs exist.
+
+AP-086 result: **REPO REVIEW COMPLETE / CI PREVIOUSLY GREEN; OWNER CONSOLE PERIMETER UNRESOLVED; NO LIVE STAGING/PRODUCTION QUALIFICATION; FAIL-CLOSED**.
