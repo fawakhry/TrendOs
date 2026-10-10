@@ -154,6 +154,7 @@ export function designReadinessEvidenceCandidatesV1(input={}){
         approvalState:x.approvalState,
         approvalEvidenceRef:x.approvalEvidenceRef,
         approvalPolicyRef:x.approvalPolicyRef,
+        preflightResult:x.preflightResult,
         assetBindingState:x.assetBindingState,
         assetBindingReason:x.assetBindingReason,
         storageProvider:x.storageProvider,
