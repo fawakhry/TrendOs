@@ -27,9 +27,12 @@ const initial=[
 ];
 const project=events=>buildReadinessQualifiedRealityV1(rows,events,{nowMs:now,
   requiredKinds:['design','material','machine']});
-const packetFor=state=>{
+const packetFor=(state,events=initial)=>{
   const pilot=selectEvidencePilotTargetV1(state.rows,{requiredKinds:['design','material','machine']});
-  return {pilot,packet:buildEvidenceAcquisitionPacketV1(pilot)};
+  const pilotRow=pilot.exists?state.rows[pilot.sourceIndex]:null;
+  return {pilot,packet:buildEvidenceAcquisitionPacketV1(pilot,{
+    lineId:pilotRow?.lineId,events,nowMs:now
+  })};
 };
 
 let state=project(initial);
@@ -42,6 +45,7 @@ assert.equal(pilot.exists,true);
 assert.equal(pilot.sourceIndex,0);
 assert.deepEqual(pilot.missingKinds,['MATERIAL']);
 assert.deepEqual(Object.keys(packet.requirements),['MATERIAL']);
+assert.equal(packet.review.statusByKind.MATERIAL,'NO_RECORDED_EVIDENCE');
 assert.equal(packet.externalEvidenceRequired,true);
 assert.equal(packet.completionRule,'SAME_LINE_REQUIRES_DESIGN_MATERIAL_MACHINE_READY');
 assert.equal(packet.assignmentAllowed,false);
@@ -57,23 +61,27 @@ const aReady=event('a-material','SYNTHETIC-LINE-A','MATERIAL','READY',now-1000);
 state=project([...initial,aReady]);
 assert.equal(state.reality.ordinary.length,1);
 assert.equal(state.recommendation.recommended?.lineId,'SYNTHETIC-LINE-A');
-({pilot,packet}=packetFor(state));
+({pilot,packet}=packetFor(state,[...initial,aReady]));
 assert.equal(pilot.exists,true);
 assert.equal(pilot.sourceIndex,1);
 assert.deepEqual(pilot.missingKinds,['DESIGN']);
 assert.deepEqual(Object.keys(packet.requirements),['DESIGN']);
+assert.equal(packet.review.statusByKind.DESIGN,'NO_RECORDED_EVIDENCE');
 assert.equal(packet.taskClaimAllowed,false);
 
 // A later expired BLOCKED observation must not revive the older READY MATERIAL.
-state=project([...initial,aReady,event('a-expired','SYNTHETIC-LINE-A',
- 'MATERIAL','BLOCKED',now-100,now-1)]);
+const afterExpiry=[...initial,aReady,event('a-expired','SYNTHETIC-LINE-A',
+ 'MATERIAL','BLOCKED',now-100,now-1)];
+state=project(afterExpiry);
 assert.equal(state.reality.ordinary.length,0);
 assert.equal(state.recommendation.recommended,null);
-({pilot,packet}=packetFor(state));
+({pilot,packet}=packetFor(state,afterExpiry));
 assert.equal(pilot.sourceIndex,0);
 assert.deepEqual(pilot.missingKinds,['MATERIAL']);
+assert.equal(packet.review.statusByKind.MATERIAL,'EVIDENCE_EXPIRED');
 assert.equal(packet.readyWriteAllowed,false);
 
+console.log('AP097_SAME_LINE_TRIAGE_PIPELINE_AND_EXPIRY=PASS');
 console.log('AP096_CROSS_LINE_EVIDENCE_COMPOSITION=BLOCKED_SAFE');
 console.log('AP096_ONE_SAME_LINE_READY_AND_OTHER_STILL_MISSING=PASS');
 console.log('AP096_NEWEST_EXPIRED_BARRIER_IN_PILOT=PASS');
