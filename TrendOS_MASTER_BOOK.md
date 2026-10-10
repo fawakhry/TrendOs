@@ -4498,3 +4498,17 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   - Accounting stays D1 READONLY;
   - actions outside the 17-policy bridge fail closed.
 - No Production mutation occurred in this repo gate.
+
+
+## Accounting ACC-145–150 — 2026-10-10 safe D1 resume and verified gates
+
+> **Scope:** `fawakhry/TrendOs`, branch `audit/easystore-d1-readonly-resume-20261010`, compared to `candidate/easystore-accounting-a2-20261005`. This Accounting lane is not the independent T12/AP release branch. Follow `LATEST VERIFIED RUNTIME > DEPLOYED > TESTED > REPO_ONLY > HISTORICAL`.
+
+- ACC-145 current D1 Accounting snapshot: [run 38046689276](https://github.com/fawakhry/TrendOs/actions/runs/38046689276) **SUCCESS**. API version `2b40f622-60ce-4d70-83d1-b334ddc42833`; `READONLY`, policy epoch `39`, authoritativeWrites `false`, no allowed canary actions or commands, Google accounting business calls reported `0`. D1 requestLedger `6`, events `6`, waste `1`, deptLines `1`, custodyCloses `0`, cashbox `0`; total synthetic accounting rows `18`. This is **not** proof of real historical accounting data migration.
+- ACC-146 preserves old A2.11 4-canary/A2.12 5-canary snapshots while validating current six-canary guards, [run 38047096908](https://github.com/fawakhry/TrendOs/actions/runs/38047096908) **SUCCESS**; no write attempt.
+- ACC-147 GET-only check of **deployed** TrendOS↔EasyStore SSO sender, receiver, exact opener/origin/nonce/ACK guards and READONLY runtime: [run 38047282560](https://github.com/fawakhry/TrendOs/actions/runs/38047282560) **SUCCESS**. Real authenticated Diaa browser session **NOT** tested. TinyFish neither required nor used.
+- ACC-148 detected stale-popup session reuse risk and prepared a **frontend-only draft** correction in EasyStore [PR #23](https://github.com/fawakhry/EasyStore/pull/23). New test and existing Cloud Safety [run 38047615198](https://github.com/fawakhry/EasyStore/actions/runs/38047615198) **SUCCESS**. PR **NOT merged**, not deployed; historical Entry619 fixed three-read action test left unchanged, not mistaken for current 11-read contract.
+- ACC-149 GET-only deployed EasyStore routing audit: [run 38047828371](https://github.com/fawakhry/TrendOs/actions/runs/38047828371) **SUCCESS**. Exactly 33 distinct frontend `api()` action literals are all classified: 11 D1 read actions or 24 fail-closed accounting writes; 1 bounded custody-canary command stays OFF; zero dynamic or unclassified calls and no financial Google fallback for declared accounting writes in this app.
+- Historical A2.13 one-command custody-close exercise **consumed budget without verified close**, then state was reconciled and reclosed (run 37827293806). **DO_NOT_RETRY** without fresh scoped owner approval, idempotency and D1 reconciliation, before-and-after row invariants and independent live proof. No financial writes by ACC-145–149.
+- **Next gates:** isolated review of EasyStore PR #23 then authorized controlled release and real Diaa login SSO smoke; independently prove source/target financial parity and opening balances before any D1 financial write authority. A General accounting go-live remains **BLOCKED**.
+- Canonical detailed append-only verification: [ACC145–150 staging ledger](docs/trendos/staging/ACC145_D1_READONLY_RESUME_PREPARE_20261010.md); integrated draft [TrendOS PR #39](https://github.com/fawakhry/TrendOs/pull/39). Source-only CI green ≠ Production financial go-live.
