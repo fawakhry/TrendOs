@@ -40,3 +40,11 @@ PREPARE=RECORDED; TEST/VERIFY=PENDING.
 ## Next strictly gated operation
 - Independent code review + approved release/merge of *only* the A2.13 monitor change. A merge is NOT authorization to launch the manual `workflow_dispatch`.
 - Before considering any new A2.13 live canary, owner must explicitly approve a fresh **one-command** exercise after reconciling prior request outcomes, native authorization scope, genuine browser employee session, and paired cleanup/restore. Never silently enable CANARY, alter balances, or execute a second financial command.
+
+## ACC-158 / isolated verification PREPARE (2026-10-10)
+- The currently passing in-memory A2.13 mock verifies SQL statement selection and atomic batch shape, **not** actual SQLite DDL/constraints. The original Production budget-reserved/no-ledger outcome remains without proven root cause.
+- New exact safe task on existing `fix/a213-custody-monitor-settlement-20261010`: add `tests/easystore_a213_sqlite_migration_integration.test.mjs`, using Node built-in `node:sqlite` with a fresh `:memory:` database and the checked-in accounting migrations 0015,0020–0030. Execute the unchanged native Worker handler with synthetic employee/session and local DB adapter; assert one custody-close + one COMMITTED request ledger + one audit event, zero cash/stock/custody-event effects, and exact one-budget reservation. Test duplicate/idempotent request, READONLY denial and malformed synthetic request. This must not connect to Cloudflare nor use real data.
+- Add the test to isolated `ACC-157 A2.13 Timeout Monitor Offline Verification` workflow with `node --experimental-sqlite`; no changes to the manual A2.13 financial workflow other than prior tested 120s monitoring fix, no deploy.
+- If a local SQL error occurs, capture only synthetic SQL/error metadata in GitHub CI, fix the test when clearly a harness defect, or separately propose a server fix if an actual production-source SQL/DDL incompatibility is confirmed. Preserve evidence of any failures.
+- No customer data, financial payloads, secrets or new D1 business writes. **No retry of actual A2.13**.
+Status: PREPARED.
