@@ -7730,3 +7730,20 @@ OWNER-CONTROLLED NEXT STEP (NOT EXECUTED):
 GATES:
 `AP100_LOG_ROOT_CAUSE=VERIFIED_OWNER_SCREENSHOT`; `AP100_REPO_WORKER_TARGET_MISMATCH=SOURCE_TESTED`; `AP100_CI=SUCCESS`; `CLOUDFLARE_BUILDS_CONFIGURATION_FIXED=NO`; `AP099_D1_LIVE=NOT_RUN`; `PRODUCTION_DEPLOY=NO`; `OPERATOR_TASK=OFF_LAST_DOCUMENTED`; `CANDIDATE_BASELINE_HEAD=7d20cfc463ce084ceaba8ac440dffa53512fe662`; `BUSINESS_WRITES=0`.
 This AP-100 book-only documentation commit needs its own exact CI outcome checked separately. Do not claim Cloudflare build success.
+
+
+### AP-101 — Cloudflare trendos non-production Preview Builds OFF (2026-10-10, OWNER SCREENSHOT EVIDENCE ONLY)
+
+Evidence and action scope:
+- Owner navigated to Workers & Pages → `trendos` → Settings → Builds and supplied consecutive Cloudflare screenshots after an owner-controlled interface change.
+- Earlier screenshot displayed `Production branch=main` and a checked option `Builds for non-production branches`. Newest screenshot shows the `Previews Base` build settings, where **`Builds for Preview branches` toggle is OFF** (grey, slider to left). This is owner-supplied UI evidence of Preview Builds disabled for the **`trendos` Worker**, rather than an independent Cloudflare API read or future-build verification.
+- Earlier screenshot on Production context still displayed `Production branch=main`, `Disable builds=OFF`, Root `/`, Deploy command `cd cloudflare-d1 && npx wrangler deploy`. The Build UI changed between screenshots; existing configuration mismatch `cloudflare-d1/wrangler.toml` => `name="trendos-d1-api"` versus target `trendos` remains unresolved. No Cloudflare deploy, retry, command, root, token, or D1 setting was changed by the assistant.
+- Disabling preview builds may stop automatic builds on unrelated feature/audit branches for this Worker; it **does not repair historic missing-entry-point errors, stop Production-main builds, validate a working production deployment, or prove an entirely unrelated Worker `trendos-tasks-v3-t1-preview-20260914` has its previews disabled.** No new feature-branch push was used to test whether the Cloudflare setting really took effect.
+- Newest screenshot has Preview Base `Build command=None`, `Preview command=npx wrangler preview`, `Root directory=/`, `Include paths=*`. Values left unchanged.
+- Security: prior Worker owner-console Access gate remains blocked; no authenticated Cloudflare D1 console session or live orders readiness snapshot was made available in this tool environment. AP-099 aggregate D1 SQL remains offline-tested and unexecuted on real D1.
+- `AP101_OWNER_UI_PREVIEW_BUILDS_TOGGLE=OFF_OBSERVED`; `CLOUDFLARE_POSTCHANGE_VERIFIED_WITH_NEW_BUILD=NO`; `PRODUCTION_BUILD_ENTRYPOINT_FIXED=NO`; `D1_AUTHENTICATED_READ=NO`; `PRODUCTION_MUTATION_BY_ASSISTANT=NO`.
+
+Next:
+1. Keep `trendos` build commands/root untouched until its actual target Worker and binding parity are established. No Retry build/Deploy/Preview Setup.
+2. For a safe current D1 inventory, navigate authenticated Cloudflare Dashboard → Storage & databases → D1 → owner-confirmed `trendos-main` database → Console and review **aggregate read-only** AP-099 SQL without ever sharing query output containing raw order/line IDs or PII; if any source/table missing, block rather than infer zero. Owner approval needed for execution against live DB.
+3. Investigate unrelated Worker `trendos-tasks-v3-t1-preview-20260914` branch build separately if still firing; do not conflate with `trendos` preview toggle.
