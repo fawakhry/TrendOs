@@ -313,6 +313,8 @@ jobs:
         run: node autonomous-printshop/tests/dashboard_last_good_v1.test.mjs
       - name: Run protected Owner Console Service Auth source-only contract
         run: node autonomous-printshop/tests/owner_console_protected_postdeploy_v1.test.mjs
+      - name: Run default-off Owner Console release gate source contract
+        run: node autonomous-printshop/tests/owner_console_protected_release_gate_v1.test.mjs
       - name: Run Employee Supervisor shadow contract
         run: node autonomous-printshop/tests/employee_supervisor_shadow_v1.test.mjs
       - name: Run Employee Supervisor structured blocker event contract
