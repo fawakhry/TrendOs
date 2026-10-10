@@ -225,3 +225,12 @@ Status PREPARED.
 - Manifest re-read and parsed, Git blob `d27336f13dae43c994f0b3c8233532b84b545865`; ACC152 CI 38048340853 completed SUCCESS. EasyStore PR #23 and TrendOS PR #39 are both DRAFT/not merged.
 - Result **DOC_COMMITTED_VERIFIED / NO_PRODUCTION_MUTATION**.
 - **Next mandatory non-automatic gate:** owner-approved controlled frontend-only release of EasyStore PR #23 after review, followed by authenticated human browser smoke; separate finance-source/target parity and A2.13 authorization before financial writes. No other self-authorized Production step is justified.
+
+## ACC-154 / PREPARE (2026-10-10) — extra browser SSO security + role-shell regression gate
+- Starting point: EasyStore draft PR #23 head `c80a5b786474a49f5fe28a23967a7336f46aae70`; existing ACC-148 stale popup credential invalidation passes Cloud Safety 38047615198, but is not deployed.
+- Read source: SSO receiver currently says `if(window.opener && event.source !== window.opener) return;`. When `window.opener` is null, this bypasses the opener-source restriction (despite a valid nonce check). Fix to require a non-null opener and exact `event.source===window.opener` for the nonce-bound TrendOS popup.
+- Read source: when a new nonce-bound popup starts, `user` is deliberately provisional and `initialScreen()` falls back to `sales`; initial `shell()` creates employee-only tabs. Later `persistTrendosSso()` updates `user`, but triggers only data `load(true)` whose completion uses `render()`, not full `shell()`. Without re-evaluating `state.active` and rebuilding shell on the verified SSO event, Diaa can remain on employee navigation after authenticating.
+- Proposed exact change in EasyStore PR #23 only: require opener, ignore replayed nonce after first accepted handoff, re-evaluate `state.active=initialScreen()` and `state.accountingScope=initialAccountingScope()`, rebuild `shell()` after authenticated handoff, then retain the existing guarded load retry. Add executable synthetic `postMessage` fixture tests for missing opener, wrong source/origin/nonce/stale timestamps, correct role tab rebuild, and one-time acceptance.
+- Existing closed write modes, finance APIs, D1 schema and TrendOS production unchanged. No credentials in repository or log. Run PR Cloud Safety; diagnose FAIL before any release. **No automatic merge or deployment**.
+- This remains source-level confirmation; live Diaa smoke still required before declaring SSO release ready.
+Status: PREPARED / code pending.
