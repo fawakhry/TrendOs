@@ -17,8 +17,12 @@
 - `tests/acc181_zero_opening_direction_preflight.test.mjs` exercises denied actual data deletion, historical import, cutover date guessing, financial role broadening, fake owner approvals and GRANT/CANARY flags.
 - `.github/workflows/easystore-acc181-g3-zero-opening-offline.yml` runs only read-only-source Node22 checks on the candidate, with no Cloudflare credentials, API financial POST, production database DML, Worker deployment, legacy data import, reset or migration.
 
+## Owner follow-up — when to choose the start date (2026-10-10)
+
+**Confirmed:** owner says **"وقت لما البرنامج يكمل نبدا بالتاريخ"**. Do **not** ask for, select, backdate, or auto-calculate an opening calendar date now. Choose the effective beginning of the new accounting books **at the actual, separately owner-approved financial go-live once the program and safety gates are ready**, in Egypt local time, recording the exact date/time and signoff then. Code/CI completion by itself is not a deployment command or owner authorization. No scheduled or automatic finance activation. Existing finance frontend OFF and backend READONLY remain in place until approved release.
+
 ## Remaining owner question
 
-**What exact calendar date should be the first day of the new accounting books?** After that answer, the team needs a documented signed stocktake and cash/legacy-liabilities separation, zero-opening reconciliation, protected backup and separately approved controlled finance cutover. Marking past financial-data import **NOT REQUESTED** is valid; marking the entire financial opening **COMPLETED** now would be false.
+**The date will be selected on the approved financial launch day; none is requested from the owner today.** After that answer, the team needs a documented signed stocktake and cash/legacy-liabilities separation, zero-opening reconciliation, protected backup and separately approved controlled finance cutover. Marking past financial-data import **NOT REQUESTED** is valid; marking the entire financial opening **COMPLETED** now would be false.
 
 G1 actual A2.13 close, G2 exact staff grants (#40), G3 approved dated opening cutover, G4 actual transaction acceptance and G5 verified production backup/rollback all remain OPEN. Frontend OFF, backend READONLY; production rows and staff unchanged.
