@@ -1,0 +1,108 @@
+name: ACC-177 Accounting Worker Shared-Base Merge Rehearsal — NO DEPLOY
+
+on:
+  push:
+    branches:
+      - test/acc177-accounting-worker-merge-tree-rehearsal-20261010
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'scripts/acc177_finance_worker_merged_tree_receipt.mjs'
+      - 'tests/easystore_acc177_merge_tree_rehearsal.test.mjs'
+      - '.github/workflows/easystore-acc177-merged-worker-tree-offline.yml'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'cloudflare-d1/production-shadow/index.js'
+      - 'cloudflare-d1/src/index_v2.js'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+
+permissions:
+  contents: read
+
+jobs:
+  shared-base-merge-without-deployment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SHARED_REF: candidate/t12-full-cloud-cutover-a56-20260929
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Offline manifest negative regression
+        run: |
+          set -euo pipefail
+          node --check scripts/acc177_finance_worker_merged_tree_receipt.mjs
+          node tests/easystore_acc177_merge_tree_rehearsal.test.mjs
+      - name: Pin exact current shared head, check collision set and merge in isolated worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACCOUNTING_SHA="$(git rev-parse HEAD)"
+          git fetch --no-tags origin "refs/heads/$SHARED_REF"
+          SHARED_SHA="$(git rev-parse FETCH_HEAD)"
+          REMOTE_SHARED_SHA="$(git ls-remote origin "refs/heads/$SHARED_REF" | cut -f1)"
+          test "$SHARED_SHA" = "$REMOTE_SHARED_SHA"
+          BASE_SHA="$(git merge-base "$ACCOUNTING_SHA" "$SHARED_SHA")"
+          git diff --name-only "$BASE_SHA" "$ACCOUNTING_SHA" | LC_ALL=C sort > "$RUNNER_TEMP/acc177-accounting-files.txt"
+          git diff --name-only "$BASE_SHA" "$SHARED_SHA" | LC_ALL=C sort > "$RUNNER_TEMP/acc177-shared-files.txt"
+          comm -12 "$RUNNER_TEMP/acc177-accounting-files.txt" "$RUNNER_TEMP/acc177-shared-files.txt" > "$RUNNER_TEMP/acc177-overlap.txt"
+          python3 - <<'PY'
+          from pathlib import Path
+          allowed={
+            '.github/workflows/easystore-a2-accounting-readonly-api-deploy.yml',
+            '.github/workflows/easystore-a2-sync-shared-base.yml'
+          }
+          overlaps=set(Path(__import__('os').environ['RUNNER_TEMP']+'/acc177-overlap.txt').read_text().splitlines())
+          unsafe=sorted(overlaps-allowed)
+          print('ACC177_SHARED_ACCOUNTING_OVERLAP='+(','.join(sorted(overlaps)) or 'NONE'))
+          if unsafe:
+            raise SystemExit('ACC177_RELEASE_MERGE_SOURCE_OVERLAP_BLOCKED='+','.join(unsafe))
+          PY
+          TREE_DIR="$RUNNER_TEMP/acc177-merged-worker"
+          git worktree add --detach "$TREE_DIR" "$ACCOUNTING_SHA"
+          git -C "$TREE_DIR" -c user.name='ACC177 Nonproduction Rehearsal' -c user.email='acc177@example.invalid' merge --no-commit --no-ff --no-edit "$SHARED_SHA"
+          git -C "$TREE_DIR" diff --cached --check
+          MERGED_TREE_SHA="$(git -C "$TREE_DIR" write-tree)"
+          echo "ACC177_ACCOUNTING_SHA=$ACCOUNTING_SHA" >> "$GITHUB_ENV"
+          echo "ACC177_SHARED_SHA=$SHARED_SHA" >> "$GITHUB_ENV"
+          echo "ACC177_MERGED_TREE_SHA=$MERGED_TREE_SHA" >> "$GITHUB_ENV"
+          echo "ACC177_MERGED_DIR=$TREE_DIR" >> "$GITHUB_ENV"
+          echo 'ACC177_MERGE_EXECUTION=OFFLINE_LOCAL_ONLY'
+          echo 'ACC177_DEPLOYMENT=NOT_EXECUTED'
+      - name: Execute authentic Worker finance tests on the merged tree, not just original branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$ACC177_MERGED_DIR"
+          node --check cloudflare-d1/src/index_v2.js
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --experimental-sqlite tests/easystore_acc170_finance_flow_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc174_department_purchase_custody_sqlite.test.mjs
+          node tests/easystore_acc175_approved_finance_grants.test.mjs
+          echo 'ACC177_MERGED_REAL_WORKER_FINANCE_TESTS=PASS'
+      - name: Emit reviewed-source fingerprint for rehearsal ONLY
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/acc177_finance_worker_merged_tree_receipt.mjs "$ACC177_ACCOUNTING_SHA" "$ACC177_SHARED_SHA" "$ACC177_MERGED_TREE_SHA" "$RUNNER_TEMP/acc177-overlap.txt" cloudflare-d1/src/employee-accounting-native-v1.mjs "$ACC177_MERGED_DIR/cloudflare-d1/src/employee-accounting-native-v1.mjs" artifacts/acc177-offline-merge-receipt.json
+          node -e "const x=require('./artifacts/acc177-offline-merge-receipt.json');if(x.release_decision!=='NO_GO'||x.production_deploy_executed||x.immutable_release_pin_approved)process.exit(1)"
+          {
+            echo '## ACC-177 — Isolated exact shared/finance merge rehearsal only'
+            echo "Accounting source SHA: $ACC177_ACCOUNTING_SHA"
+            echo "Shared base SHA: $ACC177_SHARED_SHA"
+            echo "Uncommitted resulting Git tree: $ACC177_MERGED_TREE_SHA"
+            echo 'Real Worker SQLite finance scenarios executed on the merged, uncommitted local worktree.'
+            echo 'NO_GO: No immutable approved release pin, database backup restoration, real rollback or finance signoff.'
+            echo 'No production deployment, finance POST, remote D1 SQL, Cloudflare credentials or staff role changes.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload non-sensitive offline tree receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: acc177-offline-finance-worker-tree-rehearsal
+          path: artifacts/acc177-offline-merge-receipt.json
+          retention-days: 14
