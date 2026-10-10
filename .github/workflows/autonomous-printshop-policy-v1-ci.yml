@@ -245,6 +245,8 @@ jobs:
         run: node autonomous-printshop/tests/cloudflare_build_target_gate_v1.test.mjs
       - name: Run AP-107 Cairo-local due date buckets via isolated SQLite
         run: python3 autonomous-printshop/tests/ap107_d1_due_triage_sql_readonly.test.py
+      - name: Run AP-112 paste-ready SQL AP-107 parity via isolated SQLite
+        run: python3 autonomous-printshop/tests/ap112_d1_console_paste_parity.test.py
       - name: Run AP-109 safe first-pilot aggregate human-review contract
         run: node autonomous-printshop/tests/first_pilot_aggregate_review_v1.test.mjs
       - name: Run AP-110 private same-line provenance precheck contract
