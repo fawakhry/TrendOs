@@ -1,0 +1,86 @@
+name: ACC-185 Cross-Repo EasyStore-Worker G4 Offline Contract (NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - test/acc185-easystore-worker-offline-contract-g4-no-go-20261010
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-acc185-cross-repo-g4-offline-no-go.yml'
+      - 'scripts/easystore_acc185_ui_worker_contract.mjs'
+      - 'tests/easystore_acc185_ui_worker_contract.test.mjs'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+
+permissions:
+  contents: read
+
+jobs:
+  cross-repo-safe-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Read TrendOS accounting candidate source only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Read exact public EasyStore source only, never deployed Pages
+        uses: actions/checkout@v4
+        with:
+          repository: fawakhry/EasyStore
+          ref: 373d06381594e3ab32a55009fcc74907b1c37c9c
+          path: isolated-easystore-source
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run original pinned EasyStore frontend/accounting tests without external access
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd isolated-easystore-source
+          test "$(git rev-parse HEAD)" = "373d06381594e3ab32a55009fcc74907b1c37c9c"
+          node tests/accounting_day_close_v1920.test.js
+          node tests/accounting_automation_v1921.test.js
+          node tests/customer_accounts_v1915.test.js
+          node tests/customer_accounts_ui_v1915.test.js
+          node tests/department_accounting_scope_v1918.test.js
+          node tests/dept_daily_purchases_v1917.test.js
+          node tests/dept_daily_purchases_ui_v1917.test.js
+          node tests/easystore_a213_custody_close_frontend_canary.test.mjs
+          echo 'ACC185_PINNED_EASYSTORE_8_ORIGINAL_OFFLINE_TESTS=PASS'
+      - name: Run TrendOS finance Worker originals, strict cross-repo action pairing and synthetic denials
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          CF_API_TOKEN: ''
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test -z "$CF_API_TOKEN"
+          node --experimental-sqlite tests/easystore_acc170_finance_flow_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc174_department_purchase_custody_sqlite.test.mjs
+          node tests/easystore_acc175_approved_finance_grants.test.mjs
+          node tests/easystore_acc185_ui_worker_contract.test.mjs
+          node scripts/easystore_acc185_ui_worker_contract.mjs \
+            isolated-easystore-source artifacts/acc185-cross-repo-G4-NO_GO.json .
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs';
+          const r=JSON.parse(fs.readFileSync('artifacts/acc185-cross-repo-G4-NO_GO.json','utf8'));
+          if(r.action_count!==10||r.release_decision!=='NO_GO'||
+             r.real_financial_operating_acceptance!==false||
+             r.original_real_custody_close_acceptance!==false||
+             r.production_changes!==0||
+             r.actual_refund_and_customer_return_acceptance!=='NOT_TESTED_LIVE')
+            throw Error('ACC185_FAIL_CLOSED_G4_EVIDENCE');
+          console.log('ACC185_FRONTEND_WORKER_OFFLINE_G4_NOT_LIVE_ACCEPTANCE=PASS');
+          JS
+      - name: Retain only non-sensitive source receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: acc185-easystore-worker-cross-repo-source-no-go
+          path: artifacts/acc185-cross-repo-G4-NO_GO.json
+          retention-days: 14
