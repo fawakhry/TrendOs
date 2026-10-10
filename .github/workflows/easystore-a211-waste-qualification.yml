@@ -10,7 +10,7 @@ on:
       - '.github/workflows/easystore-a211-waste-qualification.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   qualify:
@@ -43,7 +43,7 @@ jobs:
 
       - run: npm install --no-save wrangler@${WRANGLER_VERSION}
 
-      - name: Prove Production remains closed on four-canary baseline
+      - name: Prove current six-canary READONLY baseline; historic A2.11 accepted, no replay
         shell: bash
         run: |
           set -euo pipefail
@@ -69,14 +69,14 @@ jobs:
               (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1) AS custodyCloses,
               (SELECT COUNT(*) FROM employee_accounting_day_closes_v1) AS dayCloses;
           " > /tmp/d1.json
-          node <<'NODE' | tee .github/a211-waste-qualification-result.txt
+          node <<'NODE'
           const fs=require('fs');
           const cfg=fs.readFileSync('/tmp/config.js','utf8');
           const h=JSON.parse(fs.readFileSync('/tmp/health.json','utf8'));
           const x=JSON.parse(fs.readFileSync('/tmp/d1.json','utf8')),rows=[];
           const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.materials!==undefined)rows.push(v);Object.values(v).forEach(walk)}};walk(x);
           if(rows.length!==1)throw Error('count parse'); const r=rows[0];
-          const exp={materials:1,templates:1,parties:1,partyBalances:1,requestLedger:4,events:4,waste:0,stockMoves:0,partyLedger:0,cashbox:0,purchases:0,dailyPurchases:0,deptLines:0,finalInvoices:0,custodyEvents:0,custodyCloses:0,dayCloses:0};
+          const exp={materials:1,templates:1,parties:1,partyBalances:1,requestLedger:6,events:6,waste:1,stockMoves:0,partyLedger:0,cashbox:0,purchases:0,dailyPurchases:0,deptLines:1,finalInvoices:0,custodyEvents:0,custodyCloses:0,dayCloses:0};
           if(!/EASYSTORE_ACCOUNTING_D1_WRITE_MODE\s*=\s*'OFF'/.test(cfg))throw Error('frontend not OFF');
           if(!/EASYSTORE_ACCOUNTING_D1_WRITE_CANARY_ACTIONS\s*=\s*\[\]/.test(cfg))throw Error('frontend actions not empty');
           if(!/EASYSTORE_ACCOUNTING_D1_READONLY\s*=\s*true/.test(cfg)||!/EASYSTORE_ACCOUNTING_D1_WRITES\s*=\s*false/.test(cfg))throw Error('frontend safety flags');
@@ -85,30 +85,19 @@ jobs:
           if(Number(h.googleBusinessCalls||0)!==0)throw Error('google calls');
           for(const [k,v] of Object.entries(exp))if(Number(r[k]||0)!==v)throw Error('baseline '+k+'='+r[k]);
           console.log('A211_WASTE_QUALIFICATION=PASS');
-          console.log('CANDIDATE_ACTION=saveAccountingWaste');
-          console.log('SYNTHETIC_ORDER_PREFIX=A2-CANARY-WASTE-');
-          console.log('AMOUNT=0.01');
-          console.log('RECOVERED=0');
-          console.log('MATERIAL=NONE');
-          console.log('EXPECTED_WASTE_DELTA=1');
-          console.log('EXPECTED_STOCK_MOVE_DELTA=0');
-          console.log('EXPECTED_CASHBOX_DELTA=0');
-          console.log('EXPECTED_PARTY_LEDGER_DELTA=0');
-          console.log('EXPECTED_REQUEST_LEDGER_DELTA=1');
-          console.log('EXPECTED_EVENTS_DELTA=1');
+          console.log('A211_HISTORICAL_CANARY=ALREADY_COMPLETED_NO_REPLAY');
+          console.log('A211_SIX_CANARY_READONLY_BASELINE=PASS');
+          console.log('CURRENT_WASTE=1');
+          console.log('CURRENT_DEPT_LINES=1');
+          console.log('CURRENT_REQUEST_LEDGER=6');
+          console.log('CURRENT_EVENTS=6');
           console.log('FRONTEND_MODE=OFF');
           console.log('BACKEND_MODE=READONLY');
           console.log('SERVER_USERS_ACTIONS=0/0');
           console.log('COMMAND_BUDGET=0/0');
-          console.log('FOUR_CANARY_BASELINE=1/1/1/1/4/4');
+          console.log('SIX_CANARY_BASELINE=1/1/1/1/1/1/6/6');
           console.log('GENERAL_OPENED=NO');
           console.log('PRODUCTION_DEPLOY=NO');
           console.log('PRODUCTION_ARM=NO');
           console.log('PRODUCTION_MUTATION=NO');
           NODE
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/a211-waste-qualification-result.txt
-          git commit -m "A2.11: persist Waste qualification result" || exit 0
-          git push origin HEAD:candidate/easystore-accounting-a2-20261005
