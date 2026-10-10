@@ -94,7 +94,8 @@ try{
    'SELECT balance FROM employee_accounting_party_balances_v1 WHERE party_type=? AND party_id=?',
    type,id)?.balance??0);
  const stock=id=>Number(one('SELECT stock_qty FROM employee_accounting_materials_v1 WHERE material_id=?',id)?.stock_qty??0);
- assert.equal(financeState(),'READONLY');
+ assert.equal(financeState(),'OFF','initial in-memory migration must fail closed');
+ db.exec("UPDATE employee_accounting_control_v1 SET mode='READONLY' WHERE singleton=1;");
  const locked=await send('saveEasyStorePurchaseV2',{requestId:'ACC170-BLOCKED-WRITE-0001'});
  assert.equal(locked.status,503);
  assert.equal(locked.code,'employee-accounting-readonly');
