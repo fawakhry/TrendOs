@@ -44,7 +44,7 @@ blocked(base, accounting, shared.replace(base[-4096:], b"STOLEN_TAIL"),
         "SHARED_BASE_TAIL_NOT_UNIQUE")
 blocked(base, accounting, base, "SHARED_HAS_NO_NEW_HISTORY")
 blocked(base, accounting, shared + accounting_delta, "DELTA_ALREADY_PRESENT")
-blocked(base, accounting, shared + b"\n\n---\n\n## ACC-178 — Accounting branch append-only history, safely reconciled\n",
+blocked(base, accounting, shared + "\n\n---\n\n## ACC-178 — Accounting branch append-only history, safely reconciled\n".encode("utf-8"),
         "RECONCILIATION_MARKER_ALREADY_PRESENT")
 blocked(b"small", b"small appended", b"small shared", "COMMON_BASE_TOO_SMALL")
 assert not book.startswith(accounting), "shared newest header must be retained as the primary book"
