@@ -261,6 +261,8 @@ jobs:
         run: node autonomous-printshop/tests/ap116_live_line_snapshot_human_review.test.mjs
       - name: Run AP-117 malformed private evidence fail-closed recovery
         run: node autonomous-printshop/tests/ap117_private_evidence_malformed_failclosed.test.mjs
+      - name: Run AP-119 malformed private snapshot accessors fail closed
+        run: node autonomous-printshop/tests/ap119_private_snapshot_accessors_failclosed.test.mjs
       - name: Run evidence acquisition packet contract
         run: node autonomous-printshop/tests/evidence_acquisition_packet_v1.test.mjs
       - name: Run readiness evidence writer contract
