@@ -7801,3 +7801,20 @@ NEXT FOCUSED READ-ONLY STEP:
 - Do not SELECT order/line IDs, customer identities, raw item names, design files, staff, sourceRefs, or actual account values. Don't dispatch, auto-assign, insert readiness evidence or modify D1. Failure to query must be reported as UNKNOWN/BLOCKED_SAFE, not zero candidates.
 
 GATES: `AP103_LIVE_OWNER_D1_STATUS_AGGREGATE=OBSERVED_SUCCESS`; `AP103_NEW_LINES=64`; `AP103_IN_PROGRESS_LINES=6`; `AP103_TOTAL_CURRENT_LINE_KEYS=788`; `AP103_READINESS_EVIDENCE_ROWS=0_AP102`; `ACTUAL_TASK_WRITES=NO`; `PRODUCTION_DEPLOY=NO`. Documentation CI to be checked on exact commit.
+
+
+### AP-104 — Owner D1 live initial candidate-screen: 64/64 due field present, Fly Print=0 (2026-10-10)
+
+EVIDENCE:
+- Owner executed the previously supplied SELECT-only aggregate SQL in authenticated Cloudflare D1 `trendos-main` Console and sent screenshot of returned four columns. No source identifiers, customer names, department, order IDs, employee identities or detailed records were displayed or committed.
+- Query joined nonarchived active legacy source and native T12 source with their runtime status/schedule, then deduplicated by internal `line_id` with native precedence. Filter applied to `rn=1` and `TRIM(status)='طلب جديد'` (new status only).
+- Result: `new_lines=64`, `with_due_date=64`, `fly_print_lines=0`, `preliminary_candidates=64`. All 64 source line keys passed the narrowly defined **nonempty due field** + **CAST(fly_print AS INTEGER) != 1** gates. This is VERIFIED OWNER-CONSOLE AGGREGATE only; due-date parsing, source recency, actual physical capabilities, customer restrictions, priority and departmental selection were NOT validated.
+- AP-102 prior observation: `autonomous_readiness_evidence=0`; no Design/Material/Machine linked authoritative evidence exists in that queried readiness evidence table as of that earlier snapshot. Zero stored evidence means AP-104 does not qualify any of these 64 for automatic execution; no assignment or operator canary authorized.
+- `64` denotes preliminary *line* screening candidates, not distinct full orders or strict-ready tasks. Do not claim all 64 due dates are valid or future: `operational-reality-v1.mjs` `parseDue` enforces syntax/date plausibility separately.
+- D1 reads=SELECT-only; no mutations, migrations, producer data creation, or production deploy.
+
+NEXT:
+1. Aggregate the 64 new-line keys by **department** and urgent priority in D1 Console, preserving same joins/native precedence and no line/order IDs in output. Prioritize selecting a department and validating real due-date formats without exporting customer data.
+2. Verify one **human-reviewed** same-line DESIGN SHA/preflight/approval, MATERIAL stock ledger+consumption, MACHINE registration+live capacity/health, with approved protected source access. Since evidence table is zero, remain BLOCKED_SAFE; never INSERT fabricated READY rows.
+3. Any actual dispatch or Operator Task activation requires separate owner go/no-go, source approvals, durable MC-02/23 and access/security gates.
+STATUS: `AP104_D1_NEW_LINES=64`, `AP104_NONEMPTY_DUE=64`, `AP104_FLY_PRINT_FLAG_1=0`, `AP104_PRELIMINARY_ONLY=64`, `AP104_STRICT_READY=NOT_PROVEN`, `DATA_WRITES=0`, `PRODUCTION_DEPLOY=NO`. Documentation-only GitHub CI must be independently checked.
