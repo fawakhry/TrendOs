@@ -19,6 +19,7 @@ on:
       - 'tests/t12_customer_lane_partial.test.mjs'
       - 'tests/frontend_t12_duplicate_order_guard_entry590.test.mjs'
       - 'tests/t12_create_key_durability.test.mjs'
+      - 'tests/t12_blocked_order_visibility.test.mjs'
       - 'scripts/t12_build_runtime_preserving_release.sh'
   workflow_dispatch:
 permissions:
@@ -56,6 +57,7 @@ jobs:
       - name: Frontend idempotency and native session regression
         run: |
           set -euo pipefail
+          node tests/t12_blocked_order_visibility.test.mjs
           node tests/frontend_t12_duplicate_order_guard_entry590.test.mjs
           node tests/t12_create_key_durability.test.mjs
           node tests/entry652_employee_session_lifecycle_guard.test.mjs

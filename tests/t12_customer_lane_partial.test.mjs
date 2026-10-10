@@ -35,10 +35,11 @@ class D1 {
   }finally{done();}
  }
  n(table){return Number(this.raw.prepare('SELECT COUNT(*) n FROM '+table).get().n);}
- addLegacy({orderId='2200',department='طباعة',status='طلب جديد',phone='01000000111',customer='Test Customer'}={}){
+ addLegacy({orderId='2200',department='طباعة',status='طلب جديد',phone='01000000111',customer='Test Customer',updatedAt=''}={}){
   const row=Array(HEADERS.length).fill('');
   row[0]=orderId;row[1]=orderId;row[2]=customer;row[4]=department;row[5]=orderId+'-01';
   row[6]='Legacy Item';row[7]='1';row[10]=status;row[16]=phone;
+  row[12]=updatedAt;
   this.raw.prepare('INSERT INTO sheet_rows VALUES (?,?,?,?)').run('بنود الأوردرات',this.n('sheet_rows')+2,JSON.stringify(row),JSON.stringify(row));
   return orderId+'-01';
  }
@@ -202,4 +203,26 @@ const create=(db,id,department,fields={})=>createT12GeneralOrder(db,make(id,depa
  assert.equal(db.n('t12_prod_orders'),2);
 }
 
+{
+ const db=new D1();
+ db.addLegacy({department:'ليزر',status:'جاهز للاستلام',updatedAt:'2026-10-01T12:00:00Z'});
+ db.addLegacy({department:'ليزر',status:'تم التسليم',updatedAt:'2026-10-02T12:00:00Z'});
+ const created=await create(db,101,'ليزر');
+ assert.equal(created.success,true,'An older hidden open copy must not block the selected delivered line');
+ assert.equal(db.n('t12_prod_orders'),1);
+ const repeated=await create(db,102,'ليزر',{itemName:'Different new work'});
+ assert.equal(repeated.success,false,'The new genuinely open LASER order remains protected');
+}
+{
+ const db=new D1();
+ db.addLegacy({department:'ليزر',status:'تم التسليم',updatedAt:'2026-10-01T12:00:00Z'});
+ db.addLegacy({department:'ليزر',status:'جاهز للاستلام',updatedAt:'2026-10-02T12:00:00Z'});
+ assert.equal((await create(db,103,'ليزر')).success,false,'A currently ready but undelivered line remains open');
+}
+{
+ const db=new D1();const old=await create(db,104,'ليزر');assert.equal(old.success,true);
+ db.raw.prepare("INSERT INTO t12_prod_line_runtime(line_id,order_id,status,updated_by) VALUES (?,?,?,?)").run(old.lineId,old.orderId,'تم التسليم','employee-a');
+ db.addLegacy({orderId:old.orderId,department:'ليزر',status:'طلب جديد'});
+ assert.equal((await create(db,105,'ليزر',{itemName:'New laser artwork'})).success,true,'Closed native authority must supersede its historical open mirror');
+}
 console.log('T12 customer+department lane and partial multi create isolated + concurrent distinct-payload atomic claim PASS');

@@ -5801,7 +5801,7 @@ Trend Mall`;
     }
   }
 
-  function revealBlockedOpenOrder(openOrder, requestedDepartment) {
+  async function revealBlockedOpenOrder(openOrder, requestedDepartment) {
     openOrder = openOrder || {};
     const orderId = text(openOrder.orderId);
     if (!orderId) return;
@@ -5818,7 +5818,8 @@ Trend Mall`;
       if ($("statusFilter")) $("statusFilter").value = "";
       if ($("priorityFilter")) $("priorityFilter").value = "";
       if ($("heatPressFilter")) $("heatPressFilter").value = "";
-      applyFiltersAndRender(true);
+      state.currentPage = 1;
+      await loadRows(true);
       const table = $("ordersTable");
       if (table && table.scrollIntoView) table.scrollIntoView({ behavior: "smooth", block: "start" });
     }
@@ -5888,8 +5889,13 @@ Trend Mall`;
       const res = await api("createManualOrder", params);
 
       if (!res.success) {
-        if (res.duplicateBlocked && res.openOrder) {
-          revealBlockedOpenOrder(res.openOrder, params.department);
+        if (res.reason === "customer-department-open-order-exists" && res.existingOrderId) {
+          await revealBlockedOpenOrder({
+            orderId: res.existingOrderId,
+            departments: (res.blockedDepartments || []).map(function (block) { return block.department; })
+          }, params.department);
+        } else if (res.duplicateBlocked && res.openOrder) {
+          await revealBlockedOpenOrder(res.openOrder, params.department);
         }
         setMsg("addOrderStatus", res.message || "فشل إضافة الأوردر في الشيت.", true);
         return;

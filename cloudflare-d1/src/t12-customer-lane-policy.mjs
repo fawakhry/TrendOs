@@ -6,7 +6,7 @@
 import { mapMirrorRows } from './edge-orders-read-v1.mjs';
 import { applyLegacyRuntimeOverlay, readLegacyRuntimeRows } from './t12-legacy-line-runtime.mjs';
 
-export const T12_CUSTOMER_LANE_POLICY_VERSION='T12_CUSTOMER_LANE_POLICY_20261008_CANDIDATE_V2';
+export const T12_CUSTOMER_LANE_POLICY_VERSION='T12_CUSTOMER_LANE_POLICY_20261010_EFFECTIVE_LINES_V3';
 const LEGACY_SHEET='بنود الأوردرات';
 const CLOSED=new Set(['تم التسليم','ملغى','ملغي','مكرر']);
 function text(v){return String(v==null?'':v).trim();}
@@ -56,6 +56,21 @@ export function partitionCustomerLanes(identity,wanted,rows){
   const blocked=departments.filter(d=>blockers.has(d)).map(d=>blockers.get(d));
   return {allowedDepartments:departments.filter(d=>!blockers.has(d)),blockedDepartments:blocked};
 }
+export function selectEffectiveCustomerLaneRows(nativeRows,historicalRows){
+  const selected=[],seen=new Set();
+  // Match the read authority: native identities first, then the already sorted
+  // historical view's selected copy. Preserve unknown identities fail-closed.
+  for(const row of [...nativeRows,...historicalRows]){
+    const orderId=text(row.orderId),lineId=text(row.lineId);
+    if(orderId&&lineId){
+      const key=orderId+'\u0000'+lineId;
+      if(seen.has(key))continue;
+      seen.add(key);
+    }
+    selected.push(row);
+  }
+  return selected;
+}
 export async function readCustomerLanePartition(db,identity,wanted){
   if(!db||typeof db.prepare!=='function')throw Error('customer-lane-db-required');
   const native=await db.prepare(`
@@ -98,7 +113,7 @@ export async function readCustomerLanePartition(db,identity,wanted){
     ...row,customerPhone:phonesByRow.get(row.rowNumber)||row.customerPhone
   }));
   const latest=await readLegacyRuntimeRows({DB:db});
-  const combined=(native.results||[]).concat(applyLegacyRuntimeOverlay(historical,latest).map(row=>({
+  const combined=selectEffectiveCustomerLaneRows(native.results||[],applyLegacyRuntimeOverlay(historical,latest).map(row=>({
     mode:row.customerMode|| (row.externalCustomerId?'external':'registered'),
     customerName:row.customer,customerPhone:row.customerPhone,
     externalCustomerId:row.externalCustomerId,

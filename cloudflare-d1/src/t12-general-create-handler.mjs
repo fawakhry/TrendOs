@@ -1,5 +1,6 @@
 import { verifyOrdersEdgeToken } from './edge-orders-read-v1.mjs';
 import { createT12GeneralOrder, T12_GENERAL_CREATE_VERSION } from './t12-general-create.mjs';
+import { T12_CUSTOMER_LANE_POLICY_VERSION } from './t12-customer-lane-policy.mjs';
 
 const BASE='/v1/t12/orders/create';
 const HEALTH=BASE+'/health';
@@ -102,6 +103,7 @@ export async function handleT12GeneralCreateRequest(req,env){
       success:schemaReady,
       service:'t12-general-create',
       version:T12_GENERAL_CREATE_VERSION,
+      customerLanePolicyVersion:T12_CUSTOMER_LANE_POLICY_VERSION,
       schemaReady,
       duplicateGuardReady:guardReady,
       customerLaneClaimReady:laneReady,

@@ -716,7 +716,7 @@
   }
 
   function createFailureMessage(body) {
-    var reason = text(body && (body.message || body.reason || body.code));
+    var reason = text(body && (body.reason || body.code || body.message));
     var errors = body && Array.isArray(body.errors) ? body.errors.map(text).filter(Boolean) : [];
     var labels = {
       'registered-customer-name-required': 'اسم العميل المسجل مطلوب.',
@@ -739,7 +739,7 @@
       var blocks = body && Array.isArray(body.blockedDepartments) ? body.blockedDepartments : [];
       return 'لا يمكن إضافة أوردر جديد: العميل لديه أوردر مفتوح في ' +
         blocks.map(function(b){ return text(b.department) + ' رقم ' + text(b.orderId); }).join('، ') +
-        '. يمكن إضافة قسم آخر غير مشغول فقط.';
+        '. لو كان جاهزًا للاستلام فهو يظل مفتوحًا حتى تسجيل التسليم الفعلي. تم عرض الأوردر الموجود للمراجعة.';
     }
     if (reason === 'duplicate-order-window-active') {
       var existingOrderId = text(body && body.existingOrderId);
@@ -871,7 +871,7 @@
     if (['customer-department-open-order-exists','duplicate-order-window-active',
       'canonical-business-intent-invalid',
       'same-key-actor-payload-or-policy-conflict'].includes(reason)) clearPendingCreate(fingerprint);
-    if (body && !body.message) body.message = createFailureMessage(body);
+    if (body && (!body.message || reason === 'customer-department-open-order-exists')) body.message = createFailureMessage(body);
     return body || { success: false, code: 'T12_CREATE_FAILED', message: 'تعذر تسجيل الأوردر الجديد على Cloud.' };
   }
 
