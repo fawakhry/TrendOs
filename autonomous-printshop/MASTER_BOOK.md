@@ -8533,3 +8533,33 @@ SOURCE / CI:
 
 STATUS:
 `AP131_WINDOWS7_SHOP_OWNER_CONFIRMED=YES`; `AP131_HOME_WIN10_LTSB1607_CONFIRMED=YES`; `AP131_DIRECT_WINDOWS7_NETBIRD=REJECTED`; `AP131_GATEWAY_OR_ROUTER_CAPABILITY=UNKNOWN`; `AP131_END_TO_END_REMOTE_WORK_FILES=NOT_CONFIGURED`; `AP131_PRODUCTION_DEPLOY=NO`; `AP131_ACTUAL_SHOP_FOLDERS_READ=NO`; `AP131_PRINTSHOP_FILES_MOVED=NO`; `AP131_D1_WRITES=0`.
+
+
+### AP-132 — Shop Win7 secure gateway/router qualification contract (2026-10-10; SOURCE_ONLY TESTED)
+
+BASELINE / USER GOAL:
+- Continued directly from AP-131 book SHA `776cdb42fc2937cbe62d29bce4771142e183994e`, exact policy CI `38082376496` SUCCESS. Isolated `feature/ap132-secure-shop-gateway-qualification-20261010`. Never interpreted the earlier CI as evidence of real home/shop file connectivity.
+- Preserve Win7 x64 machine, drivers, actual customer originals and work folders. Actual reported workday `D:\print\الشغل\10-2026\Tooday\10-10`; inferred parent `D:\print\الشغل` is **not yet approved** as a share root. Leaf `ديجتال` / `فوتو` existence remains unverified onsite. Home Windows 10 Enterprise 2016 LTSB 1607 build 14393.0 patch state unknown, and its security support ends 2026-10-13 per Microsoft Windows release information.
+- Priority: discover a patched Windows 10/11 or Linux *separate always-on printshop LAN PC* as gateway. If absent, get router **model only**, then qualify vendor-maintained WireGuard support, firewall single-host/port scope and WAN/CGNAT. If unsuitable, consider a supported small Linux gateway; paid subscription or new hardware is not presumed. Never install obsolete NetBird on Windows 7, expose WAN TCP 445/RDP/FTP, enable SMB1, broaden to entire D:, enable Everyone/Guest, auto-mirror all customer files, or overwrite/delete staff originals.
+
+SOURCE / TEST / RUNBOOK:
+1. `autonomous-printshop/core/printshop-gateway-qualification-v1.mjs`: pure fail-closed discovery policy. Exact Win7 shop OS asserted; existing modern gateway -> router -> supported separate Linux hardware. Reject unsafe direct Win7 client/public SMB/RDP/FTP/SMBv1/whole-disk/guest/mirror/overwrite/delete/print-driver or production deployment flags. Candidate statuses are **owner assertions, not network proof**. All real tunnel/SMB/file transfer/config/print/production flags stay FALSE, even for a complete synthetic candidate.
+2. `autonomous-printshop/tests/ap132_gateway_qualification_v1.test.mjs`: isolated synthetic review tests for every discovery branch, modern gateway candidate vs router vs hardware fallback, Win10 LTSB home patch hold, malformed object/getter, no private path/PII echoes, and AP-130 literal `10-2026\Tooday\10-10\ديجتال` relative selector preservation. No host disk reads, passwords, private IPs or physical VPN setup.
+3. `autonomous-printshop/docs/AP132_WIN7_SHOP_GATEWAY_QUALIFICATION_20261010.md`: implementation field procedure and STOP gates before any onsite changes. Onsite owner-reviewed root scope, dedicated non-admin NTFS/share ACL, Win7 SMBv2+, tightly scoped gateway TCP 445 only, authenticated current endpoint, read-first then synthetic no-overwrite upload and SHA-256 parity; authorized negative access test. Printer/WhatsApp proof policies AP-127/128 unchanged.
+4. `.github/workflows/autonomous-printshop-policy-v1-ci.yml`: registers the new AP-132 test; no deploy or database pipeline modifications.
+
+COMMITS / CI:
+- Initial four-file source commit `386846810dde9155f91f4f5f41e3d1bdb6af0475`. Its CI `38084570913` FAILED solely in the new AP-132 TEST fixture: the expected Windows path accidentally represented *double* backslashes, while the actual AP-130 selector correctly returned single Windows separators. No source authorization bypass.
+- Corrected the synthetic expected path literal only, commit `3376876c7b3e4358dfa39d7d3425370b04504b81`.
+- Exact final corrected source GitHub policy CI https://github.com/fawakhry/TrendOs/actions/runs/38084612900 on SHA `3376876c7b3e4358dfa39d7d3425370b04504b81`: **COMPLETED SUCCESS**. This documentation-only master-book commit needs separate exact-SHA CI verification afterward.
+
+STATUS / NEXT:
+- `AP132_GATEWAY_POLICY=SOURCE_ONLY_TESTED`; `AP132_MODERN_SHOP_PC=UNKNOWN`; `AP132_ROUTER_MODEL=UNKNOWN`; `AP132_WIN7_SHARE_ROOT_SCOPE=NOT_VERIFIED`; `AP132_HOME_SECURITY_PATCHES=NOT_VERIFIED`; `AP132_REAL_REMOTE_BROWSE_UPLOAD_DOWNLOAD=NOT_CONFIGURED`; `AP132_TRENDOS_FILE_MANIFEST_LINKING=NOT_IMPLEMENTED`; `AP132_FIRST_REAL_ORDER=BLOCKED_SAFE`.
+- This phase installed nothing, did not modify Win7 settings/driver/ACLs, did not read/write originals, and performed zero D1 writes, real file transfers, auto print, production merges or deployments. CI confirms source contracts only.
+- **NEXT SINGLE OWNER STEP:** Is there a separate supported, patched and always-on Windows 10/11 or Linux machine inside the printshop on the same router/LAN? Yes/no. If no, next ask the router model (without password/serial or customer data); choose technical configuration only after verified hardware and separate owner permission.
+
+VENDOR REFERENCES:
+- https://docs.netbird.io/help/support-matrix/netbird-client/windows
+- https://docs.netbird.io/manage/networks/how-routing-peers-work
+- https://docs.netbird.io/manage/settings/plans-and-billing
+- https://learn.microsoft.com/en-us/windows/release-health/release-information
