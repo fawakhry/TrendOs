@@ -41,7 +41,7 @@ jobs:
           node tests/easystore_a212_dept_line_canary.test.mjs
           node tests/easystore_a212_dept_line_tdz_regression.test.mjs
       - run: npm install --no-save wrangler@${WRANGLER_VERSION}
-      - name: Prove Production remains closed on five-canary baseline
+      - name: Prove current six-canary READONLY baseline; historic A2.12 accepted, no replay
         shell: bash
         run: |
           set -euo pipefail
@@ -71,7 +71,7 @@ jobs:
           const fs=require('fs'),cfg=fs.readFileSync('/tmp/config.js','utf8'),h=JSON.parse(fs.readFileSync('/tmp/health.json','utf8')),x=JSON.parse(fs.readFileSync('/tmp/d1.json','utf8')),rows=[];
           const walk=v=>{if(Array.isArray(v))return v.forEach(walk);if(v&&typeof v==='object'){if(v.materials!==undefined)rows.push(v);Object.values(v).forEach(walk)}};walk(x);
           if(rows.length!==1)throw Error('count parse');const r=rows[0];
-          const exp={materials:1,templates:1,parties:1,partyBalances:1,waste:1,deptLines:0,requestLedger:5,events:5,stockMoves:0,partyLedger:0,cashbox:0,purchases:0,dailyPurchases:0,finalInvoices:0,custodyEvents:0,custodyCloses:0,dayCloses:0};
+          const exp={materials:1,templates:1,parties:1,partyBalances:1,waste:1,deptLines:1,requestLedger:6,events:6,stockMoves:0,partyLedger:0,cashbox:0,purchases:0,dailyPurchases:0,finalInvoices:0,custodyEvents:0,custodyCloses:0,dayCloses:0};
           if(!/EASYSTORE_ACCOUNTING_D1_WRITE_MODE\s*=\s*'OFF'/.test(cfg))throw Error('frontend not OFF');
           if(!/EASYSTORE_ACCOUNTING_D1_WRITE_CANARY_ACTIONS\s*=\s*\[\]/.test(cfg))throw Error('frontend actions not empty');
           if(h.mode!=='READONLY'||h.authoritativeWrites!==false)throw Error('backend not READONLY');
@@ -79,14 +79,12 @@ jobs:
           if(Number(h.googleBusinessCalls||0)!==0)throw Error('google calls');
           for(const [k,v] of Object.entries(exp))if(Number(r[k]||0)!==v)throw Error(k+'='+r[k]);
           console.log('A212_DEPT_LINE_QUALIFICATION=PASS');
-          console.log('CANDIDATE_ACTION=saveAccountingDeptLine');
-          console.log('SYNTHETIC_VALUE=0');
-          console.log('EXPECTED_DEPT_LINES=0_TO_1');
-          console.log('EXPECTED_REQUEST_LEDGER=5_TO_6');
-          console.log('EXPECTED_EVENTS=5_TO_6');
-          console.log('EXPECTED_STOCK_MOVES=0');
-          console.log('EXPECTED_PARTY_LEDGER=0');
-          console.log('EXPECTED_CASHBOX=0');
+          console.log('A212_HISTORICAL_CANARY=ALREADY_COMPLETED_NO_REPLAY');
+          console.log('A212_SIX_CANARY_READONLY_BASELINE=PASS');
+          console.log('CURRENT_WASTE=1');
+          console.log('CURRENT_DEPT_LINES=1');
+          console.log('CURRENT_REQUEST_LEDGER=6');
+          console.log('CURRENT_EVENTS=6');
           console.log('FRONTEND_MODE=OFF');
           console.log('BACKEND_MODE=READONLY');
           console.log('GENERAL_OPENED=NO');
