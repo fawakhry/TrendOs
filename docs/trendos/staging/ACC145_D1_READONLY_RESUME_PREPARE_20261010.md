@@ -112,3 +112,11 @@ Status: PREPARED; verify this record before repository-only addition.
 - Targeted code commit `a9048e45f145403db32fddad0d533d4b6d1b3c5d`: `app.js` adds a single nonce-bound early guard in `readSso()`, drops cached session for fresh TrendOS popup, and awaits verified message; no changes to D1 financial write policy or APIs.
 - Preflight for next repo-only change: extend `.github/workflows/easystore-cloud-safety-ci.yml` by one explicit `node tests/easystore_sso_fresh_handoff.test.mjs` step on PR. Existing tests must remain intact.
 - Expected: draft PR against EasyStore main, run PR CI and verify new guard plus old cloud safety tests, without merging to main or deploying. If CI fails, diagnose and update only isolated branch.
+
+## ACC-148 / Step 03 — CI failure diagnosis and next exact change
+- EasyStore draft PR #23: https://github.com/fawakhry/EasyStore/pull/23; source commit `a9048e45f145403db32fddad0d533d4b6d1b3c5d`, CI wiring commit `459d73f9837a21b81dff8f9b3306a960b23bbf3d`.
+- PR CI run 38047541495 failed only the **additional historical** `tests/entry619_d1_readonly_sso.test.js`; syntax, current write-routing, platform-connection, and new fresh handoff all PASSED.
+- Actual failure: historical Entry619 asserts a three-action `D1_ACCOUNTING_READ_ACTIONS` list; EasyStore current main deliberately has a broader (11-action) D1 read set and newer routing. The old test is historical and should not be relabelled as current production assurance.
+- Exact safe correction: remove *only* the historical Entry619 test step just appended to the PR safety workflow. Keep the fresh handoff test and existing cloud safety tests. Do not edit legacy tests to hide original contract, do not change app.js or financial config.
+- Expected result: rerun PR CI and classify from actual logs; no production impact.
+Status: PREPARED, separate CI edit pending.
