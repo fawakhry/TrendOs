@@ -234,3 +234,17 @@ Status PREPARED.
 - Existing closed write modes, finance APIs, D1 schema and TrendOS production unchanged. No credentials in repository or log. Run PR Cloud Safety; diagnose FAIL before any release. **No automatic merge or deployment**.
 - This remains source-level confirmation; live Diaa smoke still required before declaring SSO release ready.
 Status: PREPARED / code pending.
+
+## ACC-154 / VERIFIED (2026-10-10) — staged browser SSO defense
+- EasyStore PR #23 isolated source updates: `app.js` commit `988a74efdddb8843761e8646ab47cb5ca5d574cd` and test + CI commit `ce332dfec4a084ae89b4527ff19cc1a26d0b566f`. No merge and no deploy.
+- New synthetic `tests/easystore_sso_opener_role_replay.test.mjs` checks: missing opener, mismatched event.source, unapproved origin, wrong nonce, expired/future issuedAt rejected; valid one-time SSO recomputes admin screen, scope, tab shell, ACK and schedule; replay cannot change token.
+- Existing `tests/easystore_sso_fresh_handoff.test.mjs` and finance closed-write tests retained.
+- CI [run 38048937400](https://github.com/fawakhry/EasyStore/actions/runs/38048937400) **SUCCESS**: every job step succeeded including new opener/replay/role test. App source readback blob `dbceec54e14b013669cfbe52e79eb22d4ec6aa34`, new test blob `31fb3d521dbed9b6ffb4b112d5f035e2f1d6d1cb`.
+- This is an offline/browser-message fixture, NOT a real Diaa session smoke. Production EasyStore still serves the old app. Financial mode unchanged `OFF`/`READONLY`.
+- State: **TESTED IN DRAFT / LIVE RELEASE NOT AUTHORIZED**.
+
+## ACC-155 / PREPARE — backend fail-closed unauthenticated write checks
+- Source read: `cloudflare-d1/src/employee-accounting-native-v1.mjs` on Accounting candidate branch imports `verifyEmployeeSessionCloudFirst`, and `handleEmployeeAccountingNativeRequest` requires POST, checks control `READONLY` and disallows any action not in READ_ACTIONS *before* verifying identity. Read actions call `authenticate` and require employee username and Bearer token; unknown/unapproved origins are rejected.
+- Proposed isolated repo-only runtime unit test `tests/easystore_acc155_backend_readonly_boundary.test.mjs`: invoke exported handler with **fully mocked database**, no Cloudflare credentials, verify synthetic financial POST gets 503 and 0 writes; unauthenticated read POST 401, untrusted origin 403, no request reaches DB mutations or legacy Apps Script. No live API call or credential.
+- One isolated branch-only workflow `.github/workflows/easystore-acc155-backend-readonly-contract.yml`, checkout exact commit, Node 22 test. Observe run and logs; no production config or source changes.
+- If mock cannot run due to import topology, record failure and resolve test environment, not alter authority policy.
