@@ -7,6 +7,16 @@ on:
       - 'scripts/t12_postdeploy_lane_monitor_aggregate.mjs'
       - '.github/workflows/trendos-t12-postdeploy-lane-monitor-readonly.yml'
   workflow_dispatch:
+    inputs:
+      diagnostic_salt:
+        type: string
+        default: ''
+      diagnostic_name_digest:
+        type: string
+        default: ''
+      diagnostic_phone_digest:
+        type: string
+        default: ''
 permissions:
   contents: read
 jobs:
@@ -16,6 +26,9 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DIAGNOSTIC_SALT: ${{ inputs.diagnostic_salt }}
+      DIAGNOSTIC_NAME_DIGEST: ${{ inputs.diagnostic_name_digest }}
+      DIAGNOSTIC_PHONE_DIGEST: ${{ inputs.diagnostic_phone_digest }}
     steps:
       - uses: actions/checkout@v4
         with:
