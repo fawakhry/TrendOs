@@ -218,3 +218,10 @@ Status PREPARED.
 - On isolated branch only, append an ACC151–152 follow-up into `TrendOS_MASTER_BOOK.md`. Existing book contents and accounting ACC145–150 entry preserved. Explicitly note 21 accounting tabs bounded-empty but 247 customer, 222 order and 250 order-line nonempty historical Operations rows, and that grid row allocations do not equal transactions.
 - Point to ACC152 JSON and CI run; label parity and general financial writes BLOCKED.
 - Verify book readback and preserve stronger T12/AP book on other branches. No deployment/financial write.
+
+## ACC-153 / Step 01 — VERIFIED DOCUMENTED HANDOFF
+- Appended `Accounting ACC-151–153` to `TrendOS_MASTER_BOOK.md` only on audit branch, commit `155357bbb0ad924bb54ca2789c2e74512186166b`.
+- Independently read back canonical master blob `a08552cf3eaf833f67e87167b7517a7cb5d125a2`; both ACC145–150 and ACC151–153 paragraphs present with run/evidence links.
+- Manifest re-read and parsed, Git blob `d27336f13dae43c994f0b3c8233532b84b545865`; ACC152 CI 38048340853 completed SUCCESS. EasyStore PR #23 and TrendOS PR #39 are both DRAFT/not merged.
+- Result **DOC_COMMITTED_VERIFIED / NO_PRODUCTION_MUTATION**.
+- **Next mandatory non-automatic gate:** owner-approved controlled frontend-only release of EasyStore PR #23 after review, followed by authenticated human browser smoke; separate finance-source/target parity and A2.13 authorization before financial writes. No other self-authorized Production step is justified.
