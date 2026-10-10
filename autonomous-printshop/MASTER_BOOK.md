@@ -7406,3 +7406,18 @@ Actions: screenshot inspected without Cloudflare mutation; requested that owner 
 Gate status: `WORKER_ACCESS_CONFIGURATION=NOT_APPLIED_OR_VERIFIED`; `OWNER_AUTH_POLICY=NOT_SELECTED_IN_MODAL`; `OWNER_CONSOLE_ACCESS_GATE=FAILED`; `CLOUDFLARE_PRODUCTION_CHANGE=NO`; `MC-02=PARTIAL`; `MC-23=PARTIAL`. The candidate auto-deployment branch remains untouched.
 
 Next safe gate: review available policy options and existing authorized owner identity flow; prepare a specific All-traffic owner-only perimeter change with a valid authenticated postdeploy check and rollback BEFORE requesting explicit production approval. Do not activate unreviewed policy or bypass safeguards.
+
+
+### AP-089 — Owner Cloudflare Access policy dropdown read-only review (2026-10-10)
+
+Provenance: owner-supplied screenshot of production `autonomous-printshop-dashboard` > Access > Manage Worker access > Authentication policy dropdown. This is a non-applied configuration view, not a verified deployed access rule.
+
+- Scope remains `Previews only` in the modal; `All traffic` is offered but not selected or applied. Authentication policy dropdown was expanded but no policy is visibly committed to the selection field.
+- Available preconfigured options shown: `Cloudflare account` ("Only members of this Cloudflare account can reach this Worker") and `Email domain` ("Anyone with a verified address from your domain can sign in"). Existing reusable Access policy shown: `Cloudflare account members`, decision `Allow`, used by 1 app.
+- `Email domain` is broader than an explicitly enumerated owner allowlist and is not selected. Neither `Cloudflare account` nor the existing `Cloudflare account members` policy can be called owner-only until actual account membership is inspected. Cloudflare official docs explicitly note multiple selected Allow policies can expand the set of allowed identities (logical OR).
+- Current Cloudflare account membership/role and actual existing Access policy rules have NOT been inspected; do not infer that the account has a single owner. Do not expose owner email addresses or user identifiers in chat or the master book. The next read-only question is whether the account has only one member; the owner can check `Manage Account > Members` without modifying a member.
+- Existing unmodified dashboard Production workflow issues anonymous `/health`, `/state`, `/` GETs. No Worker-wide All traffic Access activation until an authorized verification mechanism and tested rollback procedure are prepared and separately approved.
+- No `Apply Access` press evidenced; no Cloudflare access policies, roles, secrets, storage, operational/financial data, paid resources, or Production Worker deployments changed here.
+
+AP-089 gate: `POLICY_OPTIONS=UI_VERIFIED`; `OWNER_ONLY_QUALIFICATION=BLOCKED_ACCOUNT_MEMBERSHIP_UNKNOWN`; `WORKER_LEVEL_ACCESS=NOT_APPLIED`; `OWNER_CONSOLE_ACCESS_GATE=FAILED`; `PRODUCTION_MUTATION=NO`; `MC-02=PARTIAL`; `MC-23=PARTIAL`.
+Next: obtain only non-sensitive **member count** (and whether the intended owner is the sole member), select the narrowest adequate policy based on that evidence, review automated release verification compatibility, then submit exact Production change order for human approval. Do not alter Access from this screenshot.
