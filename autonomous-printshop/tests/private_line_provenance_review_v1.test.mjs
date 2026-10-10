@@ -58,6 +58,12 @@ assert.equal(audit([{...machine,evidence:{machineId:'M',observationSource:'SENSO
 const expired={...materialA,state:'BLOCKED',
   observedAtMs:now-500,expiresAtMs:now-1};
 assert.equal(audit([materialA,expired]).statusByKind.MATERIAL,'LATEST_EVIDENCE_EXPIRED');
+assert.equal(audit([materialA,{...materialA,state:'BLOCKED'}]).statusByKind.MATERIAL,
+  'AMBIGUOUS_LATEST_EVIDENCE');
+assert.equal(audit([{...materialA,state:'BLOCKED'},materialA]).statusByKind.MATERIAL,
+  'AMBIGUOUS_LATEST_EVIDENCE');
+assert.equal(audit([{...design,evidence:{...design.evidence,preflightResult:undefined}}])
+  .statusByKind.DESIGN,'DESIGN_BINDING_OR_PREFLIGHT_UNVERIFIED');
 assert.equal(audit([materialA,{...expired,observedAtMs:now+1,expiresAtMs:now+1000}])
   .statusByKind.MATERIAL,'FUTURE_OBSERVATION');
 assert.equal(audit([materialA,{...expired,observedAtMs:'malformed'}])
