@@ -1,0 +1,36 @@
+name: ACC-175 Explicit Finance Grants V1 Offline Tests
+on:
+  push:
+    branches:
+      - feat/acc175-strict-authenticated-finance-grants-20261010
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'tests/easystore_acc175_approved_finance_grants.test.mjs'
+      - '.github/workflows/easystore-acc175-explicit-finance-grants.yml'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-trusted-roster-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static parse and executable verified-session policy negatives
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --check tests/easystore_acc175_approved_finance_grants.test.mjs
+          node tests/easystore_acc175_approved_finance_grants.test.mjs
+      - name: Preserve explicit owner release gate
+        run: |
+          echo 'ACC-175 is a server opt-in codepath only. No account roster or env flag configured.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No Cloudflare Worker deployment, staff role/grant edit, financial POST or D1 mutation.' >> "$GITHUB_STEP_SUMMARY"
