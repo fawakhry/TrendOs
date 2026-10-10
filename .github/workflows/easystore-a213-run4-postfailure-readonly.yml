@@ -1,0 +1,109 @@
+name: A2.13 Run 4 Postfailure D1 Readonly Closure
+
+on:
+  push:
+    branches:
+      - audit/a213-run4-readonly-closeout-20261010
+    paths:
+      - '.github/workflows/easystore-a213-run4-postfailure-readonly.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Wrangler for SELECT-only D1 access
+        run: npm install --no-save wrangler@4.33.2
+      - name: Read exact run-4 accounting closure facts, no finance writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 2 --max-time 30 "https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/accounting/health?run4Audit=$GITHUB_RUN_ID" -o /tmp/a213-run4-health.json
+          curl -fsSL --retry 2 --max-time 30 "https://fawakhry.github.io/EasyStore/config.js?run4Audit=$GITHUB_RUN_ID" -o /tmp/a213-run4-liveconfig.js
+          cat >/tmp/a213-run4-reads.sql <<'SQL'
+          SELECT
+            (SELECT COUNT(*) FROM employee_accounting_materials_v1) AS materials,
+            (SELECT COUNT(*) FROM employee_accounting_templates_v1) AS templates,
+            (SELECT COUNT(*) FROM employee_accounting_parties_v1) AS parties,
+            (SELECT COUNT(*) FROM employee_accounting_party_balances_v1) AS partyBalances,
+            (SELECT COUNT(*) FROM employee_accounting_waste_v1) AS waste,
+            (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1) AS deptLines,
+            (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1) AS custodyCloses,
+            (SELECT COUNT(*) FROM employee_accounting_custody_events_v1) AS custodyEvents,
+            (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1) AS requestLedger,
+            (SELECT COUNT(*) FROM employee_accounting_events_v1) AS events,
+            (SELECT COUNT(*) FROM employee_accounting_stock_moves_v1) AS stockMoves,
+            (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1) AS partyLedger,
+            (SELECT COUNT(*) FROM employee_accounting_cashbox_v1) AS cashbox,
+            (SELECT COUNT(*) FROM employee_accounting_purchase_invoices_v1) AS purchases,
+            (SELECT COUNT(*) FROM employee_accounting_daily_purchases_v1) AS dailyPurchases,
+            (SELECT COUNT(*) FROM employee_accounting_final_invoices_v1) AS finalInvoices,
+            (SELECT COUNT(*) FROM employee_accounting_day_closes_v1) AS dayCloses;
+          SELECT
+            (SELECT COUNT(*) FROM employee_accounting_request_ledger_v1 WHERE request_key LIKE 'A213-CCLOSE-%') AS a213Requests,
+            (SELECT COUNT(*) FROM employee_accounting_events_v1 WHERE request_key LIKE 'A213-CCLOSE-%') AS a213Events,
+            (SELECT COUNT(*) FROM employee_accounting_custody_closes_v1 WHERE request_key LIKE 'A213-CCLOSE-%') AS a213Closes,
+            (SELECT COUNT(*) FROM employee_accounting_stock_moves_v1 WHERE request_key LIKE 'A213-CCLOSE-%') AS a213StockMoves,
+            (SELECT COUNT(*) FROM employee_accounting_cashbox_v1 WHERE request_key LIKE 'A213-CCLOSE-%') AS a213Cashbox,
+            (SELECT COUNT(*) FROM employee_accounting_party_ledger_v1 WHERE request_key LIKE 'A213-CCLOSE-%') AS a213PartyLedger;
+          SELECT mode, policy_epoch AS policyEpoch FROM employee_accounting_control_v1 WHERE singleton=1;
+          SELECT enabled, max_amount AS maxAmount, max_commands AS maxCommands,
+                 commands_started AS commandsStarted, expires_at_ms AS expiresAtMs,
+                 allowed_usernames_json AS users, allowed_actions_json AS actions
+            FROM employee_accounting_write_canary_v1 WHERE singleton=1;
+          SQL
+          # Explicit SELECT-only query; do not output identities or row-level finance data.
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "$(cat /tmp/a213-run4-reads.sql)" > /tmp/a213-run4-results.json
+          node <<'NODE'
+          const fs=require('node:fs'),assert=require('node:assert/strict');
+          const h=JSON.parse(fs.readFileSync('/tmp/a213-run4-health.json','utf8'));
+          const cfg=fs.readFileSync('/tmp/a213-run4-liveconfig.js','utf8');
+          const all=JSON.parse(fs.readFileSync('/tmp/a213-run4-results.json','utf8'));
+          const groups=[];
+          function visit(v){if(Array.isArray(v)){for(const x of v)visit(x);return;}
+            if(v && typeof v==='object'){if(Array.isArray(v.results))groups.push(v.results);
+              for(const [k,x] of Object.entries(v)){if(k!=='results')visit(x);}}
+          }visit(all);
+          const rows=groups.flat();
+          const counts=rows.find(x=>x.materials!==undefined);
+          const a213=rows.find(x=>x.a213Requests!==undefined);
+          const ctrl=rows.find(x=>x.policyEpoch!==undefined);
+          const budget=rows.find(x=>x.commandsStarted!==undefined);
+          assert.ok(counts && a213 && ctrl && budget,'all SELECT groups required');
+          const baseline={materials:1,templates:1,parties:1,partyBalances:1,waste:1,deptLines:1,
+            custodyCloses:0,custodyEvents:0,requestLedger:6,events:6,stockMoves:0,
+            partyLedger:0,cashbox:0,purchases:0,dailyPurchases:0,finalInvoices:0,dayCloses:0};
+          const baselinePass=Object.entries(baseline).every(([k,v])=>Number(counts[k])===v);
+          const noA213=Object.entries(a213).every(([k,v])=>Number(v)===0);
+          const serverOff=h.success===true && h.mode==='READONLY' && h.authoritativeWrites===false &&
+            Number(h.writeCanaryMaxCommands||0)===0 &&
+            Number(h.writeCanaryCommandsStarted||0)===0 &&
+            Number(h.writeCanaryAllowedUserCount||0)===0 &&
+            Number(h.writeCanaryAllowedActionCount||0)===0 &&
+            ctrl.mode==='READONLY' && Number(budget.maxCommands||0)===0 &&
+            Number(budget.commandsStarted||0)===0;
+          const frontendOff=/EASYSTORE_ACCOUNTING_D1_WRITE_MODE\s*=\s*'OFF'/.test(cfg) &&
+            /EASYSTORE_ACCOUNTING_D1_WRITE_CANARY_ACTIONS\s*=\s*\[\]/.test(cfg) &&
+            /EASYSTORE_ACCOUNTING_D1_WRITES\s*=\s*false/.test(cfg);
+          console.log('A213_RUN4_BASELINE_COUNTS='+JSON.stringify(counts));
+          console.log('A213_RUN4_A213_RECORD_COUNTS='+JSON.stringify(a213));
+          console.log('A213_RUN4_BASELINE_INTACT='+(baselinePass?'PASS':'RECONCILE'));
+          console.log('A213_RUN4_NO_CUSTODY_REQUEST_EVENT_CLOSE='+(noA213?'PASS':'RECONCILE'));
+          console.log('A213_RUN4_D1_READONLY_CLOSED='+(serverOff?'PASS':'RECONCILE'));
+          console.log('A213_RUN4_PUBLIC_FRONTEND_OFF='+(frontendOff?'PASS':'RECONCILE'));
+          console.log('A213_RUN4_NO_NEW_FINANCIAL_WRITE=YES');
+          assert.ok(baselinePass && noA213 && serverOff && frontendOff,
+            'read-only evidence requires reconciliation; DO NOT RETRY A2.13');
+          NODE
