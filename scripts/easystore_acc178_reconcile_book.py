@@ -50,7 +50,8 @@ def reconcile(base: bytes, accounting: bytes, shared: bytes):
         "reconciliation receipt. This isolated Git merge is NOT a deployed "
         "Worker or accepted financial release.\n\n"
     ).encode("utf-8")
-    if section in shared or section in accounting:
+    marker = b"## ACC-178 " + "— Accounting branch append-only history, safely reconciled".encode("utf-8")
+    if marker in shared or marker in accounting:
         raise ReconciliationBlocked("ACC178_RECONCILIATION_MARKER_ALREADY_PRESENT")
     combined = shared + section + delta
     assert combined.startswith(shared)
