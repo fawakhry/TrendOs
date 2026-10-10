@@ -1,0 +1,53 @@
+name: ACC-162 A2.13 Published UI Boot Readonly Gate
+
+on:
+  push:
+    branches:
+      - fix/a213-prearm-live-ui-bootstrap-20261010
+    paths:
+      - 'tests/easystore_a213_published_boot_gate.test.mjs'
+      - '.github/workflows/easystore-a213-published-boot-readonly.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  boot-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: GET deployed EasyStore JS and config; no credentials or POST
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 2 --max-time 35 "https://fawakhry.github.io/EasyStore/app.js?acc162=$GITHUB_RUN_ID" -o /tmp/easystore-live-app.js
+          curl -fsSL --retry 2 --max-time 35 "https://fawakhry.github.io/EasyStore/config.js?acc162=$GITHUB_RUN_ID" -o /tmp/easystore-live-config.js
+          curl -fsSL --retry 2 --max-time 35 "https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/accounting/health?acc162=$GITHUB_RUN_ID" -o /tmp/acc162-health.json
+      - name: Browser VM boot - published OFF and synthetic CANARY
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check /tmp/easystore-live-app.js
+          node tests/easystore_a213_published_boot_gate.test.mjs /tmp/easystore-live-config.js /tmp/easystore-live-app.js --expect-off
+          node tests/easystore_a213_published_boot_gate.test.mjs /tmp/easystore-live-config.js /tmp/easystore-live-app.js --simulate-canary
+          node tests/easystore_a213_custody_close_workflow_invariants.test.mjs
+          node tests/easystore_a213_timeout_monitor_regression.test.mjs
+          node <<'NODE'
+          const fs=require('node:fs'),assert=require('node:assert/strict');
+          const h=JSON.parse(fs.readFileSync('/tmp/acc162-health.json','utf8'));
+          assert.equal(h.success,true);
+          assert.equal(h.mode,'READONLY');
+          assert.equal(h.authoritativeWrites,false);
+          assert.equal(Number(h.writeCanaryMaxCommands||0),0);
+          assert.equal(Number(h.writeCanaryCommandsStarted||0),0);
+          assert.equal(Number(h.writeCanaryAllowedUserCount||0),0);
+          assert.equal(Number(h.writeCanaryAllowedActionCount||0),0);
+          console.log('ACC162_LIVE_D1_READONLY_ZERO_BUDGET=PASS');
+          console.log('ACC162_FINANCIAL_WRITES=ZERO');
+          NODE
