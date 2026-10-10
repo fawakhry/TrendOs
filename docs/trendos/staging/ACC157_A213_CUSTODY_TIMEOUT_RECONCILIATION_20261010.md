@@ -22,3 +22,8 @@ Isolation: `fix/a213-custody-monitor-settlement-20261010`. Scope: REPO-ONLY chan
 - No customer/supplier/employee credentials or financial payloads in these records.
 
 PREPARE=RECORDED; TEST/VERIFY=PENDING.
+
+## ACC-157 / Step 02 — PREPARE synthetic D1 custody-close request after budget reservation
+- The timeout monitor test alone cannot determine why the reserved A2.13 command left zero business-ledger records. Review the canonical **exact** frontend payload shape and native backend handler (same accounting candidate): synthetic action `closePurchaseCustodyV1920` has zero amount, a synthetic 2099 date, and server-side authorization.
+- Next safe action is an **in-memory mocked database** functional API probe using the production-source handler in Node VM. Simulate a single permitted one-command `CANARY`, verify authorization, budget reserve, request ledger, custody-close event/record/commit batch and *no* cashbox/stock/custody settlement writes. Also verify READONLY path blocks command.
+- No network, credentials, actual D1, or automatic CANARY execution; only mock SQL statement routing. This is a logic test, not proof of deployed worker behavior. If it fails, investigate exact source before touching live data.
