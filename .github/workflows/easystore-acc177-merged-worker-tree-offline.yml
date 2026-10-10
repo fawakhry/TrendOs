@@ -38,7 +38,8 @@ jobs:
           set -euo pipefail
           node --check scripts/acc177_finance_worker_merged_tree_receipt.mjs
           node tests/easystore_acc177_merge_tree_rehearsal.test.mjs
-      - name: Pin exact current shared head, check collision set and merge in isolated worktree
+      - name: Pin exact shared head and classify existing production deploy collision
+        id: collision
         shell: bash
         run: |
           set -euo pipefail
@@ -51,30 +52,49 @@ jobs:
           git diff --name-only "$BASE_SHA" "$ACCOUNTING_SHA" | LC_ALL=C sort > "$RUNNER_TEMP/acc177-accounting-files.txt"
           git diff --name-only "$BASE_SHA" "$SHARED_SHA" | LC_ALL=C sort > "$RUNNER_TEMP/acc177-shared-files.txt"
           comm -12 "$RUNNER_TEMP/acc177-accounting-files.txt" "$RUNNER_TEMP/acc177-shared-files.txt" > "$RUNNER_TEMP/acc177-overlap.txt"
+          echo "ACC177_ACCOUNTING_SHA=$ACCOUNTING_SHA" >> "$GITHUB_ENV"
+          echo "ACC177_SHARED_SHA=$SHARED_SHA" >> "$GITHUB_ENV"
           python3 - <<'PY'
           from pathlib import Path
+          import os
           allowed={
             '.github/workflows/easystore-a2-accounting-readonly-api-deploy.yml',
             '.github/workflows/easystore-a2-sync-shared-base.yml'
           }
-          overlaps=set(Path(__import__('os').environ['RUNNER_TEMP']+'/acc177-overlap.txt').read_text().splitlines())
+          overlaps=set(Path(os.environ['RUNNER_TEMP']+'/acc177-overlap.txt').read_text().splitlines())
           unsafe=sorted(overlaps-allowed)
           print('ACC177_SHARED_ACCOUNTING_OVERLAP='+(','.join(sorted(overlaps)) or 'NONE'))
+          status='BLOCKED' if unsafe else 'NONE'
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:
+              f.write('status='+status+'\n')
           if unsafe:
-            raise SystemExit('ACC177_RELEASE_MERGE_SOURCE_OVERLAP_BLOCKED='+','.join(unsafe))
+              print('ACC177_EXISTING_RELEASE_GUARD=BLOCKED_BY_'+','.join(unsafe))
+              print('ACC177_SAFE_HALT_WITH_NO_DEPLOYMENT=YES')
           PY
+      - name: Document unsafe shared source overlap without making a misleading merged tree
+        if: steps.collision.outputs.status == 'BLOCKED'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show "$ACC177_SHARED_SHA:cloudflare-d1/src/employee-accounting-native-v1.mjs" > "$RUNNER_TEMP/acc177-shared-accounting.mjs"
+          node scripts/acc177_finance_worker_merged_tree_receipt.mjs --blocked "$ACC177_ACCOUNTING_SHA" "$ACC177_SHARED_SHA" "$RUNNER_TEMP/acc177-overlap.txt" cloudflare-d1/src/employee-accounting-native-v1.mjs "$RUNNER_TEMP/acc177-shared-accounting.mjs" artifacts/acc177-offline-merge-receipt.json
+          echo 'ACC177_MERGED_WORKTREE_NOT_CREATED=BLOCKED_CORRECTLY'
+      - name: Simulate actual merge only if old production overlap guard allows it
+        if: steps.collision.outputs.status == 'NONE'
+        shell: bash
+        run: |
+          set -euo pipefail
           TREE_DIR="$RUNNER_TEMP/acc177-merged-worker"
-          git worktree add --detach "$TREE_DIR" "$ACCOUNTING_SHA"
-          git -C "$TREE_DIR" -c user.name='ACC177 Nonproduction Rehearsal' -c user.email='acc177@example.invalid' merge --no-commit --no-ff --no-edit "$SHARED_SHA"
+          git worktree add --detach "$TREE_DIR" "$ACC177_ACCOUNTING_SHA"
+          git -C "$TREE_DIR" -c user.name='ACC177 Nonproduction Rehearsal' -c user.email='acc177@example.invalid' merge --no-commit --no-ff --no-edit "$ACC177_SHARED_SHA"
           git -C "$TREE_DIR" diff --cached --check
           MERGED_TREE_SHA="$(git -C "$TREE_DIR" write-tree)"
-          echo "ACC177_ACCOUNTING_SHA=$ACCOUNTING_SHA" >> "$GITHUB_ENV"
-          echo "ACC177_SHARED_SHA=$SHARED_SHA" >> "$GITHUB_ENV"
           echo "ACC177_MERGED_TREE_SHA=$MERGED_TREE_SHA" >> "$GITHUB_ENV"
           echo "ACC177_MERGED_DIR=$TREE_DIR" >> "$GITHUB_ENV"
           echo 'ACC177_MERGE_EXECUTION=OFFLINE_LOCAL_ONLY'
           echo 'ACC177_DEPLOYMENT=NOT_EXECUTED'
       - name: Execute authentic Worker finance tests on the merged tree, not just original branch
+        if: steps.collision.outputs.status == 'NONE'
         shell: bash
         run: |
           set -euo pipefail
@@ -86,6 +106,7 @@ jobs:
           node tests/easystore_acc175_approved_finance_grants.test.mjs
           echo 'ACC177_MERGED_REAL_WORKER_FINANCE_TESTS=PASS'
       - name: Emit reviewed-source fingerprint for rehearsal ONLY
+        if: steps.collision.outputs.status == 'NONE'
         shell: bash
         run: |
           set -euo pipefail
@@ -100,6 +121,14 @@ jobs:
             echo 'NO_GO: No immutable approved release pin, database backup restoration, real rollback or finance signoff.'
             echo 'No production deployment, finance POST, remote D1 SQL, Cloudflare credentials or staff role changes.'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Confirm either safe-halt or merged rehearsal stays NO-GO
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const x=require('./artifacts/acc177-offline-merge-receipt.json'); if(x.release_decision!=='NO_GO'||x.production_deploy_executed!==false||x.financial_http_post_executed!==false||x.d1_production_dml_executed!==false)process.exit(1); if(x.existing_legacy_deploy_guard==='BLOCKED_BY_UNAPPROVED_OVERLAP'&&x.merged_tree_created!==false)process.exit(1)"
+          echo 'ACC177_RELEASE_DECISION=NO_GO'
+          echo 'ACC177_PRODUCTION_MUTATIONS=ZERO'
+          echo 'This receipt records an exact dry-run git merge OR a fail-closed forbidden overlap. Neither authorizes finance production deployment.' >> "$GITHUB_STEP_SUMMARY"
       - name: Upload non-sensitive offline tree receipt
         uses: actions/upload-artifact@v4
         with:
