@@ -7,7 +7,11 @@ The photos received on WhatsApp, staff-made proofs/designs, collages and print-r
 
 For custom designs, WhatsApp preview and final print file may be different binary exports of one approved artwork revision (AP-127/128); ordinary assemblies/ready-print files do not require customer approval unless client explicitly requests a proof. Remote file transfer **does not constitute artwork approval, verified stock or machine readiness**.
 
-## Recommended no-monthly-fee pilot: NetBird Cloud Free + native Windows authenticated work-folder SMB share
+## HISTORICAL PLAN — NOT APPROVED ON OWNER'S WINDOWS 7 (SUPERSEDED BY AP-131)
+
+> STOP: Owner has confirmed shop Windows 7 x64 and home Windows 10 Enterprise LTSB 2016 (build 14393.0). The instructions below involving installing NetBird on the **shop Windows PC** MUST NOT be followed. Latest NetBird does not support Windows 7. Older v0.25.3 is frozen and NOT security-patched. This historical section is retained for audit and must not be treated as an operational checklist. See AP-131 secure gateway plan below.
+
+### Historical proposal: NetBird Cloud Free directly on Windows devices — REJECTED for Windows 7
 
 Source (checked October 10, 2026):
 - https://netbird.io/pricing : Free plan intended for individuals or small teams; up to 5 users and 100 devices, with encrypted peer-to-peer links and access-control rules. Confirm current plan/service terms at signup; never silently upgrade to a billable tier. This use is a working small printshop, not home/hobby use.
@@ -89,3 +93,39 @@ New source layout mode `MONTH_TOODAY_DAY` converts known ISO date `2026-10-10` t
 3. Confirm `D:\print\الشغل` contains only work intended for owner access (not unrelated protected staff/personal files). Only then configure restricted SMB share from THIS parent across months, over private NetBird network, using a non-admin Windows account and least privilege. If the root contains broader content, share a properly scoped alternative or use a protected file agent; don't widen access silently.
 
 **Security + data semantics:** Keep shop folder original, disable unsolicited mirror sync, never expose TCP 445 to the public router, do not allow guest/Everyone share, test one fake-file transfer in both directions and check no overwrite before touching real orders. Current AP-130 is **SOURCE_ONLY TESTED; actual OS, area subfolders, NetBird, share and transfers NOT VERIFIED**.
+
+
+## AP-131 — Confirmed Windows 7 shop host; route through a CURRENT secure gateway instead (2026-10-10)
+
+### Verified exact device profile
+- PRINTSHOP FILES: Windows 7 x64, owner reported (edition/build unknown), holding authoritative real work files at `D:\print\الشغل\10-2026\Tooday\10-10`.
+- HOME DEVICE: screenshot `winver` says Windows 10 Enterprise 2016 LTSB version 1607, **OS build 14393.0** — an extremely early build. Enterprise 2016 LTSB support ends **October 13, 2026**. Its current patch status is NOT verified and must be checked before permitting privileged production file access. Source: https://learn.microsoft.com/en-us/windows/release-health/release-information .
+- Windows 7 security support ended (2020, with optional ESU ended 2023). Do NOT expose Win7 RDP, SMB, SSH, FTP or old VPN binaries to the public internet. Avoid installing frozen NetBird v0.25.3 on Windows 7: https://docs.netbird.io/help/support-matrix/netbird-client/windows confirms 7/8 only up to v0.25.3 and no security updates for that client.
+
+### Revised preferred architecture: shop stays untouched, gateway is supported and authenticated
+```text
+OWNER modern, supported, patched device (any authorized location)
+    | current secure VPN client + identity/device policy
+    v
+Current supported ROUTER VPN or current PC/Linux gateway INSIDE PRINTSHOP LAN
+    | firewall: only authorized gateway -> Windows 7 LAN IP : TCP 445
+    v
+WINDOWS 7 PRINTSHOP MACHINE: existing work root only
+D:\print\الشغل\<month-year>\Tooday\<day>\ديجتال|فوتو\<customer>
+```
+
+**First choice for no new hardware or subscription:**
+1. If the shop ROUTER already supports actively maintained WireGuard VPN **server** with secure firmware/config and scoped routing to ONE Win7 IP/SMB TCP 445, validate vendor/firmware and configure that router, without opening public SMB/RDP. Note: running a VPN server on the router may entail a VPN listener on the router; it does NOT open Win7 to the internet. Router type, firmware, public reachable IP/NAT and home client must be checked; no presumed router feature or working port forwarding.
+2. Otherwise if **another already-present, reliably powered Windows 10/11 supported-and-patched PC or Linux device** shares the shop LAN, it can be a NetBird routing peer. NetBird's modern Networks/route resources expose only the Win7 LAN IP and SMB TCP 445 to explicit authorized client peer group, NOT the full shop subnet. Modern NetBird supports Windows 10/11 only; confirm actual build/software support. Source: https://docs.netbird.io/manage/networks/how-routing-peers-work and https://netbird.io/knowledge-hub/access-windows-smb-anywhere .
+3. If neither exists, a **small supported Linux gateway** is an option requiring a separate device or a shop system refresh; NO implied free hardware or automatic provisioning. Long-term preferred solution is moving printshop storage/fileserver service to a maintained OS and leaving legacy print devices isolated if needed for drivers.
+4. HOME Windows 10 LTSB 1607 is **close to end of security support** and screenshot build 14393.0 is far behind current 14393 revisions. Check Windows Update history/support entitlement. Don't install a privileged remote-file client or connect live customer shares until home endpoint updates/protection are verified; upgrade to supported OS/device as practical. Windows 7 remains business-continuity legacy, not a trusted internet edge.
+5. If a suitable modern gateway and modern remote client can be established, configure restricted shop Windows 7 **local-network** SMB with dedicated owner non-admin account, both share and NTFS ACL checks, SMBv2 not SMBv1, never anonymous Everyone/Guest. Apply local firewall allow only gateway source LAN IP (deny SMB from other untrusted peers), account protections, no internet port 445 and no public Win7 RDP. Obtain permission before any installation/firewall/ACL modification. Consider extra local protection for Windows 7 because VPN does NOT patch its vulnerabilities.
+6. Owner tests ONE noncustomer dummy file read, then COPY UPLOAD with distinct filename, then hash compare; do not delete/rename/overwrite active staff jobs. Share the real work folder only after checking the true intended root; all customers' originals still on shop PC. A network share is not an off-machine backup.
+
+### AP-131 single owner question before choosing implementation
+**Is there ANOTHER Windows 10/11 (supported and patched) or Linux computer at the PRINTSHOP on the same router/network, capable of staying switched on?** Yes/no. If no, investigate router model/VPN support rather than attempting an unsupported client on Windows 7. Avoid demanding technical settings before this answer.
+
+### Strict status
+- `AP131_WINDOWS7_SHOP=OWNER_CONFIRMED`; `AP131_HOME_LTSB_1607=WINVER_SCREENSHOT_CONFIRMED`; `AP131_UNSAFE_DIRECT_WIN7_NETBIRD=REJECTED`.
+- `AP131_MODERN_SHOP_GATEWAY=NOT_KNOWN`; `AP131_ROUTER_VPN=NOT_KNOWN`; `AP131_HOME_PATCHED_SUPPORTED_CLIENT=NOT_PROVEN`.
+- `AP131_NO_WIN7_NETWORK_EXPOSURE=REQUIRED`; `AP131_PRODUCTION_OS_FILES=UNCHANGED`; `AP131_REMOTE_FILE_ACCESS=NOT_CONFIGURED`.
