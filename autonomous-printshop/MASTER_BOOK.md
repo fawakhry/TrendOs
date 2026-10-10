@@ -8205,3 +8205,25 @@ STATUS / PRODUCTION / MISSING:
 - Production candidate verified again unchanged `7d20cfc463ce084ceaba8ac440dffa53512fe662`; no candidate/Production merge, Cloudflare Worker deploy, D1 read or write, Operator Task activation, financial operation, employee assignment, physical machine action, or paid infrastructure.
 - Operator Task OFF / Autonomy SHADOW remain LAST DOCUMENTED, not rechecked live in this task. Real Owner Console Access and MC-02/MC-23 multi-isolate durable storage remain separate BLOCKED_SAFE/PARTIAL.
 - NEXT: continue source-only tightening of caller-bounded private snapshot evidence normalization and safe failure paths; no repeated D1 count reconciliation while employees operate. Before any authenticated real-line pilot, independently prove same-line DESIGN source SHA/preflight/approval, MATERIAL active stock/consumption, MACHINE physical serial/current operator check and protected access; revalidate current D1 line state atomically under authorized backend before any action.
+
+
+### AP-119 — Owner private line snapshot accessors fail closed before evidence review (2026-10-10; TESTED / SOURCE_ONLY)
+
+AP / OBJECTIVE:
+- AP-119 continues from AP-118 documented commit `46eebd52f4d572bc7202bb3e7f423b82c71feb0b` (source CI `38067560162` SUCCESS; book CI `38067655909` SUCCESS). Branch `feature/ap119-private-snapshot-accessor-failclosed-20261010`; no Production access.
+- Security review exposed a second, upstream path to unhandled exceptions: AP-117 guarded corrupted **evidence-event** inspection but AP-116 directly dereferenced untrusted private snapshot source/row fields and called `rows.filter()` before that guard. A hostile row getter, source envelope property accessor, or array Proxy can throw before the prior evidence-specific catch. This could produce an unhandled error in an eventual Owner host. No specific live data leak observed; source-confirmed defensive exception-hardening requirement.
+
+FILES / IMPLEMENT:
+1. `autonomous-printshop/core/live-line-snapshot-human-review-v1.mjs`: retain all existing fail-closed validations inside private `assessLiveLineSnapshotV1`; export the same `buildLiveLineSnapshotHumanReviewV1` API as an outer guarded wrapper. Any exception during snapshot envelope normalization, selected-line lookup, source access, event inspection or protected analysis returns the static `PRIVATE_SNAPSHOT_INPUT_UNVERIFIED` `BLOCKED_SAFE` response. Never echo exception message/stack, private internal line key, free text, customer or asset source. Valid future-due, caller-attested input still returns `HUMAN_REVIEW_ONLY`, and cannot activate assignment or readiness writes.
+2. `autonomous-printshop/tests/ap119_private_snapshot_accessors_failclosed.test.mjs`: synthetic hostile row `status` or `lineId` getter, source `kind` or `observedAtMs` getter, array Proxy filter or length failure, and null input. Verify fixed denial code, no secret/line-key leakage, no task/ready/Production writes, and good source recovery. No real orders.
+3. `.github/workflows/autonomous-printshop-policy-v1-ci.yml`: add dedicated AP-119 contract step after AP-117; all older CI retained. No Worker entrypoint/config, migration, branch permissions, Cloudflare or source table changes.
+
+COMMITS / CI:
+- Code commit `799d846e1d069b15aace31540f19f93e77bfe9b6`; regression test `92fed73b0d4ac9f9320d926d08e95e5d471972ad`; workflow source HEAD `c616c55862fdcc71f467ddfd3d0b2850f001da3a`.
+- [AP-119 source CI 38067743528](https://github.com/fawakhry/TrendOs/actions/runs/38067743528): **COMPLETED SUCCESS**, 90/90 job steps completed, zero failed, AP-119 malicious snapshot regression SUCCESS. Diff from AP-118 book HEAD exactly three paths above.
+- No real D1 read, line-ID retrieval, customer data, machine/stock proof or production fault injection; testing is deterministic source-only.
+
+STATUS / GATES / NEXT:
+- `AP119_UNTRUSTED_SNAPSHOT_ACCESSORS=TESTED_FAIL_CLOSED`; `AP119_PRIVATE_ERROR_LEAK=NO`; `AP119_CORRUPT_THEN_VALID_RECOVERY=TESTED`; `AP119_OWNER_HOST_INTEGRATION=SOURCE_ONLY`; `AP119_D1_READ_WRITE=NONE`; `AP119_OPERATOR_ASSIGNMENT=OFF`; `AP119_PRODUCTION_DEPLOY=NO`.
+- Production candidate last verified unchanged at `7d20cfc463ce084ceaba8ac440dffa53512fe662`; Operator Task OFF / Autonomy SHADOW are last documented, not refreshed. Owner Access authentication, live source consistency, real same-line DESIGN/MATERIAL/MACHINE authority and MC-02/23 durable storage remain separate BLOCKED_SAFE/PARTIAL gates.
+- This documentation-only commit requires its own exact-SHA GitHub CI check before completion. NEXT: never promote caller-attested snapshots as independently authenticated, continue reviewing atomic backend-before-action boundaries and real trusted-source evidence acquisition on isolated safe branches. Production or protected D1 writes require explicit approval.
