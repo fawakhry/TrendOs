@@ -134,3 +134,12 @@ Status: PREPARED, separate CI edit pending.
 - Next safe continuation is an **offline-only** census of EasyStore accounting action dispatch coverage vs. D1 read/write allowlists and legacy backend fallback, with particular attention to unauthorized action fallthrough and Google-backed business traffic.
 - Verify exact counts/types and label any uncovered action UNKNOWN or LEGACY; do not treat the 11 D1 read actions as full financial cutover.
 - A new test or report may be added to the isolated audit branch after a fresh PREPARE record; no live writes or cloud deployment.
+
+## ACC-149 / Step 01 — PREPARE current EasyStore route classification guard
+- Read-only source review of `fawakhry/EasyStore` main @ `cf03dfe8a38350b5c08e56452f3ab31593fd49b0`: 33 distinct literal `api('action')` calls in app.js; no dynamic `api(variable)` calls found.
+- `D1_ACCOUNTING_READ_ACTIONS` has 11 actions; `A213_ACCOUNTING_WRITE_ACTIONS_FAIL_CLOSED` has 24; `D1_ACCOUNTING_WRITE_ACTIONS` has exactly 1 (bounded custody close), also in fail-closed set.
+- 0 current literal API calls fall outside read or fail-closed sets. In closed frontend mode `EASYSTORE_ACCOUNTING_D1_WRITE_MODE='OFF'` no authorized write action can fall back to Google.
+- Proposed exact action: new isolated GitHub workflow `.github/workflows/easystore-acc149-read-routing-readonly-audit.yml` that GET-fetches the deployed `EasyStore/app.js` and `config.js`, parses action callsets without emitting any employee/accounting data, asserts zero unclassified dynamic/literal actions, exact published read/write set counts, writeMode OFF/READONLY, and no surprise financial fallback. No D1 SQL or authentication.
+- The static census does NOT establish that every Google legacy code path in other products is migrated, nor any financial write readiness.
+- Expected: Actions PASS with counts logged and `PRODUCTION_MUTATION=NO`. A failure is a BLOCKED classification gap; never auto-deploy or enable accounting writes.
+Status: PREPARED.
