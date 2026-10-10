@@ -933,21 +933,32 @@ async function readinessInputs(env){
        WHERE singleton_id=1
        LIMIT 1
     `).first(),
+    // Keep the newest fact per line/kind even if expired. Filtering expiry
+    // before ranking can resurrect an older READY after a newer BLOCKED fact.
+    // Readiness projection validates expiry/clock AFTER the newest fact is read.
     env.DB.prepare(`
-      SELECT evidence_id AS evidenceId,
-             line_id AS lineId,
-             evidence_kind AS evidenceKind,
-             evidence_state AS evidenceState,
-             source_kind AS sourceKind,
-             source_ref AS sourceRef,
-             source_version AS sourceVersion,
-             confidence,
-             observed_at_ms AS observedAtMs,
-             expires_at_ms AS expiresAtMs
-        FROM autonomous_readiness_evidence
-       WHERE expires_at_ms IS NULL OR expires_at_ms>?
-       ORDER BY observed_at_ms DESC
-    `).bind(Date.now()).all()
+      WITH ranked AS (
+        SELECT evidence_id AS evidenceId,
+               line_id AS lineId,
+               evidence_kind AS evidenceKind,
+               evidence_state AS evidenceState,
+               source_kind AS sourceKind,
+               source_ref AS sourceRef,
+               source_version AS sourceVersion,
+               confidence,
+               observed_at_ms AS observedAtMs,
+               expires_at_ms AS expiresAtMs,
+               ROW_NUMBER() OVER (
+                 PARTITION BY line_id,evidence_kind
+                 ORDER BY observed_at_ms DESC,evidence_id DESC
+               ) AS evidenceRank
+          FROM autonomous_readiness_evidence
+      )
+      SELECT evidenceId,lineId,evidenceKind,evidenceState,sourceKind,
+             sourceRef,sourceVersion,confidence,observedAtMs,expiresAtMs
+        FROM ranked
+       WHERE evidenceRank=1
+    `).all()
   ]);
 
   return {
