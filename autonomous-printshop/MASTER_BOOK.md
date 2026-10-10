@@ -7747,3 +7747,32 @@ Next:
 1. Keep `trendos` build commands/root untouched until its actual target Worker and binding parity are established. No Retry build/Deploy/Preview Setup.
 2. For a safe current D1 inventory, navigate authenticated Cloudflare Dashboard → Storage & databases → D1 → owner-confirmed `trendos-main` database → Console and review **aggregate read-only** AP-099 SQL without ever sharing query output containing raw order/line IDs or PII; if any source/table missing, block rather than infer zero. Owner approval needed for execution against live DB.
 3. Investigate unrelated Worker `trendos-tasks-v3-t1-preview-20260914` branch build separately if still firing; do not conflate with `trendos` preview toggle.
+
+
+### AP-102 — Cloudflare D1 owner Console actual bounded counts; readiness evidence table EMPTY (2026-10-10, OWNER VERIFIED LIVE SCREENSHOT)
+
+READ / PROVENANCE:
+- Owner navigated authenticated Cloudflare Dashboard → Storage & databases → D1 → `trendos-main` → Console and ran one assistant-provided **SELECT-only** query. Owner provided the console result screenshot; no SQL script, API token, Cloudflare secret, screenshot bytes or customer identifiers were committed. D1 database name and ID matched existing `autonomous-printshop/production-shadow/wrangler.toml` D1 binding. This is a **VERIFIED OWNER-CONSOLE SOURCE OBSERVATION**, not an independent authenticated model tool/API session.
+- The exact query counted (1) `employee_core_lines_v1 WHERE active = 1`, (2) all rows of `t12_prod_lines`, (3) all rows of `autonomous_readiness_evidence`:
+  - `legacy_active_lines=221`
+  - `native_lines=577`
+  - `readiness_evidence_rows=0`.
+- These are raw row counts with different source filters, NOT 798 unique open orders/lines and not proof of 577 active orders. Both source overlap and production runtime/archive status remain unmeasured. Historical AP-098 Google Sheets 250 closed sample is a **different source**; do not substitute those counts for D1.
+- Empty `autonomous_readiness_evidence` is a material, current **source-of-truth blocker** for strict same-line DESIGN+MATERIAL+MACHINE readiness via the currently observed evidence table. No honest strict-ready pilot can be asserted from this table alone. This finding does not establish that all machine, asset or material source systems are empty; only this evidence table was queried.
+
+REVIEW / SAFETY:
+- Cloudflare Console query was READ ONLY; no changes to orders, inventory, staff, accounting, Worker settings or production DB. The assistant did not run a separate authenticated D1 API request.
+- Preserve `Operator Task OFF` and `Readiness SHADOW` as LAST-DOCUMENTED controls; do not infer actual runtime controls from these counts. No new owner authorization was provided for writes.
+- Next step is a second **SELECT-only aggregate-by-final-status** reading on the qualified source joins from `production-shadow/worker.mjs`, excluding archived legacy and native lines and honoring runtime overlay status. Distinct line keys should be deduplicated with native precedence; return only counts grouped by status and no customer/order/employee fields.
+- After identifying any current baseline candidate, independently acquire and qualify Design preflight/approval, Material ledger/stock same-line link, and Machine registered identity/health. Do not invent evidence to compensate for 0 stored rows or activate dispatch. If status source parity/SQL fails, `BLOCKED_SAFE`.
+
+RESULT:
+`AP102_ACTUAL_D1_CONSOLE_QUERY=SUCCESS`;
+`AP102_LEGACY_ACTIVE_RAW=221`;
+`AP102_NATIVE_RAW=577`;
+`AP102_READINESS_EVIDENCE_RAW=0`;
+`AP102_STRICT_READY_ON_STORED_EVIDENCE=UNPROVEN_AND_BLOCKED`;
+`AP102_DATA_WRITES=0`;
+`AP102_DEPLOY=NO`.
+
+Documentation CI on this commit is independent and should be checked before claiming SUCCESS.
