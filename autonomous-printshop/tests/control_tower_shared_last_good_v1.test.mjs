@@ -35,8 +35,12 @@ payload=JSON.stringify({...JSON.parse(original),waiting:-1});
 assert.equal((await second.degraded(clock)).success,false);
 payload='{bad';assert.equal((await second.degraded(clock)).code,'SHARED_STORAGE_READ_FAILED');
 const broken=createSharedControlTowerLastGoodV1({async put(){throw Error('PRIVATE');},async get(){throw Error('PRIVATE');}});
-assert.equal((await broken.observe(snapshot,clock)).code,'SHARED_STORAGE_WRITE_FAILED');
+assert.equal((await broken.observe(snapshot,clock)).code,'SHARED_STORAGE_READ_FAILED');
 assert.equal((await broken.degraded(clock)).code,'SHARED_STORAGE_READ_FAILED');
+const brokenPut=createSharedControlTowerLastGoodV1({
+ async get(){return null;},async put(){throw Error('PRIVATE');}
+});
+assert.equal((await brokenPut.observe(snapshot,clock)).code,'SHARED_STORAGE_WRITE_FAILED');
 assert.equal((await createSharedControlTowerLastGoodV1(null).degraded(clock)).code,'SHARED_STORAGE_UNAVAILABLE');
 console.log('SHARED_LAST_GOOD_TWO_INSTANCES_SOURCE_ONLY=PASS');
 console.log('STRICT_SOURCE_EXPIRY_NO_FINANCE_PII_OR_AUTHORITY=PASS');
