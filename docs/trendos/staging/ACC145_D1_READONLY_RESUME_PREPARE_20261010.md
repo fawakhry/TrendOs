@@ -261,3 +261,12 @@ Status: PREPARED / code pending.
 - Live SSO tokens do not bypass server verification, but authorization from substring names is weaker than explicit employee-role grants.
 - Investigate role mapping and existing test coverage **without changing the production policy**, querying employee role schema/metadata only. Do not infer exact Diaa username from placeholder examples or break legitimate legacy staff accounts.
 - Stage a separate security regression proposal only after reviewing role assignments and historic alias constraints. This possible role-risk does not authorize opening financial writes.
+
+## ACC-156 / VERIFIED SECURITY-GATE TRACKING (2026-10-10)
+- Created canonical issue [#40](https://github.com/fawakhry/TrendOs/issues/40) to track substring-based role grant in `accountingMode()`, confirmed from `cloudflare-d1/src/employee-accounting-native-v1.mjs`.
+- Issue requires canonical employee-role mapping, exact grant tests, no write-mode change, non-impersonation, and explicit owner signoff before cloud financial writes.
+- No code privilege change or user role update was made; current Production READONLY remains the only verified financial operating mode.
+- EasyStore PR #23 head `ce332dfec4a084ae89b4527ff19cc1a26d0b566f` is DRAFT; Cloud Safety 38048937400 PASS. Accounting PR #39 is DRAFT; mocked D1 test 38049092622 PASS.
+- Independent PR file review of EasyStore #23: exactly `app.js`, one pre-existing safety workflow and two new SSO regression tests; frontend application patch has 16 additions and one deletion, with no financial API/DB code changed.
+- **Required next owner gate:** approve (or decline) controlled EasyStore frontend-only release from PR #23; after deploy, perform browser smoke logged as Diaa from production TrendOS without sending tokens; until then live SSO remains UNVERIFIED. Financial-authority enablement remains blocked by #40 and data parity.
+Status: SECURITY_FINDING_RECORDED / ALL_SAFE_CI_PASS / WAITING_EXTERNAL_APPROVAL.
