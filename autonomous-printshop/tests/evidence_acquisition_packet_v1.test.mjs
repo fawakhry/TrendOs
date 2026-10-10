@@ -90,6 +90,55 @@ console.log('AP097_NEWEST_EXPIRY_AND_CROSS_LINE=FAIL_CLOSED');
 console.log('AP097_PUBLIC_PACKET_ALLOWLIST_AND_NO_IDS=PASS');
 console.log('AP097_PRODUCTION_CALLS=0; FINANCIAL_WRITES=0; ASSIGNMENTS=0');
 
+
+// AP-108: allow only fixed operational metadata in publicly visible
+// acquisition diagnostics; never echo free-text source values.
+let safe=buildEvidenceAcquisitionPacketV1({
+  exists:true,department:'طباعة',priority:'عادي',
+  dueIso:'2026-10-12T23:59:59.000Z',
+  missingKinds:['DESIGN','MATERIAL','MACHINE'],machineClassHint:'PRINT'
+});
+assert.equal(safe.department,'طباعة');
+assert.equal(safe.priority,'عادي');
+assert.equal(safe.dueIso,'2026-10-12T23:59:59.000Z');
+assert.equal(safe.machineClassHint,'PRINT');
+assert.equal(safe.assignmentAllowed,false);
+const secret='CLIENT_ACCOUNT_AND_PRIVATE_NOTE_NEVER_PUBLISH';
+const maliciousMetadata=buildEvidenceAcquisitionPacketV1({
+  exists:true,department:secret,priority:secret,dueIso:secret,
+  urgent:true,missingKinds:['DESIGN','MATERIAL','MACHINE'],
+  machineClassHint:secret,
+  orderId:'SECRET_ORDER_ID',lineId:'SECRET_LINE_ID',
+  customer:secret,assignedTo:secret
+});
+assert.equal(maliciousMetadata.department,'UNKNOWN');
+assert.equal(maliciousMetadata.priority,'UNKNOWN');
+assert.equal(maliciousMetadata.dueIso,'');
+assert.equal(maliciousMetadata.machineClassHint,'UNKNOWN');
+for(const key of [secret,'SECRET_ORDER_ID','SECRET_LINE_ID']){
+  assert.equal(JSON.stringify(maliciousMetadata).includes(key),false);
+}
+for(const raw of [
+  '2026-02-30T10:00:00.000Z',
+  '2026-10-12T10:00:00.000+03:00',
+  '2026-10-12',
+  'PRIVATE_DATE_2026-10-12',
+  '2026-10-12T99:99:99.000Z'
+]){
+  assert.equal(buildEvidenceAcquisitionPacketV1({
+    exists:true,department:'طباعة',priority:'عادي',dueIso:raw,
+    missingKinds:['DESIGN']
+  }).dueIso,'',raw);
+}
+assert.equal(buildEvidenceAcquisitionPacketV1({
+  exists:true,department:'ليزر',priority:'vip',dueIso:'2026-10-12T23:59:59.000Z',
+  missingKinds:['MACHINE']
+}).priority,'VIP');
+console.log('AP108_FIXED_METADATA_ALLOWLIST=PASS');
+console.log('AP108_RAW_PRIVATE_FIELD_REDaction=PASS');
+console.log('AP108_INVALID_OR_NONCANONICAL_DUE=NOT_EXPOSED');
+console.log('AP108_BUSINESS_WRITES=0; PRODUCTION_DEPLOY=NO');
+
 console.log('EVIDENCE_ACQUISITION_PACKET_V1=PASS');
 console.log('EXTERNAL_EVIDENCE_REQUIREMENTS=EXPLICIT');
 console.log('READY_WRITE=NO');

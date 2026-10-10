@@ -30,6 +30,31 @@ const REQUIREMENTS={
 const EVIDENCE_REVIEW_VERSION='EVIDENCE_ACQUISITION_REVIEW_V1';
 const MACHINE_HINTS=new Set(['LASER','PRINT','HEAT_PRESS','VINYL_CUTTER','UNKNOWN']);
 
+// Public Shadow diagnostics cannot echo arbitrary D1 free-text strings.
+// Reject unknown values rather than exposing accidentally misfiled PII.
+const SAFE_DEPARTMENTS=new Set([
+  'طباعة','ليزر','تصميم','مكبس','تشطيب','تجليد',
+  'تصوير','قص','سحب','استيكر','فنيل','فينيل',
+  'طباعة حرارية','طباعة ديجيتال'
+]);
+const SAFE_PRIORITIES=new Set(['عادي','عاجل','عاجل جدا','عاجل جدًا','VIP']);
+function safeDepartment(v){
+  const value=text(v);
+  return SAFE_DEPARTMENTS.has(value)?value:'UNKNOWN';
+}
+function safePriority(v){
+  const value=text(v);
+  const normalized=value.toUpperCase();
+  return SAFE_PRIORITIES.has(normalized)?normalized:'UNKNOWN';
+}
+function safeDueIso(v){
+  const value=text(v);
+  if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value))return '';
+  const date=new Date(value);
+  return Number.isFinite(date.getTime())&&date.toISOString()===value?value:'';
+}
+
+
 // Explain why evidence acquisition is still required, without exposing source
 // identities, order/line IDs, raw event references, customer or employee PII.
 // This is diagnostic only; never upgrade readiness or authorize dispatch.
@@ -122,9 +147,9 @@ export function buildEvidenceAcquisitionPacketV1(pilot={},context={}){
     version:EVIDENCE_ACQUISITION_PACKET_VERSION,
     exists:true,
     purpose:'EVIDENCE_ACQUISITION_ONLY',
-    department:text(pilot.department),
-    priority:text(pilot.priority),
-    dueIso:text(pilot.dueIso),
+    department:safeDepartment(pilot.department),
+    priority:safePriority(pilot.priority),
+    dueIso:safeDueIso(pilot.dueIso),
     urgent:pilot.urgent===true,
     missingKinds,
     machineClassHint,
