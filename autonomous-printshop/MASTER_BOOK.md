@@ -7930,3 +7930,33 @@ NEXT:
 3. Keep all future changes and failed stages appended to this one book with exact commit and CI. Do not activate Operator Task, Cloudflare Access, paid resources, Production or accounting rights without their respective approvals.
 
 This documentation-only AP-108 commit has separate GitHub CI; check exact outcome after creation.
+
+
+### AP-109 — Printshop Design/Material/Machine source schema catalog in D1 (2026-10-10, TESTED / SOURCE_ONLY)
+
+READ / objective:
+- Owner requested to continue without pausing, record ALL old/new steps in `autonomous-printshop/MASTER_BOOK.md`. Continued on isolated `feature/ap109-d1-evidence-source-schema-20261010` from AP-108 documentation HEAD `c4376f07387bfdc1d5e2ebfb90f426a9c580e21b`.
+- Existing live owner D1 Console AP-102 `autonomous_readiness_evidence` table counted **0** evidence records. AP-103–106 narrow real D1 aggregates found 64 new line keys, 39 print lines, 16 overdue / 14 today / 9 future by prior UTC due bucket. No approved real pilot or same-line DESIGN/MATERIAL/MACHINE evidence exists in the observed ledger.
+- Reviewed exact source migrations `0023` readiness, `0024` design production, `0025` private asset binding, `0027` machine readiness, `0028` physical identity, `0029` structured design approval receipts, plus existing material source reader `core/accounting-material-evidence-connector-v1.mjs`. These define printshop readiness SOURCE SCHEMA prerequisites. Presence of any underlying operational/accounting material table does **not** grant financial or stock mutation rights, authoritative opening balances or operator assignment authority.
+
+IMPLEMENT — exact source-only commit `61dd03400e281b7c9a8aa220bb8f03e37bcf1422` changed exactly three paths:
+1. `autonomous-printshop/diagnostics/AP109_D1_EVIDENCE_SOURCE_SCHEMA_READONLY.sql`: an approved-operator D1 Console **SELECT-only** query against `sqlite_master` table metadata. Exposes ONLY `kind`, `requiredTables`, `existingTables`, `missingTables` and an explicit `SCHEMA_PRESENT_EVIDENCE_UNVERIFIED` or `SCHEMA_MISSING_BLOCKED_SAFE` classification. The 13 exact table names are fixed in SQL and derived from source migration/reader definitions: DESIGN 5, MATERIAL source 3, MACHINE 4, READINESS 1. No operational row, source ID, receipt content, serial/tag, stock value, account/employee/customer field is read.
+2. `autonomous-printshop/tests/ap109_d1_evidence_schema_readonly.test.py`: a deterministic Python SQLite **in-memory** test executing the actual SQL, verifies migration/source references for all 13 expected tables, no DML/DDL in query, no private columns in results, graceful "MISSING" on absent/partial schemas, and explicitly `SCHEMA_PRESENT_EVIDENCE_UNVERIFIED` even with all 13 tables present. Synthetic schema CREATEs occur ONLY in disposable local test DB, NEVER real D1.
+3. `.github/workflows/autonomous-printshop-policy-v1-ci.yml`: added one AP-109 test step under existing policy CI, retaining AP-107 and all previous printshop tests.
+- No Cloudflare new resource, token, Worker, D1 mutation, build-retry, binding, task automation or Production branch push.
+
+TEST and REVIEW:
+- Exact source SHA `61dd03400e281b7c9a8aa220bb8f03e37bcf1422`, [GitHub Actions Printshop Policy CI 38063329137](https://github.com/fawakhry/TrendOs/actions/runs/38063329137) **COMPLETED SUCCESS**. AP-109 SQL step and full policy job succeeded with no failed steps. AP-108 exact documentation CI `38063121090` also SUCCESS.
+- GitHub commit compare AP-108 documentation parent → source SHA has three expected paths only; `candidate/t12-full-cloud-cutover-a56-20260929` remains `7d20cfc463ce084ceaba8ac440dffa53512fe662`, untouched.
+- The SQL has **NOT** been executed on live D1; no current source-table existence assertion. Even an all-present result does **NOT** prove migrated data, design approval, real stock adequacy, machine identity/health or current evidence. The observed readiness ledger count zero remains the actual latest D1 evidence signal.
+
+GATES:
+- `AP109_SOURCE_SCHEMAS_EXPECTED=13`, `AP109_CURRENT_D1_SCHEMA_PRESENCE=NOT_VERIFIED`, `AP109_AGGREGATE_SQL_SYNTHETIC_CI=PASS`, `AP109_D1_DATA_READ=NO`, `AP109_PRODUCT_READY=BLOCKED_SAFE`, `AP109_PRODUCTION_MUTATIONS=0`, `AP109_AUTO_DEPLOY=NO`.
+- Operator Task remains OFF last documented; no design/material/machine real same-line readiness proof; durable Staging MC-02/MC-23 and owner-console protected access remain open independent gates. The separate Cloudflare preview Worker still has failing builds; successful GitHub policy CI does not mean Cloudflare deploy succeeded.
+
+NEXT SAFE ACTION:
+1. With owner in authenticated Cloudflare D1 Console and explicit decision to run a SELECT, execute only `AP109_D1_EVIDENCE_SOURCE_SCHEMA_READONLY.sql`. Result is four fixed kind rows with counts; if missing tables, stop and document exactly which SOURCE SCHEMA category is missing without applying migrations.
+2. If schema exists, perform narrowly scoped read-only evidence-table counts/authorized provenance checks for one human-approved printing line, not open D1 public endpoint, not raw data in GitHub.
+3. Address overdue-line human exceptions, then only after full gates consider sandboxed Staging and supervised test. Do not auto-assign or insert READY to manufacture evidence.
+
+The AP-109 documentation commit requires independent CI verification.
