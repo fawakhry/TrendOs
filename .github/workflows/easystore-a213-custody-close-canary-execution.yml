@@ -37,6 +37,11 @@ jobs:
           set -euo pipefail
           curl -fsSL "$EASYSTORE_URL/config.js?a213exec=$GITHUB_RUN_ID" > /tmp/config.js
           curl -fsSL "$EASYSTORE_URL/app.js?a213exec=$GITHUB_RUN_ID" > /tmp/app.js
+          # REQUIRED: execute the currently published browser bootstrap before any D1 CANARY arm.
+          # This is a synthetic browser test with GET-fetched assets and no finance POST.
+          node --check /tmp/app.js
+          node tests/easystore_a213_published_boot_gate.test.mjs /tmp/config.js /tmp/app.js --expect-canary
+          echo "A213_EXEC_PUBLISHED_BOOT_PREFLIGHT=PASS"
           curl -fsS "$API_URL/v1/employee/accounting/health?a213exec=$GITHUB_RUN_ID" > /tmp/health.json
           npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
             SELECT
