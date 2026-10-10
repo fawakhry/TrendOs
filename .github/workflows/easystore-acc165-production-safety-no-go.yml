@@ -8,6 +8,7 @@ on:
     paths:
       - 'tests/easystore_a213_production_golive_decision.test.mjs'
       - 'tests/easystore_a213_published_boot_gate.test.mjs'
+      - 'tests/easystore_acc168_prearm_boot_order.test.mjs'
       - 'tests/easystore_a213_sso_button_lifecycle.test.mjs'
       - '.github/workflows/easystore-a213-custody-close-canary-execution.yml'
       - '.github/workflows/easystore-acc165-production-safety-no-go.yml'
@@ -50,6 +51,7 @@ jobs:
           node tests/easystore_a213_published_boot_gate.test.mjs /tmp/acc165-config.js /tmp/acc165-app.js --simulate-canary
           node tests/easystore_a213_sso_button_lifecycle.test.mjs /tmp/acc165-config.js /tmp/acc165-app.js
           node tests/easystore_a213_custody_close_workflow_invariants.test.mjs
+          node tests/easystore_acc168_prearm_boot_order.test.mjs
           node tests/easystore_a213_timeout_monitor_regression.test.mjs
       - name: Decide SAFE-IDLE, never authorize financial launch
         shell: bash
