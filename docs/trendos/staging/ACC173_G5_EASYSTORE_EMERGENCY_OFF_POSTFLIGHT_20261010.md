@@ -1,0 +1,25 @@
+# ACC-173 — G5 EasyStore emergency OFF postflight: public OFF and fully cleared CANARY health
+Date: 2026-10-10 | Evidence sourced from EasyStore `main` and Github read-only Actions.
+Status: **SAFE-IDLE GET VERIFIED; ROLLBACK WORKFLOW NOT DISPATCHED; G5 LIVE HANDOVER NOT COMPLETE**.
+
+## New confirmed changes in EasyStore (no production deployment)
+- [EasyStore PR #27](https://github.com/fawakhry/EasyStore/pull/27) merged to `main` commit `373d06381594e3ab32a55009fcc74907b1c37c9c`.
+- Existing **manual** `.github/workflows/easystore-a213-emergency-off.yml` retains exact `CLOSE_A213_OFF` confirmation on `refs/heads/main`, only changes `config.js` to safe OFF and zero actions, commits/pushes only if the file actually differs, polls public GitHub Pages and then checks backend state under `if: always()`.
+- The backend postflight had accepted READONLY + `authoritativeWrites=false` + 0 max/started commands, but did not inspect residual allowed usernames/actions, canary amount or expiry; this could mislabel incomplete policy cleanup a success.
+- **Hardened original workflow, not an alternate bypass:** after the frontend restore, require `h.success===true`, mode `READONLY`, `authoritativeWrites===false`, and `writeCanaryAllowedUserCount`, `writeCanaryAllowedActionCount`, `writeCanaryMaxAmount`, `writeCanaryMaxCommands`, `writeCanaryCommandsStarted`, `writeCanaryExpiresAtMs` all **present and exactly zero**. Missing value yields `NaN`, hence FAIL. Published config verification now also requires `EASYSTORE_ACCOUNTING_D1_READONLY=true`, in addition to OFF, zero actions and no general writes.
+- No extra permission granted to main; the emergency OFF workflow's existing repo `contents: write` is necessary if a real authorized emergency restore must commit the config. The **separate safety CI** runs with `contents: read`, no Cloudflare credentials.
+
+## Independent executable verification
+- New [EasyStore local source test](https://github.com/fawakhry/EasyStore/blob/main/tests/easystore_a213_emergency_off_postflight.test.mjs) evaluates the exact checked-in workflow backend health condition in isolated VM with a synthetic safe response, then rejects each missing/nonzero CANARY field, READONLY violations, active GENERAL/CANARY, authoritativeWrites true or failed health. Also checks correct workflow manual confirmation, main-only, single group, existing original OFF script and public config OFF flag verification.
+- New `.github/workflows/easystore-acc173-emergency-off-postflight.yml` executes both original emergency OFF conversion preflight and this new postflight test, then GET-fetches **actual published** EasyStore `config.js` and public D1 health and proves `OFF/READONLY/zero command policy` without credential or financial HTTP.
+- [Initial source + real GET run 38070455369](https://github.com/fawakhry/EasyStore/actions/runs/38070455369) **SUCCESS**. Outputs: `ACC173_EMERGENCY_OFF_SERVER_COMPLETE_ZERO_POLICY=PASS`, `ACC173_EMERGENCY_OFF_MISSING_FIELDS_FAIL_CLOSED=PASS`, `ACC173_PUBLIC_OFF_AND_D1_ZERO_BUDGET_READONLY=PASS`, `ACC173_ACTUAL_FRONTEND_ROLLBACK_DISPATCH=NOT_RUN`, `ACC173_PRODUCTION_FINANCIAL_MUTATION=ZERO`.
+- [EasyStore PR postflight run 38070490114](https://github.com/fawakhry/EasyStore/actions/runs/38070490114) and [Cloud Safety 38070490136](https://github.com/fawakhry/EasyStore/actions/runs/38070490136) both **SUCCESS**. Final code merged with no Pages config change or emergency workflow dispatch.
+
+## G5 acceptance gap and next actions
+- This confirms the **original rollback source and safe-idle preflight** but NOT the real dispatch→GitHub commit→Pages propagation and client reload under an actual CANARY frontend state. That drill changes the published frontend; requires a separately approved maintenance window and live operator monitoring.
+- Server `READONLY` cleanup remains an **independent, separately authorized** control, and the emergency frontend workflow intentionally does not perform D1 SQL writes to fake cleanup. Backend `READONLY` health check will fail until the server is actually safe.
+- G1 A2.13 real custody close **NOT PASSED**; G2 approved role matrix issue #40 open; G3 signed historical source/cutover unresolved; G4 ACC-170 source SQL fix merged but real production Worker deployment not confirmed; G5 rollback actual emergency drill, backups and release sign-off pending. Original **five** gates remain open.
+- No Cloudflare/Pages deployment, finance POST, D1 financial update, employee permission change or A2.13 repeat in ACC-173.
+
+## ACC-172 cross-check
+- [TrendOS PR #53](https://github.com/fawakhry/TrendOs/pull/53) merged as `388d9f774557043d1c1f702804d0510a7590a3e6` to fix old read-only CI baselines; [A2.11 postmerge 38070235779](https://github.com/fawakhry/TrendOs/actions/runs/38070235779), [A2.12 postmerge 38070235844](https://github.com/fawakhry/TrendOs/actions/runs/38070235844), and [ACC-172 offline 38070235833](https://github.com/fawakhry/TrendOs/actions/runs/38070235833) were ALL **SUCCESS**, no old live financial canary execution.
