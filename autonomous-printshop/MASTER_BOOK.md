@@ -7513,3 +7513,36 @@ Current invariant gates:
 - \`PRODUCTION_SOURCE_OR_CONFIG_MUTATION=NO\`; \`FINANCE/EMPLOYEE/STOCK_WRITE=NO\`; \`MERGE_TO_CANDIDATE=NO\`.
 
 Next exact permissioned release gate after phone/MFA recovery: inspect real Cloudflare Access owner login and dedicated Service Auth policy/token scope; prepare and qualify a secure GitHub deployment verification integration and rollback. Human approval must explicitly cover the specific Worker \`All traffic\` policy, GitHub Secret/token modifications, and any Production deployment. Never enable \`PROTECTED\` verification mode or execute the CLI on Production credentials without this review. Continue independent staging discovery/read-only work when secure access becomes available.
+
+
+### AP-094 — Newest readiness evidence cannot revive expired older READY (2026-10-10, SOURCE_ONLY)
+
+Scope: returned to actual Autonomous Printshop order-readiness implementation while the owner deliberately deferred manual Cloudflare security setup. **No security gate was waived**: production Owner Console Access remains unresolved, so no new Worker is exposed and no protected Production change is approved. Work proceeded independently in pure read-only business logic and local/CI qualification.
+
+READ and VERIFY:
+- Read canonical `autonomous-printshop/MASTER_BOOK.md` through AP-093 from review head `0c370179b5988b6c01a1d8ce012eff237582289a`; development branch `feature/ap094-readiness-expiry-no-revival-20261010` was created from that exact SHA. Candidate deploy baseline `candidate/t12-full-cloud-cutover-a56-20260929` remains separately untouched.
+- Reviewed `autonomous-printshop/core/readiness-evidence-v1.mjs` original blob `b649555bf8939d26212492b90d0781f2ea7a97d5`, `autonomous-printshop/tests/readiness_evidence_v1.test.mjs` original blob `c9ae77c823f3d139eb62b59411e4e9f05bfdd4d8`, and canonical line classification `core/operational-reality-v1.mjs` plus Operator Task qualification.
+- Found **a concrete fail-closed hazard**: `latestReadinessEvidenceV1` ignored expired records *before* choosing the newest by `observedAtMs`. Example: an older READY record with a later expiry could be selected after a newer BLOCKED observation had expired. A future-dated or malformed newer record could also leave older READY untouched. This is a TESTED code-path defect/risk, **not an asserted incident in Production**.
+
+IMPLEMENT:
+- Source commit `f3a5733dee02385963a45bee9f33bc08c6e5dfba`, exactly two paths:
+  1. `autonomous-printshop/core/readiness-evidence-v1.mjs`: for the same line and DESIGN/MATERIAL/MACHINE kind, select the newest observed fact first using existing timestamp/tie-break ordering, then reject a latest fact whose expiry is malformed, expired, inconsistent with observation time, or whose observation is future-dated. This leaves readiness **UNKNOWN**, never revives older READY. A later valid READY is still admissible. Unknown event states become UNKNOWN rather than implicitly authorizing readiness.
+  2. `autonomous-printshop/tests/readiness_evidence_v1.test.mjs`: added synthetic regression tests for expired newer BLOCKED with older still-time-valid READY, partial source / newer invalid-state, malformed expiration, future timestamp, valid newer recovery and invalid clock. Verified no recommendation or ordinary lane emerges from the expired-newest synthetic case.
+- No new storage system, new release/Workers settings, extra authorities, employee assignment, financial/stock/payment actions, credential updates, or external runtime requests were introduced. Readiness remains a pure source projection; this does not fabricate Design/Material/Machine field evidence or qualify Operator Task activation.
+
+TEST:
+- GitHub Actions **Autonomous Printshop Policy V1 CI**, exact source SHA `f3a5733dee02385963a45bee9f33bc08c6e5dfba`, run `38050860512`: **COMPLETED SUCCESS**. Inspected the `autonomy-policy-contract` job with no failed steps; `Run readiness evidence contract` and `Run readiness evidence writer contract` both passed, as did the full policy job.
+- GitHub compare against parent `0c370179b5988b6c01a1d8ce012eff237582289a` confirms one isolated commit changing only those two source/test paths; no dashboard, Worker config or deploy workflow modifications.
+- The test executes deterministic synthetic data under GitHub Actions, not real production material/machine evidence or staging Cloudflare. Classification: **TESTED / SOURCE_ONLY**, not DEPLOYED or VERIFIED LIVE.
+
+REVIEW / BLOCKERS:
+- Keep `Operator Task=OFF`, `Autonomy/Readiness=SHADOW`, `Accounting=READONLY epoch39` only as last documented; not freshly verified Production state.
+- `strictEligible=0` / Design, Material, Machine real same-line evidence gaps remain as historical blockers. No claim of pilot readiness is made. `MC-02/MC-23=PARTIAL`, durable multi-isolate Staging and security gate unresolved.
+- `PRODUCTION_MUTATION=NO`; `CANDIDATE_PUSH=NO`; `FINANCIAL_OR_EMPLOYEE_WRITE=NO`.
+
+NEXT:
+1. Independently review AP-094 diff and latest CI, then decide whether to integrate via an approved, controlled release path; **do not merge/push to auto-deploy baseline by default**.
+2. Continue building fail-closed evidence-acquisition verification for one real same-order-line Design/Material/Machine candidate, with no raw customer data, protected decisions, or auto assignment. Use only actual authoritative evidence; absent source stays BLOCKED_SAFE.
+3. Return to Cloudflare access hardening before exposing a new Owner Console deployment. The owner's deferral is **not permission to deploy an unprotected console**.
+
+The AP-094 documentation-only commit is added next, on the safe development branch, and its CI Run ID must be verified separately.
