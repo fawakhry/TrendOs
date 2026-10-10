@@ -20,8 +20,11 @@ function evidenceValue(state){
 }
 
 export function latestReadinessEvidenceV1(events=[],nowMs=Date.now()){
+  const now=Number(nowMs);
+  if(!Number.isFinite(now)||now<=0) return new Map();
   const latest=new Map();
   for(const raw of Array.isArray(events)?events:[]){
+    if(!raw||typeof raw!=='object') continue;
     const lineId=text(raw.lineId ?? raw.line_id);
     const kind=upper(raw.evidenceKind ?? raw.evidence_kind ?? raw.kind);
     const state=upper(raw.evidenceState ?? raw.evidence_state ?? raw.state);
@@ -29,30 +32,39 @@ export function latestReadinessEvidenceV1(events=[],nowMs=Date.now()){
     const expiresRaw=raw.expiresAtMs ?? raw.expires_at_ms;
     const expiresAtMs=expiresRaw==null||expiresRaw===''?null:Number(expiresRaw);
     if(!lineId||!READINESS_KINDS.includes(kind)) continue;
-    if(!['READY','BLOCKED','UNKNOWN'].includes(state)) continue;
     if(!Number.isFinite(observedAtMs)||observedAtMs<=0) continue;
-    if(expiresAtMs!=null && (!Number.isFinite(expiresAtMs)||expiresAtMs<=Number(nowMs))) continue;
-
+    // Select by event time FIRST. Never revive an older READY after a newer
+    // expired/invalid BLOCKED or UNKNOWN fact.
     const key=lineId+'::'+kind;
     const current=latest.get(key);
+    const evidenceId=text(raw.evidenceId ?? raw.evidence_id);
     if(!current || observedAtMs>current.observedAtMs || (
       observedAtMs===current.observedAtMs &&
-      text(raw.evidenceId ?? raw.evidence_id).localeCompare(current.evidenceId)>0
+      evidenceId.localeCompare(current.evidenceId)>0
     )){
+      const knownState=['READY','BLOCKED','UNKNOWN'].includes(state);
       latest.set(key,{
-        evidenceId:text(raw.evidenceId ?? raw.evidence_id),
-        lineId,
-        kind,
-        state,
-        value:evidenceValue(state),
+        evidenceId,lineId,kind,
+        state:knownState?state:'UNKNOWN',
+        value:knownState?evidenceValue(state):null,
         sourceKind:upper(raw.sourceKind ?? raw.source_kind),
         sourceRef:text(raw.sourceRef ?? raw.source_ref),
         sourceVersion:text(raw.sourceVersion ?? raw.source_version),
         confidence:Number(raw.confidence ?? 1),
-        observedAtMs,
-        expiresAtMs
+        observedAtMs,expiresAtMs
       });
     }
+  }
+  // A newer future-dated, malformed or expired record blocks older evidence.
+  // Its kind becomes UNKNOWN; this projection cannot authorize dispatch.
+  for(const [key,record] of latest){
+    if(record.observedAtMs>now || (
+      record.expiresAtMs!=null && (
+        !Number.isFinite(record.expiresAtMs) ||
+        record.expiresAtMs<=record.observedAtMs ||
+        record.expiresAtMs<=now
+      )
+    )) latest.delete(key);
   }
   return latest;
 }

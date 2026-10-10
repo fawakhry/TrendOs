@@ -58,6 +58,35 @@ assert.deepEqual(qualified.coverage.DESIGN,{ready:0,blocked:0,unknown:2});
 assert.deepEqual(qualified.coverage.MATERIAL,{ready:0,blocked:0,unknown:2});
 assert.deepEqual(qualified.coverage.MACHINE,{ready:0,blocked:0,unknown:2});
 
+
+const synthetic=[{orderId:'SYN-10',lineId:'SYN-L',department:'ليزر',
+  status:'طلب جديد',expectedDelivery:'2026-10-12'}];
+const oldReady={evidenceId:'old-ready',lineId:'SYN-L',kind:'MACHINE',
+  state:'READY',observedAtMs:now-10000,expiresAtMs:now+60000};
+const newerExpired={evidenceId:'new-expired',lineId:'SYN-L',kind:'MACHINE',
+  state:'BLOCKED',observedAtMs:now-2000,expiresAtMs:now-1};
+assert.equal(latestReadinessEvidenceV1([oldReady,newerExpired],now).has('SYN-L::MACHINE'),false);
+assert.equal(applyReadinessEvidenceV1(synthetic,[oldReady,newerExpired],{nowMs:now})[0].machineReady,null);
+const closed=buildReadinessQualifiedRealityV1(synthetic,[oldReady,newerExpired],{nowMs:now});
+assert.equal(closed.recommendation.recommended,null);
+assert.equal(closed.reality.ordinary.length,0);
+for(const newer of [
+  {...newerExpired,evidenceId:'future',state:'READY',observedAtMs:now+1000,expiresAtMs:now+6000},
+  {...newerExpired,evidenceId:'malformed-expiry',state:'READY',expiresAtMs:'corrupt'},
+  {...newerExpired,evidenceId:'bad-state',state:'NOT_A_STATE',expiresAtMs:now+1000}
+]){
+  assert.notEqual(latestReadinessEvidenceV1([oldReady,newer],now).get('SYN-L::MACHINE')?.value,true);
+  assert.equal(applyReadinessEvidenceV1(synthetic,[oldReady,newer],{nowMs:now})[0].machineReady,null);
+}
+const validNew={...oldReady,evidenceId:'new-qualified',observedAtMs:now-1000,expiresAtMs:now+10000};
+assert.equal(latestReadinessEvidenceV1([
+ {...oldReady,evidenceId:'old-expired',expiresAtMs:now-8000},validNew
+],now).get('SYN-L::MACHINE')?.value,true);
+assert.equal(latestReadinessEvidenceV1([oldReady],Number.NaN).size,0);
+console.log('AP094_NEWER_EXPIRED_NEVER_RESURRECTS_OLD_READY=PASS');
+console.log('AP094_READINESS_RECOMMENDATION_FAIL_CLOSED=PASS');
+console.log('AP094_PRODUCTION_REQUESTS=0; BUSINESS_WRITES=0');
+
 console.log('AUTONOMOUS_PRINTSHOP_READINESS_EVIDENCE_V1=PASS');
 console.log('MISSING_EVIDENCE=UNKNOWN_FAIL_CLOSED');
 console.log('EXPIRED_EVIDENCE=IGNORED');
