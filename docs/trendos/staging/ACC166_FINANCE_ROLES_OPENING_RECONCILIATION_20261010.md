@@ -4,7 +4,7 @@ Status: **G2/G3 PENDING; PRODUCTION FINANCE NO-GO**.
 
 ## Scope / actual findings
 - ACC-165 is already merged in PR #46; no ACC-162/163 repeat and no old financial/supplier pilot replays.
-- Inspected `cloudflare-d1/src/employee-accounting-native-v1.mjs` and native auth source. The current finance-mode resolver mixes session role with legacy name/department hints; authentication can fall back to request-body role/department when trusted session fields are absent. This is a potential authorization boundary weakness pending owner-reviewed mapping, not proof of a real account breach.
+- Inspected `cloudflare-d1/src/employee-accounting-native-v1.mjs` and native auth source. The current finance-mode resolver mixes the authenticated session role with legacy name/department hints. **Correction ACC-167:** its `b.role` / `b.department` fallback comes from `v.body`, the *verified session response*, not the raw browser request body. A forged client role does not override a trusted role in the isolated negative test. This is a potential authorization boundary weakness pending owner-reviewed mapping, not proof of a real account breach.
 - New `tests/easystore_acc166_role_boundary_audit.test.mjs` exercises actual checked-in mode/permission functions in an isolated VM with synthetic employee records, checks presence of the session verification path and reports the role source risks as NO-GO. No real tokens, users or finance API requests.
 - Employee financial grants are not changed. Issue #40 remains open for identity/role mapping, negative scenario signoff and controlled safe server hardening.
 
@@ -34,3 +34,10 @@ Status: **G2/G3 PENDING; PRODUCTION FINANCE NO-GO**.
 - Same CI: `ACC166_OPENING_EXACT_ENTITY_RECONCILIATION_SYNTHETIC=PASS`, `ACC166_OPENING_OWNER_APPROVAL_MISSING_FAIL_CLOSED=PASS`, `ACC166_OPENING_REAL_FINANCE_DATA=NOT_VERIFIED`.
 - Initial push [run 38067644386](https://github.com/fawakhry/TrendOs/actions/runs/38067644386) succeeded. PR-triggered [ACC-165 SAFE-IDLE recheck 38067717570](https://github.com/fawakhry/TrendOs/actions/runs/38067717570) and independent [A61 browser transport regression 38067717699](https://github.com/fawakhry/TrendOs/actions/runs/38067717699) both completed successful jobs. These were normal PR checks, not repeat financial canaries.
 - Production authority has NOT been opened. Synthetic pass / source audit are NOT proof of live financial authorization.
+
+## ACC-167 provenance correction and actual negative-authorization CI
+- Correction: the fallback `u.role || b.role` takes `b` from `v.body` returned by the employee session verifier, **not** directly from browser input. No raw client-role injection finding is claimed.
+- New isolated test calls the checked-in `authenticate` helper with a synthetic verified service employee while client input asks for admin; the result rejects unauthorized accounting. Verified admin in the session takes precedence over client-supplied restricted role.
+- First [PR #48 run 38068112870](https://github.com/fawakhry/TrendOs/actions/runs/38068112870) failed from missing `departmentForMode` in the isolated test VM, not Production. Test harness repaired using unmodified source helper.
+- [Final repaired PR #48 CI 38068164928](https://github.com/fawakhry/TrendOs/actions/runs/38068164928): **SUCCESS**, including `ACC167_CLIENT_ROLE_SPOOF_REJECTED=PASS`, `ACC166_ROLE_BOUNDARY_AUDIT=REVIEW_REQUIRED`, `ACC166_ROLE_RELEASE=NO_GO`; opening balance synthetic tests PASS, real balances NOT_VERIFIED. [ACC-165 published SAFE-IDLE 38068164804](https://github.com/fawakhry/TrendOs/actions/runs/38068164804) and [A61 regression 38068164873](https://github.com/fawakhry/TrendOs/actions/runs/38068164873) also SUCCESS.
+- No actual real-world role tampering was demonstrated; future G2 review focuses on explicit owner-approved identity-to-permission mapping instead of broad name/department heuristics.
