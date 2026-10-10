@@ -21,11 +21,25 @@ export function normalizeWorkDayFolderV1(raw){
     dt.getUTCDate()!==day)return '';
   return day+'-'+month+'-'+year;
 }
-function result(state,dayFolder='',area=''){
+// Actual owner-supplied hierarchy is <authorized-work-root>\10-2026\Tooday\10-10.
+// "Tooday" is deliberate; do not correct spelling, move or rename folders.
+// This only builds a relative selector: it never reads or writes Windows disks.
+const WORK_LAYOUTS=new Set(['FLAT_DAY','MONTH_TOODAY_DAY']);
+function relativeDayArea(day,area,layout){
+  if(!day||!AREAS.has(area))return '';
+  if(layout==='FLAT_DAY')return day+'\\'+area;
+  if(layout==='MONTH_TOODAY_DAY'){
+    const [d,m,y]=day.split('-');
+    return m+'-'+y+'\\Tooday\\'+d+'-'+m+'\\'+area;
+  }
+  return '';
+}
+function result(state,dayFolder='',area='',layout='FLAT_DAY'){
   return {
     version:REMOTE_WORK_FOLDER_VERSION,status:state,
     dayFolder,areaFolder:area,
-    safeRelativeDayArea:dayFolder&&area?dayFolder+'\\'+area:'',
+    workLayout:layout,
+    safeRelativeDayArea:relativeDayArea(dayFolder,area,layout),
     shareIsPrintshopLocalOnly:true,
     remoteAccessVerifiedByThisModule:false,
     businessLicenseVerifiedByThisModule:false,
@@ -47,21 +61,23 @@ export function planRemoteWorkFolderTransferV1(input={}){
     const day=normalizeWorkDayFolderV1(data.workDay);
     const area=text(data.workArea);
     const operation=text(data.operation);
+    const layout=data.workLayout===undefined?'FLAT_DAY':text(data.workLayout);
     if(!day)return result('DAY_FOLDER_INVALID');
+    if(!WORK_LAYOUTS.has(layout))return result('WORK_LAYOUT_UNVERIFIED');
     if(!AREAS.has(area))return result('WORK_AREA_UNVERIFIED');
-    if(!OPS.has(operation))return result('OPERATION_NOT_SUPPORTED',day,area);
+    if(!OPS.has(operation))return result('OPERATION_NOT_SUPPORTED',day,area,layout);
     if(data.shopMachineOnline!==true||data.encryptedPrivateNetworkConnected!==true)
-      return result('PRINTSHOP_PRIVATE_NETWORK_NOT_CONNECTED',day,area);
+      return result('PRINTSHOP_PRIVATE_NETWORK_NOT_CONNECTED',day,area,layout);
     if(data.protectedDeviceIdentityAttested!==true||
        data.ownerAccessAttested!==true)
-      return result('PROTECTED_ACCESS_NOT_ATTESTED',day,area);
+      return result('PROTECTED_ACCESS_NOT_ATTESTED',day,area,layout);
     if(data.shareRestrictedToWorkRoot!==true||
        data.windowsShareCredentialRequired!==true)
-      return result('WINDOWS_SHARE_SCOPE_NOT_ATTESTED',day,area);
+      return result('WINDOWS_SHARE_SCOPE_NOT_ATTESTED',day,area,layout);
     if(operation==='UPLOAD'&&data.noOverwriteConfirmed!==true)
-      return result('UPLOAD_CONFLICT_POLICY_REQUIRED',day,area);
+      return result('UPLOAD_CONFLICT_POLICY_REQUIRED',day,area,layout);
     // Host assertions above are not independent authentication.
     // Actual SMB/NetBird setup and ACLs must be verified on both PCs.
-    return result('PRIVATE_MANUAL_TRANSFER_SETUP_REVIEW',day,area);
+    return result('PRIVATE_MANUAL_TRANSFER_SETUP_REVIEW',day,area,layout);
   }catch{return result('REMOTE_FOLDER_INPUT_UNVERIFIED');}
 }
