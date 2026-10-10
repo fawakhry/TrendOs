@@ -1,10 +1,5 @@
 name: T12 blocked order visible controlled UI release
 on:
-  push:
-    branches: [audit/t12-customer-lane-runtime-20261008]
-    paths:
-      - scripts/t12_blocked_order_frontend_release.py
-      - .github/workflows/t12-blocked-order-ui-controlled.yml
   workflow_dispatch:
     inputs:
       deploy:
