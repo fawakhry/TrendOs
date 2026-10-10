@@ -18,6 +18,9 @@ query = SOURCE[start + len(prefix):end]
 assert "FROM autonomous_readiness_evidence" in query
 assert "PARTITION BY line_id,evidence_kind" in query
 assert "DENSE_RANK() OVER" in query
+assert "MAX(CASE" in query and "invalidTimeInHistory" in query
+assert "typeof(observed_at_ms)<>'integer'" in query
+assert "invalidTimeInHistory" in query.split("FROM ranked",1)[0]
 assert "ORDER BY observed_at_ms DESC" in query
 assert "evidence_id DESC" not in query
 assert "WHERE evidenceRank=1" in query
@@ -72,6 +75,40 @@ assert len(out) == 6, "LATEST_EQUAL_TIME_EVENTS_MUST_SURVIVE"
 assert by[("synthetic-a", "MACHINE")][0]["expiresAtMs"] <= now
 assert by[("synthetic-b", "MACHINE")][0]["observedAtMs"] > now
 assert by[("synthetic-d", "DESIGN")][0]["expiresAtMs"] > now
+assert all(row["invalidTimeInHistory"] == 0 for row in out)
+# AP-122: insert malformed older chronology for an otherwise valid newest
+# READY fact. The latest row remains READY in the SQL projection, but its
+# flag records corrupt history for that SAME line and kind.
+db.execute("""INSERT INTO autonomous_readiness_evidence
+(evidence_id,line_id,evidence_kind,evidence_state,observed_at_ms,
+ expires_at_ms,source_kind,source_ref,source_version,confidence)
+VALUES ('bad-old-time','synthetic-d','DESIGN','READY',-1,
+ NULL,'SYSTEM','synthetic','1',1.0)""")
+flagged = list(db.execute(query))
+design_d = [row for row in flagged
+    if row["lineId"] == "synthetic-d" and row["evidenceKind"] == "DESIGN"]
+assert len(design_d) == 1
+assert design_d[0]["evidenceId"] == "new-ready"
+assert design_d[0]["invalidTimeInHistory"] == 1
+assert all(row["invalidTimeInHistory"] == 0 for row in flagged
+           if row["lineId"] == "synthetic-a")
+# SQLite INTEGER affinity still accepts malformed TEXT and REAL values unless
+# the table is STRICT. Neither may silently normalize to a valid timestamp.
+db.execute("""INSERT INTO autonomous_readiness_evidence
+(evidence_id,line_id,evidence_kind,evidence_state,observed_at_ms,
+ expires_at_ms,source_kind,source_ref,source_version,confidence)
+VALUES ('bad-real-time','synthetic-d','MATERIAL','BLOCKED',1.5,
+ NULL,'SYSTEM','synthetic','1',1.0)""")
+db.execute("""INSERT INTO autonomous_readiness_evidence
+(evidence_id,line_id,evidence_kind,evidence_state,observed_at_ms,
+ expires_at_ms,source_kind,source_ref,source_version,confidence)
+VALUES ('good-material-time','synthetic-d','MATERIAL','READY',?,
+ ?, 'SYSTEM','synthetic','1',1.0)""", (now-10,now+5000))
+material_d = [row for row in db.execute(query)
+    if row["lineId"] == "synthetic-d" and row["evidenceKind"] == "MATERIAL"]
+assert len(material_d)==1 and material_d[0]["evidenceId"]=="good-material-time"
+assert material_d[0]["invalidTimeInHistory"]==1
+print("AP122_SHADOW_INVALID_CHRONOLOGY_HISTORY_FLAG=PASS")
 print("AP118_SHADOW_EQUAL_TIMESTAMP_CONFLICT_PRESERVED=PASS")
 print("AP095_SHADOW_SQL_NEWEST_BEFORE_TTL=PASS")
 print("AP095_EXPIRED_BLOCKER_NOT_PREMATURELY_FILTERED=PASS")
