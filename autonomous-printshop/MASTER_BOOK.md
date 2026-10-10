@@ -8122,3 +8122,36 @@ PRODUCTION / GATES:
 
 NEXT:
 - Build a bounded protected **review-only snapshot envelope** that compares current source observation time and private line status before showing the acquisition plan, and fails closed on changed/older snapshot, private source/line mismatch or missing evidence. This must not auto-select or publish identifiers. Continue MC-02/MC-23 isolated storage work separately as approved; do not request repeated D1 aggregate queries while employees are updating orders.
+
+
+### AP-116 — Bounded private first-line snapshot review for actively changing D1 (2026-10-10; TESTED / SOURCE_ONLY)
+
+AP / GOAL / READ:
+- Respond to the owner's operational fact in AP-114: real TrendOS orders are modified continuously by employees, so historical aggregate counts are not suitable for selecting a private order line. AP-115 producer/preflight proof bridge was tested and documented at `5b3b87233664577640d1d9f4ec9b0dbe4c979308`: source CI `38066581427` SUCCESS, documentation CI `38066702933` SUCCESS.
+- Goal: **review-only** pure module accepting an explicitly selected internal line from an authorized host and a bounded source-attested D1 snapshot. Block ambiguous, stale, altered, archived, unsuitable or Fly Print lines, and do not display any private keys in the output. Do not auto-pick from 36/19 or any other changing aggregate. SOURCE claim is not Cloudflare identity/access proof.
+- Implement on isolated `feature/ap116-live-line-snapshot-human-review-20261010`; base AP-115 documentation HEAD above. Read prior `private-line-provenance-review-v1.mjs`, source audit, D1 query dedup rules, AP-115 evidence integration and policy workflow. This step introduces **no production endpoint**.
+
+FILES / CODE:
+1. `autonomous-printshop/core/live-line-snapshot-human-review-v1.mjs` — NEW pure helper `buildLiveLineSnapshotHumanReviewV1`, no DB/network:
+   - Requires explicit private line key and exactly **one matching row** in supplied bounded source rows (max 1000); events max 5000. No ranking, auto-selection, mutable order selection or exported line ID.
+   - Strictly rejects missing/invalid clock; source must **claim** `D1_QUALIFIED_SHADOW`, authorizedRead and snapshotComplete, with timestamp in past **<=60 seconds**; future/stale snapshot => BLOCKED_SAFE. These flags are caller assertions, never an authentication substitute.
+   - Requires normalized `lineActive=true`, `orderActive=true`, `archived=false`, current `status='طلب جديد'`, exact `طباعة` or `ليزر`, known false Fly Print and valid calendar date. Cairo day computed by `Africa/Cairo` timezone; overdue and due-today are **HUMAN REVIEW/ESCALATION**, not private future-pilot candidates.
+   - Only a *future* due-date row in a fresh caller-attested snapshot returns `HUMAN_REVIEW_ONLY` with sanitized `DESIGN/MATERIAL/MACHINE` precheck status codes obtained via `reviewPrivateSameLineProvenanceV1`. Even this path sets `sourceAuthenticatedIndependently=false`, `sameLineEvidenceVerified=false`, `pilotLineSelected=false`, `strictEligible=null`, and all write/task/assignment flags false.
+   - Output reason/status are fixed enumerations; no raw source events, IDs, customer data, dates, free-text department, machine serials or source refs. No cryptographic/physical evidence invented.
+2. `autonomous-printshop/tests/ap116_live_line_snapshot_human_review.test.mjs` — NEW entirely synthetic tests: future Cairo/manual packet, explicit line key, zero/duplicate/cross-line, status changed, archived or inactive rows, unknown department/Fly, invalid/malformed due date, overdue/today human gates, valid day-first date, clock rollback/future/stale >60s, unqualified source envelopes, upper row/event bounds, same-line PRIVATE event triage, and JSON privacy/no-execution checks.
+3. `.github/workflows/autonomous-printshop-policy-v1-ci.yml` — adds one isolated AP-116 contract after AP-115; retains previous 85 CI steps. No deployment workflow edit or D1 binding/migration.
+
+COMMITS / TEST / RESULTS:
+- Module `674a1ecb6c7ca7e41838da3d90b8c663a1f42be8`; tests `a40b26bcfa1bf7556c4f099c70b2f5b97cb0099b`; CI integration `72789c4645a3c47b22e183e1dd4aead1bc9e5e04`.
+- [AP-116 policy CI 38066853429](https://github.com/fawakhry/TrendOs/actions/runs/38066853429) exact source HEAD `72789c4645a3c47b22e183e1dd4aead1bc9e5e04`: **COMPLETED SUCCESS**, dedicated AP-116 test succeeded, entire `autonomy-policy-contract` had no failing steps.
+- GitHub compare against AP-115 book HEAD confirms exactly 3 source/test/CI paths. Production candidate remained `7d20cfc463ce084ceaba8ac440dffa53512fe662` in exact post-source inspection; no candidate push, merge, Worker deploy, storage provisioning, D1 mutation, employee assignment or finance operation.
+
+LIMITS / CLASSIFICATION:
+- `AP116_SOURCE_CONTRACT=TESTED`; `AP116_DEPLOY=SOURCE_ONLY`; `AP116_D1_LIVE_LINE_READ=NOT_PERFORMED`; `AP116_REAL_ORDER_SELECTED=NO`; `AP116_CUSTOMER_DESIGN_SHA=NOT_VERIFIED`; `AP116_MATERIAL_STOCK=NOT_VERIFIED`; `AP116_MACHINE_PHYSICAL_ID=NOT_VERIFIED`; `AP116_OPERATOR_TASK=OFF_LAST_DOCUMENTED`; `AP116_AUTONOMY=SHADOW_LAST_DOCUMENTED`; `AP116_D1_WRITES=0`; `AP116_PRODUCTION_DEPLOY=NO`.
+- **Do not misinterpret a 60s caller-attested snapshot as a lock on live mutable data**; operator actions still need a new protected atomic backend check. The module does not authenticate the real D1 caller or read live source; a malicious input can claim freshness, but even then it cannot enable assignment/writes and output excludes private values. No real verified first-order pilot is established.
+- Protected Owner Console access and MC-02/MC-23 durable cross-isolate storage/recovery remain separately BLOCKED_SAFE/PARTIAL. Latest observed D1 AP-112 counts are historical per snapshot and are not reused for eligibility.
+- This AP-116 documentation-only commit requires its own exact-SHA CI verification before calling documentation completed.
+
+NEXT:
+1. Qualified, access-controlled READ-ONLY private source adapters and explicit owner/staff selected internal line, with fresh protected backend recheck before any human decision. Require DESIGN real stored SHA/structured approval/preflight and verified expiry, MATERIAL live authoritative stock/consumption and MACHINE nameplate/serial/health/mapping from the same line; fail closed on any missing source.
+2. Retain review-only workflow and small number of owner steps: no new AP-113 repeated live inventory, no Cloudflare settings or D1 mutations. Do not activate automatic routing, Operator Task, worker deploy, finance actions or physical machine operation without the separate protection and go/no-go gates.
