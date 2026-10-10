@@ -26,6 +26,9 @@ on:
       - 'autonomous-printshop/core/evidence-pilot-target-v1.mjs'
       - 'autonomous-printshop/core/evidence-acquisition-packet-v1.mjs'
       - 'autonomous-printshop/core/readiness-evidence-writer-v1.mjs'
+      - 'autonomous-printshop/core/printshop-remote-work-folder-policy-v1.mjs'
+      - 'autonomous-printshop/tests/ap129_printshop_remote_work_folder_policy.test.mjs'
+      - 'autonomous-printshop/docs/AP129_REMOTE_PRINTSHOP_DAY_FOLDERS_ACCESS_20261010.md'
       - 'autonomous-printshop/core/staffed-whatsapp-intake-v1.mjs'
       - 'autonomous-printshop/tests/ap127_staffed_whatsapp_intake_v1.test.mjs'
       - 'autonomous-printshop/core/design-production-evidence-v1.mjs'
@@ -281,6 +284,8 @@ jobs:
         run: node autonomous-printshop/tests/readiness_evidence_writer_v1.test.mjs
       - name: Run AP-127 WhatsApp staffed intake and exact revision customer approval routing
         run: node autonomous-printshop/tests/ap127_staffed_whatsapp_intake_v1.test.mjs
+      - name: Run AP-129 remote printshop day folder transfer safety contract
+        run: node autonomous-printshop/tests/ap129_printshop_remote_work_folder_policy.test.mjs
       - name: Run design production evidence contract
         run: node autonomous-printshop/tests/design_production_evidence_v1.test.mjs
       - name: Run design asset linking contract
