@@ -26,12 +26,75 @@ const REQUIREMENTS={
   ]
 };
 
-export function buildEvidenceAcquisitionPacketV1(pilot={}){
+
+const EVIDENCE_REVIEW_VERSION='EVIDENCE_ACQUISITION_REVIEW_V1';
+const MACHINE_HINTS=new Set(['LASER','PRINT','HEAT_PRESS','VINYL_CUTTER','UNKNOWN']);
+
+// Explain why evidence acquisition is still required, without exposing source
+// identities, order/line IDs, raw event references, customer or employee PII.
+// This is diagnostic only; never upgrade readiness or authorize dispatch.
+function buildEvidenceReviewV1(missingKinds,context={}){
+  const statusByKind={};
+  const lineId=text(context&&context.lineId);
+  const now=Number(context&&context.nowMs===undefined?Date.now():context&&context.nowMs);
+  const validClock=Number.isFinite(now)&&now>0;
+  const events=Array.isArray(context&&context.events)?context.events:[];
+  for(const kind of missingKinds){
+    let status='NO_RECORDED_EVIDENCE';
+    if(!lineId) status='SOURCE_LINE_UNVERIFIED';
+    else if(!validClock) status='SOURCE_CLOCK_UNVERIFIED';
+    else{
+      let newest=null, invalidTime=false;
+      for(const raw of events){
+        if(!raw||typeof raw!=='object') continue;
+        if(text(raw.lineId??raw.line_id)!==lineId) continue;
+        if(upper(raw.evidenceKind??raw.evidence_kind??raw.kind)!==kind) continue;
+        const observedAtMs=Number(raw.observedAtMs??raw.observed_at_ms);
+        if(!Number.isFinite(observedAtMs)||observedAtMs<=0){
+          invalidTime=true;
+          continue;
+        }
+        const id=text(raw.evidenceId??raw.evidence_id);
+        if(!newest||observedAtMs>newest.observedAtMs||
+          (observedAtMs===newest.observedAtMs&&id.localeCompare(newest.id)>0)){
+          newest={raw,id,observedAtMs};
+        }
+      }
+      if(invalidTime)status='SOURCE_TIME_UNVERIFIED';
+      else if(newest){
+        const raw=newest.raw;
+        const expiresRaw=raw.expiresAtMs??raw.expires_at_ms;
+        const expires=expiresRaw==null||expiresRaw===''?null:Number(expiresRaw);
+        if(newest.observedAtMs>now)status='FUTURE_OBSERVATION';
+        else if(expires!=null&&(!Number.isFinite(expires)||expires<=newest.observedAtMs))
+          status='INVALID_EXPIRY';
+        else if(expires!=null&&expires<=now)status='EVIDENCE_EXPIRED';
+        else{
+          const state=upper(raw.evidenceState??raw.evidence_state??raw.state);
+          status=state==='BLOCKED'?'EVIDENCE_BLOCKED':
+            state==='READY'?'READY_STATE_MISMATCH_REVIEW':'EVIDENCE_UNKNOWN';
+        }
+      }
+    }
+    statusByKind[kind]=status;
+  }
+  return {
+    version:EVIDENCE_REVIEW_VERSION,
+    statusByKind,
+    provenanceQualified:false,
+    actionableWriteAllowed:false,
+    assignmentAllowed:false,
+    identifiersExposed:false
+  };
+}
+
+export function buildEvidenceAcquisitionPacketV1(pilot={},context={}){
   const exists=pilot&&pilot.exists===true;
   const missingKinds=Array.isArray(pilot&&pilot.missingKinds)
-    ? [...new Set(pilot.missingKinds.map(upper).filter(x=>REQUIREMENTS[x]))]
+    ? [...new Set(pilot.missingKinds.map(upper).filter(x=>Object.hasOwn(REQUIREMENTS,x)))]
     : [];
-  const machineClassHint=upper(pilot&&pilot.machineClassHint)||'UNKNOWN';
+  const proposedHint=upper(pilot&&pilot.machineClassHint);
+  const machineClassHint=MACHINE_HINTS.has(proposedHint)?proposedHint:'UNKNOWN';
 
   if(!exists){
     return {
@@ -40,6 +103,7 @@ export function buildEvidenceAcquisitionPacketV1(pilot={}){
       purpose:'EVIDENCE_ACQUISITION_ONLY',
       externalEvidenceRequired:false,
       requirements:{},
+      review:buildEvidenceReviewV1([],{}),
       machineClassHint:'UNKNOWN',
       assignmentAllowed:false,
       taskClaimAllowed:false,
@@ -66,6 +130,7 @@ export function buildEvidenceAcquisitionPacketV1(pilot={}){
     machineClassHint,
     requirements,
     externalEvidenceRequired:missingKinds.length>0,
+    review:buildEvidenceReviewV1(missingKinds,context),
     completionRule:'SAME_LINE_REQUIRES_DESIGN_MATERIAL_MACHINE_READY',
     assignmentAllowed:false,
     taskClaimAllowed:false,

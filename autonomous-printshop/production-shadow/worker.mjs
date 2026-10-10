@@ -1007,10 +1007,11 @@ async function readinessSnapshot(env,rows){
   if(inputs.control.requireMaterial) requiredKinds.push('material');
   if(inputs.control.requireMachine) requiredKinds.push('machine');
 
+  const readinessNowMs=Date.now();
   const strict=buildReadinessQualifiedRealityV1(
     candidateRows,
     inputs.evidence,
-    {requiredKinds}
+    {requiredKinds,nowMs:readinessNowMs}
   );
   const pilot=selectEvidencePilotTargetV1(strict.rows,{requiredKinds});
   const pilotRow=pilot.exists&&pilot.sourceIndex>=0?strict.rows[pilot.sourceIndex]:null;
@@ -1028,7 +1029,11 @@ async function readinessSnapshot(env,rows){
     assignmentAllowed:false,
     taskClaimAllowed:false
   };
-  const evidenceAcquisitionPacket=buildEvidenceAcquisitionPacketV1(evidencePilotTarget);
+  const evidenceAcquisitionPacket=buildEvidenceAcquisitionPacketV1(evidencePilotTarget,{
+    lineId:pilotRow&&(pilotRow.lineId??pilotRow.line_id),
+    events:inputs.evidence,
+    nowMs:readinessNowMs
+  });
 
   return {
     success:true,
