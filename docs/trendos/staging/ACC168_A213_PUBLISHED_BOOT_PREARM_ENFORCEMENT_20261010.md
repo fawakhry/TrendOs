@@ -25,3 +25,9 @@ Status: **SOURCE PREARM GATE INSTALLED ON REVIEW BRANCH; FINANCIAL PRODUCTION AC
 - Existing 120-second observer, 15-minute window, single command, idempotency ledger checks, exact zero-value D1 evidence and auto-disable are preserved.
 - The original finance workflow's file contents were edited only on this branch; actual run, conclusion and merge status should be recorded after GitHub Actions completes.
 - **Next production milestone:** on-site approved operator; published EasyStore CANARY frontend release only with separately scoped consent; read-only current D1 baseline and role scope verification; fresh one-command financial authorization; controlled manual run; independent D1 SELECT custody proof and emergency Pages OFF restore. Until those, A2.13 G1 **NOT PASSED** and total five acceptance gates **still open**.
+
+## GitHub Actions real evidence
+- [ACC-168 PR #49 CI 38068601486](https://github.com/fawakhry/TrendOs/actions/runs/38068601486), job 114261220574: **SUCCESS**. Real public GET frontend OFF/synthetic CANARY bootstrap PASS; new `ACC168_FINANCIAL_WORKFLOW_PREARM_PUBLISHED_BOOT_REQUIRED=PASS`, `ACC168_PREARM_REMOVAL_REORDER_WRONG_MODE_REJECTED=PASS`, `ACC168_120S_ONE_COMMAND_CLEANUP_UNCHANGED=PASS`, `ACC168_PRODUCTION_FINANCIAL_ACTION=ZERO`.
+- The upgraded previously-existing audit reports `ACC165_MANUAL_WORKFLOW_BOOT_GATE=INSTALLED`, with `ACC165_LIVE_FINANCIAL_LAUNCH=NO_GO` intact.
+- PR #49 also passed existing [ACC-166 offline role/opening CI 38068601538](https://github.com/fawakhry/TrendOs/actions/runs/38068601538) and [A61 browser/transport regression 38068601791](https://github.com/fawakhry/TrendOs/actions/runs/38068601791).
+- Explicit interpretation: enforcement is verified in SOURCE/CI; the money-moving workflow has NOT been dispatched against the still-OFF public frontend.
