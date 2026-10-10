@@ -7776,3 +7776,28 @@ RESULT:
 `AP102_DEPLOY=NO`.
 
 Documentation CI on this commit is independent and should be checked before claiming SUCCESS.
+
+
+### AP-103 — Owner D1 Console live line status inventory: 64 new, 6 in-progress, 0 readiness evidence (2026-10-10)
+
+VERIFIED OWNER-CONSOLE EVIDENCE:
+- The owner executed the previously reviewed aggregate-only SQL via authenticated Cloudflare Dashboard D1 Console, database `trendos-main`, and provided a result screenshot. This is owner-provided UI evidence of a successfully executed **SELECT-only** query, not an independent assistant-accessed API or a production write.
+- The query mirrored `production-shadow/worker.mjs` imported active legacy and native production line sources, left-joined runtime status, excluded employee-core archived rows, and used `ROW_NUMBER() OVER (PARTITION BY line_id ORDER BY source_rank DESC, due DESC, status DESC)` to give native rows precedence where line keys overlap. It returned ONLY `status,line_count` aggregates; no raw order/line/employee/customer ID or financial data.
+- Screenshot confirms precisely:
+  - `تم التسليم` (delivered): **567**
+  - `مكرر` (duplicate): **121**
+  - `طلب جديد` (new): **64**
+  - `ملغى` (cancelled): **24**
+  - `تحت التنفيذ` (in progress): **6**
+  - `جاهز للاستلام` (ready for collection): **4**
+  - `متوقف` (stopped): **2**
+  - Sum = **788 distinct, non-archived line keys in the selected joined sources**. This is NOT 788 currently runnable jobs; the total includes completed, duplicate, canceled, paused and in-progress statuses.
+- Earlier AP-102 query: `legacy_active_lines=221`, `native_lines=577`, `autonomous_readiness_evidence rows=0`. Their raw arithmetic 798 must NOT be compared to 788 as just ten duplicates; archiving, active flags and source joins also differ.
+- The **64 new line keys are only initial screening candidates**. They are not strictly ready to print or dispatch. Since the readiness evidence table reported zero rows and no fresh Design/Material/Machine authority has been obtained, `STRICT_ELIGIBLE_FOR_AUTOMATIC_EXECUTION=NOT_PROVEN`; Operator Task activation remains OFF (last documented). In-progress 6 and stopped 2 should not be automatically reassigned.
+- Query succeeded with no D1 writes, Cloudflare config changes, protected user data modifications, or Production deployment. The screenshot contains no PII and no private line identities copied into this book.
+
+NEXT FOCUSED READ-ONLY STEP:
+- Run only an aggregate follow-up through the authenticated D1 Console for **`طلب جديد`** distinct line keys, preserving exactly the same sources and native precedence. Count how many have a populated due date and how many are Fly Print, plus the intersection of a populated due date and NOT Fly Print (first-pass candidates only, not strict eligible).
+- Do not SELECT order/line IDs, customer identities, raw item names, design files, staff, sourceRefs, or actual account values. Don't dispatch, auto-assign, insert readiness evidence or modify D1. Failure to query must be reported as UNKNOWN/BLOCKED_SAFE, not zero candidates.
+
+GATES: `AP103_LIVE_OWNER_D1_STATUS_AGGREGATE=OBSERVED_SUCCESS`; `AP103_NEW_LINES=64`; `AP103_IN_PROGRESS_LINES=6`; `AP103_TOTAL_CURRENT_LINE_KEYS=788`; `AP103_READINESS_EVIDENCE_ROWS=0_AP102`; `ACTUAL_TASK_WRITES=NO`; `PRODUCTION_DEPLOY=NO`. Documentation CI to be checked on exact commit.
