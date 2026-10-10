@@ -139,7 +139,10 @@ jobs:
           NODE
 
           echo "A213_EXEC_WAITING_FOR_DIAA_CLICK=YES"
-          STARTED_AT=0
+          # Browser D1 fetch aborts after 90s; allow bounded transport/evidence slack.
+          # Observed command budget consumption is not proof of a committed close.
+          A213_SETTLEMENT_WAIT_MS=120000
+          STARTED_AT_MS=0
           SUCCESS=0
           for i in $(seq 1 120); do
             npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
@@ -176,11 +179,20 @@ jobs:
           NODE
             STATE="$(tail -n1 /tmp/poll-state.txt)"
             if [ "$STATE" = "SUCCESS" ]; then SUCCESS=1; break; fi
-            if [ "$STATE" = "STARTED" ] && [ "$STARTED_AT" = "0" ]; then STARTED_AT="$i"; fi
-            if [ "$STARTED_AT" != "0" ] && [ $((i-STARTED_AT)) -gt 6 ]; then echo "command started but did not settle within 30s" >&2; exit 1; fi
+            if [ "$STATE" = "STARTED" ] && [ "$STARTED_AT_MS" = "0" ]; then STARTED_AT_MS="$(date +%s%3N)"; fi
+            if [ "$STARTED_AT_MS" != "0" ]; then
+              NOW_MS="$(date +%s%3N)"
+              if [ $((NOW_MS-STARTED_AT_MS)) -ge "$A213_SETTLEMENT_WAIT_MS" ]; then
+                echo "A213_EXEC_UNKNOWN_OUTCOME_DO_NOT_RETRY: reserved command did not yield exact committed evidence within bounded 120s; cleanup and independently reconcile" >&2
+                exit 1
+              fi
+            fi
             sleep 5
           done
-          if [ "$SUCCESS" != "1" ]; then echo "A213_EXEC_TIMEOUT_NO_COMMAND" >&2; exit 1; fi
+          if [ "$SUCCESS" != "1" ]; then
+            echo "A213_EXEC_UNKNOWN_OUTCOME_DO_NOT_RETRY: exact committed evidence not observed; cleanup and independently reconcile" >&2
+            exit 1
+          fi
 
           npx wrangler d1 execute "$DATABASE" --remote --config "$API_CONFIG" --json --command "
             SELECT request_key,operation,actor,status,response_json AS responseJson
