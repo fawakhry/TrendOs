@@ -205,3 +205,16 @@ Status: PREPARED, awaiting bounded source-only reads.
 - Expected status: `SCHEMA_MAPPED_ONLY`, not `PARITY_VERIFIED`; current production finance remains READONLY; user decision needed for authoritative historical opening balances.
 - No D1 or Sheets mutation, no financial transactions, no deploy, no Google token/material download.
 Status PREPARED.
+
+## ACC-152 / Step 01 — VERIFIED manifest and offline CI PASS
+- Manifest path `docs/trendos/staging/ACC152_ACCOUNTING_SOURCE_D1_PARITY_MANIFEST_20261010.json` commit `4ce1a0e31fe1ed32147247e85b0ad2e748e5e7f1`, Git blob `d27336f13dae43c994f0b3c8233532b84b545865`.
+- Static test `tests/easystore_acc152_source_parity_manifest.test.mjs` commit `7a507c46a6ad6efd0961967d090995222738ae01`; offline workflow `.github/workflows/easystore-acc152-parity-manifest-ci.yml` commit `7fe2c065066ae93a985c186844b2540475321655`, workflow readback blob `e5613606b3ad9b9288ba585f0b1a9916582ce39a`.
+- CI run 38048340853: https://github.com/fawakhry/TrendOs/actions/runs/38048340853, job 114202284459 **SUCCESS**.
+- `ACC152_SCHEMA_PRIMARY_KEYS_VERIFIED=PASS`; `ACC152_SOURCE_AUTHORITY_UNKNOWN_NOT_PARITY=PASS`; `ACC152_FINANCIAL_MUTATION=NO`; `ACC152_NO_LIVE_DATA_COPIED=PASS`; `ACC152_PRODUCTION_MUTATION=NO`.
+- Five schema candidate mappings recorded, one deliberately `BLOCKED_UNVERIFIED_SOURCE_KEY` for cashbox duplicate ID headers. Every ID mapping `idMappingVerified=false`; no customer/order row data copied.
+- Result **COMMITTED_VERIFIED / TESTED / REPO_ONLY**. NOT actual financial source/target parity, not an authorized migration.
+
+## ACC-153 / Step 00 — PREPARE canonical accounting master-book source inventory index
+- On isolated branch only, append an ACC151–152 follow-up into `TrendOS_MASTER_BOOK.md`. Existing book contents and accounting ACC145–150 entry preserved. Explicitly note 21 accounting tabs bounded-empty but 247 customer, 222 order and 250 order-line nonempty historical Operations rows, and that grid row allocations do not equal transactions.
+- Point to ACC152 JSON and CI run; label parity and general financial writes BLOCKED.
+- Verify book readback and preserve stronger T12/AP book on other branches. No deployment/financial write.
