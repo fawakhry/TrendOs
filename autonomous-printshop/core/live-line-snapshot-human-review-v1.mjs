@@ -56,7 +56,7 @@ function deny(reason){
     sourceRefsExposed:false,machineSerialExposed:false
   };
 }
-export function buildLiveLineSnapshotHumanReviewV1({
+function assessLiveLineSnapshotV1({
   rows=[],events=[],source={},selectedPrivateLineKey,nowMs
 }={}){
   const now=safeMs(nowMs);
@@ -108,4 +108,15 @@ export function buildLiveLineSnapshotHumanReviewV1({
     privateSnapshotBound:true,
     evidenceStatusByKind:{...evidence.statusByKind}
   };
+}
+
+
+// Source accessors and array proxies are untrusted before protected host
+// normalization. Never propagate their exceptions into an owner-facing route.
+export function buildLiveLineSnapshotHumanReviewV1(input={}){
+  try{
+    return assessLiveLineSnapshotV1(input);
+  }catch{
+    return deny('PRIVATE_SNAPSHOT_INPUT_UNVERIFIED');
+  }
 }
