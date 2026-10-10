@@ -56,8 +56,9 @@ with tempfile.TemporaryDirectory(prefix="acc180-adversarial-") as directory:
     denied(original, valid_hash, altered_expectation,
            "RESTORE_SCHEMA_OR_ROWS_MISMATCH", "wrong-source-snapshot.db")
 
-    assert b"READONLY" in original
-    changed_mode = original.replace(b"READONLY", b"GENERAL", 1)
+    marker = b"'ENTRY614_ACCOUNTING_V1','READONLY'"
+    assert marker in original, "export must contain a seeded READONLY control row"
+    changed_mode = original.replace(marker, b"'ENTRY614_ACCOUNTING_V1','GENERAL'", 1)
     denied(changed_mode, hashlib.sha256(changed_mode).hexdigest(), expected,
            "ACCOUNTING_MODE_NOT_READONLY", "unsafe-mode.db")
 
