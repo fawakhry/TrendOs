@@ -60,7 +60,7 @@ const existing=planRemoteWorkFolderTransferV1({
  protectedDeviceIdentityAttested:true,ownerAccessAttested:true,
  shareRestrictedToWorkRoot:true,windowsShareCredentialRequired:true
 });
-assert.equal(existing.safeRelativeDayArea,'10-2026\\\\Tooday\\\\10-10\\\\ديجتال');
+assert.equal(existing.safeRelativeDayArea,'10-2026\\Tooday\\10-10\\ديجتال');
 assert.equal(existing.fileOperationPerformed,false);
 console.log('AP132_GATEWAY_ROUTER_DISCOVERY_FAIL_CLOSED=PASS');
 console.log('AP132_WIN7_WAN_SMBV1_AND_OVERWRITE_REJECTED=PASS');
