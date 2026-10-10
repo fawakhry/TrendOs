@@ -7930,3 +7930,35 @@ NEXT:
 3. Keep all future changes and failed stages appended to this one book with exact commit and CI. Do not activate Operator Task, Cloudflare Access, paid resources, Production or accounting rights without their respective approvals.
 
 This documentation-only AP-108 commit has separate GitHub CI; check exact outcome after creation.
+
+
+### AP-109 — D1 owner aggregate to privacy-safe first-line HUMAN review, no synthetic eligibility (2026-10-10; TESTED / SOURCE_ONLY)
+
+AP / TARGET:
+- AP-109; transform the real owner-observed AP-106 aggregate into an explicit safe **human review queue**, not an individual line chooser or task-dispatch pipeline. Prevent raw orders, line keys, customer names, private source references, serials, source metadata and arbitrary department labels from echoing. No overlap with EasyStore/accounting.
+- Base: AP-108 review branch HEAD `c4376f07387bfdc1d5e2ebfb90f426a9c580e21b` (AP-108 documentation CI `38063121090` SUCCESS); source CI `38063014704` SUCCESS. AP-108 already documented: no duplicate entry. Production candidate last confirmed `7d20cfc463ce084ceaba8ac440dffa53512fe662` and not changed.
+
+READ / REAL INPUT BOUNDARY:
+- Real AP-106 authenticated owner Cloudflare D1 **aggregate screenshot**: printing 39 new, of which **16 overdue / 14 due today / 9 future under previous UTC-based SQL**. Laser: 25 new preliminarily; no comparable due-bucket breakdown. Earlier D1 `autonomous_readiness_evidence` had **0 records** at AP-102; these are historical time-scoped observations, NOT a refreshed readiness table.
+- AP-107 Cairo-local `AP107_D1_PRINTING_DATE_TRIAGE_READONLY.sql` was tested with synthetic SQLite and was **not executed live on D1** here. Therefore AP-106's 16/14/9 must NOT be relabelled as verified Cairo-local due buckets; overdue and future remain queues for human checking. No specific order or line can be selected from these aggregate counts.
+
+IMPLEMENT / FILES — review branch `feature/ap109-first-pilot-aggregate-review-20261010`:
+1. `autonomous-printshop/core/first-pilot-aggregate-review-v1.mjs` — pure aggregate-only, fail-closed diagnostic. Distinguishes `AP106_UTC_HISTORICAL` vs `AP107_CAIRO_LOCAL` (the latter is **input format**, NOT actual D1 proof); fixed department/date-bucket allowlist, bounded safe-integer counts, duplicate-bucket detection, optional 39-line consistency check, reject unexpected source free text without reflection. Emits only sanitized count groups, safe static review reasons and fixed DESIGN/MATERIAL/MACHINE evidence-acquisition requirements. Crucially: `pilotLineSelected=false`, `candidateExists=false`, `strictEligible=null`, and every assignment/readiness/Operator Task/Production write switch false.
+2. `autonomous-printshop/tests/first_pilot_aggregate_review_v1.test.mjs` — asserts the **owner-observed historical** 16 overdue / 14 today / 9 future =39, tracks 0 old evidence rows as **not current**, checks synthetic AP-107 Cairo and invalid-date/Fly review cases, invalid/duplicate/mismatched/NaN/string counts, malicious free text and no identity leakage. No D1 access and no user data fixtures.
+3. `.github/workflows/autonomous-printshop-policy-v1-ci.yml` — adds standalone AP-109 test inside existing policy job, without deploy trigger/permissions changes.
+
+COMMITS / TESTS:
+- Core creation `d4b5b2b5f800b23386345d861d2f694da6c72ccb`; tests `30f4a662fe326a668b29be6653fa19e11ef2e519`; CI integration source HEAD `e0ead7c57566f92069f9a24d663ce7e920bbeaca`.
+- Exact GitHub Actions [AP-109 policy CI 38064310156](https://github.com/fawakhry/TrendOs/actions/runs/38064310156): **COMPLETED SUCCESS**, including dedicated AP-109 test step; all steps completed without reported failures. This is synthetic/source CI plus independently observed historical aggregate, NOT Cloudflare deployment or live candidate verification.
+- No Cloudflare Worker deploy, database write, order assignment, finance/stock mutation, credential or Production baseline change. Operator Task last documented OFF; Autonomy/Readiness last documented SHADOW.
+
+PRODUCTION / GATES / MISSING:
+- `AP109_SOURCE=TESTED`, `AP109_RUNTIME=SOURCE_ONLY`, `AP109_REAL_COUNTS=HISTORICAL_OWNER_OBSERVED_ONLY`, `AP109_CAIRO_D1=NOT_RUN`, `AP109_REAL_LINE_SELECTED=NO`, `AP109_DESIGN_MATERIAL_MACHINE_SAME_LINE=NOT_VERIFIED`, `AP109_AUTO_DISPATCH=NO`, `AP109_BUSINESS_WRITES=0`, `AP109_PRODUCTION_DEPLOY=NO`.
+- The **16 historical overdue** require authorized human deadline escalation and verification; the **9 historical future** can only be considered for protected manual evidence review after Cairo-local date validation. Neither group proves an eligible order. 14 due today likewise human-only.
+- Protected Owner Console access remains unqualified; MC-02/MC-23 failover/durable multi-isolate storage remain PARTIAL/BLOCKED_SAFE. A static pure function with claimed D1 input does not authenticate the caller or qualify design/material/machine provenance.
+- This AP-109 documentation-only commit requires separate exact-SHA CI check; do not label that new CI successful in advance.
+
+NEXT:
+1. In an authenticated owner Cloudflare D1 Console, if approved, run AP-107 SELECT-only Cairo-local aggregate and report **only bucket counts** (including invalid date/Fly). Do not export line/order IDs, customer data or raw dates.
+2. In a protected channel, collect ONE SAME-LINE DESIGN private asset SHA256+structured approval+preflight, MATERIAL authoritative active stock/consumption and MACHINE explicit registered machine ID/serial+operator health+mapping, with source proofs independently verified. Until then first-line pilot remains BLOCKED_SAFE with no line selected.
+3. Review MC-02/MC-23 multi-isolate durable staging and recovery without external mutation; do not infer live resilience from mocked tests. No Production, CANARY, material/stock/finance writes or automatic task assignment without distinct owner approval.
