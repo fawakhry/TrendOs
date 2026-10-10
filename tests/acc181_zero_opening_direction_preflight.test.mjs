@@ -28,6 +28,9 @@ for(const field of [
 }
 for(const [field,value] of [
  ['cutover_date_local','2026-10-11'],
+ ['cutover_date_policy','AUTO_START_ON_CODE_COMPLETE'],
+ ['cutover_auto_activate',true],
+ ['program_completion_is_not_release_authorization',false],
  ['current_backend_policy','GENERAL'],
  ['current_frontend_write_mode','CANARY'],
  ['release_decision','GO'],
