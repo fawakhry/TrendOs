@@ -80,8 +80,18 @@ export function classifyStaffedWhatsappIntakeV1(input={}){
         return block('CUSTOM_PROOF_NOT_PREPARED');
       if(data.proofSentToCustomer!==true)
         return block('CUSTOMER_PROOF_NOT_SENT');
-      if(!hasHash(data.proofSha256)||txt(data.proofSha256).toLowerCase()!==finalSha)
-        return block('PROOF_FINAL_REVISION_MISMATCH');
+      // The WhatsApp proof may be compressed, watermarked or exported as
+      // different bytes. Match the immutable ARTWORK REVISION instead of
+      // demanding that preview and print-file binary hashes are identical.
+      // This is still a STAFF/HOST assertion until trusted source validation.
+      if(!hasHash(data.proofSha256))
+        return block('PROOF_FILE_HASH_REQUIRED');
+      if(!hasHash(data.designRevisionSha256)||
+         !hasHash(data.proofRevisionSha256)||
+         txt(data.designRevisionSha256).toLowerCase()!==
+           txt(data.proofRevisionSha256).toLowerCase()||
+         data.proofFinalArtworkMatchConfirmed!==true)
+        return block('PROOF_FINAL_ARTWORK_REVISION_UNVERIFIED');
 
       // WhatsApp emoji/text, a checkbox or a staff statement is not an
       // independently authenticated receipt for exactly this revision.
