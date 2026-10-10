@@ -21,5 +21,8 @@
   "current_frontend_write_mode": "OFF",
   "release_decision": "NO_GO",
   "production_changes_performed": false,
-  "note": "Owner selected fresh books with no historic financial import; no production deletion, write, migration, physical inventory or starting-date acceptance."
+  "note": "Owner selected new financial books from zero; date will be selected only when the program is ready and the actual financial go-live is separately approved. No preselected date, auto-start, legacy import, production deletion, financial write or permission change.",
+  "cutover_date_policy": "SELECT_DATE_ONLY_AT_OWNER_APPROVED_ACTUAL_FINANCE_GO_LIVE",
+  "cutover_auto_activate": false,
+  "program_completion_is_not_release_authorization": true
 }
