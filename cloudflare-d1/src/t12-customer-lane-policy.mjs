@@ -58,15 +58,20 @@ export function partitionCustomerLanes(identity,wanted,rows){
 }
 export function selectEffectiveCustomerLaneRows(nativeRows,historicalRows){
   const selected=[],seen=new Set();
-  // Match the read authority: native identities first, then the already sorted
-  // historical view's selected copy. Preserve unknown identities fail-closed.
-  for(const row of [...nativeRows,...historicalRows]){
+  // A native line is authoritative over its historical mirror copy. Do not
+  // resolve conflicting mirror-only copies from display sorting alone.
+  for(const row of nativeRows){
     const orderId=text(row.orderId),lineId=text(row.lineId);
     if(orderId&&lineId){
       const key=orderId+'\u0000'+lineId;
       if(seen.has(key))continue;
       seen.add(key);
     }
+    selected.push(row);
+  }
+  for(const row of historicalRows){
+    const orderId=text(row.orderId),lineId=text(row.lineId);
+    if(orderId&&lineId&&seen.has(orderId+'\u0000'+lineId))continue;
     selected.push(row);
   }
   return selected;

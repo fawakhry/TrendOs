@@ -208,10 +208,10 @@ const create=(db,id,department,fields={})=>createT12GeneralOrder(db,make(id,depa
  db.addLegacy({department:'ليزر',status:'جاهز للاستلام',updatedAt:'2026-10-01T12:00:00Z'});
  db.addLegacy({department:'ليزر',status:'تم التسليم',updatedAt:'2026-10-02T12:00:00Z'});
  const created=await create(db,101,'ليزر');
- assert.equal(created.success,true,'An older hidden open copy must not block the selected delivered line');
- assert.equal(db.n('t12_prod_orders'),1);
+ assert.equal(created.success,false,'Conflicting mirror-only copies remain fail-closed without native authority');
+ assert.equal(db.n('t12_prod_orders'),0);
  const repeated=await create(db,102,'ليزر',{itemName:'Different new work'});
- assert.equal(repeated.success,false,'The new genuinely open LASER order remains protected');
+ assert.equal(repeated.success,false,'An ambiguous mirror line must not be bypassed by changing the payload');
 }
 {
  const db=new D1();

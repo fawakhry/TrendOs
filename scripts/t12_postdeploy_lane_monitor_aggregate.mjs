@@ -20,9 +20,9 @@ const mirror=applyLegacyRuntimeOverlay(mapMirrorRows(JSON.parse(input.catalog.he
 const selected=new Map();
 const key=r=>String(r.orderId||'')+'\u0000'+String(r.lineId||'');
 for(const r of [...input.native,...mirror])if(r.lineId&&!selected.has(key(r)))selected.set(key(r),r);
-const staleOpenByDepartment={};let suppressedOpenRows=0;
+const staleOpenByDepartment={};let suppressedOpenRows=0,selectedNativeClosed=0;
 for(const r of mirror){const chosen=selected.get(key(r));if(chosen&&isOpenDepartmentStatus(r.status)&&!isOpenDepartmentStatus(chosen.status)){
- suppressedOpenRows++;staleOpenByDepartment[r.department]=(staleOpenByDepartment[r.department]||0)+1;
+ suppressedOpenRows++;if(input.native.includes(chosen))selectedNativeClosed++;staleOpenByDepartment[r.department]=(staleOpenByDepartment[r.department]||0)+1;
 }}
 let targetedCustomer=null;
 if(process.env.DIAGNOSTIC_SALT&&process.env.DIAGNOSTIC_NAME_DIGEST&&process.env.DIAGNOSTIC_PHONE_DIGEST){
@@ -35,4 +35,4 @@ if(process.env.DIAGNOSTIC_SALT&&process.env.DIAGNOSTIC_NAME_DIGEST&&process.env.
  const counts=rows=>rows.reduce((out,r)=>{out[r.status]=(out[r.status]||0)+1;return out;},{});
  targetedCustomer={rawLaserRows:raw.length,rawOpenLaserRows:raw.filter(r=>isOpenDepartmentStatus(r.status)).length,effectiveLaserRows:effective.length,effectiveOpenLaserRows:effective.filter(r=>isOpenDepartmentStatus(r.status)).length,rawStatuses:counts(raw),effectiveStatuses:counts(effective),openReferences:effective.filter(r=>isOpenDepartmentStatus(r.status)).map(r=>({orderId:String(r.orderId),lineId:String(r.lineId),status:r.status,department:r.department}))};
 }
-console.log(JSON.stringify({postdeployOpenLinesChecked:fresh.length,postdeployOpenLinesWithAnotherOpenOrder:conflicts,includesLegacyOverlay:true,legacyAdmissionDiscrepancy:{suppressedOpenRows,staleOpenByDepartment},targetedCustomer}));
+console.log(JSON.stringify({postdeployOpenLinesChecked:fresh.length,postdeployOpenLinesWithAnotherOpenOrder:conflicts,includesLegacyOverlay:true,legacyAdmissionDiscrepancy:{suppressedOpenRows,selectedNativeClosed,staleOpenByDepartment},targetedCustomer}));
