@@ -1,0 +1,112 @@
+name: AP-125 Private First-Line Evidence Review Readonly
+
+on:
+  push:
+    branches:
+      - feature/ap125-d1-anonymous-first-line-evidence-review-20261010
+    paths:
+      - '.github/workflows/autonomous-printshop-ap125-anonymous-evidence-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ap125-private-readonly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  private-anonymous-evidence-review:
+    if: github.ref == 'refs/heads/feature/ap125-d1-anonymous-first-line-evidence-review-20261010'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONFIG: autonomous-printshop/production-shadow/wrangler.toml
+      SQL_FILE: autonomous-printshop/diagnostics/AP125_D1_ANONYMOUS_FIRST_LINE_EVIDENCE_RECORD_REVIEW.sql
+      WRANGLER_VERSION: 4.33.2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test exact SELECT locally on synthetic SQLite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 autonomous-printshop/tests/ap125_anonymous_first_line_evidence_review.test.py
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          echo "AP125_AUTH_SECRETS=INJECTED"
+      - name: Confirm live readiness evidence table exists without reading rows
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/ap125_schema.json"
+          if ! npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config "$CONFIG" --json --command "SELECT CASE WHEN EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='autonomous_readiness_evidence') THEN 1 ELSE 0 END AS evidenceTablePresent;" > "$OUT" 2> "$RUNNER_TEMP/ap125_schema_stderr"; then
+            echo "AP125_LIVE_D1_TABLE_CHECK=BLOCKED_SAFE"
+            exit 1
+          fi
+          python3 - "$OUT" <<'PY'
+          import json,sys
+          try:
+            data=json.load(open(sys.argv[1]))
+            assert isinstance(data,list) and len(data)==1 and data[0].get("success") is True
+            rows=data[0].get("results")
+            assert isinstance(rows,list) and len(rows)==1
+            assert rows[0]=={"evidenceTablePresent":1}
+          except Exception:
+            print("AP125_LIVE_EVIDENCE_SCHEMA=NOT_QUALIFIED")
+            sys.exit(1)
+          print("AP125_LIVE_EVIDENCE_SCHEMA=AVAILABLE")
+          PY
+      - name: Review one anonymous future-due line evidence states without IDs
+        shell: bash
+        run: |
+          set -euo pipefail
+          SQL_TEXT="$(python3 - "$SQL_FILE" <<'PY'
+          import pathlib,sys,re,sqlite3
+          source=pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+          code=" ".join(l.strip() for l in source.splitlines()
+                       if l.strip() and not l.lstrip().startswith("--"))
+          assert code.startswith("WITH ") and code.endswith(";")
+          assert code.count(";")==1 and sqlite3.complete_statement(code)
+          assert not re.search(r"\b(?:INSERT|UPDATE|DELETE|REPLACE|DROP|ALTER|CREATE|PRAGMA|ATTACH|DETACH|VACUUM)\b",code,re.I)
+          print(code)
+          PY
+          )"
+          OUT="$RUNNER_TEMP/ap125_one_line.json"
+          if ! npx --yes wrangler@${WRANGLER_VERSION} d1 execute trendos-main --remote --config "$CONFIG" --json --command "$SQL_TEXT" > "$OUT" 2> "$RUNNER_TEMP/ap125_query_stderr"; then
+            echo "AP125_REAL_LINE_EVIDENCE_READ=BLOCKED_SAFE"
+            echo "AP125_RAW_D1_RESULT_EXPOSED=NO"
+            exit 1
+          fi
+          python3 - "$OUT" <<'PY'
+          import json,sys
+          codes={"NO_SAMPLE","NO_RECORDED_EVIDENCE","SOURCE_TIME_UNVERIFIED",
+            "AMBIGUOUS_LATEST_EVIDENCE","FUTURE_TIME_REVIEW","EXPIRY_NOT_VERIFIED",
+            "BLOCKED_CLAIM","READY_CLAIM_SOURCE_UNVERIFIED","UNKNOWN_CLAIM"}
+          try:
+            data=json.load(open(sys.argv[1]))
+            assert isinstance(data,list) and len(data)==1 and data[0].get("success") is True
+            rows=data[0].get("results")
+            assert isinstance(rows,list) and len(rows)==1
+            r=rows[0]
+            assert set(r)=={"anonymousSampleCount","sampleDepartmentClass",
+              "designRecordReview","materialRecordReview","machineRecordReview"}
+            assert r["anonymousSampleCount"] in (0,1)
+            assert r["sampleDepartmentClass"] in ("PRINT","LASER","NO_SAMPLE")
+            assert all(r[k] in codes for k in ("designRecordReview",
+              "materialRecordReview","machineRecordReview"))
+          except Exception:
+            print("AP125_REAL_LINE_REVIEW_RESULT=UNVERIFIED_BLOCKED_SAFE")
+            sys.exit(1)
+          print("AP125_ANONYMOUS_SAMPLE_EXISTS="+
+            ("YES" if r["anonymousSampleCount"]==1 else "NO"))
+          print("AP125_SAMPLE_DEPARTMENT_CLASS="+r["sampleDepartmentClass"])
+          print("AP125_DESIGN_RECORD_SIGNAL="+r["designRecordReview"])
+          print("AP125_MATERIAL_RECORD_SIGNAL="+r["materialRecordReview"])
+          print("AP125_MACHINE_RECORD_SIGNAL="+r["machineRecordReview"])
+          print("AP125_AUTHENTICATED_LIVE_D1_READ=SUCCESS")
+          print("AP125_FIRST_ORDER_AUTONOMY=BLOCKED_SAFE")
+          print("AP125_REAL_ORDER_IDENTIFIERS_EXPOSED=NO")
+          print("AP125_D1_MUTATIONS=0; ASSIGNMENTS=0; DEPLOYS=0")
+          PY
