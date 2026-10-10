@@ -28,3 +28,9 @@ Status: **G2/G3 PENDING; PRODUCTION FINANCE NO-GO**.
 3. G3: identify signed authoritative financial source + cutover; privately supply source and matching D1 READ-ONLY snapshots; reconcile or validate controlled migration, only with separate explicit approval.
 4. G4-G5 still require real integrated financial acceptance, backups, tested rollback and handover.
 **Five original acceptance gates remain; G2 and G3 tooling progress does not count as closure.**
+
+## GitHub Actions verified evidence (ACC-166)
+- [PR #47 ACC-166 read-only CI run 38067717669](https://github.com/fawakhry/TrendOs/actions/runs/38067717669), job `114258659380`: **SUCCESS**. `ACC166_TRUSTED_ROLE_BASELINE=PASS`, `ACC166_ROLE_BOUNDARY_AUDIT=REVIEW_REQUIRED`, `ACC166_ROLE_RELEASE=NO_GO`, `ACC166_FINANCE_REQUESTS=ZERO`.
+- Same CI: `ACC166_OPENING_EXACT_ENTITY_RECONCILIATION_SYNTHETIC=PASS`, `ACC166_OPENING_OWNER_APPROVAL_MISSING_FAIL_CLOSED=PASS`, `ACC166_OPENING_REAL_FINANCE_DATA=NOT_VERIFIED`.
+- Initial push [run 38067644386](https://github.com/fawakhry/TrendOs/actions/runs/38067644386) succeeded. PR-triggered [ACC-165 SAFE-IDLE recheck 38067717570](https://github.com/fawakhry/TrendOs/actions/runs/38067717570) and independent [A61 browser transport regression 38067717699](https://github.com/fawakhry/TrendOs/actions/runs/38067717699) both completed successful jobs. These were normal PR checks, not repeat financial canaries.
+- Production authority has NOT been opened. Synthetic pass / source audit are NOT proof of live financial authorization.
