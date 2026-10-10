@@ -935,7 +935,9 @@ async function readinessInputs(env){
     `).first(),
     // Keep the newest fact per line/kind even if expired. Filtering expiry
     // before ranking can resurrect an older READY after a newer BLOCKED fact.
-    // Readiness projection validates expiry/clock AFTER the newest fact is read.
+    // Return ALL tied newest facts, so same-timestamp conflicts cannot be
+    // silently reduced to one READY or BLOCKED by lexical evidence ID.
+    // Readiness projection fails closed on ties; expiry is checked afterwards.
     env.DB.prepare(`
       WITH ranked AS (
         SELECT evidence_id AS evidenceId,
@@ -948,9 +950,9 @@ async function readinessInputs(env){
                confidence,
                observed_at_ms AS observedAtMs,
                expires_at_ms AS expiresAtMs,
-               ROW_NUMBER() OVER (
+               DENSE_RANK() OVER (
                  PARTITION BY line_id,evidence_kind
-                 ORDER BY observed_at_ms DESC,evidence_id DESC
+                 ORDER BY observed_at_ms DESC
                ) AS evidenceRank
           FROM autonomous_readiness_evidence
       )
