@@ -248,3 +248,16 @@ Status: PREPARED / code pending.
 - Proposed isolated repo-only runtime unit test `tests/easystore_acc155_backend_readonly_boundary.test.mjs`: invoke exported handler with **fully mocked database**, no Cloudflare credentials, verify synthetic financial POST gets 503 and 0 writes; unauthenticated read POST 401, untrusted origin 403, no request reaches DB mutations or legacy Apps Script. No live API call or credential.
 - One isolated branch-only workflow `.github/workflows/easystore-acc155-backend-readonly-contract.yml`, checkout exact commit, Node 22 test. Observe run and logs; no production config or source changes.
 - If mock cannot run due to import topology, record failure and resolve test environment, not alter authority policy.
+
+## ACC-155 / VERIFIED (2026-10-10) — mocked backend authorization + READONLY
+- Repo-only test `tests/easystore_acc155_backend_readonly_boundary.test.mjs` commit `519d212596d0956ccbd9b3e5b60ca77ad967b9d2`, Git blob `f15fe0a9fe2a3458fcf09b15ef721be5728a6c1c`.
+- Isolated CI `.github/workflows/easystore-acc155-backend-readonly-contract.yml` commit `062ece5c12fb2646e3414c92cd6a3012b4f7f53d`, Git blob `b99206731e24f4e550864b3aec00f3e20bf47c34`.
+- [Run 38049092622](https://github.com/fawakhry/TrendOs/actions/runs/38049092622), job `114204430577`, **SUCCESS**.
+- Exact output: `ACC155_BACKEND_READONLY_WRITE_ACTIONS_BLOCKED=PASS`, `ACC155_BACKEND_READS_REQUIRE_EMPLOYEE_AUTH=PASS`, `ACC155_BACKEND_ORIGIN_METHOD_GUARDS=PASS`, `ACC155_DB_WRITES=0`, `ACC155_PRODUCTION_MUTATION=NO`.
+- This is a synthetic control-state mock, **NOT** a live authenticated employee API request; does not prove real credentials, session validity, or SSO to D1. No D1 access from test and no Production modification.
+
+## ACC-156 / PREPARE — review exact server accounting role-authorization semantics (SOURCE_ONLY)
+- In current `employee-accounting-native-v1.mjs`, `accountingMode(user)` checks `/ضياء|diaa/` against concatenated *username + role + department*, which would also recognize embedded substrings, not only exact employee identities. This could overgrant `full` to another **already valid** employee credential with a misleading identifier.
+- Live SSO tokens do not bypass server verification, but authorization from substring names is weaker than explicit employee-role grants.
+- Investigate role mapping and existing test coverage **without changing the production policy**, querying employee role schema/metadata only. Do not infer exact Diaa username from placeholder examples or break legitimate legacy staff accounts.
+- Stage a separate security regression proposal only after reviewing role assignments and historic alias constraints. This possible role-risk does not authorize opening financial writes.
