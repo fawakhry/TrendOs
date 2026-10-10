@@ -91,6 +91,31 @@ function accountingMode(user){
   return 'none';
 }
 function departmentForMode(mode){return mode==='print'?'طباعة':mode==='laser'?'ليزر':'';}
+// ACC-175: opt-in finance-owner roster, evaluated exclusively on the identity
+// returned by the verified cloud employee session. No client role/name is a grant.
+// Unconfigured Production retains its existing behavior until explicitly approved;
+// once ENFORCE is selected, invalid, missing, duplicate or unknown grants deny all.
+function approvedAccountingModeV1(env,verifiedUsername,user){
+  const gate=text(env&&env.ACCOUNTING_FINANCE_GRANTS_MODE_V1);
+  if(!gate)return accountingMode(user);
+  if(gate!=='ENFORCE')return 'none';
+  const raw=text(env&&env.ACCOUNTING_FINANCE_GRANTS_V1);
+  const cfg=parseJson(raw,null);
+  if(!cfg||Array.isArray(cfg)||cfg.version!==1||!Array.isArray(cfg.grants))return 'none';
+  const byUser=new Map();
+  for(const grant of cfg.grants){
+    if(!grant||typeof grant!=='object'||Array.isArray(grant))return 'none';
+    if(Object.keys(grant).some(k=>k!=='username'&&k!=='mode'))return 'none';
+    if(typeof grant.username!=='string'||typeof grant.mode!=='string')return 'none';
+    const username=key(grant.username),mode=key(grant.mode);
+    if(!username||username.includes('*')||username.length>128)return 'none';
+    if(!['full','final','print','laser'].includes(mode)||byUser.has(username))return 'none';
+    byUser.set(username,mode);
+  }
+  const verifiedKey=key(verifiedUsername);
+  return verifiedKey&&byUser.has(verifiedKey)?byUser.get(verifiedKey):'none';
+}
+
 async function control(env){return await env.DB.prepare("SELECT mode,next_invoice_number AS nextInvoiceNumber,policy_epoch AS policyEpoch FROM employee_accounting_control_v1 WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1'").first()||{mode:'OFF',nextInvoiceNumber:1,policyEpoch:0};}
 
 async function writeCanaryPolicyV1(env){
@@ -265,7 +290,8 @@ async function authenticate(request,body,env){
   const v=await verifyEmployeeSessionCloudFirst(username,token,env,'edge');
   if(!v||!v.ok)return {ok:false,status:401,message:text(v&&v.message)||'Employee session rejected'};
   const b=v.body||{},u=b.user||{},user={username:text(u.username||u.name||b.username||username),role:key(u.role||b.role||'service')||'service',department:text(u.department||b.department)};
-  const mode=accountingMode(user);if(mode==='none')return {ok:false,status:403,message:'ليس لديك صلاحية حسابات مطبعجي.'};
+  const verifiedUsername=text(u.username||u.name||b.username);
+  const mode=approvedAccountingModeV1(env,verifiedUsername,user);if(mode==='none')return {ok:false,status:403,message:'ليس لديك صلاحية حسابات مطبعجي.'};
   return {ok:true,authSource:text(v.authSource),user,mode,department:departmentForMode(mode)};
 }
 function permissions(auth){return {
