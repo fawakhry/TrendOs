@@ -1,0 +1,139 @@
+name: ACC-182 Exact Worker Merge Fingerprint + Auth Flag Drift (NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - safety/acc182-pinned-worker-candidate-offline-20261010
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'scripts/easystore_acc182_offline_worker_release_manifest.py'
+      - 'tests/easystore_acc182_offline_worker_release_manifest.test.py'
+      - '.github/workflows/easystore-acc182-offline-pinned-worker-artifact.yml'
+      - 'cloudflare-d1/wrangler.toml'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'cloudflare-d1/production-shadow/index.js'
+      - 'docs/trendos/staging/ACC181_G3_ZERO_OPENING_DECISION.json'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+
+permissions:
+  contents: read
+
+jobs:
+  attest-actual-merged-worker-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      SHARED_COMMIT: 7d20cfc463ce084ceaba8ac440dffa53512fe662
+      SHARED_BRANCH: candidate/t12-full-cloud-cutover-a56-20260929
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fail closed on unexpected Worker source, G3 date and authorization drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/easystore_acc182_offline_worker_release_manifest.py
+          python3 -m py_compile tests/easystore_acc182_offline_worker_release_manifest.test.py
+          python3 tests/easystore_acc182_offline_worker_release_manifest.test.py
+          python3 tests/easystore_acc178_book_reconcile.test.py
+      - name: Reconcile pinned shared and accounting source only inside throwaway Git worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACCOUNTING_SHA="$(git rev-parse HEAD)"
+          git fetch --no-tags origin "refs/heads/$SHARED_BRANCH"
+          ACTUAL_SHARED="$(git rev-parse FETCH_HEAD)"
+          if [[ "$ACTUAL_SHARED" != "$SHARED_COMMIT" ]]; then
+            echo "ACC182_SHARED_HEAD_DRIFT=STOP_NOT_A_RELEASE"
+            exit 1
+          fi
+          TMP_TREE="$RUNNER_TEMP/acc182-offline-merged"
+          git worktree add --detach "$TMP_TREE" "$ACCOUNTING_SHA"
+          set +e
+          git -C "$TMP_TREE" -c user.name="ACC182 Safety Checkout" -c user.email="acc182@example.invalid" merge --no-commit --no-ff "$SHARED_COMMIT" > "$RUNNER_TEMP/acc182-merge-log.txt" 2>&1
+          MERGE_RC=$?
+          set -e
+          test "$MERGE_RC" -eq 1
+          git -C "$TMP_TREE" diff --name-only --diff-filter=U | LC_ALL=C sort > "$RUNNER_TEMP/acc182-conflicts.txt"
+          test "$(cat "$RUNNER_TEMP/acc182-conflicts.txt")" = "TrendOS_MASTER_BOOK.md"
+          git -C "$TMP_TREE" show ':1:TrendOS_MASTER_BOOK.md' > "$RUNNER_TEMP/acc182-book-base.md"
+          git -C "$TMP_TREE" show ':2:TrendOS_MASTER_BOOK.md' > "$RUNNER_TEMP/acc182-book-accounting.md"
+          git -C "$TMP_TREE" show ':3:TrendOS_MASTER_BOOK.md' > "$RUNNER_TEMP/acc182-book-shared.md"
+          git show "$ACCOUNTING_SHA:TrendOS_MASTER_BOOK.md" | cmp - "$RUNNER_TEMP/acc182-book-accounting.md"
+          git show "$SHARED_COMMIT:TrendOS_MASTER_BOOK.md" | cmp - "$RUNNER_TEMP/acc182-book-shared.md"
+          python3 scripts/easystore_acc178_reconcile_book.py \
+            --base "$RUNNER_TEMP/acc182-book-base.md" \
+            --accounting "$RUNNER_TEMP/acc182-book-accounting.md" \
+            --shared "$RUNNER_TEMP/acc182-book-shared.md" \
+            --out "$TMP_TREE/TrendOS_MASTER_BOOK.md" \
+            --report "$RUNNER_TEMP/acc182-book-reconcile.json"
+          git -C "$TMP_TREE" add TrendOS_MASTER_BOOK.md
+          test -z "$(git -C "$TMP_TREE" ls-files -u)"
+          TREE_SHA="$(git -C "$TMP_TREE" write-tree)"
+          echo "ACC182_ACCOUNTING_SHA=$ACCOUNTING_SHA" >> "$GITHUB_ENV"
+          echo "ACC182_MERGED_DIR=$TMP_TREE" >> "$GITHUB_ENV"
+          echo "ACC182_TREE_SHA=$TREE_SHA" >> "$GITHUB_ENV"
+          echo "ACC182_EXACT_PINNED_RECONCILED_TREE=$TREE_SHA"
+      - name: Execute finance Worker SQLite and T12 customer/auth real tests on exact merged tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$ACC182_MERGED_DIR"
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --check cloudflare-d1/src/index_v2.js
+          node --experimental-sqlite tests/easystore_acc170_finance_flow_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc174_department_purchase_custody_sqlite.test.mjs
+          node tests/easystore_acc175_approved_finance_grants.test.mjs
+          node tests/cloudflare_a51_production_shadow_customer_route.test.mjs
+          node --experimental-sqlite tests/t12_customer_native_search_a54.test.mjs
+          node tests/employee_auth_native_a61.test.mjs
+          echo 'ACC182_REAL_MERGED_ACCOUNTING_AND_SHARED_RUNTIME_SOURCE_TESTS=PASS'
+      - name: Verify actual tree hash and exact auth config drift and owner deferred date
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/easystore_acc182_offline_worker_release_manifest.py \
+            --accounting-root . \
+            --merged-root "$ACC182_MERGED_DIR" \
+            --accounting-sha "$ACC182_ACCOUNTING_SHA" \
+            --shared-sha "$SHARED_COMMIT" \
+            --merged-tree "$ACC182_TREE_SHA" \
+            --out artifacts/acc182-pinned-candidate-NO_GO.json
+          python3 - <<'PY'
+          import json
+          doc=json.load(open("artifacts/acc182-pinned-candidate-NO_GO.json"))
+          assert doc["release_decision"]=="NO_GO"
+          assert doc["production_worker_deploy_executed"] is False
+          assert doc["safe_to_execute_old_deploy_workflow"] is False
+          assert doc["finance_cutover_date"] is None
+          assert doc["protected_real_production_database_backup_verified"] is False
+          assert doc["production_financial_d1_mutations"]==0
+          print("ACC182_VERIFIED_OFFLINE_RECEIPT_RELEASE=NO_GO")
+          PY
+          {
+            echo '## ACC-182 exact Worker source tree (never deployed)'
+            echo "Accounting candidate commit: $ACC182_ACCOUNTING_SHA"
+            echo "Pinned shared commit: $SHARED_COMMIT"
+            echo "Actual resolved Git tree: $ACC182_TREE_SHA"
+            echo 'Existing accounting Worker bytes preserved, prior finance fixes and trusted roles pass real SQLite Worker tests.'
+            echo 'Detected exactly two SOURCE native-auth flags changed by shared-base merge; existing keep_vars and current production flags need an independent owner-reviewed release.'
+            echo '**NO_GO**: no production backup/restore, live Worker rollback, owner-granted roles, finance cutover date or actual release permission.'
+            echo 'No Wrangler, Cloudflare token, D1 remote SQL, real financial POST or Worker/Pages deployment was attempted.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain source hashes and flags only (not backup, secrets or deployment bundle)
+        uses: actions/upload-artifact@v4
+        with:
+          name: acc182-synthetic-offline-worker-fingerprints-no-go
+          path: artifacts/acc182-pinned-candidate-NO_GO.json
+          retention-days: 14
