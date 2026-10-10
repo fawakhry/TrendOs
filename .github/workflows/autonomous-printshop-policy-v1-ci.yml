@@ -265,6 +265,8 @@ jobs:
         run: node autonomous-printshop/tests/ap119_private_snapshot_accessors_failclosed.test.mjs
       - name: Run evidence acquisition packet contract
         run: node autonomous-printshop/tests/evidence_acquisition_packet_v1.test.mjs
+      - name: Run AP-120 acquisition packet same-time evidence conflict review
+        run: node autonomous-printshop/tests/ap120_acquisition_evidence_same_time_review.test.mjs
       - name: Run readiness evidence writer contract
         run: node autonomous-printshop/tests/readiness_evidence_writer_v1.test.mjs
       - name: Run design production evidence contract
