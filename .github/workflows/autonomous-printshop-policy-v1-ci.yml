@@ -289,6 +289,8 @@ jobs:
         run: node autonomous-printshop/tests/ap129_printshop_remote_work_folder_policy.test.mjs
       - name: Run AP-130 actual monthly Tooday path selector regression
         run: node autonomous-printshop/tests/ap130_actual_printshop_folder_layout_v1.test.mjs
+      - name: Run AP-132 modern gateway/router eligibility fail-closed contract
+        run: node autonomous-printshop/tests/ap132_gateway_qualification_v1.test.mjs
       - name: Run design production evidence contract
         run: node autonomous-printshop/tests/design_production_evidence_v1.test.mjs
       - name: Run design asset linking contract
