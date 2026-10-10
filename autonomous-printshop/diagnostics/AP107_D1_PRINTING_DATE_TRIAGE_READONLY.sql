@@ -1,0 +1,90 @@
+-- AP-107 / REVIEW ONLY / SELECT ONLY / authorized owner D1 console.
+-- Returns department + derived due bucket + counts ONLY. NEVER outputs raw IDs,
+-- due dates, source references, customer or employee data. DO NOT automate dispatch.
+-- Cairo owner local UTC+03 on 2026-10-10 ONLY. Review offset after DST change.
+-- This SQL intentionally treats timestamps/unknown formats/unknown fly flags as
+-- requiring HUMAN REVIEW rather than inventing a safe local due date.
+WITH
+params AS (SELECT date('now','+3 hours') AS cairoDay),
+legacy AS (
+  SELECT l.line_id AS lineId,l.order_id AS orderId,
+         COALESCE(lr.status,l.status,'') AS lineStatus,
+         COALESCE(l.department,'') AS dept,
+         COALESCE(l.expected_delivery_at,'') AS dueAt,
+         COALESCE(l.fly_print,0) AS flyFlag,
+         0 AS originRank
+    FROM employee_core_lines_v1 l
+    JOIN employee_core_orders_v1 o ON o.order_id=l.order_id
+    LEFT JOIN t12_legacy_line_runtime lr ON lr.line_id=l.line_id AND lr.order_id=l.order_id
+    LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+   WHERE l.active=1 AND o.active=1 AND a.line_id IS NULL
+),
+native AS (
+  SELECT l.line_id AS lineId,l.order_id AS orderId,
+         COALESCE(r.status,l.status,'') AS lineStatus,
+         COALESCE(l.department,'') AS dept,
+         COALESCE(s.expected_delivery_date,'') AS dueAt,
+         COALESCE(l.fly_print,0) AS flyFlag,
+         1 AS originRank
+    FROM t12_prod_lines l
+    JOIN t12_prod_orders o ON o.order_id=l.order_id
+    LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
+    LEFT JOIN t12_prod_order_schedule s ON s.order_id=o.order_id
+    LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+   WHERE a.line_id IS NULL
+),
+combined AS (
+  SELECT * FROM legacy UNION ALL SELECT * FROM native
+),
+ranked AS (
+  SELECT *,
+         ROW_NUMBER() OVER (
+           PARTITION BY lineId
+           ORDER BY originRank DESC,dueAt DESC,lineStatus DESC,orderId DESC
+         ) AS rn
+  FROM combined
+),
+screened AS (
+  SELECT trim(dept) AS department,trim(dueAt) AS dueText,
+         lower(trim(CAST(flyFlag AS TEXT))) AS flyText
+  FROM ranked
+  WHERE rn=1
+    AND trim(lineStatus)='طلب جديد'
+    AND trim(dept) IN ('طباعة','ليزر')
+    AND trim(COALESCE(dueAt,''))<>''
+    AND CAST(flyFlag AS INTEGER)<>1
+),
+normalized AS (
+  SELECT department,dueText,flyText,
+    CASE
+      WHEN dueText GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+        THEN dueText
+      WHEN dueText GLOB '[0-9][0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9]'
+        THEN printf('%04d-%02d-%02d',
+                    CAST(substr(dueText,7,4) AS INTEGER),
+                    CAST(substr(dueText,4,2) AS INTEGER),
+                    CAST(substr(dueText,1,2) AS INTEGER))
+      ELSE NULL
+    END AS normalizedDay
+  FROM screened
+),
+classified AS (
+  SELECT n.department,
+    CASE
+      WHEN n.flyText NOT IN ('0','false','no','لا')
+        THEN 'FLY_FLAG_REVIEW'
+      WHEN n.normalizedDay IS NULL
+        THEN 'DATE_FORMAT_OR_TIME_REVIEW'
+      WHEN date(julianday(n.normalizedDay)) IS NULL
+        OR date(julianday(n.normalizedDay))<>n.normalizedDay
+        THEN 'INVALID_CALENDAR_DATE_REVIEW'
+      WHEN n.normalizedDay<p.cairoDay THEN 'OVERDUE_HUMAN_REVIEW'
+      WHEN n.normalizedDay=p.cairoDay THEN 'DUE_TODAY_HUMAN_REVIEW'
+      ELSE 'FUTURE_DATE_EVIDENCE_REVIEW'
+    END AS dueBucket
+  FROM normalized n CROSS JOIN params p
+)
+SELECT department,dueBucket,COUNT(*) AS lineCount
+FROM classified
+GROUP BY department,dueBucket
+ORDER BY department,dueBucket;

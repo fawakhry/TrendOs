@@ -241,6 +241,8 @@ jobs:
         run: python3 autonomous-printshop/tests/ap099_d1_aggregate_sql_readonly.test.py
       - name: Run AP-100 Cloudflare Build target/source fail-closed preflight
         run: node autonomous-printshop/tests/cloudflare_build_target_gate_v1.test.mjs
+      - name: Run AP-107 Cairo-local due date buckets via isolated SQLite
+        run: python3 autonomous-printshop/tests/ap107_d1_due_triage_sql_readonly.test.py
       - name: Run evidence acquisition packet contract
         run: node autonomous-printshop/tests/evidence_acquisition_packet_v1.test.mjs
       - name: Run readiness evidence writer contract
