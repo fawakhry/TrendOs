@@ -33,6 +33,6 @@ if(process.env.DIAGNOSTIC_SALT&&process.env.DIAGNOSTIC_NAME_DIGEST&&process.env.
  const raw=[...input.native,...mirror].filter(matching).filter(r=>r.department==='ليزر');
  const effective=[...selected.values()].filter(matching).filter(r=>r.department==='ليزر');
  const counts=rows=>rows.reduce((out,r)=>{out[r.status]=(out[r.status]||0)+1;return out;},{});
- targetedCustomer={rawLaserRows:raw.length,rawOpenLaserRows:raw.filter(r=>isOpenDepartmentStatus(r.status)).length,effectiveLaserRows:effective.length,effectiveOpenLaserRows:effective.filter(r=>isOpenDepartmentStatus(r.status)).length,rawStatuses:counts(raw),effectiveStatuses:counts(effective)};
+ targetedCustomer={rawLaserRows:raw.length,rawOpenLaserRows:raw.filter(r=>isOpenDepartmentStatus(r.status)).length,effectiveLaserRows:effective.length,effectiveOpenLaserRows:effective.filter(r=>isOpenDepartmentStatus(r.status)).length,rawStatuses:counts(raw),effectiveStatuses:counts(effective),openReferences:effective.filter(r=>isOpenDepartmentStatus(r.status)).map(r=>({orderId:String(r.orderId),lineId:String(r.lineId),status:r.status,department:r.department}))};
 }
 console.log(JSON.stringify({postdeployOpenLinesChecked:fresh.length,postdeployOpenLinesWithAnotherOpenOrder:conflicts,includesLegacyOverlay:true,legacyAdmissionDiscrepancy:{suppressedOpenRows,staleOpenByDepartment},targetedCustomer}));
