@@ -82,11 +82,11 @@
       "id": "ACC-187",
       "gate": "G4",
       "title": "المرتجعات والخصومات واسترداد المدفوع",
-      "state": "QUEUED_UNVERIFIED",
+      "state": "IN_PROGRESS_UNVERIFIED",
       "depends_on": [
         "ACC-185"
       ],
-      "acceptance_definition": "اختبار رد المبيعات والمشتريات وتراجع القيد ومنع التكرار وحفظ خزنة ومخزون متوازنين باستخدام SQLite صناعي فقط",
+      "acceptance_definition": "اختبار رد المبيعات والمشتريات وتراجع القيد ومنع التكرار وحفظ خزنة ومخزون متوازنين باستخدام SQLite صناعي فقط؛ customer cash refunds are NOT implemented in current handler, so completion remains blocked pending business refund semantics.",
       "proof_required": [
         "SOURCE_COMMIT",
         "ISOLATED_TEST_OUTPUT",
