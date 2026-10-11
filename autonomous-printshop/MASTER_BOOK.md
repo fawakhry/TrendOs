@@ -8770,3 +8770,14 @@ AP143_ETHERNET=NOT_TESTED_NO_CABLE
 AP143_SECURITY_UPDATES=NOT_VERIFIED
 AP143_TRENDOS_SERVER_SERVICES=NOT_DEPLOYED
 AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
+
+
+### AP-144 — Installed Ubuntu Wi-Fi interface and connection visible in Settings (2026-10-12; owner photo, documentation only)
+
+- Owner provided a local Ubuntu Settings → Wi-Fi screenshot from their HOME iMac12,1 (8 GiB RAM, i5-2400S, installed Ubuntu 24.04.5 LTS, internal 120GB SSD, previously confirmed booted without USB). Ubuntu lists multiple visible nearby wireless networks and labels ONE network **Connected**. This demonstrates Wi-Fi device recognition, network scan and successful wireless association at the UI level, resolving the AP-143 Wi-Fi hardware detection blocker.
+- **Privacy:** do NOT reproduce/store any visible SSIDs or Wi-Fi identifiers from the screenshot in the public repo; do not share wireless password or public/private IP. No raw photo attached or uploaded to GitHub.
+- Connected Wi-Fi is **NOT** equivalent to proven end-to-end Internet, DNS resolution, route through the router, latest Ubuntu security updates or remote access. Do not claim them. Next single non-destructive owner check: open Firefox and navigate to `https://ubuntu.com`; report whether the page loads (no credentials; screenshot only of error if it fails). No shell command or software install yet.
+- No Ethernet cable available at HOME per owner; Ethernet must be independently tested for stable shop-LAN server use before NetBird routing/Windows 7 SMB access. iMac is still reported at HOME, not physically moved onsite.
+- Network services remain unconfigured: OpenSSH, UFW access restrictions, NetBird, Docker/Node/local TrendOS agent, SMB shares, monitoring and security patch updates have not been installed/qualified by this work. Installer previously selected disk encryption None; keep sensitive customer originals off this pilot pending security assessment.
+- Shop Windows 7 production printer and its original customer files, owner-reported workday D:\print\الشغل\10-2026\Tooday\10-10, unchanged; preserve spelling "Tooday." No router or WAN port changes, D1 writes, production deploy/PR merge or print dispatch.
+- AP144_WIFI_DEVICE=RECOGNIZED_BY_GUI; AP144_WIFI_ASSOCIATED=CONNECTED_GUI; AP144_BROWSER_INTERNET=NOT_TESTED; AP144_ETHERNET=NOT_TESTED; AP144_SECURITY_UPDATES=NOT_VERIFIED; AP144_TRENDOS_LOCAL_SERVER=NOT_DEPLOYED; AP144_PRODUCTION_OR_D1_CHANGE=NONE.
