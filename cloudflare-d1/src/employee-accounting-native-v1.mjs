@@ -860,6 +860,9 @@ async function recalcAccountingMaterialsCascadeV1(env,auth,b){
 async function saveMaterial(env,auth,b){
   if(auth.mode!=='full')return {success:false,message:'إضافة وتعديل الخامات عند ضياء فقط.'};
   const name=text(b.materialName||b.name);if(!name)return {success:false,message:'اسم الخامة مطلوب.'};
+  // ACC-189: material upsert must not introduce a negative opening/edited stock.
+  // No migration or live balance correction is performed here.
+  if(num(b.stockQty??b.stock)<0)return {success:false,message:'رصيد الخامة لا يمكن أن يكون سالبًا.'};
   const department=text(b.department)||'طباعة',components=componentRowsV1(b.componentsJson||b.components);
   if((b.componentsJson||b.components)&&!Array.isArray(parseJson(b.componentsJson||b.components,null)))return {success:false,message:'صيغة مكونات الخامة غير صحيحة.'};
   for(const c of components)if(!(c.qty>0))return {success:false,message:'كل مكون خامة يجب أن تكون كميته أكبر من صفر.'};
