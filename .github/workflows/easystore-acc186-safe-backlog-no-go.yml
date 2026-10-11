@@ -1,0 +1,70 @@
+name: ACC-186 Finance Safe Backlog and Owner Approval Gates (NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - plan/acc186-safe-accounting-backlog-execution-ledger-no-go-20261012
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-acc186-safe-backlog-no-go.yml'
+      - 'docs/trendos/staging/ACC186_ACCOUNTING_SAFE_EXECUTION_LEDGER_20261012.json'
+      - 'scripts/easystore_acc186_backlog_fail_closed.py'
+      - 'tests/easystore_acc186_backlog_fail_closed.test.py'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+
+permissions:
+  contents: read
+
+jobs:
+  static-no-go-ledger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Ensure immutable evidence and blocked owner actions remain blocked
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          CF_API_TOKEN: ''
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test -z "$CF_API_TOKEN"
+          python3 -m py_compile scripts/easystore_acc186_backlog_fail_closed.py
+          python3 tests/easystore_acc186_backlog_fail_closed.test.py
+          python3 scripts/easystore_acc186_backlog_fail_closed.py \
+            --manifest docs/trendos/staging/ACC186_ACCOUNTING_SAFE_EXECUTION_LEDGER_20261012.json \
+            --master-book TrendOS_MASTER_BOOK.md \
+            --out artifacts/acc186-safe-queue-evidence-NO_GO.json
+          python3 - <<'PY'
+          import json
+          r=json.load(open("artifacts/acc186-safe-queue-evidence-NO_GO.json"))
+          assert r["release_decision"] == "NO_GO"
+          assert r["all_owner_approvals_still_required"] is True
+          assert r["cutover_date_local"] is None
+          assert r["previous_live_worker_version_captured"] is False
+          assert r["production_mutations"] == 0
+          print("ACC186_G1_TO_G5_OWNER_APPROVAL_NOT_BYPASSED=PASS")
+          PY
+      - name: Regression of release stop and opening owner decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/easystore_acc184_release_stop_rollback_model.test.py
+          node tests/acc181_zero_opening_direction_preflight.test.mjs
+          echo 'ACC186_RELEASE_STOP_AND_FRESH_BOOK_OWNER_DIRECTION_REGRESSION=PASS'
+      - name: Retain only sanitized queue and historical proof, never financial records
+        uses: actions/upload-artifact@v4
+        with:
+          name: acc186-finance-safe-backlog-readonly-no-go
+          path: artifacts/acc186-safe-queue-evidence-NO_GO.json
+          retention-days: 14
