@@ -25,3 +25,7 @@ New \`tests/easystore_acc188_party_ledger_idempotency_sqlite.test.mjs\` runs exa
 No real employee credentials, customer data, actual worker network calls, financial POST, remote D1, migrations or Cloudflare deployment.
 
 **Remaining G1–G5 real approval gates stay OPEN.** Actual financial G4 acceptance NOT_TESTED; sale refunds ACC187 are still NOT_IMPLEMENTED and must not be conflated with this payment replay correction. No production D1 or customer account changed.
+
+## Follow-on historical CI safety repair
+
+After the source-only ACC188 merge, legacy A2.10 CI wrote its own RUN_ID to the accounting candidate as commit `c41317d91aff0a35ffee5b7b1addb319302b867c`. It modified only the historic CI receipt, no Worker source. This uncontrolled repository mutation has been eliminated *in a separate pending source-only review* by replacing GitHub token `contents:write` / checkout floating branch / `git push` with contents:read, pinned event checkout and per-run 14-day artifact. The historic receipt is retained untouched. Independent negative regression guards are added; no claim about live canary execution or production state.

@@ -41,6 +41,7 @@ jobs:
           test -z "$CF_API_TOKEN"
           python3 -m py_compile scripts/easystore_acc186_backlog_fail_closed.py
           python3 tests/easystore_acc186_backlog_fail_closed.test.py
+          python3 tests/easystore_acc188_a210_no_bot_push.test.py
           python3 scripts/easystore_acc186_backlog_fail_closed.py \
             --manifest docs/trendos/staging/ACC186_ACCOUNTING_SAFE_EXECUTION_LEDGER_20261012.json \
             --master-book TrendOS_MASTER_BOOK.md \

@@ -14,7 +14,7 @@ on:
       - '.github/workflows/easystore-a210-supplier-canary-ci.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: easystore-a210-supplier-canary-ci
@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: candidate/easystore-accounting-a2-20261005
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -59,13 +59,14 @@ jobs:
             echo "PRODUCTION_MUTATION=NO"
             echo "GENERAL_OPENED=NO"
           } > /tmp/result.txt
-      - name: Persist qualification evidence
+      - name: Produce immutable per-run offline receipt without committing
         if: always()
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p artifacts
           if [ "${{ steps.test.outcome }}" = "success" ]; then
-            cp /tmp/result.txt .github/a210-supplier-canary-ci-result.txt
+            cp /tmp/result.txt artifacts/a210-supplier-qualification-NO_GO.txt
           else
             {
               echo "A210_SUPPLIER_CANARY_QUALIFICATION=FAIL"
@@ -73,13 +74,15 @@ jobs:
               echo "PRODUCTION_DEPLOY=NO"
               echo "PRODUCTION_MUTATION=NO"
               echo "GENERAL_OPENED=NO"
-            } > .github/a210-supplier-canary-ci-result.txt
+            } > artifacts/a210-supplier-qualification-NO_GO.txt
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/a210-supplier-canary-ci-result.txt
-          git commit -m "A2.10: persist supplier canary qualification result" || exit 0
-          git push origin HEAD:candidate/easystore-accounting-a2-20261005
+      - name: Upload per-run no-deploy artifact (never update source branch)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a210-supplier-qualification-offline-no-go
+          path: artifacts/a210-supplier-qualification-NO_GO.txt
+          retention-days: 14
       - name: Enforce result
         if: steps.test.outcome != 'success'
         run: exit 1
