@@ -137,6 +137,7 @@ def validate(m, book):
         "historic_stages_verified_from_record": list(HISTORIC_PROOF),
         "source_safe_stages_queued": [x["id"] for x in queue if x["state"] == "QUEUED_UNVERIFIED"],
         "source_safe_stages_validated_complete": [x["id"] for x in queue if x["state"] == "VERIFIED_COMPLETE"],
+        "source_safe_stages_in_progress": [x["id"] for x in queue if x["state"] == "IN_PROGRESS_UNVERIFIED"],
         "owner_only_gates": list(REQUIRED_GATES),
         "all_owner_approvals_still_required": True,
         "cutover_date_local": None,
