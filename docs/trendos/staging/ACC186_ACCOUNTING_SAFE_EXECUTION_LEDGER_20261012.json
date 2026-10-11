@@ -103,9 +103,9 @@
       "id": "ACC-188",
       "gate": "G4",
       "title": "حساب العملاء والموردين والخزنة",
-      "state": "IN_PROGRESS_UNVERIFIED",
+      "state": "VERIFIED_COMPLETE",
       "depends_on": [
-        "ACC-187"
+        "ACC-185"
       ],
       "acceptance_definition": "اختبارات قبض وسداد جزئي وآجل وتحصيل وتسوية دون مضاعفة القيود وبدون حسابات حقيقية",
       "proof_required": [
@@ -116,9 +116,9 @@
       ],
       "deployment_allowed": false,
       "owner_approval_needed_for_this_safe_scope": false,
-      "pr": null,
-      "ci_run": null,
-      "verified_at": null
+      "pr": 90,
+      "ci_run": 38185693970,
+      "verified_at": "2026-10-12"
     },
     {
       "id": "ACC-189",
