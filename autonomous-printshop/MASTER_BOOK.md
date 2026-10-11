@@ -8690,3 +8690,15 @@ SOURCE / VERIFICATION:
 - Docs-only isolated safe branch feature/ap137-imac-ubuntu-installer-evidence-checkpoint-20261012 from AP-136 HEAD a9a715f4c35cdd906dc144b6af27946c6da2ca36, prior exact CI 38172219581 SUCCESS.
 - New detailed evidence markdown autonomous-printshop/docs/AP137_IMAC_UBUNTU_LIVE_INSTALL_CHECKPOINT_20261012.md and AP-137 master book entry, no code changes. GitHub policy CI validates repository/docs only — **cannot** validate photographed hardware facts remotely.
 - AP137_LOCAL_OS_INSTALLED=NOT_VERIFIED; AP137_FINAL_INSTALL_CLICK=NOT_REPORTED; AP137_RELOCATION=NOT_DONE; AP137_REAL_VPN=NO; AP137_CUSTOMER_ORIGINALS=UNTOUCHED; AP137_PRODUCTION_DEPLOY=NO; AP137_D1_WRITES=0.
+
+
+### AP-138 — Owner Ubuntu installer completion photograph; internal-SSD reboot remains to be verified (2026-10-12; EVIDENCE ONLY)
+
+NEW PHYSICAL EVIDENCE / FACT BOUNDARY:
+- Following AP-137 screenshot of Ready to install, owner sent a new photograph displaying Ubuntu Desktop 24.04.5 LTS **"Installation complete"** / **"is installed and ready to use"**, with **Restart now** and **Continue testing** buttons. This materially advances status from "Install click not confirmed" to **installer-reported installation complete**. The owner has **not yet reported pressing Restart now, removing USB, or booting into installed Ubuntu from the internal SSD**. Therefore DO NOT claim stable installation/boot reliability or services operational.
+- Existing target selection was **HS-SSD-C100 120G sda** with Erase disk and install Ubuntu, FAT32 /boot/efi + ext4 /, disk encryption **None**, proprietary software **None**; boot USB separate **31GB**, actual disk Ubuntu live session **120GB**. Owner's earlier data-loss consent/no-backup decision applies to the HOME iMac only; no evidence of any other disk modified.
+- Previously shown login labels: display **Trend Mall**, requested hostname **TrendosShop**, requested login user **trend-main**, "require password" checked; password NEVER recorded. Current owner photo does not establish installed hostname/login until reboot.
+- The machine is still reported physically at HOME, NO LAN cable, Internet/SSH/security updates/NetBird/SMB/TrendOS agent not set up; Windows 7 shop files and drivers unaltered, actual workday D:\print\الشغل\10-2026\Tooday\10-10, original spelling "Tooday".
+- One NEXT OWNER ACTION: press **Restart now**; remove Ubuntu USB and press Enter when prompted. Confirm Ubuntu boots **without USB** from iMac internal SSD, then report login/desktop status without disclosing password. If boot does not occur, diagnose before any reinstall.
+- Source evidence report: autonomous-printshop/docs/AP138_IMAC_UBUNTU_INSTALL_COMPLETE_AWAIT_REBOOT_20261012.md; **no screenshots/customer data/serials/passwords committed**. CI (if successful) confirms GitHub documentation only, not hardware, SSD boot, updates or real VPN.
+- AP138_INSTALLER_FINISHED=OWNER_PHOTO; AP138_INTERNAL_BOOT=NOT_VERIFIED; AP138_REMOTE_FILES=NOT_CONNECTED; AP138_SHOP_FILES_OR_WIN7_MODIFIED=NO; AP138_D1_WRITES=0; AP138_PRODUCTION_DEPLOY=NO.
