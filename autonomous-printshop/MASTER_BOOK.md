@@ -8801,3 +8801,14 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 - NEXT WAIT: owner reports the update outcome / restart. Until then **AP146_UPDATES_APPLIED=UNCONFIRMED**, **AP146_UPDATER_OFFER=329.1MB_PHOTOGRAPHED**, **AP146_RELEASE_UPGRADE=NOT_AUTHORIZED**, **AP146_NETWORK_ETHERNET=NOT_TESTED**, **AP146_SERVER_SSH_NETBIRD_UFW=NOT_CONFIGURED**.
 - The screenshot was **not** added to GitHub. This is a book-only interpretation; CI can check repository structure but cannot prove on-device update or security posture.
 - Existing printshop Windows 7 machine, original drivers and customer workday folder D:\print\الشغل\10-2026\Tooday\10-10 unchanged; no customer data read/synced, SMB shares, WAN ports, D1 writes, Production deployment or automatic printing.
+
+
+### AP-147 — Owner reports iMac restarted following Ubuntu package updates; post-reboot success not yet checked (2026-10-12; OWNER REPORT ONLY)
+
+- Owner stated in Egyptian Arabic **"عمل ريستارت بعد التحديثات"** ("it restarted after the updates"). This supersedes AP146 "not yet reported whether updating" only to the extent of a **post-update restart being reported**. It does NOT establish all available packages applied, success of apt/dpkg, current patch level, the post-reboot Linux desktop/login state, or absence of errors.
+- Last owner-photo package updater offered **329.1 MB** for installed Ubuntu 24.04.5 LTS over confirmed Wi-Fi+browser HTTPS. Actual list/versions of installed packages and whether any remain pending were never photographed. No package installation or reboot command was executed through GitHub/assistant tooling; device changes were owner-operated locally.
+- One immediate owner question: did Ubuntu return to its normal desktop after the restart, or is it displaying an error/login/black screen? If at login, sign in locally with previously requested username trend-main and keep password private. Do not ask for hardware/network secrets.
+- Only once working GUI login is independently confirmed, re-open Software Updater to check for remaining updates, and optionally inspect Settings > System > About kernel version and available space. Do not equate GitHub CI with actual physical host updates, and never advise another format.
+- iMac is owner-confirmed iMac12,1 with i5-2400S x4, 8.0 GiB memory, 120GB internal SSD, installed Ubuntu 24.04.5 LTS, reported still at HOME; LAN cable missing, Ethernet untested. No NetBird/OpenSSH/UFW/TrendOS local services yet. Disk encryption None was selected previously; defer customer file storage/mirroring until security review.
+- No new router/Win7 changes, original printshop customer files D:\print\الشغل\10-2026\Tooday\10-10 untouched, no D1/Production writes or printing.
+- AP147_OWNER_REPORT_POST_UPDATE_RESTART=YES; AP147_POSTREBOOT_DESKTOP=NOT_YET_CONFIRMED; AP147_ALL_UPDATES_APPLIED=NOT_YET_VERIFIED; AP147_PRODUCTION=UNCHANGED; AP147_WIN7=UNTOUCHED.
