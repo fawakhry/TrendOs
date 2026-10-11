@@ -295,6 +295,8 @@ jobs:
         run: node autonomous-printshop/tests/ap133_router_model_gate_v1.test.mjs
       - name: Run AP-134 owner iMac12,1 server pilot fail-closed profile
         run: node autonomous-printshop/tests/ap134_imac_server_pilot_v1.test.mjs
+      - name: Run AP-135 home-to-shop iMac relocation / no-data-loss gates
+        run: node autonomous-printshop/tests/ap135_imac_home_to_shop_relocation_v1.test.mjs
       - name: Run design production evidence contract
         run: node autonomous-printshop/tests/design_production_evidence_v1.test.mjs
       - name: Run design asset linking contract
