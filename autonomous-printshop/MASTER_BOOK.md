@@ -8740,3 +8740,33 @@ NEW PHYSICAL EVIDENCE / FACT BOUNDARY:
 - Suggested NEXT SINGLE OFFLINE GUI ACTION: open **Settings → System → About** in Ubuntu 24.04, inspect Ubuntu version, CPU and memory, screenshot excluding any visible serial/identifiers if present. Avoid running terminal commands or introducing software for this step. UI result not yet received, hardware values must not be assumed as independently verified.
 - No router setting changes, Win7 print machine actions, driver changes, SMB access, production deployment, print authorization or D1 queries/writes as part of this book-only source change. Original shop workday location stays owner-reported D:\print\الشغل\10-2026\Tooday\10-10 and literal Tooday must not be normalized.
 - AP142_GNOME_FIRST_RUN_COMPLETED=OWNER_SCREENSHOT; AP142_USB_INDEPENDENT_BOOT=OWNER_CONFIRMED_AP140; AP142_NETWORK=UNTESTED; AP142_SERVER_INSTALLED_COMPONENTS=NO_NEW_COMPONENTS; AP142_SHOP_WINDOWS7=UNTOUCHED; AP142_PRODUCTION_AND_D1=NO_CHANGES.
+
+
+### AP-143 — Installed iMac12,1 CPU, memory, Ubuntu and graphics confirmed in Settings → System → About (2026-10-12; OWNER SCREENSHOT)
+
+OWNER PHYSICAL SCREEN EVIDENCE — TWO NEW PHOTOGRAPHS (described only; DO NOT COMMIT PHOTO):
+- Owner opened installed Ubuntu Desktop's Settings > System > About and System Details, following owner-confirmed successful internal SSD boot without installer USB in AP-140 and first-run Finish completion AP-142.
+- Device Name as shown on the installed operating system: **TrendosShop**. This CONFIRMS previous installer-requested name in AP-137; do not conflate requested login username **trend-main** (NOT independently checked from this About screenshot).
+- Operating System exactly shown: **Ubuntu 24.04.5 LTS**, **64-bit**. GNOME **46**, Windowing System **Wayland**. Screenshot also shows Firmware Version **85.0.0.0** and Kernel Version string **Linux 7.0.0-31-generic**. These are OBSERVED STRINGS ONLY: a kernel version label does not establish installed security patch state, kernel origin or vendor supportedness. Independently review updates and official kernel packages when Internet is available, do not panic/replace OS based on a screenshot.
+- Hardware Model **Apple Inc. iMac12,1**, CPU **Intel Core i5-2400S x 4**, Memory **8.0 GiB**, Disk Capacity **120.0 GB**. Actual disk identity previously photographed Ubuntu Disks **HS-SSD-C100 120G** (/dev/sda in Live session); installed About doesn't by itself prove stable disk health or partition free space. No confidential disk serial stored.
+- Graphics labels visible: **AMD TURKS**, and **Intel HD Graphics 2000 (SNB GT1)**. These are reported by About, not evidence of full accelerated reliability; basic graphical operation works, but monitor heat/graphics uptime later.
+- Installation screen previously selected **Disk encryption None**: not encrypted at rest. No customer media transfer should start before separate security review.
+- The iMac remains owner-reported at HOME, lacking a LAN cable at this time. Ethernet/Wi-Fi, patch level, DNS/Internet, secure remote SSH, UFW, NetBird, access to restricted SMB2+ Windows 7 share, Docker/Node/TrendOS local services, uptime monitoring, SMART extended health/thermals remain untested/unconfigured. Do not infer network connectivity from system information page.
+- **NEXT one non-destructive GUI owner check:** Open Settings → Wi-Fi and see whether any Wi-Fi networks are listed; share a screenshot excluding network passwords. If Wi-Fi absent, do not rush installing proprietary drivers while offline; alternatives include a LAN cable or supported phone USB tethering after review.
+- Historical owner reported shop Windows 7 original workday D:\print\الشغل\10-2026\Tooday\10-10; preserve exact Tooday spelling. No existing printer/drivers/other computer altered, no customer data read/copied, D1 writes or Production deploys.
+
+AP143_HOSTNAME=TrendosShop_SCREEN_CONFIRMED
+AP143_HARDWARE_MODEL=iMac12,1_SCREEN_CONFIRMED
+AP143_CPU=Intel_Core_i5-2400S_x4_SCREEN_CONFIRMED
+AP143_RAM=8.0_GiB_SCREEN_CONFIRMED
+AP143_SSD_CAPACITY=120.0_GB_SCREEN_CONFIRMED
+AP143_OS=Ubuntu_24.04.5_LTS_64bit_SCREEN_CONFIRMED
+AP143_GNOME=46_WAYLAND_SCREEN_CONFIRMED
+AP143_GRAPHICS=AMD_TURKS_AND_INTEL_HD_2000_SCREEN_CONFIRMED
+AP143_KERNEL_LABEL=Linux_7.0.0-31-generic_SCREEN_ONLY
+AP143_FIRMWARE_LABEL=85.0.0.0_SCREEN_ONLY
+AP143_WIFI=NOT_TESTED
+AP143_ETHERNET=NOT_TESTED_NO_CABLE
+AP143_SECURITY_UPDATES=NOT_VERIFIED
+AP143_TRENDOS_SERVER_SERVICES=NOT_DEPLOYED
+AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
