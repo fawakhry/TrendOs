@@ -8711,3 +8711,12 @@ NEW PHYSICAL EVIDENCE / FACT BOUNDARY:
 - Owner-reported iMac12,1 8GB RAM, 120GB SSD, still at HOME without LAN cable. Requested account username **trend-main** and hostname **TrendosShop** as previously photographed; never store password. Data-loss decision and install completion recorded in AP-136/AP-138, no reformat to follow without separate need/consent.
 - Source-only detailed report: autonomous-printshop/docs/AP139_IMAC_UBUNTU_POSTINSTALL_PRO_ONBOARDING_20261012.md. No user photo, credentials, disk serial, IP or customer file contents checked into GitHub. No new software installed, no physical host actions by assistant, no VPN, shop Windows 7 changes, D1 writes, Production merges/deployments or print authorization.
 - AP139_POST_INSTALL_UBUNTU_GUI=OWNER_PHOTO; AP139_UBUNTU_PRO=SKIP_SELECTED; AP139_USB_REMOVAL_AND_INTERNAL_BOOT=AWAIT_OWNER_CONFIRMATION; AP139_LAN=NO_CABLE; AP139_PRODUCTION_CHANGE=NONE.
+
+
+### AP-140 — Ubuntu internal disk boot confirmed by owner (2026-10-12)
+
+- New owner report: installer USB has been removed and Ubuntu is running from the internal iMac disk. A new photo shows Ubuntu GNOME first-run 'Help improve Ubuntu' screen; this is OWNER-CONFIRMED local boot, not independent remote telemetry.
+- Installer had completed Ubuntu 24.04.5 Desktop on the intended internal HS-SSD-C100 120G drive. This replaces the AP-139 pending USB-removal status. No USB live-session reliance reported now.
+- The current Ubuntu first-run screen offers sharing system data; 'Yes' appears selected in the image. Recommend 'No, don't share system data', then Next. This selection is not yet confirmed by the owner.
+- Ethernet remains untested because no cable is available. No updates, server services, VPN, printshop access, original customer files or production changes have been made. Full disk encryption was not selected. Local hardware durability remains untested.
+- No private screenshots, passwords, or sensitive host identifiers have been committed. No printshop Windows 7 changes, D1 writes, or production deploys. Next step: finish onboarding, then plan security updates once connected.
