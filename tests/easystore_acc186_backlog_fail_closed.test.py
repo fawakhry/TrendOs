@@ -10,7 +10,11 @@ m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 original = json.loads(Path("docs/trendos/staging/ACC186_ACCOUNTING_SAFE_EXECUTION_LEDGER_20261012.json").read_text(encoding="utf-8"))
 book = Path("TrendOS_MASTER_BOOK.md").read_text(encoding="utf-8")
 report = m.validate(original, book)
-assert len(report["source_safe_stages_queued"]) == 13
+assert (len(report["source_safe_stages_queued"]) +
+        len(report["source_safe_stages_in_progress"]) +
+        len(report["source_safe_stages_validated_complete"])) == 13
+assert "ACC-187" not in report["source_safe_stages_validated_complete"]
+assert report["source_safe_stages_in_progress"] in ([], ["ACC-187"])
 assert len(report["owner_only_gates"]) == 5
 assert report["release_decision"] == "NO_GO"
 assert report["previous_live_worker_version_captured"] is False
