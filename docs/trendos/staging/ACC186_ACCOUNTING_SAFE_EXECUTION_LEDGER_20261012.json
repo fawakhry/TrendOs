@@ -103,7 +103,7 @@
       "id": "ACC-188",
       "gate": "G4",
       "title": "حساب العملاء والموردين والخزنة",
-      "state": "QUEUED_UNVERIFIED",
+      "state": "IN_PROGRESS_UNVERIFIED",
       "depends_on": [
         "ACC-187"
       ],
