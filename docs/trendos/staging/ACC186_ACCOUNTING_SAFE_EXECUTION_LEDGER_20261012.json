@@ -1,0 +1,429 @@
+{
+  "schema": "ACC186_FINANCE_SAFE_BACKLOG_AND_EXECUTION_LEDGER_V1",
+  "as_of_date": "2026-10-12",
+  "purpose": "Prepare all safe remaining TrendOS + EasyStore finance source/tests/docs while never treating offline CI as production approval",
+  "sources": {
+    "trendos_repo": "fawakhry/TrendOs",
+    "candidate_branch": "candidate/easystore-accounting-a2-20261005",
+    "observed_candidate_before_acc186": "ff75294cbbffbf501cc1ac1639a97e8e4aa8f01b",
+    "easystore_repo": "fawakhry/EasyStore",
+    "observed_easystore_sha": "373d06381594e3ab32a55009fcc74907b1c37c9c",
+    "master_book": "TrendOS_MASTER_BOOK.md",
+    "last_closeout": "docs/trendos/staging/ACC164_ACCOUNTING_FINAL_CLOSEOUT_GATES_20261010.md"
+  },
+  "source_state_only": {
+    "frontend_last_reported": "OFF",
+    "accounting_backend_last_reported": "READONLY",
+    "finance_authoritative_writes": false,
+    "canary_budget": 0,
+    "production_deployment_verified_this_stage": false,
+    "previous_live_worker_version_id": null,
+    "real_d1_protected_backup_verified": false,
+    "real_d1_restore_verified": false
+  },
+  "owner_decisions": {
+    "new_books_without_legacy_transactions": true,
+    "delete_historical_records": false,
+    "cutover_date_local": null,
+    "auto_start_on_program_completion": false,
+    "begin_date_only_with_separate_actual_go_live_approval": true
+  },
+  "allowed_work": [
+    "SOURCE_CODE_ISOLATED_BRANCH",
+    "SYNTHETIC_SQLITE",
+    "LOCAL_WORKER_BUILD_DRYRUN_NO_CREDENTIALS",
+    "NO_DEPLOY_GITHUB_ACTIONS",
+    "APPEND_ONLY_MASTER_BOOK",
+    "REVIEWED_SOURCE_ONLY_PR"
+  ],
+  "prohibited_work": [
+    "PRODUCTION_WORKER_OR_PAGES_DEPLOY",
+    "D1_REMOTE_FINANCIAL_SQL",
+    "FINANCE_POST",
+    "ARM_OR_REPLAY_CANARY",
+    "REAL_EMPLOYEE_PERMISSION_CHANGE",
+    "DELETE_OR_ZERO_PRODUCTION_DATA",
+    "LIVE_BACKUP_OR_RESTORE",
+    "ROLLBACK_PRODUCTION",
+    "SET_CUTOVER_DATE",
+    "ALTER_EMPLOYEE_LOGIN_PRODUCTION"
+  ],
+  "complete_verified": [
+    {
+      "stage": "ACC-183",
+      "state": "VERIFIED_COMPLETE",
+      "evidence": {
+        "pr": 64,
+        "merge_sha": "9af8c034992d765cf124dbf59768f01c717bc108",
+        "postmerge_run": 38083057715
+      }
+    },
+    {
+      "stage": "ACC-184",
+      "state": "VERIFIED_COMPLETE",
+      "evidence": {
+        "pr": 66,
+        "merge_sha": "59a79b37deb948ba7f25ceffc84633f1aaa65e78",
+        "postmerge_run": 38084795842
+      }
+    },
+    {
+      "stage": "ACC-185",
+      "state": "VERIFIED_COMPLETE",
+      "evidence": {
+        "pr": 67,
+        "merge_sha": "9505c896c9c27869cf2950e1f72be423e64868ee",
+        "postmerge_run": 38085491124
+      }
+    }
+  ],
+  "safe_queue": [
+    {
+      "id": "ACC-187",
+      "gate": "G4",
+      "title": "المرتجعات والخصومات واسترداد المدفوع",
+      "state": "QUEUED_UNVERIFIED",
+      "depends_on": [
+        "ACC-185"
+      ],
+      "acceptance_definition": "اختبار رد المبيعات والمشتريات وتراجع القيد ومنع التكرار وحفظ خزنة ومخزون متوازنين باستخدام SQLite صناعي فقط",
+      "proof_required": [
+        "SOURCE_COMMIT",
+        "ISOLATED_TEST_OUTPUT",
+        "GITHUB_ACTIONS_RUN_CONCLUSION",
+        "APPEND_ONLY_MASTER_BOOK"
+      ],
+      "deployment_allowed": false,
+      "owner_approval_needed_for_this_safe_scope": false,
+      "pr": null,
+      "ci_run": null,
+      "verified_at": null
+    },
+    {
+      "id": "ACC-188",
+      "gate": "G4",
+      "title": "حساب العملاء والموردين والخزنة",
+      "state": "QUEUED_UNVERIFIED",
+      "depends_on": [
+        "ACC-187"
+      ],
+      "acceptance_definition": "اختبارات قبض وسداد جزئي وآجل وتحصيل وتسوية دون مضاعفة القيود وبدون حسابات حقيقية",
+      "proof_required": [
+        "SOURCE_COMMIT",
+        "ISOLATED_TEST_OUTPUT",
+        "GITHUB_ACTIONS_RUN_CONCLUSION",
+        "APPEND_ONLY_MASTER_BOOK"
+      ],
+      "deployment_allowed": false,
+      "owner_approval_needed_for_this_safe_scope": false,
+      "pr": null,
+      "ci_run": null,
+      "verified_at": null
+    },
+    {
+      "id": "ACC-189",
+      "gate": "G4",
+      "title": "المخزون والتكلفة والهالك",
+      "state": "QUEUED_UNVERIFIED",
+      "depends_on": [
+        "ACC-188"
+      ],
+      "acceptance_definition": "اختبارات كميات سالبة وتكلفة خامات مركبة وتوازي طلبات الشراء والهالك والعكس في قاعدة صناعية",
+      "proof_required": [
+        "SOURCE_COMMIT",
+        "ISOLATED_TEST_OUTPUT",
+        "GITHUB_ACTIONS_RUN_CONCLUSION",
+        "APPEND_ONLY_MASTER_BOOK"
+      ],
+      "deployment_allowed": false,
+      "owner_approval_needed_for_this_safe_scope": false,
+      "pr": null,
+      "ci_run": null,
+      "verified_at": null
+    },
+    {
+      "id": "ACC-190",
+      "gate": "G2",
+      "title": "صلاحيات وأدوار وهمية مستقلة",
+      "state": "QUEUED_UNVERIFIED",
+      "depends_on": [
+        "ACC-185"
+      ],
+      "acceptance_definition": "مصفوفة وهمية لأدوار الليزر والطباعة والتقفيل والإدارة مع هوية سيرفر موثقة تجريبيا ومنع تزوير الدور",
+      "proof_required": [
+        "SOURCE_COMMIT",
+        "ISOLATED_TEST_OUTPUT",
+        "GITHUB_ACTIONS_RUN_CONCLUSION",
+        "APPEND_ONLY_MASTER_BOOK"
+      ],
+      "deployment_allowed": false,
+      "owner_approval_needed_for_this_safe_scope": false,
+      "pr": null,
+      "ci_run": null,
+      "verified_at": null
+    },
+    {
+      "id": "ACC-191",
+      "gate": "G4",
+      "title": "واجهة EasyStore والإقلاع والتدفق",
+      "state": "QUEUED_UNVERIFIED",
+      "depends_on": [
+        "ACC-185"
+      ],
+      "acceptance_definition": "اختبارات متصفح/محاكاة دون اتصال بالإنتاج للتحميل وSSO وإخفاء الكتابة المالية واختلاف كود الواجهة",
+      "proof_required": [
+        "SOURCE_COMMIT",
+        "ISOLATED_TEST_OUTPUT",
+        "GITHUB_ACTIONS_RUN_CONCLUSION",
+        "APPEND_ONLY_MASTER_BOOK"
+      ],
+      "deployment_allowed": false,
+      "owner_approval_needed_for_this_safe_scope": false,
+      "pr": null,
+      "ci_run": null,
+      "verified_at": null
+    },
+    {
+      "id": "ACC-192",
+      "gate": "G4",
+      "title": "التقارير وتقفيل اليوم",
+      "state": "QUEUED_UNVERIFIED",
+      "depends_on": [
+        "ACC-188",
+        "ACC-189"
+      ],
+      "acceptance_definition": "اختبارات توازن يومي وفرق خزنة وقيود عكسية وتكرار التقفيل والتقارير متعددة الأقسام",
+      "proof_required": [
+        "SOURCE_COMMIT",
+        "ISOLATED_TEST_OUTPUT",
+        "GITHUB_ACTIONS_RUN_CONCLUSION",
+        "APPEND_ONLY_MASTER_BOOK"
+      ],
+      "deployment_allowed": false,
+      "owner_approval_needed_for_this_safe_scope": false,
+      "pr": null,
+      "ci_run": null,
+      "verified_at": null
+    },
+    {
+      "id": "ACC-193",
+      "gate": "G3",
+      "title": "دفاتر من الصفر من غير مسح أو تاريخ",
+      "state": "QUEUED_UNVERIFIED",
+      "depends_on": [
+        "ACC-185"
+      ],
+      "acceptance_definition": "فحص محلي لبدء دفاتر جديدة دون ترحيل فواتير وتاريخ أو اختيار تاريخ تشغيل مع إبقاء مخزون وخزنة والتزامات مراجعة بشرية",
+      "proof_required": [
+        "SOURCE_COMMIT",
+        "ISOLATED_TEST_OUTPUT",
+        "GITHUB_ACTIONS_RUN_CONCLUSION",
+        "APPEND_ONLY_MASTER_BOOK"
+      ],
+      "deployment_allowed": false,
+      "owner_approval_needed_for_this_safe_scope": false,
+      "pr": null,
+      "ci_run": null,
+      "verified_at": null
+    },
+    {
+      "id": "ACC-194",
+      "gate": "G5",
+      "title": "نسخ/استرجاع صناعي موسع لقاعدة D1",
+      "state": "QUEUED_UNVERIFIED",
+      "depends_on": [
+        "ACC-180",
+        "ACC-193"
+      ],
+      "acceptance_definition": "فحوص مهاجرات SQL ونسخ مشفر وهمي واسترجاع مستقل على بيانات صناعية ورفض الأرصدة المتغيرة",
+      "proof_required": [
+        "SOURCE_COMMIT",
+        "ISOLATED_TEST_OUTPUT",
+        "GITHUB_ACTIONS_RUN_CONCLUSION",
+        "APPEND_ONLY_MASTER_BOOK"
+      ],
+      "deployment_allowed": false,
+      "owner_approval_needed_for_this_safe_scope": false,
+      "pr": null,
+      "ci_run": null,
+      "verified_at": null
+    },
+    {
+      "id": "ACC-195",
+      "gate": "G5",
+      "title": "تطابق بصمة الإصدار والـWorker والربط",
+      "state": "QUEUED_UNVERIFIED",
+      "depends_on": [
+        "ACC-183",
+        "ACC-184"
+      ],
+      "acceptance_definition": "فحص اختلاف Wrangler وD1 binding وentrypoint وauth flags وتوقيف الإصدارات غير المعتمدة",
+      "proof_required": [
+        "SOURCE_COMMIT",
+        "ISOLATED_TEST_OUTPUT",
+        "GITHUB_ACTIONS_RUN_CONCLUSION",
+        "APPEND_ONLY_MASTER_BOOK"
+      ],
+      "deployment_allowed": false,
+      "owner_approval_needed_for_this_safe_scope": false,
+      "pr": null,
+      "ci_run": null,
+      "verified_at": null
+    },
+    {
+      "id": "ACC-196",
+      "gate": "G5",
+      "title": "مخطط الرجوع واختبارات محاكاة الفشل",
+      "state": "QUEUED_UNVERIFIED",
+      "depends_on": [
+        "ACC-194",
+        "ACC-195"
+      ],
+      "acceptance_definition": "اختبارات نسخة Worker وهمية وملف رجوع وخدمات صحة صناعية وتأكيد أن كود الرجوع لا يعكس حركات D1",
+      "proof_required": [
+        "SOURCE_COMMIT",
+        "ISOLATED_TEST_OUTPUT",
+        "GITHUB_ACTIONS_RUN_CONCLUSION",
+        "APPEND_ONLY_MASTER_BOOK"
+      ],
+      "deployment_allowed": false,
+      "owner_approval_needed_for_this_safe_scope": false,
+      "pr": null,
+      "ci_run": null,
+      "verified_at": null
+    },
+    {
+      "id": "ACC-197",
+      "gate": "G1",
+      "title": "تجهيز حزمة قبول عهدة A2.13 دون تنفيذ",
+      "state": "QUEUED_UNVERIFIED",
+      "depends_on": [
+        "ACC-190",
+        "ACC-196"
+      ],
+      "acceptance_definition": "قائمة اختبار ومراقبة/تحقق SELECT وحالات إيقاف وتوثيق جاهزية الواجهة دون أي canary حقيقي",
+      "proof_required": [
+        "SOURCE_COMMIT",
+        "ISOLATED_TEST_OUTPUT",
+        "GITHUB_ACTIONS_RUN_CONCLUSION",
+        "APPEND_ONLY_MASTER_BOOK"
+      ],
+      "deployment_allowed": false,
+      "owner_approval_needed_for_this_safe_scope": false,
+      "pr": null,
+      "ci_run": null,
+      "verified_at": null
+    },
+    {
+      "id": "ACC-198",
+      "gate": "G4",
+      "title": "محاكاة قبول مالي شاملة ومتكررة",
+      "state": "QUEUED_UNVERIFIED",
+      "depends_on": [
+        "ACC-187",
+        "ACC-188",
+        "ACC-189",
+        "ACC-190",
+        "ACC-191",
+        "ACC-192",
+        "ACC-193"
+      ],
+      "acceptance_definition": "تشغيل مسار صناعي موحد ومطابقة إيصالات الخزنة والمخزون والديون والتقارير والمرتجعات",
+      "proof_required": [
+        "SOURCE_COMMIT",
+        "ISOLATED_TEST_OUTPUT",
+        "GITHUB_ACTIONS_RUN_CONCLUSION",
+        "APPEND_ONLY_MASTER_BOOK"
+      ],
+      "deployment_allowed": false,
+      "owner_approval_needed_for_this_safe_scope": false,
+      "pr": null,
+      "ci_run": null,
+      "verified_at": null
+    },
+    {
+      "id": "ACC-199",
+      "gate": "G5",
+      "title": "ملف جاهزية التشغيل وتسليم الموظفين",
+      "state": "QUEUED_UNVERIFIED",
+      "depends_on": [
+        "ACC-196",
+        "ACC-197",
+        "ACC-198"
+      ],
+      "acceptance_definition": "تجميع الأدلة والـCI وفرق الإصدارات وRunbook التشغيل دون منح موافقات أو نشر",
+      "proof_required": [
+        "SOURCE_COMMIT",
+        "ISOLATED_TEST_OUTPUT",
+        "GITHUB_ACTIONS_RUN_CONCLUSION",
+        "APPEND_ONLY_MASTER_BOOK"
+      ],
+      "deployment_allowed": false,
+      "owner_approval_needed_for_this_safe_scope": false,
+      "pr": null,
+      "ci_run": null,
+      "verified_at": null
+    }
+  ],
+  "owner_approval_queue": [
+    {
+      "id": "ONE_AUTHENTICATED_A213_BOUNDED_CUSTODY_CLOSE",
+      "gate": "G1",
+      "state": "BLOCKED_OWNER_APPROVAL",
+      "owner_required": true,
+      "condition": "موافقة محددة لتجربة إقفال عهدة حقيقية، دون إعادة تشغيل التجارب القديمة",
+      "production_action_allowed": false,
+      "evidence_verified": false
+    },
+    {
+      "id": "REAL_EMPLOYEE_GRANTS_AND_PERMISSION_MATRIX",
+      "gate": "G2",
+      "state": "BLOCKED_OWNER_APPROVAL",
+      "owner_required": true,
+      "condition": "اعتماد مصفوفة صلاحيات الموظفين الحقيقية في Issue #40 ومراجعة هوياتهم",
+      "production_action_allowed": false,
+      "evidence_verified": false
+    },
+    {
+      "id": "PHYSICAL_OPENING_AND_EXACT_CUTOVER",
+      "gate": "G3",
+      "state": "BLOCKED_OWNER_APPROVAL",
+      "owner_required": true,
+      "condition": "توقيع مراجعة المخزون والخزنة والعهد والالتزامات وتحديد التاريخ عند التشغيل فقط",
+      "production_action_allowed": false,
+      "evidence_verified": false
+    },
+    {
+      "id": "REAL_FINANCE_OPERATING_ACCEPTANCE",
+      "gate": "G4",
+      "state": "BLOCKED_OWNER_APPROVAL",
+      "owner_required": true,
+      "condition": "اختبار معتمد لدورة الأموال الحقيقية والمرتجعات والتقارير والتقفيل",
+      "production_action_allowed": false,
+      "evidence_verified": false
+    },
+    {
+      "id": "PRODUCTION_BACKUP_RELEASE_AND_ROLLBACK",
+      "gate": "G5",
+      "state": "BLOCKED_OWNER_APPROVAL",
+      "owner_required": true,
+      "condition": "نسخة احتياطية D1 حقيقية واسترجاع مستقل وحفظ إصدار Worker المنشور وتصريح نشر ورجوع",
+      "production_action_allowed": false,
+      "evidence_verified": false
+    }
+  ],
+  "gates": {
+    "G1": "OPEN",
+    "G2": "OPEN",
+    "G3": "OPEN",
+    "G4": "OPEN",
+    "G5": "OPEN"
+  },
+  "release_decision": "NO_GO",
+  "production_mutations_this_stage": 0,
+  "status_semantics": {
+    "QUEUED_UNVERIFIED": "Planned: not implemented or tested",
+    "VERIFIED_COMPLETE": "Completed with independently checked PR and exact merged SHA run",
+    "BLOCKED_OWNER_APPROVAL": "Must not execute until fresh separate approval"
+  }
+}
