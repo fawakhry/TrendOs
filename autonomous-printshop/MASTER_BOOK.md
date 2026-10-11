@@ -8702,3 +8702,12 @@ NEW PHYSICAL EVIDENCE / FACT BOUNDARY:
 - One NEXT OWNER ACTION: press **Restart now**; remove Ubuntu USB and press Enter when prompted. Confirm Ubuntu boots **without USB** from iMac internal SSD, then report login/desktop status without disclosing password. If boot does not occur, diagnose before any reinstall.
 - Source evidence report: autonomous-printshop/docs/AP138_IMAC_UBUNTU_INSTALL_COMPLETE_AWAIT_REBOOT_20261012.md; **no screenshots/customer data/serials/passwords committed**. CI (if successful) confirms GitHub documentation only, not hardware, SSD boot, updates or real VPN.
 - AP138_INSTALLER_FINISHED=OWNER_PHOTO; AP138_INTERNAL_BOOT=NOT_VERIFIED; AP138_REMOTE_FILES=NOT_CONNECTED; AP138_SHOP_FILES_OR_WIN7_MODIFIED=NO; AP138_D1_WRITES=0; AP138_PRODUCTION_DEPLOY=NO.
+
+
+### AP-139 — iMac visible Ubuntu post-install desktop; Ubuntu Pro onboarding (2026-10-12; EVIDENCE ONLY)
+
+- Owner supplied a new photograph following AP-138 installer completion screen: GNOME Ubuntu graphical desktop with first-run **Ubuntu Pro — Enable Ubuntu Pro** wizard; **Skip for now** radio selected. Indicates a functioning Ubuntu GUI after installer, strongly suggests postinstall reboot. **Actual boot from internal HS-SSD-C100 120G without USB is not yet explicitly confirmed**, so do not mark internal boot independently VERIFIED.
+- Recommended ONE UI step: leave Ubuntu Pro **Skip for now** selected and use Next/Continue, no login, subscription or payment required now. Ubuntu Pro can be considered later under appropriate supported business terms once connected and updated.
+- Owner-reported iMac12,1 8GB RAM, 120GB SSD, still at HOME without LAN cable. Requested account username **trend-main** and hostname **TrendosShop** as previously photographed; never store password. Data-loss decision and install completion recorded in AP-136/AP-138, no reformat to follow without separate need/consent.
+- Source-only detailed report: autonomous-printshop/docs/AP139_IMAC_UBUNTU_POSTINSTALL_PRO_ONBOARDING_20261012.md. No user photo, credentials, disk serial, IP or customer file contents checked into GitHub. No new software installed, no physical host actions by assistant, no VPN, shop Windows 7 changes, D1 writes, Production merges/deployments or print authorization.
+- AP139_POST_INSTALL_UBUNTU_GUI=OWNER_PHOTO; AP139_UBUNTU_PRO=SKIP_SELECTED; AP139_USB_REMOVAL_AND_INTERNAL_BOOT=AWAIT_OWNER_CONFIRMATION; AP139_LAN=NO_CABLE; AP139_PRODUCTION_CHANGE=NONE.
