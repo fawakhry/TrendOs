@@ -8588,3 +8588,34 @@ SOURCE COMMIT / CI:
 STATUS / NEXT SINGLE OWNER STEP:
 - AP133_OTHER_SHOP_PC=NONE_OWNER_CONFIRMED; AP133_ROUTER_MODEL=NOT_PROVIDED; AP133_ROUTER_WIREGUARD=UNKNOWN; AP133_ROUTER_OFFICIAL_FIRMWARE=UNKNOWN; AP133_WAN_CGNAT=UNKNOWN; AP133_HOME_SECURITY=NOT_VERIFIED; AP133_WIN7_ACL=UNCHANGED; AP133_REAL_REMOTE_ACCESS=NOT_CONFIGURED; AP133_CUSTOMER_FILE_READ_OR_WRITTEN_BY_ASSISTANT=NO; AP133_D1_WRITES=0; AP133_PRODUCTION_DEPLOY=NO; AP133_FIRST_ORDER_PILOT=BLOCKED_SAFE.
 - NEXT: At the **physical printshop router**, read sticker brand and **exact model** (prefer text). No serial/admin/Wi-Fi passwords, QR photo or IP. If sending photo, crop to brand+Model only. No login, restart, reset, firmware update or sharing yet. After owner reply check *that exact model* against official vendor sources for maintained WireGuard VPN server + firewall scope. If unsuitable, consider dedicated supported low-cost Linux gateway, never bypass isolation.
+
+
+### AP-134 — Reuse owner's iMac12,1 8 GB RAM / 128 GB SSD as low-cost local autonomous printshop server pilot (2026-10-11; SOURCE_ONLY TESTED)
+
+OWNER HARDWARE UPDATE / INTENT:
+- Owner confirmed already-available **Apple iMac12,1** with **8GB RAM** and **128GB SSD**, upgrade later. Intention is to serve eventually as the **entire autonomous printshop server**, not merely a file-transfer appliance. No new hardware purchase justified before a safe nondestructive feasibility check.
+- iMac12,1 corresponds broadly to **21.5-inch Mid-2011** Apple iMac. Apple official specs list quad-core i5 variants, Gigabit Ethernet, DDR3 configurable to 16GB and USB 2.0 ports (https://support.apple.com/en-eg/111983). Owner's particular processor, disks, storage wear and power health are NOT independently verified by GitHub.
+- Ubuntu Server 24.04 LTS amd64 published suggested minimums of 3GB RAM / 25GB storage (https://ubuntu.com/server/docs/reference/installation/system-requirements/); supplied resources are **sufficient on paper for the lightweight pilot**. They do NOT prove boot compatibility on legacy iMac EFI/AMD graphics or suitability for 24/7 production automation. NetBird official Ubuntu Linux CLI routing peer capability is documented at https://docs.netbird.io/help/support-matrix/netbird-client/linux and https://docs.netbird.io/manage/networks/how-routing-peers-work.
+- AP-133 owner said no spare modern Windows/Linux PC physically IN SHOP; availability of iMac is new, **physical location (shop vs home) remains unknown**, so do not presume it is already connected to printshop LAN. Next single user input is to clarify where the iMac currently is.
+
+ARCHITECTURAL DECISION:
+- **Use existing iMac as a *candidate* for dedicated Ubuntu Server / modern Linux headless gateway, plus small future TrendOS local agent and order-file metadata/index services.** First milestone is private on-demand browse/download/upload through authenticated routing peer to Windows 7 SMB (scoped only to explicitly approved work root and TCP445), not putting existing originals on the iMac or automating printing.
+- The authoritative printshop Windows 7 x64 remains dedicated to printers/drivers and unchanged original customer files: D:\print\الشغل\10-2026\Tooday\10-10. Preserve literal Tooday and ديجتال/فوتو conventions. The proposed D:\print\الشغل share root still needs onsite scope and ACL validation. No NetBird on Win7 and no public SMB/RDP. No unrestricted whole-LAN VPN routing.
+- 128GB SSD for OS, binaries, bounded cache/logs/manifests only; **not full-size customer originals**. Future RAM 16GB (check slots and compatible DIMMs) and SSD 512GB/1TB only once measured actual needs justify them. Old hardware thermal/disk/power risks require health checks and tested independent backup/recovery; a future newer dedicated server may still be required for high uptime, heavy AI or stronger automation.
+- HOME endpoint Windows 10 Enterprise 2016 LTSB v1607 build 14393.0 remains unqualified for live customer-file access until patch support/ESU and modern endpoint compatibility are checked.
+
+IMPLEMENTATION / TESTS / SAFE OPERATION:
+1. Created isolated branch feature/ap134-local-autonomous-server-hardware-rfc-20261011 directly from AP-133 documented commit 855c5ce7161ead04a469b3f287beb43275785ed1 (exact CI 38144381029 SUCCESS).
+2. autonomous-printshop/core/imac-local-server-pilot-v1.mjs: pure fail-closed owner-hardware planning contract. Checks exact iMac12,1, supplied 8GB/128GB threshold, lightweight VPN-and-TrendOS workload, shop LAN location, backup of existing iMac disk, tested Ethernet, non-destructive USB boot, SSD/temperature/power recovery, off-device backup plan, secure home endpoint and separate explicit approval for destructive OS installation. Unsafe flags block deleting/replacing original shop files, disabling safety or exposing WAN. Every real physical/Linux/network/file/production authority boolean remains FALSE even with optimistic synthetic assertions.
+3. autonomous-printshop/tests/ap134_imac_server_pilot_v1.test.mjs: deterministic tests for all blockers/unsafe requests, hostile getters, ignored secrets, source-only flags and supported candidate outcome. No real iMac, shop Win7, VPN, customer or production contact.
+4. autonomous-printshop/docs/AP134_IMAC12_1_SERVER_PILOT_20261011.md: phased non-destructive hardware/EFI/SSD/thermal/ethernet feasibility, owner data protection, later manual OS installation with consent, least-privileged routing and future manifest linking; cites Apple/Ubuntu/NetBird docs.
+5. .github/workflows/autonomous-printshop-policy-v1-ci.yml: registers AP-134 test after AP-133 without changing production/deployment/D1 workflows.
+
+SOURCE SHA / CHECKS:
+- Source code/test/runbook/CI commit 3d1e0bb84a26828101fe40821b3fac6de4365230.
+- GitHub [exact source AP-134 policy run 38161482394](https://github.com/fawakhry/TrendOs/actions/runs/38161482394) at source SHA: **COMPLETED SUCCESS**; AP-134 test and overall workflow succeeded. This is synthetic *source only*, not a hardware/USB/Win7/VPN feasibility proof.
+- Book-only commit must pass independent exact-SHA CI before claiming documented phase closed.
+
+STATUS / NEXT:
+- AP134_OWNER_IMAC12_1=REPORTED; AP134_RAM=8GB_REPORTED; AP134_SSD=128GB_REPORTED; AP134_PHYSICAL_LOCATION=UNKNOWN; AP134_EXISTING_DISK_BACKUP=UNVERIFIED; AP134_USB_LINUX_BOOT=NOT_TESTED; AP134_HARDWARE_HEALTH=NOT_TESTED; AP134_REMOTE_ACCESS=NOT_CONNECTED; AP134_TRENDOS_LOCAL_AGENT=NOT_DEPLOYED; AP134_ORIGINALS=NOT_MOVED; AP134_D1_WRITES=0; AP134_PRODUCTION_DEPLOY=NO; AP134_PRINT_AUTO=OFF_LAST_DOCUMENTED.
+- **NEXT SINGLE OWNER QUESTION:** Is the iMac currently physically at the printshop or at home? Do not ask user to run Linux commands yet. Before any erase/OS install separately establish whether there are important existing data on the iMac, secure backup and explicit installation approval. Existing staff/customer work remains unchanged.
