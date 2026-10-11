@@ -8720,3 +8720,13 @@ NEW PHYSICAL EVIDENCE / FACT BOUNDARY:
 - The current Ubuntu first-run screen offers sharing system data; 'Yes' appears selected in the image. Recommend 'No, don't share system data', then Next. This selection is not yet confirmed by the owner.
 - Ethernet remains untested because no cable is available. No updates, server services, VPN, printshop access, original customer files or production changes have been made. Full disk encryption was not selected. Local hardware durability remains untested.
 - No private screenshots, passwords, or sensitive host identifiers have been committed. No printshop Windows 7 changes, D1 writes, or production deploys. Next step: finish onboarding, then plan security updates once connected.
+
+
+### AP-141 — iMac Ubuntu first-run wizard reaches Ready to go / App Center offer (2026-10-12; owner screenshot; evidence only)
+
+- Following AP-140 owner-confirmed USB removal and installed Ubuntu boot, owner shared a local photograph of Ubuntu **Ready to go / Get started with more applications** welcome page; **Finish** button visible. First-run wizard progressed through previous privacy/telemetry page, but photo does not establish which telemetry sharing choice was selected. Never claim that No was applied or that telemetry was sent.
+- Recommend owner press **Finish** to close onboarding, not Open App Center. No applications or updates are required now; wired network/Internet remain untested because no LAN cable at home. No screenshot yet showing the desktop after Finish.
+- Owner-reported iMac12,1 with 8GB RAM, internal HS-SSD-C100 120G, Ubuntu 24.04.5 LTS Desktop installer completed and owner confirmed actual boot **without installer USB**. Previous requested account username trend-main; never store password.
+- No independent post-boot SSD/SMART/temperature check, software security updates, VPN, SMB or local TrendOS services; disk encryption None was chosen during installation, so postpone storing sensitive customer content pending security review.
+- Original printshop Windows 7 system/drivers/customer originals in the previously reported D:\print\الشغل\10-2026\Tooday\10-10 workday remain untouched by GitHub-only recording. Preserve exact Tooday spelling. No D1 writes, production deploy or print authorization.
+- BOOK-ONLY SOURCE STATUS: AP141_READY_TO_GO_SCREEN=OWNER_PHOTO; AP141_FINISH_CLICK=NOT_CONFIRMED; AP141_INTERNAL_BOOT=OWNER_CONFIRMED_AP140; AP141_LAN_AND_UPDATES=NOT_VERIFIED; AP141_PRODUCTION=UNCHANGED.
