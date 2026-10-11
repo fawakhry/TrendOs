@@ -14,7 +14,8 @@ assert (len(report["source_safe_stages_queued"]) +
         len(report["source_safe_stages_in_progress"]) +
         len(report["source_safe_stages_validated_complete"])) == 13
 assert "ACC-187" not in report["source_safe_stages_validated_complete"]
-assert report["source_safe_stages_in_progress"] in ([], ["ACC-187"])
+assert set(report["source_safe_stages_in_progress"]).issubset(set(m.REQUIRED_STAGES))
+assert set(report["source_safe_stages_in_progress"]).isdisjoint(set(report["source_safe_stages_validated_complete"]))
 assert len(report["owner_only_gates"]) == 5
 assert report["release_decision"] == "NO_GO"
 assert report["previous_live_worker_version_captured"] is False

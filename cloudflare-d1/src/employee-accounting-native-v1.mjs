@@ -1078,9 +1078,23 @@ async function partyLedger(env,auth,b){
 
   const snapshot=await env.DB.prepare("SELECT balance,version FROM employee_accounting_party_balances_v1 WHERE party_type=? AND party_id=?").bind(type,party.partyId).first();
   const before=num(snapshot&&snapshot.balance),version=Math.max(1,Math.trunc(num(snapshot&&snapshot.version,1))),delta=effect(op)*amount;
+  const normalizedCommand={...b,partyId:party.partyId,partyName:party.partyName,partyType:type};
+  // ACC-188: a COMMITTED identical payment must replay before the mutable
+  // balance ceiling is checked. Otherwise a legitimate retry after a 60-of-70
+  // receipt would falsely fail because only 10 remains. The existing command
+  // ledger still enforces exact canonical payload/operation/hash and refuses
+  // PREPARED, altered or cross-operation requestId collisions.
+  const previousKey=text(b.requestId||b.idempotencyKey||b.clientRequestId);
+  if(previousKey){
+    const prior=await env.DB.prepare("SELECT request_key FROM employee_accounting_request_ledger_v1 WHERE request_key=?").bind(previousKey).first();
+    if(prior){
+      const priorCtx=await beginCommandV1(env,auth,'party-ledger:'+type+':'+op,normalizedCommand);
+      if(priorCtx.replay)return {...priorCtx.response,success:true,duplicatePrevented:true};
+    }
+  }
   if(delta<0&&amount>before+0.000001)return {success:false,message:'المبلغ أكبر من الرصيد المستحق الحالي: '+before+' ج.'};
 
-  const ctx=await beginCommandV1(env,auth,'party-ledger:'+type+':'+op,{...b,partyId:party.partyId,partyName:party.partyName,partyType:type});
+  const ctx=await beginCommandV1(env,auth,'party-ledger:'+type+':'+op,normalizedCommand);
   if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
 
   const tx=uid('LED'),cashId=uid('CSH'),now=Date.now(),workDate=workDateKeyV1(b.workDate||b.date);
