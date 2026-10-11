@@ -1,0 +1,48 @@
+name: ACC-188 Customer Supplier Partial Payment Replay SQLite — NO DEPLOY
+on:
+  push:
+    branches:
+      - fix/acc188-party-ledger-repeat-payment-idempotency-sqlite-20261012
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'tests/easystore_acc188_party_ledger_idempotency_sqlite.test.mjs'
+      - '.github/workflows/easystore-acc188-party-ledger-idempotency-no-go.yml'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+permissions:
+  contents: read
+jobs:
+  fake-d1-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Ensure partial receipt/payments duplicate-safe using original Worker SQL in temporary SQLite
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --check tests/easystore_acc188_party_ledger_idempotency_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc188_party_ledger_idempotency_sqlite.test.mjs
+          echo 'ACC188_LIVE_FINANCE_POST_NOT_PERFORMED=YES'
+          echo 'ACC188_RELEASE_DECISION=NO_GO'
+      - name: Existing purchased-stock/customer-sale and custody regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-sqlite tests/easystore_acc170_finance_flow_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc174_department_purchase_custody_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc187_sale_refund_gap_purchase_reversal_sqlite.test.mjs
+          echo 'ACC188_ACC170_ACC174_ACC187_SQLITE_REGRESSION=PASS'
