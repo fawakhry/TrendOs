@@ -8647,3 +8647,26 @@ SOURCE / CI:
 STATUS / PRODUCTION:
 AP135_IMAC_LOCATION=OWNER_CONFIRMED_HOME; AP135_128GB_DISK_DATA_IMPORTANCE=UNKNOWN; AP135_OFF_DEVICE_BACKUP=NOT_CHECKED; AP135_PHYSICAL_TRANSPORT=NOT_PERFORMED; AP135_LINUX_USB_BOOT=NOT_TESTED; AP135_SHOP_LAN=NOT_CONNECTED; AP135_WIN7_SHARE=NOT_CONFIGURED; AP135_VPN=NOT_CONNECTED; AP135_CUSTOMER_FILE_READ_OR_MOVED=NO; AP135_D1_WRITES=0; AP135_PRODUCTION_DEPLOY=NO; AP135_REAL_PILOT=BLOCKED_SAFE.
 - NEXT one owner instruction: **Check if the HOME iMac contains important files needing preservation: YES, NO, or UNSURE.** Ask no separate questions or setup actions in this step.
+
+
+### AP-136 — Owner explicitly accepts iMac data loss / declines backup; prepare Ubuntu USB safely (2026-10-11; SOURCE ONLY)
+
+OWNER DECISION / SCOPE:
+- Following AP-135, owner explicitly said the HOME iMac contains NO IMPORTANT FILES to preserve and that a backup is NOT NEEDED, after already stating they intend a full format. This supersedes AP-135 "important files unknown", and constitutes informed OWNER INTENT to erase the iMac internal SSD in a FUTURE supervised installation — NOT evidence the drive is empty, NOT an actual erase, and NOT authorization to target any other drive.
+- Machine remains owner-reported iMac12,1 (8 GB RAM, 128 GB SSD), physically at HOME. Shop Windows 7 x64 original customer files remain at D:\print\الشغل\10-2026\Tooday\10-10 (preserve "Tooday"). No new NetBird on Win7, no WAN SMB/RDP, production D1/worker/print controls OFF.
+- Last AP-135 book HEAD ecce0ba29ae6c40c835e5c72b277a256b3618402 exact CI 38161911333 SUCCESS.
+
+SOURCE / PROTECTIONS:
+1. New safe branch feature/ap136-imac-owner-wipe-intent-preinstall-20261011.
+2. autonomous-printshop/core/imac-preinstall-safety-v1.mjs: fail-closed pure contract that records owner no-important-files/declined-backup/wipe intent, then requires expendable 8GB+ USB, official verified ISO, explicit USB device selection, non-destructive Try Ubuntu boot, independent iMac internal SSD identification, and FINAL owner confirmation at installer prior to any wipe. Even all synthetic gates cannot cause an actual device write or operational authority. No method touches any disk, OS, network, data or printer.
+3. autonomous-printshop/tests/ap136_imac_preinstall_safety_v1.test.mjs: covers missing/generic USB, unsafe flags, source-only no authority, important-file decision, checksum, live boot, SSD identity, final confirmation and malicious getter input.
+4. autonomous-printshop/docs/AP136_IMAC_OWNER_WIPE_INTENT_PREINSTALL_20261011.md: official Ubuntu 24.04 Desktop amd64 Try preview recommended BEFORE a separate supported Server install; USB write erases only the selected USB. Use official Ubuntu media guide https://ubuntu.com/desktop/docs/en/24.04/how-to/create-a-bootable-usb-stick/ and install guide https://ubuntu.com/desktop/docs/en/24.04/tutorial/install-ubuntu-desktop/. The 2011 iMac EFI/GPU/Ethernet compatibility remains untested.
+5. .github/workflows/autonomous-printshop-policy-v1-ci.yml: adds AP-136 synthetic regression without altering deploy/D1 workflows.
+
+COMMITS / CI:
+- Source/test/runbook/CI SHA a770ade77665197232c1dc20918ffa3cf16e1e54; source GitHub policy run https://github.com/fawakhry/TrendOs/actions/runs/38172145680. At book-write time AP-136 specific step was SUCCESS; whole policy run requires final confirmation.
+- This book-only follow-up commit requires independent exact-SHA CI.
+
+STATUS / NEXT:
+- AP136_OWNER_NO_IMPORTANT_IMAC_DATA=CONFIRMED_BY_OWNER; AP136_BACKUP_WAIVED=OWNER_DECISION; AP136_FORMAT_INTENT=OWNER_CONFIRMED; AP136_LIVE_USB=NOT_PREPARED; AP136_LINUX_BOOT=NOT_TESTED; AP136_IMAC_SSD=NOT_ERASED; AP136_LINUX_SERVER=NOT_INSTALLED; AP136_SHOP_WINDOWS7=UNTOUCHED; AP136_REMOTE_FILES=NOT_CONNECTED; AP136_PRODUCTION_DEPLOY=NO; AP136_D1_WRITES=0.
+- NEXT **ONE owner question**: "معاك فلاشة 8 جيجا أو أكبر، ومش محتاج الملفات اللي عليها؟" Only after YES guide a boot USB. NO additional backup questions for the iMac unless the user changes their data-retention decision. Installer final review is still mandatory before destructive command.
