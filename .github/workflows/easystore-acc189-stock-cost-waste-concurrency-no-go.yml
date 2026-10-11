@@ -1,0 +1,50 @@
+name: ACC-189 Stock Cost Waste Concurrency Guard — Real Worker Synthetic SQLite NO_GO
+on:
+  push:
+    branches:
+      - test/acc189-stock-composite-waste-concurrent-sqlite-20261012
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'tests/easystore_acc189_inventory_waste_composite_concurrent_sqlite.test.mjs'
+      - '.github/workflows/easystore-acc189-stock-cost-waste-concurrency-no-go.yml'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+permissions:
+  contents: read
+jobs:
+  fake-d1-stock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test source with synthetic inventory, composite products and concurrent sales
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --check tests/easystore_acc189_inventory_waste_composite_concurrent_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc189_inventory_waste_composite_concurrent_sqlite.test.mjs
+          echo 'ACC189_G4_PRODUCTION_STOCK_ACCEPTANCE=NOT_PERFORMED'
+          echo 'ACC189_RELEASE_DECISION=NO_GO'
+      - name: No regression in cash/debt/custody/reversal and source safeguards
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-sqlite tests/easystore_acc170_finance_flow_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc174_department_purchase_custody_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc187_sale_refund_gap_purchase_reversal_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc188_party_ledger_idempotency_sqlite.test.mjs
+          python3 tests/easystore_acc188_a210_no_bot_push.test.py
+          echo 'ACC189_PREVIOUS_FINANCE_AND_A210_NO_BRANCH_WRITE_REGRESSIONS=PASS'
