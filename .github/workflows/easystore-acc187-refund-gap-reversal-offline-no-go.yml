@@ -1,0 +1,46 @@
+name: ACC-187 Refund Gap and Reversal Safety — Synthetic SQLite NO_GO
+on:
+  push:
+    branches:
+      - test/acc187-refund-gap-purchase-reversal-inmemory-20261012
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'tests/easystore_acc187_sale_refund_gap_purchase_reversal_sqlite.test.mjs'
+      - '.github/workflows/easystore-acc187-refund-gap-reversal-offline-no-go.yml'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+permissions:
+  contents: read
+jobs:
+  isolated-sqlite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Synthetic returns audit, real source handler, no cloud
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          node --check tests/easystore_acc187_sale_refund_gap_purchase_reversal_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc187_sale_refund_gap_purchase_reversal_sqlite.test.mjs
+          echo 'ACC187_REAL_SALE_REFUND=UNIMPLEMENTED_AND_NOT_ACCEPTED'
+          echo 'ACC187_PRODUCTION_FINANCE=NO_GO'
+      - name: Regress established integrated finance purchase / sale / day-close tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-sqlite tests/easystore_acc170_finance_flow_sqlite.test.mjs
+          node tests/easystore_a2_purchase_reversal_v1.test.mjs
+          echo 'ACC187_ACC170_AND_A2_PURCHASE_REVERSAL_REGRESSION=PASS'
