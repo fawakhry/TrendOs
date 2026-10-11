@@ -8563,3 +8563,28 @@ VENDOR REFERENCES:
 - https://docs.netbird.io/manage/networks/how-routing-peers-work
 - https://docs.netbird.io/manage/settings/plans-and-billing
 - https://learn.microsoft.com/en-us/windows/release-health/release-information
+
+
+### AP-133 — Existing router first: identify exact model before modern VPN feasibility (2026-10-11; SOURCE_ONLY TESTED / LIVE ROUTER UNKNOWN)
+
+OWNER ANSWER / HARDWARE REALITY:
+- Owner explicitly confirmed **NO other modern Windows/Linux always-on PC inside printshop**. Do not repeat the AP-132 gateway question; now identify the existing router, with no configuration yet.
+- Resume from exact AP-132 documented HEAD ce7731e1b8644f4a778e93114ec2fbd2dd1e937a (GitHub policy CI 38084685726 SUCCESS), on safe feature/ap133-shop-router-model-capability-gate-20261011.
+- Physical router maker/model/hardware revision/firmware, WireGuard Server availability, filtering features, CGNAT/public reachability, home update state, local SMB2 availability and root contents remain UNKNOWN. GitHub files do not reveal a physical router model.
+- Shop authoritative Windows 7 x64 files stay at owner-reported D:\print\الشغل\10-2026\Tooday\10-10; inferred common root D:\print\الشغل still requires safe onsite inspection, and ديجتال/فوتو exact disk placement remains unverified. No moves/renames, no customer photos in public logs, no NetBird legacy install on Win7, no internet SMB/RDP or broad LAN VPN routes. Print procedures AP-127/128 unchanged.
+- Home Windows 10 Enterprise 2016 LTSB 1607 14393.0: actual patch state unverified; Microsoft public Windows release health says security updates end 2026-10-13; ESU availability is conditional and needs separate qualification. Do not claim secure real customer access from this endpoint yet.
+
+SOURCE IMPLEMENTATION AND EVIDENCE:
+1. autonomous-printshop/core/printshop-router-model-gate-v1.mjs: standalone fail-closed AP-133 pure router identity/eligibility contract. Requires exact-shop OS and confirmed NO spare PC, then exact physical router model rather than generic ISP brand, mandatory vendor model/hardware-specific WireGuard Server/maintained firmware evidence, WAN/CGNAT and restricted VPN -> ONE Win7 LAN host TCP 445, Win7 SMB2+ plus scoped nonadmin NTFS+share ACL, supported patched home client, separate owner permission for physical changes. Rejects public SMB/RDP/FTP, direct frozen Win7 NetBird, PPTP, SMB1, UPnP-for-SMB, guest/Everyone, unrestricted LAN, total-disk sharing, file overwrites/deletes, unofficial firmware flashing, print driver changes and Production deployment. No private raw model/credentials echoed and no network/SMB/real-file permissions returned even on optimistic synthetic input.
+2. autonomous-printshop/tests/ap133_router_model_gate_v1.test.mjs: safe synthetic tests for missing/generic model, privileged/secret inputs and hostile getters, all forbidden unsafe flags, firmware/WireGuard no-proof and explicit false, CGNAT, LAN ACL, secure home/owner approval; verifies every returned I/O and production authorization flag remains FALSE. Preserves literal 10-2026\Tooday\10-10\فوتو selector from AP-130. Tests do not inspect router/hard disk or real customers.
+3. autonomous-printshop/docs/AP133_ROUTER_MODEL_CAPABILITY_GATE_20261011.md: one owner field input (company + exact printed Model No., not Wi-Fi password, serial, QR, MAC, IP) and staged official vendor lookup / firmware revision, per-peer firewall, reachability, owner-change consent, home endpoint and synthetic-transfer gates. NO router vendor manual selected without actual model.
+4. .github/workflows/autonomous-printshop-policy-v1-ci.yml: adds AP-133 contract next to AP-132/older tests; no deploy job, migration or D1 modification.
+
+SOURCE COMMIT / CI:
+- Commit e9dfc20f6121551088c6f9f8779ccb8876099d3c contains exactly the four source/CI/runbook changes above.
+- GitHub Actions exact source policy run https://github.com/fawakhry/TrendOs/actions/runs/38144273637 at e9dfc20f6121551088c6f9f8779ccb8876099d3c **COMPLETED SUCCESS**; the AP-133 step and entire job completed successfully. These are offline-source/synthetic tests only.
+- This book-only AP-133 commit requires its own exact-SHA CI verification after push; do not call live remote file access working based on CI.
+
+STATUS / NEXT SINGLE OWNER STEP:
+- AP133_OTHER_SHOP_PC=NONE_OWNER_CONFIRMED; AP133_ROUTER_MODEL=NOT_PROVIDED; AP133_ROUTER_WIREGUARD=UNKNOWN; AP133_ROUTER_OFFICIAL_FIRMWARE=UNKNOWN; AP133_WAN_CGNAT=UNKNOWN; AP133_HOME_SECURITY=NOT_VERIFIED; AP133_WIN7_ACL=UNCHANGED; AP133_REAL_REMOTE_ACCESS=NOT_CONFIGURED; AP133_CUSTOMER_FILE_READ_OR_WRITTEN_BY_ASSISTANT=NO; AP133_D1_WRITES=0; AP133_PRODUCTION_DEPLOY=NO; AP133_FIRST_ORDER_PILOT=BLOCKED_SAFE.
+- NEXT: At the **physical printshop router**, read sticker brand and **exact model** (prefer text). No serial/admin/Wi-Fi passwords, QR photo or IP. If sending photo, crop to brand+Model only. No login, restart, reset, firmware update or sharing yet. After owner reply check *that exact model* against official vendor sources for maintained WireGuard VPN server + firewall scope. If unsuitable, consider dedicated supported low-cost Linux gateway, never bypass isolation.
