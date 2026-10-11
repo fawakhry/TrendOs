@@ -96,6 +96,7 @@ def validate(m, book):
     ids = [x.get("id") if type(x) is dict else None for x in queue]
     demand(tuple(ids) == REQUIRED_STAGES, "QUEUE_ORDER_OR_STAGE_CHANGED")
     completed = set(HISTORIC_PROOF) | {"ACC-180"}
+    verified_dependencies = set(completed)
     for task in queue:
         stage = task["id"]
         demand(task.get("gate") in REQUIRED_GATES, "BAD_GATE_" + stage)
@@ -112,6 +113,8 @@ def validate(m, book):
         demand(type(deps) is list and deps and len(deps) == len(set(deps)) and
                all(d in completed for d in deps), "UNMET_OR_FORWARD_DEPENDENCY_" + stage)
         if task["state"] == "VERIFIED_COMPLETE":
+            demand(all(d in verified_dependencies for d in deps),
+                   "UNVERIFIED_DEPENDENCY_" + stage)
             demand(type(task.get("pr")) is int and task["pr"] > 0 and
                    type(task.get("ci_run")) is int and task["ci_run"] > 0 and
                    isinstance(task.get("verified_at"), str) and task["verified_at"],
@@ -121,6 +124,8 @@ def validate(m, book):
                    task.get("verified_at") is None,
                    "UNVERIFIED_STAGE_WITH_PRETEND_PROOF_" + stage)
         completed.add(stage)
+        if task["state"] == "VERIFIED_COMPLETE":
+            verified_dependencies.add(stage)
     approvals = m.get("owner_approval_queue")
     demand(type(approvals) is list and len(approvals) == 5, "OWNER_GATES_MISSING")
     demand([x.get("gate") for x in approvals] == list(REQUIRED_GATES), "OWNER_GATES_CHANGED")
