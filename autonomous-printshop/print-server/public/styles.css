@@ -21,3 +21,10 @@
 .employee-task button:hover{background:#cfe6ff}
 @media(max-width:1200px){.employee-queue-items{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.employee-queue-items{grid-template-columns:1fr}.employee-assist-header{align-items:flex-start;flex-direction:column}}
+
+/* AP-281: visible training-only indicator with honest operational boundaries. */
+[hidden]{display:none!important}
+.demo-mode-banner{background:#fff7e2;color:#745019;border:1px solid #ebcd81;
+  border-radius:12px;padding:12px 16px;margin-bottom:12px;display:grid;gap:4px}
+.demo-mode-banner strong{font-size:15px}
+.demo-mode-banner span{font-size:12px;line-height:1.5}
