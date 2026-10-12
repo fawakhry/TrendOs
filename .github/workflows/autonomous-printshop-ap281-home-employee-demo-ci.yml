@@ -1,0 +1,48 @@
+name: AP-281 Home Employee Demo — Hosted Synthetic Qualification
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/print-server/employee_home_demo.py'
+      - 'autonomous-printshop/print-server/public/**'
+      - 'autonomous-printshop/print-server/tests/test_ap281_home_employee_demo_synthetic.py'
+      - '.github/workflows/autonomous-printshop-ap281-home-employee-demo-ci.yml'
+  pull_request:
+    paths:
+      - 'autonomous-printshop/print-server/employee_home_demo.py'
+      - 'autonomous-printshop/print-server/public/**'
+      - 'autonomous-printshop/print-server/tests/test_ap281_home_employee_demo_synthetic.py'
+      - '.github/workflows/autonomous-printshop-ap281-home-employee-demo-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ephemeral-fake-employee-workflow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    defaults:
+      run:
+        working-directory: autonomous-printshop/print-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax-check employee dashboard
+        run: node --check public/app.js
+      - name: Fake order UI, confinement and GET-only auto-stop
+        run: |
+          python -B -m unittest discover -s tests -p 'test_ap281_home_employee_demo_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap280_employee_assist_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap279_bridge_shadow_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap278_path_guard_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap277_write_guard_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap276_operational_flow_synthetic.py' -v
+          echo 'AP281_HOSTED_FAKE_EMPLOYEE_DEMO=PASS'
+          echo 'AP281_OWNER_UBUNTU=NOT_EXECUTED'
+          echo 'AP281_CLOUD_WIN7_CUSTOMERS_PRINTING=OFF'
+          echo 'AP281_PRODUCTION_READY=NO'
