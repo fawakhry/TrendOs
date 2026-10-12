@@ -1,0 +1,20 @@
+{
+  "schema": "ACC195_G5_SOURCE_PIN_AND_WRANGLER_D1_AUTH_STOP_V1",
+  "baseline_source_commit": "90795b9d05b3cc72051be50683c7942b87d07452",
+  "wrangler_cli_version": "4.33.2",
+  "source_git_blobs": {
+    "cloudflare-d1/wrangler.toml": "84f9251112b2d7b2f9ce5adb5e7b4b05e0b8817e",
+    "cloudflare-d1/production-shadow/index.js": "cabf0237c3aea2479b56ab237eeb9877c86254a4",
+    "cloudflare-d1/src/index_v2.js": "4a555efb4b3f44ba371549d5cec055cc7ce1777f",
+    "cloudflare-d1/src/employee-accounting-native-v1.mjs": "c72b1ec853437f8b55c9320d59efb34445869fe0",
+    ".github/workflows/easystore-a2-accounting-readonly-api-deploy.yml": "cc4a8c74dd6bfc542832749824e12b7e3ae38687"
+  },
+  "release_decision": "NO_GO",
+  "old_deploy_workflow_approved": false,
+  "production_release_authorized": false,
+  "production_mutations": 0,
+  "previous_live_worker_version": null,
+  "real_d1_backup_restored": false,
+  "employee_grants_approved": false,
+  "cutover_date_local": null
+}
