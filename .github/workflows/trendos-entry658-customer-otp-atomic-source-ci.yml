@@ -1,0 +1,47 @@
+name: TrendOS Entry658 Customer OTP Atomic SQL — OFF Source CI
+on:
+  push:
+    branches:
+      - test/zero-google-customer-otp-atomic-off-20261013
+    paths:
+      - 'cloudflare-d1/src/customer-portal-phone-otp-atomic-sql-v0.mjs'
+      - 'tests/entry658_customer_phone_otp_atomic_sqlite.test.py'
+      - 'tests/entry658_customer_otp_atomic_source.test.mjs'
+      - '.github/workflows/trendos-entry658-customer-otp-atomic-source-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/customer-portal-phone-otp-atomic-sql-v0.mjs'
+      - 'tests/entry658_customer_phone_otp_atomic_sqlite.test.py'
+      - 'tests/entry658_customer_otp_atomic_source.test.mjs'
+      - '.github/workflows/trendos-entry658-customer-otp-atomic-source-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Source-only Node syntax and no API/SMS wiring checks
+        run: |
+          node --check cloudflare-d1/src/customer-portal-phone-otp-atomic-sql-v0.mjs
+          node tests/entry658_customer_otp_atomic_source.test.mjs
+      - name: Synthetic in-memory SQLite atomic OTP checks
+        run: python3 tests/entry658_customer_phone_otp_atomic_sqlite.test.py
+      - name: Zero production rollout and customer impact declaration
+        run: |
+          set -euo pipefail
+          ! grep -Fq 'customer-portal-phone-otp-atomic-sql-v0.mjs' cloudflare-d1/src/index_v2.js
+          echo ENTRY658_NO_LIVE_SQL_OR_GOOGLE=YES
+          echo ENTRY658_NO_CUSTOMER_SMS=YES
+          echo ENTRY658_NO_ACCOUNT_ACTIVATION=YES
+          echo ENTRY658_WORKER_UNCHANGED=YES
+          echo ENTRY658_ZERO_GOOGLE_COMPLETE=NO
