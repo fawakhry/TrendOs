@@ -1,0 +1,31 @@
+name: AP-234 Signed Review — Hosted Synthetic CI
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/local_executor/authorization_contract.py'
+      - 'autonomous-printshop/tests/test_ap234_signed_review_contract.py'
+      - 'autonomous-printshop/local_executor/AP234_AUTH_REPLAY_THREAT_MODEL.md'
+      - '.github/workflows/autonomous-printshop-ap234-signed-review-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-review-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate synthetic signatures, time bounds and replay cases
+        run: |
+          python -B autonomous-printshop/tests/test_ap234_signed_review_contract.py
+          echo 'AP234_SIGNED_REVIEW_SYNTHETIC=PASS'
+          echo 'REMOTE_EXECUTION_IMPLEMENTED=NO'
+          echo 'TRUSTED_OWNER_APPROVAL_SERVICE=NO'
+          echo 'PERSISTENT_REPLAY_LEDGER=NO'
