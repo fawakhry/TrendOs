@@ -8,8 +8,9 @@
     "observed_candidate_before_acc186": "ff75294cbbffbf501cc1ac1639a97e8e4aa8f01b",
     "easystore_repo": "fawakhry/EasyStore",
     "observed_easystore_sha": "373d06381594e3ab32a55009fcc74907b1c37c9c",
-    "master_book": "TrendOS_MASTER_BOOK.md",
-    "last_closeout": "docs/trendos/staging/ACC164_ACCOUNTING_FINAL_CLOSEOUT_GATES_20261010.md"
+    "master_book": "accounting/MASTER_BOOK.md",
+    "last_closeout": "docs/trendos/staging/ACC164_ACCOUNTING_FINAL_CLOSEOUT_GATES_20261010.md",
+    "legacy_trendos_master_archive": "TrendOS_MASTER_BOOK.md"
   },
   "source_state_only": {
     "frontend_last_reported": "OFF",
@@ -209,7 +210,7 @@
       "id": "ACC-193",
       "gate": "G3",
       "title": "دفاتر من الصفر من غير مسح أو تاريخ",
-      "state": "IN_PROGRESS_UNVERIFIED",
+      "state": "VERIFIED_COMPLETE",
       "depends_on": [
         "ACC-185"
       ],
@@ -222,9 +223,9 @@
       ],
       "deployment_allowed": false,
       "owner_approval_needed_for_this_safe_scope": false,
-      "pr": null,
-      "ci_run": null,
-      "verified_at": null
+      "pr": 100,
+      "ci_run": 38187854508,
+      "verified_at": "2026-10-12"
     },
     {
       "id": "ACC-194",
