@@ -1,0 +1,30 @@
+name: AP-260 Owner-Only Read-Only Local Metadata — Hosted Synthetic CI
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/local_executor/offline_snapshot.py'
+      - 'autonomous-printshop/tests/test_ap260_offline_snapshot.py'
+      - '.github/workflows/autonomous-printshop-ap260-offline-snapshot-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  private-host-metadata-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic owner temp-repository; no production or remote agent
+        run: |
+          PYTHONPATH=autonomous-printshop/local_executor python -B -m unittest             discover -s autonomous-printshop/tests -p 'test_ap260_offline_snapshot.py' -v
+          echo 'AP260_HOSTED_SYNTHETIC_TESTS=PASS'
+          echo 'AP260_OWNER_UBUNTU_EXECUTION=NOT_DONE'
+          echo 'AP260_REMOTE_AGENT_INSTALLED=NO'
+          echo 'AP260_PRODUCTION_ACCESS=NO'
