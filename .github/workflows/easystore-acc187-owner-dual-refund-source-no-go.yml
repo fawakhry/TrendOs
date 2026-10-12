@@ -12,6 +12,9 @@ on:
       - 'tests/easystore_acc187_customer_debt_adjustment_not_store_credit_no_go.test.py'
       - 'scripts/easystore_acc187_paid_items_compensation_cap_no_go.mjs'
       - 'tests/easystore_acc187_paid_items_compensation_cap_no_go.test.mjs'
+      - 'scripts/easystore_acc187_returned_product_inspection_waste_no_go.mjs'
+      - 'tests/easystore_acc187_return_inspection_waste_no_go.test.mjs'
+      - 'tests/easystore_acc187_return_stock_waste_isolated_sqlite_no_go.test.mjs'
       - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
   workflow_dispatch:
 permissions:
@@ -53,6 +56,12 @@ jobs:
           python3 tests/easystore_acc187_customer_debt_adjustment_not_store_credit_no_go.test.py
           node --check scripts/easystore_acc187_paid_items_compensation_cap_no_go.mjs
           node --test tests/easystore_acc187_paid_items_compensation_cap_no_go.test.mjs
+          node --check scripts/easystore_acc187_returned_product_inspection_waste_no_go.mjs
+          node --test tests/easystore_acc187_return_inspection_waste_no_go.test.mjs
+          node --experimental-sqlite --test tests/easystore_acc187_return_stock_waste_isolated_sqlite_no_go.test.mjs
+          echo 'ACC187_RETURNED_ITEMS=QUARANTINED_UNTIL_VERIFIED_FIT_FOR_RESALE'
+          echo 'ACC187_INSPECTED_DAMAGED=FAKE_WASTE_NO_SALEABLE_RESTOCK'
+          echo 'ACC187_ACTUAL_FINISHED_GOODS_WASTE_AND_RESTOCK_HANDLERS=NOT_IMPLEMENTED'
           echo 'ACC187_OWNER_AMOUNT_RULE=PAID_RETURNED_ITEMS_MINUS_PRIOR_CASH_AND_STORE_CREDIT'
           echo 'ACC187_EXCEPTION_ABOVE_NET_PAID=SEPARATE_MANAGER_APPROVAL_REQUIRED'
           echo 'ACC187_ITEM_LEVEL_ALLOCATION_AND_REAL_CREDIT=NOT_IMPLEMENTED'
