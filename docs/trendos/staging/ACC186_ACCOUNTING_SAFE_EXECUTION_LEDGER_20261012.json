@@ -187,7 +187,7 @@
       "id": "ACC-192",
       "gate": "G4",
       "title": "التقارير وتقفيل اليوم",
-      "state": "QUEUED_UNVERIFIED",
+      "state": "IN_PROGRESS_UNVERIFIED",
       "depends_on": [
         "ACC-188",
         "ACC-189"
@@ -209,7 +209,7 @@
       "id": "ACC-193",
       "gate": "G3",
       "title": "دفاتر من الصفر من غير مسح أو تاريخ",
-      "state": "IN_PROGRESS_UNVERIFIED",
+      "state": "VERIFIED_COMPLETE",
       "depends_on": [
         "ACC-185"
       ],
@@ -222,9 +222,9 @@
       ],
       "deployment_allowed": false,
       "owner_approval_needed_for_this_safe_scope": false,
-      "pr": null,
-      "ci_run": null,
-      "verified_at": null
+      "pr": 100,
+      "ci_run": 38187854508,
+      "verified_at": "2026-10-12"
     },
     {
       "id": "ACC-194",
