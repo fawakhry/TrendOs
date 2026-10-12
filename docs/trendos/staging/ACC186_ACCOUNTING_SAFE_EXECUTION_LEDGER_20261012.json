@@ -255,7 +255,7 @@
       "id": "ACC-195",
       "gate": "G5",
       "title": "تطابق بصمة الإصدار والـWorker والربط",
-      "state": "QUEUED_UNVERIFIED",
+      "state": "IN_PROGRESS_UNVERIFIED",
       "depends_on": [
         "ACC-183",
         "ACC-184"
@@ -277,7 +277,7 @@
       "id": "ACC-196",
       "gate": "G5",
       "title": "مخطط الرجوع واختبارات محاكاة الفشل",
-      "state": "QUEUED_UNVERIFIED",
+      "state": "IN_PROGRESS_UNVERIFIED",
       "depends_on": [
         "ACC-194",
         "ACC-195"
@@ -299,7 +299,7 @@
       "id": "ACC-197",
       "gate": "G1",
       "title": "تجهيز حزمة قبول عهدة A2.13 دون تنفيذ",
-      "state": "QUEUED_UNVERIFIED",
+      "state": "IN_PROGRESS_UNVERIFIED",
       "depends_on": [
         "ACC-190",
         "ACC-196"
@@ -321,7 +321,7 @@
       "id": "ACC-198",
       "gate": "G4",
       "title": "محاكاة قبول مالي شاملة ومتكررة",
-      "state": "QUEUED_UNVERIFIED",
+      "state": "IN_PROGRESS_UNVERIFIED",
       "depends_on": [
         "ACC-187",
         "ACC-188",
@@ -348,7 +348,7 @@
       "id": "ACC-199",
       "gate": "G5",
       "title": "ملف جاهزية التشغيل وتسليم الموظفين",
-      "state": "QUEUED_UNVERIFIED",
+      "state": "IN_PROGRESS_UNVERIFIED",
       "depends_on": [
         "ACC-196",
         "ACC-197",
