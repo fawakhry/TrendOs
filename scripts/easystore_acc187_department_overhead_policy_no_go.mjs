@@ -123,3 +123,44 @@ export function inspectSyntheticLikeJobOverheadShare(job,policy=null,allocation=
     real_allocation_method_selected:false,
   });
 }
+
+
+// Synthetic registry-wide consistency check. A single per-job lookup alone
+// cannot prove that ANOTHER approved policy wasn't entered for an overlapping
+// scope. The owner requires stable methodology across like jobs. This checks
+// only the fake source registry; it neither signs policy nor computes overhead.
+export function inspectSyntheticDepartmentPolicyRegistry(rows){
+ if(!Array.isArray(rows)||rows.length===0||rows.length>100)
+  return stop('STOP_MISSING_OR_OVERSIZED_DEPARTMENT_POLICY_REGISTRY');
+ const scopes=new Map();
+ const approvals=new Set();
+ for(const p of rows){
+  if(!p||typeof p!=='object'||Array.isArray(p)||
+     p.source!=='SYNTHETIC_INDEPENDENT_MANAGEMENT_OVERHEAD_POLICY_REGISTRY'||
+     p.verifiedManager!==true||p.decision!=='APPROVED_METHOD'||
+     !safeId(p.department)||!safeId(p.workClass)||
+     !safeId(p.overheadPoolId)||!safeId(p.accountingPeriodId)||
+     !safeId(p.policyId)||!safeId(p.policyVersionId)||
+     !safeId(p.managerApprovalRef)||!safeId(p.documentEvidenceRef)||
+     !safeId(p.driverEvidenceRef)||!DEMO_DRIVERS.has(p.driver)||
+     !iso(p.validFrom)||!iso(p.validUntil)||p.validFrom>=p.validUntil)
+   return stop('STOP_UNVERIFIED_DEPARTMENT_POLICY_REGISTER_ROW');
+  if(approvals.has(p.managerApprovalRef))
+   return stop('STOP_REUSED_MANAGEMENT_POLICY_APPROVAL_REFERENCE');
+  approvals.add(p.managerApprovalRef);
+  const key=p.department+'\u0000'+p.workClass;
+  const existing=scopes.get(key)||[];
+  for(const earlier of existing){
+   if(p.validFrom<earlier.validUntil && earlier.validFrom<p.validUntil)
+    return stop('STOP_OVERLAPPING_COMPETING_METHODS_FOR_SIMILAR_WORK');
+  }
+  existing.push(p);
+  scopes.set(key,existing);
+ }
+ return stop('SYNTHETIC_NONOVERLAPPING_DEPARTMENT_REGISTRY_REVIEW_ONLY',{
+  synthetic_department_method_matches:true,
+  reviewed_scope_count:scopes.size,
+  reviewed_policy_rows:rows.length,
+  real_allocation_registry_installed:false,
+ });
+}
