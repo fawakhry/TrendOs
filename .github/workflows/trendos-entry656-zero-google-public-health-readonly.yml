@@ -1,0 +1,42 @@
+name: TrendOS Entry656 Zero-Google Public Health GET-only (NO_GO)
+on:
+  push:
+    branches:
+      - audit/zero-google-public-health-readonly-20261013
+    paths:
+      - 'scripts/entry656_public_health_probe.py'
+      - 'tests/entry656_public_health_probe_offline.test.py'
+      - '.github/workflows/trendos-entry656-zero-google-public-health-readonly.yml'
+  pull_request:
+    paths:
+      - 'scripts/entry656_public_health_probe.py'
+      - 'tests/entry656_public_health_probe_offline.test.py'
+      - '.github/workflows/trendos-entry656-zero-google-public-health-readonly.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  public-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Offline safety baseline — no network
+        run: |
+          python3 -m py_compile scripts/entry656_public_health_probe.py
+          python3 tests/entry656_public_health_probe_offline.test.py
+      - name: Fixed public GET-only Cloudflare/frontend health
+        run: |
+          python3 scripts/entry656_public_health_probe.py
+      - name: Safety/authority boundary (always source-only)
+        if: always()
+        run: |
+          echo ENTRY656_GET_ONLY=YES
+          echo ENTRY656_NO_SECRETS=YES
+          echo ENTRY656_NO_POST_SQL_OR_DEPLOY=YES
+          echo ENTRY656_ACCOUNTING_OR_STOCK_MUTATION=NO
+          echo ENTRY656_ZERO_GOOGLE_COMPLETE=NO
