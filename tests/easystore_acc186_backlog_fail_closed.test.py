@@ -8,7 +8,7 @@ from pathlib import Path
 spec = importlib.util.spec_from_file_location("acc186","scripts/easystore_acc186_backlog_fail_closed.py")
 m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 original = json.loads(Path("docs/trendos/staging/ACC186_ACCOUNTING_SAFE_EXECUTION_LEDGER_20261012.json").read_text(encoding="utf-8"))
-book = Path("TrendOS_MASTER_BOOK.md").read_text(encoding="utf-8")
+book = Path("_canonical_easy_book/EASYSTORE_ACCOUNTING_MASTER_BOOK.md").read_text(encoding="utf-8")
 report = m.validate(original, book)
 assert (len(report["source_safe_stages_queued"]) +
         len(report["source_safe_stages_in_progress"]) +
@@ -33,6 +33,8 @@ def stop(edit, tag):
         raise AssertionError("ACC186_FAIL_OPEN_" + tag)
 
 stop(lambda x: x.update(release_decision="GO"), "FINANCE_GO_NOT_AUTHORIZED")
+stop(lambda x: x["sources"].update(master_book="TrendOS_MASTER_BOOK.md"), "NONCANONICAL_BOOK_POINTER")
+stop(lambda x: x["sources"].update(canonical_accounting_book_ci_checkout_sha="fake"), "UNPINNED_EASYSTORE_CANONICAL_BOOK")
 stop(lambda x: x.update(production_mutations_this_stage=True), "PRODUCTION_CHANGE_FORGED")
 stop(lambda x: x["source_state_only"].update(accounting_backend_last_reported="GENERAL"), "OPERATING_MODE_CHANGED")
 stop(lambda x: x["source_state_only"].update(canary_budget=1), "CANARY_BUDGET_CHANGED")
@@ -48,9 +50,9 @@ stop(lambda x: x["complete_verified"][0]["evidence"].update(postmerge_run=1), "H
 stop(lambda x: x["safe_queue"][0].update(state="VERIFIED_COMPLETE"), "STAGE_FALSIFIED_COMPLETE")
 # A later stage cannot be certified until its actual upstream stage is verified.
 def forge_downstream(x):
-    task=x["safe_queue"][7]  # ACC-194 depends on ACC-193 (not completed)
+    task=x["safe_queue"][9]  # ACC-196 depends on still-unverified ACC-194/195
     task.update(state="VERIFIED_COMPLETE",pr=999,ci_run=999,verified_at="2026-10-12")
-stop(forge_downstream,"UNVERIFIED_DEPENDENCY_ACC-194")
+stop(forge_downstream,"UNVERIFIED_DEPENDENCY_ACC-196")
 stop(lambda x: x["safe_queue"][0].update(pr=999), "UNVERIFIED_STAGE_WITH_PRETEND_PROOF")
 stop(lambda x: x["safe_queue"][0].update(deployment_allowed=True), "UNSAFE_AUTONOMOUS_SCOPE")
 stop(lambda x: x["safe_queue"][0].update(depends_on=["ACC-198"]), "UNMET_OR_FORWARD_DEPENDENCY")
@@ -67,5 +69,6 @@ else:
     raise AssertionError("ACC186_MISSING_MASTER_BOOK_EVIDENCE_FAIL_OPEN")
 print("ACC186_23_NEGATIVE_APPROVAL_GATES_AND_EVIDENCE_TESTS=PASS")
 print("ACC186_HISTORY_183_184_185_GITHUB_PROVENANCE=PASS")
+print("ACC186_REAL_ORIGINAL_EASYSTORE_CANONICAL_BOOK_REQUIRED=PASS")
 print("ACC186_ZERO_IMPORT_NO_DATE_AND_NO_PRODUCTION_DEPLOY=PASS")
 print("ACC186_RELEASE_DECISION=NO_GO")
