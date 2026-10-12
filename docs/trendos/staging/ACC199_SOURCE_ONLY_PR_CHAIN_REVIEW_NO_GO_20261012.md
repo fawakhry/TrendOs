@@ -21,3 +21,13 @@ A green CI test is required but never sufficient for merging: re-check head and 
 `G1=OPEN G2=OPEN G3=OPEN G4=OPEN G5=OPEN FINANCE_RELEASE=NO_GO`
 
 **No real accounts, Cloudflare, D1, production jobs, machine settings or finance write was accessed to create this note.**
+
+## Security correction — full PR event coverage and pretest diff check (2026-10-12)
+
+The first version of this security workflow had a `pull_request.paths` filter that could **skip its entire CI check** when a PR changed production/runtime paths without matching the four original script/test/doc paths. A successful run for one source change therefore did **not** prove that unsafe unrelated future changes would trigger the gate. This scope problem has now been corrected **on this Draft source PR**: the `pull_request` trigger is unrestricted, and the **exact head/base diff check runs before adversarial test scripts**.
+
+Static safety policy was extended to **reject new or changed source-only CI workflows** containing GitHub PR `paths`/`paths-ignore` or `branches`/`branches-ignore` filters, since those could suppress safety CI for unreviewed files or targets. Regression tests now read the checked-in guard workflow, reject fake filtered variants and verify the diff step comes before test execution. This is a conservative new-workflow restriction, **not retroactive protection for already inherited workflows**.
+
+**Proof:** [Draft PR #119](https://github.com/fawakhry/TrendOs/pull/119), corrected head `fd22b7551a9637b4b67ee3319ae6abe6f0a7392e`, [ACC199 CI #38280466945](https://github.com/fawakhry/TrendOs/actions/runs/38280466945): **20/20 Python negative/guard tests PASS**, and exact-head diff `PASS_SOURCE_ONLY`, with same-head [ACC196–199 #38280466938](https://github.com/fawakhry/TrendOs/actions/runs/38280466938) and [A61 #38280467045](https://github.com/fawakhry/TrendOs/actions/runs/38280467045) both **SUCCESS**. The preceding 17-test head remains historical evidence only.
+
+**Review caveat:** this test still runs code from a PR source checkout, including the checker itself. An attacker able to change allowlisted files could alter or bypass code inside them. The gate does NOT replace trusted independent review, protected branch rules, code-owner signoff, or runtime deployment safety checks; it does NOT neutralize the legacy manual Cloudflare deploy workflow. Future production/accounting acceptance needs separately trusted controls and explicit owner approval. This code remains **Draft/unmerged**. `G1–G5=OPEN FINANCE_RELEASE=NO_GO`.
