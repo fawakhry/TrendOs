@@ -1,0 +1,48 @@
+name: TrendOS Entry659 Customer OTP One-time Password Ticket — OFF CI
+on:
+  push:
+    branches:
+      - test/zero-google-customer-enrollment-ticket-off-20261013
+    paths:
+      - 'cloudflare-d1/migrations/0035_customer_portal_otp_enrollment_ticket_v1.sql'
+      - 'cloudflare-d1/src/customer-portal-password-enrollment-ticket-v0.mjs'
+      - 'tests/entry659_customer_password_ticket_sqlite.test.py'
+      - 'tests/entry659_customer_enrollment_ticket_source.test.mjs'
+      - '.github/workflows/trendos-entry659-customer-enrollment-ticket-offline-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/migrations/0035_customer_portal_otp_enrollment_ticket_v1.sql'
+      - 'cloudflare-d1/src/customer-portal-password-enrollment-ticket-v0.mjs'
+      - 'tests/entry659_customer_password_ticket_sqlite.test.py'
+      - 'tests/entry659_customer_enrollment_ticket_source.test.mjs'
+      - '.github/workflows/trendos-entry659-customer-enrollment-ticket-offline-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Node ticket cryptography and no runtime contract
+        run: |
+          node --check cloudflare-d1/src/customer-portal-password-enrollment-ticket-v0.mjs
+          node tests/entry659_customer_enrollment_ticket_source.test.mjs
+      - name: SQLite synthetic one-use ticket and account activation CAS
+        run: python3 tests/entry659_customer_password_ticket_sqlite.test.py
+      - name: Assert app untouched
+        run: |
+          set -euo pipefail
+          ! grep -Fq 'customer-portal-password-enrollment-ticket-v0.mjs' cloudflare-d1/src/index_v2.js
+          echo ENTRY659_NO_LIVE_CUSTOMER_PASSWORDS=YES
+          echo ENTRY659_NO_CUSTOMER_MESSAGES=YES
+          echo ENTRY659_NO_LIVE_DB_OR_GOOGLE=YES
+          echo ENTRY659_ZERO_GOOGLE_COMPLETE=NO
