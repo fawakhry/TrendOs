@@ -1,0 +1,41 @@
+name: AP-278 Print Server Path Confinement — Hosted Synthetic Qualification
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/print-server/src/folders.py'
+      - 'autonomous-printshop/print-server/tests/test_ap278_path_guard_synthetic.py'
+      - '.github/workflows/autonomous-printshop-ap278-path-guard-ci.yml'
+  pull_request:
+    paths:
+      - 'autonomous-printshop/print-server/src/folders.py'
+      - 'autonomous-printshop/print-server/tests/test_ap278_path_guard_synthetic.py'
+      - '.github/workflows/autonomous-printshop-ap278-path-guard-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-path-confinement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    defaults:
+      run:
+        working-directory: autonomous-printshop/print-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Path symlink negative tests plus AP-276/277 regressions
+        run: |
+          python -B -m unittest discover -s tests -p 'test_ap278_path_guard_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap277_write_guard_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap276_operational_flow_synthetic.py' -v
+          echo 'AP278_HOSTED_PATH_SYNTHETIC=PASS'
+          echo 'AP278_CLOUD_AND_CUSTOMERS=OFF'
+          echo 'AP278_PRINTERS_AND_UBUNTU=NOT_TOUCHED'
+          echo 'AP278_PRODUCTION_READY=NO'
