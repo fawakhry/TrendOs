@@ -27,8 +27,7 @@ The existing Print Server `src/server.py` had multiple local HTTP POST handlers 
 
 ## Synthetic CI receipt
 
-See AP-277 GitHub Actions at `https://github.com/fawakhry/TrendOs/actions/workflows/autonomous-printshop-ap277-write-guard-ci.yml`.
-Do not mark hosted tests PASS without inspecting a completed run and logs. Automated results remain distinct from host operational proof.
+**Verified actual hosted CI**: [run #38307798630](https://github.com/fawakhry/TrendOs/actions/runs/38307798630), job `115005951150`, COMPLETED/SUCCESS. Inspected job logs: `Ran 12 tests in 0.663s`, `OK` (AP-277 negative/positive authorization); `Ran 6 tests in 0.331s`, `OK` (AP-276 regression). Printed `AP277_HOSTED_GUARD_SYNTHETIC=PASS`, `AP277_OWNER_UBUNTU=NOT_EXECUTED`, `AP277_CUSTOMERS_AND_CLOUD=OFF`, `AP277_PRINTERS=OFF`, `AP277_PRODUCTION_READY=NO`. This is hosted GitHub evidence, **not host or production proof**.
 
 ## Safety / next gates
 
