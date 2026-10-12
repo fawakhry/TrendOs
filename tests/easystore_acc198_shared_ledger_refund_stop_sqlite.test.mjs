@@ -211,7 +211,7 @@ try{
  });
  const beforeUnsupportedRefund=refundSnapshot();
  const allTablesBeforeUnsupportedRefund=allFinanceSnapshot();
- for(const [i,action] of ['refundEasyStoreSaleV2','returnEasyStoreSaleV2','reverseEasyStoreSaleV2'].entries()){
+ for(const [i,action] of ['refundEasyStoreSaleV2','returnEasyStoreSaleV2','reverseEasyStoreSaleV2','issueEasyStoreCustomerCreditV2','creditEasyStoreCustomerAccountV2','applyEasyStoreRefundAsStoreCreditV2'].entries()){
    const refund=await send(action,{
      requestId:'ACC198-FINANCE-REFUND-BLOCK-'+String(i+1).padStart(4,'0'),
      invoiceNo:'ACC170-SALE-INVOICE-1',
@@ -226,6 +226,7 @@ try{
  }
  console.log('ACC198_SINGLE_DB_UNSUPPORTED_CASH_REFUND_NO_SIDE_EFFECT=PASS');
  console.log('ACC198_ALL_FINANCE_TABLES_FULL_ROW_UNCHANGED_ON_DENIED_REFUND=PASS');
+ console.log('ACC198_UNSUPPORTED_CASH_AND_CUSTOMER_CREDIT_HANDLERS_SAME_DB_DENIED_NO_SIDE_EFFECT=PASS');
 
  const report=await send('getDailyDepartmentReportV1920',{
    department:'طباعة',workDate:'2099-12-31'
