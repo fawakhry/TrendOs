@@ -1,0 +1,32 @@
+name: AP-236 Immutable Trust Boundary — Hosted Synthetic CI
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/local_executor/trust_boundary.py'
+      - 'autonomous-printshop/local_executor/AP236_TRUST_BOUNDARY_AND_ISOLATION.md'
+      - 'autonomous-printshop/tests/test_ap236_trust_boundary.py'
+      - '.github/workflows/autonomous-printshop-ap236-trust-boundary-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  catalog-and-trust-boundary-synthetic-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test AP-236 read-only static trust boundary
+        run: |
+          python -B -m py_compile autonomous-printshop/local_executor/trust_boundary.py
+          python -B autonomous-printshop/tests/test_ap236_trust_boundary.py
+          echo 'AP236_IMMUTABLE_CATALOG_SYNTHETIC=PASS'
+          echo 'AP236_EXECUTOR=NOT_IMPLEMENTED'
+          echo 'AP236_REAL_OWNER_AUTH=NOT_IMPLEMENTED'
+          echo 'AP236_UBUNTU_CONNECTED=NO'
