@@ -40,5 +40,22 @@ G-CUST-7: live read-only route/current-user smoke, controlled canary, rollback, 
 
 Expected: schema defaults OFF, zero customer rows imported, no plaintext passwords/tokens, no runtime behavior change; source-only CI green. No customer success claims; `ZERO_GOOGLE_COMPLETE=NO`.
 
-## RESULT
-PENDING. Update with exact head/CI proof after changes.
+## RESULT — SOURCE-ONLY TEST PASS / PRODUCTION NO_GO
+
+Implementation commits:
+- Schema OFF, credential/salt/hash/fingerprint constraints: `ef8785d4249cf0f5102b0594c0b7b143f4efda2e`.
+- READONLY redacted aggregate inspector: `c6a0448445c7aecd8ee9993e7a879d9b04ccb96e`.
+- In-memory SQLite test: `22ee9d1a61ec43a84b1659bdb30e702b0e62acb1`.
+- Node inspector/9-action gate test: `687670ea6a697b3bfde3bf618bde08e628e32e41`.
+- Offline CI: `84e98dd174ba47eb91b7037e4aed2f8e4c15fa5f`.
+- Source-only D1 customer-id/portal-code mismatch detector: `f3bdfa535ada4fa1799f25678f06c3064b5999a2`.
+- Readiness collision/mismatch test: `18f468a1feac85d1d00bc26eac71e6365959acb3`.
+- Canonical TrendOS book checkpoint: `c56b0d07972c0eab29fcfe8a865a24e421fff941`.
+
+Evidence: [GitHub source CI #38313421901](https://github.com/fawakhry/TrendOs/actions/runs/38313421901) **SUCCESS**, exact source/test head `18f468a1feac85d1d00bc26eac71e6365959acb3`. Node syntax, 9 original customer action inventory, privacy-safe SELECT-only failure cases, SQL constraint tests using disposable memory DB, and explicit NO_RUNTIME_ENDPOINT/OFF proof all passed. No real D1, no Apps Script, no customer accounts/tokens/PII or finance data accessed. Later documentation commits change PR head; rerun exact-head CI after opening Draft.
+
+The inspector now reports **only aggregate** `mismatchedAccountBindingCount`, which counts disabled/missing/incorrect exact D1-customer-id-to-chat-code bindings. Equality itself is not ownership proof. All customer gates remain OPEN.
+
+Status: **REPO-TESTED / DRAFT / UNMERGED / UNDEPLOYED**. No Production migration, no live auth, no Native customer login, no cloud-order submit, no Google retirement yet. `ZERO_GOOGLE_COMPLETE=NO`.
+
+Next software gate: explicit owner-approved customer identity proof/enrollment approach, native customer token/scope contract and separate Cloud-native portal authorization. Do not start production enrollment or reuse historical Google passwords/default secrets.
