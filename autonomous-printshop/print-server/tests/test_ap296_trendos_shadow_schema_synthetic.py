@@ -17,11 +17,14 @@ from src.trendos_shadow_qualifier import (
 )
 
 
+UNSET = object()
+
+
 class FakeClient:
     connected = True
 
-    def __init__(self, response=None, exception=None):
-        self.response = response if response is not None else {"success": True, "rows": []}
+    def __init__(self, response=UNSET, exception=None):
+        self.response = {"success": True, "rows": []} if response is UNSET else response
         self.exception = exception
         self.calls = []
 
