@@ -22,6 +22,7 @@ function fail(reason) {
     activeCustomerCount: null,
     missingPortalCodeCount: null,
     duplicatePortalCodeGroupCount: null,
+    mismatchedAccountBindingCount: null,
     provisionedAccountCount: null,
     activeCredentialCount: null,
     customerSessionCount: null,
@@ -48,7 +49,7 @@ export async function inspectCustomerPortalNativeReadinessV0(db) {
     if (!['OFF', 'SHADOW', 'CANARY', 'GENERAL'].includes(mode)) return fail('INVALID_CONTROL');
     const summary = await db.prepare(`
       SELECT COUNT(*) AS activeCustomerCount,
-             SUM(CASE WHEN TRIM(COALESCE(legacy_chat_code,'')) = '' THEN 1 ELSE 0 END)
+             COALESCE(SUM(CASE WHEN TRIM(COALESCE(legacy_chat_code,'')) = '' THEN 1 ELSE 0 END),0)
                AS missingPortalCodeCount
         FROM t12_customers WHERE active='نعم'
     `).first();
@@ -61,9 +62,20 @@ export async function inspectCustomerPortalNativeReadinessV0(db) {
         HAVING COUNT(*) > 1
       )
     `).first();
+    // This is equality-check evidence, NOT proof of customer ownership.
+    // A manually provisioned account with a wrong code or disabled customer
+    // must not be mistaken for an eligible identity mapping.
+    const bindings = await db.prepare(`
+      SELECT COUNT(*) AS mismatchedAccountBindingCount
+        FROM customer_portal_native_accounts_v1 a
+        LEFT JOIN t12_customers c ON c.customer_id = a.customer_id
+       WHERE c.customer_id IS NULL
+          OR c.active <> 'نعم'
+          OR TRIM(COALESCE(c.legacy_chat_code,'')) <> a.portal_code
+    `).first();
     const accounts = await db.prepare(`
       SELECT COUNT(*) AS provisionedAccountCount,
-             SUM(CASE WHEN state='ACTIVE' THEN 1 ELSE 0 END) AS activeCredentialCount
+             COALESCE(SUM(CASE WHEN state='ACTIVE' THEN 1 ELSE 0 END),0) AS activeCredentialCount
         FROM customer_portal_native_accounts_v1
     `).first();
     const sessions = await db.prepare(`
@@ -74,6 +86,7 @@ export async function inspectCustomerPortalNativeReadinessV0(db) {
       activeCustomerCount: count(summary && summary.activeCustomerCount),
       missingPortalCodeCount: count(summary && summary.missingPortalCodeCount),
       duplicatePortalCodeGroupCount: count(duplicates && duplicates.duplicatePortalCodeGroupCount),
+      mismatchedAccountBindingCount: count(bindings && bindings.mismatchedAccountBindingCount),
       provisionedAccountCount: count(accounts && accounts.provisionedAccountCount),
       activeCredentialCount: count(accounts && accounts.activeCredentialCount),
       customerSessionCount: count(sessions && sessions.customerSessionCount)
