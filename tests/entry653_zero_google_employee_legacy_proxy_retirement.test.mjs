@@ -38,7 +38,16 @@ const customerActions = [
 ];
 
 try {
+  assert.equal(new Set(customerActions).size, 9, 'customer legacy allowlist must remain exact');
   for (const action of employeeActions) {
+    assert.equal(customerActions.includes(action), false, action + ': must never be customer-authorized');
+  }
+  // The current code guard must cover EVERY allowlisted non-customer action,
+  // including future additions, not only the representative cases above.
+  const employeeAndOtherLegacy = [...LEGACY_BROWSER_ACTIONS].filter(action => !customerActions.includes(action));
+  assert.ok(employeeAndOtherLegacy.length > employeeActions.length);
+  assert.equal(employeeAndOtherLegacy.length + customerActions.length, LEGACY_BROWSER_ACTIONS.size);
+  for (const action of employeeAndOtherLegacy) {
     assert.equal(LEGACY_BROWSER_ACTIONS.has(action), true, action);
     const count = calls.length;
     for (const nativeOnly of [true, 'true', 'TRUE']) {
