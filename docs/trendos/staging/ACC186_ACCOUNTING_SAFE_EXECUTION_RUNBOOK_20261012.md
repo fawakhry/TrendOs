@@ -54,8 +54,13 @@ Legacy \`.github/workflows/easystore-a2-accounting-readonly-api-deploy.yml\` sti
 1. Before every step, compare GitHub candidate and EasyStore commits, PRs, and existing master book to avoid duplicates; verify relevant workflow was successful against the correct SHA.
 2. Work on a branch isolated from production. Change only reviewed source, unit/integration fixtures, no-deploy CI and documentation.
 3. Record failed tests and diagnosis; fix and rerun. Do not convert a failed historical run into a success.
-4. Append every implemented safe step and its actual proof (PR, merge SHA, CI id, tested scenarios) to \`TrendOS_MASTER_BOOK.md\`; advance ledger statuses only after real proof and rerun offline ledger checker.
+4. Append every implemented safe step and its actual proof (PR, merge SHA, CI id, tested scenarios) to the canonical EasyStore finance book \`fawakhry/EasyStore@candidate/easystore-zero-google-audit-20261004:EASYSTORE_ACCOUNTING_MASTER_BOOK.md\` (NOT TrendOS_MASTER_BOOK.md); advance ledger statuses only after real proof and rerun offline ledger checker.
 5. Leave owner-only tasks BLOCKED_OWNER_APPROVAL and G1–G5 OPEN until independently accepted. Never infer program completion equals authorization. On missing access, branch drift, test failure or uncertain semantics, STOP the dangerous operation and document the blocker; continue unrelated safe tasks.
 6. Scheduled checks can periodically resume the safe queue, but do not imply uninterrupted real-time programming or unconditional autonomy across every future run. GitHub Actions and each run's evidence remain the source of truth.
 
 **ACC-186 implementation result:** source ledger and guard tests/CI have been authored; outcomes need real Actions verification before being marked PASS. **Finance NO_GO.**
+
+
+### Verified canonical bookkeeping restoration (2026-10-12)
+
+The original book [EasyStore accounting master](https://github.com/fawakhry/EasyStore/blob/candidate/easystore-zero-google-audit-20261004/EASYSTORE_ACCOUNTING_MASTER_BOOK.md) has owned all accounting milestones since 2026-10-05 and forbids finance progress in the general TrendOS master. [EasyStore PR #28](https://github.com/fawakhry/EasyStore/pull/28) restored ACC-157–193 to that book, preserving original ACC-001–145 and leaving ACC-146–156 as explicit unknown pending historical audit. Independent [postmerge CI #38189082630](https://github.com/fawakhry/EasyStore/actions/runs/38189082630) SUCCESS. The erroneously created `accounting/MASTER_BOOK.md` only exists in an unmerged, NONCANONICAL TrendOS branch and must not be merged. Always fetch the EasyStore canonical branch and compare both books/ledgers before future work. Production accounting NO_GO, G1–G5 OPEN.
