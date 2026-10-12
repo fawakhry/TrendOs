@@ -73,6 +73,10 @@ function renderManualFolderPicker(){
     box.innerHTML='<span class="empty-inline">اختر أوردر أولًا</span>';
     return;
   }
+  if(lastStatus?.demoMode){
+    box.innerHTML='<span class="empty-inline">التجربة للعرض فقط — اختيار القسم الحقيقي مقفول</span>';
+    return;
+  }
   const existing=currentOrder.routes||{};
   box.innerHTML=manualFolderOptions.map(opt=>{
     const active=Boolean(existing[opt.key]);
@@ -233,7 +237,15 @@ async function refresh(){
     status=await api('/api/status',{},5000);
     $('connectionStatus').textContent='● متصل بالسيرفر المحلي';
     $('connectionStatus').style.color='';
-    $('modeLabel').textContent=status.mode;
+    $('modeLabel').textContent=status.demoMode ? 'DEMO - بيانات وهمية' : status.mode;
+    const banner=$('demoModeBanner');
+    if(banner) banner.hidden = status.demoMode !== true;
+    if(status.demoMode === true){
+      ['trendLoginBtn','trendProbeBtn','trendSyncBtn','trendLogoutBtn',
+       'chooseOrdersRootBtn','saveOrdersRootBtn'].forEach(id=>{
+        const button=$(id); if(button){button.disabled=true;button.title='نسخة تدريب للعرض فقط';}
+      });
+    }
     const fm=status.fastMode||{};
     $('fastModeStatus').textContent=fm.enabled ? (fm.uiRunning ? '⚡ Fast Mode جاهز' : '⚡ Fast Mode مفعّل') : 'Fast Mode متوقف';
     manualFolderOptions=status.manualFolderOptions||manualFolderOptions;
