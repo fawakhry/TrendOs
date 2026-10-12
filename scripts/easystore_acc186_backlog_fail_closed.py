@@ -152,6 +152,10 @@ def validate(m, book):
                type(x.get("condition")) is str and bool(x["condition"]),
                "OWNER_GATE_BYPASSED_" + str(x.get("gate")))
     demand("### ACC-186 " in book, "ACC186_STAGE_NOT_IN_BOOK")
+    demand("### Entry ACC-194 —" in book and
+           "github.com/fawakhry/TrendOs/pull/104" in book and
+           "github.com/fawakhry/TrendOs/actions/runs/38191386170" in book,
+           "ACC194_CANONICAL_BOOK_EVIDENCE_MISSING")
     return {
         "schema": "ACC186_GITHUB_SAFE_WORK_QUEUE_STATIC_PROOF_V1",
         "historic_stages_verified_from_record": list(HISTORIC_PROOF),
