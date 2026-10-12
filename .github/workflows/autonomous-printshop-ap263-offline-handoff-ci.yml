@@ -1,0 +1,31 @@
+name: AP-263 Offline Owner-Copied Snapshot Handoff — Hosted Synthetic CI
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/local_executor/offline_snapshot_handoff.py'
+      - 'autonomous-printshop/tests/test_ap263_offline_snapshot_handoff.py'
+      - '.github/workflows/autonomous-printshop-ap263-offline-handoff-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  review-only-fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate synthetic owner-copied JSON without host access
+        run: |
+          PYTHONPATH=autonomous-printshop/local_executor python -B -m unittest discover -s autonomous-printshop/tests -p 'test_ap263_offline_snapshot_handoff.py' -v
+          echo 'AP263_HOSTED_SYNTHETIC_TESTS=PASS'
+          echo 'AP263_UBUNTU_SOURCE_UPDATE=NO'
+          echo 'AP263_REMOTE_TRANSPORT=OFF'
+          echo 'AP263_EXECUTION_AUTHORIZED=NO'
+          echo 'AP263_PRODUCTION_ACCESS=NO'
