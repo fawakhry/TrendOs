@@ -7,6 +7,7 @@ import json
 import re
 import sys
 from urllib.request import Request, build_opener, HTTPRedirectHandler
+from urllib.error import HTTPError, URLError
 
 BASE = "https://trendos-d1-api.trendmall-contact.workers.dev"
 FRONT = "https://trendos-ui.trendmall-contact.workers.dev/config.js"
@@ -58,7 +59,7 @@ def assess(snapshots, frontend):
             if value.get("schemaReady") is not True:
                 reasons.append(name + ":SCHEMA_UNVERIFIED")
     auth = snapshots.get("auth") or {}
-    if isinstance(auth, dict):
+    if isinstance(auth, dict) and auth.get("success") is True:
         if auth.get("nativeOnly") is not True or auth.get("envEnabled") is not True:
             reasons.append("auth:NATIVE_ONLY_NOT_PROVED")
         if auth.get("legacyBootstrapEnabled") is not False or auth.get("legacySessionEnrollEnabled") is not False:
@@ -70,7 +71,7 @@ def assess(snapshots, frontend):
         if (type(users) is not int or type(ready) is not int or users < 1 or ready != users):
             reasons.append("auth:USER_READINESS_UNVERIFIED")
     bridge = snapshots.get("bridge") or {}
-    if isinstance(bridge, dict):
+    if isinstance(bridge, dict) and bridge.get("success") is True:
         if bridge.get("enabled") is not False:
             reasons.append("bridge:LEGACY_EMPLOYEE_BRIDGE_ENABLED")
         if bridge.get("rawNativeTokenForwarded") is not False or bridge.get("plaintextPasswordForwarded") is not False:
@@ -101,11 +102,23 @@ def main():
             if not isinstance(snapshots[name], dict):
                 snapshots[name] = {}
                 blockers.append(name + ":INVALID_JSON_OBJECT")
+        except HTTPError as err:
+            snapshots[name] = {}
+            blockers.append(name + ":HTTP_" + str(err.code))
+        except URLError as err:
+            snapshots[name] = {}
+            blockers.append(name + ":NETWORK_" + type(err.reason).__name__)
         except Exception:
             snapshots[name] = {}
             blockers.append(name + ":PUBLIC_GET_UNAVAILABLE")
     try:
         frontend = get_public(FRONT)
+    except HTTPError as err:
+        frontend = ""
+        blockers.append("frontend:HTTP_" + str(err.code))
+    except URLError as err:
+        frontend = ""
+        blockers.append("frontend:NETWORK_" + type(err.reason).__name__)
     except Exception:
         frontend = ""
         blockers.append("frontend:PUBLIC_GET_UNAVAILABLE")
