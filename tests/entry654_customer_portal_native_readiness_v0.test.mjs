@@ -31,6 +31,7 @@ const mock = (rows, errorAt = '') => ({
       q.includes('FROM customer_portal_native_control_v1') ? 'control' :
       q.includes('FROM t12_customers WHERE') ? 'customers' :
       q.includes('HAVING COUNT(*) > 1') ? 'duplicates' :
+      q.includes('LEFT JOIN t12_customers') ? 'bindings' :
       q.includes('FROM customer_portal_native_accounts_v1') ? 'accounts' :
       q.includes('FROM customer_portal_native_sessions_v1') ? 'sessions' : '';
     assert.ok(key, 'unexpected SELECT');
@@ -41,6 +42,7 @@ const rows = {
   control: {marker:'ENTRY654_CUSTOMER_PORTAL_NATIVE_V1',mode:'OFF'},
   customers: {activeCustomerCount:3,missingPortalCodeCount:1},
   duplicates: {duplicatePortalCodeGroupCount:1},
+  bindings: {mismatchedAccountBindingCount:2},
   accounts: {provisionedAccountCount:0,activeCredentialCount:0},
   sessions: {customerSessionCount:0}
 };
@@ -58,12 +60,13 @@ assert.equal(report.legacyCustomerActionCount,9);
 assert.equal(report.activeCustomerCount,3);
 assert.equal(report.missingPortalCodeCount,1);
 assert.equal(report.duplicatePortalCodeGroupCount,1);
+assert.equal(report.mismatchedAccountBindingCount,2);
 assert.equal(report.provisionedAccountCount,0);
 assert.equal(report.customerSessionCount,0);
 assert.equal(report.productionRelease,'NO_GO');
 assert.equal(report.customerFinanceRuntimeReady,false);
 assert.equal(report.zeroGoogleComplete,false);
-assert.equal(calls.length,5);
+assert.equal(calls.length,6);
 assert.doesNotMatch(JSON.stringify(report), /FAKE-CUSTOMER-001|FAKE-TOKEN|private-db-details/);
 console.log('ENTRY654_SOURCE_ONLY_NUMERIC_COUNTS_NO_PII=PASS');
 
@@ -72,6 +75,7 @@ for (const mode of ['SHADOW','CANARY','GENERAL']) {
     ...rows,control:{...rows.control,mode},
     customers:{activeCustomerCount:3,missingPortalCodeCount:0},
     duplicates:{duplicatePortalCodeGroupCount:0},
+    bindings:{mismatchedAccountBindingCount:0},
     accounts:{provisionedAccountCount:3,activeCredentialCount:3},
     sessions:{customerSessionCount:3}
   }));
@@ -85,6 +89,9 @@ assert.equal((await inspectCustomerPortalNativeReadinessV0(mock({...rows,control
   'INVALID_CONTROL');
 assert.equal((await inspectCustomerPortalNativeReadinessV0(mock({
   ...rows,accounts:{activeCredentialCount:0}
+}))).reason,'INCOMPLETE_READ_EVIDENCE');
+assert.equal((await inspectCustomerPortalNativeReadinessV0(mock({
+  ...rows,bindings:null
 }))).reason,'INCOMPLETE_READ_EVIDENCE');
 const unavailable=await inspectCustomerPortalNativeReadinessV0(mock(rows,'FROM t12_customers'));
 assert.equal(unavailable.reason,'SCHEMA_OR_READ_UNAVAILABLE');
