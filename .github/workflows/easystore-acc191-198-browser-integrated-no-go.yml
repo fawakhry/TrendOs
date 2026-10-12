@@ -1,0 +1,74 @@
+name: ACC191 Chromium Isolation and ACC198 Shared Ledger Synthetic — NO_GO
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/easystore-acc191-198-browser-integrated-no-go.yml'
+      - 'tests/easystore_acc191_offline_chromium_boot_no_go.test.cjs'
+      - 'tests/easystore_acc198_shared_ledger_refund_stop_sqlite.test.mjs'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  acc198-one-ephemeral-database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Real checked-in Worker with one invented SQLite ledger, including cash-refund denial
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --check tests/easystore_acc198_shared_ledger_refund_stop_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc198_shared_ledger_refund_stop_sqlite.test.mjs
+          echo 'ACC198_REAL_CUSTOMER_REFUND_HANDLER=BLOCKED'
+          echo 'ACC198_LIVE_FINANCIAL_ACCEPTANCE=NOT_TESTED'
+          echo 'ACCOUNTING_RELEASE=NO_GO'
+  acc191-local-chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      ACC191_PLAYWRIGHT_ROOT: /tmp/acc191-pinned-playwright
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: fawakhry/EasyStore
+          ref: 373d06381594e3ab32a55009fcc74907b1c37c9c
+          path: isolated-easystore-source
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned Playwright engine in runner temporary directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          npm install --prefix "$ACC191_PLAYWRIGHT_ROOT" --no-audit --no-fund --no-save --no-package-lock playwright@1.55.0
+          "$ACC191_PLAYWRIGHT_ROOT/node_modules/.bin/playwright" install chromium
+      - name: Render pinned frontend in isolated headless Chromium with all external destinations denied
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check tests/easystore_acc191_offline_chromium_boot_no_go.test.cjs
+          node tests/easystore_acc191_offline_chromium_boot_no_go.test.cjs isolated-easystore-source
+          echo 'ACC191_ACTUAL_PUBLISHED_PAGES_SHA=UNVERIFIED'
+          echo 'ACC191_REAL_EMPLOYEE_SSO=NOT_TESTED'
+          echo 'FINANCE_RELEASE=NO_GO'
