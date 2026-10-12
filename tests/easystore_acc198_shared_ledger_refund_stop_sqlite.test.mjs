@@ -194,7 +194,7 @@ try{
    stock:stock(mid),
    customerDebt:balance('customer','ACC170-FAKE-CUSTOMER'),
    supplierDebt:balance('supplier',sid),
-   invoices:db.prepare("SELECT invoice_no,status,paid,total FROM employee_accounting_final_invoices_v1 ORDER BY invoice_no").all(),
+   invoices:db.prepare("SELECT invoice_no,status,paid,final_total FROM employee_accounting_final_invoices_v1 ORDER BY invoice_no").all(),
    cashbox:db.prepare("SELECT movement_type,amount FROM employee_accounting_cashbox_v1 ORDER BY cashbox_tx_id").all(),
    ledger:db.prepare("SELECT party_type,party_id,operation,amount,effect FROM employee_accounting_party_ledger_v1 ORDER BY transaction_id").all(),
    stockmoves:count('employee_accounting_stock_moves_v1'),
