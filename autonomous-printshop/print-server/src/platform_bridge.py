@@ -17,6 +17,8 @@ class TrendOSStatusBridge:
 
     def __init__(self, config: dict, client, folders, state, on_order=None):
         self.config = config["trendos"]
+        # Fail closed unless the config contains a literal JSON false.
+        self.observe_only = self.config.get("observeOnly") is not False
         self.client = client
         self.folders = folders
         self.state = state
@@ -44,6 +46,8 @@ class TrendOSStatusBridge:
                 "accessibleScreens": list(self._accessible_screens),
                 "triggerStatuses": sorted(self.trigger_statuses),
                 "readOnly": True,
+                "observeOnly": self.observe_only,
+                "localFolderWrites": not self.observe_only,
             }
 
     def start(self):
@@ -131,6 +135,10 @@ class TrendOSStatusBridge:
             return {"ok": True, "skipped": "SYNC_ALREADY_RUNNING", "bridge": self.status()}
         try:
             rows, accessible = self._fetch_rows()
+            # Missing one configured screen makes cross-poll lineage incomplete.
+            # It is not safe to mark partial snapshots as a new baseline.
+            if set(accessible) != set(self.screens):
+                raise TrendOSError("INCOMPLETE_EMPLOYEE_SCREEN_SNAPSHOT")
             prior = self.state.trendos_bridge_state()
             initialized = bool(prior.get("initialized"))
             old_statuses = {str(k): str(v) for k, v in (prior.get("lineStatuses") or {}).items()}
@@ -144,7 +152,10 @@ class TrendOSStatusBridge:
                 status = str(row.get("status") or "").strip()
                 current_statuses[line_id] = status
                 previous = old_statuses.get(line_id)
-                enters_active = status in self.trigger_statuses and previous not in self.trigger_statuses
+                enters_active = (
+                    previous is not None and status in self.trigger_statuses
+                    and previous not in self.trigger_statuses
+                )
                 if initialized and enters_active:
                     triggered.append(row)
 
@@ -155,7 +166,14 @@ class TrendOSStatusBridge:
                     grouped.setdefault(order_id, []).append(row)
 
             created = []
-            for order_id, lines in grouped.items():
+            if self.observe_only and grouped:
+                self.state.audit("TRENDOS_SHADOW_CANDIDATES_OBSERVED", {
+                    "candidateOrderCount": len(grouped),
+                    "candidateLineCount": len(triggered),
+                    "folderWrites": False,
+                    "platformMutation": False,
+                })
+            for order_id, lines in ([] if self.observe_only else grouped.items()):
                 first = lines[0]
                 payload = {
                     "orderId": order_id,
@@ -207,6 +225,8 @@ class TrendOSStatusBridge:
                 "baselineOnly": not initialized,
                 "rowsSeen": len(rows),
                 "triggeredLines": len(triggered),
+                "candidateOrders": len(grouped),
+                "observeOnly": self.observe_only,
                 "created": created,
                 "bridge": self.status(),
             }
