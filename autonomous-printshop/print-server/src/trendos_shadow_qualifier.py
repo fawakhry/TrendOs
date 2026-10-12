@@ -9,7 +9,6 @@ machine-ready, print-complete, or customer-data display state.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Protocol
 
 
