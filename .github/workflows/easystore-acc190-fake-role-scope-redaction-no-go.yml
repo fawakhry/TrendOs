@@ -1,0 +1,54 @@
+name: ACC-190 Synthetic Verified Staff Scopes and Cost Redaction — NO DEPLOY
+on:
+  push:
+    branches:
+      - safety/acc190-verified-mock-role-cost-redaction-20261012
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'tests/easystore_acc190_verified_actor_cost_redaction_sqlite.test.mjs'
+      - '.github/workflows/easystore-acc190-fake-role-scope-redaction-no-go.yml'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+permissions:
+  contents: read
+jobs:
+  role-matrix-no-go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exact Worker with fake verified actor and disposable in-memory SQL only
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          ACCOUNTING_FINANCE_GRANTS_V1: ''
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test -z "$ACCOUNTING_FINANCE_GRANTS_V1"
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --check tests/easystore_acc190_verified_actor_cost_redaction_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc190_verified_actor_cost_redaction_sqlite.test.mjs
+          echo 'ACC190_REAL_EMPLOYEE_PERMISSIONS_UNCHANGED=YES'
+          echo 'ACC190_G2_OWNER_FINANCE_MATRIX=BLOCKED'
+          echo 'ACC190_PRODUCTION_FINANCIAL_GO=NO_GO'
+      - name: Existing real Worker and roles/cash/stock regressions (fake data only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/easystore_acc175_approved_finance_grants.test.mjs
+          node --experimental-sqlite tests/easystore_acc170_finance_flow_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc187_sale_refund_gap_purchase_reversal_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc188_party_ledger_idempotency_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc189_inventory_waste_composite_concurrent_sqlite.test.mjs
+          python3 tests/easystore_acc188_a210_no_bot_push.test.py
+          echo 'ACC190_ACC170_ACC175_ACC187_ACC188_ACC189_NO_PUSH_REGRESSIONS=PASS'
