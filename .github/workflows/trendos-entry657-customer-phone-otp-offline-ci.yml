@@ -1,0 +1,52 @@
+name: TrendOS Entry657 Customer Phone OTP Enrollment — OFF Source CI
+on:
+  push:
+    branches:
+      - test/zero-google-customer-otp-enrollment-off-20261013
+    paths:
+      - 'cloudflare-d1/migrations/0034_customer_portal_phone_otp_enrollment_v1.sql'
+      - 'cloudflare-d1/src/customer-portal-phone-enrollment-v0.mjs'
+      - 'tests/entry657_customer_phone_enrollment_sqlite.test.py'
+      - 'tests/entry657_customer_phone_otp_offline.test.mjs'
+      - '.github/workflows/trendos-entry657-customer-phone-otp-offline-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/migrations/0034_customer_portal_phone_otp_enrollment_v1.sql'
+      - 'cloudflare-d1/src/customer-portal-phone-enrollment-v0.mjs'
+      - 'tests/entry657_customer_phone_enrollment_sqlite.test.py'
+      - 'tests/entry657_customer_phone_otp_offline.test.mjs'
+      - '.github/workflows/trendos-entry657-customer-phone-otp-offline-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify JS syntax and OTP, password and no-network source contract
+        run: |
+          node --check cloudflare-d1/src/customer-portal-phone-enrollment-v0.mjs
+          node tests/entry657_customer_phone_otp_offline.test.mjs
+      - name: Verify additive OFF schema using disposable in-memory SQLite
+        run: python3 tests/entry657_customer_phone_enrollment_sqlite.test.py
+      - name: No production wiring or SMS credentials or migration
+        run: |
+          set -euo pipefail
+          if grep -Fq "customer-portal-phone-enrollment-v0.mjs" cloudflare-d1/src/index_v2.js; then
+            echo ENTRY657_SOURCE_ONLY_BREACH; exit 1
+          fi
+          echo ENTRY657_SCHEMA_NOT_APPLIED=YES
+          echo ENTRY657_NO_LIVE_SMS_SEND=YES
+          echo ENTRY657_CUSTOMER_PORTAL_NATIVE_AUTH_NOT_LIVE=YES
+          echo ENTRY657_NO_GOOGLE_SHEETS_OR_DRIVE_CALLS=YES
+          echo ENTRY657_NO_PRODUCTION_D1_MUTATION=YES
+          echo ENTRY657_ZERO_GOOGLE_COMPLETE=NO
