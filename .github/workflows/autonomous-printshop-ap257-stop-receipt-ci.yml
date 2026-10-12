@@ -1,0 +1,34 @@
+name: AP-257 Private Offline Stop Receipt — Hosted Synthetic CI
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/print-server/offline_stop_receipt.py'
+      - 'autonomous-printshop/print-server/controlled_offline_session.py'
+      - 'autonomous-printshop/print-server/tests/test_offline_stop_receipt.py'
+      - 'autonomous-printshop/print-server/tests/test_controlled_offline_session.py'
+      - '.github/workflows/autonomous-printshop-ap257-stop-receipt-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  owner-local-offline-receipt-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: AP-257 private receipt and legacy AP-252 regression; no real browser
+        working-directory: autonomous-printshop/print-server
+        run: |
+          python -B -m unittest discover -s tests -p 'test_offline_stop_receipt.py' -v
+          python -B -m unittest discover -s tests -p 'test_controlled_offline_session.py' -v
+          echo 'AP257_HOSTED_SYNTHETIC_RECEIPT_TESTS=PASS'
+          echo 'AP257_OWNER_UBUNTU_EXECUTION=NOT_DONE'
+          echo 'AP257_EXTERNAL_REMOTE_AGENT=NOT_CREATED'
+          echo 'AP257_PRINTING_AND_CLOUD=OFF'
