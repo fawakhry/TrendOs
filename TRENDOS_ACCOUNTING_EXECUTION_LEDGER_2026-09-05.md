@@ -1,5 +1,8 @@
 # TrendOS Accounting — Black Box Execution Ledger
 
+> **Canonical accounting book correction (verified 2026-10-12):** This file is a *TrendOS technical/domain-core black-box execution ledger*, not the canonical EasyStore Accounting program journal. The original finance book is [EasyStore/EASYSTORE_ACCOUNTING_MASTER_BOOK.md](https://github.com/fawakhry/EasyStore/blob/candidate/easystore-zero-google-audit-20261004/EASYSTORE_ACCOUNTING_MASTER_BOOK.md); its original instructions created 2026-10-05 explicitly forbid recording accounting execution in the generic TrendOS book. Historical ACC-157–193 notes were restored verbatim to the original EasyStore book through [PR #28](https://github.com/fawakhry/EasyStore/pull/28) (merge `7857b61274d934a40fb90d6c9e8f46c22b8725e2`, independent postmerge [CI #38189082630](https://github.com/fawakhry/EasyStore/actions/runs/38189082630) SUCCESS). This local technical ledger remains a nonauthoritative historical trace. Future finance stage status must be recorded **in the EasyStore original book first**. The mistaken unmerged `accounting/MASTER_BOOK.md` branch is noncanonical. No finance GO or real production changes.
+
+
 Date: 2026-09-05
 Repository: `fawakhry/TrendOs`
 Branch: `agent/go-live-2026-09-01-integrity`
