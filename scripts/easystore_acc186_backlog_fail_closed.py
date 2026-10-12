@@ -48,7 +48,7 @@ def validate(m, book):
     demand(type(source) is dict and source.get("master_book") == expected_book,
            "NONCANONICAL_BOOK_POINTER")
     demand(source.get("canonical_accounting_book_ci_checkout_sha") ==
-           "7857b61274d934a40fb90d6c9e8f46c22b8725e2",
+           "57e59a8c6f9d8fa91af0bfb77c6cdeb3f3de056e",
            "UNPINNED_EASYSTORE_CANONICAL_BOOK")
     demand(source.get("legacy_trendos_master_archive") == "TrendOS_MASTER_BOOK.md",
            "MISSING_HISTORICAL_ACCOUNTING_ARCHIVE")
