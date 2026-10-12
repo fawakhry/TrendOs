@@ -190,7 +190,7 @@
       "id": "ACC-192",
       "gate": "G4",
       "title": "التقارير وتقفيل اليوم",
-      "state": "IN_PROGRESS_UNVERIFIED",
+      "state": "VERIFIED_COMPLETE",
       "depends_on": [
         "ACC-188",
         "ACC-189"
@@ -204,9 +204,9 @@
       ],
       "deployment_allowed": false,
       "owner_approval_needed_for_this_safe_scope": false,
-      "pr": null,
-      "ci_run": null,
-      "verified_at": null
+      "pr": 102,
+      "ci_run": 38189774364,
+      "verified_at": "2026-10-12"
     },
     {
       "id": "ACC-193",
