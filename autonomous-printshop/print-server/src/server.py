@@ -15,6 +15,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .config import application_dir, load_config, resource_dir, resolve_config_path, save_path_override
 from .folders import OrderFolderService
+from .employee_assist import local_employee_queue
 from .fast_mode import FastModeController
 from .local_settings import LocalSettingsError, choose_windows_directory, validate_writable_directory
 from .platform_bridge import TrendOSStatusBridge
@@ -226,6 +227,10 @@ def make_handler(app: PrintServerApp):
                 })
             if parsed.path == "/api/orders":
                 return self._json(200, {"ok": True, "orders": app.state.orders()})
+            if parsed.path == "/api/employee/queue":
+                # Display assistance only; no login, customer upload, directory
+                # traversal, TrendOS mutation, print or background processing.
+                return self._json(200, local_employee_queue(app.state.orders()))
             if parsed.path == "/api/state":
                 return self._json(200, {"ok": True, "state": app.state.snapshot()})
             if parsed.path == "/api/order-files":
