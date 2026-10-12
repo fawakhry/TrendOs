@@ -10,6 +10,8 @@ on:
       - 'tests/easystore_acc198_shared_ledger_refund_stop_sqlite.test.mjs'
       - 'tests/easystore_acc187_synthetic_dual_settlement_sqlite_no_go.test.mjs'
       - 'tests/easystore_acc187_customer_debt_adjustment_not_store_credit_no_go.test.py'
+      - 'scripts/easystore_acc187_paid_items_compensation_cap_no_go.mjs'
+      - 'tests/easystore_acc187_paid_items_compensation_cap_no_go.test.mjs'
       - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
   workflow_dispatch:
 permissions:
@@ -49,6 +51,11 @@ jobs:
           node --experimental-sqlite tests/easystore_acc198_shared_ledger_refund_stop_sqlite.test.mjs
           node --experimental-sqlite --test tests/easystore_acc187_synthetic_dual_settlement_sqlite_no_go.test.mjs
           python3 tests/easystore_acc187_customer_debt_adjustment_not_store_credit_no_go.test.py
+          node --check scripts/easystore_acc187_paid_items_compensation_cap_no_go.mjs
+          node --test tests/easystore_acc187_paid_items_compensation_cap_no_go.test.mjs
+          echo 'ACC187_OWNER_AMOUNT_RULE=PAID_RETURNED_ITEMS_MINUS_PRIOR_CASH_AND_STORE_CREDIT'
+          echo 'ACC187_EXCEPTION_ABOVE_NET_PAID=SEPARATE_MANAGER_APPROVAL_REQUIRED'
+          echo 'ACC187_ITEM_LEVEL_ALLOCATION_AND_REAL_CREDIT=NOT_IMPLEMENTED'
           echo 'ACC187_REAL_AMOUNT_CEILING_OWNER_POLICY=UNDECIDED'
           echo 'ACC187_REAL_CUSTOMER_CREDIT_AND_CASH=NEVER_EXECUTED'
           echo 'ACC187_REAL_CASH_OR_CREDIT_HANDLERS=NOT_IMPLEMENTED'
