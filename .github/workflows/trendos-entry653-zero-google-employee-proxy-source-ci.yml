@@ -1,0 +1,48 @@
+name: TrendOS Entry653 Zero-Google Employee Proxy Source CI
+on:
+  push:
+    branches:
+      - test/zero-google-employee-legacy-proxy-retire-20261013
+    paths:
+      - 'cloudflare-d1/src/legacy-browser-transport-v1.mjs'
+      - 'tests/legacy_browser_transport_a61.test.mjs'
+      - 'tests/entry653_zero_google_employee_legacy_proxy_retirement.test.mjs'
+      - '.github/workflows/trendos-entry653-zero-google-employee-proxy-source-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/legacy-browser-transport-v1.mjs'
+      - 'tests/legacy_browser_transport_a61.test.mjs'
+      - 'tests/entry653_zero_google_employee_legacy_proxy_retirement.test.mjs'
+      - '.github/workflows/trendos-entry653-zero-google-employee-proxy-source-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Source syntax
+        run: |
+          node --check cloudflare-d1/src/legacy-browser-transport-v1.mjs
+          node --check tests/entry653_zero_google_employee_legacy_proxy_retirement.test.mjs
+      - name: Synthetic transport regression
+        run: |
+          node tests/legacy_browser_transport_a61.test.mjs
+          node tests/entry653_zero_google_employee_legacy_proxy_retirement.test.mjs
+          echo ENTRY653_SOURCE_ONLY_TESTS=PASS
+      - name: No live credentials or deployment
+        run: |
+          echo ENTRY653_PRODUCTION_DEPLOY=NO
+          echo ENTRY653_APPS_SCRIPT_REQUESTS=NO
+          echo ENTRY653_D1_MUTATION=NO
+          echo ENTRY653_FINANCE_OR_STOCK_MUTATION=NO
+          echo ZERO_GOOGLE_COMPLETE=NO
