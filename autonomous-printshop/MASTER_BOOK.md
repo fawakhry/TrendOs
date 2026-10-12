@@ -9171,3 +9171,12 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 - NEXT exactly ONE owner UI action (read-only navigation): click the **Access Control** item/expand arrow in left menu and share screenshot of the menu or policy page. We must inspect current policies, especially possible default all-to-all policy, before any peer enrollment or `netbird up`. Do not click `Add Peer`, create a routing peer, expose shop subnet/Win7, disable UFW or open SSH/routers.
 - No billing modification, GitHub merge/deploy, D1 write, Windows 7/customer original/driver action, server configuration alteration or remote execution by assistant. User screenshot is the only UI evidence; do not commit screenshot/personal data to GitHub.
 - AP186_ACCOUNT_PLAN=FREE_OWNER_DASHBOARD; AP186_USERS=1_OF_5_OWNER_DASHBOARD; AP186_PEERS=0_OF_100_OWNER_DASHBOARD; AP186_VPN_JOINED=NO; AP186_ACCESS_POLICY=NOT_YET_REVIEWED; AP186_NEXT_OWNER_STEP=OPEN_ACCESS_CONTROL_MENU.
+
+
+### AP-187 — NetBird Access Control navigation expanded; policies not inspected yet (2026-10-12; owner browser screenshot)
+
+- Owner clicked `Access Control` in the NetBird dashboard sidebar. Screenshot shows expanded submenu: `Policies`, `Groups`, `Posture Checks`. Main pane remains the empty `Peers` page with `Get Started with NetBird` and `Add Peer` button. No policy list, default policy name, enabled/disabled state, or rule details are shown. Do NOT claim access rules have been reviewed or changed.
+- Bottom-left plan badge still reads `Free`, usage `1 of 5 Users`, `0 of 100 Peers`. This is current visible UI state, not a guarantee about future plan conditions; owner categorically requires no charges/cards/trials.
+- NEXT ONE OWNER UI NAVIGATION (read only): click `Policies` under expanded `Access Control`, share redacted screenshot of resulting policy list. Examine existence/activation of any `Default` all-peers policy before enrolling TrendosShop into the VPN. No `Add Peer`, `netbird up`, VPN routing, policy editing, payment, SSH/UFW or router changes yet.
+- Prior home iMac installed NetBird 0.80.0, daemon running/enabled, but CLI last showed `NeedsLogin`. No peer enrollment and no remote connectivity verified. No shop Windows 7, customer original files, printer/drivers, D1, Production, merge/deploy touched. Assistant performed GitHub documentation change only, not interaction with NetBird UI or server.
+- AP187_ACCESS_CONTROL_EXPANDED=OWNER_SCREEN; AP187_POLICIES_MENU_VISIBLE=YES; AP187_POLICIES_READ=NO; AP187_PLAN_FREE_VISIBLE=YES; AP187_PEER_COUNT=ZERO; AP187_NEXT=CLICK_POLICIES_AND_SHARE_SCREENSHOT.
