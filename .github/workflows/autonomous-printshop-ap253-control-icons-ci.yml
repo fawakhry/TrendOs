@@ -1,0 +1,31 @@
+name: AP-253 Offline START STOP Icons — Hosted Synthetic CI
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/print-server/prepare_control_desktop.py'
+      - 'autonomous-printshop/print-server/tests/test_prepare_control_desktop.py'
+      - '.github/workflows/autonomous-printshop-ap253-control-icons-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-desktop-icons:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify fake owner home, exclusive new icons, rollback, no real launch
+        working-directory: autonomous-printshop/print-server
+        run: |
+          python -B -m unittest discover -s tests -p 'test_prepare_control_desktop.py' -v
+          echo 'AP253_HOSTED_SYNTHETIC_TESTS=PASS'
+          echo 'AP253_UBUNTU_ICON_INSTALL=NOT_DONE'
+          echo 'AP253_UBUNTU_DEMO_RUN=NOT_DONE'
+          echo 'AP253_PRODUCTION=OFF'
