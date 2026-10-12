@@ -160,6 +160,31 @@ class Workflows(unittest.TestCase):
         self.assertTrue(any("ONLY_EXPLICIT_PULL_REQUEST_TRIGGER_ALLOWED" in e
                             for e in failures))
 
+    def test_all_pr_files_must_trigger_the_security_workflow(self):
+        for filter_key in ("paths", "paths-ignore", "branches", "branches-ignore"):
+            modified = WORKFLOW.replace(
+                "  pull_request:", "  pull_request:\n    " + filter_key + ":\n      - scripts/**")
+            errors = guard.inspect_workflow_content(SAFE[2][1], modified)
+            self.assertTrue(
+                any("PR_SCOPE_FILTER_MAY_SKIP_DANGEROUS_DIFF" in e for e in errors),
+                filter_key,
+            )
+
+    def test_current_security_workflow_has_no_pr_file_filters(self):
+        source = ROOT / ".github/workflows/easystore-acc199-pr-diff-safety-gate-no-go.yml"
+        contents = source.read_text(encoding="utf-8")
+        self.assertEqual([], guard.inspect_workflow_content(
+            str(source.relative_to(ROOT)), contents))
+
+    def test_actual_security_workflow_checks_diff_before_adversarial_tests(self):
+        source = ROOT / ".github/workflows/easystore-acc199-pr-diff-safety-gate-no-go.yml"
+        contents = source.read_text(encoding="utf-8")
+        self.assertLess(contents.index("Compare EXACT PR HEAD"),
+                        contents.index("Adversarial local source"))
+        self.assertIn("persist-credentials: false", contents)
+        self.assertIn("fetch-depth: 0", contents)
+        self.assertNotIn("    paths:", contents)
+
     def test_historic_manual_deploy_workflow_is_detected_as_dangerous(self):
         # This deliberately reads, NEVER runs or edits the old deploy workflow.
         legacy=ROOT / ".github/workflows/easystore-a2-accounting-readonly-api-deploy.yml"
