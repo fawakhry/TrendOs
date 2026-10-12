@@ -8,7 +8,7 @@ ROOT=pathlib.Path(__file__).resolve().parents[1]
 SRC=ROOT/"cloudflare-d1/src/customer-portal-password-enrollment-ticket-v0.mjs"
 M=ROOT/"cloudflare-d1/migrations"
 def sql(name):
-    m=re.search(r"export const "+name+r" = `([\s\S]*?)`;",SRC.read_text(encoding="utf-8"))
+    m=re.search(r"export const "+name+r"\s*=\s*`([\s\S]*?)`;",SRC.read_text(encoding="utf-8"))
     if not m: raise AssertionError("missing sql "+name)
     return m.group(1).strip()
 ISSUE=sql("OTP_ISSUE_TICKET_CAS_SQL_V0")
