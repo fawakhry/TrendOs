@@ -16,7 +16,7 @@ for(const input of ['+201012345678','00201012345678','201012345678',
                     '٠١٠١٢٣٤٥٦٧٨','۰۱۰۱۲۳۴۵۶۷۸','010-1234-5678']) {
   assert.equal(normalizeEgyptianMobileV0(input),phone,input);
 }
-for(const input of ['01012345','010123456789','+331012345678','01212345678',
+for(const input of ['01012345','010123456789','+331012345678','01312345678',
                     '0111234567x','01012345679;other']) {
   assert.equal(normalizeEgyptianMobileV0(input),null,input);
 }
