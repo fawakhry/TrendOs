@@ -1,0 +1,40 @@
+name: ACC-193 Fresh Accounting Books and No Historical Import — Synthetic NO_GO
+on:
+  push:
+    branches:
+      - test/acc193-fresh-ledger-schema-and-no-import-20261012
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-acc193-fresh-books-offline-no-go.yml'
+      - 'tests/easystore_acc193_fresh_books_no_import_sqlite.test.mjs'
+      - 'docs/trendos/staging/ACC181_G3_ZERO_OPENING_DECISION.json'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+permissions:
+  contents: read
+jobs:
+  synthetic-opening:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test only fresh in-memory schema, old fake data and owner policy
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          node --check tests/easystore_acc193_fresh_books_no_import_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc193_fresh_books_no_import_sqlite.test.mjs
+          node tests/acc181_zero_opening_direction_preflight.test.mjs
+          echo 'ACC193_REAL_OPENING_AND_CUTOVER=NOT_PERFORMED'
+          echo 'ACC193_RELEASE_DECISION=NO_GO'
