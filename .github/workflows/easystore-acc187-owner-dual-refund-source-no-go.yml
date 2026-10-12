@@ -1,0 +1,47 @@
+name: ACC187 Owner Dual Refund Method Policy and Denial — NO_GO
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/easystore-acc187-owner-dual-refund-source-no-go.yml'
+      - 'scripts/easystore_acc187_owner_refund_method_contract_no_go.mjs'
+      - 'tests/easystore_acc187_owner_refund_method_contract_no_go.test.mjs'
+      - 'tests/easystore_acc187_sale_refund_gap_purchase_reversal_sqlite.test.mjs'
+      - 'tests/easystore_acc198_shared_ledger_refund_stop_sqlite.test.mjs'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  no-financial-authority:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prove two owner-approved settlement methods are review-only and require management
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          node --check scripts/easystore_acc187_owner_refund_method_contract_no_go.mjs
+          node --test tests/easystore_acc187_owner_refund_method_contract_no_go.test.mjs
+          echo 'ACC187_OWNER_METHOD_DECISION=DUAL_WITH_PER_CASE_MANAGEMENT_APPROVAL'
+          echo 'ACC187_OWNER_OTHER_REFUND_RULES=UNDECIDED'
+          echo 'ACC187_REAL_REFUND_OR_CREDIT_POST=NOT_EXECUTED'
+      - name: Original native Worker retains unknown-action denial with zero fake DB changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-sqlite tests/easystore_acc187_sale_refund_gap_purchase_reversal_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc198_shared_ledger_refund_stop_sqlite.test.mjs
+          echo 'ACC187_REAL_CASH_OR_CREDIT_HANDLERS=NOT_IMPLEMENTED'
+          echo 'ACC187_ACCOUNTING_G1_TO_G5=OPEN'
+          echo 'FINANCE_RELEASE=NO_GO'
