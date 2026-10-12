@@ -39,6 +39,7 @@ class AP276OperationalFlow(unittest.TestCase):
         self.root = Path(self.temp.name).resolve()
         self.cfg = offline_config(self.root)
         self.cfg["trendos"]["pollScreens"] = ["print"]
+        self.cfg["trendos"]["observeOnly"] = False  # synthetic explicit mutation fixture only
         self.app = PrintServerApp(
             self.cfg, Path(__file__).resolve().parents[1] / "public",
             config_path=self.root / "local.json",
