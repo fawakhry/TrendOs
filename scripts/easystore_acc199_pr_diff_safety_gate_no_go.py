@@ -71,6 +71,11 @@ def inspect_workflow_content(path: str, content: str) -> list[str]:
         violations.append(f"ONLY_EXPLICIT_PULL_REQUEST_TRIGGER_ALLOWED:{path}")
     if not re.search(r"persist-credentials:\s*false\b", content):
         violations.append(f"CHECKOUT_CREDENTIAL_PERSISTENCE_NOT_DISABLED:{path}")
+    # A file/branch-filtered guard can silently skip dangerous PR edits.
+    # The security workflow must evaluate ALL PR file changes, not just its
+    # own scripts/tests. Reject these filters even if other checks pass.
+    if re.search(r"(?m)^\s+(?:paths|paths-ignore|branches|branches-ignore)\s*:", content):
+        violations.append(f"PR_SCOPE_FILTER_MAY_SKIP_DANGEROUS_DIFF:{path}")
     for regex, marker in DANGEROUS_WORKFLOW:
         if regex.search(content):
             violations.append(f"{marker}:{path}")
