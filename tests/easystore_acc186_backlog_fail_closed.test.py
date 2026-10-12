@@ -64,7 +64,7 @@ stop(lambda x: x["safe_queue"].pop(), "SAFE_QUEUE_COUNT_CHANGED")
 try:
     m.validate(original, "not the master book")
 except m.BacklogStop as e:
-    assert "HISTORY_NOT_LINKED_IN_MASTER_BOOK" in str(e)
+    assert "CANONICAL_EASYSTORE_BOOK_NOT_LOADED" in str(e)
 else:
     raise AssertionError("ACC186_MISSING_MASTER_BOOK_EVIDENCE_FAIL_OPEN")
 print("ACC186_23_NEGATIVE_APPROVAL_GATES_AND_EVIDENCE_TESTS=PASS")
