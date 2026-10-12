@@ -31,6 +31,10 @@ jobs:
           node --check autonomous-printshop/core/ubuntu-signed-mock-evidence-v1.mjs
           node --test autonomous-printshop/tests/ubuntu_offline_diagnostic_envelope_v0.test.mjs
           node --test autonomous-printshop/tests/ubuntu_signed_mock_evidence_v1.test.mjs
+          node --check autonomous-printshop/local-ubuntu/read-only-process-preview-v0.mjs
+          node --check autonomous-printshop/local-ubuntu/manual-readonly-preview-v0.mjs
+          node --test autonomous-printshop/tests/ubuntu_local_readonly_preview_v0.test.mjs
+          echo 'LOCAL_UBUNTU_MANUAL_PREVIEW_NOT_RUN_IN_CI=TRUE'
           node --test autonomous-printshop/tests/trendos_autonomy_policy_v1.test.mjs
           echo 'PRINTSHOP_UBUNTU_DIAGNOSTIC=MOCK_ONLY_NOT_CONNECTED'
           echo 'PRINTSHOP_PRINTSERVER_REAL_PRODUCTION_QUALIFIED=FALSE'
