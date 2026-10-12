@@ -47,6 +47,15 @@ class Health(unittest.TestCase):
         self.assertIn("auth:USER_READINESS_UNVERIFIED", out["reasons"])
         self.assertFalse(out["zeroGoogleComplete"])
 
+    def test_unreachable_auth_not_misreported_as_runtime_drift(self):
+        v = {**D, "auth": {}, "bridge": {}}
+        out = mod.assess(v, FRONT)
+        self.assertIn("auth:MISSING_OR_UNHEALTHY", out["reasons"])
+        self.assertIn("bridge:MISSING_OR_UNHEALTHY", out["reasons"])
+        self.assertNotIn("auth:LEGACY_ENROLLMENT_RESIDUE", out["reasons"])
+        self.assertNotIn("bridge:LEGACY_EMPLOYEE_BRIDGE_ENABLED", out["reasons"])
+        self.assertFalse(out["zeroGoogleComplete"])
+
     def test_expected_hosts_and_allowlisted_paths_only(self):
         self.assertEqual(mod.BASE, "https://trendos-d1-api.trendmall-contact.workers.dev")
         self.assertEqual(mod.FRONT, "https://trendos-ui.trendmall-contact.workers.dev/config.js")
