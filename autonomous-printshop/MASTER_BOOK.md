@@ -9116,3 +9116,10 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 - NEXT ONE conversational owner decision before authorizing mesh join: ask whether owner has an existing NetBird account/managed network or is new to NetBird. Scope tenant/device access and review default access policies before `netbird up` or SSO; do not accept or share credentials, setup keys, device authorization codes or secret configuration. Later qualify VPN security, scoped ACL, least privilege and non-root SSH public keys while preserving physical-console fallback.
 - UFW previously owner-verified active/default deny incoming (AP-162), IPV6=yes (AP-164), SSH listens wildcard IPv4/IPv6 TCP22 and password auth remains on pending private key-only authorized access. No UFW/router port opening, Windows7 printshop customer originals or printer/driver changes, D1/production mutation, merge/deploy, print dispatch. Screenshot is owner evidence; assistant has not accessed host. No raw screenshots or secrets committed.
 - AP180_NETBIRD_DAEMON=NEEDSLOGIN_OWNER_SCREEN; AP180_NETBIRD_SERVICE_RUNNING=PREVIOUS_AP179_SCREEN; AP180_VPN_JOINED=NO_EVIDENCE; AP180_ACL_CONFIG=NOT_YET_REVIEWED; AP180_NEXT_OWNER_ACCOUNT_STATUS=ASKED; AP180_PRODUCTION_D1_WIN7_CHANGES=NONE.
+
+
+### AP-181 — First-time NetBird account onboarding (owner report, 2026-10-12)
+- Owner stated this is their first time using NetBird. No account creation, SSO sign-in, device enrollment, VPN tunnel, or access control configuration is confirmed. AP-180 last local status was NeedsLogin.
+- Official onboarding site: https://app.netbird.io . The new network may include a default all-to-all device policy, so review access policies before joining the server or enabling remote SSH. Do not run netbird up yet.
+- Next one owner UI step: open official site in browser and share redacted screenshot of the landing/sign-in page. Do not share passwords, emails, identity codes, tokens or private keys.
+- No changes to Ubuntu SSH/UFW, printshop Win7, customer files, D1 or Production. GitHub book-only note.
