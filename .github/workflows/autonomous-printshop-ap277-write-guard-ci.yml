@@ -11,6 +11,14 @@ on:
       - 'autonomous-printshop/print-server/tests/test_ap276_operational_flow_synthetic.py'
       - 'autonomous-printshop/print-server/tests/test_ap277_write_guard_synthetic.py'
       - '.github/workflows/autonomous-printshop-ap277-write-guard-ci.yml'
+  pull_request:
+    paths:
+      - 'autonomous-printshop/print-server/src/server.py'
+      - 'autonomous-printshop/print-server/public/app.js'
+      - 'autonomous-printshop/print-server/public/index.html'
+      - 'autonomous-printshop/print-server/tests/test_ap276_operational_flow_synthetic.py'
+      - 'autonomous-printshop/print-server/tests/test_ap277_write_guard_synthetic.py'
+      - '.github/workflows/autonomous-printshop-ap277-write-guard-ci.yml'
   workflow_dispatch:
 
 permissions:
