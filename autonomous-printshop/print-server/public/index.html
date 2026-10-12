@@ -28,6 +28,22 @@
         <div id="fastModeStatus">Fast Mode...</div>
         <div id="previewCapabilities">معاينة الملفات...</div>
       </header>
+      <div id="demoModeBanner" class="demo-mode-banner" role="status" hidden>
+        <strong>نسخة تدريب الموظفين — بيانات وهمية فقط</strong>
+        <span>عرض وتجربة بدون كتابة أوردرات، وبدون اتصال بـTrendOS أو الطابعات. التشغيل بيتوقف تلقائيًا.</span>
+      </div>
+
+      <section class="employee-assist" id="employeeAssist">
+        <div class="employee-assist-header">
+          <div><b>قائمة شغل الموظفين — محلي فقط</b>
+            <small>اقتراح الخطوة التالية من مجلدات الأوردر المسجلة. مش حالة TrendOS الفعلية، ولا اعتماد تصميم أو تأكيد طباعة.</small>
+          </div>
+          <div id="employeeQueueSummary" aria-live="polite">جاري قراءة الأوردرات المحلية…</div>
+        </div>
+        <div id="employeeQueueItems" class="employee-queue-items">
+          <div class="empty">لا توجد مهام محلية معروضة حاليًا.</div>
+        </div>
+      </section>
 
       <section class="trendos-link">
         <div>
@@ -52,6 +68,10 @@
         <input id="ordersRootInput" dir="ltr" spellcheck="false" placeholder="مثال: D:\Trend Print">
         <button id="chooseOrdersRootBtn">اختيار فولدر</button>
         <button id="saveOrdersRootBtn" class="secondary">حفظ المسار</button>
+        <label for="localWriteToken">رمز السماح بالكتابة المحلية (لا يتم حفظه)</label>
+        <input id="localWriteToken" type="password" autocomplete="off" spellcheck="false"
+               placeholder="رمز جلسة التشغيل — لا تدخل بيانات TrendOS هنا">
+        <small id="localWriteMode">عمليات الكتابة مقفولة افتراضيًا</small>
         <div id="storageMsg" class="storage-msg"></div>
       </section>
 

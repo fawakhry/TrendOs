@@ -1,0 +1,31 @@
+name: AP-233 Local Executor Policy — Hosted Synthetic CI
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/local_executor/**'
+      - 'autonomous-printshop/tests/test_ap233_local_executor_policy.py'
+      - '.github/workflows/autonomous-printshop-ap233-local-executor-policy-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-policy-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python policy syntax and synthetic denial tests only
+        run: |
+          python -m py_compile autonomous-printshop/local_executor/policy.py
+          python -B autonomous-printshop/tests/test_ap233_local_executor_policy.py
+          echo 'AP233_SOURCE_POLICY_SYNTHETIC_TESTS=PASS'
+          echo 'LOCAL_AGENT_INSTALLED=NO'
+          echo 'UBUNTU_HOST_CONNECTED=NO'
+          echo 'PRODUCTION_D1_WIN7_ACCESS=NO'

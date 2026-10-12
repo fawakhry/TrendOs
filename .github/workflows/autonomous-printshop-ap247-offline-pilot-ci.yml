@@ -1,0 +1,32 @@
+name: AP-247 Offline Loopback UI Pilot — Hosted Synthetic CI
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/print-server/offline_pilot.py'
+      - 'autonomous-printshop/print-server/tests/test_offline_pilot.py'
+      - '.github/workflows/autonomous-printshop-ap247-offline-pilot-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-pilot-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: AP-247 synthetic temp-state, loopback GET and deny-by-default checks
+        working-directory: autonomous-printshop/print-server
+        run: |
+          python -B -m unittest discover -s tests -p 'test_offline_pilot.py' -v
+          echo 'AP247_OFFLINE_PILOT_HOSTED_TEST=PASS'
+          echo 'AP247_OWNER_UBUNTU_PILOT=NOT_EXECUTED'
+          echo 'AP247_CLOUD_LOGIN=OFF'
+          echo 'AP247_PRINT_SHOP_ORIGINALS=NOT_ACCESSED'
+          echo 'AP247_GITHUB_RUNNER=HOSTED_ONLY'

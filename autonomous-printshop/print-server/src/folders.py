@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import shutil
 from datetime import datetime
@@ -44,6 +45,32 @@ def file_sha256(path: Union[str, Path]) -> str:
         for chunk in iter(lambda: fh.read(1024 * 1024), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _confined_path(root: Path, candidate: Path) -> Path:
+    """Reject static symlinks and escape from an explicitly configured data root.
+
+    This guard is intentionally conservative and is not a substitute for
+    dirfd/O_NOFOLLOW race-proof filesystem operations on a shared host.
+    """
+    root = Path(root).absolute()
+    candidate = Path(candidate).absolute()
+    if root.is_symlink():
+        raise ValueError("DATA_ROOT_SYMLINK_FORBIDDEN")
+    try:
+        relative = candidate.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("PATH_OUTSIDE_CONFIGURED_ROOT") from exc
+    if ".." in relative.parts:
+        raise ValueError("PATH_TRAVERSAL_FORBIDDEN")
+    walk = root
+    for part in relative.parts:
+        walk = walk / part
+        if walk.is_symlink():
+            raise ValueError("SYMLINK_PATH_FORBIDDEN")
+    if not candidate.resolve().is_relative_to(root.resolve()):
+        raise ValueError("PATH_OUTSIDE_CONFIGURED_ROOT")
+    return candidate
 
 
 class OrderFolderService:
@@ -90,7 +117,9 @@ class OrderFolderService:
             root = Path(existing["folder"])
         else:
             root = self.orders_root / self.order_folder_name(order)
+        root = _confined_path(self.orders_root, root)
         root.mkdir(parents=True, exist_ok=True)
+        _confined_path(self.orders_root, root)
 
         routes = {}
         for key, route in ((existing or {}).get("routes") or {}).items():
@@ -157,12 +186,15 @@ class OrderFolderService:
         if not order_state:
             raise ValueError("ORDER_NOT_REGISTERED")
 
-        root = Path(order_state["folder"]).resolve()
+        root = _confined_path(self.orders_root, Path(order_state["folder"]))
         root.mkdir(parents=True, exist_ok=True)
         display_name = safe_name(options[folder_key])
-        target = root / display_name
+        target = _confined_path(root, root / display_name)
         target.mkdir(parents=True, exist_ok=True)
-        (target / self.finished_name).mkdir(exist_ok=True)
+        if Path(self.finished_name).name != self.finished_name or self.finished_name in {".", ".."}:
+            raise ValueError("UNSAFE_FINISHED_FOLDER_NAME")
+        finished = _confined_path(root, target / self.finished_name)
+        finished.mkdir(exist_ok=True)
 
         routes = dict(order_state.get("routes") or {})
         existed = folder_key in routes and Path(str(routes[folder_key].get("path") or "")).exists()
@@ -241,12 +273,16 @@ class OrderFolderService:
         if decision != "APPROVE" or source_kind not in allowed:
             raise ValueError("QUALIFIED_STRUCTURED_APPROVAL_REQUIRED")
 
-        src = Path(source_file).resolve()
-        order_root = Path(order_state["folder"]).resolve()
+        order_root = _confined_path(self.orders_root, Path(order_state["folder"]))
+        if not Path(source_file).is_absolute():
+            raise ValueError("SOURCE_FILE_ABSOLUTE_PATH_REQUIRED")
         try:
-            src.relative_to(order_root)
+            src = _confined_path(order_root, Path(source_file))
         except ValueError as exc:
-            raise ValueError("SOURCE_FILE_OUTSIDE_ORDER_FOLDER") from exc
+            if str(exc) == "PATH_OUTSIDE_CONFIGURED_ROOT":
+                raise ValueError("SOURCE_FILE_OUTSIDE_ORDER_FOLDER") from exc
+            raise
+        _confined_path(self.orders_root, route_info[1])
         if not src.is_file():
             raise ValueError("SOURCE_FILE_MISSING")
         current_hash = file_sha256(src)
@@ -255,15 +291,36 @@ class OrderFolderService:
             raise ValueError("APPROVAL_HASH_MISMATCH")
 
         selected_route_key, _route_path = route_info
-        ready_dir = self.ready_root.joinpath(*self._ready_parts(selected_route_key))
+        ready_dir = _confined_path(
+            self.ready_root, self.ready_root.joinpath(*self._ready_parts(selected_route_key))
+        )
         ready_dir.mkdir(parents=True, exist_ok=True)
+        _confined_path(self.ready_root, ready_dir)
         customer = safe_name(order_state.get("customerName"), "عميل")
         dest_name = safe_name(f"{order_id} - {customer} - {src.name}")
-        dest = ready_dir / dest_name
-        if dest.exists() and file_sha256(dest) != current_hash:
-            stem, suffix = dest.stem, dest.suffix
-            dest = ready_dir / f"{stem} - {current_hash[:8]}{suffix}"
-        shutil.copy2(src, dest)
+        dest = _confined_path(self.ready_root, ready_dir / dest_name)
+        if dest.exists():
+            if not dest.is_file():
+                raise ValueError("READY_DESTINATION_NOT_FILE")
+            if file_sha256(dest) != current_hash:
+                stem, suffix = dest.stem, dest.suffix
+                dest = _confined_path(
+                    self.ready_root, ready_dir / f"{stem} - {current_hash[:8]}{suffix}"
+                )
+        # Never overwrite an existing file. Exclusive create avoids clobbering
+        # an existing ready queue entry; reapprove identical content is idempotent.
+        if not dest.exists():
+            flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+            if hasattr(os, "O_NOFOLLOW"):
+                flags |= os.O_NOFOLLOW
+            with src.open("rb") as incoming:
+                with os.fdopen(os.open(dest, flags, 0o600), "wb") as outgoing:
+                    shutil.copyfileobj(incoming, outgoing)
+            if file_sha256(dest) != current_hash:
+                dest.unlink()
+                raise ValueError("SOURCE_CHANGED_DURING_COPY")
+        if file_sha256(dest) != current_hash:
+            raise ValueError("READY_FILE_NAME_COLLISION")
         self.state.audit("LOCAL_READY_QUEUE_COPY", {
             "orderId": str(order_id),
             "lineId": str(line_id),

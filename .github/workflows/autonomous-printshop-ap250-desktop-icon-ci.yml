@@ -1,0 +1,32 @@
+name: AP-250 Ubuntu Offline Desktop Icon — Hosted Synthetic CI
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/print-server/prepare_offline_desktop.py'
+      - 'autonomous-printshop/print-server/tests/test_prepare_offline_desktop.py'
+      - '.github/workflows/autonomous-printshop-ap250-desktop-icon-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-desktop-shortcut:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: AP-250 temporary-path desktop shortcut tests; no real desktop writes
+        working-directory: autonomous-printshop/print-server
+        run: |
+          python -B -m unittest discover -s tests -p 'test_prepare_offline_desktop.py' -v
+          echo 'AP250_HOSTED_TESTS=PASS'
+          echo 'AP250_UBUNTU_ICON_INSTALLED=NO'
+          echo 'AP250_UBUNTU_PILOT_EXECUTED=NO'
+          echo 'AP250_CUSTOMER_FILES_TOUCHED=NO'
+          echo 'AP250_GITHUB_RUNNER=HOSTED_ONLY'

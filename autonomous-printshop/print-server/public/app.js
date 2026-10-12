@@ -17,7 +17,13 @@ async function api(path, options, timeoutMs=20000){
     if(timer) clearTimeout(timer);
   }
 }
-function post(path, body){return api(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})},20000);}
+function post(path, body, timeoutMs=20000){
+  // Operator enters an ephemeral secret in the password field; no browser storage.
+  const token = $('localWriteToken')?.value || '';
+  return api(path,{method:'POST',headers:{
+    'Content-Type':'application/json','X-TrendOS-Write-Token':token
+  },body:JSON.stringify(body||{})},timeoutMs);
+}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
 function treeHtml(order){
   const routes = order?.routes || {}; const root = {};
@@ -34,10 +40,41 @@ function renderOrders(filter=''){
   $('ordersList').innerHTML = shown.length ? shown.map(o=>`<div class="order-row ${currentOrder?.orderId===o.orderId?'active':''}" data-id="${esc(o.orderId)}"><b>#${esc(o.orderId)} — ${esc(o.customerName||'')}</b><span class="badge">${Object.keys(o.routes||{}).length} فولدر</span><small>${esc(o.folder||'')}</small><small>${Object.keys(o.routes||{}).length ? '✓ تم اختيار فولدرات الشغل' : 'اختر فولدر الشغل'}</small></div>`).join('') : '<div class="empty">لا توجد أوردرات</div>';
   document.querySelectorAll('.order-row').forEach(el=>el.onclick=()=>selectOrder(el.dataset.id));
 }
+function renderEmployeeQueue(queue){
+  const box = $('employeeQueueItems');
+  const summary = queue.summary || {};
+  $('employeeQueueSummary').textContent = `${summary.localOrders||0} أوردر محلي • ${summary.needsManualFolder||0} محتاج قسم • ${summary.folderSelected||0} تم اختيار القسم`;
+  const rows = (queue.items || []).slice(0, 30);
+  box.innerHTML = rows.length ? rows.map(item => {
+    const needsFolder = item.localStage === 'NEEDS_WORK_FOLDER';
+    const title = needsFolder ? 'محتاج اختيار القسم' : 'محتاج مراجعة الملفات';
+    return `<div class="employee-task"><div><b>#${esc(item.orderId)} — ${esc(item.customerName)}</b><span class="employee-task-stage">${title}</span><small>${esc(item.nextAction)}</small></div><button type="button" data-employee-order="${esc(item.orderId)}">افتح الأوردر</button></div>`;
+  }).join('') : '<div class="empty">مفيش أوردرات مسجلة محليًا. الربط الفعلي لسه محتاج تأهيل منفصل.</div>';
+  box.querySelectorAll('button[data-employee-order]').forEach(button => button.onclick = async () => {
+    const id = button.dataset.employeeOrder;
+    if (!orders.some(order => String(order.orderId) === id)) return;
+    await selectOrder(id);
+    document.querySelector('.folder-panel')?.scrollIntoView({behavior:'smooth', block:'start'});
+  });
+}
+async function loadEmployeeQueue(){
+  try {
+    const queue = await api('/api/employee/queue', {}, 5000);
+    if (queue.source !== 'LOCAL_PRINT_SERVER_STATE_ONLY') throw new Error('مصدر غير معروف');
+    renderEmployeeQueue(queue);
+  } catch (e) {
+    $('employeeQueueSummary').textContent = 'تعذر قراءة قائمة الشغل المحلية';
+    $('employeeQueueItems').innerHTML = '<div class="empty">قائمة الموظفين غير متاحة حاليًا. مش هنفترض أي حالة للأوردر.</div>';
+  }
+}
 function renderManualFolderPicker(){
   const box=$('manualFolderPicker');
   if(!currentOrder){
     box.innerHTML='<span class="empty-inline">اختر أوردر أولًا</span>';
+    return;
+  }
+  if(lastStatus?.demoMode){
+    box.innerHTML='<span class="empty-inline">التجربة للعرض فقط — اختيار القسم الحقيقي مقفول</span>';
     return;
   }
   const existing=currentOrder.routes||{};
@@ -62,6 +99,7 @@ async function createManualFolder(folderKey,btn){
     renderOrders($('searchBox').value);
     $('folderTree').innerHTML=treeHtml(currentOrder);
     renderManualFolderPicker();
+    await loadEmployeeQueue();
   }catch(e){
     $('manualFolderMsg').textContent='تعذر إنشاء الفولدر: '+e.message;
     btn.disabled=false; btn.textContent=original;
@@ -148,11 +186,7 @@ async function chooseOrdersRoot(){
   btn.disabled=true; btn.textContent='اختر الفولدر...';
   $('storageMsg').textContent='هيظهر اختيار الفولدر على ويندوز.';
   try{
-    const res=await api('/api/settings/orders-root/select',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:'{}'
-    },300000);
+    const res=await post('/api/settings/orders-root/select',{},300000);
     if(res.cancelled){
       $('storageMsg').textContent='تم إلغاء اختيار الفولدر.';
       return;
@@ -203,13 +237,23 @@ async function refresh(){
     status=await api('/api/status',{},5000);
     $('connectionStatus').textContent='● متصل بالسيرفر المحلي';
     $('connectionStatus').style.color='';
-    $('modeLabel').textContent=status.mode;
+    $('modeLabel').textContent=status.demoMode ? 'DEMO - بيانات وهمية' : status.mode;
+    const banner=$('demoModeBanner');
+    if(banner) banner.hidden = status.demoMode !== true;
+    if(status.demoMode === true){
+      ['trendLoginBtn','trendProbeBtn','trendSyncBtn','trendLogoutBtn',
+       'chooseOrdersRootBtn','saveOrdersRootBtn'].forEach(id=>{
+        const button=$(id); if(button){button.disabled=true;button.title='نسخة تدريب للعرض فقط';}
+      });
+    }
     const fm=status.fastMode||{};
     $('fastModeStatus').textContent=fm.enabled ? (fm.uiRunning ? '⚡ Fast Mode جاهز' : '⚡ Fast Mode مفعّل') : 'Fast Mode متوقف';
     manualFolderOptions=status.manualFolderOptions||manualFolderOptions;
     const p=status.preview||{}; $('previewCapabilities').textContent=`TIF ${p.tiff?'✓':'✕'} • DXF ${p.dxf?'✓':'✕'} • الصور ✓`;
     renderPlatform(status);
     renderStorage(status);
+    $('localWriteMode').textContent=status.localWriteAccess === 'TOKEN_GATED'
+      ? 'عمليات الكتابة متاحة فقط برمز التفويض المحلي' : 'عمليات الكتابة مقفولة في السيرفر';
   }catch(e){
     $('connectionStatus').textContent='● السيرفر المحلي غير متاح';
     $('connectionStatus').style.color='#b42318';
@@ -220,6 +264,7 @@ async function refresh(){
     $('countOrders').textContent=orders.length; $('countSelectedFolders').textContent=orders.reduce((n,o)=>n+Object.keys(o.routes||{}).length,0);
     renderOrders($('searchBox').value);
     if(currentOrder && orders.some(o=>o.orderId===currentOrder.orderId)) await selectOrder(currentOrder.orderId);
+    await loadEmployeeQueue();
   }catch(e){
     $('trendMsg').textContent='السيرفر المحلي شغال لكن قراءة الأوردرات المحلية فشلت: '+e.message;
   }

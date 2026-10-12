@@ -2,3 +2,29 @@
 .storage-settings{background:#fff;border:1px solid #dbe5ef;border-radius:12px;margin-bottom:12px;padding:12px;display:grid;grid-template-columns:minmax(280px,1.5fr) minmax(320px,1fr) auto auto;gap:8px;align-items:center;scroll-margin-top:10px}.storage-copy{display:grid;gap:3px}.storage-copy small{color:#6b7f92;line-height:1.4}.storage-settings input{border:1px solid #d8e3ed;border-radius:8px;padding:10px}.storage-settings button{border:0;border-radius:8px;padding:10px 12px;background:#1479ed;color:white;font-weight:700;cursor:pointer}.storage-settings button.secondary{background:#eaf1f8;color:#26445f}.storage-settings button:disabled{opacity:.6}.storage-msg{grid-column:1/-1;color:#526b82;font-size:12px;min-height:16px}@media(max-width:1200px){.storage-settings{grid-template-columns:1fr 1fr}}@media(max-width:700px){.storage-settings{grid-template-columns:1fr}}
 .manual-folder-box{padding:12px 14px;border-bottom:1px solid #e8eef4;display:grid;gap:8px;background:#fbfdff}.manual-folder-box small{color:#6f8295}.manual-folder-picker{display:flex;flex-wrap:wrap;gap:8px}.manual-folder-btn{border:1px solid #cfddea;background:#fff;color:#29445e;border-radius:9px;padding:9px 13px;font-weight:700;cursor:pointer}.manual-folder-btn:hover{background:#edf6ff;border-color:#84bdf3}.manual-folder-btn.active{background:#e8f7ef;border-color:#7bc7a3;color:#0a7b4f}.manual-folder-btn:disabled{opacity:.65;cursor:wait}.manual-folder-msg{min-height:16px;font-size:12px;color:#526b82}.empty-inline{color:#8b9bac;font-size:13px}
 .fast-mode-on{color:#087a50;font-weight:700}
+
+/* AP-280: employee-assisted local queue; no inferred TrendOS/print completion */
+.employee-assist{background:#fff;border:1px solid #dbe5ef;border-radius:12px;margin-bottom:12px;padding:12px;scroll-margin-top:12px}
+.employee-assist-header{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.employee-assist-header>div:first-child{display:grid;gap:4px}
+.employee-assist-header b{font-size:16px}
+.employee-assist-header small{font-size:12px;color:#60758b;line-height:1.5}
+#employeeQueueSummary{font-size:13px;font-weight:700;color:#345b78}
+.employee-queue-items{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.employee-queue-items>.empty{grid-column:1/-1}
+.employee-task{border:1px solid #e3ebf4;border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.employee-task>div{display:grid;gap:5px;min-width:0}
+.employee-task b{overflow-wrap:anywhere;font-size:13px}
+.employee-task small{font-size:12px;line-height:1.5;color:#6f8295}
+.employee-task-stage{font-size:12px;font-weight:700;color:#a15d00}
+.employee-task button{flex:none;padding:9px 11px;border:0;border-radius:8px;background:#eaf1f8;color:#21496d;font-weight:700;cursor:pointer}
+.employee-task button:hover{background:#cfe6ff}
+@media(max-width:1200px){.employee-queue-items{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.employee-queue-items{grid-template-columns:1fr}.employee-assist-header{align-items:flex-start;flex-direction:column}}
+
+/* AP-281: visible training-only indicator with honest operational boundaries. */
+[hidden]{display:none!important}
+.demo-mode-banner{background:#fff7e2;color:#745019;border:1px solid #ebcd81;
+  border-radius:12px;padding:12px 16px;margin-bottom:12px;display:grid;gap:4px}
+.demo-mode-banner strong{font-size:15px}
+.demo-mode-banner span{font-size:12px;line-height:1.5}

@@ -1,0 +1,32 @@
+name: AP-237 Offline Canary Stop Model — Hosted Synthetic CI
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/local_executor/offline_canary.py'
+      - 'autonomous-printshop/local_executor/AP237_OFFLINE_CANARY_KILLSWITCH_SPEC.md'
+      - 'autonomous-printshop/tests/test_ap237_offline_canary.py'
+      - '.github/workflows/autonomous-printshop-ap237-offline-canary-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-canary-stop-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Review-only canary state machine and simulated stop tests
+        run: |
+          python -B -m py_compile autonomous-printshop/local_executor/offline_canary.py
+          python -B autonomous-printshop/tests/test_ap237_offline_canary.py
+          echo 'AP237_OFFLINE_CANARY_SYNTHETIC=PASS'
+          echo 'AP237_REAL_KILL_SWITCH_INSTALLED=NO'
+          echo 'AP237_HOST_EXECUTOR=OFF'
+          echo 'AP237_UBUNTU_CONNECTED=NO'

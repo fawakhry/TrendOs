@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import hmac
 import json
+import os
 import mimetypes
 import platform
 import sys
@@ -13,6 +15,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .config import application_dir, load_config, resource_dir, resolve_config_path, save_path_override
 from .folders import OrderFolderService
+from .employee_assist import local_employee_queue
 from .fast_mode import FastModeController
 from .local_settings import LocalSettingsError, choose_windows_directory, validate_writable_directory
 from .platform_bridge import TrendOSStatusBridge
@@ -23,8 +26,16 @@ from .watcher import FinishedFolderWatcher
 
 
 class PrintServerApp:
-    def __init__(self, config: dict, public_dir: Path, config_path=None):
+    def __init__(self, config: dict, public_dir: Path, config_path=None, write_token=None):
         self.config = config
+        # AP-277: local mutations are disabled unless the operator supplies a
+        # process-scoped secret. Never read/store this secret in local.json.
+        raw_token = write_token if write_token is not None else os.environ.get(
+            "TRENDOS_PRINTSHOP_WRITE_TOKEN", ""
+        )
+        self.write_token = str(raw_token or "")
+        if not (32 <= len(self.write_token) <= 512):
+            self.write_token = ""
         self.config_path = resolve_config_path(config_path)
         self.public_dir = public_dir
         self.state = StateStore(config["paths"]["stateRoot"])
@@ -61,6 +72,7 @@ class PrintServerApp:
             "employeeAssignmentWrites": False,
             "accountingWrites": False,
             "platformBusinessWrites": False,
+            "localWriteAccess": "TOKEN_GATED" if self.write_token else "LOCKED",
             "serverPort": getattr(self, "server_port", None),
             "storage": {
                 "ordersRoot": self.config["paths"]["ordersRoot"],
@@ -215,6 +227,10 @@ def make_handler(app: PrintServerApp):
                 })
             if parsed.path == "/api/orders":
                 return self._json(200, {"ok": True, "orders": app.state.orders()})
+            if parsed.path == "/api/employee/queue":
+                # Display assistance only; no login, customer upload, directory
+                # traversal, TrendOS mutation, print or background processing.
+                return self._json(200, local_employee_queue(app.state.orders()))
             if parsed.path == "/api/state":
                 return self._json(200, {"ok": True, "state": app.state.snapshot()})
             if parsed.path == "/api/order-files":
@@ -242,7 +258,40 @@ def make_handler(app: PrintServerApp):
                 return self._static(parsed.path[len("/static/"):])
             self.send_error(404)
 
+        def _authorize_local_write(self) -> bool:
+            # Validate authority before reading/parsing any untrusted body.
+            if not app.write_token:
+                self._json(403, {"ok": False, "error": "LOCAL_WRITES_LOCKED"})
+                return False
+            port = self.server.server_address[1]
+            hosts = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
+            host = (self.headers.get("Host") or "").lower()
+            if host not in hosts:
+                self._json(403, {"ok": False, "error": "UNTRUSTED_LOCAL_HOST"})
+                return False
+            origin = self.headers.get("Origin")
+            if origin is not None and origin.lower() not in {
+                f"http://{name}" for name in hosts
+            }:
+                self._json(403, {"ok": False, "error": "UNTRUSTED_ORIGIN"})
+                return False
+            fetch_site = (self.headers.get("Sec-Fetch-Site") or "").lower()
+            if fetch_site and fetch_site not in {"same-origin", "none"}:
+                self._json(403, {"ok": False, "error": "CROSS_SITE_WRITE_BLOCKED"})
+                return False
+            supplied = self.headers.get("X-TrendOS-Write-Token") or ""
+            if not hmac.compare_digest(supplied, app.write_token):
+                self._json(403, {"ok": False, "error": "LOCAL_WRITE_TOKEN_REQUIRED"})
+                return False
+            media_type = (self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
+            if media_type != "application/json":
+                self._json(415, {"ok": False, "error": "JSON_CONTENT_TYPE_REQUIRED"})
+                return False
+            return True
+
         def do_POST(self):
+            if not self._authorize_local_write():
+                return
             parsed = urlparse(self.path)
             try:
                 body = self._body_json()
@@ -314,6 +363,12 @@ def main(argv=None):
     parser.add_argument("--no-popup", action="store_true")
     args = parser.parse_args(argv)
     cfg = load_config(args.config)
+    if cfg["server"]["host"] not in {"127.0.0.1", "localhost", "::1"}:
+        raise RuntimeError("AP277_NON_LOOPBACK_BIND_BLOCKED")
+    if (cfg["trendos"].get("enabled") or cfg["fastMode"].get("enabled")) and (
+        os.environ.get("TRENDOS_PRINTSHOP_ALLOW_LIVE") != "OWNER_APPROVED"
+    ):
+        raise RuntimeError("AP277_LIVE_CAPABILITIES_BLOCKED_BY_DEFAULT")
     public_dir = resource_dir() / "public"
     app = PrintServerApp(cfg, public_dir, args.config)
     host = cfg["server"]["host"]

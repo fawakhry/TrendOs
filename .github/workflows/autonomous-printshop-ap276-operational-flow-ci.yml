@@ -1,0 +1,35 @@
+name: AP-276 Print Server Operational Flow — Hosted Synthetic Qualification
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/print-server/tests/test_ap276_operational_flow_synthetic.py'
+      - '.github/workflows/autonomous-printshop-ap276-operational-flow-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  disposable-operational-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    defaults:
+      run:
+        working-directory: autonomous-printshop/print-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exercise real Print Server components on synthetic disposable local paths ONLY
+        run: |
+          python -B -m unittest discover -s tests -p 'test_ap276_operational_flow_synthetic.py' -v
+          echo 'AP276_HOSTED_OPERATIONAL_SYNTHETIC=PASS'
+          echo 'AP276_OWNER_UBUNTU=NOT_EXECUTED'
+          echo 'AP276_PRODUCTION_SERVER_STARTED=NO'
+          echo 'AP276_TRENDOS_CLOUD=OFF'
+          echo 'AP276_PRINTING=OFF'
+          echo 'AP276_CUSTOMER_DATA=NOT_ACCESSED'
+          echo 'AP276_REMOTE_EXECUTOR=OFF'

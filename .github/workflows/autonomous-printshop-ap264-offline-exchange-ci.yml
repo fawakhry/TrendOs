@@ -1,0 +1,31 @@
+name: AP-264 Offline Diagnostic Exchange Review — Hosted Synthetic CI
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/local_executor/offline_exchange_review.py'
+      - 'autonomous-printshop/tests/test_ap264_offline_exchange_review.py'
+      - '.github/workflows/autonomous-printshop-ap264-offline-exchange-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  non-executable-review-fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pure offline request/response correlation with synthetic metadata only
+        run: |
+          PYTHONPATH=autonomous-printshop/local_executor python -B -m unittest discover -s autonomous-printshop/tests -p 'test_ap264_offline_exchange_review.py' -v
+          echo 'AP264_HOSTED_SYNTHETIC_TESTS=PASS'
+          echo 'AP264_UBUNTU_CHANGED=NO'
+          echo 'AP264_REMOTE_TRANSPORT=OFF'
+          echo 'AP264_COMMAND_DISPATCH=OFF'
+          echo 'AP264_PRODUCTION_ACCESS=NO'
