@@ -1,0 +1,66 @@
+name: ACC196-199 Offline Mock Rollback and Financial NO_GO Preflight
+on:
+  pull_request:
+    paths:
+      - 'scripts/easystore_acc196_199_offline_gate_validation.py'
+      - 'tests/easystore_acc196_199_offline_gate_validation.test.py'
+      - 'docs/trendos/staging/ACC196_199_SAFE_PREPARATION_NO_GO_20261012.json'
+      - 'docs/trendos/staging/ACC196_199_OFFLINE_HANDOFF_RUNBOOK_NO_GO_20261012.md'
+      - '.github/workflows/easystore-acc196-199-offline-preflight-no-go.yml'
+      - 'tests/easystore_acc1**'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gate-simulation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate simulation and owner-stop gates
+        run: |
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          python3 scripts/easystore_acc196_199_offline_gate_validation.py
+          python3 tests/easystore_acc196_199_offline_gate_validation.test.py
+  prior-synthetic-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Rehearse distinct native Worker flows in separate ephemeral SQLite tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --experimental-sqlite tests/easystore_acc170_finance_flow_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc187_sale_refund_gap_purchase_reversal_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc188_party_ledger_idempotency_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc189_inventory_waste_composite_concurrent_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc190_verified_actor_cost_redaction_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc192_day_close_cash_debt_stock_reconcile_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc193_fresh_books_no_import_sqlite.test.mjs
+          echo 'ACC198_INDEPENDENT_SYNTHETIC_REGRESSIONS=PASS'
+          echo 'ACC198_SINGLE_DATABASE_INTEGRATED_FINANCE_CYCLE=NOT_TESTED'
+          echo 'ACC187_REAL_CUSTOMER_REFUNDS=BLOCKED'
+          echo 'ACC191_REAL_BROWSER_SSO=UNVERIFIED'
+          echo 'FINANCE_RELEASE=NO_GO'
