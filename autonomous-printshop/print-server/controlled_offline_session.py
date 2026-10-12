@@ -15,9 +15,12 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
+import uuid
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
+import offline_stop_receipt as stop_receipt
 from offline_pilot import check_status, offline_config, pilot_handler
 from src.server import PrintServerApp
 
@@ -144,6 +147,10 @@ def run_session(
             target=_accept_stop, args=(listener, stop, finished), daemon=True
         )
         control_thread.start()
+        # Invalidate the old final result before this specific new session starts.
+        # A crash leaves PENDING, never a misleading old OWNER_STOP receipt.
+        session_id = uuid.uuid4().hex
+        stop_receipt.start(runtime_path, session_id)
         # Reuse the already-qualified AP-247 synthetic GET-only server logic.
         with tempfile.TemporaryDirectory(prefix="trendos-ap252-") as temp:
             root = Path(temp).resolve()
@@ -168,6 +175,7 @@ def run_session(
                         f"CLOUD=OFF; AUTO_STOP_SECONDS={PILOT_SECONDS}",
                         flush=True,
                     )
+                    started = time.monotonic()
                     # Launch existing browser, never an arbitrary URL or shell.
                     browser_launch(
                         [firefox, "--new-tab", url],
@@ -182,6 +190,10 @@ def run_session(
                     if worker.is_alive():
                         raise RuntimeError("AP252_HTTP_DID_NOT_STOP")
         reason = "OWNER_STOP" if was_stopped else "TIMEOUT"
+        elapsed = time.monotonic() - started
+        # Only persist STOPPED after HTTP worker shutdown and temporary-root
+        # context exit; a failed or interrupted session remains PENDING.
+        stop_receipt.finish(runtime_path, session_id, reason, elapsed)
         print(
             f"AP252_OFFLINE_STOPPED=YES; TEMP_CLEANED=YES; PRINTING=OFF; "
             f"REASON={reason}",
@@ -198,10 +210,12 @@ def run_session(
 
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
+    if args == ["receipt"]:
+        return 0 if stop_receipt.display(owner_runtime_socket()) else 2
     if args == ["stop"]:
         return 0 if request_stop(owner_runtime_socket()) else 2
     if args not in ([], ["start"]):
-        raise SystemExit("AP252_ONLY_START_OR_STOP_ALLOWED")
+        raise SystemExit("AP257_ONLY_START_STOP_OR_RECEIPT_ALLOWED")
     if os.geteuid() == 0:
         raise SystemExit("AP252_REFUSE_ROOT")
     if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
