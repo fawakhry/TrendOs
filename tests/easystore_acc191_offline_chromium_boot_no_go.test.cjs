@@ -39,6 +39,7 @@ const {execFileSync}=require('node:child_process');
    const port=server.address().port;
    let remoteRequestsBlocked=0;
    let permittedExternal=0;
+   let simulatedOpenerResponses=0;
    browser=await chromium.launch({
      headless:true,
      args:['--no-sandbox','--disable-background-networking',
@@ -53,6 +54,19 @@ const {execFileSync}=require('node:child_process');
      const u=new URL(route.request().url());
      if(u.protocol==='http:'&&u.hostname==='127.0.0.1'&&u.port===String(port)){
        return route.continue();
+     }
+     // A locally fulfilled *mock* allowed origin, never a network request.
+     if(u.origin==='https://trendos-ui.trendmall-contact.workers.dev'&&
+        u.pathname==='/acc191-offline-mock-opener'){
+       simulatedOpenerResponses++;
+       return route.fulfill({
+         status:200,contentType:'text/html',
+         body:'<!doctype html><html><body><button id="open">Open fake SSO popup</button>'+
+           '<script>document.getElementById("open").onclick=function(){'+
+           'window.__acc191Child=window.open("http://127.0.0.1:'+port+
+           '/?from=trendos&employeeSSO=1&ssoNonce=ACC191-NONPRODUCTION-NONCE","acc191FakePopup");'+
+           '};</script></body></html>'
+       });
      }
      remoteRequestsBlocked++;
      return route.abort('blockedbyclient');
@@ -79,9 +93,8 @@ const {execFileSync}=require('node:child_process');
    assert.equal(before.opener,false,'browser has no real TrendOS opener');
    await page.evaluate(()=>{
      window.postMessage({
-       type:'TRENDOS_SSO_HANDOFF_V1',
-       username:'SYNTHETIC_FAKE_OPERATOR',
-       token:'SYNTHETIC_NEVER_A_REAL_TOKEN',
+       type:'TRENDOS_EMPLOYEE_SSO_V1',
+       user:{username:'SYNTHETIC_FAKE_OPERATOR',token:'SYNTHETIC_NEVER_A_REAL_TOKEN'},
        nonce:'FORGED_NONCE',
        issuedAt:Date.now()
      },'*');
@@ -96,8 +109,77 @@ const {execFileSync}=require('node:child_process');
    assert.equal(after.mode,'OFF');
    assert.equal(after.writes,false);
    assert.ok(served>=3,'browser must load pinned index and its script/config resources');
+   // A real browser popup but a synthetic, locally fulfilled TrendOS opener.
+   // The browser still checks real window.opener, origin, nonce, and freshness.
+   await context.addInitScript(()=>{
+     if(location.search.includes('employeeSSO=1')){
+       sessionStorage.setItem('EASYSTORE_SESSION_V1922',
+         JSON.stringify({user:{username:'STALE_FAKE',token:'STALE_SYNTHETIC_TOKEN'},
+           params:{token:'STALE_SYNTHETIC_TOKEN'}}));
+     }
+   });
+   const opener=await context.newPage();
+   const openerResponse=await opener.goto(
+     'https://trendos-ui.trendmall-contact.workers.dev/acc191-offline-mock-opener',
+     {waitUntil:'domcontentloaded',timeout:20000});
+   assert.equal(openerResponse.status(),200);
+   const popupPromise=opener.waitForEvent('popup');
+   await opener.locator('#open').click();
+   const popup=await popupPromise;
+   await popup.waitForLoadState('domcontentloaded');
+   const testPopup=async()=>popup.evaluate(()=>({
+     token:sessionStorage.getItem('EASYSTORE_SESSION_V1922'),
+     opener:!!window.opener,
+     mode:window.EASYSTORE_ACCOUNTING_D1_WRITE_MODE,
+     actions:window.EASYSTORE_ACCOUNTING_D1_WRITE_CANARY_ACTIONS
+   }));
+   const virgin=await testPopup();
+   assert.equal(virgin.token,null,
+     'opening a fresh nonce-bound fake popup must clear stale sessionStorage');
+   assert.equal(virgin.opener,true);
+   assert.equal(virgin.mode,'OFF');
+   const popupOrigin='http://127.0.0.1:'+port;
+   async function fakeMessage(nonce,issuedAt,token){
+     await opener.evaluate(({nonce,issuedAt,token,target})=>{
+       window.__acc191Child.postMessage({
+         type:'TRENDOS_EMPLOYEE_SSO_V1',nonce,issuedAt,
+         user:{username:'ACC191_FAKE_EMPLOYEE',name:'Synthetic local operator',
+               mode:'print',token}
+       },target);
+     },{nonce,issuedAt,token,target:popupOrigin});
+   }
+   const validNonce='ACC191-NONPRODUCTION-NONCE';
+   await fakeMessage('WRONG_NONCE',Date.now(),'WRONG_FAKE_TOKEN');
+   await popup.waitForTimeout(70);
+   assert.equal((await testPopup()).token,null,'wrong nonce denied');
+   await fakeMessage(validNonce,Date.now()-31000,'STALE_FAKE_TOKEN');
+   await popup.waitForTimeout(70);
+   assert.equal((await testPopup()).token,null,'stale 31s handoff denied');
+   await fakeMessage(validNonce,Date.now()+31000,'FUTURE_FAKE_TOKEN');
+   await popup.waitForTimeout(70);
+   assert.equal((await testPopup()).token,null,'future 31s handoff denied');
+   await fakeMessage(validNonce,Date.now(),'');
+   await popup.waitForTimeout(70);
+   assert.equal((await testPopup()).token,null,'missing token denied');
+   await fakeMessage(validNonce,Date.now(),'ACC191_VALID_SYNTHETIC_TOKEN');
+   await popup.waitForFunction(()=>{
+     const session=JSON.parse(sessionStorage.getItem('EASYSTORE_SESSION_V1922')||'{}');
+     return session.user?.token==='ACC191_VALID_SYNTHETIC_TOKEN';
+   },null,{timeout:5000});
+   const accepted=JSON.parse((await testPopup()).token);
+   assert.equal(accepted.user.token,'ACC191_VALID_SYNTHETIC_TOKEN');
+   await fakeMessage(validNonce,Date.now(),'REPLAY_DIFFERENT_FAKE_TOKEN');
+   await popup.waitForTimeout(100);
+   assert.equal(JSON.parse((await testPopup()).token).user.token,
+     'ACC191_VALID_SYNTHETIC_TOKEN','single-use nonce rejects replay');
+   const post=await testPopup();
+   assert.equal(post.mode,'OFF');
+   assert.equal(JSON.stringify(post.actions),'[]');
+   assert.equal(simulatedOpenerResponses,1,'only one local mock origin document');
    assert.equal(permittedExternal,0);
    console.log('ACC191_CHROMIUM_ACTUAL_RENDER_PINNED_EASYSTORE_SOURCE=PASS');
+   console.log('ACC191_CHROMIUM_STALE_SESSION_WRONG_NONCE_EXPIRED_FUTURE_AND_MISSING_TOKEN=DENIED');
+   console.log('ACC191_CHROMIUM_LOCAL_MOCK_ORIGIN_OPENER_SINGLE_USE_NONCE=PASS');
    console.log('ACC191_CHROMIUM_FAKE_SSO_WITHOUT_OPENER_DENIED=PASS');
    console.log('ACC191_CHROMIUM_EXTERNAL_NETWORK_PERMITTED=ZERO');
    console.log('ACC191_REAL_DEPLOYED_PAGES_AND_EMPLOYEE_SSO=NOT_TESTED');
