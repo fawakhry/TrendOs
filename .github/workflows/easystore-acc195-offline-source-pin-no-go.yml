@@ -1,0 +1,26 @@
+name: ACC195 Offline Worker Config Auth D1 NO_GO
+on:
+  pull_request:
+    paths:
+      - 'cloudflare-d1/**'
+      - 'scripts/easystore_acc195_source_config_pin_no_go.py'
+      - 'tests/easystore_acc195_source_config_pin_no_go.test.py'
+      - 'docs/trendos/staging/ACC195_G5_PINNED_WORKER_CONFIG_SOURCE_BASELINE_NO_GO_20261012.json'
+      - '.github/workflows/easystore-acc195-offline-source-pin-no-go.yml'
+      - '.github/workflows/easystore-a2-accounting-readonly-api-deploy.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify pinned Worker config and NO_GO
+        run: python3 scripts/easystore_acc195_source_config_pin_no_go.py
+      - name: Adversarial drift denial
+        run: python3 tests/easystore_acc195_source_config_pin_no_go.test.py
