@@ -190,6 +190,14 @@ try{
  // supplier ledger, customer sale and subsequent close, attempt a fake
  // unsupported CASH REFUND. It must not affect any authoritative table.
  // Policy/handler is missing (ACC187): fail closed, do NOT mimic a refund.
+ const allFinanceTables=db.prepare(
+   "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'employee_accounting_%' ORDER BY name"
+ ).all().map(row=>row.name);
+ assert.ok(allFinanceTables.length>=12,'must inspect actual finance schema, not sample-only rows');
+ const allFinanceSnapshot=()=>JSON.stringify(allFinanceTables.map(name=>{
+   const safeName=name.replace(/"/g,'""');
+   return {table:name,rows:db.prepare('SELECT * FROM "'+safeName+'"').all()};
+ }));
  const refundSnapshot=()=>JSON.stringify({
    stock:stock(mid),
    customerDebt:balance('customer','ACC170-FAKE-CUSTOMER'),
@@ -202,6 +210,7 @@ try{
    auditCount:count('employee_accounting_events_v1')
  });
  const beforeUnsupportedRefund=refundSnapshot();
+ const allTablesBeforeUnsupportedRefund=allFinanceSnapshot();
  for(const [i,action] of ['refundEasyStoreSaleV2','returnEasyStoreSaleV2','reverseEasyStoreSaleV2'].entries()){
    const refund=await send(action,{
      requestId:'ACC198-FINANCE-REFUND-BLOCK-'+String(i+1).padStart(4,'0'),
@@ -212,8 +221,11 @@ try{
    assert.equal(refund.code,'employee-accounting-action-unknown');
    assert.equal(refundSnapshot(),beforeUnsupportedRefund,
      'unsupported refund must not mutate actual same-db customer/stock/cash/ledger');
+   assert.equal(allFinanceSnapshot(),allTablesBeforeUnsupportedRefund,
+     'unknown refund action must preserve EVERY financial table and full row, not only counts');
  }
  console.log('ACC198_SINGLE_DB_UNSUPPORTED_CASH_REFUND_NO_SIDE_EFFECT=PASS');
+ console.log('ACC198_ALL_FINANCE_TABLES_FULL_ROW_UNCHANGED_ON_DENIED_REFUND=PASS');
 
  const report=await send('getDailyDepartmentReportV1920',{
    department:'طباعة',workDate:'2099-12-31'
