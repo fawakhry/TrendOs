@@ -1,0 +1,33 @@
+name: AP-265 Host Boundary Profile — Hosted Synthetic CI
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/local_executor/host_boundary_profile.py'
+      - 'autonomous-printshop/local_executor/AP265_OFFLINE_HOST_BOUNDARY_PROFILE.json'
+      - 'autonomous-printshop/tests/test_ap265_host_boundary_profile.py'
+      - '.github/workflows/autonomous-printshop-ap265-host-boundary-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  source-only-boundary-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check disabled rootless specification using test-only fixtures
+        run: |
+          PYTHONPATH=autonomous-printshop/local_executor python -B -m unittest discover -s autonomous-printshop/tests -p 'test_ap265_host_boundary_profile.py' -v
+          echo 'AP265_HOSTED_SYNTHETIC_TESTS=PASS'
+          echo 'AP265_OWNER_UBUNTU_EXECUTION=NOT_DONE'
+          echo 'AP265_OS_SANDBOX_INSTALLED=NO'
+          echo 'AP265_REMOTE_BRIDGE=OFF'
+          echo 'AP265_REAL_STOP=NOT_IMPLEMENTED'
+          echo 'AP265_PRODUCTION_ACCESS=NO'
