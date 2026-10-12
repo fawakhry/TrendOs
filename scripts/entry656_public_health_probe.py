@@ -43,7 +43,7 @@ def get_public(path_or_url):
     done = subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=False)
     if "ENTRY656_HTTP_STATUS:" not in done.stdout:
         raise ValueError("public GET transport failed")
-    payload, status = done.stdout.rsplit("\\nENTRY656_HTTP_STATUS:", 1)
+    payload, status = done.stdout.rsplit("\nENTRY656_HTTP_STATUS:", 1)
     status = status.strip()
     if done.returncode != 0 or status != "200":
         raise PublicHealthHttpError(status if status.isdigit() else "UNKNOWN")
