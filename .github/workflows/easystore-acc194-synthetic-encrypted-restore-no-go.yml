@@ -1,0 +1,62 @@
+name: ACC-194 Encrypted Synthetic D1 Schema Backup / Isolated Restore — NO DEPLOY
+on:
+  push:
+    branches:
+      - test/acc194-synthetic-encrypted-sqlite-backup-no-go-20261012
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'scripts/easystore_acc194_synthetic_encrypted_backup_restore.py'
+      - 'tests/easystore_acc194_synthetic_encrypted_backup_restore.test.py'
+      - '.github/workflows/easystore-acc194-synthetic-encrypted-restore-no-go.yml'
+      - 'scripts/easystore_acc180_finance_backup_isolated_restore.py'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+permissions:
+  contents: read
+jobs:
+  synthetic-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Ensure no cloud credentials
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+        run: |
+          set -euo pipefail
+          command -v openssl
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          python3 -m py_compile scripts/easystore_acc194_synthetic_encrypted_backup_restore.py tests/easystore_acc194_synthetic_encrypted_backup_restore.test.py
+      - name: Regress original source-only ACC180 ledger restore
+        run: python3 tests/easystore_acc180_finance_backup_isolated_restore.test.py
+      - name: Synthetic AES/HMAC export, independent restore and denied attack matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/easystore_acc194_synthetic_encrypted_backup_restore.test.py
+          python3 scripts/easystore_acc194_synthetic_encrypted_backup_restore.py --out artifacts/acc194-synthetic-restore-no-go.json
+          python3 - <<'PY'
+          import json
+          r=json.load(open('artifacts/acc194-synthetic-restore-no-go.json'))
+          assert r['finance_release_decision']=='NO_GO'
+          assert r['real_production_database_ever_accessed'] is False
+          assert r['real_cloudflare_d1_export_or_backup'] is False
+          assert r['production_mutations']==0
+          assert r['tampered_or_wrong_key_restore_denials']==7
+          print('ACC194_NO_REAL_BACKUP_RESTORE_OR_PRODUCTION_WRITE=PASS')
+          PY
+      - name: Upload only synthetic sanitized evidence, never SQL or keys
+        uses: actions/upload-artifact@v4
+        with:
+          name: acc194-synthetic-restore-no-go
+          path: artifacts/acc194-synthetic-restore-no-go.json
+          retention-days: 14
