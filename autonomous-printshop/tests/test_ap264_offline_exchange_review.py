@@ -233,7 +233,7 @@ class AP264OfflineExchangeReviewTests(unittest.TestCase):
 
     def test_duplicate_nested_plan_keys_denied(self):
         raw_request = json.dumps(request(), separators=(",", ":"))
-        raw_request = raw_request.replace('"args": {}', '"args": {}, "args": {}')
+        raw_request = raw_request.replace('"args":{}', '"args":{},"args":{}')
         result = exchange.review_offline_exchange(
             raw_request, json.dumps(response()), expected_head=HEAD,
             expected_branch=BRANCH, sample_now=NOW,
@@ -243,7 +243,7 @@ class AP264OfflineExchangeReviewTests(unittest.TestCase):
     def test_duplicate_snapshot_keys_denied(self):
         raw_response = json.dumps(response(), separators=(",", ":"))
         raw_response = raw_response.replace(
-            '"production": "NOT_ACCESSED"', '"production": "NOT_ACCESSED", "production": "NOT_ACCESSED"',
+            '"production":"NOT_ACCESSED"', '"production":"NOT_ACCESSED","production":"NOT_ACCESSED"',
         )
         result = exchange.review_offline_exchange(
             json.dumps(request()), raw_response, expected_head=HEAD,
