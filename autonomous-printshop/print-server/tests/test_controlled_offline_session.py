@@ -197,10 +197,12 @@ class ControlledOfflineSessionTests(unittest.TestCase):
     def test_linux_peercred_owner_check(self):
         if not hasattr(socket, "SO_PEERCRED"):
             self.skipTest("Linux SO_PEERCRED required")
-        with socket.socketpair() as pair:
+        pair = socket.socketpair()
+        with pair[0], pair[1]:
             self.assertTrue(controlled._peer_is_owner(pair[0]))
         with patch.object(controlled.os, "getuid", return_value=os.getuid() + 1):
-            with socket.socketpair() as pair:
+            pair = socket.socketpair()
+        with pair[0], pair[1]:
                 self.assertFalse(controlled._peer_is_owner(pair[0]))
 
     def test_source_has_no_process_kill_or_production_launch(self):
