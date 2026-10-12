@@ -1,0 +1,31 @@
+name: AP-252 Owner-Only Offline Start Stop — Hosted Synthetic CI
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/print-server/controlled_offline_session.py'
+      - 'autonomous-printshop/print-server/tests/test_controlled_offline_session.py'
+      - '.github/workflows/autonomous-printshop-ap252-controlled-offline-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  owner-local-stop-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic localhost HTTP and private Unix socket early-stop; mocked Firefox
+        working-directory: autonomous-printshop/print-server
+        run: |
+          python -B -m unittest discover -s tests -p 'test_controlled_offline_session.py' -v
+          echo 'AP252_HOSTED_SYNTHETIC_TESTS=PASS'
+          echo 'AP252_REAL_OWNER_UBUNTU_EXECUTION=NOT_DONE'
+          echo 'AP252_EXTERNAL_REMOTE_CONTROL=NOT_CREATED'
+          echo 'AP252_PRODUCTION_PRINTER_AND_CLOUD=OFF'
