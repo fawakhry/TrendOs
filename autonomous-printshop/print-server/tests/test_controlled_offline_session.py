@@ -202,7 +202,7 @@ class ControlledOfflineSessionTests(unittest.TestCase):
             self.assertTrue(controlled._peer_is_owner(pair[0]))
         with patch.object(controlled.os, "getuid", return_value=os.getuid() + 1):
             pair = socket.socketpair()
-        with pair[0], pair[1]:
+            with pair[0], pair[1]:
                 self.assertFalse(controlled._peer_is_owner(pair[0]))
 
     def test_source_has_no_process_kill_or_production_launch(self):
