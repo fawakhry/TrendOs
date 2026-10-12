@@ -1,0 +1,49 @@
+name: TrendOS Entry655 Customer Order Ownership — Source NO_GO CI
+on:
+  push:
+    branches:
+      - test/zero-google-customer-order-ownership-proof-no-go-20261013
+    paths:
+      - 'cloudflare-d1/migrations/0033_customer_portal_native_order_ownership_v1.sql'
+      - 'cloudflare-d1/src/customer-portal-order-ownership-audit-v0.mjs'
+      - 'tests/entry655_customer_order_ownership_sqlite.test.py'
+      - 'tests/entry655_customer_order_ownership_audit.test.mjs'
+      - '.github/workflows/trendos-entry655-customer-order-ownership-offline-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/migrations/0033_customer_portal_native_order_ownership_v1.sql'
+      - 'cloudflare-d1/src/customer-portal-order-ownership-audit-v0.mjs'
+      - 'tests/entry655_customer_order_ownership_sqlite.test.py'
+      - 'tests/entry655_customer_order_ownership_audit.test.mjs'
+      - '.github/workflows/trendos-entry655-customer-order-ownership-offline-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Strict SELECT-only order ownership regression
+        run: |
+          node --check cloudflare-d1/src/customer-portal-order-ownership-audit-v0.mjs
+          node tests/entry655_customer_order_ownership_audit.test.mjs
+      - name: Fake SQLite foreign-key and proof tests
+        run: python3 tests/entry655_customer_order_ownership_sqlite.test.py
+      - name: Ensure no Production customer-order read route
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -Fq 'customer-portal-order-ownership-audit-v0.mjs' cloudflare-d1/src/index_v2.js
+          echo ENTRY655_NATIVE_ORDER_LINK_SCHEMA_UNAPPLIED=YES
+          echo ENTRY655_CUSTOMER_ORDER_READ_AUTHORITY=NO
+          echo ENTRY655_PRODUCTION_MUTATION=NO
+          echo ENTRY655_ZERO_GOOGLE_COMPLETE=NO
