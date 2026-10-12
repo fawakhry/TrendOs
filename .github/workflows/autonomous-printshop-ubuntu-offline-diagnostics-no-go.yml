@@ -1,0 +1,36 @@
+name: Printshop Ubuntu Offline Diagnostic Envelope V0 — NO_GO
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  synthetic-ubuntu-no-execution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      PRINTSHOP_RUNTIME_ENABLED: 'false'
+      PRINTSHOP_DIAGNOSTIC_REAL_HOST_ALLOWED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Offline diagnostic contract + negative proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test "$PRINTSHOP_RUNTIME_ENABLED" = 'false'
+          test "$PRINTSHOP_DIAGNOSTIC_REAL_HOST_ALLOWED" = 'false'
+          node --check autonomous-printshop/core/ubuntu-offline-diagnostic-envelope-v0.mjs
+          node --test autonomous-printshop/tests/ubuntu_offline_diagnostic_envelope_v0.test.mjs
+          node --test autonomous-printshop/tests/trendos_autonomy_policy_v1.test.mjs
+          echo 'PRINTSHOP_UBUNTU_DIAGNOSTIC=MOCK_ONLY_NOT_CONNECTED'
+          echo 'PRINTSHOP_PRINTSERVER_REAL_PRODUCTION_QUALIFIED=FALSE'
+          echo 'PRINTSHOP_REAL_HOST_COMMAND_EXECUTION=ZERO'
+          echo 'FINANCE_RELEASE=NO_GO'
