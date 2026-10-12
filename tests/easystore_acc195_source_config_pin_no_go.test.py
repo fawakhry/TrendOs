@@ -38,6 +38,11 @@ class Acc195FailClosed(unittest.TestCase):
         path.write_bytes(path.read_bytes() + b"\n// drift\n")
         self.run_guard(False)
 
+    def test_worker_entrypoint_drift_denied(self):
+        path = self.root / "cloudflare-d1/src/index_v2.js"
+        path.write_bytes(path.read_bytes() + b"\n// source drift\n")
+        self.run_guard(False)
+
     def test_auth_config_drift_denied(self):
         path = self.root / "cloudflare-d1/wrangler.toml"
         path.write_text(path.read_text().replace('TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"', 'TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "true"'))
