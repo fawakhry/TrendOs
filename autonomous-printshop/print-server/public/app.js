@@ -40,6 +40,33 @@ function renderOrders(filter=''){
   $('ordersList').innerHTML = shown.length ? shown.map(o=>`<div class="order-row ${currentOrder?.orderId===o.orderId?'active':''}" data-id="${esc(o.orderId)}"><b>#${esc(o.orderId)} — ${esc(o.customerName||'')}</b><span class="badge">${Object.keys(o.routes||{}).length} فولدر</span><small>${esc(o.folder||'')}</small><small>${Object.keys(o.routes||{}).length ? '✓ تم اختيار فولدرات الشغل' : 'اختر فولدر الشغل'}</small></div>`).join('') : '<div class="empty">لا توجد أوردرات</div>';
   document.querySelectorAll('.order-row').forEach(el=>el.onclick=()=>selectOrder(el.dataset.id));
 }
+function renderEmployeeQueue(queue){
+  const box = $('employeeQueueItems');
+  const summary = queue.summary || {};
+  $('employeeQueueSummary').textContent = `${summary.localOrders||0} أوردر محلي • ${summary.needsManualFolder||0} محتاج قسم • ${summary.folderSelected||0} تم اختيار القسم`;
+  const rows = (queue.items || []).slice(0, 30);
+  box.innerHTML = rows.length ? rows.map(item => {
+    const needsFolder = item.localStage === 'NEEDS_WORK_FOLDER';
+    const title = needsFolder ? 'محتاج اختيار القسم' : 'محتاج مراجعة الملفات';
+    return `<div class="employee-task"><div><b>#${esc(item.orderId)} — ${esc(item.customerName)}</b><span class="employee-task-stage">${title}</span><small>${esc(item.nextAction)}</small></div><button type="button" data-employee-order="${esc(item.orderId)}">افتح الأوردر</button></div>`;
+  }).join('') : '<div class="empty">مفيش أوردرات مسجلة محليًا. الربط الفعلي لسه محتاج تأهيل منفصل.</div>';
+  box.querySelectorAll('button[data-employee-order]').forEach(button => button.onclick = async () => {
+    const id = button.dataset.employeeOrder;
+    if (!orders.some(order => String(order.orderId) === id)) return;
+    await selectOrder(id);
+    document.querySelector('.folder-panel')?.scrollIntoView({behavior:'smooth', block:'start'});
+  });
+}
+async function loadEmployeeQueue(){
+  try {
+    const queue = await api('/api/employee/queue', {}, 5000);
+    if (queue.source !== 'LOCAL_PRINT_SERVER_STATE_ONLY') throw new Error('مصدر غير معروف');
+    renderEmployeeQueue(queue);
+  } catch (e) {
+    $('employeeQueueSummary').textContent = 'تعذر قراءة قائمة الشغل المحلية';
+    $('employeeQueueItems').innerHTML = '<div class="empty">قائمة الموظفين غير متاحة حاليًا. مش هنفترض أي حالة للأوردر.</div>';
+  }
+}
 function renderManualFolderPicker(){
   const box=$('manualFolderPicker');
   if(!currentOrder){
@@ -68,6 +95,7 @@ async function createManualFolder(folderKey,btn){
     renderOrders($('searchBox').value);
     $('folderTree').innerHTML=treeHtml(currentOrder);
     renderManualFolderPicker();
+    await loadEmployeeQueue();
   }catch(e){
     $('manualFolderMsg').textContent='تعذر إنشاء الفولدر: '+e.message;
     btn.disabled=false; btn.textContent=original;
@@ -224,6 +252,7 @@ async function refresh(){
     $('countOrders').textContent=orders.length; $('countSelectedFolders').textContent=orders.reduce((n,o)=>n+Object.keys(o.routes||{}).length,0);
     renderOrders($('searchBox').value);
     if(currentOrder && orders.some(o=>o.orderId===currentOrder.orderId)) await selectOrder(currentOrder.orderId);
+    await loadEmployeeQueue();
   }catch(e){
     $('trendMsg').textContent='السيرفر المحلي شغال لكن قراءة الأوردرات المحلية فشلت: '+e.message;
   }
