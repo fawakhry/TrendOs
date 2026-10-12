@@ -73,6 +73,10 @@ export function inspectReturnedWasteManufacturingCost(
   return stop('SYNTHETIC_GROSS_WASTE_AT_VERIFIED_MANUFACTURING_COST_REVIEW_ONLY',{
     hypothetical_gross_waste_cost_cents:q.actualManufacturingCostCents,
     cost_evidence_id:q.costEvidenceId,
+    invoice_id:request.invoiceId,
+    return_request_id:request.returnRequestId,
+    item_id:request.itemId,
+    returned_units:request.returnedUnits,
     suggested_disposition:'WASTE_ONLY',
     sales_price_used_as_cost:false,
     recovery_netted_into_gross_waste:false,
@@ -94,7 +98,10 @@ export function inspectSeparateApprovedWasteRecovery(
     return stop('STOP_INVALID_RECOVERY_CASE');
   if(!approvedWasteCostReview||
      approvedWasteCostReview.status!=='SYNTHETIC_GROSS_WASTE_AT_VERIFIED_MANUFACTURING_COST_REVIEW_ONLY'||
-     !validId(approvedWasteCostReview.cost_evidence_id))
+     !validId(approvedWasteCostReview.cost_evidence_id)||
+     approvedWasteCostReview.invoice_id!==request.invoiceId||
+     approvedWasteCostReview.return_request_id!==request.returnRequestId||
+     approvedWasteCostReview.item_id!==request.itemId)
     return stop('STOP_NO_VERIFIED_WASTE_COST_REVIEW');
   if(!['SUPPLIER','RESPONSIBLE_PARTY'].includes(request.recoveryPartyType)||
      !validId(request.recoveryPartyId)||!cents(request.recoveryCents)||
