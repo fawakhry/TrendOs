@@ -117,7 +117,7 @@ class AP281HomeStaffDemo(unittest.TestCase):
                     url = "/api/preview?path=" + quote(files[0]["fullPath"], safe="")
                     preview_status, image, _ = self.request("GET", url)
                     self.assertEqual(preview_status, 200)
-                    self.assertTrue(image.startswith(b"\\x89PNG\\r\\n\\x1a\\n"))
+                    self.assertTrue(image.startswith(b"\x89PNG\r\n\x1a\n"))
                 else:
                     self.assertEqual(files, [])
 
