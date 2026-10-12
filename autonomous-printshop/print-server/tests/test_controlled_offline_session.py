@@ -60,7 +60,7 @@ class ControlledOfflineSessionTests(unittest.TestCase):
     def test_reject_invalid_commands(self):
         for args in (["restart"], ["--port=8000"], ["start", "--production"]):
             with self.subTest(args=args), self.assertRaisesRegex(
-                SystemExit, "AP252_ONLY_START_OR_STOP_ALLOWED"
+                SystemExit, "AP257_ONLY_START_STOP_OR_RECEIPT_ALLOWED"
             ):
                 controlled.main(args)
         self.assertFalse(self.path.exists())
