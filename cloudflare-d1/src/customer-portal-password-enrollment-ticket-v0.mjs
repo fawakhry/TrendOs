@@ -26,7 +26,7 @@ export async function fingerprintEnrollmentTicketV0({token,customerId,challengeI
 // Reserves a single ticket; no replacement from old VERIFIED challenges.
 // Positional binds:
 // mac, challengeId, issuedMs, expiresMs, customerId, portalCode,
-// issuedMs, expiresMs, issuedMs, challengeId, issuedMs, issuedMs, issuedMs.
+// issuedMs, expiresMs, issuedMs, expiresMs, issuedMs, challengeId, issuedMs, issuedMs, issuedMs.
 export const OTP_ISSUE_TICKET_CAS_SQL_V0=`
 UPDATE customer_portal_native_accounts_v1
    SET enrollment_ticket_mac_hex=?,
@@ -35,7 +35,7 @@ UPDATE customer_portal_native_accounts_v1
        enrollment_ticket_expires_at_ms=?
  WHERE customer_id=? AND portal_code=? AND state='PENDING'
    AND enrollment_ticket_mac_hex=''
-   AND ?>0 AND ?>? AND ?-enrollment_ticket_issued_at_ms<=600000
+   AND ?>0 AND ?>? AND ?-?<=600000
    AND EXISTS(
      SELECT 1 FROM customer_portal_phone_challenges_v1 ch
      JOIN customer_portal_phone_grants_v1 g
