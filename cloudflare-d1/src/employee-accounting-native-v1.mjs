@@ -350,11 +350,22 @@ async function summary(env,auth){
     .map(x=>({department:x.department,sales:Number(x.sales||0),cost:auth.mode==='full'?Number(x.cost||0):'',profit:auth.mode==='full'?Number(x.profit||0):'',count:Number(x.count||0)}));
   return {byDepartment:r};
 }
+// ACC-190: never rely on canSeeCosts UI hiding alone: API data must be
+// redacted after SQL fetch for authenticated print, laser and final scopes.
+// Keep the response keys for existing EasyStore clients but blank private values.
+function hideAccountingCostsV1(items,mode,privateKeys){
+  if(mode==='full')return items;
+  return items.map(item=>{
+    const clean={...item};
+    for(const name of privateKeys)if(Object.hasOwn(clean,name))clean[name]='';
+    return clean;
+  });
+}
 async function getAccounting(env,auth){
   const deptFilter=(auth.mode==='print'||auth.mode==='laser')?' WHERE department=?':'',bind=deptFilter?[auth.department]:[];
-  const mats=(await rows(env,'SELECT * FROM employee_accounting_materials_v1'+deptFilter+' ORDER BY material_name',bind)).map(materialView);
-  const temps=(await rows(env,'SELECT * FROM employee_accounting_templates_v1'+deptFilter+' ORDER BY item_name',bind)).map(templateView);
-  const dlines=(await rows(env,'SELECT * FROM employee_accounting_dept_lines_v1'+deptFilter+' ORDER BY updated_at DESC LIMIT 500',bind)).map(deptLineView);
+  const mats=hideAccountingCostsV1((await rows(env,'SELECT * FROM employee_accounting_materials_v1'+deptFilter+' ORDER BY material_name',bind)).map(materialView),auth.mode,['unitCost','computedUnitCost']);
+  const temps=hideAccountingCostsV1((await rows(env,'SELECT * FROM employee_accounting_templates_v1'+deptFilter+' ORDER BY item_name',bind)).map(templateView),auth.mode,['inkCost','fixedCost','computedUnitCost']);
+  const dlines=hideAccountingCostsV1((await rows(env,'SELECT * FROM employee_accounting_dept_lines_v1'+deptFilter+' ORDER BY updated_at DESC LIMIT 500',bind)).map(deptLineView),auth.mode,['materialCost','operatingCost','otherCost','totalCost','systemCost','profit']);
   const invoices=(auth.mode==='full'||auth.mode==='final')?(await rows(env,'SELECT * FROM employee_accounting_final_invoices_v1 ORDER BY created_at_ms DESC LIMIT 300')).map(invoiceView):[];
   return {success:true,permissions:permissions(auth),materials:mats,templates:temps,deptLines:dlines,finalInvoices:invoices,sales:[],purchases:[],dailyPurchases:[],custodyEntries:[],custodySummary:[],departmentDayCloses:[],unclassifiedRows:[],wasteLines:[],stockMoves:[],summary:await summary(env,auth),version:'ENTRY614_D1_ACCOUNTING_V1'};
 }

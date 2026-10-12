@@ -48,9 +48,9 @@ stop(lambda x: x["complete_verified"][0]["evidence"].update(postmerge_run=1), "H
 stop(lambda x: x["safe_queue"][0].update(state="VERIFIED_COMPLETE"), "STAGE_FALSIFIED_COMPLETE")
 # A later stage cannot be certified until its actual upstream stage is verified.
 def forge_downstream(x):
-    task=x["safe_queue"][5]  # ACC-192 depends on ACC-189 (not completed)
+    task=x["safe_queue"][7]  # ACC-194 depends on ACC-193 (not completed)
     task.update(state="VERIFIED_COMPLETE",pr=999,ci_run=999,verified_at="2026-10-12")
-stop(forge_downstream,"UNVERIFIED_DEPENDENCY_ACC-192")
+stop(forge_downstream,"UNVERIFIED_DEPENDENCY_ACC-194")
 stop(lambda x: x["safe_queue"][0].update(pr=999), "UNVERIFIED_STAGE_WITH_PRETEND_PROOF")
 stop(lambda x: x["safe_queue"][0].update(deployment_allowed=True), "UNSAFE_AUTONOMOUS_SCOPE")
 stop(lambda x: x["safe_queue"][0].update(depends_on=["ACC-198"]), "UNMET_OR_FORWARD_DEPENDENCY")
