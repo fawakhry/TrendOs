@@ -1,0 +1,50 @@
+name: ACC-192 Real Worker Two-Department Daily Close Reconciliation — NO DEPLOY
+on:
+  push:
+    branches:
+      - test/acc192-department-day-close-reconciliation-sqlite-20261012
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'tests/easystore_acc192_two_department_close_reconcile_sqlite.test.mjs'
+      - '.github/workflows/easystore-acc192-two-department-close-sqlite-no-go.yml'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+permissions:
+  contents: read
+jobs:
+  two-dept-in-memory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test synthetic cash/credit/profit, department close and hash provenance
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          node --check tests/easystore_acc192_two_department_close_reconcile_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc192_two_department_close_reconcile_sqlite.test.mjs
+          echo 'ACC192_REAL_FINANCE_END_OF_DAY=NOT_PERFORMED'
+          echo 'ACC192_RELEASE_DECISION=NO_GO'
+      - name: Prior synthetic custodies, refunds, receipts, stock, roles and opening regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-sqlite tests/easystore_acc170_finance_flow_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc174_department_purchase_custody_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc188_party_ledger_idempotency_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc189_inventory_waste_composite_concurrent_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc190_verified_actor_cost_redaction_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc193_fresh_books_no_import_sqlite.test.mjs
+          echo 'ACC192_FINANCE_MULTI_STAGE_SYNTHETIC_REGRESSIONS=PASS'
