@@ -62,7 +62,8 @@ class Health(unittest.TestCase):
         self.assertEqual(len(mod.PATHS), 8)
         for p in mod.PATHS.values():
             self.assertRegex(p, r"^/v1/[a-z0-9\-/]+/health$")
-        self.assertIn("RefuseRedirects", path.read_text(encoding="utf-8"))
+        self.assertIn("--max-redirs", path.read_text(encoding="utf-8"))
+        self.assertIn("--proto", path.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
