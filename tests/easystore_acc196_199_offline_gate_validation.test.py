@@ -15,6 +15,18 @@ DOC = json.loads((ROOT / "docs/trendos/staging/ACC196_199_SAFE_PREPARATION_NO_GO
 
 
 class OfflineGatesTest(unittest.TestCase):
+    def test_acc186_queue_remains_unverified(self):
+        ledger = json.loads((ROOT / "docs/trendos/staging/ACC186_ACCOUNTING_SAFE_EXECUTION_LEDGER_20261012.json").read_text(encoding="utf-8"))
+        self.assertEqual(ledger["release_decision"], "NO_GO")
+        self.assertEqual(set(ledger["gates"].values()), {"OPEN"})
+        tracked = {x["id"]: x for x in ledger["safe_queue"]}
+        for stage in ("ACC-195", "ACC-196", "ACC-197", "ACC-198", "ACC-199"):
+            task = tracked[stage]
+            self.assertEqual(task["state"], "IN_PROGRESS_UNVERIFIED")
+            self.assertIsNone(task["verified_at"])
+            self.assertIsNone(task["ci_run"])
+            self.assertIsNone(task["pr"])
+
     def test_baseline_no_go(self):
         self.assertTrue(guard.validate_manifest(DOC))
 
