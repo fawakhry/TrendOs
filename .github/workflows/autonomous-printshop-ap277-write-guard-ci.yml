@@ -1,0 +1,39 @@
+name: AP-277 Print Server Write Guard — Hosted Synthetic Qualification
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/print-server/src/server.py'
+      - 'autonomous-printshop/print-server/public/app.js'
+      - 'autonomous-printshop/print-server/public/index.html'
+      - 'autonomous-printshop/print-server/tests/test_ap276_operational_flow_synthetic.py'
+      - 'autonomous-printshop/print-server/tests/test_ap277_write_guard_synthetic.py'
+      - '.github/workflows/autonomous-printshop-ap277-write-guard-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-write-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    defaults:
+      run:
+        working-directory: autonomous-printshop/print-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reject unauthorized mutations, then regress AP-276 permitted flow
+        run: |
+          python -B -m unittest discover -s tests -p 'test_ap277_write_guard_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap276_operational_flow_synthetic.py' -v
+          echo 'AP277_HOSTED_GUARD_SYNTHETIC=PASS'
+          echo 'AP277_OWNER_UBUNTU=NOT_EXECUTED'
+          echo 'AP277_CUSTOMERS_AND_CLOUD=OFF'
+          echo 'AP277_PRINTERS=OFF'
+          echo 'AP277_PRODUCTION_READY=NO'
