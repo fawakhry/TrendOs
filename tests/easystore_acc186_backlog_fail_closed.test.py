@@ -8,7 +8,7 @@ from pathlib import Path
 spec = importlib.util.spec_from_file_location("acc186","scripts/easystore_acc186_backlog_fail_closed.py")
 m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 original = json.loads(Path("docs/trendos/staging/ACC186_ACCOUNTING_SAFE_EXECUTION_LEDGER_20261012.json").read_text(encoding="utf-8"))
-book = Path("TrendOS_MASTER_BOOK.md").read_text(encoding="utf-8")
+book = Path("accounting/MASTER_BOOK.md").read_text(encoding="utf-8")
 report = m.validate(original, book)
 assert (len(report["source_safe_stages_queued"]) +
         len(report["source_safe_stages_in_progress"]) +
@@ -48,9 +48,20 @@ stop(lambda x: x["complete_verified"][0]["evidence"].update(postmerge_run=1), "H
 stop(lambda x: x["safe_queue"][0].update(state="VERIFIED_COMPLETE"), "STAGE_FALSIFIED_COMPLETE")
 # A later stage cannot be certified until its actual upstream stage is verified.
 def forge_downstream(x):
-    task=x["safe_queue"][7]  # ACC-194 depends on ACC-193 (not completed)
+    # Choose a genuinely blocked prerequisite from the *current* ledger.
+    # Never assume a formerly queued ACC stage is still pending.
+    verified = {v["stage"] for v in x["complete_verified"]} | {"ACC-180"}
+    verified |= {v["id"] for v in x["safe_queue"] if v["state"] == "VERIFIED_COMPLETE"}
+    task = next((v for v in x["safe_queue"]
+                 if v["state"] != "VERIFIED_COMPLETE"
+                 and any(dep not in verified for dep in v["depends_on"])), None)
+    assert task is not None, "No blocked stage for prerequisite adversarial test"
     task.update(state="VERIFIED_COMPLETE",pr=999,ci_run=999,verified_at="2026-10-12")
-stop(forge_downstream,"UNVERIFIED_DEPENDENCY_ACC-194")
+
+blocked_task = next(v for v in original["safe_queue"] if v["id"] == "ACC-196")
+assert any(d["id"] == "ACC-194" and d["state"] != "VERIFIED_COMPLETE"
+           for d in original["safe_queue"]), "Update negative-test dependency selection"
+stop(forge_downstream,"UNVERIFIED_DEPENDENCY_" + blocked_task["id"])
 stop(lambda x: x["safe_queue"][0].update(pr=999), "UNVERIFIED_STAGE_WITH_PRETEND_PROOF")
 stop(lambda x: x["safe_queue"][0].update(deployment_allowed=True), "UNSAFE_AUTONOMOUS_SCOPE")
 stop(lambda x: x["safe_queue"][0].update(depends_on=["ACC-198"]), "UNMET_OR_FORWARD_DEPENDENCY")
