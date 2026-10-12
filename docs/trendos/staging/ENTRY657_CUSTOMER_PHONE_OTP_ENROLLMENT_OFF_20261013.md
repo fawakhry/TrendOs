@@ -24,5 +24,14 @@ Branch: `test/zero-google-customer-otp-enrollment-off-20261013`.
 - Pure module `cloudflare-d1/src/customer-portal-phone-enrollment-v0.mjs`: strict Egyptian phone normalization, eligibility/checks, safe OTP hash/verify and password verifier. No database access or network/sender. Exact owner-verified customer binding is a trusted precondition; source-only policies cannot prove it.
 - In-memory SQLite tests + mock offline Node tests, GitHub CI. Customer schema modes **remain OFF**. `ZERO_GOOGLE_COMPLETE=NO`.
 
-## RESULT
-Pending source/CI. This is an engineering foundation and must not be represented as a functioning customer OTP service.
+## RESULT — SOURCE_ONLY CI PASS / LIVE ENROLLMENT OFF
+
+- Additive UNAPPLIED `cloudflare-d1/migrations/0034_customer_portal_phone_otp_enrollment_v1.sql` (commit `0f0a35aa8b3f8419cdd11b4825490a08b25daa58`): approved-by-human, time-bounded phone fingerprint grants; unique approved phone fingerprint; PREPARED / DELIVERED / VERIFIED / VOID OTP state, 5-minute max expiry, five tries, status/consume constraints, hourly rate state (3/hour); **no backfill, no actual SMS sender, no live Google/Cloud request**.
+- Source-only `cloudflare-d1/src/customer-portal-phone-enrollment-v0.mjs` (commit `a781169e103f78a39a4054f49abb2c30ad7b3bad`): normalize Egyptian mobile, HMAC blind phone fingerprint, HMAC OTP bound to ID/customer/fingerprint, random unbiased six-digit OTP, CSPRNG challenge IDs, time/review/rate eligibility, expiry/attempt/replay decision, fresh PBKDF2-SHA256 100k and per-account random salt. No application route, database reads/writes, or SMS transport.
+- Synthetic-only tests `tests/entry657_customer_phone_enrollment_sqlite.test.py` and `tests/entry657_customer_phone_otp_offline.test.mjs` plus `.github/workflows/trendos-entry657-customer-phone-otp-offline-ci.yml` run with Node 22 + in-memory SQLite, no secrets/network/Production.
+- Exact code+CI head `c7bf20a26a0e667b5067ed923608d2d38830d2ea`: [Actions run 38315594943](https://github.com/fawakhry/TrendOs/actions/runs/38315594943) **SUCCESS** (source syntax, eligibility/OTP/password and SQLite constraints, no Worker import).
+- Later checkpoint/book commits will move Draft PR head; require a separate latest-head GitHub Actions PASS before approval.
+- **Remaining blockers:** independent customer phone ownership/consent evidence, duplicate/shared/mobile reassignment manual review, SMS provider and privacy arrangement/verification, atomic sending/rate accounting and exact-once consumption, server-side session/enrollment endpoints and safe user enumeration response, password change/session revocation, controlled canary with independent reviewer, current Cloudflare task-preview Build failure mentioned in Entry656, customer order and Drive-to-R2 parity; no Prod approval has been granted for any of these.
+
+Release flags: `CUSTOMER_OTP_SMS_SENT=NO`, `CUSTOMER_NATIVE_PASSWORDS_PROVISIONED=NO`, `CUSTOMER_AUTH_RUNTIME_ROUTE=OFF`, `MIGRATION_0034_PRODUCTION_APPLIED=NO`, `ZERO_GOOGLE_COMPLETE=NO`.
+
