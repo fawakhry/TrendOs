@@ -42,6 +42,7 @@ class AP276OperationalFlow(unittest.TestCase):
         self.app = PrintServerApp(
             self.cfg, Path(__file__).resolve().parents[1] / "public",
             config_path=self.root / "local.json",
+            write_token="AP277_SYNTHETIC_TEST_TOKEN_NOT_FOR_PRODUCTION_2026",
         )
         self.fake = FakeReadOnlyRows()
         self.app.bridge.client = self.fake
@@ -75,7 +76,10 @@ class AP276OperationalFlow(unittest.TestCase):
             body = json.dumps(payload).encode("utf-8") if payload is not None else None
             connection.request(
                 method, endpoint, body=body,
-                headers={"Content-Type": "application/json"} if body else {},
+                headers={
+                    "Content-Type": "application/json",
+                    "X-TrendOS-Write-Token": self.app.write_token,
+                } if body else {},
             )
             response = connection.getresponse()
             data = response.read(32768)
