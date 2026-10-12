@@ -132,6 +132,34 @@ class Workflows(unittest.TestCase):
                 SAFE[2][1],WORKFLOW+"\n"+command+"\n")
             self.assertTrue(errors,command)
 
+    def test_privilege_escalation_and_non_pr_triggers_rejected(self):
+        for fragment in (
+            "  pull_request_target:",
+            "  repository_dispatch:",
+            "  workflow_dispatch:",
+            "  schedule:",
+            "  workflow_run:",
+            "      contents: write",
+            "      id-token: write",
+            "    environment: production",
+        ):
+            errors = guard.inspect_workflow_content(
+                SAFE[2][1], WORKFLOW + "\n" + fragment + "\n")
+            self.assertTrue(errors, fragment)
+
+    def test_no_persisted_checkout_credentials_cannot_pass_new_workflow(self):
+        failures = guard.inspect_workflow_content(
+            SAFE[2][1], WORKFLOW.replace("persist-credentials: false",
+                                         "persist-credentials: true"))
+        self.assertTrue(any("CHECKOUT_CREDENTIAL_PERSISTENCE_NOT_DISABLED" in e
+                            for e in failures))
+
+    def test_only_explicit_pull_request_event_is_qualified(self):
+        failures = guard.inspect_workflow_content(
+            SAFE[2][1], WORKFLOW.replace("  pull_request:", "  push:"))
+        self.assertTrue(any("ONLY_EXPLICIT_PULL_REQUEST_TRIGGER_ALLOWED" in e
+                            for e in failures))
+
     def test_historic_manual_deploy_workflow_is_detected_as_dangerous(self):
         # This deliberately reads, NEVER runs or edits the old deploy workflow.
         legacy=ROOT / ".github/workflows/easystore-a2-accounting-readonly-api-deploy.yml"
