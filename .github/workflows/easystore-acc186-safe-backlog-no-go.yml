@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: fawakhry/EasyStore
-          ref: 7857b61274d934a40fb90d6c9e8f46c22b8725e2
+          ref: 57e59a8c6f9d8fa91af0bfb77c6cdeb3f3de056e
           path: _canonical_easy_book
           persist-credentials: false
       - uses: actions/setup-python@v5
