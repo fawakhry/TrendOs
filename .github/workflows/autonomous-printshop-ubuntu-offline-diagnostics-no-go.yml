@@ -28,7 +28,9 @@ jobs:
           test "$PRINTSHOP_RUNTIME_ENABLED" = 'false'
           test "$PRINTSHOP_DIAGNOSTIC_REAL_HOST_ALLOWED" = 'false'
           node --check autonomous-printshop/core/ubuntu-offline-diagnostic-envelope-v0.mjs
+          node --check autonomous-printshop/core/ubuntu-signed-mock-evidence-v1.mjs
           node --test autonomous-printshop/tests/ubuntu_offline_diagnostic_envelope_v0.test.mjs
+          node --test autonomous-printshop/tests/ubuntu_signed_mock_evidence_v1.test.mjs
           node --test autonomous-printshop/tests/trendos_autonomy_policy_v1.test.mjs
           echo 'PRINTSHOP_UBUNTU_DIAGNOSTIC=MOCK_ONLY_NOT_CONNECTED'
           echo 'PRINTSHOP_PRINTSERVER_REAL_PRODUCTION_QUALIFIED=FALSE'
