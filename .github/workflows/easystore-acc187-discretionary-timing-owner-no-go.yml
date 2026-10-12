@@ -1,0 +1,44 @@
+name: ACC187 Per-case Owner Return Timing Management Gate — NO_GO
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/easystore-acc187-discretionary-timing-owner-no-go.yml'
+      - 'scripts/easystore_acc187_discretionary_timing_review_no_go.mjs'
+      - 'tests/easystore_acc187_discretionary_timing_review_no_go.test.mjs'
+      - 'scripts/easystore_acc187_owner_refund_method_contract_no_go.mjs'
+      - 'tests/easystore_acc187_personalized_eligibility_no_go.test.mjs'
+      - 'tests/easystore_acc187_owner_refund_method_contract_no_go.test.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-no-execution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify per-case discretionary timing, independent management decisions, no 7/14-day expiry
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          node --check scripts/easystore_acc187_discretionary_timing_review_no_go.mjs
+          node --test tests/easystore_acc187_discretionary_timing_review_no_go.test.mjs
+          node --test tests/easystore_acc187_personalized_eligibility_no_go.test.mjs
+          node --test tests/easystore_acc187_owner_refund_method_contract_no_go.test.mjs
+          echo 'ACC187_FIXED_REFUND_REQUEST_DEADLINE=NONE_OWNER_DISCRETION_PER_CASE'
+          echo 'ACC187_PRODUCT_EXCEPTION=VERIFIED_TREND_MALL_FAULT_OR_DEFECT'
+          echo 'ACC187_METHOD=MANAGEMENT_APPROVED_CASH_OR_CREDIT'
+          echo 'ACC187_REAL_CUSTOMER_REFUND_CREDIT=NOT_IMPLEMENTED'
+          echo 'ACC187_LIVE_MANAGER_AUTH_AND_LEGAL_REVIEW=NOT_PERFORMED'
+          echo 'ACCOUNTING_G1_G2_G3_G4_G5=OPEN'
+          echo 'FINANCE_RELEASE=NO_GO'
