@@ -4,6 +4,7 @@ import {
  ACC187_OWNER_DEPARTMENT_OVERHEAD_POLICY as owner,
  inspectOverheadDepartmentPolicy as method,
  inspectSyntheticLikeJobOverheadShare as share,
+ inspectSyntheticDepartmentPolicyRegistry as registry,
 } from '../scripts/easystore_acc187_department_overhead_policy_no_go.mjs';
 
 const job=(patch={})=>({
@@ -198,6 +199,85 @@ test('request for allocation without independent pool allocation proof stops',()
  assert.equal(x.status,'STOP_ALLOCATION_NOT_INDEPENDENTLY_VERIFIED');
  checkNoGo(x);
 });
+
+test('single approved fictional department policy is valid only as nonoperational registry review',()=>{
+ const x=registry([policy()]);
+ assert.equal(x.status,'SYNTHETIC_NONOVERLAPPING_DEPARTMENT_REGISTRY_REVIEW_ONLY');
+ assert.equal(x.reviewed_scope_count,1);
+ assert.equal(x.reviewed_policy_rows,1);
+ assert.equal(x.real_allocation_registry_installed,false);
+ checkNoGo(x);
+});
+test('exactly adjacent future fake policy replaces earlier version without overlap',()=>{
+ const p=policy();
+ const future=policy(job({
+  policyVersionId:'FAKE-POLICY-PRINT-V2',driver:'FAKE_GOOD_UNITS',
+ }),{
+  policyId:'FAKE-DOC-PRINT-V2',managerApprovalRef:'FAKE-MGR-V2',
+  documentEvidenceRef:'FAKE-DOC-V2',driverEvidenceRef:'FAKE-DRIVER-V2',
+  validFrom:'2026-11-01T00:00:00.000Z',
+  validUntil:'2026-12-01T00:00:00.000Z',
+ });
+ const x=registry([p,future]);
+ assert.equal(x.status,'SYNTHETIC_NONOVERLAPPING_DEPARTMENT_REGISTRY_REVIEW_ONLY');
+ assert.equal(x.reviewed_scope_count,1);
+ assert.equal(x.reviewed_policy_rows,2);
+ checkNoGo(x);
+});
+test('same work class cannot have two different fake drivers during an overlapping period',()=>{
+ const p=policy(),q=policy(job({
+  policyVersionId:'FAKE-POLICY-PRINT-V2',driver:'FAKE_GOOD_UNITS',
+ }),{
+  policyId:'FAKE-POLICY-V2',managerApprovalRef:'FAKE-MGR-V2',
+  validFrom:'2026-10-15T00:00:00.000Z',
+  validUntil:'2026-11-15T00:00:00.000Z',
+ });
+ const x=registry([p,q]);
+ assert.equal(x.status,'STOP_OVERLAPPING_COMPETING_METHODS_FOR_SIMILAR_WORK');
+ checkNoGo(x);
+});
+test('different accounting period name does not bypass overlapping conflict',()=>{
+ const a=policy(),b=policy(job({
+  accountingPeriodId:'FAKE-OTHER-PERIOD',
+  policyVersionId:'FAKE-V2',driver:'FAKE_DIRECT_LABOR_MINUTES',
+ }),{
+  policyId:'FAKE-V2-POLICY',managerApprovalRef:'FAKE-MGR-V2',
+  validFrom:'2026-10-10T00:00:00.000Z',
+  validUntil:'2026-10-31T00:00:00.000Z',
+ });
+ assert.equal(registry([a,b]).status,'STOP_OVERLAPPING_COMPETING_METHODS_FOR_SIMILAR_WORK');
+});
+test('different departments may carry simultaneous different documented mock methods',()=>{
+ const p=policy(),q=policy(job({
+  department:'LASER',workClass:'FAKE_ACRYLIC',
+  overheadPoolId:'FAKE-LASER-POOL',policyVersionId:'FAKE-LASER-V1',
+  driver:'FAKE_GOOD_UNITS',
+ }),{policyId:'FAKE-LASER-POLICY',managerApprovalRef:'FAKE-LASER-MANAGER'});
+ const x=registry([p,q]);
+ assert.equal(x.status,'SYNTHETIC_NONOVERLAPPING_DEPARTMENT_REGISTRY_REVIEW_ONLY');
+ assert.equal(x.reviewed_scope_count,2);
+ checkNoGo(x);
+});
+test('reused fake management approval reference cannot silently authorize second registered policy',()=>{
+ const p=policy();
+ const q=policy(job({department:'LASER',workClass:'FAKE_ACRYLIC'}),
+  {policyId:'FAKE-LASER-POLICY',documentEvidenceRef:'FAKE-LASER-DOC'});
+ assert.equal(registry([p,q]).status,'STOP_REUSED_MANAGEMENT_POLICY_APPROVAL_REFERENCE');
+});
+test('missing or invalid policy register is stopped',()=>{
+ for(const value of [null,[],{},'policy']){
+  const x=registry(value);
+  assert.equal(x.status,'STOP_MISSING_OR_OVERSIZED_DEPARTMENT_POLICY_REGISTRY');
+  checkNoGo(x);
+ }
+});
+test('forged manager approval cannot become a registered live department policy',()=>{
+ const a=policy(),x=registry([a,{...policy(job({department:'LASER'})),verifiedManager:false,
+  managerApprovalRef:'FAKE-OTHER-APPROVAL'}]);
+ assert.equal(x.status,'STOP_UNVERIFIED_DEPARTMENT_POLICY_REGISTER_ROW');
+ checkNoGo(x);
+});
+
 console.log('ACC187_OWNER_OVERHEAD=MANAGEMENT_DOCUMENTED_PER_DEPARTMENT_CLASS');
 console.log('ACC187_SAME_COMPARABLE_JOBS=MUST_USE_SAME_EFFECTIVE_POLICY_VERSION');
 console.log('ACC187_CHANGE=PROSPECTIVE_DOCUMENTED_MANAGER_APPROVAL_ONLY');
