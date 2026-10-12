@@ -9209,3 +9209,11 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 - NEXT ONE OWNER UI ACTION: click `Create Group` in top right of Groups page and share screenshot of the unsaved creation form. Do not save or assign devices/members until fields and policy implications inspected. Leave `All` as-is. Stay on Free and do not authorize card/paid upgrade.
 - No changes to NetBird policies/groups/peers from this screenshot, and no SSH/UFW/router, Windows 7 printer or customer-file, D1, production deploy/merge changes. Assistant only viewed screenshot and committed documentation to GitHub, no machine access.
 - AP190_GROUPS_VISIBLE=All_ONLY_OWNER_SCREEN; AP190_TRENDOS_CUSTOM_GROUPS=NONE_VISIBLE; AP190_PLAN=FREE; AP190_PEERS=0; AP190_DEFAULT_POLICY_DISABLED=PRIOR_AP189; AP190_NEXT=OPEN_CREATE_GROUP_FORM_WITHOUT_SAVE.
+
+
+### AP-191 — NetBird Create Group dialog opened; admin group not saved (2026-10-12; owner browser screenshot)
+
+- Owner screenshot at NetBird `app.netbird.io/groups` confirms the `Create Group` modal is open. It contains one blank `Name` field with placeholder `e.g., Developers`; `Create Group` button appears disabled, with Cancel available. This is UI inspection ONLY: no new group has been created and no peer membership or access policy was modified.
+- Planned first group name: `TrendOS-Admins`, intended for explicitly approved administration device peers. Later plan a distinct `TrendOS-Servers` group for the Linux host. The broad `Default` all-to-all access policy was disabled per AP-189; NetBird account badge still previously verified Free with zero peers. Actual client access and SSH remain unconfigured.
+- NEXT SINGLE owner UI action: type `TrendOS-Admins` into the Name field without clicking `Create Group` yet; share screenshot with the filled form. Do not add peers, enroll VPN, edit Access Control policies, open SSH/UFW/router ports, or change Windows7/production.
+- No charges/card/trials allowed. No host actions were carried out by assistant; screenshot-only evidence; GitHub documentation branch only. AP191_CREATE_GROUP_DIALOG=OPEN_OWNER_SCREEN; AP191_GROUP_NAME_FILLED=NO; AP191_GROUP_SAVED=NO; AP191_NEXT=ENTER_NAME_ONLY.
