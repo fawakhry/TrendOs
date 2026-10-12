@@ -1,0 +1,86 @@
+{
+  "schema": "ACC196_199_SAFE_PREPARATION_V1",
+  "as_of_date": "2026-10-12",
+  "purpose": "Isolated code-pointer rollback simulation; A2.13 acceptance protocol only; native synthetic regression preflight; accounting release handoff draft",
+  "accounting_book": "fawakhry/EasyStore@candidate/easystore-zero-google-audit-20261004:EASYSTORE_ACCOUNTING_MASTER_BOOK.md",
+  "release_decision": "NO_GO",
+  "production_mutations": 0,
+  "cutover_date_local": null,
+  "previous_live_worker_version_id": null,
+  "production_rollback_approved": false,
+  "real_canary_approved": false,
+  "real_employee_grants_approved": false,
+  "real_d1_restore_approved": false,
+  "remote_operations": [],
+  "gates": {
+    "G1": "OPEN",
+    "G2": "OPEN",
+    "G3": "OPEN",
+    "G4": "OPEN",
+    "G5": "OPEN"
+  },
+  "stages": {
+    "ACC-196": {
+      "status": "PREPARED_TEST_ONLY",
+      "depends_on": [
+        "ACC-194",
+        "ACC-195"
+      ],
+      "scope": "In-memory synthetic Worker-code pointer rollback; fake SQLite unchanged; no real backup or rollback"
+    },
+    "ACC-197": {
+      "status": "PROTOCOL_ONLY_OWNER_BLOCKED",
+      "depends_on": [
+        "ACC-190",
+        "ACC-196"
+      ],
+      "scope": "Written A2.13 acceptance sequence, no actual canary, real token or D1 SELECT"
+    },
+    "ACC-198": {
+      "status": "PARTIAL_SYNTHETIC_ONLY",
+      "depends_on": [
+        "ACC-187",
+        "ACC-188",
+        "ACC-189",
+        "ACC-190",
+        "ACC-191",
+        "ACC-192",
+        "ACC-193"
+      ],
+      "scope": "Execute independent existing native-worker SQLite regressions; integrated single-database flow and refund/browser unverified"
+    },
+    "ACC-199": {
+      "status": "HANDOFF_DRAFT_NO_GO",
+      "depends_on": [
+        "ACC-196",
+        "ACC-197",
+        "ACC-198"
+      ],
+      "scope": "Owner-only real handoff and signed release remain blocked"
+    }
+  },
+  "gaps": {
+    "ACC-187": "REFUND_POLICY_AND_HANDLER_MISSING",
+    "ACC-191": "REAL_BROWSER_SSO_UNVERIFIED"
+  },
+  "a213_protocol": {
+    "status": "NOT_EXECUTED",
+    "real_employee_session": false,
+    "trial_budget": 0,
+    "planned_owner_approval": null,
+    "trial_run_id": null,
+    "planned_verifications": [
+      "PUBLIC_GET_READONLY",
+      "SOURCE_ONLY_SELECT_REVIEW",
+      "STOP_ON_MISMATCH"
+    ]
+  },
+  "owner_decisions": [
+    "ACC-187 cash refund policy and ledger/stock reversal semantics",
+    "G1 one actual authenticated A2.13 custody close",
+    "G2 employee roles",
+    "G3 stock/cash/custody physical opening, separate cutover",
+    "G4 real financial operating acceptance",
+    "G5 actual protected backup, prior Worker version and release/rollback approval"
+  ]
+}
