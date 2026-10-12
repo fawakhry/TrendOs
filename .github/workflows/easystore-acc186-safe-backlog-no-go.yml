@@ -10,6 +10,8 @@ on:
       - 'docs/trendos/staging/ACC186_ACCOUNTING_SAFE_EXECUTION_LEDGER_20261012.json'
       - 'scripts/easystore_acc186_backlog_fail_closed.py'
       - 'tests/easystore_acc186_backlog_fail_closed.test.py'
+      - 'accounting/MASTER_BOOK.md'
+      - 'tests/easystore_accounting_master_book_integrity.test.py'
   pull_request:
     branches:
       - candidate/easystore-accounting-a2-20261005
@@ -41,10 +43,11 @@ jobs:
           test -z "$CF_API_TOKEN"
           python3 -m py_compile scripts/easystore_acc186_backlog_fail_closed.py
           python3 tests/easystore_acc186_backlog_fail_closed.test.py
+          python3 tests/easystore_accounting_master_book_integrity.test.py
           python3 tests/easystore_acc188_a210_no_bot_push.test.py
           python3 scripts/easystore_acc186_backlog_fail_closed.py \
             --manifest docs/trendos/staging/ACC186_ACCOUNTING_SAFE_EXECUTION_LEDGER_20261012.json \
-            --master-book TrendOS_MASTER_BOOK.md \
+            --master-book accounting/MASTER_BOOK.md \
             --out artifacts/acc186-safe-queue-evidence-NO_GO.json
           python3 - <<'PY'
           import json
