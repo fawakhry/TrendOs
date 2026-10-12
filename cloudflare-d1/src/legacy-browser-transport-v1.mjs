@@ -1,4 +1,5 @@
 import { cloudAuthShadowEnabled, lookupCloudAuthShadow, rememberCloudAuthShadow, revokeCloudAuthShadow } from './cloud-auth-shadow-v1.mjs';
+import { employeeAuthNativeOnlyEnabled } from './employee-auth-native-v1.mjs';
 /* Temporary transport only: Apps Script still authorizes legacy sessions/actions.
  * Fixed upstream from server config. Successful employee auth may seed/revoke only
  * the HMAC-fingerprinted D1 auth shadow; plaintext passwords/tokens are never stored.
@@ -51,6 +52,18 @@ export async function handleLegacyBrowserTransport(request, env) {
   try { body = await request.json(); } catch { return reply({ success: false, code: 'LEGACY_INVALID_JSON' }, 400, origin); }
   if (!body || Array.isArray(body) || typeof body !== 'object' || !LEGACY_BROWSER_ACTIONS.has(body.action)) {
     return reply({ success: false, code: 'LEGACY_ACTION_DENIED', message: 'الإجراء غير متاح عبر Cloud transport.' }, 403, origin);
+  }
+
+  // Entry653 Zero-Google: when employee Native-only is active, legacy employee
+  // actions cannot recover Apps Script authority through the old browser proxy.
+  // Customer-account sessions remain a distinct, explicitly scoped migration.
+  // Deny BEFORE shadow verification or upstream creation, with no credentials echoed.
+  if (employeeAuthNativeOnlyEnabled(env) && !LEGACY_CUSTOMER_SESSION_ACTIONS.has(body.action)) {
+    return reply({
+      success: false,
+      code: 'LEGACY_EMPLOYEE_UPSTREAM_RETIRED',
+      message: 'مسار الموظفين القديم متوقف. استخدم خدمة الموظفين السحابية.'
+    }, 403, origin);
   }
 
   // Entry504 session-race guard. Production Apps Script currently clears the
