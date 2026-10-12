@@ -190,7 +190,7 @@
       "id": "ACC-192",
       "gate": "G4",
       "title": "التقارير وتقفيل اليوم",
-      "state": "QUEUED_UNVERIFIED",
+      "state": "IN_PROGRESS_UNVERIFIED",
       "depends_on": [
         "ACC-188",
         "ACC-189"

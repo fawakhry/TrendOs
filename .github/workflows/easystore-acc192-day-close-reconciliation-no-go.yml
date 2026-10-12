@@ -1,0 +1,50 @@
+name: ACC-192 Native D1 Day Close and Accounting Reconciliation — NO DEPLOY
+on:
+  push:
+    branches:
+      - test/acc192-synthetic-day-close-cash-reconciliation-20261012
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - 'tests/easystore_acc192_day_close_cash_debt_stock_reconcile_sqlite.test.mjs'
+      - '.github/workflows/easystore-acc192-day-close-reconciliation-no-go.yml'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+permissions:
+  contents: read
+jobs:
+  offline-native-accounting:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test native Worker against throwaway SQLite and no secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          node --check tests/easystore_acc192_day_close_cash_debt_stock_reconcile_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc192_day_close_cash_debt_stock_reconcile_sqlite.test.mjs
+          echo 'ACC192_PRODUCTION_DAY_CLOSE=NOT_PERFORMED'
+          echo 'ACC192_G4_REAL_ACCEPTANCE=OPEN'
+          echo 'ACC192_RELEASE_DECISION=NO_GO'
+      - name: Regress original stock/party/role and fresh-books source
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-sqlite tests/easystore_acc170_finance_flow_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc188_party_ledger_idempotency_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc189_inventory_waste_composite_concurrent_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc190_verified_actor_cost_redaction_sqlite.test.mjs
+          node --experimental-sqlite tests/easystore_acc193_fresh_books_no_import_sqlite.test.mjs
+          echo 'ACC192_ACC170_ACC188_ACC189_ACC190_ACC193_REGRESSION=PASS'
