@@ -8,8 +8,11 @@
     "observed_candidate_before_acc186": "ff75294cbbffbf501cc1ac1639a97e8e4aa8f01b",
     "easystore_repo": "fawakhry/EasyStore",
     "observed_easystore_sha": "373d06381594e3ab32a55009fcc74907b1c37c9c",
-    "master_book": "TrendOS_MASTER_BOOK.md",
-    "last_closeout": "docs/trendos/staging/ACC164_ACCOUNTING_FINAL_CLOSEOUT_GATES_20261010.md"
+    "master_book": "fawakhry/EasyStore@candidate/easystore-zero-google-audit-20261004:EASYSTORE_ACCOUNTING_MASTER_BOOK.md",
+    "last_closeout": "docs/trendos/staging/ACC164_ACCOUNTING_FINAL_CLOSEOUT_GATES_20261010.md",
+    "legacy_trendos_master_archive": "TrendOS_MASTER_BOOK.md",
+    "trendos_accounting_legacy_execution_ledger": "TRENDOS_ACCOUNTING_EXECUTION_LEDGER_2026-09-05.md",
+    "canonical_accounting_book_ci_checkout_sha": "7857b61274d934a40fb90d6c9e8f46c22b8725e2"
   },
   "source_state_only": {
     "frontend_last_reported": "OFF",
