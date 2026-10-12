@@ -24,6 +24,7 @@ on:
       - 'tests/easystore_acc187_manufacturing_components_isolated_sqlite_no_go.test.mjs'
       - 'scripts/easystore_acc187_department_overhead_policy_no_go.mjs'
       - 'tests/easystore_acc187_department_overhead_policy_no_go.test.mjs'
+      - 'tests/easystore_acc187_department_overhead_fake_sqlite_no_go.test.mjs'
       - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
   workflow_dispatch:
 permissions:
@@ -77,6 +78,8 @@ jobs:
           node --experimental-sqlite --test tests/easystore_acc187_manufacturing_components_isolated_sqlite_no_go.test.mjs
           node --check scripts/easystore_acc187_department_overhead_policy_no_go.mjs
           node --test tests/easystore_acc187_department_overhead_policy_no_go.test.mjs
+          node --experimental-sqlite --test tests/easystore_acc187_department_overhead_fake_sqlite_no_go.test.mjs
+          echo 'ACC187_FAKE_SQLITE_OVERHEAD_DUPLICATION=DENIED_NOT_LIVE_ALLOCATION'
           echo 'ACC187_OWNER_DEPARTMENT_OVERHEAD_METHOD=MANAGEMENT_SELECTED_DOCUMENTED_CONSISTENT'
           echo 'ACC187_OWNER_COST_DRIVER_RATES_AND_ALLOCATION_DETAILS=STILL_UNDECIDED'
           echo 'ACC187_REAL_COST_ALLOCATION_ACCOUNTING_AND_PRINTSHOP=NOT_IMPLEMENTED'
