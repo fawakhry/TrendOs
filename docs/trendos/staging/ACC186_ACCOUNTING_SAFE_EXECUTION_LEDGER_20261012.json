@@ -209,7 +209,7 @@
       "id": "ACC-193",
       "gate": "G3",
       "title": "دفاتر من الصفر من غير مسح أو تاريخ",
-      "state": "QUEUED_UNVERIFIED",
+      "state": "IN_PROGRESS_UNVERIFIED",
       "depends_on": [
         "ACC-185"
       ],
