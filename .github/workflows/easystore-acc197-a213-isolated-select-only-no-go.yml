@@ -1,0 +1,36 @@
+name: ACC197 A2.13 Synthetic SQLite SELECT-only STOP — NO_GO
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/easystore-acc197-a213-isolated-select-only-no-go.yml'
+      - 'scripts/easystore_acc197_a213_synthetic_select_preflight_no_go.py'
+      - 'tests/easystore_acc197_a213_synthetic_select_preflight_no_go.test.py'
+      - 'cloudflare-d1/migrations/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  strictly-isolated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Rehearse proposed READONLY A2.13 SELECT rules on disposable SQLite, never actual D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          python3 scripts/easystore_acc197_a213_synthetic_select_preflight_no_go.py
+          python3 tests/easystore_acc197_a213_synthetic_select_preflight_no_go.test.py
+          echo 'ACC197_REAL_EMPLOYEE_CUSTODY_CLOSE=NOT_RUN'
+          echo 'ACCOUNTING_G1=OPEN'
+          echo 'FINANCE_RELEASE=NO_GO'
