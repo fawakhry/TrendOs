@@ -9123,3 +9123,12 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 - Official onboarding site: https://app.netbird.io . The new network may include a default all-to-all device policy, so review access policies before joining the server or enabling remote SSH. Do not run netbird up yet.
 - Next one owner UI step: open official site in browser and share redacted screenshot of the landing/sign-in page. Do not share passwords, emails, identity codes, tokens or private keys.
 - No changes to Ubuntu SSH/UFW, printshop Win7, customer files, D1 or Production. GitHub book-only note.
+
+
+### AP-182 — NetBird Cloud onboarding page loaded; first-time account setup pending (2026-10-12; owner browser screenshot)
+
+- Owner opened `https://app.netbird.io/peers` in local Ubuntu browser. Screenshot shows authenticated NetBird-branded onboarding page headed `Welcome to NetBird, Trend!`, with progress indicator and selection between `Business` and `Personal`; `Personal` appears selected in the screenshot. A mandatory how-heard-about-NetBird dropdown and use cases checkboxes are shown; Continue is disabled because the questionnaire is incomplete.
+- This confirms access to an authenticated NetBird Cloud onboarding UI, NOT completed onboarding, device registration, successful peer login, approved policies, running VPN tunnel, or SSH remote administration. AP-180 iMac CLI last observed `Daemon status: NeedsLogin`; no later successful `netbird up` is evidenced.
+- Owner's use case is Trend Mall business remote server management. NEXT EXACTLY ONE user interface action: select `Business` instead of `Personal`, then send a redacted screenshot of resulting onboarding fields without submitting identity/security data. This is a business-purpose selection recommendation only; do not infer plan/billing consequences until UI reviewed. Leave other required fields and Continue untouched pending further review.
+- Before ever joining the host, review any NetBird default access policy, restrict administrative peer access, and only later authorize SSH across the VPN with keys, retaining physical console fallback and inbound UFW deny. No WAN/router port opening, NetBird enrollment, Win7 customer-file/printer changes, Production deployment/merge, or D1 writes.
+- AP182_NETBIRD_PORTAL_ONBOARDING_VISIBLE=OWNER_SCREEN; AP182_ACCOUNT_ONBOARDING_COMPLETED=NO; AP182_BUSINESS_SELECTED=NOT_YET; AP182_TRENDOS_PEER_CONNECTED=NO_EVIDENCE; AP182_NEXT_OWNER_ACTION=SELECT_BUSINESS_ONLY_AND_SCREENSHOT.
