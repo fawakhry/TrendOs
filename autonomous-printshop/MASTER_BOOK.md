@@ -9063,3 +9063,11 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 - NEXT **one owner-run action**: `sudo apt-get update` in local terminal. This refreshes APT indexes and will attempt to validate NetBird's signed repository metadata via scoped keyring; inspect whether `https://pkgs.netbird.io/debian stable InRelease` succeeds and ensure NO GPG/NO_PUBKEY/EXPKEYSIG or other errors. Await screenshot before contemplating `netbird` package install. If signature failure, stop; never disable APT signature validation or use `trusted=yes` workaround.
 - No NetBird installed, connected, or enrolled. No SSH changes, UFW changes/port allowances, router forwarding, shop Windows 7/print drivers/customer files, D1 mutations, merges or Production deploy. Owner operates physical HOME iMac; assistant made GitHub documentation change only, not host actions. No screenshots, credentials, tokens or customer data stored.
 - AP173_NETBIRD_APT_SOURCE_ADDED=OWNER_SCREEN_NO_ERROR; AP173_APT_REPOSITORY_SIGNATURE=NOT_YET_VALIDATED; AP173_NETBIRD_INSTALLED=NO; AP173_NEXT_APT_UPDATE=AWAITING_OWNER; AP173_PRODUCTION_CHANGES=NONE.
+
+
+### AP-174 — NetBird APT index update confirmed (2026-10-12; owner terminal screenshot)
+- Owner executed `sudo apt-get update`; screenshot confirms `https://pkgs.netbird.io/debian stable InRelease` and `stable/main amd64 Packages` fetched and `Reading package lists... Done`. No signature errors visible. This does not mean NetBird was installed.
+
+### AP-175 — NetBird package available in APT (2026-10-12; owner terminal screenshot)
+- Owner ran `apt-cache policy netbird`. Visible version entries include 0.11.0 through 0.9.0, sourced from `https://pkgs.netbird.io/debian stable/main amd64 Packages` (priority 500). The screenshot shows the bottom of long output only; `Installed:` and `Candidate:` lines are NOT visible and cannot yet be verified. No installation, enrollment, UFW or SSH changes evidenced.
+- NEXT read-only owner check: `apt-cache policy netbird | head -n 12` to inspect installed status, candidate and source before installation. Await screenshot. No merge, production deployment, D1 or Windows 7 changes.
