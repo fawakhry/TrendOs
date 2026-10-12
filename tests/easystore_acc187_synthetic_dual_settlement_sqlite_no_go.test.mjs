@@ -46,7 +46,7 @@ const snapshot=()=>JSON.stringify(db.prepare(
 ).all());
 const totals=invoice=>db.prepare(
  'SELECT method, SUM(cents) AS cents FROM fake_settlement WHERE invoice_id=? GROUP BY method ORDER BY method'
-).all(invoice);
+).all(invoice).map(row=>({method:row.method,cents:Number(row.cents)}));
 const NO_AUTHORITY=Object.freeze({
  can_transfer_cash:false,can_credit_customer:false,real_refund_handler_exists:false,
  real_manager_verified:false,owner_amount_policy_approved:false,
