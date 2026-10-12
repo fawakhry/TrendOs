@@ -54,8 +54,13 @@ Legacy \`.github/workflows/easystore-a2-accounting-readonly-api-deploy.yml\` sti
 1. Before every step, compare GitHub candidate and EasyStore commits, PRs, and existing master book to avoid duplicates; verify relevant workflow was successful against the correct SHA.
 2. Work on a branch isolated from production. Change only reviewed source, unit/integration fixtures, no-deploy CI and documentation.
 3. Record failed tests and diagnosis; fix and rerun. Do not convert a failed historical run into a success.
-4. Append every implemented safe step and its actual proof (PR, merge SHA, CI id, tested scenarios) to \`TrendOS_MASTER_BOOK.md\`; advance ledger statuses only after real proof and rerun offline ledger checker.
+4. Append every implemented safe step and its actual proof (PR, merge SHA, CI id, tested scenarios) to \`accounting/MASTER_BOOK.md\` (canonical finance book after 2026-10-12; old TrendOS book retained as archive); advance ledger statuses only after real proof and rerun offline ledger checker.
 5. Leave owner-only tasks BLOCKED_OWNER_APPROVAL and G1–G5 OPEN until independently accepted. Never infer program completion equals authorization. On missing access, branch drift, test failure or uncertain semantics, STOP the dangerous operation and document the blocker; continue unrelated safe tasks.
 6. Scheduled checks can periodically resume the safe queue, but do not imply uninterrupted real-time programming or unconditional autonomy across every future run. GitHub Actions and each run's evidence remain the source of truth.
 
 **ACC-186 implementation result:** source ledger and guard tests/CI have been authored; outcomes need real Actions verification before being marked PASS. **Finance NO_GO.**
+
+
+### Canonical accounting book migration verified after ACC-193
+
+The owner explicitly requested that **accounting progress belongs in `accounting/MASTER_BOOK.md`**, not the general `TrendOS_MASTER_BOOK.md`. The dedicated accounting book includes a lossless evidence *index* for ACC183–193 with PR/merge SHA/CI and recorded failures, without deleting the historical general book. The machine ledger and ACC186 guard/CI are now pointed at the dedicated accounting book. Future accounting progress must be appended there first; update Issue #84 and JSON queue accordingly. NO_GO and owner gates remain unchanged.
