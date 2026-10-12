@@ -19,6 +19,9 @@ on:
       - 'tests/easystore_acc187_manufacturing_waste_cost_recovery_no_go.test.mjs'
       - 'tests/easystore_acc187_waste_cost_recovery_isolated_sqlite_no_go.test.mjs'
       - 'tests/easystore_acc187_legacy_waste_recovery_separation_source_no_go.test.py'
+      - 'scripts/easystore_acc187_manufacturing_cost_components_no_go.mjs'
+      - 'tests/easystore_acc187_manufacturing_cost_components_no_go.test.mjs'
+      - 'tests/easystore_acc187_manufacturing_components_isolated_sqlite_no_go.test.mjs'
       - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
   workflow_dispatch:
 permissions:
@@ -67,6 +70,12 @@ jobs:
           node --test tests/easystore_acc187_manufacturing_waste_cost_recovery_no_go.test.mjs
           node --experimental-sqlite --test tests/easystore_acc187_waste_cost_recovery_isolated_sqlite_no_go.test.mjs
           python3 tests/easystore_acc187_legacy_waste_recovery_separation_source_no_go.test.py
+          node --check scripts/easystore_acc187_manufacturing_cost_components_no_go.mjs
+          node --test tests/easystore_acc187_manufacturing_cost_components_no_go.test.mjs
+          node --experimental-sqlite --test tests/easystore_acc187_manufacturing_components_isolated_sqlite_no_go.test.mjs
+          echo 'ACC187_OWNER_MFG_COST_COMPONENTS=MATERIALS_PLUS_DIRECT_LABOR_PLUS_ALLOCATED_OVERHEAD'
+          echo 'ACC187_OVERHEAD_ALLOCATION_DRIVER_AND_LABOR_UNIT_COST=OWNER_DETAIL_PENDING'
+          echo 'ACC187_REAL_MANUFACTURING_COST_OR_WASTE_LEDGER_POSTING=NOT_IMPLEMENTED'
           echo 'ACC187_LEGACY_WASTE_RECOVERED_FIELD=NOT_SEPARATE_MANAGER_APPROVED_RECOVERY'
           echo 'ACC187_OWNER_GROSS_DAMAGED_WASTE=VERIFIED_ACTUAL_MANUFACTURING_COST_NOT_SALE_PRICE'
           echo 'ACC187_OWNER_SUPPLIER_OR_RESPONSIBLE_PARTY_RECOVERY=SEPARATE_MANAGER_APPROVAL_AND_SEPARATE_RECORD'
