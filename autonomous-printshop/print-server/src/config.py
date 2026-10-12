@@ -75,6 +75,7 @@ DEFAULT_CONFIG = {
         "pollScreens": ["service", "print", "laser", "press"],
         "startStatuses": ["بدأ التنفيذ", "تحت التنفيذ"],
         "claimMode": "human_status_transition_read_bridge",
+        "observeOnly": True,  # AP-279: no automatic local order-folder writes by default
     },
 }
 
