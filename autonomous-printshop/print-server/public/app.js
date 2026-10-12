@@ -17,7 +17,13 @@ async function api(path, options, timeoutMs=20000){
     if(timer) clearTimeout(timer);
   }
 }
-function post(path, body){return api(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})},20000);}
+function post(path, body, timeoutMs=20000){
+  // Operator enters an ephemeral secret in the password field; no browser storage.
+  const token = $('localWriteToken')?.value || '';
+  return api(path,{method:'POST',headers:{
+    'Content-Type':'application/json','X-TrendOS-Write-Token':token
+  },body:JSON.stringify(body||{})},timeoutMs);
+}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
 function treeHtml(order){
   const routes = order?.routes || {}; const root = {};
@@ -148,11 +154,7 @@ async function chooseOrdersRoot(){
   btn.disabled=true; btn.textContent='اختر الفولدر...';
   $('storageMsg').textContent='هيظهر اختيار الفولدر على ويندوز.';
   try{
-    const res=await api('/api/settings/orders-root/select',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:'{}'
-    },300000);
+    const res=await post('/api/settings/orders-root/select',{},300000);
     if(res.cancelled){
       $('storageMsg').textContent='تم إلغاء اختيار الفولدر.';
       return;
@@ -210,6 +212,8 @@ async function refresh(){
     const p=status.preview||{}; $('previewCapabilities').textContent=`TIF ${p.tiff?'✓':'✕'} • DXF ${p.dxf?'✓':'✕'} • الصور ✓`;
     renderPlatform(status);
     renderStorage(status);
+    $('localWriteMode').textContent=status.localWriteAccess === 'TOKEN_GATED'
+      ? 'عمليات الكتابة متاحة فقط برمز التفويض المحلي' : 'عمليات الكتابة مقفولة في السيرفر';
   }catch(e){
     $('connectionStatus').textContent='● السيرفر المحلي غير متاح';
     $('connectionStatus').style.color='#b42318';
