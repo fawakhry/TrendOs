@@ -5,6 +5,7 @@ on:
       - '.github/workflows/easystore-acc187-owner-dual-refund-source-no-go.yml'
       - 'scripts/easystore_acc187_owner_refund_method_contract_no_go.mjs'
       - 'tests/easystore_acc187_owner_refund_method_contract_no_go.test.mjs'
+      - 'tests/easystore_acc187_personalized_eligibility_no_go.test.mjs'
       - 'tests/easystore_acc187_sale_refund_gap_purchase_reversal_sqlite.test.mjs'
       - 'tests/easystore_acc198_shared_ledger_refund_stop_sqlite.test.mjs'
       - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
@@ -33,6 +34,8 @@ jobs:
           test -z "$CLOUDFLARE_ACCOUNT_ID"
           node --check scripts/easystore_acc187_owner_refund_method_contract_no_go.mjs
           node --test tests/easystore_acc187_owner_refund_method_contract_no_go.test.mjs
+          node --test tests/easystore_acc187_personalized_eligibility_no_go.test.mjs
+          echo 'ACC187_PERSONALIZED_ONLY_VERIFIED_DEFECT_OR_TREND_MALL_ERROR=OWNER_POLICY'
           echo 'ACC187_OWNER_METHOD_DECISION=DUAL_WITH_PER_CASE_MANAGEMENT_APPROVAL'
           echo 'ACC187_OWNER_OTHER_REFUND_RULES=UNDECIDED'
           echo 'ACC187_REAL_REFUND_OR_CREDIT_POST=NOT_EXECUTED'
