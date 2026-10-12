@@ -1,0 +1,46 @@
+name: AP-279 Print Server Shadow Bridge — Hosted Synthetic Qualification
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/print-server/src/config.py'
+      - 'autonomous-printshop/print-server/src/platform_bridge.py'
+      - 'autonomous-printshop/print-server/tests/test_ap276_operational_flow_synthetic.py'
+      - 'autonomous-printshop/print-server/tests/test_ap279_bridge_shadow_synthetic.py'
+      - '.github/workflows/autonomous-printshop-ap279-bridge-shadow-ci.yml'
+  pull_request:
+    paths:
+      - 'autonomous-printshop/print-server/src/config.py'
+      - 'autonomous-printshop/print-server/src/platform_bridge.py'
+      - 'autonomous-printshop/print-server/tests/test_ap276_operational_flow_synthetic.py'
+      - 'autonomous-printshop/print-server/tests/test_ap279_bridge_shadow_synthetic.py'
+      - '.github/workflows/autonomous-printshop-ap279-bridge-shadow-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fake-shadow-lineage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    defaults:
+      run:
+        working-directory: autonomous-printshop/print-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Shadow-only bridge and all earlier operational security regressions
+        run: |
+          python -B -m unittest discover -s tests -p 'test_ap279_bridge_shadow_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap278_path_guard_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap277_write_guard_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap276_operational_flow_synthetic.py' -v
+          echo 'AP279_HOSTED_SHADOW_SYNTHETIC=PASS'
+          echo 'AP279_PRODUCTION_CLOUD=OFF'
+          echo 'AP279_CUSTOMERS_PRINTERS_OWNER_UBUNTU=NOT_TOUCHED'
+          echo 'AP279_LIVE_READ_ADAPTER=NOT_QUALIFIED'
