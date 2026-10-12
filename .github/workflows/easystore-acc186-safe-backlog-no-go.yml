@@ -10,6 +10,7 @@ on:
       - 'docs/trendos/staging/ACC186_ACCOUNTING_SAFE_EXECUTION_LEDGER_20261012.json'
       - 'scripts/easystore_acc186_backlog_fail_closed.py'
       - 'tests/easystore_acc186_backlog_fail_closed.test.py'
+      - 'TRENDOS_ACCOUNTING_EXECUTION_LEDGER_2026-09-05.md'
   pull_request:
     branches:
       - candidate/easystore-accounting-a2-20261005
@@ -24,6 +25,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: fawakhry/EasyStore
+          ref: 7857b61274d934a40fb90d6c9e8f46c22b8725e2
+          path: _canonical_easy_book
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
@@ -44,7 +51,7 @@ jobs:
           python3 tests/easystore_acc188_a210_no_bot_push.test.py
           python3 scripts/easystore_acc186_backlog_fail_closed.py \
             --manifest docs/trendos/staging/ACC186_ACCOUNTING_SAFE_EXECUTION_LEDGER_20261012.json \
-            --master-book TrendOS_MASTER_BOOK.md \
+            --master-book _canonical_easy_book/EASYSTORE_ACCOUNTING_MASTER_BOOK.md \
             --out artifacts/acc186-safe-queue-evidence-NO_GO.json
           python3 - <<'PY'
           import json
