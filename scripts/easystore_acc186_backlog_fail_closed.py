@@ -43,6 +43,21 @@ def demand(value, label):
 def validate(m, book):
     demand(isinstance(m, dict), "MANIFEST_NOT_OBJECT")
     demand(isinstance(book, str) and book, "MASTER_BOOK_MISSING")
+    source = m.get("sources", {})
+    expected_book = "fawakhry/EasyStore@candidate/easystore-zero-google-audit-20261004:EASYSTORE_ACCOUNTING_MASTER_BOOK.md"
+    demand(type(source) is dict and source.get("master_book") == expected_book,
+           "NONCANONICAL_BOOK_POINTER")
+    demand(source.get("canonical_accounting_book_ci_checkout_sha") ==
+           "7857b61274d934a40fb90d6c9e8f46c22b8725e2",
+           "UNPINNED_EASYSTORE_CANONICAL_BOOK")
+    demand(source.get("legacy_trendos_master_archive") == "TrendOS_MASTER_BOOK.md",
+           "MISSING_HISTORICAL_ACCOUNTING_ARCHIVE")
+    demand(book.startswith("# EasyStore Accounting Master Book") and
+           "single canonical accounting project book" in book and
+           "Accounting work MUST NOT be logged in" in book and
+           "## Entry ACC-145 " in book and
+           "### ACC-157 " in book,
+           "CANONICAL_EASYSTORE_BOOK_NOT_LOADED")
     demand(m.get("schema") == "ACC186_FINANCE_SAFE_BACKLOG_AND_EXECUTION_LEDGER_V1", "SCHEMA_DRIFT")
     demand(m.get("release_decision") == "NO_GO", "FINANCE_GO_NOT_AUTHORIZED")
     demand(type(m.get("production_mutations_this_stage")) is int and
