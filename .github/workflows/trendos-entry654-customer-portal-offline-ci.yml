@@ -1,0 +1,53 @@
+name: TrendOS Entry654 Customer Portal Native Foundation — OFF Source CI
+on:
+  push:
+    branches:
+      - test/zero-google-customer-portal-foundation-no-go-20261013
+    paths:
+      - 'cloudflare-d1/migrations/0032_customer_portal_identity_foundation_v1.sql'
+      - 'cloudflare-d1/src/customer-portal-native-readiness-v0.mjs'
+      - 'tests/entry654_customer_portal_identity_schema_sqlite.test.py'
+      - 'tests/entry654_customer_portal_native_readiness_v0.test.mjs'
+      - '.github/workflows/trendos-entry654-customer-portal-offline-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/migrations/0032_customer_portal_identity_foundation_v1.sql'
+      - 'cloudflare-d1/src/customer-portal-native-readiness-v0.mjs'
+      - 'tests/entry654_customer_portal_identity_schema_sqlite.test.py'
+      - 'tests/entry654_customer_portal_native_readiness_v0.test.mjs'
+      - '.github/workflows/trendos-entry654-customer-portal-offline-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify JS syntax and exact legacy customer actions
+        run: |
+          node --check cloudflare-d1/src/customer-portal-native-readiness-v0.mjs
+          node tests/entry654_customer_portal_native_readiness_v0.test.mjs
+      - name: In-memory SQLite constraint tests only
+        run: |
+          python3 tests/entry654_customer_portal_identity_schema_sqlite.test.py
+      - name: Verify native foundation is not wired to Production
+        run: |
+          set -euo pipefail
+          if grep -Fq "customer-portal-native-readiness-v0.mjs" cloudflare-d1/src/index_v2.js; then
+            echo 'Unexpected runtime integration'; exit 1;
+          fi
+          grep -q "'OFF', 1" cloudflare-d1/migrations/0032_customer_portal_identity_foundation_v1.sql
+          echo ENTRY654_NO_RUNTIME_ENDPOINT=YES
+          echo ENTRY654_NO_PRODUCTION_MIGRATION=YES
+          echo ENTRY654_NO_GOOGLE_CUSTOMER_IMPORT=YES
+          echo ENTRY654_NO_FINANCE_OR_STOCK_MUTATION=YES
+          echo ENTRY654_ZERO_GOOGLE_COMPLETE=NO
