@@ -48,7 +48,7 @@ def validate(m, book):
     demand(type(source) is dict and source.get("master_book") == expected_book,
            "NONCANONICAL_BOOK_POINTER")
     demand(source.get("canonical_accounting_book_ci_checkout_sha") ==
-           "7857b61274d934a40fb90d6c9e8f46c22b8725e2",
+           "57e59a8c6f9d8fa91af0bfb77c6cdeb3f3de056e",
            "UNPINNED_EASYSTORE_CANONICAL_BOOK")
     demand(source.get("legacy_trendos_master_archive") == "TrendOS_MASTER_BOOK.md",
            "MISSING_HISTORICAL_ACCOUNTING_ARCHIVE")
@@ -152,6 +152,10 @@ def validate(m, book):
                type(x.get("condition")) is str and bool(x["condition"]),
                "OWNER_GATE_BYPASSED_" + str(x.get("gate")))
     demand("### ACC-186 " in book, "ACC186_STAGE_NOT_IN_BOOK")
+    demand("### Entry ACC-194 —" in book and
+           "github.com/fawakhry/TrendOs/pull/104" in book and
+           "github.com/fawakhry/TrendOs/actions/runs/38191386170" in book,
+           "ACC194_CANONICAL_BOOK_EVIDENCE_MISSING")
     return {
         "schema": "ACC186_GITHUB_SAFE_WORK_QUEUE_STATIC_PROOF_V1",
         "historic_stages_verified_from_record": list(HISTORIC_PROOF),

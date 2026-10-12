@@ -15,6 +15,8 @@ assert (len(report["source_safe_stages_queued"]) +
         len(report["source_safe_stages_validated_complete"])) == 13
 assert "ACC-187" not in report["source_safe_stages_validated_complete"]
 assert "ACC-188" in report["source_safe_stages_validated_complete"]
+assert "ACC-194" in report["source_safe_stages_validated_complete"]
+assert "ACC-195" not in report["source_safe_stages_validated_complete"]
 assert "ACC-188" not in report["source_safe_stages_queued"]
 assert set(report["source_safe_stages_in_progress"]).issubset(set(m.REQUIRED_STAGES))
 assert set(report["source_safe_stages_in_progress"]).isdisjoint(set(report["source_safe_stages_validated_complete"]))
@@ -48,6 +50,13 @@ stop(lambda x: x["prohibited_work"].remove("D1_REMOTE_FINANCIAL_SQL"), "FORBIDDE
 stop(lambda x: x["allowed_work"].append("PRODUCTION_WORKER_OR_PAGES_DEPLOY"), "UNSAFE_ALLOWED_ACTION")
 stop(lambda x: x["complete_verified"][0]["evidence"].update(postmerge_run=1), "HISTORIC_GITHUB_EVIDENCE_CHANGED")
 stop(lambda x: x["safe_queue"][0].update(state="VERIFIED_COMPLETE"), "STAGE_FALSIFIED_COMPLETE")
+# GitHub-stage completion alone is insufficient if its canonical EasyStore entry is erased.
+try:
+    m.validate(original, book.replace("### Entry ACC-194 —", "### Missing ACC-194 —"))
+except m.BacklogStop as e:
+    assert "ACC194_CANONICAL_BOOK_EVIDENCE_MISSING" in str(e)
+else:
+    raise AssertionError("ACC194_CANONICAL_BOOK_OMISSION_ACCEPTED")
 # A later stage cannot be certified until its actual upstream stage is verified.
 def forge_downstream(x):
     task=x["safe_queue"][9]  # ACC-196 depends on still-unverified ACC-194/195
