@@ -38,16 +38,19 @@ def record():
     }
 
 
-def call(p=None, r=None, j=None, **overrides):
+_MISSING = object()
+
+
+def call(p=_MISSING, r=_MISSING, j=_MISSING, **overrides):
     options = {
         "expected_commit": PIN,
         "expected_catalog_digest": m["catalog_digest"](),
     }
     options.update(overrides)
     return check(
-        plan() if p is None else p,
-        review() if r is None else r,
-        record() if j is None else j,
+        plan() if p is _MISSING else p,
+        review() if r is _MISSING else r,
+        record() if j is _MISSING else j,
         **options,
     )
 
