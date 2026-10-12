@@ -233,7 +233,7 @@
       "id": "ACC-194",
       "gate": "G5",
       "title": "نسخ/استرجاع صناعي موسع لقاعدة D1",
-      "state": "QUEUED_UNVERIFIED",
+      "state": "IN_PROGRESS_UNVERIFIED",
       "depends_on": [
         "ACC-180",
         "ACC-193"
