@@ -1,0 +1,33 @@
+name: AP-238 Offline Source Integrity — Hosted Synthetic CI
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/local_executor/offline_integrity_check.py'
+      - 'autonomous-printshop/local_executor/AP238_SOURCE_MANIFEST.json'
+      - 'autonomous-printshop/local_executor/AP238_OFFLINE_INTEGRITY_RUNBOOK.md'
+      - 'autonomous-printshop/tests/test_ap238_offline_integrity_check.py'
+      - '.github/workflows/autonomous-printshop-ap238-offline-integrity-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  fixed-offline-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Source-byte hash checks and synthetic adversarial tests only
+        run: |
+          python -B -m py_compile autonomous-printshop/local_executor/offline_integrity_check.py
+          python -B autonomous-printshop/tests/test_ap238_offline_integrity_check.py
+          echo 'AP238_SOURCE_HASHES_SYNTHETIC=PASS'
+          echo 'AP238_OWNER_HOST_CHECK=NOT_RUN'
+          echo 'AP238_EXECUTOR=OFF'
+          echo 'AP238_NETBIRD_SSH_PRODUCTION_D1=UNCHANGED'

@@ -1,0 +1,26 @@
+{
+  "schema": "trendos.offline-source-bundle.v1",
+  "source_snapshot_commit": "3ee1f5b0a01102f53b8f56a355921ea1808616ac",
+  "entries": {
+    "authorization_contract.py": {
+      "sha256": "b0077bef2057fd413d64832c291bbcdcf9bd1463d89ff6a6f6212301eda02389",
+      "bytes": 6167
+    },
+    "offline_canary.py": {
+      "sha256": "6d755bfc60d06515f98f1e0c15cc41369f8e665e6e437080cf8589702b916071",
+      "bytes": 4453
+    },
+    "policy.py": {
+      "sha256": "fc2d9cc1f649f5ad777af6b43a1564f462548040f5e11aa6f6c50dfa51c473ef",
+      "bytes": 2855
+    },
+    "receipt_journal.py": {
+      "sha256": "8f8a7edef2276c424a62de0757e3152b4d13e80b994393b6152aa69795ddfba3",
+      "bytes": 6675
+    },
+    "trust_boundary.py": {
+      "sha256": "99ac29cdaf41eb3c167602d3de7864ba0a8a5350a2ec4268a70e8d086d92fc00",
+      "bytes": 5839
+    }
+  }
+}
