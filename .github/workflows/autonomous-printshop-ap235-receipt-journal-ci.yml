@@ -1,0 +1,32 @@
+name: AP-235 Receipt Journal — Hosted Synthetic CI
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/local_executor/receipt_journal.py'
+      - 'autonomous-printshop/local_executor/AP235_SYNTHETIC_RECEIPT_JOURNAL.md'
+      - 'autonomous-printshop/tests/test_ap235_receipt_journal.py'
+      - '.github/workflows/autonomous-printshop-ap235-receipt-journal-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  sqlite-synthetic-review-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax and adversarial synthetic SQLite receipt tests
+        run: |
+          python -B -m py_compile autonomous-printshop/local_executor/receipt_journal.py
+          python -B autonomous-printshop/tests/test_ap235_receipt_journal.py
+          echo 'AP235_SYNTHETIC_SQLITE_REPLAY_TESTS=PASS'
+          echo 'AP235_HOST_EXECUTOR=OFF'
+          echo 'AP235_UBUNTU_CONNECTION=NONE'
+          echo 'AP235_REAL_OWNER_AUTH=NOT_IMPLEMENTED'
