@@ -11,7 +11,7 @@ assert.equal(safe.sso_origin_opener_nonce_freshness_replay_guards,true);
 function checkMutation(which,from,to,code){
  const altered=originals.slice();
  assert.ok(altered[which].includes(from),'upstream baseline changed');
- altered[which]=altered[which].replace(from,to);
+ altered[which]=from==='ES47 V1922 Unified Safe Build' ? altered[which].split(from).join(to) : altered[which].replace(from,to);
  assert.throws(()=>inspect(...altered),e=>e instanceof BootStop&&e.message.includes(code));
 }
 checkMutation(1,"WRITE_MODE = 'OFF'","WRITE_MODE = 'GENERAL'",'CONFIG_MODE_OFF');
