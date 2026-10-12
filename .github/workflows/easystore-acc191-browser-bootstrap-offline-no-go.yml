@@ -1,0 +1,78 @@
+name: ACC-191 Pinned EasyStore Bootstrap + SSO + Finance OFF Source CI
+on:
+  push:
+    branches:
+      - test/acc191-easystore-boot-sso-offline-20261012
+      - candidate/easystore-accounting-a2-20261005
+    paths:
+      - '.github/workflows/easystore-acc191-browser-bootstrap-offline-no-go.yml'
+      - 'scripts/easystore_acc191_boot_source.mjs'
+      - 'tests/easystore_acc191_boot_source.test.mjs'
+  pull_request:
+    branches:
+      - candidate/easystore-accounting-a2-20261005
+permissions:
+  contents: read
+jobs:
+  pinned-source-ui-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: fawakhry/EasyStore
+          ref: 373d06381594e3ab32a55009fcc74907b1c37c9c
+          path: isolated-easystore-source
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Assert pinned bootstrap and immutable finance OFF in source only
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          node --check scripts/easystore_acc191_boot_source.mjs
+          node tests/easystore_acc191_boot_source.test.mjs isolated-easystore-source
+          node scripts/easystore_acc191_boot_source.mjs isolated-easystore-source artifacts/acc191-frontend-boot-source-NO_GO.json
+          node scripts/easystore_acc185_pilot_off_contract.mjs isolated-easystore-source
+          node tests/easystore_acc185_ui_worker_contract.test.mjs
+          node scripts/easystore_acc185_ui_worker_contract.mjs isolated-easystore-source artifacts/acc191-cross-repo-G4-NO_GO.json .
+      - name: Execute existing original UI tests in disposable pinned source checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/easystore_acc185_isolated_legacy_test_adapter.test.py
+          python3 scripts/easystore_acc185_isolated_legacy_test_adapter.py isolated-easystore-source
+          cd isolated-easystore-source
+          node tests/accounting_day_close_v1920.test.js
+          node tests/accounting_automation_v1921.test.js
+          node tests/customer_accounts_v1915.test.js
+          node tests/customer_accounts_ui_v1915.test.js
+          node tests/department_accounting_scope_v1918.test.js
+          node tests/dept_daily_purchases_v1917.test.js
+          node tests/dept_daily_purchases_ui_v1917.test.js
+      - name: Confirm synthetic-only no-go release decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const r=require('./artifacts/acc191-frontend-boot-source-NO_GO.json');if(r.release_decision!=='NO_GO'||r.production_network_calls!==0||r.real_sessions_verified!==false)process.exit(1)"
+          echo 'ACC191_EASYSTORE_ACTUAL_PAGES_AND_SSO=NOT_TESTED'
+          echo 'ACC191_FINANCE_RELEASE_DECISION=NO_GO'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: acc191-pinned-offline-bootstrap-no-go
+          path: |
+            artifacts/acc191-frontend-boot-source-NO_GO.json
+            artifacts/acc191-cross-repo-G4-NO_GO.json
+          retention-days: 14

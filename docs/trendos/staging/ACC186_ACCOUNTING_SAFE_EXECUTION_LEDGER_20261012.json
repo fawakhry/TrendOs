@@ -145,7 +145,7 @@
       "id": "ACC-190",
       "gate": "G2",
       "title": "صلاحيات وأدوار وهمية مستقلة",
-      "state": "IN_PROGRESS_UNVERIFIED",
+      "state": "VERIFIED_COMPLETE",
       "depends_on": [
         "ACC-185"
       ],
@@ -158,15 +158,15 @@
       ],
       "deployment_allowed": false,
       "owner_approval_needed_for_this_safe_scope": false,
-      "pr": null,
-      "ci_run": null,
-      "verified_at": null
+      "pr": 98,
+      "ci_run": 38186756589,
+      "verified_at": "2026-10-12"
     },
     {
       "id": "ACC-191",
       "gate": "G4",
       "title": "واجهة EasyStore والإقلاع والتدفق",
-      "state": "QUEUED_UNVERIFIED",
+      "state": "IN_PROGRESS_UNVERIFIED",
       "depends_on": [
         "ACC-185"
       ],
