@@ -5,9 +5,8 @@ customer/order GETs, production writes, raw-body logs, or Google requests.
 """
 import json
 import re
+import subprocess
 import sys
-from urllib.request import Request, build_opener, HTTPRedirectHandler
-from urllib.error import HTTPError, URLError
 
 BASE = "https://trendos-d1-api.trendmall-contact.workers.dev"
 FRONT = "https://trendos-ui.trendmall-contact.workers.dev/config.js"
@@ -26,25 +25,31 @@ MODES = {"auth": "NATIVE", "ops": "GENERAL", "core": "GENERAL",
          "accounting": "READONLY", "customers": "GENERAL"}
 
 
-class RefuseRedirects(HTTPRedirectHandler):
-    def redirect_request(self, request, fp, code, msg, headers, newurl):
-        return None
+class PublicHealthHttpError(Exception):
+    def __init__(self, status):
+        super().__init__("public GET failed")
+        self.status = status
 
 
 def get_public(path_or_url):
     url = path_or_url if path_or_url == FRONT else BASE + path_or_url
     if url != FRONT and not url.startswith(BASE + "/v1/"):
         raise ValueError("host/path not allowlisted")
-    opener = build_opener(RefuseRedirects)
-    req = Request(url, headers={"Accept": "application/json,text/plain"}, method="GET")
-    with opener.open(req, timeout=12) as response:
-        if response.status != 200:
-            raise ValueError("non-200")
-        data = response.read(65537)
-        if len(data) > 65536:
-            raise ValueError("oversized response")
-    return data.decode("utf-8")
-
+    # Curl matches the transport already used by historical CI qualification.
+    # No redirects, only HTTPS, GET, bounded size/time; no credentials or body logs.
+    cmd = ["curl", "--silent", "--show-error", "--max-time", "12",
+           "--max-redirs", "0", "--proto", "=https", "--request", "GET",
+           "--max-filesize", "65536", "--write-out", "\\nENTRY656_HTTP_STATUS:%{http_code}", url]
+    done = subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=False)
+    if "ENTRY656_HTTP_STATUS:" not in done.stdout:
+        raise ValueError("public GET transport failed")
+    payload, status = done.stdout.rsplit("\\nENTRY656_HTTP_STATUS:", 1)
+    status = status.strip()
+    if done.returncode != 0 or status != "200":
+        raise PublicHealthHttpError(status if status.isdigit() else "UNKNOWN")
+    if len(payload.encode("utf-8")) > 65536:
+        raise ValueError("oversized response")
+    return payload
 
 def assess(snapshots, frontend):
     reasons = []
@@ -102,23 +107,17 @@ def main():
             if not isinstance(snapshots[name], dict):
                 snapshots[name] = {}
                 blockers.append(name + ":INVALID_JSON_OBJECT")
-        except HTTPError as err:
+        except PublicHealthHttpError as err:
             snapshots[name] = {}
-            blockers.append(name + ":HTTP_" + str(err.code))
-        except URLError as err:
-            snapshots[name] = {}
-            blockers.append(name + ":NETWORK_" + type(err.reason).__name__)
+            blockers.append(name + ":HTTP_" + str(err.status))
         except Exception:
             snapshots[name] = {}
             blockers.append(name + ":PUBLIC_GET_UNAVAILABLE")
     try:
         frontend = get_public(FRONT)
-    except HTTPError as err:
+    except PublicHealthHttpError as err:
         frontend = ""
-        blockers.append("frontend:HTTP_" + str(err.code))
-    except URLError as err:
-        frontend = ""
-        blockers.append("frontend:NETWORK_" + type(err.reason).__name__)
+        blockers.append("frontend:HTTP_" + str(err.status))
     except Exception:
         frontend = ""
         blockers.append("frontend:PUBLIC_GET_UNAVAILABLE")
