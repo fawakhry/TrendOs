@@ -9071,3 +9071,11 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 ### AP-175 — NetBird package available in APT (2026-10-12; owner terminal screenshot)
 - Owner ran `apt-cache policy netbird`. Visible version entries include 0.11.0 through 0.9.0, sourced from `https://pkgs.netbird.io/debian stable/main amd64 Packages` (priority 500). The screenshot shows the bottom of long output only; `Installed:` and `Candidate:` lines are NOT visible and cannot yet be verified. No installation, enrollment, UFW or SSH changes evidenced.
 - NEXT read-only owner check: `apt-cache policy netbird | head -n 12` to inspect installed status, candidate and source before installation. Await screenshot. No merge, production deployment, D1 or Windows 7 changes.
+
+
+### AP-176 — NetBird APT candidate version verified; dry-run install pending (2026-10-12; owner local screenshot)
+
+- Owner executed `apt-cache policy netbird | head -n 12` on local Ubuntu iMac `TrendosShop`. Screenshot clearly shows `netbird:`, **`Installed: (none)`**, **`Candidate: 0.80.0`**, and `0.80.0 500` from **`https://pkgs.netbird.io/debian stable/main amd64 Packages`** (also 0.79.0 and earlier versions visible). This confirms APT sees official signed-repository candidate version 0.80.0 and the NetBird package is NOT installed. It does not confirm package installation effects, service state, network access or VPN enrollment.
+- NEXT EXACTLY ONE OWNER-RUN READ-ONLY SIMULATION: `apt-get -s install netbird`. Inspect full simulation for new packages, removals, upgrades or unexpected dependencies before separately authorizing actual install. No execution of package changes at this stage. Wait for terminal screenshot. If a surprising transaction appears, stop.
+- Safety posture unchanged: UFW last confirmed active/default deny incoming, IPv6 configured, ssh.socket TCP/22 listening on IPv4/IPv6; no incoming UFW allow rules added. No NetBird enrollment/connection, no SSH config change, no router forwarding or Win7/printshop/customer files touched; no D1/Production deployment or branch merges. Screenshot supplied by owner; assistant did not execute commands on host. No credentials or raw images committed.
+- AP176_NETBIRD_INSTALLED=NONE_OWNER_SCREEN; AP176_CANDIDATE=0.80.0_OWNER_SCREEN; AP176_ORIGIN=NETBIRD_APT_AMD64_OWNER_SCREEN; AP176_INSTALL_SIMULATION=REQUESTED_NOT_RUN; AP176_PRODUCTION_CHANGES=NONE.
