@@ -57,8 +57,12 @@ try{
   assert.equal(legacy.c,2);
   assert.equal(legacy.v,185);
   assert.equal(db.prepare('SELECT mode FROM employee_accounting_control_v1 WHERE singleton=1').get().mode,'OFF');
-  const budget=db.prepare('SELECT enabled,max_commands,commands_started FROM employee_accounting_write_canary_v1 WHERE singleton=1').get();
-  assert.equal(budget.enabled,0);
+  const budget=db.prepare('SELECT enabled,allowed_usernames_json,allowed_actions_json,max_amount,expires_at_ms,max_commands,commands_started FROM employee_accounting_write_canary_v1 WHERE singleton=1').get();
+  assert.equal(budget.enabled,1,'enabled=1 is the default active deny-all canary GUARD, not permission');
+  assert.equal(budget.allowed_usernames_json,'[]');
+  assert.equal(budget.allowed_actions_json,'[]');
+  assert.equal(budget.max_amount,0);
+  assert.equal(budget.expires_at_ms,0);
   assert.equal(budget.max_commands,0);
   assert.equal(budget.commands_started,0);
   console.log('ACC193_FRESH_ACCOUNTING_TABLES_NO_TRANSACTIONS=PASS');
