@@ -12,7 +12,7 @@
     "last_closeout": "docs/trendos/staging/ACC164_ACCOUNTING_FINAL_CLOSEOUT_GATES_20261010.md",
     "legacy_trendos_master_archive": "TrendOS_MASTER_BOOK.md",
     "trendos_accounting_legacy_execution_ledger": "TRENDOS_ACCOUNTING_EXECUTION_LEDGER_2026-09-05.md",
-    "canonical_accounting_book_ci_checkout_sha": "7857b61274d934a40fb90d6c9e8f46c22b8725e2"
+    "canonical_accounting_book_ci_checkout_sha": "57e59a8c6f9d8fa91af0bfb77c6cdeb3f3de056e"
   },
   "source_state_only": {
     "frontend_last_reported": "OFF",
@@ -233,7 +233,7 @@
       "id": "ACC-194",
       "gate": "G5",
       "title": "نسخ/استرجاع صناعي موسع لقاعدة D1",
-      "state": "IN_PROGRESS_UNVERIFIED",
+      "state": "VERIFIED_COMPLETE",
       "depends_on": [
         "ACC-180",
         "ACC-193"
@@ -247,9 +247,9 @@
       ],
       "deployment_allowed": false,
       "owner_approval_needed_for_this_safe_scope": false,
-      "pr": null,
-      "ci_run": null,
-      "verified_at": null
+      "pr": 104,
+      "ci_run": 38191386170,
+      "verified_at": "2026-10-12"
     },
     {
       "id": "ACC-195",
