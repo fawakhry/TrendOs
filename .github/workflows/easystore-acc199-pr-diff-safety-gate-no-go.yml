@@ -1,0 +1,44 @@
+name: ACC199 Strict PR Source Diff Safety Gate — NO_GO
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/easystore-acc199-pr-diff-safety-gate-no-go.yml'
+      - 'scripts/easystore_acc199_pr_diff_safety_gate_no_go.py'
+      - 'tests/easystore_acc199_pr_diff_safety_gate_no_go.test.py'
+      - 'docs/trendos/staging/ACC199_SOURCE_ONLY_PR_CHAIN_REVIEW_NO_GO_20261012.md'
+permissions:
+  contents: read
+jobs:
+  source-only-diff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Adversarial local source and legacy deploy safety regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          python3 tests/easystore_acc199_pr_diff_safety_gate_no_go.test.py
+      - name: Compare EXACT PR HEAD with EXACT BASE SHA — no merge or deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/easystore_acc199_pr_diff_safety_gate_no_go.py --base-sha "$PR_BASE_SHA" --head-sha "$PR_HEAD_SHA"
+          echo 'ACC199_PR_DIFF_CHECK=ONLY_SOURCE_PATHS_EXACT_SHA'
+          echo 'ACC199_MERGE_AND_PRODUCTION_AUTHORITY=NONE'
+          echo 'G1_G2_G3_G4_G5=OPEN'
+          echo 'FINANCE_RELEASE=NO_GO'
