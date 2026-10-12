@@ -1,0 +1,32 @@
+name: AP-249 Firefox Offline UI Launcher — Hosted Mock-Only CI
+
+on:
+  push:
+    branches:
+      - feature/ap155-imac-ssh-service-absent-owner-install-20261012
+    paths:
+      - 'autonomous-printshop/print-server/open_offline_ui.py'
+      - 'autonomous-printshop/print-server/tests/test_open_offline_ui.py'
+      - '.github/workflows/autonomous-printshop-ap249-firefox-launcher-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mocked-firefox-launch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: AP-249 no real Firefox, pilot, print service, customer or cloud access
+        working-directory: autonomous-printshop/print-server
+        run: |
+          python -B -m unittest discover -s tests -p 'test_open_offline_ui.py' -v
+          echo 'AP249_GITHUB_HOSTED_MOCK_TESTS=PASS'
+          echo 'AP249_UBUNTU_OWNER_RUN=NOT_EXECUTED'
+          echo 'AP249_REMOTE_EXECUTOR=NOT_ESTABLISHED'
+          echo 'AP249_PRODUCTION=OFF'
