@@ -26,7 +26,9 @@ DANGEROUS_WORKFLOW = (
     (re.compile(r"\bwrangler\s+(?:deploy|rollback|d1\s+execute)\b", re.I), "WRANGLER_REMOTE_OR_DEPLOY_COMMAND"),
     (re.compile(r"\bd1\s+execute\b.*--remote", re.I), "REMOTE_D1_COMMAND"),
     (re.compile(r"\b(?:npm|pnpm|yarn)\s+(?:run\s+)?deploy\b", re.I), "DEPLOY_SCRIPT"),
-    (re.compile(r"(?m)^\s*workflow_run\s*:", re.I), "CHAINED_WORKFLOW_TRIGGER"),
+    (re.compile(r"(?m)^\s*(?:workflow_run|pull_request_target|repository_dispatch|workflow_dispatch|schedule)\s*:", re.I), "UNTRUSTED_OR_NON_PR_WORKFLOW_TRIGGER"),
+    (re.compile(r"(?m)^\s*(?:contents|actions|pull-requests|id-token|deployments|issues|workflows)\s*:\s*write\s*$", re.I), "ELEVATED_GITHUB_JOB_PERMISSION"),
+    (re.compile(r"(?m)^\s*environment\s*:\s*(?:production|prod)\s*$", re.I), "PRODUCTION_ENVIRONMENT"),
     (re.compile(r"\b(?:git\s+push|git\s+merge)\b", re.I), "GIT_MUTATION_COMMAND"),
     (re.compile(r"\b(?:curl|wget)\b[^\n]*(?:https?://|--data|-[dX]\s*POST)", re.I), "NETWORK_POST_OR_FETCH"),
     (re.compile(r"\bcloudflare/(?:wrangler-action|pages-action)\b", re.I), "CLOUDFLARE_ACTION"),
@@ -65,6 +67,10 @@ def inspect_workflow_content(path: str, content: str) -> list[str]:
     # Read-only permissions are enforced independently of the workflow title.
     if not re.search(r"(?m)^permissions:\s*\n\s+contents:\s*read\s*$", content):
         violations.append(f"READONLY_PERMISSIONS_NOT_DECLARED:{path}")
+    if not re.search(r"(?m)^on:\s*\n\s{2}pull_request\s*:", content):
+        violations.append(f"ONLY_EXPLICIT_PULL_REQUEST_TRIGGER_ALLOWED:{path}")
+    if not re.search(r"persist-credentials:\s*false\b", content):
+        violations.append(f"CHECKOUT_CREDENTIAL_PERSISTENCE_NOT_DISABLED:{path}")
     for regex, marker in DANGEROUS_WORKFLOW:
         if regex.search(content):
             violations.append(f"{marker}:{path}")
