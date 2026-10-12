@@ -22,5 +22,10 @@ Scope:
 Not authorized: automatic linking by name/phone, importing legacy historical orders, enabling customer order GET, inferring customer ownership from `external_customer_id`, or modifying any business data. No source in this PR grants actual customer-order READ.
 G-CUST-3 remains OPEN. `ZERO_GOOGLE_COMPLETE=NO`.
 
-## RESULT
-PENDING exact-head source CI.
+## RESULT — SOURCE ONLY CI PASS / CUSTOMER ORDER READ NO_GO
+
+- Code: schema `5c3e340629469657133fb33ed239b841d135204b`, redacted inspector `219cc5bd308a5fde26ba6990d992967b73d6ba8a`, SQLite tests `8022e043b9cd6cca98040386cce1ca9fa89df592`, Node tests `b67fe19a00737d47f18b56a2f6e123d300818624`, source-only workflow `0d26e6e0efcb7b06d7553119b72b7e1586587047`, canonical book checkpoint `a03715712a1b8b84b234dc20f542444eee04313c`.
+- [Source-only exact code CI #38313885038](https://github.com/fawakhry/TrendOs/actions/runs/38313885038) SUCCESS on commit `0d26e6e0efcb7b06d7553119b72b7e1586587047`. In-memory SQLite FKs, default-unverified ownership, proof-method checks; Node fake-D1 SELECT-only, legacy name-fallback nonreuse, privacy no-ID output, fake perfect-data NO_GO. No live DB or Apps Script used.
+- Master-book and follow-up docs commits advanced head: final exact PR-head test remains to be reconfirmed.
+- `SCHEMA_PRODUCTION_APPLIED=NO`; `CUSTOMER_ORDER_READ_ENABLED=NO`; `REAL_OWNER_EVIDENCE=NO`; `HISTORICAL_GOOGLE_ORDERS_MIGRATED=NO`; `ZERO_GOOGLE_COMPLETE=NO`.
+- Next gate: independently verified customer session + authoritative order-id ownership lineage; separately authorized controlled migration, canary/read-only proof and privacy/security review. Do not infer from matching name, phone, or raw externalCustomerId.
