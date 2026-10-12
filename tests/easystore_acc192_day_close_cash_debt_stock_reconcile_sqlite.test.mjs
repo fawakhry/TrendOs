@@ -207,7 +207,10 @@ try{
  assert.equal(report.report.profit,20);
  assert.equal(report.report.cash,25);
  assert.equal(report.report.credit,15);
- assert.equal(report.report.receipts,25);
+ const supplierReversalCash=one("SELECT SUM(amount) AS amount FROM employee_accounting_cashbox_v1 WHERE movement_type='PURCHASE_REVERSAL_RECEIPT'").amount;
+ assert.equal(Number(supplierReversalCash),20,'full purchase reversal really returned 20 fake cash');
+ assert.equal(report.report.receipts,Number(receipts)+Number(supplierReversalCash),
+   'report receipts include customer 25 plus supplier reversal refund 20, distinct from sales cash');
  const persisted=one("SELECT report_hash,report_json,integrity_status FROM employee_accounting_day_closes_v1 WHERE work_date=? AND department=?", '2099-12-31','طباعة');
  assert.equal(persisted.integrity_status,'PASS');
  assert.equal(persisted.report_hash,dayClose.reportHash);
