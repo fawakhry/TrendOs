@@ -99,3 +99,21 @@ test('empty qualified complete snapshot gives zero alerts', () => {
   assert.equal(r.summary.sourceLines, 0);
   assert.deepEqual(r.alerts, []);
 });
+
+
+test('supports unambiguous day/month/year and ignores cancelled aliases', () => {
+  const rows = [
+    { ...base, expectedDeliveryAt: '13/10/2026' },
+    { ...base, orderId: 'TM0002', lineId: 'TM0002-01', status: 'ملغي', expectedDeliveryAt: '2026-10-10' }
+  ];
+  const report = run(rows, '2026-10-14T15:00:00+03:00', 1);
+  assert.equal(report.summary.overdue, 1);
+  assert.equal(report.summary.activeLines, 1);
+  assert.equal(report.alerts.length, 1);
+});
+
+test('fails closed when reported page shape is altered', () => {
+  const list = pages([base]);
+  list[0].pagination.totalRows = 2;
+  rejects({ pages: list, asOf: '2026-10-14T14:00:00+03:00' }, 'PAGINATION_INVALID');
+});
