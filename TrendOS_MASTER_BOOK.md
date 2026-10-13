@@ -6780,3 +6780,11 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - الإصلاح في tests/order-watch-agent-v0.test.mjs فقط، commit 33975fb6ac4a4eb60ddf17505c50a216ca6c15a8: تعديل التوقع إلى INCOMPLETE_SNAPSHOT بدون أي تغيير في منطق التنفيذ.
 - إعادة الاختبار exact-head: run 38486609915 = SUCCESS (unit tests + synthetic-only CLI). A61 browser CI لم يصدر حكمه النهائي عند تسجيل هذا السطر؛ لا يُعتبر نجاحه مفترضًا.
 - الكتاب نفسه عند هذا التحديث سيغيّر HEAD، فيُعاد فحص exact-head GitHub CI قبل إغلاق المراجعة. لا بيانات حقيقية، ولا تشغيل تلقائي، ولا ترحيل أو نشر Production. NO_GO كما هو.
+
+
+### Entry ORDER-WATCH-BOOK 2026-10-14 — agent canonical book
+- المالك طلب تسليم برومبيت ChatGPT Work وتسجيل كل أعمال إيجنت متابعة الأوردرات داخل كتاب مستقل بالفرع الخاص به.
+- الكتاب الرسمي الجديد: `ORDER_WATCH_AGENT_BOOK.md` داخل `feature/order-watch-agent-ro-v0-20261014`. المرجع: https://github.com/fawakhry/TrendOs/blob/feature/order-watch-agent-ro-v0-20261014/ORDER_WATCH_AGENT_BOOK.md
+- يشمل خطوات الإنشاء والكود والاختبارات وCI الفاشل وإصلاحه ونجاح المصدر وأحكام الأمان وSTOP Gates وتعليمات Work وسجل استكمال append-only.
+- commit الكتاب: `4103cd98cbe5e36944b87f0e93a453e117b3d5fc`. لم يجرِ نشر أو دمج، وظلت صلاحيات الإيجنت OFF_SOURCE_ONLY وProduction NO_GO.
+- أي عمل لاحق على الإيجنت يُسجل أولًا في هذا الكتاب المستقل، مع إحالة مختصرة للكتاب الرئيسي. نتيجة CI للـHEAD الجديد يجب إعادة التحقق منها بعد آخر commit.
