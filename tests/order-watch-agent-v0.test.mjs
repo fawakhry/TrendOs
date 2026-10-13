@@ -115,5 +115,5 @@ test('supports unambiguous day/month/year and ignores cancelled aliases', () => 
 test('fails closed when reported page shape is altered', () => {
   const list = pages([base]);
   list[0].pagination.totalRows = 2;
-  rejects({ pages: list, asOf: '2026-10-14T14:00:00+03:00' }, 'PAGINATION_INVALID');
+  rejects({ pages: list, asOf: '2026-10-14T14:00:00+03:00' }, 'INCOMPLETE_SNAPSHOT');
 });
