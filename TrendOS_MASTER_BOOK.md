@@ -6755,3 +6755,15 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - الغرض: عمليات Accounting التي تدمج هذا shared base لاحقًا تحمل حماية customer+department بدل استبدالها بمصدر V1 قديم. سياسة Accounting READONLY37 محفوظة.
 - الحزمة الحية Accounting072bffff أعيد بناؤها byte-for-byte من merge-tree1e349332+0e3d35f0؛ overlay T12 وحده يعطي1d8fb904d48f2d48f2cfcc5b026dba94edddd094344a78af95e94f099d1ea52a ويحفظ Accounting/Core/Comms/Foundation.
 - سجل النشر والفحص الأخير يُحفظ على audit/t12-customer-lane-runtime-20261008؛ هذا commit هو حماية مصدر من reversion، وليس تنفيذ migration جديدة أو تغيير frontend تلقائيًا.
+
+
+### ORDER_WATCH_AGENT_V0_20261014 — Source-only monitoring pilot (NO_GO)
+- التاريخ: 2026-10-14 (Cairo). طلب المالك: تنفيذ أول Agent لمتابعة الأوردرات؛ تفضيل البناء الآمن في GitHub، ثم استخدام ChatGPT Work للتكامل والاختبار متعدد الأنظمة.
+- PREPARE: مراجعة مستودع TrendOS وقراءة مخطط GET /v1/edge/orders/02cr/page وحقول orderId/lineId/status/assignedTo/itemName/expectedDeliveryAt. المرجع: candidate/t12-full-cloud-cutover-a56-20260929. لا اتصال بـRuntime ولا D1.
+- فرع مستقل: feature/order-watch-agent-ro-v0-20261014 من shared candidate؛ NO MERGE / NO DEPLOY.
+- الملفات: cloudflare-d1/src/order-watch-agent-v0.mjs؛ tests/order-watch-agent-v0.test.mjs؛ tools/order-watch/run-offline.mjs؛ tests/fixtures/order-watch-v0.synthetic.json؛ .github/workflows/order-watch-agent-v0.yml؛ docs/trendos/staging/ORDER_WATCH_AGENT_V0_20261014.md.
+- وظائف V0: تحليل محلي فقط لصفحات قراءة مكتملة ومتطابقة الـversion/counts/dataVersion؛ تنبيه على الأوردرات المتأخرة أو التي بلا مسؤول أو بها نقص بيانات؛ Cairo calendar timezone؛ المخرجات تحتوي IDs وأكواد أسباب فقط ولا تنشر بيانات العملاء.
+- دليل Source commits: 4e729d18 (engine)، 6f64862d (unit tests)، c98cc385 (offline CLI)، 0b9fbf91 (handoff)، 54b4b80 (synthetic fixture)، fbb7ec03 (CI).
+- ممنوع اعتبار هذا Agent مفعلًا: لا استدعاء API، لا schedule، لا Worker route/import، لا إرسال واتساب، لا تعديل أوردرات أو موظفين أو حسابات، لا وصول لبيانات حقيقية. لا نمثل OFFLINE CI باعتباره فحص Production. اختبار Node/CI وحالة PR سيتم تسجيلهما بعد إجرائهما.
+- STOP GATES: فحص Runtime read-only حديث؛ ضمان consistent snapshot عبر الصفحات؛ auth scope والتحقق من freshness؛ فحص مؤشرات موعد التسليم في native orders؛ مراجعة أمنية مستقلة؛ موافقة نشر تجريبي. NO_GO حتى يتم إغلاقها بالدليل.
+- الاسترجاع: ترك الـDraft بلا دمج يكفي؛ لا تغييرات Production استدعت rollback.
