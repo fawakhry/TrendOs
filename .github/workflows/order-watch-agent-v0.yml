@@ -1,0 +1,29 @@
+name: Order Watch Agent V0 — source-only synthetic tests
+on:
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/order-watch-agent-v0.mjs'
+      - 'tests/order-watch-agent-v0.test.mjs'
+      - 'tools/order-watch/run-offline.mjs'
+      - 'tests/fixtures/order-watch-v0.synthetic.json'
+      - '.github/workflows/order-watch-agent-v0.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-offline-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test deterministic offline rule engine
+        run: node --test tests/order-watch-agent-v0.test.mjs
+      - name: Exercise disabled-by-default local CLI on synthetic fixture
+        env:
+          TRENDOS_ORDER_WATCH_OFFLINE: 'YES'
+        run: |
+          node tools/order-watch/run-offline.mjs < tests/fixtures/order-watch-v0.synthetic.json > /tmp/order-watch-report.json
+          node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync('/tmp/order-watch-report.json','utf8')); if(r.mode!=='OFF_SOURCE_ONLY'||r.summary.overdue!==1||r.summary.unassigned!==1||r.sentNotifications!==false)process.exit(1);"
