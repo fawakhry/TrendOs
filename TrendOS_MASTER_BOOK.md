@@ -6773,3 +6773,10 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - Draft PR #131: https://github.com/fawakhry/TrendOs/pull/131 (head feature/order-watch-agent-ro-v0-20261014; base candidate/t12-full-cloud-cutover-a56-20260929).
 - Exact-head synthetic Node unit tests + local disabled-by-default CLI fixture: GitHub Actions run 38486449022 = SUCCESS on commit 8b76a66a2c1ba6460006d1512c7785e269c87a65. No real customers, runtime secrets, Cloudflare deploy, Google writes, invoices or WhatsApp. Browser-regression workflow independent from source-only rules.
 - The book update itself creates a later head commit; its exact-head CI MUST be rechecked before review. Offline PASS is not Production authorization. NO_GO / Draft / unmerged.
+
+
+#### ORDER_WATCH_AGENT_V0_20261014 — test failure, repair, CI qualification
+- إضافتان لاختبارات source-only في commit 48f73c34602ebda28fddc633466639a66f02a83d؛ GitHub Actions 38486549270 = FAILURE (9/10 tests passed). السبب: اختبار تعديل totalRows كان يتوقع PAGINATION_INVALID، لكن المحرك أعاد INCOMPLETE_SNAPSHOT كما تقتضي حماية اكتمال الصفحات. لم يفشل فحص الخصوصية أو يجرِ استدعاء Runtime.
+- الإصلاح في tests/order-watch-agent-v0.test.mjs فقط، commit 33975fb6ac4a4eb60ddf17505c50a216ca6c15a8: تعديل التوقع إلى INCOMPLETE_SNAPSHOT بدون أي تغيير في منطق التنفيذ.
+- إعادة الاختبار exact-head: run 38486609915 = SUCCESS (unit tests + synthetic-only CLI). A61 browser CI لم يصدر حكمه النهائي عند تسجيل هذا السطر؛ لا يُعتبر نجاحه مفترضًا.
+- الكتاب نفسه عند هذا التحديث سيغيّر HEAD، فيُعاد فحص exact-head GitHub CI قبل إغلاق المراجعة. لا بيانات حقيقية، ولا تشغيل تلقائي، ولا ترحيل أو نشر Production. NO_GO كما هو.
