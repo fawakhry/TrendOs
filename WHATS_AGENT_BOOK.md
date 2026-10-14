@@ -2219,3 +2219,72 @@ PROJECT POLICY:
 FALLBACK:
   Dedicated new API number .. RECOMMENDED PRACTICAL PATH
 ```
+
+
+---
+
+## 53) Whats Agent V1 — Central Fokha AI Hub registration — 2026-10-14
+
+تم إنشاء هوية مركزية متخصصة لمسار واتساب:
+
+`whats-agent-v1`
+
+الاسم:
+
+**Whats Agent V1**
+
+تم تسجيله داخل:
+
+`fawakhry/Fokha@main:HUB/agents.json`
+
+والـRunbook المركزي:
+
+`HUB/agents/WHATS_AGENT_V1.md`
+
+### Authority boundary
+
+- **هذا الكتاب** يظل مصدر الحقيقة التفصيلي لمسار واتس ايجنت.
+- Fokha AI Hub يحتفظ فقط بهوية الإيجنت، التوجيه، القيود، والحالة العليا.
+- لا يتم نسخ سجل التنفيذ التفصيلي أو المحادثات أو الأسرار إلى المركزية.
+
+### Current agent status at registration
+
+```text
+Agent ID .................... whats-agent-v1
+Central registration ........ APPROVED_REGISTERED
+Autonomous runtime .......... NOT DEPLOYED
+Scheduled Whats task ........ NOT CREATED
+Agent-to-agent messaging .... NOT IMPLEMENTED
+
+Meta App .................... TrendOS Connect
+App ID ...................... 1774246503594854
+Current WABA ................ 834859482664148
+WABA status ................. ACTIVE
+Phone ....................... ending 2077
+Onboarding .................. ~40%
+App Created ................. NOT_STARTED
+Error ....................... INELIGIBLE_WHATSAPP_BUSINESS_APP_WABA
+
+WA-01 ....................... PASS
+WA-02 ....................... PASS
+WA-03 ....................... BLOCKED
+WA-04 ....................... BLOCKED / CURRENTLY INELIGIBLE
+WA-05 ....................... BLOCKED
+WA-06 → WA-13 ............... NOT STARTED
+```
+
+### Freshness update
+
+الـ24–48 ساعة cooldown التي ذكرتها Meta في 2026-09-26 انتهت زمنيًا منذ فترة طويلة بحلول 2026-10-14.
+
+لكن:
+
+`CURRENT TEMPORARY BLOCK STATE = UNKNOWN UNTIL ONE CONTROLLED RECHECK`
+
+انتهاء مدة الـcooldown زمنيًا **لا يثبت** أن Meta غيّرت eligibility أو أصلحت App ↔ WABA association.
+
+### Central routing rule
+
+أي طلب مركزي يخص واتساب يجب توجيهه إلى `whats-agent-v1`، ثم يبدأ الإيجنت بقراءة هذا الكتاب من آخر HEAD قبل إصدار قرار أو خطوة.
+
+التسجيل المركزي **ليس** تصريحًا بـMigration أو Deregister أو حذف الرقم أو إرسال رسائل حقيقية أو تشغيل Auto Reply.
