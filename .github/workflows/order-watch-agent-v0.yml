@@ -4,6 +4,9 @@ on:
     paths:
       - 'cloudflare-d1/src/order-watch-agent-v0.mjs'
       - 'tests/order-watch-agent-v0.test.mjs'
+      - 'tests/order-watch-02cr-readiness.test.mjs'
+      - 'cloudflare-d1/src/t12-read-overlay.mjs'
+      - 'cloudflare-d1/src/edge-orders-read-02cr-canary.mjs'
       - 'tools/order-watch/run-offline.mjs'
       - 'tests/fixtures/order-watch-v0.synthetic.json'
       - '.github/workflows/order-watch-agent-v0.yml'
@@ -21,6 +24,8 @@ jobs:
           node-version: '22'
       - name: Test deterministic offline rule engine
         run: node --test tests/order-watch-agent-v0.test.mjs
+      - name: Test real 02CR/native source contracts with synthetic-only data
+        run: node --test tests/order-watch-02cr-readiness.test.mjs
       - name: Exercise disabled-by-default local CLI on synthetic fixture
         env:
           TRENDOS_ORDER_WATCH_OFFLINE: 'YES'
