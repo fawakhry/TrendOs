@@ -17,17 +17,30 @@ function integer(x, min, max) { return Number.isInteger(x) && x >= min && x <= m
 
 function parseDay(raw) {
   const value = str(raw);
+  // An explicitly offset timestamp is an instant: compare its Cairo calendar day,
+  // not the UTC date portion (which can differ after midnight in Cairo).
+  const zoned = value.match(/^(\d{4})-(\d{2})-(\d{2})T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,3})?)?(?:Z|[+-](?:0\d|1[0-4]):[0-5]\d)$/);
   let y, m, d;
-  let match = value.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[T ].*)?$/);
-  if (match) { [, y, m, d] = match; }
-  else {
-    match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (!match) return null;
-    [, d, m, y] = match;
+  if (zoned) {
+    [, y, m, d] = zoned;
+  } else {
+    // Legacy calendar dates / SQLite-local timestamps: preserve their date.
+    // Never accept arbitrary trailing text or ambiguous unzoned ISO T strings.
+    let match = value.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?: (?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?)?$/);
+    if (match) { [, y, m, d] = match; }
+    else {
+      match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (!match) return null;
+      [, d, m, y] = match;
+    }
   }
   y = Number(y); m = Number(m); d = Number(d);
   const date = new Date(Date.UTC(y, m - 1, d));
   if (date.getUTCFullYear() !== y || date.getUTCMonth() + 1 !== m || date.getUTCDate() !== d) return null;
+  if (zoned) {
+    const instant = new Date(value);
+    return Number.isNaN(instant.getTime()) ? null : cairoDay(instant);
+  }
   return String(y).padStart(4, '0') + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
 }
 
@@ -65,6 +78,10 @@ function completeRows(pages) {
                expectedSize !== nav.pageSize || version !== p.dataVersion) {
       fail('PAGES_DRIFTED');
     }
+    // Each page must contain its exact slice, not just the correct aggregate
+    // count. A short early page and an overlong final page can hide lost rows.
+    const expectedOnPage = Math.max(0, Math.min(nav.pageSize, nav.totalRows - index * nav.pageSize));
+    if (p.rows.length !== expectedOnPage) fail('INCOMPLETE_SNAPSHOT');
     rows.push(...p.rows);
   }
   if (pages.length !== expectedPages || rows.length !== expectedRows) fail('INCOMPLETE_SNAPSHOT');
@@ -83,7 +100,8 @@ export function analyzeOrderWatchSnapshot({ pages, asOf } = {}) {
   const summary = {
     sourceLines: snapshot.rows.length, activeLines: 0, flaggedLines: 0,
     overdue: 0, unassigned: 0, missingItem: 0,
-    missingDeliveryDate: 0, invalidDeliveryDate: 0, unknownStatus: 0
+    missingDeliveryDate: 0, invalidDeliveryDate: 0, unknownStatus: 0,
+    stopped: 0, waitingCustomer: 0
   };
   const alerts = [];
   for (const row of snapshot.rows) {
@@ -98,6 +116,12 @@ export function analyzeOrderWatchSnapshot({ pages, asOf } = {}) {
     summary.activeLines++;
     const codes = [];
     if (!status) { codes.push('UNKNOWN_STATUS'); summary.unknownStatus++; }
+    if (status === 'متوقف' || status === 'مشكلة/متوقف') {
+      codes.push('STOPPED'); summary.stopped++;
+    }
+    if (status === 'في انتظار موافقة العميل') {
+      codes.push('WAITING_CUSTOMER'); summary.waitingCustomer++;
+    }
     if (!str(row.assignedTo)) { codes.push('UNASSIGNED'); summary.unassigned++; }
     if (!str(row.itemName)) { codes.push('ITEM_MISSING'); summary.missingItem++; }
     const rawDue = str(row.expectedDeliveryAt || row.expectedDeliveryText);
@@ -110,9 +134,9 @@ export function analyzeOrderWatchSnapshot({ pages, asOf } = {}) {
     if (!codes.length) continue;
     summary.flaggedLines++;
     const urgent = ['VIP', 'عاجل'].includes(str(row.priority));
-    const severity = codes.includes('OVERDUE') || (urgent && codes.includes('UNASSIGNED'))
+    const severity = codes.includes('OVERDUE') || codes.includes('STOPPED') || (urgent && codes.includes('UNASSIGNED'))
       ? 'HIGH'
-      : codes.some((code) => ['UNASSIGNED', 'ITEM_MISSING', 'DELIVERY_DATE_INVALID', 'UNKNOWN_STATUS'].includes(code))
+      : codes.some((code) => ['UNASSIGNED', 'WAITING_CUSTOMER', 'ITEM_MISSING', 'DELIVERY_DATE_INVALID', 'UNKNOWN_STATUS'].includes(code))
         ? 'MEDIUM' : 'LOW';
     // No customer name, phone, notes, personal details, or message contents leave this function.
     alerts.push({ orderId, lineId, severity, codes });
@@ -125,6 +149,8 @@ export function analyzeOrderWatchSnapshot({ pages, asOf } = {}) {
     readOnly: true,
     sentNotifications: false,
     productionReady: false,
+    // Even identical 02CR dataVersion values do not certify an atomic snapshot.
+    snapshotAtomicityVerified: false,
     asOf: instant.toISOString(),
     cairoDay: today,
     sourceVersion: snapshot.dataVersion,
