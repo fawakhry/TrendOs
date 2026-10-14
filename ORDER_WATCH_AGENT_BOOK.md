@@ -138,3 +138,13 @@ Rollback الحالي: لا تدمج فرع الإيجنت. لا توجد آثا
 - النتيجة: **توثيق فقط / NO_GO / لا Production changes**. commit هذه الإضافة يظهر في GitHub History؛ لا تفترض أن CI الخاص بالـHEAD الجديد مكتمل حتى يتم التحقق منه.
 - الخطوة التالية: ربط مصدر القراءة الآمن وتجربة التحقق من snapshot/freshness والصلاحيات فقط بعد مراجعة الحدود؛ لا دمج أو نشر.
 
+
+### Entry OW-002 — 2026-10-14 03:21:09 Africa/Cairo — فحص رسمي قبل hardening
+- PREPARE: راجعت Fokha read-first ثم هذا الكتاب ثم TrendOS_MASTER_BOOK.md وحزمة V0 والمصدر `cloudflare-d1/src/edge-orders-read-02cr-canary.mjs` و`t12-read-overlay.mjs` و`edge-orders-read-02cr-freshness.mjs` والـPR #131 والتعليقات والتاريخ.
+- HEAD المراجع: `e543b5890b6e8a8792da6dbf7ba09bff6e599859`، PR #131 OPEN/DRAFT، GitHub Actions `38487171680` (Order Watch) و`38487171673` (A61) SUCCESS **SOURCE-ONLY**. التاريخ الفاشل `38486549270` FAILURE 9/10 ثم تعديل توقع الاختبار `33975fb6` وإعادة نجاح `38486609915` محفوظ ولا يُحذف.
+- FINDING / BLOCKED_FOR_LIVE: قارئ 02CR يسترجع Legacy + Cloud-native + runtime overlay مجددًا **في كل HTTP page**، بينما `dataVersion` يأتي فقط من `lines.catalog.syncedAt`. لا يوجد snapshot token/cursor أو تثبيت نسخة native/legacy في الصفحات؛ تطابق `dataVersion` لا يثبت atomic consistency ولا يمنع نقصان/زيادة أوردرات بين الطلبات.
+- FINDING / BLOCKED_FOR_LIVE: `mapT12CloudNativeRows()` يضع `expectedDeliveryAt:''` و`expectedDeliveryText:''` حتى الآن؛ كود V0 يجب أن يبلغ DELIVERY_DATE_MISSING ولا يخترع تاريخ تأخير. تاريخ مزامنة Legacy الظاهر في wrapper قد يكون advisory لا دليل freshness شامل للـCloud-native.
+- FINDING / SOURCE_GAPS: دالة `parseDay` تسمح بأي suffix بعد `YYYY-MM-DD`، وقد تُخطئ في تاريخ اليوم المحلي عند timestamp يحمل timezone؛ فحص الصفحات يسمح بصفحة مبكرة ناقصة إذا تعادلت أعداد الصفوف إجمالًا؛ حالات `متوقف` و`مشكلة/متوقف` و`في انتظار موافقة العميل` لم تكن تُصدر reason code مستقلًا.
+- SECURITY: 02CR يتحقق من Edge token والـscreens claim لكن فحص source لا يثبت صلاحية Production أو حصر الأدوار في كل screen أو freshness أو اكتمال كل lanes؛ لا توجد بيانات حقيقية أو توكنات تمت قراءتها؛ قراءة Live تحتاج تفويضًا وتشغيلًا آمنًا منفصلًا.
+- NEXT (authorized SOURCE ONLY): تقوية قواعد التاريخ/توزيع الصفحات وكشف الحالات المتوقفة في المحرك المنفصل؛ اختبارات وهمية سلبية وإعادة GitHub CI على SHA الصحيح، ثم تخطيط Pilot read-only دون نشر أو ربط حي.
+- RESULT: PASS_READONLY_SOURCE_AUDIT + LIVE_PILOT_BLOCKED. لم تتغير أي ملفات إنتاج أو حسابات أو أوردرات؛ `FINANCE/WHATSAPP/DEPLOY=NO_ACTION` و`PRODUCTION_GO=NO_GO`.
