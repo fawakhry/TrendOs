@@ -117,3 +117,64 @@ test('fails closed when reported page shape is altered', () => {
   list[0].pagination.totalRows = 2;
   rejects({ pages: list, asOf: '2026-10-14T14:00:00+03:00' }, 'INCOMPLETE_SNAPSHOT');
 });
+
+
+test('stopped and waiting-customer order lines carry explicit codes without private notes', () => {
+  const rows = [
+    { ...base, orderId: 'STOP1', lineId: 'STOP1-01', status: 'متوقف', notes: 'PRIVATE STOP NOTE' },
+    { ...base, orderId: 'STOP2', lineId: 'STOP2-01', status: 'مشكلة/متوقف' },
+    { ...base, orderId: 'WAIT1', lineId: 'WAIT1-01', status: 'في انتظار موافقة العميل' }
+  ];
+  const r = run(rows);
+  assert.equal(r.summary.stopped, 2);
+  assert.equal(r.summary.waitingCustomer, 1);
+  assert.equal(r.summary.flaggedLines, 3);
+  assert.equal(r.alerts[0].severity, 'HIGH');
+  assert.equal(r.alerts[1].severity, 'HIGH');
+  assert.equal(r.alerts[2].severity, 'MEDIUM');
+  assert.ok(r.alerts[0].codes.includes('STOPPED'));
+  assert.ok(r.alerts[1].codes.includes('STOPPED'));
+  assert.ok(r.alerts[2].codes.includes('WAITING_CUSTOMER'));
+  assert.equal(r.snapshotAtomicityVerified, false);
+  assert.ok(!JSON.stringify(r).includes('PRIVATE STOP NOTE'));
+});
+
+test('rejects shifted page boundaries even when aggregate row count and dataVersion match', () => {
+  const rows = Array.from({ length: 5 }, (_, i) => ({
+    ...base, orderId: 'ORDER' + i, lineId: 'LINE' + i
+  }));
+  const list = pages(rows, 2);
+  // Keep all five unique rows, stable version, valid metadata and page count:
+  // old implementation accepted an underfilled first page and overfilled last.
+  list[0].rows = [rows[0]];
+  list[1].rows = [rows[1], rows[2]];
+  list[2].rows = [rows[3], rows[4]];
+  rejects({ pages: list, asOf: '2026-10-14T14:00:00+03:00' }, 'INCOMPLETE_SNAPSHOT');
+});
+
+test('offset timestamps use Cairo calendar day, not UTC date; malformed tails are invalid', () => {
+  const dueAtCairoMidnight = run([
+    { ...base, expectedDeliveryAt: '2026-10-13T22:30:00Z' }
+  ]);
+  assert.equal(dueAtCairoMidnight.cairoDay, '2026-10-14');
+  assert.equal(dueAtCairoMidnight.summary.overdue, 0);
+  assert.equal(dueAtCairoMidnight.alerts.length, 0);
+  const unambiguousPast = run([
+    { ...base, expectedDeliveryAt: '2026-10-13 12:30:00' }
+  ]);
+  assert.equal(unambiguousPast.summary.overdue, 1);
+  for (const bad of ['2026-10-13Tjunk', '2026-10-13 extra notes', '2026-10-13T12:30:00', '2026-10-13 77:99:99']) {
+    const result = run([{ ...base, expectedDeliveryAt: bad }]);
+    assert.equal(result.summary.invalidDeliveryDate, 1, bad);
+    assert.equal(result.summary.overdue, 0, bad);
+  }
+});
+
+test('rejects malformed timestamp date, impossible calendar day and retains no raw input', () => {
+  for (const bad of ['2026-02-30T09:00:00Z', '2026/13/01', '31/02/2026']) {
+    const result = run([{ ...base, expectedDeliveryAt: bad }]);
+    assert.equal(result.summary.invalidDeliveryDate, 1, bad);
+    assert.equal(result.summary.overdue, 0);
+    assert.ok(!JSON.stringify(result).includes(bad));
+  }
+});
