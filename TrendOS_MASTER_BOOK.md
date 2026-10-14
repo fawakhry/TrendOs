@@ -6788,3 +6788,11 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - يشمل خطوات الإنشاء والكود والاختبارات وCI الفاشل وإصلاحه ونجاح المصدر وأحكام الأمان وSTOP Gates وتعليمات Work وسجل استكمال append-only.
 - commit الكتاب: `4103cd98cbe5e36944b87f0e93a453e117b3d5fc`. لم يجرِ نشر أو دمج، وظلت صلاحيات الإيجنت OFF_SOURCE_ONLY وProduction NO_GO.
 - أي عمل لاحق على الإيجنت يُسجل أولًا في هذا الكتاب المستقل، مع إحالة مختصرة للكتاب الرئيسي. نتيجة CI للـHEAD الجديد يجب إعادة التحقق منها بعد آخر commit.
+
+
+### ORDER-WATCH-OW-003/004 — 2026-10-14 03:26:20 Africa/Cairo — isolated read-only agent hardening (NO_GO)
+- المرجع الرسمي التفصيلي وسجل النجاح والفشل: `ORDER_WATCH_AGENT_BOOK.md` (OW-002/003/004)، وفرع `feature/order-watch-agent-ro-v0-20261014`، Draft PR #131. لم يتغير مصدر المنصة المنشور.
+- Source-only agent `cloudflare-d1/src/order-watch-agent-v0.mjs` أصبح يرفض suffix تاريخ غير مفهوم ويحول timestamp ذي offset إلى يوم القاهرة، يتحقق من عدد صفوف كل صفحة، وينبه `STOPPED`/`WAITING_CUSTOMER`، ويعيد دائمًا `snapshotAtomicityVerified=false`. تغييرات المحرك: `29679e82f38e42c7c0d2466e922da2ef0f211dfa`.
+- Regression tests + مصدر Native/02CR الحالي على fake token وبيانات اصطناعية فقط: `tests/order-watch-agent-v0.test.mjs` (14 test)، `tests/order-watch-02cr-readiness.test.mjs` (4 test)، CLI offline. CI عند source+workflow SHA `157618f11e1de1ea2214c93b76e64df8ccb22046`: Order Watch Actions `38489940124` SUCCESS وA61 `38489940248` SUCCESS؛ handoff doc عند SHA `0f887aa80dc66919c50a356415bf91dfd6709078`: Actions `38490023675` + `38490023715` SUCCESS. كل ما سبق source-only وليس إثبات Production.
+- Pilot plan + OW-G1..OW-G7 في `docs/trendos/staging/ORDER_WATCH_AGENT_V0_20261014.md`. موانع: 02CR no atomic cross-page snapshot، قد تكون الـLegacy mirror age advisory ولا تعبّر عن native overlays، المصدر Cloud-native يضع due-date فارغًا، وضرورة التحقق من empty-scopes auth/permissions وredacted projection والأدلة التشغيلية. لا يُستنتج تأخر Native عند غياب موعد التسليم.
+- لم يحدث merge أو deploy أو جدولة أو وصول لبيانات أوردرات حقيقية أو واتساب أو تعديلات حسابات؛ PR #131 يبقى DRAFT و`ORDER_WATCH_PRODUCTION=NO_GO`. ملكية تفاصيل التغييرات داخل كتاب الإيجنت فقط؛ هذا مرجع مختصر.
