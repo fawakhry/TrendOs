@@ -1,0 +1,38 @@
+{
+  "asOf": "2026-10-14T14:00:00+03:00",
+  "pages": [
+    {
+      "success": true,
+      "serverPaged": true,
+      "version": "D1_ORDERS_READ_02CR_T12_LEGACY_RUNTIME_V1",
+      "dataSource": "d1-edge-orders-02cr+legacy-runtime+t12-native",
+      "dataVersion": "2026-10-14T00:00:00Z",
+      "pagination": {
+        "page": 1,
+        "pageSize": 20,
+        "totalRows": 2,
+        "totalPages": 1
+      },
+      "rows": [
+        {
+          "orderId": "DEMO0001",
+          "lineId": "DEMO0001-01",
+          "status": "طلب جديد",
+          "assignedTo": "",
+          "itemName": "Synthetic mug",
+          "priority": "عاجل",
+          "expectedDeliveryAt": "2026-10-13"
+        },
+        {
+          "orderId": "DEMO0002",
+          "lineId": "DEMO0002-01",
+          "status": "طلب جديد",
+          "assignedTo": "Synthetic Employee",
+          "itemName": "Synthetic board",
+          "priority": "عادي",
+          "expectedDeliveryAt": "2026-10-15"
+        }
+      ]
+    }
+  ]
+}

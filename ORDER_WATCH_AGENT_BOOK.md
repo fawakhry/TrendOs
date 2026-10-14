@@ -1,0 +1,169 @@
+# ORDER WATCH AGENT — الكتاب الرسمي لإيجنت متابعة الأوردرات
+
+> اقرأني أولًا لأي ChatGPT Work / Chat / Developer يكمل في إيجنت متابعة أوردرات TrendOS.
+>
+> **المرجع الوحيد لهذا الإيجنت:** هذا الملف داخل الفرع `feature/order-watch-agent-ro-v0-20261014`.
+> **الحالة:** SOURCE-ONLY TESTED / OFF / PRODUCTION NO_GO / NO LIVE DATA.
+> **تاريخ الإنشاء:** 2026-10-14 — Africa/Cairo.
+> **المالك:** صاحب Trend Mall / TrendOS.
+> **ممنوع الدمج أو النشر أو قراءة بيانات خاصة دون إذن وصلاحيات مناسبة.**
+
+## 0. أين نبدأ؟
+- Repository: https://github.com/fawakhry/TrendOs
+- This branch: https://github.com/fawakhry/TrendOs/tree/feature/order-watch-agent-ro-v0-20261014
+- Draft PR #131: https://github.com/fawakhry/TrendOs/pull/131
+- Base branch: `candidate/t12-full-cloud-cutover-a56-20260929`.
+- Canonical platform book: `TrendOS_MASTER_BOOK.md` **في الفرع نفسه** (لا تعتبره موافقة نشر).
+- Existing technical handoff: `docs/trendos/staging/ORDER_WATCH_AGENT_V0_20261014.md`.
+- This book is specific to Order Watch; do not confuse it with `WHATS_AGENT_BOOK.md` الخاص بواتساب.
+
+## 1. هدف المالك والحدود
+**الهدف التجاري النهائي:** تنبيه إدارة ترند مول مبكرًا للطلبات المتأخرة أو المعلقة أو ناقصة المعلومات، تمهيدًا لتقليل اعتماد التشغيل اليومي على حضور المالك.
+
+**المطلوب في V0:** محرك قواعد محلي، حتمي، للقراءة والتحليل فقط لنتائج GET مؤهلة سابقًا من TrendOS؛ دون تنفيذ ذاتي دائم، ودون استدعاءات شبكة أو قواعد بيانات.
+
+**الممنوع الآن:** إرسال واتساب أو إشعارات، إسناد مهام للموظفين، تعديل الطلبات أو الحالات، نقل/حذف/تحديث بيانات، كشف أسماء أو هواتف العملاء، تحصيل أو صرف أو تسعير، دمج PR، نشر Cloudflare، تشغيل جدولة، استخدام بيانات العملاء في GitHub العام أو Actions logs.
+
+> الإيجنت ليس "موظف AI شغال 24/7" حتى الآن. لا تخلط اجتياز اختبارات مصدر الكود مع سلامة الربط أو النشر الحقيقي.
+
+## 2. خريطة الملفات الموجودة فعلًا
+| المسار | الوظيفة | الأثر على الإنتاج |
+| --- | --- | --- |
+| `cloudflare-d1/src/order-watch-agent-v0.mjs` | محرك التحليل المحلي والفرز وإنشاء أكواد التنبيه | لا مسارات API أو اتصال خارجي |
+| `tests/order-watch-agent-v0.test.mjs` | اختبارات بيانات اصطناعية/رفض المدخلات غير الآمنة | لا بيانات حية |
+| `tools/order-watch/run-offline.mjs` | مشغل محلي يدخل له JSON عبر stdin ويخرج تقريرًا؛ افتراضيًا OFF | لا إرسال ولا اتصال |
+| `tests/fixtures/order-watch-v0.synthetic.json` | مثال أوردرات وهمية بالكامل | آمن للاختبار |
+| `.github/workflows/order-watch-agent-v0.yml` | Node 22، اختبار وحدات + تجربة CLI محلية وهمية | CI فقط |
+| `docs/trendos/staging/ORDER_WATCH_AGENT_V0_20261014.md` | وصف مدخل القراءة والبوابات والقيود | وثيقة |
+| `TrendOS_MASTER_BOOK.md` | سجل المشروع الأم وفيه بدء وتنفيذ وإصلاح الاختبارات | وثيقة |
+| `ORDER_WATCH_AGENT_BOOK.md` | هذا السجل الرسمي المستمر للإيجنت | وثيقة |
+
+**مصدر القراءة المستهدف مستقبلًا، وليس مربوطًا حاليًا بالإيجنت:** `GET /v1/edge/orders/02cr/page`، الموجود في مصدر المنصة، وبه `rows`، `pagination`، `serverPaged`، `dataVersion`، `version`، `dataSource`. يستخدم جلسة موظف مؤهلة أصلًا من TrendOS. لا تبتكر token أو تفترض إن endpoint على Production صالح حاليًا.
+
+## 3. سلوك V0 الحالي
+- المدخل: JSON يحتوي `asOf` مع منطقة/فرق توقيت واضحين و`pages` تم جلبها وتفويضها والتحقق منها مسبقًا بواسطة قناة موثوقة.
+- التحقق: صفحاته مكتملة وأرقامها متتالية ومتطابقة الحجم/العدد/الإصدار والمصدر، والـ IDs ثابتة وغير مكررة. عند أي تضارب → Fail closed؛ لا تقرير مضلل بأنه "كل شيء تمام".
+- قواعد التنبيه: `OVERDUE`، `UNASSIGNED`، `ITEM_MISSING`، `DELIVERY_DATE_MISSING`، `DELIVERY_DATE_INVALID`، `UNKNOWN_STATUS`.
+- موعد التأخير يُقارن بيوم التقويم في توقيت `Africa/Cairo`؛ لا يُعتبر اليوم نفسه متأخرًا. تواريخ ناقصة/غير مفهومة → تنبيه نقص/تحقق وليس تخمينًا.
+- الحالات المغلقة تستبعد من التنبيه بحسب قواعد مصدر قارئ أوردرات 02CR؛ الانتباه لأي اختلاف مستقبلًا في تعريف "مكتمل".
+- الشدة: `HIGH` للتأخر، أو تكليف غير موجود مع أولوية عاجل/VIP؛ ثم `MEDIUM/LOW` للملاحظات الأخرى.
+- التقرير يُظهر **orderId/lineId وseverity/codes وأرقام إجمالية فقط**. لا customer/phone/notes/itemName في النتائج.
+- `mode=OFF_SOURCE_ONLY`, `readOnly=true`, `sentNotifications=false`, `productionReady=false`.
+
+## 4. التسلسل التنفيذي التاريخي الموثق
+التواريخ: 2026-10-14 بتوقيت القاهرة، وبعض GitHub Actions timestamps بتوقيت UTC في 2026-10-13.
+
+| الخطوة | التنفيذ/الدليل | النتيجة |
+| --- | --- | --- |
+| 1 | مراجعة `TrendOS_MASTER_BOOK.md` ومصدر 02CR/Orders وحقول الأوردرات على shared candidate | تم تحديد الواجهة والمخاطر؛ لم يحصل فحص Runtime |
+| 2 | إنشاء الفرع `feature/order-watch-agent-ro-v0-20261014` من `candidate/t12-full-cloud-cutover-a56-20260929` | فرع معزول |
+| 3 | commit `4e729d18d168adb996dc20048b994d3c4b492441` | إضافة المحرك OFF |
+| 4 | commit `6f64862ddf34d944c53ebdf9e99851ca05207a49` | إضافة اختبارات وحدات أولية |
+| 5 | commit `c98cc385648a409976c8bf9663c41ae4f1dd7f03` | إضافة CLI محلي |
+| 6 | commit `0b9fbf915d0206c5c4957458f70f9816dd88f897` | handoff تقني ووثيقة NO_GO |
+| 7 | commit `54b4b80f86a377842ac0ac062738d5af7224c0f6` | بيانات وهمية |
+| 8 | commit `fbb7ec0326b40c711a58bf61946b25edf78e713d` | سير اختبارات GitHub Actions |
+| 9 | commit `8b76a66a2c1ba6460006d1512c7785e269c87a65` | سجل أول التنفيذ في TrendOS_MASTER_BOOK |
+| 10 | إنشاء Draft PR #131، إلى shared candidate، من غير merge | Open / Draft |
+| 11 | CI run `38486449022` على `8b76a66...` | SUCCESS، اختبارات محلية وهمية فقط |
+| 12 | commit `67fde4a57d5f50681288928d774637d72e714a86` | إضافة توثيق PR/CI في كتاب TrendOS |
+| 13 | commit `48f73c34602ebda28fddc633466639a66f02a83d` | إضافة اختبارين: إلغاء الطلب وسلامة paging |
+| 14 | CI run `38486549270` على `48f73c...` | **FAILURE 9/10**؛ توقع اسم خطأ مختلف |
+| 15 | التشخيص من job log | المحرك رفض snapshot غير مكتمل بـ `INCOMPLETE_SNAPSHOT`؛ الاختبار توقع `PAGINATION_INVALID`، ولم يظهر تغيير إنتاج |
+| 16 | commit `33975fb6ac4a4eb60ddf17505c50a216ca6c15a8` | تعديل توقع الاختبار فقط، لا تغيير في منطق المحرك |
+| 17 | CI run `38486609915` على `33975fb...` | SUCCESS |
+| 18 | commit `4902ad329970d3e0919da3b644e5de3737a70b5d` | تسجيل الفشل والإصلاح وإعادة الاختبار في TrendOS_MASTER_BOOK |
+| 19 | CI run `38486669544` على `4902ad...` | **SUCCESS** لاختبارات المحرك وCLI |
+| 20 | CI run `38486669529` على `4902ad...` | **SUCCESS** لاختبارات A61 browser/cloud transport regression |
+| 21 | تعليق مراجعة PR #131 بتفاصيل latest exact-head CI | موثق في Conversation PR؛ NO_GO محفوظ |
+
+**روابط الدليل:**
+- PR: https://github.com/fawakhry/TrendOs/pull/131
+- آخر source-only CI مكتمل قبل إنشاء الكتاب: https://github.com/fawakhry/TrendOs/actions/runs/38486669544
+- توافق A61 عند نفس SHA: https://github.com/fawakhry/TrendOs/actions/runs/38486669529
+- الفشل الموثق: https://github.com/fawakhry/TrendOs/actions/runs/38486549270
+- إصلاح CI المثبت: https://github.com/fawakhry/TrendOs/actions/runs/38486609915
+
+**ملاحظة مهمة:** تعديل هذا الكتاب يغيّر HEAD ويطلق CI جديدًا. لا تدّعِ أن اختبار `4902ad...` يغطي HEAD الجديد قبل فحص نتائج GitHub Actions له.
+
+## 5. الاختبارات وإعادة التشغيل محليًا
+- `node --test tests/order-watch-agent-v0.test.mjs`
+- `TRENDOS_ORDER_WATCH_OFFLINE=YES node tools/order-watch/run-offline.mjs < tests/fixtures/order-watch-v0.synthetic.json`
+- من غير متغير OFFLINE المضبوط = رفض التنفيذ. لا تستخدم بيانات حقيقية في GitHub أو CI.
+- النجاح المتوقع للفكستور: تقرير `OFF_SOURCE_ONLY`، حالة `readOnly`، أوردر واحد متأخر، واحد بلا مسؤول، دون إشعارات.
+- نجاح الاختبارات يعني أن القواعد الاصطناعية تعمل وليس أنها موثوقة ضد تغير بيانات الإنتاج أو صلاحيات المصدر.
+
+## 6. القائمة الإلزامية قبل أي Pilot حي
+- [ ] READ-ONLY فحص منشور/مفعل TrendOS الفعلي وversion/health والأدوار، مع دليل runtime حديث.
+- [ ] فحص صلاحيات كل موظف/شاشة؛ منع أي صلاحيات واسعة أو token داخل repo/PR/logs.
+- [ ] تصميم ضمان atomic consistency أو snapshot/cursor من السيرفر؛ **تطابق dataVersion عبر صفحات متحركة غير كافٍ**.
+- [ ] التحقق من freshness والاستجابة لفشل/تأخر المرايا؛ Fail closed.
+- [ ] فحص حقل `expectedDeliveryAt` لأوردرات Cloud-native: مصدر سابق قد يتركه فارغًا؛ عدم اختلاق تاريخ تأخير.
+- [ ] مراجعة تعريف الحالات المغلقة وقواعد اليوم الحالي وأولوية العاجل وتكرار التنبيه مع المالك.
+- [ ] فحص خصوصية البيانات والتسجيلات والصلاحيات والاعتمادات الأمنية على لسان مراجِع مستقل.
+- [ ] اختبارات سلبية وقابلية استرجاع وتشغيل canary على بيانات مصطنعة، ثم معاينة redacted read-only بموافقة محددة.
+- [ ] عند الحاجة لإشعارات/جدولة/إسناد/دمج/نشر Production: STOP واطلب قرار المالك الصريح لكل نطاق.
+
+## 7. التشغيل والاسترجاع والمخاطر
+| البند | الحالة |
+| --- | --- |
+| مصدر الكود | موجود في الفرع ومختبر اصطناعيًا |
+| AI automation/autonomous reasoning | **لم تُنفذ بعد**؛ V0 محرك قواعد حتمي |
+| طلبات إنتاج حقيقية | لم تُقرأ بواسطة الإيجنت |
+| اتصال D1/Apps Script | غير موجود في المحرك |
+| تكامل WhatsApp/Email | غير موجود |
+| وظائف دورية/خلفية | غير موجودة |
+| دمج PR #131 | Draft، لم يتم دمجه |
+| نشر Cloudflare | لم يتم |
+| التدخل المالي | غير مصرح وغير موجود |
+| حكم إطلاق إنتاجي | **NO_GO** |
+
+Rollback الحالي: لا تدمج فرع الإيجنت. لا توجد آثار على Production تحتاج rollback لأن الإيجنت لم يُنشر. إذا قام مطور مستقبلًا بعمل deploy، **يجب** توثيق rollback version والتحقق المستقل قبل الموافقة.
+
+## 8. التعليمات الدائمة لأي ChatGPT Work يكمل المشروع
+1. افتح PR #131 وملف `ORDER_WATCH_AGENT_BOOK.md` أولًا **في الفرع المحدد**، ثم `TrendOS_MASTER_BOOK.md` وملفات source/tests/handoff؛ تأكد من HEAD والحالة الحقيقية دون الاعتماد على الشات.
+2. افصل `RUNTIME VERIFIED` عن `DEPLOYED` عن `TESTED` عن `REPO-ONLY` عن `PLANNED`.
+3. أعِد تشغيل اختبارات synthetic، وافحص آخر CI وعيوب تزامن الصفحات وموعد التسليم وأمان المخرجات. أصلح source-only في نفس فرع الـPR إذا لزم، مع اختبارات regression.
+4. قبل طلب أي صلاحية على بيانات حية: راجع read-only الحالة المنشورة والهوية والتفويض والخصوصية؛ إن تعذّر ذلك، اكتب BLOCKED بوضوح.
+5. سلّم تقييم الجاهزية وخطة Pilot آمنة، واقترح Minimal Integration لاحقًا؛ لا تنشر ولا تدمج، لا تفتح مهام مالية أو ترسل رسائل.
+6. سجّل **كل خطوة فعلية** في هذا الكتاب بنمط Entry مستمر: `وقت القاهرة / PREPARE / الإجراء / commit أو run / النتائج PASS|FAIL|BLOCKED / الأدلة / المخاطر / الخطوة التالية`، بما فيها المحاولات الفاشلة. امنع الأسرار والبيانات الشخصية.
+7. عند إجراء تعديل يدخل ضمن TrendOS، ضع إحالة موجزة له في `TrendOS_MASTER_BOOK.md`، دون نسخ الكتاب كله، مع المحافظة على استقلال EasyStore وتقييمات مطبعجي.
+8. حافظ على Draft/NO_GO حتى يوافق المالك صراحة على كل تغيير صلاحيات أو بيئة أو نشر.
+
+## 9. سجل الاستكمال — append only
+### Entry OW-001 — 2026-10-14 / كتاب الإيجنت
+- PREPARE: طلب المالك إرسال برومبت ChatGPT Work وتسجيل جميع الخطوات في كتاب الإيجنت بفرعه. تم التحقق من PR #131: **open Draft، head 4902ad329970d3e0919da3b644e5de3737a70b5d، base candidate/t12-full-cloud-cutover-a56-20260929**.
+- تم مراجعة handoff وTrendOS_MASTER_BOOK والـPR، وفحص شجرة HEAD: لم يكن هناك كتاب خاص بـOrder Watch قبل هذه الإضافة؛ يوجد كتاب منفصل لواتساب ولا يجب خلطهما.
+- ACTION: إنشاء `ORDER_WATCH_AGENT_BOOK.md` كمرجع رسمي مستقل داخل نفس فرع الإيجنت؛ جمع السياق، التغييرات، CI، الفشل والإصلاح، الصلاحيات، Stop Gates، بروتوكول Work.
+- النتيجة: **توثيق فقط / NO_GO / لا Production changes**. commit هذه الإضافة يظهر في GitHub History؛ لا تفترض أن CI الخاص بالـHEAD الجديد مكتمل حتى يتم التحقق منه.
+- الخطوة التالية: ربط مصدر القراءة الآمن وتجربة التحقق من snapshot/freshness والصلاحيات فقط بعد مراجعة الحدود؛ لا دمج أو نشر.
+
+
+### Entry OW-002 — 2026-10-14 03:21:09 Africa/Cairo — فحص رسمي قبل hardening
+- PREPARE: راجعت Fokha read-first ثم هذا الكتاب ثم TrendOS_MASTER_BOOK.md وحزمة V0 والمصدر `cloudflare-d1/src/edge-orders-read-02cr-canary.mjs` و`t12-read-overlay.mjs` و`edge-orders-read-02cr-freshness.mjs` والـPR #131 والتعليقات والتاريخ.
+- HEAD المراجع: `e543b5890b6e8a8792da6dbf7ba09bff6e599859`، PR #131 OPEN/DRAFT، GitHub Actions `38487171680` (Order Watch) و`38487171673` (A61) SUCCESS **SOURCE-ONLY**. التاريخ الفاشل `38486549270` FAILURE 9/10 ثم تعديل توقع الاختبار `33975fb6` وإعادة نجاح `38486609915` محفوظ ولا يُحذف.
+- FINDING / BLOCKED_FOR_LIVE: قارئ 02CR يسترجع Legacy + Cloud-native + runtime overlay مجددًا **في كل HTTP page**، بينما `dataVersion` يأتي فقط من `lines.catalog.syncedAt`. لا يوجد snapshot token/cursor أو تثبيت نسخة native/legacy في الصفحات؛ تطابق `dataVersion` لا يثبت atomic consistency ولا يمنع نقصان/زيادة أوردرات بين الطلبات.
+- FINDING / BLOCKED_FOR_LIVE: `mapT12CloudNativeRows()` يضع `expectedDeliveryAt:''` و`expectedDeliveryText:''` حتى الآن؛ كود V0 يجب أن يبلغ DELIVERY_DATE_MISSING ولا يخترع تاريخ تأخير. تاريخ مزامنة Legacy الظاهر في wrapper قد يكون advisory لا دليل freshness شامل للـCloud-native.
+- FINDING / SOURCE_GAPS: دالة `parseDay` تسمح بأي suffix بعد `YYYY-MM-DD`، وقد تُخطئ في تاريخ اليوم المحلي عند timestamp يحمل timezone؛ فحص الصفحات يسمح بصفحة مبكرة ناقصة إذا تعادلت أعداد الصفوف إجمالًا؛ حالات `متوقف` و`مشكلة/متوقف` و`في انتظار موافقة العميل` لم تكن تُصدر reason code مستقلًا.
+- SECURITY: 02CR يتحقق من Edge token والـscreens claim لكن فحص source لا يثبت صلاحية Production أو حصر الأدوار في كل screen أو freshness أو اكتمال كل lanes؛ لا توجد بيانات حقيقية أو توكنات تمت قراءتها؛ قراءة Live تحتاج تفويضًا وتشغيلًا آمنًا منفصلًا.
+- NEXT (authorized SOURCE ONLY): تقوية قواعد التاريخ/توزيع الصفحات وكشف الحالات المتوقفة في المحرك المنفصل؛ اختبارات وهمية سلبية وإعادة GitHub CI على SHA الصحيح، ثم تخطيط Pilot read-only دون نشر أو ربط حي.
+- RESULT: PASS_READONLY_SOURCE_AUDIT + LIVE_PILOT_BLOCKED. لم تتغير أي ملفات إنتاج أو حسابات أو أوردرات؛ `FINANCE/WHATSAPP/DEPLOY=NO_ACTION` و`PRODUCTION_GO=NO_GO`.
+
+### Entry OW-003 — 2026-10-14 03:25:56 Africa/Cairo — source hardening, synthetic tests, exact-head CI
+- PREPARE: OW-002 سجّل فحص الفجوات مبكرًا في commit `d18aeb52d47c8515bcee590db480ff1821c6d064`؛ إعادة القراءة أثبتت أن الكتاب append-only وأن PR #131 بقي Draft.
+- CODE: commit `29679e82f38e42c7c0d2466e922da2ef0f211dfa` غيّر **ملف المحرك المعزول فقط** `cloudflare-d1/src/order-watch-agent-v0.mjs`: التواريخ ذات offset تقارن بيوم القاهرة الحقيقي؛ رفض `YYYY-MM-DDTjunk` وtimezone مفقود وتواريخ مستحيلة؛ فحص العدد الصحيح لكل صفحة لا الإجمالي فقط؛ أكواد `STOPPED` و`WAITING_CUSTOMER` مع summary وشدة مستقلة؛ و`snapshotAtomicityVerified=false` حتى لا يختلط نجاح المحرك بإثبات Snapshot حي.
+- TESTS: commit `7b452cb49c4821baf70f0b6f2fa99cac6452198c` أضاف 4 اختبارات سلبية/إيجابية للمحرك، فأصبح `tests/order-watch-agent-v0.test.mjs` يحتوي 14 حالة (بدل 10): توقف الأوردر وانتظار العميل والخصوصية، اختلاف توزيع صفحات مع مجموع ثابت، UTC→Cairo عند عبور منتصف الليل، ورفض تواريخ غير محددة أو مستحيلة.
+- SOURCE REAL MODULES / SYNTHETIC ONLY: commit `41ae58c5e39d82a7f5d0ef7b1b333279e34c1948` أضاف `tests/order-watch-02cr-readiness.test.mjs` (4 حالات): `mapT12CloudNativeRows` الحقيقي يرجع due-date فارغًا → `DELIVERY_DATE_MISSING` بلا false-overdue؛ و`handleEdgeOrders02CRCanaryRequest` يرفض anonymous/expired والـprint token في laser على طلبات وهمية لا تصل DB. لا جلسات حقيقية.
+- CI: commit `157618f11e1de1ea2214c93b76e64df8ccb22046` ضم الأربع حالات الجديدة إلى `.github/workflows/order-watch-agent-v0.yml` (read-only Node22 وCLI وهمي بلا أسرار). GitHub Actions `38489940124` **SUCCESS**: engine unit + actual 02CR/native source contract synthetic tests + offline CLI، و`38489940248` **SUCCESS**: isolated A61 transport regression **على نفس SHA**. كذلك `38489796865` و`38489796972` **SUCCESS** على `7b452cb...` بعد إضافة الاختبارات الأولى.
+- FAILED PREPARATION ATTEMPT: حدث خطأ SyntaxError في كود إعداد تحديث الاختبارات بأداة GitHub قبل أي كتابة ملفات؛ إعادة المحاولة وصلت commit `7b452cb...`. لم يكن هذا فشل GitHub CI أو كود الإنتاج. الفشل الأصلي المثبت `38486549270` ما زال محفوظًا في OW-001.
+- RESULT: `PASS=SOURCE_ONLY_TESTS`، `PRODUCTION_GO=NO_GO`. اختبارات GitHub تنفذ فعليًا محليًا/CI على مدخلات تركيبية، لكن **لم** تُختبر هوية موظف حي أو ضمان atomic snapshot أو حالة Cloud-native due-date فعلية أو Cloudflare Production. لا merge ولا deploy ولا أي بيانات عملاء أو مدفوعات أو تعديلات.
+
+### Entry OW-004 — 2026-10-14 03:25:56 Africa/Cairo — Pilot blueprint / security review and release gates
+- PLAN: commit `0f887aa80dc66919c50a356415bf91dfd6709078` حدّث فقط `docs/trendos/staging/ORDER_WATCH_AGENT_V0_20261014.md` بخطة Pilot صلاحية قراءة فقط، مع OW-G1..G7 وحجز الموافقات. GitHub Actions exact-head `38490023675` **SUCCESS** لاختبارات المحرك + قراءة ملفات المصدر Native/02CR بصناعي فقط + CLI، وA61 `38490023715` **SUCCESS**، كلاهما على SHA `0f887aa80dc66919c50a356415bf91dfd6709078`.
+- BLOCKED/SECURITY: مصدر 02CR يعيد قراءة mirrors + Legacy runtime + Cloud-native لكل page من جديد، و`dataVersion` مجرد `lines.catalog.syncedAt`؛ لا ضمان snapshot atomic متعدد الصفحات. أضف أن الشرط `if (allowed.length && !allowed.includes(screen))` يسمح نظريًا بـclaims `screens:[]` موقعة بالمرور على شرط حصر الشاشة؛ مسار إصدار Edge token المعتاد ينشئ مصفوفة شاشات غير فارغة حسب الدور، لكن يجب اختبار فشل المطالبات الفارغة ومراجعة صلاحيات الأدوار/الشاشة في تطبيق حقيقي منفصل. **لا تعديل لكود المصادقة الحي في هذا PR**.
+- BLOCKED/DUE_DATE: `cloudflare-d1/src/t12-read-overlay.mjs` يكتب في كل Cloud-native row `expectedDeliveryAt:''` و`expectedDeliveryText:''`. لا يجوز استنتاج موعد التسليم من عمر الطلب. التأخير الحقيقي للـCloud-native غير قابل للإثبات حتى تكتمل authority/source والاختبارات.
+- BLOCKED/FRESHNESS: wrapper يجعل حداثة بعض مرايا D1 advisory؛ يلزم قياس Freshness لكل عائلة ومصدر ووقت صحيح؛ نجاح HTTP أو تطابق syncedAt لا يثبت عدم فقد أوردرات أو صحتها.
+- BLOCKED/PR_PREVIEW: تعليق Bot على PR #131 بتاريخ 2026-10-13 يشير إلى فشل Cloudflare Workers build لعمل `trendos-tasks-v3-t1-preview-20260914` على HEAD سابق `e543b589...`. ليست هذه نتيجة اختبارات Order Watch ولا إثبات نشره؛ يلزم تدقيق مستقل لسياق فشل البناء عند الإعداد لأي Pilot، دون تشغيل نشر أو التعامل مع أسرار.
+- OWNER APPROVALS PENDING: تعريف نطاق الرصد (شاشة/قسم/كل الأقسام)، معنى `جاهز للاستلام` والحالات المستثناة، تعريف شدة STOPPED والانتظار ومواعيد Cairo، كيفية إثبات due-date وعمر البيانات، الموافقة على وصول read-only redacted باستخدام هوية محدودة وبيئة محددة، مراجعة أمنية مستقلة وخطة rollback. أي ربط خدمة دائمة/جدولة/إرسال إشعارات/صلاحيات كتابة/نشر/دمج يحتاج إذنًا منفصلًا.
+- NEXT SPECIFIC: مصدر server-certified atomic non-PII snapshot/projection + صلاحيات `screens` fail-closed وتوثيق provenance + native due-date truth، ثم اختبارات سباق صفحات وتحديث حالات وSSO على بيانات اصطناعية، وموافقة خاصة على private redacted read-only Pilot. لا يمكن عدّ أي من OW-G2..G7 PASS الآن.
+- RESULT: `PILOT_PLAN=PREPARED`، `SOURCE_ONLY_CI=PASS_ON_0f887aa`، `RUNTIME_CI/REAL_DATA=NOT_RUN`، `MERGE=NO`، `DEPLOY=NO`، `PR_131=DRAFT`، `PRODUCTION_GO=NO_GO`. تحديث هذا الكتاب نفسه ينشئ SHA جديدًا؛ **لا تسبغ نتائج CI القديمة عليه** قبل الفحص.

@@ -6755,3 +6755,44 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - الغرض: عمليات Accounting التي تدمج هذا shared base لاحقًا تحمل حماية customer+department بدل استبدالها بمصدر V1 قديم. سياسة Accounting READONLY37 محفوظة.
 - الحزمة الحية Accounting072bffff أعيد بناؤها byte-for-byte من merge-tree1e349332+0e3d35f0؛ overlay T12 وحده يعطي1d8fb904d48f2d48f2cfcc5b026dba94edddd094344a78af95e94f099d1ea52a ويحفظ Accounting/Core/Comms/Foundation.
 - سجل النشر والفحص الأخير يُحفظ على audit/t12-customer-lane-runtime-20261008؛ هذا commit هو حماية مصدر من reversion، وليس تنفيذ migration جديدة أو تغيير frontend تلقائيًا.
+
+
+### ORDER_WATCH_AGENT_V0_20261014 — Source-only monitoring pilot (NO_GO)
+- التاريخ: 2026-10-14 (Cairo). طلب المالك: تنفيذ أول Agent لمتابعة الأوردرات؛ تفضيل البناء الآمن في GitHub، ثم استخدام ChatGPT Work للتكامل والاختبار متعدد الأنظمة.
+- PREPARE: مراجعة مستودع TrendOS وقراءة مخطط GET /v1/edge/orders/02cr/page وحقول orderId/lineId/status/assignedTo/itemName/expectedDeliveryAt. المرجع: candidate/t12-full-cloud-cutover-a56-20260929. لا اتصال بـRuntime ولا D1.
+- فرع مستقل: feature/order-watch-agent-ro-v0-20261014 من shared candidate؛ NO MERGE / NO DEPLOY.
+- الملفات: cloudflare-d1/src/order-watch-agent-v0.mjs؛ tests/order-watch-agent-v0.test.mjs؛ tools/order-watch/run-offline.mjs؛ tests/fixtures/order-watch-v0.synthetic.json؛ .github/workflows/order-watch-agent-v0.yml؛ docs/trendos/staging/ORDER_WATCH_AGENT_V0_20261014.md.
+- وظائف V0: تحليل محلي فقط لصفحات قراءة مكتملة ومتطابقة الـversion/counts/dataVersion؛ تنبيه على الأوردرات المتأخرة أو التي بلا مسؤول أو بها نقص بيانات؛ Cairo calendar timezone؛ المخرجات تحتوي IDs وأكواد أسباب فقط ولا تنشر بيانات العملاء.
+- دليل Source commits: 4e729d18 (engine)، 6f64862d (unit tests)، c98cc385 (offline CLI)، 0b9fbf91 (handoff)، 54b4b80 (synthetic fixture)، fbb7ec03 (CI).
+- ممنوع اعتبار هذا Agent مفعلًا: لا استدعاء API، لا schedule، لا Worker route/import، لا إرسال واتساب، لا تعديل أوردرات أو موظفين أو حسابات، لا وصول لبيانات حقيقية. لا نمثل OFFLINE CI باعتباره فحص Production. اختبار Node/CI وحالة PR سيتم تسجيلهما بعد إجرائهما.
+- STOP GATES: فحص Runtime read-only حديث؛ ضمان consistent snapshot عبر الصفحات؛ auth scope والتحقق من freshness؛ فحص مؤشرات موعد التسليم في native orders؛ مراجعة أمنية مستقلة؛ موافقة نشر تجريبي. NO_GO حتى يتم إغلاقها بالدليل.
+- الاسترجاع: ترك الـDraft بلا دمج يكفي؛ لا تغييرات Production استدعت rollback.
+
+
+#### ORDER_WATCH_AGENT_V0_20261014 — CI/source result
+- Draft PR #131: https://github.com/fawakhry/TrendOs/pull/131 (head feature/order-watch-agent-ro-v0-20261014; base candidate/t12-full-cloud-cutover-a56-20260929).
+- Exact-head synthetic Node unit tests + local disabled-by-default CLI fixture: GitHub Actions run 38486449022 = SUCCESS on commit 8b76a66a2c1ba6460006d1512c7785e269c87a65. No real customers, runtime secrets, Cloudflare deploy, Google writes, invoices or WhatsApp. Browser-regression workflow independent from source-only rules.
+- The book update itself creates a later head commit; its exact-head CI MUST be rechecked before review. Offline PASS is not Production authorization. NO_GO / Draft / unmerged.
+
+
+#### ORDER_WATCH_AGENT_V0_20261014 — test failure, repair, CI qualification
+- إضافتان لاختبارات source-only في commit 48f73c34602ebda28fddc633466639a66f02a83d؛ GitHub Actions 38486549270 = FAILURE (9/10 tests passed). السبب: اختبار تعديل totalRows كان يتوقع PAGINATION_INVALID، لكن المحرك أعاد INCOMPLETE_SNAPSHOT كما تقتضي حماية اكتمال الصفحات. لم يفشل فحص الخصوصية أو يجرِ استدعاء Runtime.
+- الإصلاح في tests/order-watch-agent-v0.test.mjs فقط، commit 33975fb6ac4a4eb60ddf17505c50a216ca6c15a8: تعديل التوقع إلى INCOMPLETE_SNAPSHOT بدون أي تغيير في منطق التنفيذ.
+- إعادة الاختبار exact-head: run 38486609915 = SUCCESS (unit tests + synthetic-only CLI). A61 browser CI لم يصدر حكمه النهائي عند تسجيل هذا السطر؛ لا يُعتبر نجاحه مفترضًا.
+- الكتاب نفسه عند هذا التحديث سيغيّر HEAD، فيُعاد فحص exact-head GitHub CI قبل إغلاق المراجعة. لا بيانات حقيقية، ولا تشغيل تلقائي، ولا ترحيل أو نشر Production. NO_GO كما هو.
+
+
+### Entry ORDER-WATCH-BOOK 2026-10-14 — agent canonical book
+- المالك طلب تسليم برومبيت ChatGPT Work وتسجيل كل أعمال إيجنت متابعة الأوردرات داخل كتاب مستقل بالفرع الخاص به.
+- الكتاب الرسمي الجديد: `ORDER_WATCH_AGENT_BOOK.md` داخل `feature/order-watch-agent-ro-v0-20261014`. المرجع: https://github.com/fawakhry/TrendOs/blob/feature/order-watch-agent-ro-v0-20261014/ORDER_WATCH_AGENT_BOOK.md
+- يشمل خطوات الإنشاء والكود والاختبارات وCI الفاشل وإصلاحه ونجاح المصدر وأحكام الأمان وSTOP Gates وتعليمات Work وسجل استكمال append-only.
+- commit الكتاب: `4103cd98cbe5e36944b87f0e93a453e117b3d5fc`. لم يجرِ نشر أو دمج، وظلت صلاحيات الإيجنت OFF_SOURCE_ONLY وProduction NO_GO.
+- أي عمل لاحق على الإيجنت يُسجل أولًا في هذا الكتاب المستقل، مع إحالة مختصرة للكتاب الرئيسي. نتيجة CI للـHEAD الجديد يجب إعادة التحقق منها بعد آخر commit.
+
+
+### ORDER-WATCH-OW-003/004 — 2026-10-14 03:26:20 Africa/Cairo — isolated read-only agent hardening (NO_GO)
+- المرجع الرسمي التفصيلي وسجل النجاح والفشل: `ORDER_WATCH_AGENT_BOOK.md` (OW-002/003/004)، وفرع `feature/order-watch-agent-ro-v0-20261014`، Draft PR #131. لم يتغير مصدر المنصة المنشور.
+- Source-only agent `cloudflare-d1/src/order-watch-agent-v0.mjs` أصبح يرفض suffix تاريخ غير مفهوم ويحول timestamp ذي offset إلى يوم القاهرة، يتحقق من عدد صفوف كل صفحة، وينبه `STOPPED`/`WAITING_CUSTOMER`، ويعيد دائمًا `snapshotAtomicityVerified=false`. تغييرات المحرك: `29679e82f38e42c7c0d2466e922da2ef0f211dfa`.
+- Regression tests + مصدر Native/02CR الحالي على fake token وبيانات اصطناعية فقط: `tests/order-watch-agent-v0.test.mjs` (14 test)، `tests/order-watch-02cr-readiness.test.mjs` (4 test)، CLI offline. CI عند source+workflow SHA `157618f11e1de1ea2214c93b76e64df8ccb22046`: Order Watch Actions `38489940124` SUCCESS وA61 `38489940248` SUCCESS؛ handoff doc عند SHA `0f887aa80dc66919c50a356415bf91dfd6709078`: Actions `38490023675` + `38490023715` SUCCESS. كل ما سبق source-only وليس إثبات Production.
+- Pilot plan + OW-G1..OW-G7 في `docs/trendos/staging/ORDER_WATCH_AGENT_V0_20261014.md`. موانع: 02CR no atomic cross-page snapshot، قد تكون الـLegacy mirror age advisory ولا تعبّر عن native overlays، المصدر Cloud-native يضع due-date فارغًا، وضرورة التحقق من empty-scopes auth/permissions وredacted projection والأدلة التشغيلية. لا يُستنتج تأخر Native عند غياب موعد التسليم.
+- لم يحدث merge أو deploy أو جدولة أو وصول لبيانات أوردرات حقيقية أو واتساب أو تعديلات حسابات؛ PR #131 يبقى DRAFT و`ORDER_WATCH_PRODUCTION=NO_GO`. ملكية تفاصيل التغييرات داخل كتاب الإيجنت فقط؛ هذا مرجع مختصر.
