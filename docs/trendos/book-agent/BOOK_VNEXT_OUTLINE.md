@@ -1,39 +1,49 @@
-# مخطط TrendOS Book VNext — إعادة تنظيم تدريجية، لا محو التاريخ
-> **PROPOSAL / NOT YET ACCEPTED AS CANONICAL** · 2026-10-14. المصادر الأساسية: `الصندوق الاسود.md`, `اقرأني_أولًا.md`, `TrendOS_MASTER_BOOK.md`, وثائق `docs/trendos`، source+test+run الفعلي. أساس المراجعة الأول PR #130 (Entry659) ويجب فحص HEAD الأحدث قبل كل دورة.
+# TrendOS Current System Catalog — خطة إعادة بناء الكتاب بالكامل من الغلاف
+> OWNER SCOPE CHANGE · 2026-10-14 · `CURRENT_ONLY` · Draft PR #132. **هذه الوثيقة تلغي تصميم VNext السابق الذي خصص بابًا لتاريخ Zero-Google أو نقل المنصة.**
 
-## المبدأ
-الطلب «اكتب الكتاب من الأول» يعني إعادة بناء **فهرس وفصول الشرح الحية** من أدلة المصدر، وليس حذف مئات Entries أو تغيير أسماء الدوال والاختبارات أو إسقاط الأرشيف. الكتاب الجديد يجب أن يكون مختصرًا للمراجعة اليومية لكن قابلًا للوصول إلى التفصيل الثابت بتوثيق `source path + SHA + Entry + run`. كل ادعاء له نطاق تاريخ/فرع/بيئة.
+## المطلوب النهائي
+إنشاء **كتالوج للنظام الحالي فقط**: الغلاف، التعريف، كل شاشة وعنصر وزر ودور، كل handler/API، كل module حي مع أكواده المؤشرة بالمسار وSHA، المخازن والمخططات والكتّاب، الأخطاء وطرق تشخيصها، **وكل اختبار مرتبط بالكود الحالي بما فيه الفشل والمحاولات المكررة والإصلاحات**. كل بند يبيّن هل هو LIVE_VERIFIED أو LIVE_HEALTH_ONLY أو REPO_PRESENT أو SOURCE_ONLY_OFF أو RETIRED_CONFIRMED أو UNKNOWN.
 
-## تصميم الكتاب المستهدف
-| رقم | القسم | المحتوى والدليل المطلوب |
-|---|---|---|
-| 00 | **ابدأ هنا** | سطر حالة حديث لكل subsystem، آخر verified runtime، آخر HEAD، next safe action |
-| 01 | **الخريطة التشغيلية** | Trend Mall / TrendOS، الواجهات، roles، الحدود مع EasyStore وAutonomous Printshop |
-| 02 | **المعمارية والسلطات** | frontend → Worker / Apps Script → D1 / Sheets / R2، مصادر الحقيقة، flags، request identities |
-| 03 | **دليل الشاشات والأزرار** | مسار الزر/واجهة، entry point، permission، error، owner، frontend↔backend |
-| 04 | **دليل الوحدات** | Orders, Customers, Auth, HR, Attendance, Print, Laser, Press, Portal, Notifications وغيرها |
-| 05 | **خرائط البيانات** | كل جدول/مخطط وحقول الحقول الحساسة دون نشر بيانات، read/write ownership، idempotency |
-| 06 | **Zero-Google** | ما نُقل، ما لم يُنقل، G-CUST gates، runtime deployment proof، blockers |
-| 07 | **اختبارات وإثباتات** | test→source SHA→workflow run→conclusion→environment؛ fail history؛ pending exact-head |
-| 08 | **إصلاح العطل** | symptom→observability→read-only preflight→safe stop→rollback→evidence |
-| 09 | **القرارات والأجزاء المغلقة** | historical/active/superseded، أسباب القرار، triggers لإعادة الفتح |
-| 10 | **فهرس تغطية كامل** | discovered/reviewed/static-tested/runtime-verified منفصلة، broken references |
-| 11 | **سجل التنفيذ المختصر** | link إلى Journal append-only، latest handoff، آخر خطوة دون تكرار آلاف الأسطر |
-| 12 | **العمل القادم** | ordered backlog: فجوة + أثرها + ثبوتها + safe next step + owner approval gate |
+## لا مكان في متن الكتالوج لـ
+- يوميات انتقال النظام بين Google وCloudflare، خطوات migrations القديمة التي انتهت بالفعل، ومقارنات الإصدارات التاريخية التي لا تؤثر في وظيفة حالية.
+- سجلات PRs/ci لمزايا لم تُوصَل بالإنتاج بوصفها شاشات أو خدمات حية؛ يمكن حفظ الاختبارات المرتبطة بها في **ملحق تدقيق منفصل** لحماية سجل failures دون تلويث متن الوظائف الحالية.
+- الكتب والمستودعات المستقلة (EasyStore والبرنامج المستقل للمطبعة). يوثق **تكامل TrendOS معهم فقط** إذا كان حيًا.
+- أي ادعاء أن وجود ملف `Google/Apps Script` يعني أنه قديم ويُحذف، أو وجود `Cloudflare/D1` يعني أنه منشور. **الاستخدام الحالي فقط هو المعيار.**
+- إزالة تاريخ الـGit أو أرشيف المصدر أو حذف كود/Workflow منشور أثناء عمل التوثيق. المستخدم طلب تنقية **الكتاب الجديد** وليس تغييرات إنتاج غير قابلة للاسترجاع.
 
-## خطة الإنجاز الآلي
-- **المرحلة A (الحالية)**: معايرة فروع GitHub والكتاب الحديث، عمل Queue test reconciliation من Entries 653–659. لا تعديل منتج.
-- **المرحلة B**: إنشاء Coverage Diff بين شجرة source والـRepository Catalog؛ تدقيق وحدات صغيرة بحسب خطورة التأثير ثم تحديث فهرس book-agent. لا تصنيف `REVIEWED` بلا قراءة نص المصدر.
-- **المرحلة C**: بناء فصول VNext صغيرة تحت `docs/trendos/book-agent/chapters/` من أدلة الكود والتست وJournal؛ لكل claim رابط immutable source SHA.
-- **المرحلة D**: توليف candidate كامل من الفصول بعد انتهاء مراجعتها، مع `legacy-link-map` وفحص الروابط والتاريخ؛ عرضه في Draft PR للموافقة البشرية. المرجع القديم محفوظ كما هو حتى مراجعة المحتوى.
-- **المرحلة E**: نقل الفصول المقبولة تدريجيًا إلى كتاب TrendOS الرئيسي، وتحديث فقرة الحالة الحية من الأدلة الأحدث فقط. لا دمج آلي.
+## المخرجات
+1. `TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md`: **الكتاب نفسه** من الغلاف، يضاف إليه كل قسم بعد مراجعته؛ لا يُسوّق كمكتمل.
+2. `CURRENT_TREE_BASELINE.md`: كل file path + blob SHA من recursive tree غير مقطوعة، تصنيف أولي يحتاج مراجعة محتوى وحالة runtime.
+3. `CURRENT_UI_ELEMENT_INDEX.md`: كل HTML static ID والحقل والزر؛ ثم تضاف UI dynamic events/routes من JS.
+4. `CURRENT_TEST_EVIDENCE_LEDGER.md` (عند إنشائه): لكل اختبار مع `expected/actual/fail/pass/run_head_sha/deployment_context`، ومحاولات الفشل بما فيها CI setup issues، وشروط اعتماد exact-current-head.
+5. `TEST_EVIDENCE_QUEUE.md`: backlog تدقيق أولي، **ليس** إثباتًا أن أكواد Source-only أصبحت production.
+6. `AGENT_LOG.md`: كل خطوة وثائقية مؤكدة وSHA وروابطها بلا ادعاء نجاح قبل إعادة القراءة.
 
-## تعريف «الناقص» في الاختبارات
-`MISSING_BOOK_ENTRY` = run/commit مثبت ولم يُذكر أو لم يُربط بفصل الكتاب المناسب.
-`MISSING_EXACT_HEAD_CI` = اختبار نجح على source commit لكن PR HEAD تغيّر.
-`MISSING_RUNTIME_EVIDENCE` = CI موجود، لكن دلالة production غير مثبتة.
-`MISSING_COVERAGE` = function/module ليس له test/owner معلوم أو خريطة book.
-`FAILURE_UNTRIAGED` = check فشل وليس لدينا logs تثبت السبب.
+## فهرس الكتاب النهائي
+- غلاف + نسخة + نطاق إثبات الحالية
+- مستخدمون وأدوار وصلاحيات وauth
+- كل شاشة/زر/مدخل/قائمة مع listener واختبار
+- مخطط المعمارية **الحالية** وواجهات الـAPI
+- كل وحدة تشغيلية: فهرس المصدر، الدوال، dependencies، paths، current ownership
+- جميع المخازن والجداول والحقول/المفاتيح، data provenance والكتابة
+- سجل اختبارات الوحدة والتكامل والـCI والـruntime: PASS/FAIL/BLOCKED على SHA محدد
+- دليل تشخيص الأعطال الحالية والتعافي والrollback
+- البيئة والإعدادات والـversion parity والتشغيل
+- جدول التغطية الشامل والفجوات الصريحة
 
-## شرط الاكتمال
-لا تنشر `COMPLETE` حتى يكون لكل ملف حي/وظيفة/عملية عمل خريطة owner/data/test/evidence، ولا توجد `UNKNOWN` أو `MISSING` غير مُعالجة أو مبررة explicit، ويتم تدقيق الـhistorical archive، ويوافق المالك على مرشح الكتاب. لا تنقل PR Draft إلى Production authority.
+## آلية تغطية لا تسقط عنصرًا
+1. ابدأ من **آخر HEAD** وفرع الـDraft وتأكد من عدم وجود upstream drift؛ جرد recursive tree `truncated=false`؛ اربطه بكل code/test/workflow/asset.
+2. صنّف كل path: `CURRENT_RUNTIME_SOURCE` / `CURRENT_TEST` / `CURRENT_SUPPORT_CONFIG` / `CURRENT_DEPENDENCY` / `SOURCE_ONLY_OFF` / `RETIRED_CONFIRMED` / `EXTERNAL_BOUNDARY` / `UNKNOWN`. **النوع الأول يحتاج إثبات runtime، لا اسم ملف**.
+3. اقرأ المصدر المصدَّق ورمزه الكامل عند الحاجة، استخرج declarations/imports/exports/route registrations وUI element listeners، ثم اربط كل وظيفة حية بكامل call graph.
+4. لكل اختبار: اقرأ نفسه، فهرس cases وflags والبيئة، اجمع run evidence؛ **احتفظ بالفشل والنجاح كسطرين منفصلين**، ولا تخلط سبب test harness مع فشل المنتج أو outcome unknown.
+5. حدث الكتاب **بابًا واحدًا في كل دورة**، واربط كل حكم بمصدر immutable SHA، ثم راجع الفروق وفهرس coverage/agent log.
+6. لا تستبدل النسخة الأصلية قبل `NO_UNMAPPED_LIVE_FUNCTIONS` و`NO_UNEXPLAINED_CURRENT_TESTS` و`NO_UNKNOWN_LIVE_WRITERS` و`NO_BROKEN_LINKS` وموافقة صاحب المشروع.
+
+## اختبار قبول جودة الكتاب
+- هل يمكن من كل زر الوصول إلى ملف listener وroute وpermission وwriter وtest وerror handling؟
+- هل كل ملف حي معلوم owner/function، وكل جدول حي معلوم reader/writer؟
+- هل كل Fail مسجل بوقته وسببه المؤكد أو UNKNOWN وباختبار الإصلاح ونسخته؟
+- هل كل فقرة تمثل الحالة الحالية فقط، دون سرد «نقلنا من جوجل» بعد إغلاق المهمة؟
+- هل لم يُمس الكود التشغيلي أو الملفات الأصلية والأرشيف خلال التوثيق؟
+
+**الحالة اليوم:** تم تثبيت frozen inventory يشمل 1995 ملفًا/75 مجلدًا، واستخرج 479 static HTML ID، وأنشئ غلاف ومسودة الكتاب. هذا لا يمثل فحص المحتوى الكامل أو runtime parity؛ تلك الأعمال `OPEN`.
