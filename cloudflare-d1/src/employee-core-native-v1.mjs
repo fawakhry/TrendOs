@@ -437,6 +437,9 @@ async function previewDeliveryDebtReconciliationV1(env,user,body){
   let postedBalance=null,status=customerBindingStatus==='ORDER_ID_CONFLICTS_WITH_CANDIDATE'
     ?'ORDER_CUSTOMER_ID_CONFLICT':'NO_UNIQUE_CUSTOMER_MATCH';
   let matchedCustomerId='';
+  let candidateCommittedReceiptEvidence=null;
+  let receiptEvidenceStatus=customerBindingStatus==='ORDER_ID_CONFLICTS_WITH_CANDIDATE'
+    ?'IDENTITY_CONFLICT_NO_LEDGER_READ':'UNVERIFIED_OR_NONUNIQUE_IDENTITY';
   // A present order-linked ID that disagrees with the phone/name candidate
   // is a hard conflict: do not fetch the OTHER person's account balance.
   if(matches===1&&customerBindingStatus!=='ORDER_ID_CONFLICTS_WITH_CANDIDATE'){
@@ -450,13 +453,38 @@ async function previewDeliveryDebtReconciliationV1(env,user,body){
       postedBalance=num(balance.balance);
       status=Math.round(operationalDebt*100)===Math.round(postedBalance*100)
         ?'SOURCES_EQUAL_IDENTITY_UNVERIFIED':'SOURCES_DIFFER';
-    }else status='NO_POSTED_BALANCE';
+      // Optional candidate-only evidence: COMMITTED payment_received is not
+      // proof that the imported/T12 debt snapshot is current, or that a
+      // phone/name candidate belongs to this order. This never changes a
+      // delivery gate, and never initiates/repeats a financial command.
+      try{
+        const receipt=await env.DB.prepare(
+          "SELECT l.request_key AS requestKey,l.amount,l.balance_after AS balanceAfter "+
+          "FROM employee_accounting_party_ledger_v1 l "+
+          "JOIN employee_accounting_request_ledger_v1 cmd ON cmd.request_key=l.request_key AND cmd.status='COMMITTED' "+
+          "WHERE l.party_type='customer' AND l.party_id=? AND l.operation='payment_received' AND l.amount>0 "+
+          "ORDER BY l.created_at_ms DESC,l.request_key DESC LIMIT 1"
+        ).bind(matchedCustomerId).first();
+        if(receipt){
+          candidateCommittedReceiptEvidence={requestKey:text(receipt.requestKey),
+            amount:num(receipt.amount),balanceAfter:num(receipt.balanceAfter),latestOnly:true};
+          receiptEvidenceStatus='COMMITTED_RECEIPT_FOR_UNVERIFIED_CANDIDATE';
+        }else receiptEvidenceStatus='NO_COMMITTED_RECEIPT_OBSERVED';
+      }catch{
+        // An absent/partial schema is UNKNOWN, never "no collections".
+        receiptEvidenceStatus='RECEIPT_LEDGER_UNAVAILABLE';
+      }
+    }else{
+      status='NO_POSTED_BALANCE';
+      receiptEvidenceStatus='POSTED_BALANCE_MISSING';
+    }
   }
   return {success:true,code:'delivery-debt-reconciliation-evidence-only',
     status,lineId,orderId:text(line.orderId),sourceKind,
     operationalDebt,postedCustomerBalance:postedBalance,
     customerMatchCount:matches,matchedCustomerId:matchedCustomerId,
     orderExternalCustomerId,orderCustomerMode,orderCustomerIdProvenance,customerBindingStatus,
+    receiptEvidenceStatus,candidateCommittedReceiptEvidence,
     identityMatchBasis:phone?'PHONE_UNVERIFIED':'NAME_UNVERIFIED',
     identityVerified:false,sourceOnly:true,
     evidenceCoverage:'BOUNDED_READS_NOT_ATOMIC_SNAPSHOT',
