@@ -14,7 +14,7 @@ Status: SOURCE_ONLY triage, NOT production authorization. Base commit: ab21183f9
 ## P1 — source/contracts
 
 Resolved items are removed from the active backlog after CI evidence. #9 is CLOSED (synthetic/source scope only); see closure evidence below.
-8. Book versus config.js native employee auth setting: SOURCE_ONLY discrepancy; compare deployed config separately.
+8. Repository native employee auth settings: SOURCE VERIFIED (native=true, canary=false, legacy bridge=false); deployment parity OPEN/BLOCKED. Source regression test added at 58e02d7143827f5f2519fe88e60919850ccaf3da; both general CI workflows PASS, but explicit execution of new test not established. Compare deployed config separately.
 10. TrendOS server-side read permission, pagination and fallback parity: OPEN / BLOCKED for runtime evidence; see #10 local contract CLOSED below. Requires TrendOS API authority and controlled non-production server test. No live request authorized.
 11. Employee least-privilege read scope: BLOCKED pending authorization matrix tests.
 12. Durable Andon/exception state storage: UNKNOWN current runtime; design audit and idempotency checks.
@@ -57,3 +57,7 @@ References: https://github.com/fawakhry/TrendOs/pull/95 ; https://github.com/faw
 ## Issue #10 partial qualification evidence (2026-10-16)
 - Local shadow getRows-vs-paginated payload confusion: FIXED + TESTED_SYNTHETIC at b2ebc62abb938ef992d4b711176d46721a9e6aae. Hosted AP-296 PASS https://github.com/fawakhry/TrendOs/actions/runs/38902968278 ; Printshop Policy V1 PASS https://github.com/fawakhry/TrendOs/actions/runs/38902968347 .
 - Full issue #10 remains OPEN: server-side role authorization, stable pagination, fallback and runtime source-of-truth parity not established. No deployment or live data access.
+
+## Issue #8 source-check evidence (2026-10-16)
+- `config.js` source inspection confirms `MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=true`, `MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1=false`, `MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=false`; regression test added at `58e02d7143827f5f2519fe88e60919850ccaf3da`.
+- AP-296 workflow PASS https://github.com/fawakhry/TrendOs/actions/runs/38904053046 ; Policy V1 workflow PASS https://github.com/fawakhry/TrendOs/actions/runs/38904053029 . Workflow success does not prove new source guard executed. Issue #8 remains OPEN for deployed config comparison.
