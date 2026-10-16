@@ -11049,11 +11049,14 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     return {name:user.name||safeLS('matbagy_user_name')||user.username||safeLS('matbagy_username')||'',username:user.username||safeLS('matbagy_username')||user.name||safeLS('matbagy_user_name')||'',token:user.token||safeLS('matbagy_session_token')||'',role:user.role||'',department:user.department||''};
   }
   function roleMode(){
-    var u=sessionUser(),blob=norm([u.name,u.username,u.role,u.department,safeLS('trendos_session')].join(' '));
-    if(/ضياء|diaa|admin|مدير/.test(blob))return 'admin';
-    if(/رحمه|رحمة|rahma|ريفان|ريڤان|revan|rivan|final/.test(blob))return 'final';
-    if(/جابر|gaber|jaber|laser|ليزر/.test(blob))return 'laser';
-    if(/وائل|wael|print|طباع/.test(blob))return 'print';
+    // UI navigation hint ONLY; never infer finance authorization from
+    // usernames, department labels, or serialized browser storage.
+    var live=(window.trendosState||window.state||{}).user||{};
+    var role=norm(live.role);
+    if(role==='admin')return 'admin';
+    if(role==='final')return 'final';
+    if(role==='laser')return 'laser';
+    if(role==='print')return 'print';
     return 'employee';
   }
   function entry619SsoNonce(){
@@ -11061,7 +11064,9 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     return 'sso-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12);
   }
   function entry619PostEmployeeSso(child,targetOrigin,nonce,u,params){
-    if(!child||!u||!u.token)return false;
+    // Mutable config must not route credentials to an untrusted SSO origin.
+    // EasyStore backend remains the only authority for financial roles.
+    if(targetOrigin!=='https://fawakhry.github.io'||!child||!u||!u.token||!nonce)return false;
     var stopped=false,timer=null,tries=0;
     function stop(){
       if(stopped)return;stopped=true;
@@ -11107,7 +11112,11 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     if(!u.token){alert('انتهت جلسة الموظف. سجل الدخول في TrendOS مرة أخرى ثم افتح الحسابات.');return false;}
     try{
       var url=new URL(base,location.href),screen=dayClose?'dailyClose':(mode==='admin'?'dashboard':mode==='final'?'final':'dept');
-      var nonce=entry619SsoNonce();
+      // Only the approved HTTPS EasyStore route may receive session credentials.
+        if(url.origin!=='https://fawakhry.github.io'||!/^\/EasyStore(?:\/|$)/.test(url.pathname)){
+          alert('تم رفض رابط EasyStore غير موثوق؛ لن يتم إرسال جلسة الموظف.');return false;
+        }
+        var nonce=entry619SsoNonce();
       var params={from:'trendos',sso:'1',employeeSSO:'1',skipLogin:'1',module:'accounting',screen:screen,mode:mode,roleMode:mode,department:mode==='laser'?'ليزر':mode==='print'?'طباعة':u.department,name:u.name,username:u.username,ssoNonce:nonce,v:CACHE_TAG};
       Object.keys(params).forEach(function(key){if(params[key]!==undefined&&params[key]!==null&&params[key]!=='')url.searchParams.set(key,params[key]);});
       var child=window.open(url.toString(),dayClose?'Matbagy_Accounting_Day_Close':'Matbagy_EasyStore_Accounting');
