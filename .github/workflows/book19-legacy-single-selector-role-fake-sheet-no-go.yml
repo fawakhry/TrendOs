@@ -1,0 +1,31 @@
+name: BOOK19 Legacy Single Selector and Role (FAKE SHEET NO_GO)
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  legacy-single:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Actual Legacy Code.gs source, fake Apps Script sheet, no network
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test -z "$GOOGLE_APPLICATION_CREDENTIALS"
+          node --check tests/book19_legacy_single_selector_role_no_go.test.mjs
+          node --test tests/book19_legacy_single_selector_role_no_go.test.mjs
+          echo 'BOOK19_LEGACY_SINGLE_FAKE_SHEET_ONLY=YES'
+          echo 'BOOK19_FINANCE_RELEASE=NO_GO'
+          echo 'BOOK19_PRODUCTION_MUTATION=NO'

@@ -4436,6 +4436,24 @@ function trendosDeliveryGateV1931_(orderId, customerName, invoiceMap, knownDebtA
   return { ok: reasons.length === 0, orderId: orderId, invoicePaymentRequired:false, debtAmount: debtAmount, debtRestriction: debtRestriction, reasons: reasons, message: reasons.join("؛ ") };
 }
 
+// BOOK19/BOOK28: single-line Legacy write authority is based only on the
+// authenticated user and the actual stored department, never request fields.
+// roleFromArabic_ intentionally maps unknown values to service for UI display;
+// do not treat that fallback as a write grant.
+function legacySingleCanEditLineV1931_(user,department,heatPress) {
+  const role=roleFromArabic_(user&&user.role,user&&user.department);
+  if(role==='admin')return true;
+  if(role==='service'){
+    const r=normalize_(user&&user.role).toLowerCase();
+    const d=normalize_(user&&user.department).toLowerCase();
+    return r==='service'||r.indexOf('خدمة')!==-1||d.indexOf('خدمة')!==-1;
+  }
+  if(role==='print')return dashboardMatchesScreen_('print',department,heatPress);
+  if(role==='laser')return dashboardMatchesScreen_('laser',department,heatPress);
+  if(role==='press')return dashboardMatchesScreen_('print',department,heatPress)||!!heatPress;
+  return false;
+}
+
 function updateLine_(e) {
   const auth = authorize_(e.parameter.username, e.parameter.token);
   if (!auth.ok) return { success: false, message: auth.message };
@@ -4459,6 +4477,7 @@ function updateLine_(e) {
   const colNotes = firstCol_(h, ["ملاحظات", "Notes"], 14);
   const colCustomer = firstCol_(h, ["اسم الشات / المكتب", "اسم العميل", "Customer Name"], 3);
   const colDept = firstCol_(h, ["القسم", "Department"], 5);
+  const colPress = firstCol_(h, ["مكبس", "مكبس حراري", "مكبس؟", "Press", "Heat Press"], 0);
   const colDebt = firstCol_(h, ["مديونية العميل"], 0);
   const colDebtHold = firstCol_(h, ["إيقاف بسبب مديونية؟", "مديونية؟"], 0);
 
@@ -4485,6 +4504,20 @@ function updateLine_(e) {
   if (!targetRow) return { success: false, message: "البند غير موجود في الشيت." };
 
   const rowValues = sheet.getRange(targetRow, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const savedOrderId = normalize_(valueAt_(rowValues, colOrderId));
+  const savedLineId = normalize_(valueAt_(rowValues, colLineId));
+  // If caller supplied multiple selectors they must describe ONE stored line.
+  // In particular rowNumber takes precedence for locating but NEVER for
+  // granting authority to an unrelated line or order.
+  if ((lineId && lineId !== savedLineId) || (orderIdParam && orderIdParam !== savedOrderId))
+    return {success:false,code:'legacy-line-selector-mismatch',
+      message:'رقم البند أو الأوردر لا يطابق الصف المطلوب. حدّث البيانات ثم أعد المحاولة.'};
+  orderId = savedOrderId;
+  const storedDepartment = normalize_(valueAt_(rowValues, colDept));
+  const storedHeatPress = colPress ? isHeatPressFlag_(valueAt_(rowValues, colPress)) : false;
+  if (!legacySingleCanEditLineV1931_(auth.user,storedDepartment,storedHeatPress))
+    return {success:false,code:'legacy-line-department-denied',
+      message:'لا تملك صلاحية تعديل بند هذا القسم.'};
   const customerName = normalize_(valueAt_(rowValues, colCustomer));
   // قرار إيقاف التسليم يعتمد على شيت العملاء فقط، وليس على رقم قديم داخل الأوردر.
   const debtInfo = isCustomerDebtBlocked_(customerName);
