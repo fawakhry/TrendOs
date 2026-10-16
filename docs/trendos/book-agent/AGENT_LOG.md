@@ -292,3 +292,9 @@
 - EVIDENCE QUEUE: four fake-only checks appended + independently verified commit `6c3fb1d34d4c5ff58312c6958616f0dd16395ff2`, blob `4a429dd7cb77d01d7d38fc962a114888971c2f2b`. No duplication of chapter 20/30 file SSO and earlier Ubuntu Server Book host-hardening checkpoints.
 - STATUS: `SOURCE_ONLY` / `HOST_OWNER_SCREENSHOTS`; `TESTED_THIS_PASS=NO`, `RUNTIME_PLATFORM_LINK=NOT_VERIFIED`, `PRODUCTION_VERIFIED=NO`. No server actions, Git pull, SSH, secret/real credentials, network probe, fake tests, files, customer orders, machine operations or service deployment.
 - NEXT: chapter 32 file/design lifecycle security across customer→TrendOS→Print/Laser services. User receives issues and draft repair prompt after chapter 31 immediately.
+
+## 2026-10-16 / CH27-SSO-RETRY-029 — source correction and final CI
+
+- During review of Chapter27 SSO, found sender retries the **old bearer after logout/account switch** while a popup is open; historical `BOOK30-SSO-LOGOUT-RACE` covers this. Added sender-side exact current-session check before initial `postMessage` and every retry, plus synthetic forged ACK/origin and logout replay tests. No new duplicate issue.
+- `LATEST_TESTED_FIX_SHA=95326bbf0b07dfdddb2bc430564eab2eb3b542c6`; [Draft #143](https://github.com/fawakhry/TrendOs/pull/143); [CI #38915520537](https://github.com/fawakhry/TrendOs/actions/runs/38915520537) PASS 13/13 + two legacy suites; [A61 #38915520552](https://github.com/fawakhry/TrendOs/actions/runs/38915520552) PASS. First attempt caught SSO test ambiguity (duplicate `roleMode`); later regression caught apostrophe-sensitive old test parser: both fixed before final green.
+- `SOURCE_ONLY/TESTED_SYNTHETIC`; EasyStore backend audience/session validation, logout race across apps and provider-send ACK `NOT_VERIFIED`. `NO_DEPLOY`, `NO_MERGE`, `NO_REAL_DATA`, `PRODUCTION_VERIFIED=NO`.
