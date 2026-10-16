@@ -10,7 +10,6 @@ const ID = 'trendosshop_order_reader';
 const SHEET = 'بنود الأوردرات';
 const VALID_NOTES = new Set(['TrendOS orders live sync V1','TrendOS orders live sync V2 quota-aware']);
 const DEPTS = Object.freeze({ print:'طباعة', laser:'ليزر' });
-const MAX_PAGE = 20;
 const MAX_RESPONSE_BYTES = 131072;
 
 const text = value => typeof value === 'string' ? value.trim() : '';
@@ -117,6 +116,14 @@ export async function handleTrendosShopServiceOrdersRequest(request,env={}) {
   if(env.TRENDOSSHOP_READER_PRINCIPAL!==ID||
      !/^[a-f0-9]{64}$/.test(text(env.TRENDOSSHOP_READER_TOKEN_SHA256_HEX)))
     return response(503,'reader-not-provisioned');
+  // The separately approved per-canary digest is only valid for a short,
+  // explicitly configured window. Rotation/disable revokes it immediately.
+  const issued=Number(env.TRENDOSSHOP_READER_ISSUED_AT_MS);
+  const expires=Number(env.TRENDOSSHOP_READER_EXPIRES_AT_MS);
+  const now=Date.now();
+  if(!Number.isSafeInteger(issued)||!Number.isSafeInteger(expires)||
+     issued<=0||expires-issued>15*60*1000||expires<=issued||
+     issued>now||now>=expires)return response(401,'reader-credential-expired');
   if(!(await tokenAllowed(request,env)))return response(401,'reader-not-authorized');
   try {
     const all = await readQualifiedLines(env,scope);
