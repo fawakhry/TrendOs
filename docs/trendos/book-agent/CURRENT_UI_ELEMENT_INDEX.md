@@ -514,3 +514,21 @@
 | `accountingBtn` | 100 | app.js:11001–11104 | external EasyStore SSO | client role hint; server scope unknown BOOK27-ACCOUNTING-ROLE-HINT | SOURCE_UI_SCOPE_REVIEW |
 
 **Next coverage work:** trace the remaining static controls and generated DOM elements; for each provide `ID/selector, handler source SHA, API, backend auth, reader/writer, test run SHA, deployed asset version`. Do not treat this table as complete or tested.
+
+
+## Dynamic event mapping — chapter 28 (2026-10-16, SOURCE_ONLY)
+
+**Continuation of chapter 27 control mapping**, not verification of all 479 static IDs. Sources: `app.js` blob `9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875`; Core blob `90b8d2d2353b3cbb2d85f8500e54bc64cfc3c82e`.
+
+| ID/control | Event binding → handler (app.js) | API authority | Permission / source observation |
+|---|---|---|---|
+| `tableSearch` | :7545–7555 → `loadRows(true)` debounced if serverPaged, otherwise `applyFiltersAndRender` | `getRowsPageV1931` Core/Edge/Legacy dependent | Source-only; different screen/role guards |
+| `statusFilter` | :7545–7555 → page=1/filter reload | same getRowsPage / local filters :4924+ | `__DEBT__` switches route in Edge; parity untested |
+| `priorityFilter` | :7545–7555 → filter | same | UI stats-click patches change values and trigger events |
+| `heatPressFilter` | :7545–7555 → filter | same | `only/without` in :4938 vs older patch `نعم` value review |
+| `bulkFromStatus` / `bulkToStatus` | :7558–7565 → counts and idempotency reset | no write before save | Counts may represent full screen, not only page |
+| `bulkStatusBtn` | :7566–7567 → `runBulkStatusChange` :4841–4882 | `bulkUpdateDepartmentStatusV1926` | Core can update max 500; Legacy different; backend guards required |
+| `archiveDeliveredBtn` | :7568–7569 → `archiveDeliveredDepartment` :4886–4921 | `archiveDeliveredDepartmentV1926` | Core max 500, archive excludes native/imported via snapshot join |
+| `paginationBar button` (dynamic) | :5163–5194 → `loadRows` or local render | depends serverPaged | Snapshot/offset parity untested |
+
+**New issue IDs:** `BOOK28-CORE-LINE-SCOPE`, `BOOK28-BULK-500-SCOPE`, `BOOK28-CORE-RECOVERY`. Existing `BOOK19-DELIVERY-GATES` / `BOOK13-ORDER-FILTER-PARITY` reused. **No runtime events or API mutations executed.**
