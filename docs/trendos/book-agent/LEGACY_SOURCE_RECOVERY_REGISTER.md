@@ -58,7 +58,7 @@ Source HEAD `8536c300ec1dab56968a1f937e879b2bbc47a5c9`.
 
 | Source | Observation | Next step |
 |---|---|---|
-| ChatGPT Library `TrendOS_Code_FULL_V1932_2026-08-24.gs` | **SOURCE_OBTAINED** raw bytes 731,855; 11,811 lines; 614 unique function definitions; SHA-256 `d0d16e3e5863d6a2da7b31e5b4e60fd709b9ddd43cc2761fc64bde1d130b4e87` | Detailed diff against GitHub `Code.gs`, tag pre-split function ranges, manual secret audit; **no public upload** |
+| ChatGPT Library `TrendOS_Code_FULL_V1932_2026-08-24.gs` | **SOURCE_OBTAINED** raw bytes 731,855; 11,811 lines; 614 line-leading definitions by regex; 620 AST declarations (617 distinct names); SHA-256 `d0d16e3e5863d6a2da7b31e5b4e60fd709b9ddd43cc2761fc64bde1d130b4e87` | Detailed diff against GitHub `Code.gs`, tag pre-split function ranges, manual secret audit; **no public upload** |
 | ChatGPT Library `TrendOS_V1932_AppsScript_Deploy_Manifest.txt` | **SOURCE_OBTAINED** SHA-256 `c3f29973a7287b47e632e6a799350494db26a0d6eda3b5b781bffa7b218a254b` | Map deploy manifest items to Git blobs; don't assert exact live deployment |
 | Google Drive staging (three dated Docs from 17–18 Sept 2026) | **METADATA_ONLY**; names refer to Code.gs baseline restore, authoritative source staging, diagnostic capture | Verify source byte hashes/permissions in private environment; don't copy private document contents into public GitHub |
 | Google Drive `TrendOS V1932 Apps Script Deploy` | **METADATA_ONLY** folder found, visible child list not resolved by parent search | Retrieve missing source inventory in correct connected account/folder when available |
