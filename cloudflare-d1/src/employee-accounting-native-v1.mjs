@@ -1934,18 +1934,25 @@ async function finalInvoiceA2V1(env,auth,b){
   if(newCash>0)statements.push(env.DB.prepare("INSERT INTO employee_accounting_cashbox_v1(cashbox_tx_id,request_key,work_date,movement_type,party_id,party_name,department,amount,payment_method,ref_no,source,notes,actor,created_at_ms) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,? FROM employee_accounting_final_invoices_v1 WHERE invoice_no=?").bind(uid('CSH'),ctx.requestKey+'-CASH',workDate,'CUSTOMER_RECEIPT',customer.partyId,customer.partyName,department,newCash,text(b.paymentType||b.paymentMethod),invoiceNo,sourceSystemV1(b),text(b.notes),auth.user.username,now,invoiceNo));
   if(heldPayment>0)statements.push(env.DB.prepare("UPDATE employee_accounting_final_invoices_v1 SET replacement_invoice_no=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE invoice_no=? AND status='UNDER_REVIEW' AND replacement_invoice_no='' AND held_paid=? AND version=? AND EXISTS(SELECT 1 FROM employee_accounting_final_invoices_v1 n WHERE n.invoice_no=?)").bind(invoiceNo,heldFrom,heldPayment,Math.max(1,Math.trunc(num(heldSource.version,1))),invoiceNo));
   for(const line of lineRows)statements.push(env.DB.prepare("UPDATE employee_accounting_dept_lines_v1 SET billing_status='مسحوب للفاتورة النهائية',close_status='مغلق',final_invoice_no=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE accounting_line_id=? AND version=? AND approval_status='معتمد من القسم' AND final_invoice_no='' AND EXISTS(SELECT 1 FROM employee_accounting_final_invoices_v1 WHERE invoice_no=?)").bind(invoiceNo,line.accounting_line_id,Math.max(1,Math.trunc(num(line.version,1))),invoiceNo));
+  // Deterministic final-invoice response, audit, and COMMITTED state join
+  // the same atomic batch as invoice/lines/cash/debt. No post-batch posting.
+  const response={success:true,trustedByServer:true,invoiceNo,subtotal,finalTotal,paid,remaining,
+    lineCount:ids.length,heldPaymentUsed:heldPayment,newCashReceipt:newCash,version:'A2_D1_ACCOUNTING_V1'};
+  const responseJson=JSON.stringify(response);
+  statements.push(auditEventStatementV1(env,ctx,'final-invoice',invoiceNo,'close',auth.user.username,
+    {orderId,customerId:customer.partyId,subtotal,finalTotal,paid,remaining,heldPayment,newCash,lineCount:ids.length}));
+  statements.push(env.DB.prepare("UPDATE employee_accounting_request_ledger_v1 SET status='COMMITTED',response_json=?,updated_at=CURRENT_TIMESTAMP WHERE request_key=? AND status='PREPARED'")
+    .bind(responseJson,ctx.requestKey));
   const ledgerExpected=1+(paid>0?1:0),cashExpected=newCash>0?1:0,heldExpected=heldPayment>0?1:0;
   let actualSql="(SELECT COUNT(*) FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND request_key=?)+(SELECT COUNT(*) FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=?)+(SELECT COUNT(*) FROM employee_accounting_party_ledger_v1 WHERE request_key IN (?,?))+(SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE final_invoice_no=?)";
   const guardBind=[invoiceNo,ctx.requestKey,customer.partyId,ctx.requestKey,ctx.requestKey+'-LEDGER-INVOICE',ctx.requestKey+'-LEDGER-PAYMENT',invoiceNo];
   if(cashExpected){actualSql+=" +(SELECT COUNT(*) FROM employee_accounting_cashbox_v1 WHERE request_key=?)";guardBind.push(ctx.requestKey+'-CASH');}
   if(heldExpected){actualSql+=" +(SELECT COUNT(*) FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND replacement_invoice_no=?)";guardBind.push(heldFrom,invoiceNo);}
-  statements.push(...txGuardPairV1(env,ctx.requestKey+'-GUARD',1+1+ledgerExpected+ids.length+cashExpected+heldExpected,actualSql,guardBind));
+  actualSql+=" +(SELECT COUNT(*) FROM employee_accounting_events_v1 WHERE request_key=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_request_ledger_v1 WHERE request_key=? AND status='COMMITTED' AND response_json=?)";
+  guardBind.push(ctx.requestKey,ctx.requestKey,responseJson);
+  statements.push(...txGuardPairV1(env,ctx.requestKey+'-GUARD',1+1+ledgerExpected+ids.length+cashExpected+heldExpected+2,actualSql,guardBind));
   await env.DB.batch(statements);
-  const written=await env.DB.prepare("SELECT invoice_no AS invoiceNo,subtotal,final_total AS finalTotal,paid,remaining FROM employee_accounting_final_invoices_v1 WHERE request_key=?").bind(ctx.requestKey).first();
-  if(!written)throw commandErrorV1('accounting-final-invoice-guard','تعذر تقفيل الفاتورة بشكل ذري. الطلب محفوظ PREPARED للمراجعة.');
-  const response={success:true,trustedByServer:true,invoiceNo:text(written.invoiceNo),subtotal:num(written.subtotal),finalTotal:num(written.finalTotal),paid:num(written.paid),remaining:num(written.remaining),lineCount:ids.length,heldPaymentUsed:heldPayment,newCashReceipt:newCash,version:'A2_D1_ACCOUNTING_V1'};
-  await commitCommandV1(env,ctx,response);
-  await auditEventV1(env,ctx,'final-invoice',invoiceNo,'close',auth.user.username,{orderId,customerId:customer.partyId,subtotal,finalTotal,paid,remaining,heldPayment,newCash,lineCount:ids.length});
   return response;
 }
 
