@@ -272,3 +272,11 @@
 - VERIFICATION: inspected GitHub content on current branch, four issue register entries and four queued fake-only tests exist. TESTED_THIS_PASS=NO; PRODUCTION_VERIFIED=NO; backend EasyStore and Ubuntu server acceptance not verified.
 - ACTION: book agent records this verification only, no code, production access, deployment, CI run, or PR merge.
 - NEXT: chapter 31 private Ubuntu server/files.matbagy.com; inspect present documentation and source, no assumption about server service being deployed.
+
+## 2026-10-16 / CH27-UI-REPAIR-028 — four source guards tested
+
+- **PRECHECK:** Current Book Agent head at start `ee045cce691157bb476a9bb45cbf0770e8ef57d5`. Matched four `BOOK27-*` historical findings to real `app.js` and `Code.gs` behavior, not presumed deployed state. Fix isolated on `fix/book27-ui-safety-20261016`; [Draft #143](https://github.com/fawakhry/TrendOs/pull/143).
+- **PATCH:** Source commit `61431e19f85afc0c5b440ce6a477d8cd4c25951c`. Refresh de-duplicated and edit/save protected; WhatsApp open no longer marks sent; legacy mark-sent blocked without provider acknowledgement; DayClose preview missing/error fails closed and requires fresh read; EasyStore SSO target origin pinned and name/storage-to-admin inference removed. UI and backend changes only, no deployment.
+- **REAL CI EVIDENCE:** [#38914688601](https://github.com/fawakhry/TrendOs/actions/runs/38914688601) PASS 10/10 fake-only tests + old SSO/refresh regressions; [A61 #38914688624](https://github.com/fawakhry/TrendOs/actions/runs/38914688624) PASS on same tested SHA. Initial suite fail from test harness selecting historical first `roleMode`; fixed to last active function; failure history kept.
+- **DOCUMENTATION:** `ISSUE_REGISTER.md` update `3a783972054d54c1c8fa727fbbc3b5ecd71d13f2`; `TEST_EVIDENCE_QUEUE.md` update `ec03b0b7ed0870d8b667e0a7cf76ff86823b20a8`. Tests are synthetic source only. No real WhatsApp, no confirmed provider acceptance/delivery, no real financial close or account changes.
+- **PENDING SECURITY:** EasyStore destination backend never tested for JWT/session expiration, audience/role and revoked SSO; allowlisted origin may require approved staging URL; provider ACK and delivered statuses still need signed webhook contract. `SOURCE_PATCH_TESTED=YES`, `PRODUCTION_VERIFIED=NO`, `DEPLOY=NO`, `MERGE=NO`; other Book30 SSO issues still open.
