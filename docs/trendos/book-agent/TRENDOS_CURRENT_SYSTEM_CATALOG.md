@@ -1563,3 +1563,38 @@
 
 
 <!-- END_VERBATIM_MIGRATION:MASTER_CLEANING_CHECKPOINT_20261002 -->
+
+---
+
+## الملحق التاريخي ز — Entry597 / تأهيل Legacy Line Runtime قبل النشر
+
+> **التصنيف التاريخي:** `HISTORICAL`، مع أدلة `TESTED_EXACT_SHA` المذكورة في النص عند تاريخها **غير المعاد تشغيلها هنا**. هذا توثيق لمرحلة تأهيل المصدر؛ لا يمثل حكمًا جديدًا عن حالة Production الحالية.
+> **تاريخ الأصل:** 2026-10-02 (سياق Entry596–600). **تاريخ النقل:** 2026-10-16.
+> **المصدر:** [TrendOS_MASTER_BOOK.md عند HEAD الأصل](https://github.com/fawakhry/TrendOs/blob/cce96674fb573788b5d9d8d44d81cca24fbe9675/TrendOS_MASTER_BOOK.md)، Git blob `986761be5262e39961ebe0ed64df0fe70641319e`، قسم `Entry597`.
+> **الاسترجاع:** [نسخة الأرشيف غير المعدلة](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md)، Git blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`.
+> **حدود النقل:** نص Entry597 فقط، بدون Entry596 أو Entry598–600، وبدون تكرار هوية أي أوردر أو ملاحظة عميل. النص التالي مطابق حرفيًا للقديم والأرشيف.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY597 -->
+### Entry597 — Legacy Line Runtime Overlay مؤهل في Repo فقط
+- الاسم العربي للبحث: **إصلاح البند غير موجود / تقفيل الأوردرات القديمة من Cloud / Legacy Line Runtime / تشغيل البنود القديمة على D1**.
+- Migration جديدة additive فقط: `cloudflare-d1/migrations/0011_t12_legacy_line_runtime.sql`؛ تنشئ `t12_legacy_line_runtime` + event ledger بدون `DROP/ALTER` وبدون تعديل `sheet_rows`.
+- Runtime module: `cloudflare-d1/src/t12-legacy-line-runtime.mjs` يحل هوية Legacy من D1 mirror مع 02CX date-coercion repair، ويحفظ status/notes كـoverlay منفصل قابل للتدقيق.
+- API endpoint المؤهل Repo-only: `/v1/t12/orders/line-runtime/legacy-update`.
+- مسار القراءة 02CR يطبق Legacy runtime overlay **قبل** active filtering/paging، ثم يدمج Cloud-native rows.
+- Frontend source المؤهل Repo-only يوجه `updateLine` ذو Line ID ثابت إلى D1 عند `MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED=true`؛ لا يرجع Apps Script في هذا المسار، مع read-after-write barrier.
+- بوابة `تم التسليم` للـLegacy runtime تعيد فحص D1 mirrors للعملاء + قائمة منع التسليم بالمديونية وتفشل مغلقًا إذا gate غير جاهزة أو العميل restricted.
+- Entry597 CI run `37020236957`, job `110881395106` = **SUCCESS**:
+  - `ENTRY597_T12_LEGACY_LINE_RUNTIME=PASS`
+  - `PERF_CF_02CR_OPERATIONAL_CANARY_CONTRACT_PASS`
+  - `T12 read overlay isolated PASS`
+  - `PERF_CF_02CX_LINE_ID_AND_REFRESH_WRITE_CONSISTENCY_PASS`
+  - duplicate-order frontend regression PASS
+  - `ENTRY597_STATIC_SAFETY=PASS`
+- A61 browser regression بعد تغييرات الواجهة: run `37020203740` = SUCCESS.
+- 02CR visibility regression بعد تعديل القراءة: run `37020169082` = SUCCESS.
+- Duplicate Guard CI بعد نقل cache tag: run `37020380457` = SUCCESS.
+- التشخيص الكامل مؤرشف في: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_STALE_LEGACY_ORDERS_DIAGNOSIS_ENTRY_596_2026-10-02.md`.
+- Entry597 أصبح historical qualification بعد نشر Entry599/600.
+- الحالة الحالية: `REPO_QUALIFIED=YES`, `PRODUCTION_FIX_DEPLOYED=YES`, `STALE_15_RECONCILED=YES`.
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY597 -->
