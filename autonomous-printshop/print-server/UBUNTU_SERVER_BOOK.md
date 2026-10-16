@@ -139,3 +139,11 @@
 - **Operational boundary:** Repository/Actions secrets are not automatically installed or readable on home Ubuntu. Do not copy or print their values to GitHub logs, shell history, screenshots, chat, application configs, or GitHub commits. Do not run a secret-backed workflow, perform live login, test production routes, change privileges or create credentials based on this metadata-only check.
 - **Required engineering qualification:** analyze the actual active TrendOS employee order-read API, whether it can grant **server-enforced print department read-only** scope, and the isolated outbound HTTPS one-shot read pathway **with fake tests first**. Secure separate owner approval before creating/altering a live scoped account or using any live credential or customer data.
 - **Result:** `REPOSITORY_SECRETS_METADATA_COUNT=8`, `QUALIFY_TOKEN_NAME_EXISTS=OWNER_SCREENSHOT_VERIFIED`, `QUALIFY_USERNAME_SECRET_NAME_EXISTS=YES`, `QUALIFY_PASSWORD_SECRET_NAME_EXISTS=YES`, `SECRET_VALUE_READ=NO`, `LIVE_CREDENTIAL_VALID=UNKNOWN`, `PRINT_ONLY_ROLE_PROVEN=NO`, `UBUNTU_CHANGED=NO`, `PROD_CHANGED=NO`, `DOCS_ONLY=YES`.
+
+
+### SERVER-20261016-13 — Order-read scope source review (2026-10-16)
+- Read-only GitHub code inspection (no local host changes or live requests).
+- Default branch frontend references `/v1/edge/orders/02cr/page`. A separately inspected candidate Worker branch handles `/v1/edge/orders/page`. This source-version distinction requires verification against the actual deployed service before any real integration.
+- Candidate code's `screensForRole('print')` also allows `press` and an empty screen string; the candidate `page` implementation checks a server-side allowed-screen list. Hence the sample candidate does not prove strict print-only entitlement, nor prove live role behavior.
+- Next: verify current server-side read contract, strict least-privilege role scope and privacy handling using test fixtures. No live login or production access performed.
+- Status: `SOURCE_REVIEW_ONLY=YES`, `EXCLUSIVE_PRINT_SCOPE=NOT_PROVEN`, `LIVE_PLATFORM_LINK=NOT_TESTED`, `HOST_CHANGED=NO`.
