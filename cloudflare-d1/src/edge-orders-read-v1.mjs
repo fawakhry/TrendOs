@@ -602,7 +602,7 @@ async function page(request, env, url, session) {
   }
   const statusOrderCounts = {};
   Object.keys(statusOrderSets).forEach((k) => { statusOrderCounts[k] = statusOrderSets[k].size; });
-  const pageSize = clampInt(url.searchParams.get('pageSize'), 20, 5, 100);
+  const pageSize = clampInt(url.searchParams.get('pageSize') || 20, 20, 5, 100);
   const requestedPage = clampInt(url.searchParams.get('page'), 1, 1, 1000000);
   const totalRows = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
