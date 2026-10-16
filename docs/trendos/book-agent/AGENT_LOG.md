@@ -180,3 +180,12 @@
 - **EXAMPLE:** BOOK20-R2-FILE-AUTH أُخذ من الفصل 20 باعتباره finding SOURCE_ONLY؛ ظهر نفس blob `f415d06ccd15ba241d679c61b7afeb6ec904e4b8` على فرعي كتاب المنصة والمطبعة، وفيه وصول GET إلى `serveFile` قبل `authenticate` الظاهر. `main` عند هذا الفحص لا يحتوي الملف في المسار نفسه؛ لذلك لا حكم على الإنتاج أو عدم وجود إصلاح في فرع آخر. P0، `STILL_PRESENT_SOURCE` على الفرعين المراجعين، `PRODUCTION_VERIFIED=NO`. معالجة ضمن فرع أمني مستقل فقط إن ثبتت الثغرة بعد التحقق من بقية middleware وR2.
 - **EVIDENCE:** HEAD فرع الإيجنت عند بدء فحص هذه المهمة `b422c237ca8d11954dc3c1aa99964f87aab5a9a3`، blob للملف أعلاه؛ لا تشغيل إنتاجي ولا أسرار ولا اختبار موظف فعلي.
 - **STATUS:** POLICY_RECORDED / SECURITY_TRIAGE_SOURCE_ONLY; لا إعلان TESTED أو CLOSED للأمن حتى وجود اختبارات وحماية كل المسارات.
+
+
+## 2026-10-16 / CHAPTER-ISSUE-REPORTING-022 — تقرير أخطاء بعد كل فصل
+- USER DECISION: فور إنهاء كل فصل جديد، أرسل للمستخدم قائمة بالمشاكل الجديدة أو عبارة صريحة بعدم وجود مشاكل جديدة؛ لكل اكتشاف ID/أولوية/الموضع/حالة الإثبات والإجراء التالي، مع برومبت جاهز لإيجنت الفحص والإصلاح. لا تؤخّر عرضها لنهاية عدة فصول.
+- READ: HEAD at start `4b7a40630eb2dd8b10570697f6e8cb1f3aab4440`; Chapter 25 + queue + issue register + employee Core & Manager UI; six findings book25 remain SOURCE_ONLY/unknown current deployment.
+- WRITE: append user-facing reporting protocol to `README.md`, commit `65078133dfe050ad0f870c8baec2995f354fd13a`; independent fetch verified.
+- WRITE: register six chapter 25 issue intake rows in `ISSUE_REGISTER.md`, commit `aea6cd565580ecd3823b0340aaea25ec10ab77ca`; independent fetch verified. Do not claim production incident; current-state triage required before fix. Evidence queue IDs `BOOK25-*` already existed; no duplicates written there.
+- STATUS: DOCS_ONLY / SOURCE_ONLY; `TESTED=NO`, `PRODUCTION_VERIFIED=NO`; no production code/deploy/merge/message.
+- NEXT: resume chapter 26 migration/import/export and deployment lineage, followed immediately by an issue report for chapter 26 before starting 27.
