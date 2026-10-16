@@ -51,7 +51,11 @@ function make({collection='platform_sections',active=1,ownerRecordId='FAKE-PUBLI
         throw Error('UNEXPECTED_D1_FIRST:'+sql.slice(0,80));
       },
       async all(){throw Error('UNEXPECTED_D1_ALL');},
-      async run(){counters.mutations++;return {success:true};}
+      async run(){
+        // Auth bridge can audit its own fake session; count CMS business writes only.
+        if(/employee_content_(?:files|records|events)_v1/.test(sql))counters.mutations++;
+        return {success:true};
+      }
     };
   }};
   return {env,counters};
