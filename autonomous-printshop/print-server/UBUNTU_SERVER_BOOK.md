@@ -212,3 +212,12 @@
 - **الخطوة المقترحة التالية:** فحص وجود `$HOME/Matbagy-OS` ثم استخدام `gh repo clone fawakhry/Matbagy-OS "$HOME/Matbagy-OS"` **فقط لو المجلد غير موجود**؛ لا تحذف ملفات ناتجة عن المحاولة السابقة بدون فحصها. التأكد من وجود `runtime/ubuntu/matbagy_media_vault.py` بعد اكتمال التنزيل.
 - **الحماية:** لا حاجة لإرسال Device Code أو Token أو أي اعتماد للشات. لا تعديل على مستودع TrendOs أو SSH أو UFW؛ لا تشغيل مخزن صور قبل فحص الكود والتجربة.
 - **الحالة:** `GH_AUTH=SUCCESS`، `MATBAGY_CLONE=NOT_VERIFIED`، `UBUNTU_MEDIA_VAULT=NOT_DEPLOYED`، `CUSTOMER_MEDIA_IMPORTED=NO`، `HOST_COMMANDS_BY_ASSISTANT=NONE`.
+
+### SERVER-20261016-22 — Private Matbagy repository cloned; Ubuntu vault tool present
+- **الدليل:** صورتان Terminal قدمهما المالك في محادثة ChatGPT بتاريخ 2026-10-16، من `trend-main@TrendosShop`. لا توجد جلسة SSH/remote host access بواسطة المساعد.
+- **العملية الظاهرة:** أمر مشروط لا يعيد التنزيل إذا وجد المسار؛ في هذه المرة نفّذ `gh repo clone fawakhry/Matbagy-OS "$HOME/Matbagy-OS"`. stdout يؤكد: `Cloning into '/home/trend-main/Matbagy-OS'...`، `Receiving objects: 100% (625/625)`، `Resolving deltas: 100% (300/300), done.`، ثم عاد Shell prompt بدون خطأ.
+- **التحقق اللاحق:** اختبار `[ -f "$HOME/Matbagy-OS/runtime/ubuntu/matbagy_media_vault.py" ]` أعاد `MATBAGY_CODE_READY`، وهو دليل وجود الأداة على Ubuntu بالفعل.
+- **حالة التشغيل المثبتة:** `GH_AUTH=SUCCESS`، `MATBAGY_CLONE=COMPLETE_OWNER_SCREENSHOT`، `VAULT_SCRIPT_EXISTS=YES`؛ لم يُثبت تشغيل اختبار Python على المضيف، ولم يُنشأ مجلد بيانات مطبعجي حتى الآن.
+- **الخطوة التالية للمالك:** تشغيل `python3 -m unittest discover -s "$HOME/Matbagy-OS/runtime/ubuntu" -p 'test_matbagy_media_vault.py' -v`؛ **بشرط نجاح الاختبارات** تشغيل `python3 "$HOME/Matbagy-OS/runtime/ubuntu/matbagy_media_vault.py" init --root "$HOME/MatbagyData"`. الاختبارات تنشئ بيانات اصطناعية في مسارات مؤقتة فقط؛ التهيئة تنشئ مجلدًا خاصًا فارغًا.
+- **حماية نطاق العمل:** لا تغيير TrendOs، UFW/SSH، Cloudflare، أرقام الطلبات أو بيانات عملاء. قبل إدخال صور حقيقية مطلوب backup خارجي واختبار استعادة. لا ادعاء أن الصور محفوظة أو أن الأداة نشرت كخدمة.
+- **الحالة:** `MATBAGY_REPO_ON_UBUNTU=YES`، `VAULT_SCRIPT_PRESENT=YES`، `UBUNTU_VAULT_TESTS=NOT_RUN_OR_NOT_EVIDENCED`، `VAULT_INITIALIZED=NOT_VERIFIED`، `CUSTOMER_MEDIA_IMPORTED=NO`.
