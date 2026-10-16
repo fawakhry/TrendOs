@@ -67,3 +67,11 @@
 - WRITE: chapter 13 in `TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md`, commit `e9f427b19680352b852e2c1da87e09227688dd51`, blob `0d7562336ab3b297f2b60259f3080ac0d6996190`; post-write fetch verified exact blob and chapter.
 - STATUS: `SOURCE_ONLY`, `TESTED=NO`, `PRODUCTION_VERIFIED=NO`, runtime gaps `BLOCKED`. No production/customer mutations, code edits, PR merge or deploy.
 - NEXT: chapter 14 session lifecycle and staff permissions, then reconcile exact-head tests and continue remaining modules.
+
+
+## 2026-10-16 / EMPLOYEE-SESSIONS-009 — الفصل الرابع عشر
+- READ: `app.js` login, sessionStorage restore/epoch, 5-minute session guard and 401; `config.js`; `employee-api-dispatcher-v1.js`; `cloudflare-d1/src/employee-auth-native-v1.mjs`, `edge-orders-read-v1.mjs`, `edge-orders-read-02cr-canary.mjs`, `t12-general-create-handler.mjs`, `t12-customer-write-handler.mjs`; Entry652 test sources.
+- FINDINGS: Native session uses D1 fingerprint/expiry/session_version/revoked_at and explicit logout/password-change invalidation. Orders Edge Bearer is independent HMAC/expiry token; source exchange still invokes Apps Script verifyEmployeeSession. `verifyOrdersEdgeToken` source has no direct session revocation query; test expiry-after-native-logout. Potential `screens=[]` role-filter bypass when handler tests allowed.length; server GENERAL order CREATE role not explicit admin/service. All findings require source path and sandbox/release parity verification before production conclusion.
+- WRITE: chapter 14 appended, commit `d16394a99afd2a147284bf15d5f33c946aba06fe`, blob `e00b9a21d3e04c6b597bce0cf2cd2a083a5f1525`; independent fetch verified.
+- STATUS: `SOURCE_ONLY`, security/runtime checks `BLOCKED`, `TESTED=NO`, `PRODUCTION_VERIFIED=NO`. No real authentication calls or accounts touched; no code, migration, server, or merge operations.
+- NEXT: chapters on order status transitions/line runtime and customer-facing modules, then source-to-test ledger reconciliation.
