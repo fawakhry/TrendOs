@@ -10575,3 +10575,9 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 - This corrects earlier unverified **existence** from SERVER-20261016-11: `QUALIFY_EMPLOYEE_TOKEN_SECRET_NAME_EXISTS=SCREENSHOT_VERIFIED`. It does **not** establish token validity, current identity, correct employee role, or print-only authorization. Prior historical `401 / Session miss` remains a warning, not a current retest.
 - Full eight-name inventory, provenance, safe handling and outbound-only print-read gate documented in [server book `SERVER-20261016-12`](print-server/UBUNTU_SERVER_BOOK.md). No workflows executed and no credentials copied to Ubuntu; `LIVE_LOGIN=NO`, `CUSTOMER_DATA_ACCESS=NO`, `SSH_FIREWALL_CHANGE=NO`, `OWNER_HOST_WRITE=NO`.
 - Next code-review gate: determine live TrendOS **server-enforced** read-only print scope and a dedicated test employee identity, qualify synthetic HTTPS one-shot client first; require separate approval before any credential use, real API call or permission change.
+
+
+#### 2026-10-16 — Print-only order-read source contract review
+- Source-only comparison: default-branch frontend calls `/v1/edge/orders/02cr/page`; inspected historical candidate Worker handles `/v1/edge/orders/page`. Verify current deployed handler rather than assuming either branch implements the active contract.
+- Inspected candidate role `print` also allows `press` and an empty screen. Strict print-only access is not established by candidate role names, and current production behavior remains unverified.
+- Detailed evidence is in [server book SERVER-20261016-13](print-server/UBUNTU_SERVER_BOOK.md). No live calls, customer access, device changes or service deployment performed; `READONLY_CODE_REVIEW=YES`, `PLATFORM_LINK=NOT_VERIFIED`.
