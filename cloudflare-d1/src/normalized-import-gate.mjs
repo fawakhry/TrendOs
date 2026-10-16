@@ -222,10 +222,23 @@ export async function handleNormalizedImportRequest(request, env) {
 
   try {
     const body = await request.json();
-    const syncFinal = body.syncFinal !== false;
-    const syncRunId = text(body.syncRunId);
-    if (!syncFinal && !syncRunId) {
-      return json({ success: false, message: 'syncRunId is required for non-final chunks' }, 400, cors);
+    // Explicit transport metadata is required: missing syncFinal must NEVER
+    // silently become a final freshness claim. This is a necessary guard,
+    // not sufficient proof that prior chunks were received.
+    const syncFinal = body && body.syncFinal;
+    const syncRunId = text(body && body.syncRunId);
+    if (typeof syncFinal !== 'boolean' || !syncRunId) {
+      return json({ success: false, code: 'sync-contract-missing', freshnessAdvanced: false }, 400, cors);
+    }
+    if (!body.sourceRowCounts || typeof body.sourceRowCounts !== 'object' || Array.isArray(body.sourceRowCounts)) {
+      return json({ success: false, code: 'source-row-counts-required', freshnessAdvanced: false }, 400, cors);
+    }
+    for (const [entity] of ENTITY_BUILDERS) {
+      if (!hasOwn(body, entity)) continue;
+      const count = body.sourceRowCounts[entity];
+      if (!Number.isSafeInteger(count) || count < 0) {
+        return json({ success: false, code: 'source-row-count-invalid', freshnessAdvanced: false }, 400, cors);
+      }
     }
 
     const counts = {};
