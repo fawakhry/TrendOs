@@ -12,8 +12,9 @@ Status: SOURCE_ONLY triage, NOT production authorization. Base commit: ab21183f9
 7. End-to-end autonomous printing: NO_GO / NOT_RUN.
 
 ## P1 — source/contracts
+
+Resolved items are removed from the active backlog only after CI evidence; item #9 is provisionally patched and awaits CI, see Pending verification below.
 8. Book versus config.js native employee auth setting: SOURCE_ONLY discrepancy; compare deployed config separately.
-9. trendos_shadow_qualifier.py success flag: SOURCE_ONLY suspected fail-open when missing/non-boolean; write synthetic regression test then fix to strict true.
 10. getRows versus getRowsPageV1931: SOURCE_ONLY; compare permission and pagination contracts.
 11. Employee least-privilege read scope: BLOCKED pending authorization matrix tests.
 12. Durable Andon/exception state storage: UNKNOWN current runtime; design audit and idempotency checks.
@@ -37,6 +38,9 @@ Status: SOURCE_ONLY triage, NOT production authorization. Base commit: ab21183f9
 ## P2 — hub coordination
 27. Immediate agent-to-agent messaging: UNKNOWN; registry describes issue-backed scheduled pilot, not verified live responses.
 28. Autonomous multi-agent handoff: UNKNOWN; require evidence of first completed specialist cycle.
+
+## Pending verification
+- #9 strict-success fail-closed patch and synthetic test staged at commit c4e5b65d2d4e881ce14f885d8c655b7d95cab349; CI NOT_RUN/UNKNOWN. Not CLOSED until passing checks. Historical finding remains in Git history.
 
 ## Execution order
 A. Reconfirm HEAD/base/mergeability, CI and canonical book blob before modifying book. B. Add isolated synthetic strict-success tests and source-only patch. C. Audit read permissions and API contract. D. Resolve book branch divergence by owner-approved review only. E. Request separate explicit authorization for each host/network/printer action; never infer authorization from this backlog.
