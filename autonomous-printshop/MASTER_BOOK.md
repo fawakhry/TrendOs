@@ -10708,3 +10708,10 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 **الدليل:** صورة Cloudflare Production → `trendos-d1-api` → Access تؤكد `This Worker is not protected by Access` ولا توجد سياسة Worker-specific Access. مع ذلك، تعترف الواجهة بإمكانية وجود حماية على مستوى المضيف أو الحساب، ولم تُراجع WAF/Hostname. مع مسارات legacy التي راجعناها في SERVER-52، تبقى `SEC-AP303-02=OPEN_HIGH_PRIORITY` و**احتمال التعرض قائم غير مثبت**؛ لا يوجد دليل اختراق.
 
 **الحالة والإجراءات:** توثيق فقط، دون إنشاء سياسة Access أو تغيير إعدادات Cloudflare أو تشغيل قارئ الأوردرات الحقيقي، لحماية التوافق مع الواجهة والموظفين والعملاء. الخطوة التالية جرد النطاقات من تبويب Domains، ثم حماية مسارات متوافقة بعد الموافقة على نطاق التغيير وخطة الرجوع. [مرجع التفاصيل والقيود](print-server/UBUNTU_SERVER_BOOK.md) و[تقرير Cloudflare](print-server/SERVER52_CF_PRODUCTION_BUNDLE_READ_REVIEW.md). `PROD_CHANGED=NO`, `GO_LIVE=BLOCKED`.
+
+
+## SERVER-20261016-54 — جرد نطاقات Cloudflare: Production وPreview قابلان للزيارة (2026-10-16)
+
+توضح لقطة `trendos-d1-api → Production → Domains` أن رابط `workers.dev` الإنتاجي ورابط Preview مُفعّلان، ومعهما رسالة `Anyone with this URL can visit`، ولا تظهر Custom Domains أو Routes إضافية في القائمة. مع غياب سياسة Worker-specific Access الظاهر في SERVER-53، وملاحظة مسارات legacy القديمة في SERVER-52، يجب اعتبار `SEC-AP303-02=HIGH_PRIORITY_OPEN`. **لا يجوز استنتاج تسريب أو نجاح دخول غير مصرح به من هذه الواجهة وحدها**، إذ لم تكتمل مراجعة WAF أو سياسات الحساب أو مصادقة جميع المسارات.
+
+تم التوثيق في [كتاب السيرفر — SERVER-54](print-server/UBUNTU_SERVER_BOOK.md) و[تقرير أمان Cloudflare](print-server/SERVER52_CF_PRODUCTION_BUNDLE_READ_REVIEW.md). لا إيقاف Production/Preview، ولا تفعيل Access شامل، ولا دمج/Deploy، لأن المستهلكين الحاليين يحتاجون إلى جرد وتوافق وخطة رجوع قبل أي تغيير. `LIVE_ORDER_READ=NO` و`UBUNTU_SERVICE_ACCOUNT=NO`.
