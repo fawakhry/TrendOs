@@ -11067,6 +11067,14 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     // Mutable config must not route credentials to an untrusted SSO origin.
     // EasyStore backend remains the only authority for financial roles.
     if(targetOrigin!=='https://fawakhry.github.io'||!child||!u||!u.token||!nonce)return false;
+    // BOOK30 logout race: never keep pushing a previous session's bearer token
+    // after logout, password change, or account switch in the current tab.
+    function sessionStillCurrent(){
+      var live=(window.trendosState||window.state||{}).user||{};
+      return !!live.token && live.token===u.token &&
+        String(live.username||live.name||'')===String(u.username||u.name||'');
+    }
+    if(!sessionStillCurrent())return false;
     var stopped=false,timer=null,tries=0;
     function stop(){
       if(stopped)return;stopped=true;
@@ -11081,6 +11089,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     }
     function send(){
       if(stopped)return;
+      if(!sessionStillCurrent()){stop();return;}
       tries++;
       try{
         child.postMessage({
