@@ -25,4 +25,14 @@ class StrictSuccessTests(unittest.TestCase):
                 with self.assertRaises(qualifier.ShadowQualificationError):
                     qualifier.qualify_screen_once(FakeClient(response), "print")
 
+    def test_paginated_response_is_not_silently_treated_as_complete_snapshot(self):
+        for marker in ("page", "pageSize", "totalPages", "nextCursor", "cursor", "snapshotId"):
+            with self.subTest(marker=marker):
+                payload = {"success": True, "rows": [], marker: 1}
+                with self.assertRaisesRegex(qualifier.ShadowQualificationError, "AP296_PAGINATED_CONTRACT_NOT_SUPPORTED"):
+                    qualifier.qualify_screen_once(FakeClient(payload), "print")
+
+    def test_shadow_read_action_remains_get_rows(self):
+        self.assertEqual(qualifier.SHADOW_READ_ACTION, "getRows")
+
 if __name__ == "__main__": unittest.main()
