@@ -110,3 +110,16 @@
 | **BOOK25-MANAGER-PROGRESSIVE** | P2 | `manager-center-v1932.js` blob `3d83a67f23056e2428b184c29e984fea871627b3`: `load()` calls a **monolithic** `getTrendMasterCenterV1931`; `loadProgressive()` exists but not called; existing Entry646 test asserts this intentionally direct behavior. Progressive reader `trend-master-resilience-v1931.js` targets separate legacy panel API. | **Do not blindly switch** Cloud D1 manager to Apps Script panel reader: that changes data authority and can regress behavior. Fake independent-source availability, timeout/retry and staleness tests, then approved architecture choice. | `STILL_PRESENT_SOURCE / BLOCKED_UI_AUTHORITY_DESIGN`. |
 
 **Global gates:** Never infer production state from historical book chapters, configured flags or draft PR. `TARGET_BASE_HEAD=085945acd2f346b9c5b49981c5f59474a8f6627d`; `PRODUCTION_READ=NO`; `CUSTOMER_DATA=FAKE_ONLY`; `DEPLOY=NO`; `MERGE=NO`; Draft PRs are not fixes applied to users.
+
+
+## الفصل 28 — Order UI and Core Write Scope (2026-10-16)
+
+**Source snapshot:** Chapter 28 commit `8a81bfba819a21963b68266ded5850528d9805de`; audit baseline HEAD `be3faac2e557809ed78d66fd6f97be35a8ef5699`. All **SOURCE_ONLY**, **TESTED_THIS_PASS=NO**, **PRODUCTION_VERIFIED=NO**; `UNVERIFIED_HISTORICAL_FINDING` until latest target branch/deployed gates are checked. Respect other agents' triage additions. Existing delivery gate and paging cases from chapters 13/19 are not duplicated.
+
+| ID | Priority | Evidence from code | Required fake-only verification | Intake status |
+|---|---|---|---|---|
+| BOOK28-CORE-LINE-SCOPE | **P0** | `cloudflare-d1/src/employee-core-native-v1.mjs` blob `90b8d2d2353b3cbb2d85f8500e54bc64cfc3c82e`, lines 293–328: `updateSingleLine` edits by lineId; `screenAllowed` appears in bulk/read paths but not this writer. | Test print employee updating laser line and vice versa with fake D1/sessions, assert denied before data read/write; trace outer guards and routing, don't touch production. | UNVERIFIED_HISTORICAL_FINDING / SOURCE_AUTH_GAP |
+| BOOK28-BULK-500-SCOPE | P1 | Same Core source bulkStatus/archiveDelivered `.slice(0,500)`; `app.js` blob `9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875` confirms “كل المطابق” UI. | 501+ matching fake lines: explicit processed/remaining, safe continuation proposal, don't execute live loop. | UNVERIFIED_HISTORICAL_FINDING / SOURCE_SCOPE_MISMATCH |
+| BOOK28-CORE-RECOVERY | P1 | requestLedger PREPARED separate from D1 batch, archive/order/event steps then COMMITTED; failure may make same requestId return request-in-flight. | Simulated failure after lines batch, during archive orders, and before COMMITTED; repair/replay without duplicates or loss. | UNVERIFIED_HISTORICAL_FINDING / SOURCE_RECOVERY_RISK |
+
+**Triaging:** refresh current target branch + competing PRs before any fix; classify ALREADY_FIXED_VERIFIED_SOURCE, ALREADY_FIXED_TESTED, STILL_PRESENT_SOURCE, BLOCKED_CURRENT_STATE_UNKNOWN or DUPLICATE_OF. No code changes, deploy, merge, real customer data or status updates authorized by book audit.
