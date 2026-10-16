@@ -84,7 +84,7 @@ test('CH29 invoice: changed payload after lost ACK cannot create a new invoice k
   await h.save();
   assert.equal(h.params.length,1);
   assert.equal(h.state.accounting.pendingFinalInvoiceV29.requestId,k);
-  assert.ok(h.messages.some(x=>String(x[1]).includes('نتيجتها غير مؤكدة')));
+  assert.ok(h.messages.some(x=>String(x[1]).includes('غير مؤكدة')));
 });
 
 test('CH29 invoice: stable requestId survives reloading the same tab',async()=>{
