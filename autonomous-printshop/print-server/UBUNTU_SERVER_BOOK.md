@@ -368,3 +368,15 @@
 - **Next host read-only check (one command and screenshot):** `git -C "$HOME/TrendOs" worktree list --porcelain`. Identify existing worktrees before any additional checkout or staging; do **not** run `git pull`, `git reset`, `git worktree add`, unit restarts or production requests at this step.
 - **Files reviewed:** owner terminal screenshot, `UBUNTU_SERVER_BOOK.md`, PR #160 metadata. **Executed by agent on host:** none. **GitHub modification:** documentation only.
 - **Status:** `GITHUB_ORIGIN_REACHABLE=YES_AS_SHOWN`; `REMOTE_REF_ADVERTISED=ab21183_PREFIX`; `DRY_RUN_ONLY=YES`; `REMOTE_TRACKING_REF_UPDATED=UNVERIFIED`; `COORDINATOR_MOCK_STOP_COMMAND=OWNER_EXECUTED`; `COORDINATOR_CURRENT_STATE=UNVERIFIED`; `HOST_DEPLOY=NO`; `LIVE_ORDER_READ=NO`; `PR_MERGE=NO`; `CLOUDFLARE_PRODUCTION_CHANGE=NO`.
+
+
+### SERVER-20261016-39 — Ubuntu worktree inventory confirmed (2026-10-16)
+- **هدف الفحص:** جرد نسخ العمل على السيرفر لحماية النسخ القائمة، قبل أي Fetch تطبيقي أو إنشاء بيئة منفصلة أو نشر القراءة الجديدة.
+- **الدليل الحقيقي:** لقطة صاحب المشروع لتنفيذ `git -C "$HOME/TrendOs" worktree list --porcelain` على `trend-main@TrendosShop`، والأمر انتهى وظهر الـprompt دون خطأ.
+- **النسخة الأولى:** `/home/trend-main/TrendOs` عند `a238ce5a830bc5a7968dc020cd8168c85fa8c446`، على `refs/heads/feature/ap155-imac-ssh-service-absent-owner-install-20261012`. هذه النسخة الأساسية محفوظة، ولا يوجد Pull أو Checkout تم تنفيذه.
+- **النسخة الثانية:** `/home/trend-main/TrendOs-AP281-staging-66b64ab` عند `66b64ab920e0bff4821d18d5301c8df78694a03a` في وضع `detached HEAD`. هذه نسخة staging سابقة؛ لا يجوز حذفها أو إعادة استخدامها أو تبديل فرعها دون مراجعة محتواها وحالتها. أمر `worktree list` لا يثبت نظافة ملفات هذه النسخة ولا يحصر الملفات المتجاهلة.
+- **الملفات/المراجع:** كتاب Ubuntu، لقطة `worktree list`، الحالة الأخيرة لفرع Draft PR #160. لم يتم فتح/تعديل ملفات السيرفر نفسه أو تغيير إعدادات Cloudflare.
+- **الاختبارات الفعلية:** نجح أمر الجرد (عرض worktree + HEAD + detached/branch). **لا توجد اختبارات API حية أو على الطابعات أو الليزر.**
+- **الأخطاء/القيود:** لا توجد رسالة خطأ لهذا الأمر. فشل `fokha-coordinator-user-mock.service` السابق مستقل وحالته بعد أمر `stop` لم تُختبر. لا يُعرف بعد ما إذا كانت staging تحتوي تعديلات محلية أو ملفات متجاهلة.
+- **حالة التنفيذ:** `WORKTREES_FOUND=2`; `MAIN_UNCHANGED=YES_AS_OBSERVED`; `AP281_STAGING_DETACHED=YES`; `AP281_STAGING_CLEAN=UNKNOWN`; `NEW_WORKTREE_CREATED=NO`; `UBUNTU_DEPLOY=NO`; `CLOUDFLARE_DEPLOY=NO`; `REAL_ORDERS_READ=NO`.
+- **الخطوة التالية، أمر واحد فقط على Ubuntu ثم صورة:** `git -C "$HOME/TrendOs-AP281-staging-66b64ab" status --porcelain=v1 --branch` (قراءة فقط). بعدها نفحص المساحة قبل تقرير إنشاء نسخة اختبار مستقلة؛ لا نغيّر نسخة AP281 الحالية.
