@@ -36,3 +36,10 @@
 | P2 | `BOOK23-CLEANING-RACE`, `BOOK21-OBSERVABILITY`, `BOOK31-SAFE-START-PROFILE` | Scheduling race, audit without PII, safe isolated start. | Offline source/FakeDB tests. |
 
 **Interpretation:** Queue is a triage/filter view, NOT an exhaustive closure list. Each historical ID must be rechecked against the **latest code and competing PRs** before any patch. A green fake test is `TESTED_SYNTHETIC`, never `PRODUCTION_VERIFIED`. Do not move finance back into this queue unless the owner explicitly asks.
+
+## Continuation 2026-10-16 — verified latest and Zero-Google operational blockers
+
+- `BOOK28-BULK-500-SCOPE` no longer requires code fix: Draft #159 exact HEAD `00d5f39967ec4f700a6bdea8a9b8e9d17d96e626`, [CI PASS](https://github.com/fawakhry/TrendOs/actions/runs/38925036096); UI displays server `res.message`. Remains P1 **tested on Draft**, NOT production verified.
+- `BOOK30-LEGACY-VERIFY-QUERY` P1: source still transmitted employee session token to Apps Script in GET during old `/v1/edge/session`. New isolated fix branch `fix/book30-edge-session-native-only-google-guard-20261016` denies that route in existing Native-only mode only; no replacement for legacy-mode exchange; synthetic CI **PENDING** and Draft approval blocked. Not an EasyStore SSO finance-policy change.
+- `BOOK24-TASK-AUTHORITY` P0: independent D1 Operator Task foundation exists but live operator Edge V2 still calls Apps Script for claim/complete. Native-only employee auth does not independently prove Task ownership migration. Staging mode and single-writer evidence **BLOCKED**; don't switch Task authority or disable an active service without owner-approved cutover.
+- `ZERO_GOOGLE_COMPLETE=NO`. Portal legacy actions, Operator Tasks and deployment provenance remain outstanding. Finance ownership stays with EasyStore.
