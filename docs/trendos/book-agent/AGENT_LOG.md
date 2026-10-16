@@ -124,3 +124,10 @@
 - WRITE: chapter 20 commit `63ca6bfe7b2c7d479206492661de2d42337110f5`, blob `d7d82e54b6e70eda39202526ef489f89478c63cb`, independently fetched and verified.
 - STATUS: `SOURCE_ONLY` / `SOURCE_AUTH_GAP` / `BLOCKED`; `TESTED=NO`, `PRODUCTION_VERIFIED=NO`. Docs only, no R2 access or deployment.
 - NEXT: chapter 21 data flow/observability and test-evidence reconciliation; notify security review owner through established queue only when specifically needed and without exposing file IDs.
+
+
+## 2026-10-16 / EVIDENCE-QUEUE-016 — اختبارات الفصول 16–20
+- APPLY: 11 open source-to-test gap IDs added to `TEST_EVIDENCE_QUEUE.md` covering customer ownership/draft replay, WhatsApp event enum, urgent notifications, balance identity, invoice atomicity, all delivery gates, Task upstream, file SSO token, R2 GET authorization and orphan cleanup.
+- COMMIT: `dbcc302ebda312c75678ee8248bfb2a3814154cc`, new blob `c48f67c205cf4c22c8cee32b666006881ad789b1`; independent fetch verified queue heading.
+- RESULT: no tests executed; `TESTED=NO`, `PRODUCTION_VERIFIED=NO`. Queue entries are hypotheses/source contracts, not production incident assertions.
+- NEXT: chapter 21 audit observability/data integrity and test run evidence; later continue inventory to remaining modules, then final document review; no background work assumed.
