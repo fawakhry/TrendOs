@@ -8,6 +8,7 @@ import {
 import {machineReadinessEvidenceCandidatesV1} from '../core/machine-readiness-v1.mjs';
 
 // BOOK24-READINESS-PARITY — entirely synthetic, no worker, D1 or machines.
+// Exact-head CI sync after append-only Book Agent documentation.
 const now=1800000000000;
 const row={orderId:'FAKE-1',lineId:'FAKE-L1',department:'ليزر',status:'طلب جديد',
   priority:'عاجل',expectedDelivery:'2026-10-16'};
