@@ -10701,3 +10701,10 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 **العمل المنجز، دون نشر:** تم اعتماد نتيجة المقارنة في [SERVER-52 bundle review](print-server/SERVER52_CF_PRODUCTION_BUNDLE_READ_REVIEW.md) و[كتاب السيرفر المرحلة 52](print-server/UBUNTU_SERVER_BOOK.md). لا تكرار لإصلاحات [PR #151](https://github.com/fawakhry/TrendOs/pull/151) و[PR #154](https://github.com/fawakhry/TrendOs/pull/154) و[PR #160](https://github.com/fawakhry/TrendOs/pull/160)، وكلها ما زالت Draft. تجارب Ubuntu المحلية `43/43 PASS` باستخدام بيانات وهمية لا تثبت صلاحيات أو اتصال Production.
 
 **بوابة التشغيل الحقيقية:** `SEC-AP303-02=OPEN_HIGH_PRIORITY`؛ مطلوب تأكيد Access/WAF للمضيف الفعلي، وجرد مستهلكي المسارات القديمة وإعداد ترحيل متوافق قبل نشر حل الأمان، وموافقة منفصلة لإنشاء حساب الخدمة وDeploy Cloudflare وأول قراءة حية. **ممنوع تفعيل الحساب أو استدعاء أوردرات العملاء أو تشغيل الماكينات تلقائيًا.**
+
+
+## SERVER-20261016-53 — مراجعة Cloudflare Access: حماية Worker غير مفعّلة (2026-10-16)
+
+**الدليل:** صورة Cloudflare Production → `trendos-d1-api` → Access تؤكد `This Worker is not protected by Access` ولا توجد سياسة Worker-specific Access. مع ذلك، تعترف الواجهة بإمكانية وجود حماية على مستوى المضيف أو الحساب، ولم تُراجع WAF/Hostname. مع مسارات legacy التي راجعناها في SERVER-52، تبقى `SEC-AP303-02=OPEN_HIGH_PRIORITY` و**احتمال التعرض قائم غير مثبت**؛ لا يوجد دليل اختراق.
+
+**الحالة والإجراءات:** توثيق فقط، دون إنشاء سياسة Access أو تغيير إعدادات Cloudflare أو تشغيل قارئ الأوردرات الحقيقي، لحماية التوافق مع الواجهة والموظفين والعملاء. الخطوة التالية جرد النطاقات من تبويب Domains، ثم حماية مسارات متوافقة بعد الموافقة على نطاق التغيير وخطة الرجوع. [مرجع التفاصيل والقيود](print-server/UBUNTU_SERVER_BOOK.md) و[تقرير Cloudflare](print-server/SERVER52_CF_PRODUCTION_BUNDLE_READ_REVIEW.md). `PROD_CHANGED=NO`, `GO_LIVE=BLOCKED`.
