@@ -1,4 +1,8 @@
 # TrendOS Book Agent — عقد التشغيل V1
+
+
+> **قرار المالك الأحدث · 2026-10-16 · LEGACY_PRE_SPLIT_ARCHIVE:** المهمة الأساسية الآن **جمع وحفظ كل كود النظام القديم قبل تقسيمه**، بما فيه الوظائف المتوقفة والمنقولة إلى مشاريع مستقلة، وضمّها إلى [كتاب النظام القديم](TRENDOS_LEGACY_PRE_SPLIT_BOOK.md) و[سجل المصادر](LEGACY_SOURCE_RECOVERY_REGISTER.md)، تمهيدًا لـ[تنظيف GitHub المراجع](GITHUB_LEGACY_CLEANUP_PLAN.md). **هذا القرار يعلو على شرط CURRENT_ONLY المؤرخ 2026-10-14 في هذا الملف وفي BOOK_VNEXT_OUTLINE.md**. يبقى `TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md` سجلًا مرحليًا لما راجعه الإيجنت ولا يُحذف أو يعاد تسميته دون قرار. لا تُنسخ كتب EasyStore/Matbagy-OS/Fokha؛ تربط الأكواد القديمة بمصدرها وحالة هجرتها فقط. ما زالت قواعد NO_DEPLOY/NO_MERGE/NO_DELETE وSecret/PII safety ملزمة.
+
 > 2026-10-14 | STATUS: SETUP / DOCS-ONLY | BASE: PR #130 @ `a80eb3761082659ed5a484695d08993214316e4a`
 >
 > هدف الإيجنت: تحويل توثيق TrendOS إلى معرفة دقيقة وقابلة للبحث والاستكمال، ومصالحة أدلة الاختبارات غير المنعكسة بعد في الكتاب. **هذا الملف ليس شهادة نجاح أو إذن نشر.**
