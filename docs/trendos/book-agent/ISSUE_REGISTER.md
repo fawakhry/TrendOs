@@ -123,3 +123,11 @@
 | BOOK28-CORE-RECOVERY | P1 | requestLedger PREPARED separate from D1 batch, archive/order/event steps then COMMITTED; failure may make same requestId return request-in-flight. | Simulated failure after lines batch, during archive orders, and before COMMITTED; repair/replay without duplicates or loss. | UNVERIFIED_HISTORICAL_FINDING / SOURCE_RECOVERY_RISK |
 
 **Triaging:** refresh current target branch + competing PRs before any fix; classify ALREADY_FIXED_VERIFIED_SOURCE, ALREADY_FIXED_TESTED, STILL_PRESENT_SOURCE, BLOCKED_CURRENT_STATE_UNKNOWN or DUPLICATE_OF. No code changes, deploy, merge, real customer data or status updates authorized by book audit.
+
+### BOOK25-KPI-TRUTH — لاحق لجدول CH25/26 (دليل اختبار إضافي)
+
+- **Source defect remained at inspected baseline:** Manager Core had `duplicateHealthy:true`, `duplicateGroups:0`, `messageQueue:[]` without authoritative duplicate/messages source. UI interpreted missing queue as 0 and green 'no issues'.
+- **Stacked source fix (Draft only):** `fix/book25-kpi-unknown-20261016` on top of P0 manager-auth Draft #137; [Draft #140](https://github.com/fawakhry/TrendOs/pull/140), at `fe19d3faebebbfa4494807a657315f7907db3ce5`, returns null/UNKNOWN for duplicate metrics and null/UNAVAILABLE for queue and day close; UI displays '—' and explicit warning instead of fabricated health/zero.
+- **Synthetic CI:** [Book25 KPI #38910992534](https://github.com/fawakhry/TrendOs/actions/runs/38910992534) PASS fake manager Core/API and UI; [P0 Authorization #38910993058](https://github.com/fawakhry/TrendOs/actions/runs/38910993058) PASS; [A61 browser #38910992324](https://github.com/fawakhry/TrendOs/actions/runs/38910992324) PASS.
+- **Non-green regression explicitly preserved:** [Trend Master Resilience CI #38910992872](https://github.com/fawakhry/TrendOs/actions/runs/38910992872) FAIL (current `trend-master-resilience-v1931.js` does not include `AbortController`, while older test demands it). The earlier stale assertion demanding Edge Orders flag OFF was updated to current repository TRUE, **not** a runtime flag change. Missing real timeout is not hidden or declared fixed.
+- **Result:** `BOOK25-KPI-TRUTH=PARTIAL_PATCH_TESTED`; true KPI sources and progressive timeout `BLOCKED`; full 25/26 regression `NOT_GREEN`; `PRODUCTION_VERIFIED=NO`. No deployment/merge.
