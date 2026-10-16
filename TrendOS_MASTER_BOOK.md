@@ -100,17 +100,6 @@
 - الحالة الحالية بعد Entry600: `ROOT_CAUSE_CONFIRMED=YES`, `PRODUCTION_FIX_DEPLOYED=YES`, `BUSINESS_RECONCILIATION_DONE=YES`, `STALE_15_RECONCILED=YES`.
 - هذه المشكلة مغلقة Production؛ لا تُعاد معالجة الـ15 مرة أخرى.
 
-### Entry598 — Production preflight لإصلاح الأوردرات القديمة = PASS
-- Production preflight Read-only: run `37020759452`, job `110882922276` = **SUCCESS**.
-- Active API لم يتحرك: version `23be0ab2-0a2b-4b81-bf54-e2f05f847989`، deployment `b8497ee0-a487-43c8-bcb3-b3f3ab83d3ff`، live SHA-256 `2b78dea01c7e5892460ead4581915da9982208d60a41a95ce903beb742698f67`.
-- API target المؤهل للإصلاح يُبنى من source `c491d3ed9b7e87c5d5f7d7ee0a57e02c3e530281`، والـCloudflare API delta عن source الحي = **4 ملفات فقط**: migration 0011 + legacy runtime module + operational runtime handler + 02CR read overlay. Target bundle SHA-256 = `7550c3a82b30acf0f34c52565568df8d7e7d6092ca322b36bbac7726256a0bc6`.
-- Active Frontend لم يتحرك: version `a26589a4-e2e0-4ed5-9abf-e1b19b56ce0e`، deployment `21a12f7f-e323-4bc2-bb60-7ef4009d708e` عند 100%؛ Legacy runtime frontend flag **غير منشور** بعد.
-- D1 table `t12_legacy_line_runtime` = absent؛ pending migrations = **0011 فقط**.
-- stale D1 set ما زال **بالضبط 15**، وmirror timestamp ما زال `2026-09-26 18:33:08`.
-- Order Create ما زال `GENERAL` وDuplicate Guard = ready؛ current native runtime health = PASS.
-- preflight لم يغير D1/Cloudflare/Frontend/Apps Script/Order Status.
-- Production scope المطلوب للإغلاق، إذا صرّح به المالك صراحة: **apply 0011 فقط → deploy API target فقط → reconcile exactly the verified 15 rows to `تم التسليم` داخل legacy runtime overlay → deploy qualified frontend only → read-only postflight**. لا تغيير Order IDs، لا Google write، لا Apps Script v159، ولا business CREATE test.
-
 ### Entry599/600 — إصلاح Production للأوردرات القديمة = CLOSED PASS
 - المالك صرّح صراحة بالنطاق: `0011 + API + reconcile الـ15 + frontend فقط`.
 - إعادة تحقق Google read-only قبل التنفيذ أثبتت أن الـ15 كلها ما زالت `تم التسليم`؛ ملاحظة Order `4317` الحالية `@koko.1072` وتم الحفاظ عليها.
@@ -6845,3 +6834,5 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - **MIGRATION PRECHECK — Entries 596–600 / 2026-10-16 / BLOCKED_NO_COPY_NO_REMOVE:** جرى فحص كتلة إصلاح Legacy Orders بالكامل (92 سطرًا تقريبًا)، وتأكد تطابقها مع فرع الأرشيف على مستوى النص، لكن احتوت معرّفات أوردرات وملاحظة محددة قد تُنسب إلى عميل. تماشيًا مع شرط المالك بمنع تكرار بيانات عملاء خاصة في مستودع عام، **لم تُنقل الكتلة إلى الكتاب الجديد ولم يُحذف أي سطر منها من الكتاب القديم**. يلزم تصنيف بيانات العملاء وتحديد عرض آمن للمعرّفات/الملاحظة قبل قرار نقل لاحق؛ سجل Git المؤرشف يبقى مرجع الاسترجاع. هذه الحالة `BLOCKED_PRIVACY_REVIEW` وليست `MIGRATED`، ولا تتضمن أي حكم جديد على إنتاجية الإصلاح.
 
 - **MIGRATION UNIT 002 / Entry597 / 2026-10-16:** ترحيل تاريخي مراجَع إلى الملحق «ز» من الكتاب الموحد، `HISTORICAL` / `SOURCE_QUALIFICATION_AT_ORIGINAL_DATE` لا دليل Runtime جديد. نص Entry597 الأصلي **1938 حرفًا** نُسخ في [commit b12e99b5acb1](https://github.com/fawakhry/TrendOs/commit/b12e99b5acb1f9ca232f2c7ebe4f5e91b521b85f)؛ تمت إعادة قراءة الأصل والهدف والأرشيف على GitHub، و`EXACT_VERBATIM_MATCH=PASS (1938/1938)`. مصدر البداية [HEAD cce96674](https://github.com/fawakhry/TrendOs/commit/cce96674fb573788b5d9d8d44d81cca24fbe9675) blob `986761be5262e39961ebe0ed64df0fe70641319e`؛ الأرشيف الثابت `b2788ecb4c187717e020321954a1ea449c1aa0d5` blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`. أزيل عنوان/نص Entry597 فقط من الكتاب القديم، مع إبقاء Entry596/598/599–600 و`ACTIVE_WRITE`؛ سيظل عائق خصوصية مجموعة 596–600 قائمًا لأجزائها غير المراجعة. Commit الإزالة يحمل هذا التسجيل. `NO_PRODUCTION_MUTATION`.
+
+- **MIGRATION UNIT 003 / Entry598 / 2026-10-16:** تاريخ فحص Production preflight قبل Entry599/600 نُقل إلى الملحق التاريخي «ح» في الكتاب الجديد، `HISTORICAL` / `NO_NEW_RUNTIME_VERIFICATION`. نص Entry598 طوله **1535 حرفًا** نُسخ في [commit ceccf9114c1e](https://github.com/fawakhry/TrendOs/commit/ceccf9114c1ef3b8992953ad010a115a41dbc9f0)؛ `EXACT_VERBATIM_MATCH=PASS (1535/1535)` على GitHub أمام الأصل والأرشيف `b2788ecb4c187717e020321954a1ea449c1aa0d5` blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`. مصدر الأصل عند بداية هذه الوحدة [HEAD 0bd4a36e](https://github.com/fawakhry/TrendOs/commit/0bd4a36e39869ea5b6fa4bf6513e659d70f7c187)، blob `a56766f63eef4f8d1d11aaa708118c2b4a7309a1`. بعد التحقق أزيل قسم Entry598 فقط من القديم، وبقي Entry596 وEntry599/600 وبقية أقسام الكتاب و`ACTIVE_WRITE` دون حذف. هذا التسجيل في Commit الإزالة. `NO_PRODUCTION_MUTATION`.
