@@ -193,7 +193,11 @@ function handoffHarness(){
     alert:m=>alerts.push(m)
   };
   vm.createContext(context);
-  vm.runInContext(segment(APP,'  function roleMode(){','  function entry619SsoNonce()')+'\nthis.roleMode=roleMode',context);
+  // The bundle contains an older homonymous roleMode patch; isolate LAST handoff.
+  const roleStart=APP.lastIndexOf('  function roleMode(){');
+  const roleEnd=APP.indexOf('  function entry619SsoNonce()',roleStart);
+  assert.ok(roleStart>=0&&roleEnd>roleStart);
+  vm.runInContext(APP.slice(roleStart,roleEnd)+'\nthis.roleMode=roleMode',context);
   vm.runInContext(segment(APP,'  function openAccounting(dayClose){','  function mount()')+'\nthis.openAccounting=openAccounting',context);
   return {context,window,alerts,children};
 }
