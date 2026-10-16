@@ -57,7 +57,18 @@ def qualify_screen_once(client: ReadRowsClient, screen: str, *,
         raise ShadowQualificationError("AP296_READ_FAILED") from None
     if not isinstance(response, dict) or response.get("success") is not True:
         raise ShadowQualificationError("AP296_INVALID_RESPONSE")
-    if any(key in response for key in ("page", "pageSize", "totalPages", "nextCursor", "cursor", "snapshotId")):
+    # The Edge page route returns a NESTED pagination object and serverPaged=true.
+    # Do not confuse a first page with a complete getRows snapshot, even when
+    # the top-level page/cursor keys are absent. A core getRows response may
+    # legitimately declare serverPaged=false; any other value is ambiguous.
+    page_keys = (
+        "page", "pageSize", "totalPages", "totalRows", "nextCursor",
+        "cursor", "snapshotId", "pagination", "pageInfo", "paging",
+        "hasOlder", "hasNext", "nextPage", "offset", "limit",
+    )
+    if any(key in response for key in page_keys) or (
+        "serverPaged" in response and response["serverPaged"] is not False
+    ):
         raise ShadowQualificationError("AP296_PAGINATED_CONTRACT_NOT_SUPPORTED")
     rows = response.get("rows")
     if not isinstance(rows, list) or len(rows) > MAX_ROWS:
