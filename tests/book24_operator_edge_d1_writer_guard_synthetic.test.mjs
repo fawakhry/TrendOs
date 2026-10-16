@@ -1,4 +1,5 @@
 // BOOK24: no real network, D1, Apps Script, staff, or machines.
+// Final verification sync: concurrent Edge requests remain local synthetic fixtures.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
