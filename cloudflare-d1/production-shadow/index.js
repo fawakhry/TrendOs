@@ -1,3 +1,4 @@
+export { MirrorServiceNonceGuardV1 } from '../src/mirror-service-replay-guard-v1.mjs';
 import core from '../src/index_v2.js';
 import {
   handleProductionShadowObserver,

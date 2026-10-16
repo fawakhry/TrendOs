@@ -191,6 +191,30 @@ async function getSheetReadOnly(env, url) {
   };
 }
 
+/**
+ * SERVER-67 internal data projection only. NOT an HTTP route or authorization gate.
+ * Call exclusively after purpose + HMAC verification in mirror-service-read-v1.
+ * The historical HTTP mirror routes remain explicitly fail-closed.
+ */
+export async function readMirrorServicePayload(kind, env, url) {
+  if (kind === 'sheets') {
+    return {success:true, schemaMutationFree:true, sheets:await listSheetsReadOnly(env)};
+  }
+  if (kind === 'stats') {
+    return {success:true, stats:await mirrorStatsReadOnly(env)};
+  }
+  if (kind === 'capabilities') {
+    return {success:true, capabilities:await mirrorCapabilitiesReadOnly(env)};
+  }
+  if (kind === 'sheet') {
+    const sheet = await getSheetReadOnly(env, url);
+    return sheet
+      ? {success:true, schemaMutationFree:true, sheet}
+      : {success:false, schemaMutationFree:true, message:'Sheet not found'};
+  }
+  throw new Error('UNQUALIFIED_MIRROR_SERVICE_KIND');
+}
+
 function normalizeHeartbeatSheets(body) {
   const raw = Array.isArray(body && body.sheets) ? body.sheets : [];
   const seen = new Set();

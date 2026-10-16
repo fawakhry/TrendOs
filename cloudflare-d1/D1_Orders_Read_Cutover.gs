@@ -18,6 +18,16 @@ function d1OrdersReadApiUrl_() {
 }
 
 function d1OrdersReadGetJson_(path) {
+  // SERVER-67: retain historical behavior until an approved Script Property
+  // turns on the separately scoped service signer. Never silently fall back
+  // to unauthenticated legacy GET after the secure client is explicitly ON.
+  if (String(PropertiesService.getScriptProperties()
+      .getProperty('D1_MIRROR_SERVICE_READ_V1_ENABLED') || '') === 'true') {
+    if (typeof d1MirrorServiceReadV1_ !== 'function') {
+      throw new Error('SERVER67_SIGNER_NOT_INSTALLED');
+    }
+    return d1MirrorServiceReadV1_(path);
+  }
   const response = UrlFetchApp.fetch(d1OrdersReadApiUrl_() + path, {
     method: 'get',
     muteHttpExceptions: true,
