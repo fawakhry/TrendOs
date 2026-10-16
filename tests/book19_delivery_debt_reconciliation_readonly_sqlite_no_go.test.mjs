@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import {test} from 'node:test';
 import {webcrypto} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
+import {buildT12OrderCreateShadowIntent} from '../cloudflare-d1/src/t12-order-create-shadow-intent.mjs';
 
 // Actual checked-in Native Core Worker and offline fake SQLite; no finance writes.
 const original=fs.readFileSync('cloudflare-d1/src/employee-core-native-v1.mjs','utf8');
@@ -14,7 +15,7 @@ try{
  db.exec(fs.readFileSync('cloudflare-d1/migrations/0016_employee_core_zero_google_v1.sql','utf8'));
  db.exec(fs.readFileSync('cloudflare-d1/migrations/0017_employee_core_current_orders_v1.sql','utf8'));
  db.exec("CREATE TABLE t12_customers(customer_id TEXT PRIMARY KEY,customer_name TEXT NOT NULL,phone TEXT NOT NULL DEFAULT '',extra_phone TEXT NOT NULL DEFAULT '',active TEXT NOT NULL DEFAULT 'نعم',debt_amount REAL NOT NULL DEFAULT 0)");
- db.exec("CREATE TABLE t12_prod_orders(order_id TEXT PRIMARY KEY,customer_name TEXT NOT NULL DEFAULT '',customer_phone TEXT NOT NULL DEFAULT '',external_customer_id TEXT NOT NULL DEFAULT '')");
+ db.exec("CREATE TABLE t12_prod_orders(order_id TEXT PRIMARY KEY,customer_mode TEXT NOT NULL DEFAULT 'external',customer_name TEXT NOT NULL DEFAULT '',customer_phone TEXT NOT NULL DEFAULT '',external_customer_id TEXT NOT NULL DEFAULT '')");
  db.exec("CREATE TABLE t12_prod_lines(line_id TEXT PRIMARY KEY,order_id TEXT NOT NULL)");
  db.exec("CREATE TABLE employee_accounting_party_balances_v1(party_type TEXT NOT NULL,party_id TEXT NOT NULL,balance REAL NOT NULL DEFAULT 0,PRIMARY KEY(party_type,party_id))");
  db.exec("UPDATE employee_core_control_v1 SET mode='READONLY' WHERE singleton=1");
@@ -39,8 +40,8 @@ try{
  db.prepare("INSERT INTO t12_prod_orders(order_id,customer_name,customer_phone) VALUES('FAKE_T12_ORDER','FAKE_T12_PERSON','FAKE_PHONE_T12')").run();
  db.prepare("INSERT INTO t12_prod_lines(line_id,order_id) VALUES('FAKE_T12_LINE','FAKE_T12_ORDER')").run();
  addCustomer('FAKE_CUSTOMER_T12','FAKE_T12_PERSON','FAKE_PHONE_T12',70,19);
- const addLinked=(line,order,customer,phone,externalId,mappedId,operational,posted)=>{
-   db.prepare("INSERT INTO t12_prod_orders(order_id,customer_name,customer_phone,external_customer_id) VALUES(?,?,?,?)").run(order,customer,phone,externalId);
+ const addLinked=(line,order,customer,phone,externalId,mappedId,operational,posted,mode='external')=>{
+   db.prepare("INSERT INTO t12_prod_orders(order_id,customer_mode,customer_name,customer_phone,external_customer_id) VALUES(?,?,?,?,?)").run(order,mode,customer,phone,externalId);
    db.prepare("INSERT INTO t12_prod_lines(line_id,order_id) VALUES(?,?)").run(line,order);
    addCustomer(mappedId,customer,phone,operational,posted);
  };
@@ -48,6 +49,8 @@ try{
  addLinked('FAKE_T12_ID_CONFLICT','FAKE_ORDER_ID_CONFLICT','FAKE_CONFLICT_PERSON','FAKE_PHONE_LINK_CONFLICT','FAKE_SOMEONE_ELSE','FAKE_CUSTOMER_LINK_TARGET',48,48);
  addLinked('FAKE_T12_ID_NO_MATCH','FAKE_ORDER_ID_NO_MATCH','FAKE_ABSENT_PERSON','FAKE_PHONE_ABSENT','FAKE_UNVERIFIED_ORDER_ID','FAKE_ABSENT_NOT_A_CUSTOMER',0,null);
  db.prepare("DELETE FROM t12_customers WHERE customer_id='FAKE_ABSENT_NOT_A_CUSTOMER'").run();
+ addLinked('FAKE_T12_EXTERNAL_NUMERIC','FAKE_ORDER_EXTERNAL_NUMERIC','FAKE_EXTERNAL_PERSON','FAKE_PHONE_EXTERNAL_NUMERIC','999002','CUS-C000777',8,25,'external');
+ addLinked('FAKE_T12_REGISTERED','FAKE_ORDER_REGISTERED','FAKE_REGISTERED_PERSON','FAKE_PHONE_REGISTERED','', 'CUS-C000888',35,12,'registered');
  const DB={
    prepare(sql){let args=[];
      const stmt={
@@ -191,6 +194,48 @@ try{
    assert.equal(r.status,'ORDER_CUSTOMER_ID_CONFLICT');
    assert.equal(r.postedCustomerBalance,null);
    assert.equal(r.orderExternalCustomerId,'FAKE_SOMEONE_ELSE');
+ });
+
+ await test('16 BOOK19 externally supplied numeric ID is not a verified T12 customer key',async()=>{
+   const n=changes(),r=await send('FAKE_T12_EXTERNAL_NUMERIC');
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.orderCustomerMode,'external');
+   assert.equal(r.orderExternalCustomerId,'999002');
+   assert.equal(r.orderCustomerIdProvenance,'EXTERNAL_INPUT_UNATTESTED');
+   assert.equal(r.customerBindingStatus,'ORDER_ID_CONFLICTS_WITH_CANDIDATE');
+   assert.equal(r.postedCustomerBalance,null);assert.equal(r.identityVerified,false);
+   assert.equal(r.deliveryAuthorized,false);assert.equal(changes(),n);
+ });
+ await test('17 BOOK19 registered order has no persisted immutable customer ID by creation contract',async()=>{
+   const n=changes(),r=await send('FAKE_T12_REGISTERED');
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.orderCustomerMode,'registered');
+   assert.equal(r.orderExternalCustomerId,'');
+   assert.equal(r.orderCustomerIdProvenance,'REGISTERED_ORDER_ID_UNBOUND_BY_CONTRACT');
+   assert.equal(r.customerBindingStatus,'UNBOUND');
+   assert.equal(r.identityVerified,false);assert.equal(r.deliveryAuthorized,false);
+   assert.equal(r.postingAllowed,false);assert.equal(changes(),n);
+ });
+ await test('18 BOOK19 imported snapshot cannot claim native T12 order/customer key provenance',async()=>{
+   const r=await send('FAKE_SNAPSHOT_STALE');
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.sourceKind,'core-import');assert.equal(r.orderCustomerMode,'');
+   assert.equal(r.orderCustomerIdProvenance,'IMPORTED_NO_T12_ORDER_ID_BINDING');
+   assert.equal(r.identityVerified,false);assert.equal(r.financeRelease,'NO_GO');
+ });
+ await test('19 BOOK19 actual pure order-create contract keeps external digits but blanks registered external ID',async()=>{
+   const base={clientRequestId:'T12-BOOK19-PROVENANCE-001',customerName:'FAKE_CREATED_PERSON',
+     customerPhone:'01000000001',department:'طباعة',itemName:'FAKE_PRINT_ITEM',qty:1};
+   const registered=buildT12OrderCreateShadowIntent({...base,customerMode:'عميل مسجل'},'FAKE_OWNER');
+   assert.equal(registered.valid,true,JSON.stringify(registered));
+   assert.equal(registered.identity.mode,'registered');
+   assert.equal(registered.identity.externalCustomerId,'');
+   const external=buildT12OrderCreateShadowIntent({...base,clientRequestId:'T12-BOOK19-PROVENANCE-002',
+     customerMode:'خارجي / عابر',externalCustomerId:'999002'},'FAKE_OWNER');
+   assert.equal(external.valid,true,JSON.stringify(external));
+   assert.equal(external.identity.mode,'external');
+   assert.equal(external.identity.externalCustomerId,'999002');
+   assert.equal(external.businessOrderIdAllocated,false);
  });
  console.log('BOOK19_DELIVERY_DEBT_RECONCILIATION=SOURCE_ONLY_FAKE_SQLITE');
  console.log('BOOK19_PRODUCTION_WRITE=NO');
