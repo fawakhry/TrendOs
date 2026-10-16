@@ -10,7 +10,7 @@ assert.match(backend,/READ_ACTIONS=new Set\(\['getRows','getRowsPageV1931','getD
 assert.match(backend,/action==='getRows'\|\|action==='getRowsPageV1931'/);
 assert.match(backend,/serverPaged:false/);
 assert.match(backend,/dataSource:'employee-core-d1'/);
-assert.match(index,/employee-api-dispatcher-v1\.js\?v=20261008-entry650-core-order-page-read/);
+assert.match(index,/employee-api-dispatcher-v1\.js\?v=20261008-entry652-session-lifecycle/);
 
 const calls=[];
 const downstream=async(action,params)=>({success:true,source:'edge',action,params});
