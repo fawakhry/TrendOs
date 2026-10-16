@@ -925,7 +925,7 @@ try{
       });
       assert.equal(r.success,false,JSON.stringify(r));
       assert.equal(r.status,403,'the verified synthetic service session is rejected before privileged command review');
-      assert.equal(r.automaticRetryAuthorized,false);
+      assert.equal(r.code,'employee-session-rejected','unauthorized actor is blocked by the existing global auth gate');
     }finally{role='admin'}
     for(const requestKey of ['', 'invalid/slash', 'bad key']){
       const r=await send('previewAccountingFinalInvoiceCommandV1',{requestKey});
