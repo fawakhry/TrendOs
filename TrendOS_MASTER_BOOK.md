@@ -100,28 +100,6 @@
 - الحالة الحالية بعد Entry600: `ROOT_CAUSE_CONFIRMED=YES`, `PRODUCTION_FIX_DEPLOYED=YES`, `BUSINESS_RECONCILIATION_DONE=YES`, `STALE_15_RECONCILED=YES`.
 - هذه المشكلة مغلقة Production؛ لا تُعاد معالجة الـ15 مرة أخرى.
 
-### Entry597 — Legacy Line Runtime Overlay مؤهل في Repo فقط
-- الاسم العربي للبحث: **إصلاح البند غير موجود / تقفيل الأوردرات القديمة من Cloud / Legacy Line Runtime / تشغيل البنود القديمة على D1**.
-- Migration جديدة additive فقط: `cloudflare-d1/migrations/0011_t12_legacy_line_runtime.sql`؛ تنشئ `t12_legacy_line_runtime` + event ledger بدون `DROP/ALTER` وبدون تعديل `sheet_rows`.
-- Runtime module: `cloudflare-d1/src/t12-legacy-line-runtime.mjs` يحل هوية Legacy من D1 mirror مع 02CX date-coercion repair، ويحفظ status/notes كـoverlay منفصل قابل للتدقيق.
-- API endpoint المؤهل Repo-only: `/v1/t12/orders/line-runtime/legacy-update`.
-- مسار القراءة 02CR يطبق Legacy runtime overlay **قبل** active filtering/paging، ثم يدمج Cloud-native rows.
-- Frontend source المؤهل Repo-only يوجه `updateLine` ذو Line ID ثابت إلى D1 عند `MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED=true`؛ لا يرجع Apps Script في هذا المسار، مع read-after-write barrier.
-- بوابة `تم التسليم` للـLegacy runtime تعيد فحص D1 mirrors للعملاء + قائمة منع التسليم بالمديونية وتفشل مغلقًا إذا gate غير جاهزة أو العميل restricted.
-- Entry597 CI run `37020236957`, job `110881395106` = **SUCCESS**:
-  - `ENTRY597_T12_LEGACY_LINE_RUNTIME=PASS`
-  - `PERF_CF_02CR_OPERATIONAL_CANARY_CONTRACT_PASS`
-  - `T12 read overlay isolated PASS`
-  - `PERF_CF_02CX_LINE_ID_AND_REFRESH_WRITE_CONSISTENCY_PASS`
-  - duplicate-order frontend regression PASS
-  - `ENTRY597_STATIC_SAFETY=PASS`
-- A61 browser regression بعد تغييرات الواجهة: run `37020203740` = SUCCESS.
-- 02CR visibility regression بعد تعديل القراءة: run `37020169082` = SUCCESS.
-- Duplicate Guard CI بعد نقل cache tag: run `37020380457` = SUCCESS.
-- التشخيص الكامل مؤرشف في: `docs/trendos/blackbox/منصة ترند/TRENDOS_T12_STALE_LEGACY_ORDERS_DIAGNOSIS_ENTRY_596_2026-10-02.md`.
-- Entry597 أصبح historical qualification بعد نشر Entry599/600.
-- الحالة الحالية: `REPO_QUALIFIED=YES`, `PRODUCTION_FIX_DEPLOYED=YES`, `STALE_15_RECONCILED=YES`.
-
 ### Entry598 — Production preflight لإصلاح الأوردرات القديمة = PASS
 - Production preflight Read-only: run `37020759452`, job `110882922276` = **SUCCESS**.
 - Active API لم يتحرك: version `23be0ab2-0a2b-4b81-bf54-e2f05f847989`، deployment `b8497ee0-a487-43c8-bcb3-b3f3ab83d3ff`، live SHA-256 `2b78dea01c7e5892460ead4581915da9982208d60a41a95ce903beb742698f67`.
@@ -6865,3 +6843,5 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - **MIGRATION UNIT 001 — 2026-10-16 / MASTER_CLEANING_CHECKPOINT_20261002:** `COPY→VERIFY→REMOVE` مُنفّذ للقسم التاريخي القديم `## 10. Cleaning checkpoint — 2026-10-02` فقط. المصدر عند بداية النقل [commit e42a9978](https://github.com/fawakhry/TrendOs/commit/e42a9978fd361284d6887b069449272528d7430d)، Git blob `e7a55dadda6d736ae50bca0fcc4b8013503f8fd5`. نُسخ النص حرفيًا (619 حرفًا) إلى الملحق التاريخي «و» في الكتاب الموحد عبر [copy commit c1b9290d89a8](https://github.com/fawakhry/TrendOs/commit/c1b9290d89a8004805bf0d78efd042987c2c0a59)؛ أُعيدت قراءة الوجهة من GitHub وثبت `EXACT_TEXT_MATCH=PASS (619/619)` مع مصدر القديم وأرشيف `b2788ecb4c187717e020321954a1ea449c1aa0d5` (blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`). أُزيل نص القسم وحده من هذا الكتاب بعد فحص المقارنة، مع بقاء جميع Entry والأعمال الأخرى و`ACTIVE_WRITE`. `HISTORICAL` / `DOCUMENTATION_ONLY` / `NO_RUNTIME_CLAIM`. Commit الإزالة هو الذي يحتوي هذا السجل في Git. 66 Entry ما زالت بحاجة إلى مصالحة مستقلة، لا ادعاء `FULLY_VERIFIED`. لا تغيير في كتب المشاريع الأخرى ولا main/الأرشيف/الإنتاج.
 
 - **MIGRATION PRECHECK — Entries 596–600 / 2026-10-16 / BLOCKED_NO_COPY_NO_REMOVE:** جرى فحص كتلة إصلاح Legacy Orders بالكامل (92 سطرًا تقريبًا)، وتأكد تطابقها مع فرع الأرشيف على مستوى النص، لكن احتوت معرّفات أوردرات وملاحظة محددة قد تُنسب إلى عميل. تماشيًا مع شرط المالك بمنع تكرار بيانات عملاء خاصة في مستودع عام، **لم تُنقل الكتلة إلى الكتاب الجديد ولم يُحذف أي سطر منها من الكتاب القديم**. يلزم تصنيف بيانات العملاء وتحديد عرض آمن للمعرّفات/الملاحظة قبل قرار نقل لاحق؛ سجل Git المؤرشف يبقى مرجع الاسترجاع. هذه الحالة `BLOCKED_PRIVACY_REVIEW` وليست `MIGRATED`، ولا تتضمن أي حكم جديد على إنتاجية الإصلاح.
+
+- **MIGRATION UNIT 002 / Entry597 / 2026-10-16:** ترحيل تاريخي مراجَع إلى الملحق «ز» من الكتاب الموحد، `HISTORICAL` / `SOURCE_QUALIFICATION_AT_ORIGINAL_DATE` لا دليل Runtime جديد. نص Entry597 الأصلي **1938 حرفًا** نُسخ في [commit b12e99b5acb1](https://github.com/fawakhry/TrendOs/commit/b12e99b5acb1f9ca232f2c7ebe4f5e91b521b85f)؛ تمت إعادة قراءة الأصل والهدف والأرشيف على GitHub، و`EXACT_VERBATIM_MATCH=PASS (1938/1938)`. مصدر البداية [HEAD cce96674](https://github.com/fawakhry/TrendOs/commit/cce96674fb573788b5d9d8d44d81cca24fbe9675) blob `986761be5262e39961ebe0ed64df0fe70641319e`؛ الأرشيف الثابت `b2788ecb4c187717e020321954a1ea449c1aa0d5` blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`. أزيل عنوان/نص Entry597 فقط من الكتاب القديم، مع إبقاء Entry596/598/599–600 و`ACTIVE_WRITE`؛ سيظل عائق خصوصية مجموعة 596–600 قائمًا لأجزائها غير المراجعة. Commit الإزالة يحمل هذا التسجيل. `NO_PRODUCTION_MUTATION`.
