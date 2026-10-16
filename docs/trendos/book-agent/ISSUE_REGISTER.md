@@ -77,3 +77,17 @@
 - **آخر FIX/TEST_RUN_SHA المعتمد:** `d304d305c698e9eafaddecb62b9e56521392d2a6`. اختبارات fake-only: **12/12** صلاحيات/جلسات/R2/رفض قبل القراءة/metadata/upload و**3/3** واجهة عرض مؤمنة؛ اختبار `tests/entry614_employee_comms_native.test.mjs` القديم PASS، وsyntax checks PASS. [GitHub Actions #38908425048](https://github.com/fawakhry/TrendOs/actions/runs/38908425048) PASS؛ [A61 browser regression #38908424627](https://github.com/fawakhry/TrendOs/actions/runs/38908424627) PASS على نفس SHA. لا اتصالات إنتاجية في harness.
 - **الحالة:** `STILL_PRESENT_SOURCE -> PATCHED_TESTED_ON_DRAFT`؛ **P0 / BLOCKED_PRODUCTION**. التصحيح البرمجي **TESTED (synthetic)** وليس `PRODUCTION_VERIFIED` وليس مغلقًا إنتاجيًا.
 - **مانع الإغلاق:** لا إثبات بأن R2 bucket/custom domain لم يكن أو لم يعد متاحًا علنًا؛ قد تظل الروابط القديمة تعمل خارج handler، ويتطلب الأمر مراجعة إعدادات Cloudflare وتعطيل الربط العام/معالجة الروابط القديمة بإذن منفصل. كذلك مطلوب اختبار staging مصرح به لصلاحيات المستخدم الفعلية وعرض الملفات ومطابقة Worker SHA قبل اعتماد نشر. لا تتطلب هذه الملاحظة وحدها الاتصال بالإنتاج.
+
+
+## الفصل 27 — UI Event Findings (2026-10-16)
+
+**مصدر البلاغات:** الفصل 27، commit `c6d3021cda7c0b298ac06e4412e9a9a78e5f7498`، `app.js` blob `9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875`، `Code.gs` blob `e91d78dcceeeca2804e721d58e065a6a7181bfc2`. الحالة المبدئية `UNVERIFIED_HISTORICAL_FINDING` حتى فحص أحدث مستهدف/إصلاحات ذات صلة. `TESTED_THIS_PASS=NO` / `PRODUCTION_VERIFIED=NO`. لا يُعاد فتح `BOOK25-MANAGER-AUTH` أو مشكلة العام/الخاص للملفات من فصل سابق.
+
+| ID | P | السبب المرصود من source | النتيجة المطلوب اختبارها بأداة وهمية | الحالة |
+|---|---|---|---|---|
+| BOOK27-REFRESH-OVERLAP | P1 | `refreshBtn` في app.js:7502 يستدعي `hardRefreshMainScreen` بـaddEventListener، ثم app.js:8294 و:8743 يضيفان/يغيران `onclick` مع capture إعادة ربط. | نقرة واحدة = تحديث واحد، عدم تضارب `state.editing/state.saving` أو فقد الحقول. | UNVERIFIED_HISTORICAL_FINDING / SOURCE_LISTENER_OVERLAP |
+| BOOK27-WA-OPEN-IS-SENT | P1 | app.js:7592 يفتح WhatsApp URL ويسجل فورًا `markAutomationMessageSentV1931`، وCode.gs:5184 يكتب «تم الإرسال» دون Provider ACK. | popup-blocked أو إغلاق نافذة دون إرسال يجب ألا يسجل `sent`؛ فصل `opened/confirmed/providerAccepted/delivered`. | UNVERIFIED_HISTORICAL_FINDING / SOURCE_SEND_SEMANTICS |
+| BOOK27-DAYCLOSE-UNKNOWN | P1 | app.js:4441 `dayClose=null/error` يتحول إلى `blockers=[]` وReady CTA، رغم إمكانية فشل معاينة Code.gs:5157؛ خادم التقفيل نفسه يعيد التحقق. | preview null/error/timeout = NOT_READY في العرض ولا إطلاق أمر تقفيل بدون مراجعة مؤكدة. | UNVERIFIED_HISTORICAL_FINDING / SOURCE_UI_READINESS_RISK |
+| BOOK27-ACCOUNTING-ROLE-HINT | P1 | app.js:11001 roleMode يقرأ الاسم/الدور ونص `trendos_session` كاملًا من browser، واختيار شاشة EasyStore ثم token `postMessage` إلى origin الهدف في app.js:11020+. | tampered storage وspoofed sender وexpired token يرفضهم EasyStore backend؛ UI role hint لا يمنح صلاحية. | UNVERIFIED_HISTORICAL_FINDING / SOURCE_UI_SCOPE_REVIEW |
+
+**تنبيه:** واجهة `getTrendMasterCenterV1931` قد تختار Native D1 أو Apps Script وفق flags والـdispatcher؛ صحة authorization لكل Lane مسجلة مسبقًا تحت `BOOK25-MANAGER-AUTH`، **لا تكررها**. لا إثبات للنسخة المنشورة أو وصول لبيانات حقيقية في هذا التدقيق. كل إصلاح يتطلب مقارنة أحدث HEAD/PRs واختبارات regression، Branch وDraft PR بلا Merge أو Deploy.
