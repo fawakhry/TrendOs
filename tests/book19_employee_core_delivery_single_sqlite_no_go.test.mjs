@@ -266,6 +266,9 @@ try {
     assert.deepEqual(effects(),before);
   });
   await test('14 BOOK19 bulk candidate restriction changes after projection; batch cannot deliver disallowed row',async()=>{
+    // Earlier bulk-control test may have delivered this fixture; reset only fake
+    // local state to ensure this scenario really reaches the batch writer.
+    db.prepare("UPDATE employee_core_lines_v1 SET status='تحت التنفيذ' WHERE line_id=?").run('FAKE_L_RACE_BULK');
     role='print';department='طباعة';
     const before=one("SELECT status,version FROM employee_core_lines_v1 WHERE line_id='FAKE_L_RACE_BULK'");
     let injected=false;
