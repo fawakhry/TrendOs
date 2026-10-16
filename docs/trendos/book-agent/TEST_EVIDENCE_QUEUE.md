@@ -162,3 +162,17 @@
 | BOOK25-MANAGER-PROGRESSIVE | PLAN: fake panel error/stale/timeout of direct monolithic manager and alternate panel service, avoid authority cutover | direct `manager-center-v1932.js`, old Entry646 test PASS; old resilience test FAILS missing `AbortController` in current frontend | SOURCE_UI_GAP/NOT_QUALIFIED. Do not equate old stale tests or synthetic success with active production panel load. |
 
 **Sign-off:** Test commands and CI URLs above are exact-source synthetic records, not runtime parity. `PRODUCTION_VERIFIED=NO` for all; `BOOK26_DELTA_CAS=OPEN`, `BOOK26_NORMALIZED_FULL_PROOF=OPEN`, `BOOK25_PROGRESSIVE=OPEN`. No production worker, browser user session, D1 or Apps Script mutation conducted.
+
+
+## اختبارات الفصل 29 — محاسبة EasyStore والـNative والتقارير (2026-10-16)
+
+**Status:** `SOURCE_ONLY` / `TESTED=NO` / `PRODUCTION_VERIFIED=NO`، كل الاختبارات المقترحة Synthetic فقط. لا تُجرِ Posting أو Approval على بيانات مالية حقيقية، ولا تُفعِّل GENERAL أو تغير صلاحيات المالك ضمن جولة الكتاب.
+
+| ID | P | الخطوات المطلوبة في Test Harness معزول | معيار الإغلاق |
+|---|---|---|---|
+| BOOK29-DEPT-LINE-FIELD-PARITY | P1 | fake UI line with materialQty=7, laborCost=80 vs Native `materialConsumption/operatingCost`; compare totalCost, BOM and price; employee print role | Fields survive adapter; no loss/overstatement of stock usage; salary/electricity/rent separate OpEx |
+| BOOK29-FINAL-INVOICE-REQUESTID | P1 | fake invoice submit twice, missing/new/stable requestId; manualDescription vs manualItem; payment method cash/Instapay/deferred | Missing id fail closed; mapped stable id prevents duplicate, manual item and correct ledger payment method preserved |
+| BOOK29-OPERATING-EXPENSE-PROFIT | P1 | mock period with sales 1000, recognized job cost 400, netWaste 25, independent posted salary 150, electricity 50, rent 100; compare department gross margin vs final net profit | Classified margin 575 and net 275 **only under those assumptions**, complete P&L matches EasyStore ledger and trial balance; reporting never calls 575 net profit |
+| BOOK29-APPROVAL-OWNER-POLICY | P1 | fake employee creates department bill, department approves materials, owner reviews and authorizes sensitive financial close/expense/waste/custody, try unauthorized roles | Matrix clear for technical vs financial stages; employee cannot execute owner-only final approvals, audit actor and evidence |
+
+**Review existing evidence without duplicate:** `BOOK18-FINAL-INVOICE-ATOMICITY`, `BOOK18-BALANCE-IDENTITY`, `BOOK27-ACCOUNTING-ROLE-HINT`. Source tests `tests/frontend_employee_accounting_family_router_entry619.test.mjs`, `tests/entry614_employee_accounting_native.test.mjs`, `tests/easystore_a1_day_ops_reads_v1.test.mjs`, `tests/cloudflare_accounting_f2_finance_core_v1.test.mjs`; **وجودها لا يرفع درجة الإثبات**. سجل TEST_COMMAND, TARGET_SHA, RUN_URL, RESULT, FIX_SHA, BACKEND_PARITY, APPROVAL_AUTHORITY.
