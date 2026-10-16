@@ -128,3 +128,18 @@
 | BOOK27-ACCOUNTING-ROLE-HINT | P1 | fake EasyStore origin/session/token postMessage handshake مع modified browser storage وexpired/forged session | Backend يحكم role/scope/expiry؛ no financial privilege from UI hint ولا token للـwrong origin |
 
 **إغلاق كل بند:** `SOURCE_FILE_SHA`, `CURRENT_TARGET_HEAD`, `TEST_COMMAND`, `ACTUAL_RESULT`, `TEST_RUN_SHA`, `WORKFLOW_RUN_URL`, `DEPLOYED_PARITY` عند التصريح. لا تخلط Source test code بنجاح تنفيذ.
+
+
+## اختبارات الفصل 28 — Order UI, Native Core and Archive (2026-10-16)
+
+**`SOURCE_ONLY`، `TESTED=NO`، `PRODUCTION_VERIFIED=NO`.** الربط المثبت من مصدر `index.html` و`app.js` و`employee-api-dispatcher-v1.js` وCore D1 على HEAD `be3faac2e557809ed78d66fd6f97be35a8ef5699`. اختبارات Fake SQLite/Cloudflare Mock فقط؛ ممنوع تعديل حالات الطلبات أو الأرشفة الحقيقية.
+
+| ID | P | خطوات الاختبار الآمن | شروط القبول |
+|---|---|---|---|
+| BOOK28-CORE-LINE-SCOPE | **P0** | employee session وهمية print/laser؛ طلب `updateLine` لـlineId بقسم مختلف وstatus `تم التسليم` على عميل ممنوع، مع عزل Runtime/Imported. | 403 أو structured `success:false` و**0 writes** للقسم الآخر؛ debt guard معاد استخدام `BOOK19-DELIVERY-GATES`. |
+| BOOK28-BULK-500-SCOPE | P1 | 501+ بنود مطابقة في fake D1 ثم `bulkUpdateDepartmentStatusV1926` و`archiveDeliveredDepartmentV1926`; محاكاة وصول رد success للـUI. | الواجهة لا توهم المستخدم أن جميع البنود اكتملت عند `processed=500` و`remaining>0`، مع سلوك continuation أو إشعار موثق. |
+| BOOK28-CORE-RECOVERY | P1 | fault injection لعمليات bulk/archive بين `PREPARED`, `db.batch`, تحديث orders, event و`COMMITTED`؛ نفس `requestId` retry. | التعافي محكوم وآمن، لا فقد/تكرار ولا stuck requestId دائم بلا طريقة Reconcile. |
+| BOOK28-FILTER-PARITY | P1 (reuse) | `BOOK13-ORDER-FILTER-PARITY`: serverPaged vs `serverPaged:false`، البحث المزدوج، `__DEBT__`, date-only filters مع D1/Legacy. | نفس عدد الصفوف والمؤشرات والصفحات، وSnapshot/test SHA موثق؛ لا تفتح Issue مكرر. |
+| BOOK28-UI-STAT-FILTER | P2 | fake browser click لمؤشرات `مكبس/طباعة على الطاير/متأخر/دين` مع patch listeners المتراكبة وتحقق من `heatPressFilter` values. | عنصر واحد يطبق الفلتر الصحيح، وليس نتيجة قديمة أو full reload غير مطلوب. |
+
+**سجل الإغلاق:** TARGET_SHA، Run URL، TEST_COMMAND، EXPECTED، ACTUAL، FIX_COMMIT، REGRESSION_RUN، DEPLOYED_PARITY عند موافقة منفصلة. لا ترفع تصنيف البلاغ اعتمادًا على وجود ملف اختبار فقط.
