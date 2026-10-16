@@ -1,0 +1,38 @@
+# TrendOS Book Agent — Active NON-ACCOUNTING work queue (2026-10-16)
+
+**Owner direction:** «شيل كل المشاكل الخاصة بالحسابات من هنا ونكمل باقي المشاكل». This is a **work-ownership handoff, not deletion, closure, or proof of repair**. Do not erase historical findings or tests from `ISSUE_REGISTER.md`, `TEST_EVIDENCE_QUEUE.md`, or source books. Finance issues remain identifiable and independently owned by the EasyStore Accounting Agent.
+
+## Finance handoff (OUT OF SCOPE for this platform repair session)
+
+- **Authoritative owner:** `fawakhry/EasyStore`, original **`EASYSTORE_ACCOUNTING_MASTER_BOOK.md`** on `candidate/easystore-zero-google-audit-20261004`, current head to be fetched by finance agent. TrendOS finance-engine cross references may point to `candidate/easystore-accounting-a2-20261005`. Never create a second finance master book here.
+- **Delegated (do not work here):** `BOOK18-BALANCE-IDENTITY`, `BOOK18-FINAL-INVOICE-ATOMICITY`, financial/debt-policy portion of `BOOK19-DELIVERY-GATES`, financial `BOOK24-OWNER-APPROVAL`, finance-data permission review `BOOK25-MANAGER-AUTH` (existing platform-role Draft #137 retained), finance KPI portion of `BOOK25-KPI-TRUTH`, `BOOK23-PRESS-COST`, `BOOK27-DAYCLOSE-UNKNOWN`, `BOOK27-ACCOUNTING-ROLE-HINT`, **all four `BOOK29-*`**, `BOOK30-SSO-LOGOUT-RACE`, `BOOK30-SSO-AUDIENCE`, `BOOK30-SSO-CROSSSERVICE-REVOKE`, `ACC-156/G2`, `ACC-187–206` (plus current/future ACC stages), debt authority `TBA-02/TBA-12/TBA-18`, financial customer and invoice reconciliation, refunds, expenses/profit, customer/supplier balances, cashier/day-close/finance ownership.
+- Existing finance source **Draft PR #146** (READONLY tests), **#148** (invoice retry), **#150** (Native material alias) stay open, unmerged, and are **not** to be duplicated here. Prior fake CI: [#146](https://github.com/fawakhry/TrendOs/actions/runs/38916388100), [#148](https://github.com/fawakhry/TrendOs/actions/runs/38919621027), [#150](https://github.com/fawakhry/TrendOs/actions/runs/38919240749). Historical evidence stays preserved.
+- **Never** move customer balances/money, modify `OFF/READONLY`, approve G1–G5, choose finance cutover date, grant roles, deploy, merge or claim production acceptance.
+
+## Current TrendOS platform queue ONLY
+
+| Priority | Original ID | Scope / current known evidence | Next safe action |
+|---|---|---|---|
+| P0 | `BOOK28-CORE-LINE-SCOPE` | Imported/native Core `updateLine` had no line department permission before write. Related `markCustomerNotified` shared gap. Draft [#157](https://github.com/fawakhry/TrendOs/pull/157) stacked on P0 role Draft #137; synthetic scope tests in progress. **No debt policy changes.** | Exact-HEAD fake D1 auth/role tests + Entry644/Entry650 regressions; staging service-role compatibility later. |
+| P0 | `BOOK22-CONTENT-R2-ACL` | Private vs public Content R2 reads; historical source-only finding. | Verify current handler/middleware; fake anonymous/private/authorized before R2 reads. |
+| P0 | `BOOK20-R2-FILE-AUTH` | Attachment GET auth and public R2 URL bypass; tested synthetic source Draft [#136](https://github.com/fawakhry/TrendOs/pull/136). | Independently verify public bucket/domain exposure via **authorized metadata only**; no customer files or deploy. |
+| P0 | `BOOK26-MIRROR-GET-AUTH` | Source guard on [Draft #137](https://github.com/fawakhry/TrendOs/pull/137), fake operator/admin and unauthorized GET previously passed. | Worker/auth consumer parity and authorized staging review; do not claim deployed. |
+| P0 | `BOOK24-TASK-AUTHORITY` | Potential competing Work Queue/Operator writer. | Verify OFF/SHADOW/CANARY and fake concurrent claim. |
+| P1 | `BOOK26-NORMALIZED-FINAL-PROOF` | Metadata guard [Draft #139](https://github.com/fawakhry/TrendOs/pull/139); missing chunk manifest, final replay/order still unproven. | Fake D1 run/chunk manifest completeness and lost-ACK tests. |
+| P1 | `BOOK26-DELTA-CAS` | Preflight not atomic with D1 batch; no transactional CAS verified. | Fake SQLite/D1 race with equal counts and different content. |
+| P1 | `BOOK26-DEPLOY-LINEAGE` | Worker/frontend SHA and published flags cannot be inferred from code. | Read-only artifacts/CI/rollback-version provenance. |
+| P1 | `BOOK28-BULK-500-SCOPE` | Backend silently limits selection to 500 while UI implies all. | Fake 501+ rows and accurate processed/remaining response. |
+| P1 | `BOOK28-CORE-RECOVERY` | Request PREPARED to COMMITTED spans separate writes; uncertain retry. | Fake fault-injection and replay without dropped/duplicated operations. |
+| P1 | `BOOK25-WORKQUEUE-MIGRATION`, `BOOK19-TASK-AUTHORITY` | Multiple assignment authorities; operational, NOT financial approvals. | Prove single writer/claim idempotency in fake harness. |
+| P1 | `BOOK21-MIRROR-PAYLOAD`, `BOOK21-02CR-STALE`, `BOOK21-HEARTBEAT` | Content hash parity, stale overlay, observed health semantics. | Mock mirror reconciliation and stale/timeout. |
+| P1 | `BOOK22-CONTENT-LOST-UPDATE`, `BOOK22-BRANCH-CUSTOMER-ID`, `BOOK22-CONTENT-CUTOVER` | CMS CAS, duplicate-name/customer reference, server/UI content state. | Fake content DB, no live customer data. |
+| P1 | `BOOK16-CUSTOMER-IDENTITY`, `BOOK16-DRAFT-REPLAY` | Customer portal user scoping, draft/file replay (non-financial). | Two synthetic accounts, retry/fault injection. |
+| P1 | `BOOK17-NOTIFY-ENUM`, `BOOK17-FLY-NOTIFY` | Notification enum and browser/polling registration. | Fake dispatch and browser APIs, no real send. |
+| P1 | `BOOK23-ATTENDANCE-REPLAY`, `BOOK23-HR-PRIVACY` | Employee clock-in replay, HR data visibility. | Fake D1 and shifts; deny before private reads. |
+| P1 | `BOOK24-READINESS-PARITY`, `BOOK24-SHADOW-BOUNDARY` | Readiness evidence and advisory-only automated machinery control. | Fake tasks/machines, no production operation. |
+| P1 | `BOOK30-LEGACY-VERIFY-QUERY` | Operational Edge employee token in upstream GET URL, not the EasyStore SSO authorization policy. | Trace active read path and safer token transport; mocked HTTP. |
+| P1 | `BOOK31-PRINT-ONLY-POLL-SCOPE`, `BOOK31-LOCAL-READ-ACL`, `BOOK31-HOST-SOURCE-PARITY` | Home Ubuntu print host, **server agent cross-team**; no live host scan. | Hand off to TrendOS Ubuntu agent for read-only mock review; do not operate hardware. |
+| P2 | `BOOK25-MANAGER-PROGRESSIVE` | Admin panel source/load authority; finance-specific report truth belongs EasyStore. | Fake individual-panel failure without swapping backend. |
+| P2 | `BOOK23-CLEANING-RACE`, `BOOK21-OBSERVABILITY`, `BOOK31-SAFE-START-PROFILE` | Scheduling race, audit without PII, safe isolated start. | Offline source/FakeDB tests. |
+
+**Interpretation:** Queue is a triage/filter view, NOT an exhaustive closure list. Each historical ID must be rechecked against the **latest code and competing PRs** before any patch. A green fake test is `TESTED_SYNTHETIC`, never `PRODUCTION_VERIFIED`. Do not move finance back into this queue unless the owner explicitly asks.
