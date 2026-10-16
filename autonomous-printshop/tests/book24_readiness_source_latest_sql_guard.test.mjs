@@ -88,3 +88,10 @@ test('BOOK24-adapter: readiness projection still tombstones newer expired record
   ];
   assert.equal(latestReadinessEvidenceV1(xs,now).has('fake-line::MACHINE'),false);
 });
+
+test('BOOK24-adapter: latest UNKNOWN machine observation denies older READY',()=>{
+  assert.equal(candidates([
+    observation('older',now-10000,now+10000,'READY'),
+    observation('new-unknown',now-1000,now+5000,'UNKNOWN')
+  ]).length,0);
+});
