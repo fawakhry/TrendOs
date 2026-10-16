@@ -96,3 +96,14 @@ The owner provided the read-only Cloudflare `trendos → Production → Deployme
 **Confirmed:** active rollout was via Wrangler, NOT demonstrably a product of the CI/Build row titles. **Not confirmed:** CLI device, uploaded source bundle/hash, Git SHA, exact deployed handler, Runtime authorization, access/waf behavior or data exposure. Do not identify `6b82fd3` or `a31c254` as the `803aa6a2` deployed source based on Build row descriptions. `SEC-AP303-02` remains high/open.
 
 Next **read-only** step: inspect active Worker code through the Cloudflare `Edit code` view **without modifying or deploying**; gather safe non-secret entrypoint/router details and then compare with GitHub static sources. Do not show token/secret/config values, live customer/order HTTP responses, or modify Cloudflare settings.
+
+
+## SERVER-65 — Owner-observed active source, locally missing legacy and mirror GET auth (2026-10-16)
+
+The Cloudflare `trendos` editor showed **`803aa6a2 (Active)`** and a bundled `index_v2.js` code tab; the owner provided a full text transcription in chat. The *transcribed Markdown* has SHA-256 `df34577595296c93ffd02e1c31091a9ee4d3dec69bc1b37f81ce85a0b792d0eb` (not a Cloudflare-signed/deployed artifact hash). Sensitive full source was **not** committed to GitHub.
+
+**New evidence beyond SERVER-56:** the actual observed active service's `src/index.js` GET router has no local authentication guard for orders, customer, messages or inbox. Its separate `src/mirror.js` GET router also lacks such a gate for sheet catalog/stats/row access and calls schema initializer before checking GET routes. POST import uses `MIGRATION_SECRET`, not applicable to read paths. Explicit Origin/CORS is not non-browser authorization. An isolated Node VM with a fabricated DB and no networking returned HTTP 200 without credentials on 7 fake GET cases (five customer/order and two mirror aggregate/catalog), a fake mirror row name returned 404 after D1 lookup; all touched fake DB and the catalog call issued fake DDL preparations. No live Production customer/order/mirror route tested, and no evidence of a real leak/incident was collected.
+
+**Protection coverage gap:** Draft PR #154 only guards legacy GET paths in a review of `trendos-d1-api` source; it neither certifies an independent `trendos` version deployment nor applies to mirror GETs. Draft PRs #176 and #184 test/repair frontend fallback, not server authentication. Do not merge or deploy these as an assumed complete containment. Separate Worker identity, external Access/WAF, consumer dependencies and rollback require assessment before owner-authorized mitigation.
+
+**Decision gate:** `SEC_AP303_02=SOURCE_GAP_CONFIRMED`, `PRODUCTION_EXPOSURE=UNKNOWN`, `URGENT_REVIEW=YES`, `GITHUB_PRODUCT_CHANGE=NO`, `PRODUCTION_CHANGE=NO`. Details and exact synthetic test paths are in `UBUNTU_SERVER_BOOK.md` SERVER-65, not duplicated as runnable public Worker requests here.
