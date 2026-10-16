@@ -114,3 +114,17 @@
 مكرر ولا يُعاد إدخاله: BOOK21-MIRROR-PAYLOAD (row-count vs full row payload hash).
 
 عند اختبار أي ID سجل TEST_COMMAND, EXPECTED, ACTUAL, ENVIRONMENT, TARGET_SHA, RUN_URL, RUN_SHA, FIX_SHA, REGRESSION_PASS, PRODUCTION_PARITY؛ لا تحول File test source إلى TESTED تلقائيًا.
+
+
+## اختبارات الفصل 27 — UI Event/Role/Accounting handoff (2026-10-16)
+
+**`SOURCE_ONLY` / `TESTED=NO` / `PRODUCTION_VERIFIED=NO`.** اختبارات DOM/SSO وهمية، بدون جلب بيانات عميل أو تغيير حساب أو إرسال رسالة حقيقية؛ بلاغ `BOOK25-MANAGER-AUTH` موجود سابقًا فلا يتكرر.
+
+| ID | P | الاختبار المطلوب | معيار القبول |
+|---|---|---|---|
+| BOOK27-REFRESH-OVERLAP | P1 | fake DOM `refreshBtn` + تسجيل `addEventListener/onclick` عبر كل patch lifecycle مع click/refresh/timers | call واحدة أو منع duplicate fetch بوضوح، وعدم إسقاط saving/dirty عند عملية جارية |
+| BOOK27-WA-OPEN-IS-SENT | P1 | mock `window.open` blocked/success/closed دون إرسال + capture request `markAutomationMessageSentV1931` | لا `sent` بناءً على window.open فقط؛ retention of pending queue وحالة provider مستقلة |
+| BOOK27-DAYCLOSE-UNKNOWN | P1 | render `dayClose:null`، `dayClose:{error}`، مع `blockers:[]` مُثبتة، وrole admin/employee | NOT_READY/UNKNOWN عند فقد المعاينة؛ الخادم يرفض unsafe close ويبقى المصدر المالي بلا تغيير |
+| BOOK27-ACCOUNTING-ROLE-HINT | P1 | fake EasyStore origin/session/token postMessage handshake مع modified browser storage وexpired/forged session | Backend يحكم role/scope/expiry؛ no financial privilege from UI hint ولا token للـwrong origin |
+
+**إغلاق كل بند:** `SOURCE_FILE_SHA`, `CURRENT_TARGET_HEAD`, `TEST_COMMAND`, `ACTUAL_RESULT`, `TEST_RUN_SHA`, `WORKFLOW_RUN_URL`, `DEPLOYED_PARITY` عند التصريح. لا تخلط Source test code بنجاح تنفيذ.
