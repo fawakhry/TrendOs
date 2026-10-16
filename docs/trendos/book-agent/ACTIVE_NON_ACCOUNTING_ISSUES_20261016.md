@@ -36,3 +36,9 @@
 | P2 | `BOOK23-CLEANING-RACE`, `BOOK21-OBSERVABILITY`, `BOOK31-SAFE-START-PROFILE` | Scheduling race, audit without PII, safe isolated start. | Offline source/FakeDB tests. |
 
 **Interpretation:** Queue is a triage/filter view, NOT an exhaustive closure list. Each historical ID must be rechecked against the **latest code and competing PRs** before any patch. A green fake test is `TESTED_SYNTHETIC`, never `PRODUCTION_VERIFIED`. Do not move finance back into this queue unless the owner explicitly asks.
+
+## 2026-10-16 — BOOK24 Edge ↔ D1 writer separation (Draft #173)
+
+- **P0 subissue `BOOK24-EDGE-D1-CONFLICT-GUARD`**: [Draft #173](https://github.com/fawakhry/TrendOs/pull/173) `PATCHED_TESTED_SYNTHETIC_ON_DRAFT`. When owner **explicitly** activates new default-OFF `TRENDOS_OPERATOR_TASK_SINGLE_WRITER_GUARD_V1`, Edge claim/complete reads `operator_task_control` and prevents Apps Script proxy writes while D1 mode CANARY/GENERAL; OFF/SHADOW allows; unknown/unavailable D1 denies (503), D1 active denies (409). No default behavior change. CI tests FakeDB, mock Apps Script and concurrency; never live.
+- **Parent P0 `BOOK24-TASK-AUTHORITY` STILL_OPEN**: direct Apps Script Work Queue V1, direct Operator V2, Edge V2 and candidate D1 still have no common locked authority proven. A read-before-forward Edge check is not cross-service atomic CAS and must not be called a global single writer. Need owner-approved authority handoff, deployed flag/mode proof, direct legacy writer gates and end-to-end staging before enabling D1.
+- `ZERO_GOOGLE_COMPLETE=NO`, `MERGE=NO`, `DEPLOY=NO`, `PRODUCTION_VERIFIED=NO`. EasyStore solely owns accounting.
