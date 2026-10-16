@@ -32,7 +32,7 @@ try {
       last_whatsapp_by TEXT DEFAULT '',updated_by TEXT DEFAULT '',version INTEGER DEFAULT 1,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE t12_prod_runtime_events(event_id INTEGER PRIMARY KEY AUTOINCREMENT,order_id TEXT,
-      line_id TEXT,event_type TEXT,old_status TEXT,new_status TEXT,actor TEXT,payload_json TEXT,
+      line_id TEXT,event_type TEXT,old_status TEXT,new_status TEXT,actor TEXT NOT NULL,payload_json TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP);
     UPDATE employee_core_control_v1 SET mode='GENERAL' WHERE singleton=1;
   `);
