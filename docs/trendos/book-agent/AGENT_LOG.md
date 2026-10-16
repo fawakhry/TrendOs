@@ -156,3 +156,11 @@
 - WRITE: chapter 23 commit `78a1ac9690b273e4c875dc164eab72311c061368`, blob `ada187bf36f67edece89934af7e6fcc701b71959`. Independent follow-up fetch verified exact chapter heading; earlier literal verification expression omitted 'النظافة', corrected before marking verified.
 - STATUS: `SOURCE_ONLY`; `TESTED=NO`; `PRODUCTION_VERIFIED=NO`; no D1 mutations, employee attendance/HR requests, accounting, or deployments.
 - NEXT: add chapter 21–23 test IDs to evidence queue and inspect next unreviewed module, then report precise continuation.
+
+
+## 2026-10-16 / AUTONOMY-MAP-020 — الفصل الرابع والعشرون
+- READ: `autonomous-printshop/MASTER_BOOK.md` canonical, `core/autonomy-policy-v1.mjs`, `operational-reality-v1.mjs`, `readiness-evidence-v1.mjs`, `design-preflight-v1.mjs`, `material-readiness-candidate-v2.mjs`, `machine-readiness-v1.mjs`, `operator-task-authority-v1.mjs`, `control-tower-panel-status-v1.mjs`, `owner-exception-model-v1.mjs`, `observer/worker.mjs`, `dashboard/worker.mjs`, `employee-supervisor/worker.mjs`, plus worker folder inventory.
+- FINDINGS: Canonical autonomy book remains separate; this TrendOS catalog chapter only links integration boundaries. Shadow modes don't write business orders/assign employees. Operator Task D1 authority contract exists but Edge Operator V2 source still proxies Apps Script; machine/finance/design/material readiness independent with expiry and owner protected decisions; no blanket autonomy cutover asserted.
+- WRITE: chapter 24 commit `2fce377e418cab38f37b5f29bf2e31d6c8174185`, blob `d7b60c649d7ef61721812ae2cfac84086997c049`; separate fetch verified.
+- STATUS: `SOURCE_ONLY`; Task authority integration/runtimes `BLOCKED`; `TESTED=NO`; `PRODUCTION_VERIFIED=NO` in this book run; no changes to independent autonomy master book or production.
+- NEXT: queue autonomy integration tests then verify final branch HEAD; continuation chapter 25 to cover remaining reporting/AI modules.
