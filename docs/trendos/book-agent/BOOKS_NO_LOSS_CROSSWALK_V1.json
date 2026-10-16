@@ -46,7 +46,9 @@
     "historical_entry_heading_sections_migrated_exact_count": 2,
     "initial_entry_heading_count": 58,
     "original_snapshot_reconciled_count": 0,
-    "migration_progress_note": "Entry597 and Entry598 original sections copied verbatim to historical appendices ز/ح and removed from active master after archive equality, but other cross-references and live behavior were NOT fully reconciled. Reconciled count remains 0 conservatively."
+    "migration_progress_note": "Entry597 and Entry598 original sections copied verbatim to historical appendices ز/ح and removed from active master after archive equality, but other cross-references and live behavior were NOT fully reconciled. Reconciled count remains 0 conservatively.",
+    "total_migration_units_exact_verified": 5,
+    "non_entry_historical_migration_units_exact_verified": 3
   },
   "book_policy": {
     "only_current_catalog_receives_present_system_descriptions": true,
@@ -1848,11 +1850,53 @@
   ],
   "latest_review": {
     "date": "2026-10-16",
-    "head_before_crosswalk_commit": "98c2d3bce400c2cce62aa8693152d1bff57f85fd",
-    "active_master_blob_sha": "220a246698aec558da8d2066af4fdf107677bbd8",
-    "new_catalog_blob_sha": "6dafdce116a94a871baf996936bd999f2e8df562",
+    "head_before_crosswalk_commit": "37738e73b503b4986d6fe7ae63a4008c3639349e",
+    "active_master_blob_sha": "bb082048ba948ae33e5ccdad8826c7666747e5e0",
+    "new_catalog_blob_sha": "e5378286acdfcf114284c636d2c3de15707b4f26",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "Snapshot and section-heading baseline fields represent original inventory, not latest current line numbers; all 66 entry IDs still need full reconciliation."
-  }
+    "notes": "Snapshot and section-heading baseline fields represent original inventory, not latest current line numbers; all 66 entry IDs still need full reconciliation.",
+    "note": "5 verified migration units cumulatively (2 Entry sections, 3 historical archive/hand-off sections). 66 Entry IDs still require complete reconciliation; source heading inventory is original frozen snapshot."
+  },
+  "non_entry_section_migrations": [
+    {
+      "unit": "001",
+      "scope": "OLD_MASTER_CLEANING_CHECKPOINT",
+      "appendix": "و",
+      "text_characters": 619,
+      "copy_commit": "c1b9290d89a8004805bf0d78efd042987c2c0a59",
+      "source_removed_commit": "0d24173b5c7abe6b8a281ac11b534cf3d4aad616",
+      "source_archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+      "source_archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+      "verification": "EXACT_VERBATIM_MATCH_PASS",
+      "classification": "HISTORICAL",
+      "date": "2026-10-16"
+    },
+    {
+      "unit": "004",
+      "scope": "OLD_MASTER_ARCHIVE_INDEX",
+      "appendix": "ط",
+      "text_characters": 2617,
+      "copy_commit": "506b74bf3d4e48427458e30e0827153283175775",
+      "source_removed_commit": "98c2d3bce400c2cce62aa8693152d1bff57f85fd",
+      "source_archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+      "source_archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+      "verification": "EXACT_VERBATIM_MATCH_PASS",
+      "classification": "HISTORICAL",
+      "date": "2026-10-16"
+    },
+    {
+      "unit": "005",
+      "scope": "OLD_MASTER_ENTRY595_HANDOFF",
+      "appendix": "ي",
+      "text_characters": 508,
+      "copy_commit": "f19d127c00701b813ec96e8546204fe2312ef7d0",
+      "source_removed_commit": "37738e73b503b4986d6fe7ae63a4008c3639349e",
+      "source_archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+      "source_archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+      "verification": "EXACT_VERBATIM_MATCH_PASS",
+      "classification": "HISTORICAL",
+      "date": "2026-10-16"
+    }
+  ]
 }
