@@ -16,7 +16,7 @@ function key(v){return text(v).toLowerCase();}
 function num(v,f=0){const n=Number(v);return Number.isFinite(n)?n:f;}
 function json(data,status=200,headers={}){return new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store',...headers}});}
 function origins(env){const a=String(env&&env.CORS_ORIGINS||'').split(',').map(text).filter(Boolean);return a.length?a:DEFAULT_ORIGINS;}
-function cors(request,env){const o=text(request.headers.get('Origin')),a=origins(env);return {'access-control-allow-origin':o&&a.includes(o)?o:a[0],'access-control-allow-methods':'GET,POST,OPTIONS','access-control-allow-headers':'content-type,authorization','access-control-max-age':'86400',vary:'Origin'};}
+function cors(request,env){const o=text(request.headers.get('Origin')),a=origins(env);return {'access-control-allow-origin':o&&a.includes(o)?o:a[0],'access-control-allow-methods':'GET,POST,OPTIONS','access-control-allow-headers':'content-type,authorization,x-employee-username','access-control-max-age':'86400',vary:'Origin'};}
 function originAllowed(request,env){const o=text(request.headers.get('Origin'));return !o||origins(env).includes(o);}
 function cleanPhone(v){let d=text(v).replace(/\D/g,'');if(d.startsWith('0020'))d='0'+d.slice(4);else if(d.startsWith('20')&&d.length>=12)d='0'+d.slice(2);else if(d.startsWith('1')&&d.length===10)d='0'+d;return d;}
 function metaPhone(v){const d=cleanPhone(v);return d.startsWith('0')?'20'+d.slice(1):d;}
@@ -31,7 +31,7 @@ async function authenticate(request,body,env){
   const v=await verifyEmployeeSessionCloudFirst(username,token,env,'edge');
   if(!v||!v.ok)return {ok:false,status:401,message:text(v&&v.message)||'Employee session rejected'};
   const b=v.body||{},u=b.user||{};
-  return {ok:true,authSource:text(v.authSource),user:{username:text(u.username||u.name||b.username||username),role:key(u.role||b.role||'service')||'service',department:text(u.department||b.department)}};
+  return {ok:true,authSource:text(v.authSource),user:{username:text(u.username||u.name||b.username||username),role:key(u.role||b.role)||'unknown',department:text(u.department||b.department)}};
 }
 async function event(env,domain,id,type,actor,payload={}){
   await env.DB.prepare("INSERT INTO employee_comms_events_v1(domain,entity_id,event_type,actor,payload_json,created_at_ms) VALUES(?,?,?,?,?,?)")
@@ -185,18 +185,38 @@ async function feedbackReply(env,phone,message){
   await event(env,'feedback',row.feedback_id,'customer-rating','webhook',{rating});
   return true;
 }
+// An employee may only view files for an existing order in their explicit role scope.
+// This does not grant ANY customer access; customer-visible files need a separate
+// order-owned customer-auth endpoint, which this Employee API does not provide.
+async function canAccessOrder(env,user,orderId){
+  if(!user||!text(user.username)||!text(orderId))return false;
+  const role=key(user.role);
+  if(!['admin','service','print','press','laser'].includes(role))return false;
+  const ctx=await latestOrderContext(env,orderId);
+  if(text(ctx.orderId)!==text(orderId))return false;
+  if(role==='admin'||role==='service')return true;
+  // Non-manager employees require an assignment on this exact order.
+  const allowed=await env.DB.prepare('SELECT 1 AS allowed FROM t12_prod_lines WHERE order_id=? AND LOWER(TRIM(assigned_to))=? LIMIT 1')
+    .bind(orderId,key(user.username)).first();
+  if(allowed)return true;
+  const legacy=await env.DB.prepare('SELECT 1 AS allowed FROM employee_core_lines_v1 WHERE order_id=? AND LOWER(TRIM(assigned_to))=? LIMIT 1')
+    .bind(orderId,key(user.username)).first();
+  return !!legacy;
+}
+
 async function orderConversation(env,user,body){
   const orderId=text(body.orderId),lineId=text(body.lineId);if(!orderId)return {success:false,message:'رقم الأوردر مطلوب.'};
-  const ctx=await latestOrderContext(env,orderId);if(!ctx.orderId)return {success:false,message:'الأوردر غير موجود.'};
+  if(!await canAccessOrder(env,user,orderId))return {success:false,code:'order-access-denied',message:'غير مصرح لك بمحادثة هذا الأوردر.'};
   const q=await env.DB.prepare("SELECT id AS messageId,order_id AS orderId,direction AS senderType,by_user AS senderName,text,at AS createdAt,source,send_status AS sendStatus FROM messages WHERE order_id=? ORDER BY at").bind(orderId).all();
   const fq=lineId
     ? await env.DB.prepare("SELECT file_id AS fileId,order_id AS orderId,line_id AS lineId,file_name AS name,mime_type AS mimeType,content_sha256 AS contentSha256,public_url AS url,visible_to_customer AS visibleToCustomer,created_at AS createdAt FROM employee_order_conversation_files_v1 WHERE order_id=? AND line_id=? ORDER BY created_at").bind(orderId,lineId).all()
     : await env.DB.prepare("SELECT file_id AS fileId,order_id AS orderId,line_id AS lineId,file_name AS name,mime_type AS mimeType,content_sha256 AS contentSha256,public_url AS url,visible_to_customer AS visibleToCustomer,created_at AS createdAt FROM employee_order_conversation_files_v1 WHERE order_id=? ORDER BY created_at").bind(orderId).all();
-  return {success:true,orderId,lineId,lines:[],files:(fq.results||[]).map(x=>({...x,visibleToCustomer:x.visibleToCustomer?'نعم':'لا'})),messages:q.results||[]};
+  return {success:true,orderId,lineId,lines:[],files:(fq.results||[]).map(x=>({...x,url:FILE_PREFIX+encodeURIComponent(x.fileId),visibleToCustomer:x.visibleToCustomer?'نعم':'لا'})),messages:q.results||[]};
 }
 async function sendOrderConversation(env,user,body){
   const orderId=text(body.orderId),message=text(body.message||body.text);if(!orderId||!message)return {success:false,message:'رقم الأوردر ونص الرسالة مطلوبين.'};
-  const ctx=await latestOrderContext(env,orderId);if(!ctx.orderId)return {success:false,message:'الأوردر غير موجود.'};
+  if(!await canAccessOrder(env,user,orderId))return {success:false,code:'order-access-denied',message:'غير مصرح لك بمحادثة هذا الأوردر.'};
+  const ctx=await latestOrderContext(env,orderId);
   await appendMessage(env,{phone:cleanPhone(ctx.phone),customerName:ctx.customerName,orderId,direction:'out',text:message,source:'TrendOS Order Conversation',sendStatus:'محفوظ',by:user.username,at:new Date().toISOString(),raw:{lineId:text(body.lineId),visibleToCustomer:text(body.visibleToCustomer)||'نعم'}});
   return {success:true,message:'تم حفظ رسالة المتابعة في محادثة الأوردر.'};
 }
@@ -209,21 +229,35 @@ async function uploadOrderFile(env,user,body){
   if(!orderId||!bytes)return {success:false,message:'بيانات رفع البروفة ناقصة.'};
   if(bytes.length>25*1024*1024)return {success:false,message:'حجم الملف أكبر من الحد المسموح 25MB.'};
   if(!env.FILES)throw Object.assign(new Error('Cloudflare R2 FILES binding is not configured'),{code:'r2-files-not-configured'});
-  const ctx=await latestOrderContext(env,orderId);if(!ctx.orderId)return {success:false,message:'الأوردر غير موجود.'};
+  // A public R2 hostname bypasses employee-session and order authorization.
+  // Refuse new uploads until R2 public access has been separately reviewed/disabled.
+  if(text(env.FILES_PUBLIC_BASE_URL))return {success:false,code:'r2-public-url-unsafe'};
+  if(!await canAccessOrder(env,user,orderId))return {success:false,code:'order-access-denied'};
+  const ctx=await latestOrderContext(env,orderId);
   const fileId='OCF-'+crypto.randomUUID(),r2Key=`order-conversations/${orderId}/${lineId||'general'}/${fileId}/${name.replace(/[^A-Za-z0-9._-]+/g,'_')}`;
   const contentSha256=await sha256HexV1(bytes);
   await env.FILES.put(r2Key,bytes,{httpMetadata:{contentType:mime},customMetadata:{sha256:contentSha256}});
-  const base=text(env.FILES_PUBLIC_BASE_URL).replace(/\/+$/,''),url=base?base+'/'+r2Key:FILE_PREFIX+encodeURIComponent(fileId);
+  // Never persist/return a direct R2 object URL, even if it is configured.
+  const url=FILE_PREFIX+encodeURIComponent(fileId);
   const messageId=await appendMessage(env,{phone:cleanPhone(ctx.phone),customerName:ctx.customerName,orderId,direction:'out',text:text(body.message||body.text)||'تم رفع ملف/بروفة من الموظف.',source:'TrendOS Order Conversation',sendStatus:'محفوظ',by:user.username,at:new Date().toISOString(),raw:{lineId,fileId}});
   await env.DB.prepare("INSERT INTO employee_order_conversation_files_v1(file_id,order_id,line_id,message_id,r2_key,file_name,mime_type,size_bytes,public_url,visible_to_customer,uploaded_by,content_sha256) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
     .bind(fileId,orderId,lineId,messageId,r2Key,name,mime,bytes.length,url,text(body.visibleToCustomer)==='لا'?0:1,user.username,contentSha256).run();
   return {success:true,message:'تم رفع الملف وحفظه في محادثة الأوردر.',fileUrl:url,fileId,fileName:name,mimeType:mime,contentSha256,thumbnailUrl:url};
 }
-async function serveFile(env,fileId){
-  const row=await env.DB.prepare("SELECT r2_key,mime_type FROM employee_order_conversation_files_v1 WHERE file_id=?").bind(fileId).first();
-  if(!row||!env.FILES)return new Response('Not found',{status:404});
-  const obj=await env.FILES.get(row.r2_key);if(!obj)return new Response('Not found',{status:404});
-  return new Response(obj.body,{status:200,headers:{'content-type':text(row.mime_type)||'application/octet-stream','cache-control':'private,max-age=3600'}});
+async function serveFile(env,fileId,user){
+  // Fail closed before any R2 operation. A public bucket URL would bypass this
+  // handler and must be disabled at Cloudflare before production sign-off.
+  if(text(env.FILES_PUBLIC_BASE_URL))return new Response('Unavailable',{status:503});
+  if(!/^OCF-[0-9a-fA-F-]{36}$/.test(fileId))return new Response('Not found',{status:404});
+  const row=await env.DB.prepare("SELECT order_id AS orderId,r2_key AS r2Key,mime_type AS mimeType,visible_to_customer AS visibleToCustomer,uploaded_by AS uploadedBy FROM employee_order_conversation_files_v1 WHERE file_id=?").bind(fileId).first();
+  if(!row||!env.FILES||!text(row.r2Key)||!text(row.orderId))return new Response('Not found',{status:404});
+  // A missing/corrupt visibility policy is never interpreted as permission.
+  if(row.visibleToCustomer!==0&&row.visibleToCustomer!==1)return new Response('Forbidden',{status:403});
+  if(!await canAccessOrder(env,user,text(row.orderId)))return new Response('Forbidden',{status:403});
+  const obj=await env.FILES.get(row.r2Key);if(!obj)return new Response('Not found',{status:404});
+  const mime=text(row.mimeType).toLowerCase();
+  const safeMime=['application/pdf','image/png','image/jpeg','image/gif','image/webp','text/plain'].includes(mime)?mime:'application/octet-stream';
+  return new Response(obj.body,{status:200,headers:{'content-type':safeMime,'cache-control':'no-store','x-content-type-options':'nosniff','content-security-policy':"sandbox"}});
 }
 async function goLiveContext(env,orderId){
   const ctx=await latestOrderContext(env,orderId),lines=await env.DB.prepare(`
@@ -309,9 +343,20 @@ export function isEmployeeCommsNativePath(path){
 export async function handleEmployeeCommsNativeRequest(request,env){
   const path=new URL(request.url).pathname.replace(/\/+$/,'')||'/';
   if(path===WEBHOOK)return webhook(env,request);
-  if(path.startsWith(FILE_PREFIX)&&request.method==='GET')return serveFile(env,decodeURIComponent(path.slice(FILE_PREFIX.length)));
   const h=cors(request,env);if(request.method==='OPTIONS')return new Response(null,{status:204,headers:h});
   if(!originAllowed(request,env))return json({success:false,code:'origin-not-allowed'},403,h);
+  if(path.startsWith(FILE_PREFIX)){
+    if(request.method!=='GET')return json({success:false,code:'method-not-allowed'},405,h);
+    // No credential in URL, and no unauthenticated R2/DB file lookup.
+    const username=text(request.headers.get('X-Employee-Username'));
+    const au=await authenticate(request,{username},env);
+    if(!au.ok)return json({success:false,code:'employee-session-rejected'},401,h);
+    try{
+      const cfg=await control(env);
+      if(text(cfg.mode)==='OFF')return json({success:false,code:'employee-comms-off'},503,h);
+      return await serveFile(env,decodeURIComponent(path.slice(FILE_PREFIX.length)),au.user);
+    }catch{return new Response('Not found',{status:404,headers:h});}
+  }
   if(path===HEALTH){
     if(request.method!=='GET')return json({success:false,code:'method-not-allowed'},405,h);
     const c=await control(env),tables=await env.DB.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('employee_feedback_requests_v1','employee_go_live_drafts_v1','employee_order_conversation_files_v1','employee_comms_events_v1')").first();
