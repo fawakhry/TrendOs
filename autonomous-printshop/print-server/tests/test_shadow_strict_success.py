@@ -63,6 +63,32 @@ class StrictSuccessTests(unittest.TestCase):
             qualifier.qualify_screen_once(ExplodingClient({}), "print")
         self.assertNotIn("secret-token-sensitive", str(cm.exception))
 
+    def test_read_response_rejects_partial_and_malformed_rows(self):
+        cases = [
+            ({"success": True, "rows": None}, "AP296_INVALID_ROWS"),
+            ({"success": True, "rows": {}}, "AP296_INVALID_ROWS"),
+            ({"success": True, "rows": [None]}, "AP296_INVALID_ROW_OBJECT"),
+            ({"success": True, "rows": ["not-a-row"]}, "AP296_INVALID_ROW_OBJECT"),
+        ]
+        for response, expected in cases:
+            with self.subTest(response=response):
+                with self.assertRaisesRegex(qualifier.ShadowQualificationError, expected):
+                    qualifier.qualify_screen_once(FakeClient(response), "print")
+
+    def test_read_timeout_or_disconnect_during_call_fails_closed(self):
+        for error in (TimeoutError("upstream timeout"), ConnectionError("network lost")):
+            with self.subTest(error=type(error).__name__):
+                class FailingClient(FakeClient):
+                    def get_rows(self, screen):
+                        raise error
+                with self.assertRaisesRegex(qualifier.ShadowQualificationError, "^AP296_READ_FAILED$"):
+                    qualifier.qualify_screen_once(FailingClient({}), "print")
+
+    def test_read_scope_denial_is_independent_of_valid_response(self):
+        client = FakeClient({"success": True, "rows": []})
+        with self.assertRaisesRegex(qualifier.ShadowQualificationError, "AP296_SCREEN_NOT_SCOPED"):
+            qualifier.qualify_screen_once(client, "laser", allowed_screens=("print",))
+
     def test_shadow_read_action_remains_get_rows(self):
         self.assertEqual(qualifier.SHADOW_READ_ACTION, "getRows")
 
