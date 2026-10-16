@@ -728,3 +728,43 @@
 | TESTED | **لا اختبارات منفذة في هذه الجولة** | راجع [`tests/entry614_employee_content_native.test.mjs` س1–50](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/tests/entry614_employee_content_native.test.mjs#L1-L50) و[`tests/entry629_employee_content_readonly_dispatch.test.mjs` س1–50](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/tests/entry629_employee_content_readonly_dispatch.test.mjs#L1-L50) واربط Run exact SHA |
 
 **الحكم:** وجود Writer للمحتوى وMarketplace لا يعني انتقال سلطة الحفظ بالكامل إلى Cloud Native على الواجهة؛ هناك فجوات وصول/تزامن/هوية تحتاج إثباتًا على نسخة معزولة. `TESTED=NO` و`PRODUCTION_VERIFIED=NO`.
+
+
+---
+
+# 23. شؤون الموظفين والحضور والنظافة والمكبس — Employee Ops D1 (16 أكتوبر 2026)
+
+**الوظيفة:** إدارة بدء يوم العمل والتسجيل اليومي وبصمات التواجد، طلبات HR، تنظيف وتجهيز المكان، ودورات تشغيل المكبس. **الإثبات `SOURCE_ONLY`**؛ لا تسجيل حضور/تأخير/خروج أو خصم أو تشغيل ماكينة حقيقي ضمن مراجعة الكتاب.
+
+## 23.1 نقطة دخول المستخدم وControl
+- [`config.js` س29–34](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/config.js#L29-L34) يعلن `MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE='GENERAL'` في مصدر الواجهة. [`employee-api-dispatcher-v1.js` س38–55](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/employee-api-dispatcher-v1.js#L38-L55) يصنف `attendanceV1/attendanceClockinV1/hrV1/cleaningV1/pressControlV1` ضمن Ops actions، و[`employee-api-dispatcher-v1.js` س221–239](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/employee-api-dispatcher-v1.js#L221-L239) يوجّه `GENERAL` إلى Native. لا يُعتمد التشغيل إلا عند تطابق deployed assets مع `employee_ops_control_v1` في D1.
+- [`cloudflare-d1/src/employee-ops-native-v1.mjs` س54–96](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-ops-native-v1.mjs#L54-L96) `/v1/employee/ops` و`/health` مع schema readiness ودور الموظف الذي تحقق عبر `verifyEmployeeSessionCloudFirst`. [`cloudflare-d1/src/employee-ops-native-v1.mjs` س261–296](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-ops-native-v1.mjs#L261-L296) يطبق `OFF/READONLY/GENERAL` قبل dispatch للأفعال الخمسة؛ Health لا يثبت نجاح كتابة التواجد أو حركة المكبس.
+
+## 23.2 الحضور وبصمات التواجد
+- [`cloudflare-d1/src/employee-ops-native-v1.mjs` س42–48](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-ops-native-v1.mjs#L42-L48) يحسب وقت اليوم باستخدام `Africa/Cairo`، و[`cloudflare-d1/src/employee-ops-native-v1.mjs` س101–139](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-ops-native-v1.mjs#L101-L139) يأخذ وقت البداية المخصص أو الإعداد الافتراضي (12:00)، ويحتفظ بيوم حضور واحد لكل `username/dateKey` في `employee_attendance_days_v1`، ويسجل pulse البداية في `employee_attendance_pulses_v1` مع حدث تتبع.
+- [`cloudflare-d1/src/employee-ops-native-v1.mjs` س140–170](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-ops-native-v1.mjs#L140-L170) يتيح `pause/resume/restStart/prayerStart/confirm/heartbeat/missedCheck/end` ويضيف pulse منفصلة لكل طلب. **فجوة مصدرية محتملة:** لا يظهر idempotency key لهذه الـpulses؛ تكرار POST أو تأخير الشبكة قد يسجل حدث تواجد مكرر رغم حماية بدء اليوم. لازم اختبار replay بتوكن معتمد على قاعدة وهمية.
+- [`cloudflare-d1/src/employee-ops-native-v1.mjs` س171–185](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-ops-native-v1.mjs#L171-L185) `clockin` يحسب فرق الدقائق بين وقت القاهرة الفعلي وموعد البداية ويكتب وصف «مبكر/متأخر/في الموعد»، مع `duplicatePrevented` إذا فيه clockin قائم. **ده تسجيل موعد دخول، مش دليل صلاحية حساب خصم مالي أو مراقبة فعلية لوجود الموظف على الماكينة**.
+
+## 23.3 HR والنظافة
+- [`cloudflare-d1/src/employee-ops-native-v1.mjs` س188–218](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-ops-native-v1.mjs#L188-L218) `hrAction` يسمح للموظف بإرسال طلب جديد `قيد المراجعة`، و`myRequests` خاصة به، و`requests` لمدير/خدمة عملاء و`employees` للمدير فقط. **لا يوجد في المسار المُراجع هنا approval workflow مالي ولا عقود/رواتب منشورة مثبتة**.
+- [`cloudflare-d1/src/employee-ops-native-v1.mjs` س219–237](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-ops-native-v1.mjs#L219-L237) `cleaningAction` يكتب مرة لكل موظف/يوم أو يرجع `duplicatePrevented` عند وجود تسجيل، ويسجل Problem found وتفاصيل مشكلة. **لا دليل اعتماد مدير على نتيجة التنظيف أو استكمال معالجة العطل** في هذا المسار وحده.
+- لازِم ربط سياسات الخصوصية للموظفين وسجل التعديلات والاحتفاظ، خاصةً أن معلومات الالتزام والـattendance حساسة ولا ينبغي عرضها لكل موظف.
+
+## 23.4 جلسة المكبس والتكلفة
+- [`cloudflare-d1/src/employee-ops-native-v1.mjs` س198–225](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-ops-native-v1.mjs#L198-L225) يجمع أوردرات المكبس من `t12_prod_lines` و`employee_core_lines_v1`، مستبعدًا الحالات النهائية ويحسب عدد أوردرات مختلفة وurgent. **العدد لا يقيس تلقائيًا عدد القطع أو دقائق كل ماكينة**.
+- [`cloudflare-d1/src/employee-ops-native-v1.mjs` س226–261](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-ops-native-v1.mjs#L226-L261): `pressAction` يقيّد بدء/إيقاف المكبس بدور/أسماء معينة، يمنع فتح جلسة ثانية إذا الأولى موجودة، ويحفظ مدة التشغيل، `ordersPressed`، kWh المقدَّر = `powerKw * minutes / 60`، وتكلفة كهرباء حسب التعريفة في الإعدادات.
+- **التمييز المحاسبي:** الكهرباء المحسوبة هنا **تقديرية ومصروف تشغيل** وليست تكلفة مباشرة مثبتة لكل أوردر أو قياس عداد؛ لا يجوز ترحيلها تلقائيًا كمصروف مالي محقق بدون اعتماد EasyStore/محاسبة. `ordersPressed` يدخل يدويًا عند الإغلاق؛ لا يعتبر تشغيلًا أو إتمامًا آليًا للأوردرات.
+- **فجوة قرار آلي:** جلسة المكبس لا تثبت جاهزية الورق/التصميم/الخامات أو توافر الموظف قبل إسناد مهمة، وهذا يؤكد أن المطبعة الذاتية ما زالت بحاجة Task/Resource Authority مستقلة (الفصل 19).
+
+## 23.5 الأدلة والاختبار
+| السيناريو | المطلوب | الحكم |
+|---|---|---|
+| Policy / Session | حساب وهمي `admin/service/print/laser` ومحاولات تعديل غير مسموحة | SOURCE_ONLY / BLOCKED |
+| attendance replay | بدء يوم مرة واحدة، clockin مكرر، pulse `heartbeat/end` مكرر | BLOCKED |
+| timezone | حد منتصف الليل القاهرة وإعداد بداية خاص بيوم محدد | SOURCE_ONLY |
+| HR privacy | `myRequests` لا تُرجع طلبات الآخرين، و`employees` للمدير فقط | BLOCKED |
+| cleaning replay | طلبان متزامنان لنفس الموظف واليوم + حالة problemFound | BLOCKED |
+| press double start / stop | جلسة واحدة فقط، وحساب المدة والتكلفة عند غياب Power/Rate | BLOCKED |
+| TESTED | لم تُشغّل اختبارات في هذه الجولة | اقرأ [`tests/entry614_employee_ops_native.test.mjs` س1–42](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/tests/entry614_employee_ops_native.test.mjs#L1-L42) واربط Run/test SHA |
+
+**النتيجة:** Employee Ops يضم تنفيذ D1 مصدرّي لجلسات حضور وHR ونظافة ومكبس، لكنه **ليس برنامجًا إنتاجيًا متحققًا للخصومات أو أتمتة التشغيل**. `TESTED=NO`, `PRODUCTION_VERIFIED=NO`.
