@@ -1,6 +1,7 @@
 import {
   handleEdgeOrders02CRCanaryRequest as handleQualified02CR,
-  isEdgeOrders02CRPath
+  isEdgeOrders02CRPath,
+  allowsOrdersReadScreen
 } from './edge-orders-read-02cr-canary.mjs';
 import { verifyOrdersEdgeToken } from './edge-orders-read-v1.mjs';
 const LINES_SHEET = 'بنود الأوردرات';
@@ -137,10 +138,9 @@ export async function guardEdgeOrders02CRFreshness(request, env, nowMs = Date.no
   const verified = await verifyOrdersEdgeToken(bearer(request), text(env && env.EDGE_SESSION_SECRET), Math.floor(Number(nowMs) / 1000));
   if (!verified.ok) return { pass: true, logicalFreshness: null };
   const screen = text(url.searchParams.get('screen') || 'service');
-  const allowedScreens = Array.isArray(verified.payload && verified.payload.screens)
-    ? verified.payload.screens.map(text)
-    : [];
-  if (allowedScreens.length && !allowedScreens.includes(screen)) return { pass: true, logicalFreshness: null };
+  // Do not query mirror metadata for a signed session without a concrete
+  // allowed screen. The underlying qualified handler returns the 403.
+  if (!allowsOrdersReadScreen(verified.payload, screen)) return { pass: true, logicalFreshness: null };
 
   if (!env || !env.DB || typeof env.DB.prepare !== 'function') {
     return {
