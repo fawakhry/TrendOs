@@ -723,30 +723,37 @@ export async function handleMirrorRequest(request, env) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
 
   try {
-    await ensureMirrorSchema(env);
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
 
+    // SERVER-66 / SEC-AP303-02: no server-verified reader identity exists for
+    // the legacy mirror routes. Deny BEFORE schema initialization or any D1
+    // statement. Origin, guessed bearer tokens and migration secrets are NOT
+    // substitutes for a purpose-scoped read authorization protocol.
+    // REVIEW ONLY: callers/rollbacks must be qualified before any deployment.
+    if (request.method === 'GET' && (
+      path === '/v1/mirror/sheets' ||
+      path === '/v1/mirror/stats' ||
+      path === '/v1/mirror/sheet'
+    )) {
+      return json({
+        success: false,
+        code: 'mirror-read-authorization-required',
+        message: 'This legacy mirror read requires an authenticated replacement API.'
+      }, 403, cors);
+    }
+
     if (request.method === 'POST' && path === '/v1/import/sheet') {
+      // Even unauthorized POSTs must never create/alter D1 schema as a side
+      // effect. importSheet repeats the secret check as defense in depth.
+      if (!requireMigrationSecret(request, env)) {
+        return json({ success: false, message: 'Unauthorized import' }, 401, cors);
+      }
+      await ensureMirrorSchema(env);
       const response = await importSheet(request, env);
       const headers = new Headers(response.headers);
       Object.entries(cors).forEach(([key, value]) => headers.set(key, value));
       return new Response(response.body, { status: response.status, headers });
-    }
-
-    if (request.method === 'GET' && path === '/v1/mirror/sheets') {
-      return json({ success: true, sheets: await listSheets(env) }, 200, cors);
-    }
-
-    if (request.method === 'GET' && path === '/v1/mirror/stats') {
-      return json({ success: true, stats: await mirrorStats(env) }, 200, cors);
-    }
-
-    if (request.method === 'GET' && path === '/v1/mirror/sheet') {
-      const sheet = await getSheetRows(env, url);
-      return sheet
-        ? json({ success: true, sheet }, 200, cors)
-        : json({ success: false, message: 'Sheet not found' }, 404, cors);
     }
 
     return json({ success: false, message: 'Mirror route not found' }, 404, cors);

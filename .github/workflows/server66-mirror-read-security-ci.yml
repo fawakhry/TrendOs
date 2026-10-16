@@ -1,0 +1,34 @@
+name: SERVER-66 Mirror Read Authorization (Offline Review)
+on:
+  pull_request:
+    paths:
+      - cloudflare-d1/src/mirror.js
+      - cloudflare-d1/src/index.js
+      - cloudflare-d1/src/index_v2.js
+      - tests/server66_legacy_mirror_read_gate.test.mjs
+      - tests/server30_legacy_sensitive_read_gate.test.mjs
+      - tests/server56_legacy_customer_bridge_compat.test.mjs
+      - .github/workflows/server66-mirror-read-security-ci.yml
+  push:
+    branches:
+      - security/server66-mirror-read-failclosed-review-20261016
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-source-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify legacy GET guard, mirror guard and browser fallback without network
+        run: |
+          node --test tests/server30_legacy_sensitive_read_gate.test.mjs \
+            tests/server56_legacy_customer_bridge_compat.test.mjs \
+            tests/server66_legacy_mirror_read_gate.test.mjs

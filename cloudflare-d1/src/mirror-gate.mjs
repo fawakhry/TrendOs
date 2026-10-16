@@ -318,6 +318,22 @@ export async function handleMirrorRequest(request, env, ctx) {
     return json({ success: false, message: 'Mirror route not found' }, 404, cors);
   }
 
+  // SERVER-66: SELECT-only is not authorization. The modern router imports
+  // THIS gate, rather than mirror.js. Fail closed BEFORE all D1 reads and
+  // preserve the separate migration-secret POST paths. REVIEW / NO DEPLOY.
+  if (request.method === 'GET' && (
+    path === '/v1/mirror/sheets' ||
+    path === '/v1/mirror/stats' ||
+    path === '/v1/mirror/capabilities' ||
+    path === '/v1/mirror/sheet'
+  )) {
+    return json({
+      success: false,
+      code: 'mirror-read-authorization-required',
+      message: 'This mirror read requires an authenticated replacement API.'
+    }, 403, cors);
+  }
+
   // Read paths are deliberately implemented here with SELECT-only statements.
   // They must never call legacy ensureMirrorSchema(), so parity/freshness probes
   // remain observational even if a table is unexpectedly absent.
