@@ -1,0 +1,48 @@
+name: TrendOS Book28 Bulk 500 Result Truth — Fake D1
+on:
+  push:
+    branches:
+      - fix/book28-bulk-500-result-truth-20261016
+    paths:
+      - 'cloudflare-d1/src/employee-core-native-v1.mjs'
+      - 'app.js'
+      - 'tests/book28_bulk_500_result_truth_synthetic.test.mjs'
+      - '.github/workflows/trendos-book28-bulk-500-result-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/employee-core-native-v1.mjs'
+      - 'app.js'
+      - 'tests/book28_bulk_500_result_truth_synthetic.test.mjs'
+      - '.github/workflows/trendos-book28-bulk-500-result-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fake-501-bulk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: |
+          node --check app.js
+          node --check cloudflare-d1/src/employee-core-native-v1.mjs
+      - name: 501 fake Core rows — bulk/archive, replay, honest partial counters
+        run: node --test tests/book28_bulk_500_result_truth_synthetic.test.mjs
+      - name: Inherited Core line scope P0 and auth
+        run: |
+          node --test tests/book28_core_line_write_scope_synthetic.test.mjs
+          node --test tests/book25_26_p0_auth_synthetic.test.mjs
+      - name: Core dispatcher and reads regression
+        run: |
+          node tests/entry644_employee_core_general_dispatch.test.mjs
+          node tests/entry650_employee_core_order_page_read.test.mjs
+      - name: Release stays blocked
+        run: |
+          echo "FAKE_D1_ONLY=YES"
+          echo "PRODUCTION_DATA=NO"
+          echo "CLOUD_DEPLOY=NO"
+          echo "PR_MERGE=NO"
