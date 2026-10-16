@@ -30,8 +30,10 @@ export function latestReadinessEvidenceV1(events=[],nowMs=Date.now()){
     const expiresAtMs=expiresRaw==null||expiresRaw===''?null:Number(expiresRaw);
     if(!lineId||!READINESS_KINDS.includes(kind)) continue;
     if(!['READY','BLOCKED','UNKNOWN'].includes(state)) continue;
-    if(!Number.isFinite(observedAtMs)||observedAtMs<=0) continue;
-    if(expiresAtMs!=null && (!Number.isFinite(expiresAtMs)||expiresAtMs<=Number(nowMs))) continue;
+    // Treat out-of-order future observations as untrusted. Select the
+    // newest historical evidence BEFORE evaluating its expiry, otherwise a
+    // newer expired BLOCKED / UNKNOWN can resurrect an older READY record.
+    if(!Number.isFinite(observedAtMs)||observedAtMs<=0||observedAtMs>Number(nowMs)) continue;
 
     const key=lineId+'::'+kind;
     const current=latest.get(key);
@@ -52,6 +54,16 @@ export function latestReadinessEvidenceV1(events=[],nowMs=Date.now()){
         observedAtMs,
         expiresAtMs
       });
+    }
+  }
+  // Expired/invalid latest observation is a tombstone for this projection:
+  // do not fall back to an older READY (or BLOCKED) event for the same line/kind.
+  for(const [key,entry] of latest){
+    if(entry.expiresAtMs!=null &&
+       (!Number.isFinite(entry.expiresAtMs) ||
+        entry.expiresAtMs<=Number(nowMs) ||
+        entry.expiresAtMs<=entry.observedAtMs)){
+      latest.delete(key);
     }
   }
   return latest;
