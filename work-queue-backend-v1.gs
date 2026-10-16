@@ -65,10 +65,25 @@ function wqAuthV1_(p){
 function wqRequireEnabledV1_(){
   if(!wqEnabledV1_())throw new Error('Work Queue V1 غير مفعّل تشغيليًا.');
 }
+// BOOK24: optional single Apps Script writer lane selector.
+// Runs INSIDE the existing ScriptLock, before any Work Queue mutation.
+function wqRequireScriptWriterV1_(){
+  let props;
+  try{props=PropertiesService.getScriptProperties();}catch(e){throw new Error('BOOK24_SCRIPT_WRITER_GUARD_UNAVAILABLE');}
+  let enabled;
+  try{enabled=wqBoolV1_(props.getProperty('TRENDOS_TASK_SCRIPT_SINGLE_WRITER_GUARD_V1_ENABLED'));}
+  catch(e){throw new Error('BOOK24_SCRIPT_WRITER_GUARD_UNAVAILABLE');}
+  if(!enabled)return; // Default OFF: preserve current legacy behavior until approval.
+  let selected;
+  try{selected=wqTxtV1_(props.getProperty('TRENDOS_TASK_SCRIPT_WRITER_V1')).toUpperCase();}
+  catch(e){throw new Error('BOOK24_SCRIPT_WRITER_OWNER_UNKNOWN');}
+  if(selected!=='WORK_QUEUE_V1')throw new Error('BOOK24_WORK_QUEUE_NOT_SELECTED_WRITER');
+}
 function wqWithLockV1_(fn){
-  if(typeof trendosWithLock_==='function')return trendosWithLock_('script',fn,30000);
+  const guarded=function(){wqRequireScriptWriterV1_();return fn();};
+  if(typeof trendosWithLock_==='function')return trendosWithLock_('script',guarded,30000);
   const lock=LockService.getScriptLock();lock.waitLock(30000);
-  try{return fn();}finally{lock.releaseLock();}
+  try{return guarded();}finally{lock.releaseLock();}
 }
 function wqHeaderMapV1_(headers){const out={};(headers||[]).forEach(function(h,i){out[wqTxtV1_(h)]=i;});return out;}
 function wqGetV1_(row,map,keys){
