@@ -386,7 +386,7 @@ function customerViewV1(r){
   };
 }
 async function getEasyStoreCustomersV1(env,b){
-  const limit=Math.max(1,Math.min(Math.trunc(num(b.limit,500)),1000));
+  const limit=Math.max(1,Math.min(Math.trunc((b.limit==null||b.limit==='')?500:num(b.limit,500)),1000));
   const creditColumn=customerCreditEnabledV1(env)
     ? "COALESCE((SELECT cc.credit_cents FROM employee_accounting_customer_credits_v1 cc WHERE cc.customer_id=c.customer_id),0)" : "0";
   const list=await rows(env,`
@@ -429,7 +429,7 @@ function supplierViewV1(r){
   };
 }
 async function getEasyStoreSuppliersV1(env,b){
-  const limit=Math.max(1,Math.min(Math.trunc(num(b.limit,500)),1000));
+  const limit=Math.max(1,Math.min(Math.trunc((b.limit==null||b.limit==='')?500:num(b.limit,500)),1000));
   const list=await rows(env,`
     SELECT p.party_id,p.display_name,p.phone,p.address,p.notes,p.active,
       COALESCE(
