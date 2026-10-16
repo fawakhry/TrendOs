@@ -189,3 +189,19 @@
 - **CH26 المعرفات الحالية دون تكرار:** `BOOK26-MIRROR-GET-AUTH` ارتبط بالفعل بـDraft [#137](https://github.com/fawakhry/TrendOs/pull/137) وfake CI [#38911785696](https://github.com/fawakhry/TrendOs/actions/runs/38911785696) على SHA `239696efdf369ed5f89a7e08718e6a46fa76da6f`؛ `BOOK26-NORMALIZED-FINAL-PROOF` guarded metadata في Draft [#139](https://github.com/fawakhry/TrendOs/pull/139) وfake [#38910255737](https://github.com/fawakhry/TrendOs/actions/runs/38910255737)، **ولم يثبت اكتمال chunks/Replay**؛ `BOOK26-DELTA-CAS` يحتاج isolated concurrent fake D1 وLost ACK؛ `BOOK26-DEPLOY-LINEAGE` يحتاج read-only deployed SHA/Worker/UI version evidence مصرحًا به. **هذه روابط اختبارات تاريخية محدودة النطاق، وليست تشغيلًا جديدًا في جلسة الإدخال ولا إثباتًا للإنتاج.**
 - **CH29 الاختبارات القادمة (fake ledger/finance only):** `BOOK29-DEPT-LINE-FIELD-PARITY` mapping دون تضخيم الهالك أو مخزون أو نقل مرتبات/كهرباء/إيجار إلى direct job cost؛ `BOOK29-FINAL-INVOICE-REQUESTID` retry stable ID وحقول manual/payment + nonduplicate invoice؛ `BOOK29-OPERATING-EXPENSE-PROFIT` دفتر 5200 ومصروفات مُرحّلة/غير متاحة ومطابقة مجمل/صافي الربح مع الميزان؛ `BOOK29-APPROVAL-OWNER-POLICY` employee-record/owner-approve + denied employee financial close/expenses/waste/purchases/custody وتوثيق actor/timestamp. لا تغيير `READONLY/GENERAL`.
 - **التسجيل الحالي:** `TESTS_RUN_NOW=NONE`; `RESULT_NOW=QUEUED_NOT_TESTED`; `REGRESSION_PASS_NOW=NOT_ASSERTED`; `DEPLOYED_PARITY=NOT_VERIFIED`; لا معاملات أو رسائل حقيقية، ولا نشر أو دمج PR. لتغيير الحالة مستقبلًا: `CURRENT_TARGET_HEAD`, `CURRENT_BLOB_SHA`, `TEST_COMMAND`, `RUN_SHA`, `CI_URL`, `EXPECTED/ACTUAL`, `FIX_SHA/PR` عند الحاجة، ثم تحقق من Backend authority.
+
+
+## اختبارات الفصل 30 — اتفاقيات SSO وتزامن الجلسات (2026-10-16)
+
+**لا توجد اختبارات منفذة في جلسة الكتاب:** SOURCE_ONLY, TESTED=NO, PRODUCTION_VERIFIED=NO. جميع الحالات تُختبر بمحاكاة محلية فقط وبدون حسابات أو بيانات حقيقية.
+
+| ID | الأولوية | اختبار القبول |
+|---|---|---|
+| BOOK30-SSO-LOGOUT-RACE | P1 | محاكاة فتح شاشة EasyStore ثم خروج المستخدم قبل التأكيد؛ تأكد من توقف إعادة محاولات التسليم وعدم عودة الجلسة القديمة |
+| BOOK30-SSO-AUDIENCE | P1 | مراجعة توثيق الطرف المستقبل ومطابقة الجهة والمدة والهوية ومنع الاستعمال المتكرر |
+| BOOK30-LEGACY-VERIFY-QUERY | P1 | تتبع مسار التحقق القديم وتأكيد عدم استخدام بيانات الجلسة في عنوان الطلب أو إثبات تعطيل المسار |
+| BOOK30-SSO-CROSSSERVICE-REVOKE | P1 | محاكاة خروج وتغيير كلمة مرور مع خدمات TrendOS وEasyStore والملفات، والتحقق من سياسة انتهاء الصلاحيات |
+
+**مراجع سابقة بلا تكرار:** الفصل 14 انتهاء Edge Token؛ الفصل 20 رابط خادم الملفات؛ الفصل 27 صلاحية شاشة EasyStore المحلية.
+
+**دليل الإغلاق:** CURRENT_HEAD, TEST_COMMAND, RUN_SHA, RESULT, CI_URL, FIX_COMMIT عند الحاجة، وDEPLOYED_PARITY بعد موافقة مستقلة.
