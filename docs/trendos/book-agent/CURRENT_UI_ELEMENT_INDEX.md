@@ -532,3 +532,20 @@
 | `paginationBar button` (dynamic) | :5163–5194 → `loadRows` or local render | depends serverPaged | Snapshot/offset parity untested |
 
 **New issue IDs:** `BOOK28-CORE-LINE-SCOPE`, `BOOK28-BULK-500-SCOPE`, `BOOK28-CORE-RECOVERY`. Existing `BOOK19-DELIVERY-GATES` / `BOOK13-ORDER-FILTER-PARITY` reused. **No runtime events or API mutations executed.**
+
+
+## Dynamic event mapping — chapter 29 (2026-10-16, SOURCE_ONLY)
+
+**Accounting surface has two interface routes**: legacy `accountingModal` and `openMatbagyEasyStoreAccountingV1921` handoff. `config.js` source flag `MATBAGY_USE_EASY_STORE_FOR_ACCOUNTING=true`, while native `ACCOUNTING_CUTOVER_MODE=READONLY`; no live routing/browser test performed. App source blob `9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875`, Employee Accounting D1 blob `66440daa0c737966221f5b279a210b4211144d2c`.
+
+| Control | UI/function | Backend action/reader | Contract / scope |
+|---|---|---|---|
+| `accountingBtn` | `app.js:11078+` SSO redirect to EasyStore vs legacy `openAccountingPanel` | External EasyStore site (not audited in this book), native/legacy independent | only user interface role hint, backend authority must decide |
+| `refreshAccountingBtn` | `app.js:868–890 loadAccountingData` | `getAccounting` Native read in READONLY source | Native lists sales/purchases/waste empty placeholders; not proof of actual zero |
+| `accSmartLabor` / `applySmartAccountingCalcBtn` | `app.js:1175–1232` cost calculation | local preview + writes `accDeptLineLaborCost` | Owner policy: general labor/electricity/rent operating expense, no automatic cost per line |
+| `saveAccountingDeptLineBtn` | `app.js:1235–1273` `saveAccountingDeptLine` | Native writer (not currently cut over) expects `materialConsumption/operatingCost` | BOOK29-DEPT-LINE-FIELD-PARITY |
+| `saveAccountingFinalInvoiceBtn` | `app.js:1320–1365` `saveAccountingFinalInvoice` | Native writer requires `requestId` and reads `manualItem` | BOOK29-FINAL-INVOICE-REQUESTID |
+| `accountingDayCloseBtn` (dynamic) | `app.js:11078+` EasyStore SSO day-close open | EasyStore independent workflow | Owner approval must remain server-side |
+| `runAccountingCloseBtn` | `app.js:7576+` existing Trend Master day-close action | Apps Script workflow source | Readiness/blocked states covered §27 |
+
+Do not mark any of these controls `TESTED` without actual mounted frontend asset and test evidence. This table is a reviewed subset, not complete 479-element inventory.
