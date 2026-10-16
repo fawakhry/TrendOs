@@ -144,42 +144,6 @@ ORDER_IDS_CHANGED=NO
 BUSINESS_CREATE_TEST_SENT=NO
 ```
 
-### Entry609 — Native Auth staged cutover inventory / repo-only qualification
-- الاسم العربي للبحث: **جرد وظائف الموظفين بعد Native Login / سياسات Compatibility Bridge / خطة الترحيل التدريجي**.
-- بدأ بعد Entry608 read-only PASS؛ لا يوجد أي Production mutation في هذه الخطوة.
-- Added current-truth inventory test:
-  - file: `tests/entry609_native_auth_cutover_inventory.test.mjs`
-  - commit: `4ab986949d787186449e2210d96ac73fb33104a6`
-- الهدف من الاختبار: تثبيت classification الحالية بدل الاعتماد على A61 historical assertions القديمة التي كانت تتوقع direct `TREND_API_URL/API_URL`.
-- Current inventory contract المثبت في test:
-  ```ini
-  ACTIVE_EMPLOYEE_LEGACY_TOP_LEVEL=46
-  TRANSPORT_EMPLOYEE_CANDIDATES=51
-  DORMANT_TRANSPORT_ONLY=5
-  ACTIVE_OP_POLICIES=29
-  FULL_ACTIVE_PARITY_POLICY_COUNT=69
-  READONLY_PILOT_POLICY_COUNT=26
-  ```
-- الـ5 الموجودة في legacy transport لكن ليست top-level active runtime في A58/A61 corrected inventory:
-  `getTrendMasterPanelV1931, operatorTaskV2, prepareReadyInvoice, updateRowV1931, workQueueV1`.
-- Full active parity = 38 non-op legacy employee actions + 29 exact `action:op` policies + 2 hybrid fallback policies `updateLine` و`markCustomerNotified`.
-- Read-only pilot current-truth = 26 policies. تم استبعاد:
-  - `getRowsPageV1931` لأنه Cloud/Edge authority وليس bridge policy.
-  - `cleaningV1:status` لأنه stale/unsupported؛ backend الحالي لـCleaning يقبل `complete` فقط.
-- هذه الخطوة Repository-only:
-  ```ini
-  STATUS=REPO_ONLY_INVENTORY_ADDED
-  RUN_ID=PENDING
-  JOB_ID=PENDING
-  COMMIT=4ab986949d787186449e2210d96ac73fb33104a6
-  Production_touched=NO
-  D1_touched=NO
-  Apps_Script_touched=NO
-  Secrets_touched=NO
-  NEXT_ACTION=ADD_AND_RUN_ENTRY609_READONLY_CI
-  ```
-
-
 ### Entry610 — Repo-only bridge and enrollment qualification
 - الاسم العربي للبحث: **تأهيل Native Auth + Compatibility Bridge بدون لمس Production**.
 - نقطة البداية: Entry608 closed read-only with Runtime proving:
@@ -6407,3 +6371,5 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - **MIGRATION UNIT 009 / Entry607 / 2026-10-16:** سجل استئناف قديم بعد انقطاع الإنترنت جرى نسخه إلى الملحق «ن» [copy e28842e751bf](https://github.com/fawakhry/TrendOs/commit/e28842e751bfb6f105eb99deee00e049d571da59) بوصفه `HISTORICAL` وليس توجيه استئناف حديثًا. المقارنة المستقلة لمتن المصدر والنسخة الجديدة والأرشيف `b2788ecb4c187717e020321954a1ea449c1aa0d5` أثبتت `EXACT_VERBATIM_MATCH=PASS (3175/3175)`. المصدر عند النقل blob `defb99946c3a78ba463957e7c2df9973ddac52be` والأرشيف blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`. أُزيل قسم Entry607 فقط من الكتاب القديم بعد إثبات المطابقة، مع بقاء Entry608 وباقي Entries وتحديثات SERVER-61/62/63 و`ACTIVE_WRITE`. لا مراجعة نشر Runtime في هذه العملية ولا تغيير تشغيل أو تعديل بيانات.
 
 - **MIGRATION UNIT 010 / Entry608 / 2026-10-16:** تم نقل سجل `Native Auth read-only assessment after disconnect` التاريخي بالكامل (12997 حرفًا، ثلاثة مقاطع أصلية متتالية بدون اختصار) إلى الملحق التاريخي «س» في الكتاب الموحد عبر commits [PART1](https://github.com/fawakhry/TrendOs/commit/749610729526eac88d641746e2d3fbc829d1cc0b) و[PART2](https://github.com/fawakhry/TrendOs/commit/9e8a651f007c8407b8edc5a196ad80525104be48) و[PART3](https://github.com/fawakhry/TrendOs/commit/7df4d07de1a8f94f4be8d469eab7da969e788a0d). أعيدت قراءة GitHub لكل جزء، ثم تمت مقارنة التصاق المقاطع الثلاثة مع كامل النص الأصلي في `TrendOS_MASTER_BOOK.md` blob `9314ba36d5e8387b3f1d996b14154f20cdae2c1a` وأرشيف `b2788ecb4c187717e020321954a1ea449c1aa0d5` blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`: `FULL_EXACT_TEXT_MATCH=PASS (12997/12997)`. بعد الإثبات فقط أزيل قسم Entry608 الأصلي كاملًا من الكتاب القديم، مع استمرار Entry609 وما بعده وSERVER-61/62/63 و`ACTIVE_WRITE`. التاريخ مُصنف `HISTORICAL` ولا يثبت أحدث وضع Authentication ولا يشغل أي إجراء؛ `NO_DEPLOY` / `NO_RUNTIME_MUTATION`. هذا الـCommit هو تسجيل إزالة المصدر الأصلي.
+
+- **MIGRATION UNIT 011 / Entry609 / 2026-10-16:** نُقل جرد Native Auth/Compatibility Bridge التاريخي من Entry609 (1713 حرفًا) كاملًا إلى الملحق «ع» عبر [copy 87a86289a0c2](https://github.com/fawakhry/TrendOs/commit/87a86289a0c2fcc030b61e331bfe22fdc632485a). أعيدت قراءة المصدر والملحق والأرشيف الثابت `b2788ecb4c187717e020321954a1ea449c1aa0d5` وأثبتت `EXACT_VERBATIM_MATCH=PASS (1713/1713)`؛ source Git blob `7719c426968b6cc8d5b9403a80ca80223961d3f1`، archive Git blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`. بعد اكتمال الإثبات حُذف نص Entry609 فقط من القديم مع إبقاء Entry610 وما بعده وجميع تحديثات إيجنت السيرفر و`ACTIVE_WRITE`. نتيجة `REPO_ONLY` التاريخية ليست تشغيلًا جديدًا أو تحديثًا للإنتاج. Commit الإزالة يحمل هذا السجل. `NO_DEPLOY` / `NO_RUNTIME_MUTATION`.
