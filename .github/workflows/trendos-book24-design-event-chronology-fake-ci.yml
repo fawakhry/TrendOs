@@ -6,11 +6,19 @@ on:
     paths:
       - 'autonomous-printshop/core/design-production-evidence-v1.mjs'
       - 'autonomous-printshop/tests/book24_design_readiness_event_chronology_guard.test.mjs'
+      - 'docs/trendos/book-agent/ISSUE_REGISTER.md'
+      - 'docs/trendos/book-agent/TEST_EVIDENCE_QUEUE.md'
+      - 'docs/trendos/book-agent/AGENT_LOG.md'
+      - 'docs/trendos/book-agent/ACTIVE_NON_ACCOUNTING_ISSUES_20261016.md'
       - '.github/workflows/trendos-book24-design-event-chronology-fake-ci.yml'
   pull_request:
     paths:
       - 'autonomous-printshop/core/design-production-evidence-v1.mjs'
       - 'autonomous-printshop/tests/book24_design_readiness_event_chronology_guard.test.mjs'
+      - 'docs/trendos/book-agent/ISSUE_REGISTER.md'
+      - 'docs/trendos/book-agent/TEST_EVIDENCE_QUEUE.md'
+      - 'docs/trendos/book-agent/AGENT_LOG.md'
+      - 'docs/trendos/book-agent/ACTIVE_NON_ACCOUNTING_ISSUES_20261016.md'
       - '.github/workflows/trendos-book24-design-event-chronology-fake-ci.yml'
   workflow_dispatch:
 permissions:
