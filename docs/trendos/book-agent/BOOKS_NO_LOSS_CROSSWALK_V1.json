@@ -38,11 +38,15 @@
     "entry_number_count": 66,
     "entry_heading_count": 58,
     "mention_only_count": 8,
-    "explicitly_mentioned_in_current_catalog": 1,
-    "unmentioned_by_exact_entry_label_in_current_catalog": 65,
+    "explicitly_mentioned_in_current_catalog": 3,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 63,
     "reconciled_entry_count": 0,
     "unreconciled_entry_count": 66,
-    "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation."
+    "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation.",
+    "historical_entry_heading_sections_migrated_exact_count": 2,
+    "initial_entry_heading_count": 58,
+    "original_snapshot_reconciled_count": 0,
+    "migration_progress_note": "Entry597 and Entry598 original sections copied verbatim to historical appendices ز/ح and removed from active master after archive equality, but other cross-references and live behavior were NOT fully reconciled. Reconciled count remains 0 conservatively."
   },
   "book_policy": {
     "only_current_catalog_receives_present_system_descriptions": true,
@@ -1065,24 +1069,56 @@
       "source_first_line": 85,
       "source_heading_line": 85,
       "mention_count_in_master": 4,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_REPO_QUALIFICATION",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ز",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "986761be5262e39961ebe0ed64df0fe70641319e",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "copy_commit": "b12e99b5acb1f9ca232f2c7ebe4f5e91b521b85f",
+        "remove_commit": "0bd4a36e39869ea5b6fa4bf6513e659d70f7c187",
+        "text_characters": 1938,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED"
+      }
     },
     {
       "entry_id": 598,
       "source_first_line": 107,
       "source_heading_line": 107,
       "mention_count_in_master": 1,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_PRODUCTION_PREFLIGHT",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ح",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "a56766f63eef4f8d1d11aaa708118c2b4a7309a1",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "copy_commit": "ceccf9114c1ef3b8992953ad010a115a41dbc9f0",
+        "remove_commit": "168b0bec04da6910fa9f27860a7348d377ada79d",
+        "text_characters": 1535,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED"
+      }
     },
     {
       "entry_id": 599,
@@ -1809,5 +1845,14 @@
     "Review all 165 engineering section headings and 66 distinct Entry IDs for whether current behavior, historical-only or separately owned; map verified current functions to chapters and exact source paths.",
     "Independently enumerate repo tree vs function ownership, UI actions/handlers/writers/tests and runtime deployed SHA.",
     "Reconcile former Draft and current catalog via full text equality after every editorial promotion; never delete historical source without backup and owner approval."
-  ]
+  ],
+  "latest_review": {
+    "date": "2026-10-16",
+    "head_before_crosswalk_commit": "98c2d3bce400c2cce62aa8693152d1bff57f85fd",
+    "active_master_blob_sha": "220a246698aec558da8d2066af4fdf107677bbd8",
+    "new_catalog_blob_sha": "6dafdce116a94a871baf996936bd999f2e8df562",
+    "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+    "notes": "Snapshot and section-heading baseline fields represent original inventory, not latest current line numbers; all 66 entry IDs still need full reconciliation."
+  }
 }
