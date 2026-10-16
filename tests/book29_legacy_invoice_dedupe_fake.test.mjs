@@ -32,6 +32,7 @@ function fixture({authorized=true}={}){
     getRange(){calls.reads++;return {getValues(){return [row];}};}
   };
   const ctx={
+    MATBAGY_ACCOUNTING_VERSION:'SYNTHETIC_VERSION',
     accountingAuthorize_:()=>authorized?{ok:true,mode:'final',user:{username:'FICTIONAL-STAFF'}}:{ok:false,message:'expired synthetic session'},
     LockService:{getScriptLock(){return{
       waitLock(){calls.lock++;},releaseLock(){calls.released++;}
