@@ -83,3 +83,12 @@
 - WRITE: chapter 15 commit `8d687e6a7e0e61d3df217b7aceab3cd362f1c072`, blob `15efd6ccc9c55cc5d3fb92493ca795ba1d075e08`; independent content fetch verified.
 - STATUS: `SOURCE_ONLY`; delivery debt guard `BLOCKED`; `TESTED=NO` and `PRODUCTION_VERIFIED=NO`. No live data, deployments, code edits, financial operations or merge.
 - NEXT: Audit customer portal/drafts and notification pathways in a new chapter; reconcile associated test/run SHA; continue complete module-by-module catalog.
+
+
+## 2026-10-16 / CUSTOMER-PORTAL-011 — الفصل السادس عشر
+- PREPARE: HEAD confirmed `88a45e3f63f2498fd58d933d954313bba8d2ee1e`, chapter 15 last; Draft PR #132 still unmerged.
+- READ: `index.html` customerLogin/draft UI; `app.js` 1867–1974,3459–3523,3592–3595,3902–4025,4060–4111; `employee-api-dispatcher-v1.js` Customer Session Actions; `browser-api-transport-v1.js`; `cloudflare-d1/src/index_v2.js` + `legacy-browser-transport-v1.mjs`; Entry654/655/659 source diagnostics and tests; `config.js`.
+- FINDINGS: browser customerLogin/getCustomerOrders/draft/item/upload/submit actions route via Cloud `/v1/legacy-api` to Apps Script existing authority; this is NOT Native Customer Portal. V0 source audits deliberately `productionRelease:NO_GO`, ownership not established. Customer file access, correct session-to-order binding and backend idempotency require isolated tests and deployed parity. No live customer read, upload, order create or account access.
+- WRITE: chapter 16 appended and verified by separate fetch, commit `22ccefc1cd163d01dd1a863100377dc8f460b7a5`, content SHA `fbea2a4c386967b760058b484844a9deb7b87dbf`.
+- STATUS: `SOURCE_ONLY`; customer-native release `BLOCKED/NO_GO`; `TESTED=NO`; `PRODUCTION_VERIFIED=NO`; docs-only.
+- NEXT: chapter 17 notifications/WhatsApp/employee conversations then chapter 18 accounting integration boundaries, and reconcile test ledger.
