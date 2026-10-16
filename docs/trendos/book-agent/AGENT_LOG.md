@@ -92,3 +92,11 @@
 - WRITE: chapter 16 appended and verified by separate fetch, commit `22ccefc1cd163d01dd1a863100377dc8f460b7a5`, content SHA `fbea2a4c386967b760058b484844a9deb7b87dbf`.
 - STATUS: `SOURCE_ONLY`; customer-native release `BLOCKED/NO_GO`; `TESTED=NO`; `PRODUCTION_VERIFIED=NO`; docs-only.
 - NEXT: chapter 17 notifications/WhatsApp/employee conversations then chapter 18 accounting integration boundaries, and reconcile test ledger.
+
+
+## 2026-10-16 / COMMS-NOTIFY-012 — الفصل السابع عشر
+- READ: `app.js` browser urgent notifications, WhatsApp text/clipboard/manual confirmation and `recordRegistrationWhatsApp`; `customer-manager-v1.js`; `trendos-edge-orders-read-v1.js` notify route; `cloudflare-d1/src/t12-operational-runtime-handler.mjs`, `employee-comms-native-v1.mjs`, `employee-api-dispatcher-v1.js`; `config.js` and related tests.
+- FINDINGS: UI copy+confirm != provider-delivered WhatsApp. Urgent browser notifications have no interval re-poll in `startUrgentNotificationTimer`. Source mismatch: `recordRegistrationWhatsApp` posts `order_registered`, native notify handler only accepts `registration`/ready_notify/status_reply; result success not inspected there. Employee Comms config READONLY prevents inferring that Graph/AI outbound paths execute. Accounting finalize explicitly fail-closed. Source-only; runtime unknown.
+- WRITE: chapter 17 commit `6f0a55b1a0b0d6ccbabeff499229f93774a33f9f`, blob `67d969404e961ad02b18d407ada1bae8284a8bc0`; separate post-write fetch verified chapter.
+- STATUS: `SOURCE_ONLY`, runtime/security `BLOCKED`, `TESTED=NO`, `PRODUCTION_VERIFIED=NO`; no Meta/WhatsApp sends, client messages, changes to product code or server.
+- NEXT: chapter 18 accounting data authority and approvals boundary; then source-to-test evidence reconciliations and outstanding issue catalog.
