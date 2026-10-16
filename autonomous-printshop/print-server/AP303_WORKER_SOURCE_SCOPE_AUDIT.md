@@ -29,3 +29,12 @@
 4. Only after safe server authorization and audit: qualify an outbound-only TLS client/one-shot limited live read on Ubuntu with separate owner consent and sanitized results.
 
 `SOURCE_READ_ONLY=YES`; `DRAFT_PR_151=UNMERGED`; `PRODUCTION_DEPLOYMENT_CHANGED=NO`; `UBUNTU_CHANGED=NO`; `REAL_ACCOUNT_CREATED=NO`; `LIVE_API_REQUESTED=NO`; `PRODUCTION_GO=NO`.
+
+
+## Follow-up after connection interruption — full 02CR router chain
+
+After checking the stored GitHub branch, confirmed that the target `cloudflare-d1/src/index_v2.js` routes 02CR through `edge-orders-read-02cr-freshness.mjs` (metadata guard) and only then `edge-orders-read-02cr-canary.mjs` (qualified handler). The original 8/8 AP303 test directly validated the qualified handler, but a missing/mismatched signed screen grant could reach D1 metadata **before** the qualified handler returned a denial. This was corrected in the **same unmerged Draft PR #151** by using its fail-closed `allowsOrdersReadScreen` predicate in both layers.
+
+Two **actual-router** fake-signed-session tests assert `403` and `0 D1.prepare calls`; the refreshed [AP303 GitHub Actions run #38920667709](https://github.com/fawakhry/TrendOs/actions/runs/38920667709), job `117039452909`, returned **10/10 PASS**. Earlier 8/8 result remains historical only. The overall Integrity CI [#38920667535](https://github.com/fawakhry/TrendOs/actions/runs/38920667535) still failed on a separate prior source/test mismatch. No live API request, key usage, server deployment, Ubuntu change or account creation occurred. [`SERVER-20261016-28`](UBUNTU_SERVER_BOOK.md) records this correction.
+
+`AP303_LATEST_SPECIFIC_CI=10_OF_10_PASS`; `INTEGRITY_CI=FAILED`; `WORKER_DEPLOY=NO`; `PR_MERGE=NO`; `LEGACY_GET_AUTH_AUDIT=PENDING`.
