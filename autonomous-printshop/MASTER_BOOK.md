@@ -10692,3 +10692,12 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 - **SERVER-35 — البوابات الباقية:** مطابقة إصدار Cloudflare المنشور مع الكود؛ معالجة توافق المستهلكين لمسارات SEC-AP303-02؛ تدقيق فروق حالات الأوردرات ومصدر T12/الميرور؛ موافقة جديدة على إنشاء حساب الخدمة وضبط Cloudflare Production؛ موافقة منفصلة على تحديث Ubuntu وعلى اختبار HTTPS حقيقي واحد ببيانات غير حساسة في السجلات. تفاصيل العقد والقيود: [SERVER33_34_READINESS_GATE.md](print-server/SERVER33_34_READINESS_GATE.md).
 - **الحالة:** `GITHUB_SOURCE_READY_FOR_REVIEW`، `REAL_ACCOUNT=NO`، `CLOUDFLARE_DEPLOY=NO`، `UBUNTU_CODE_UPDATED=NO`، `LIVE_ORDERS=NO`، `AUTO_PRINT=OFF`، `PR_MERGE=NO`، `GO_LIVE=NO`.
 
+
+
+## SERVER-20261016-52 — تدقيق أمان كود Cloudflare النشط قبل تشغيل استقبال الأوردرات (2026-10-16)
+
+**نتيجة المصدر الفعلي المعروض:** صاحب المشروع فتح محرر `trendos-d1-api` مع نسخة `2b40f622 (Active)` وأرفق النص المجمّع. مراجعة الشيفرة المعروضة وجدت أن مسارات legacy لقراءة الأوردرات والعملاء والرسائل لا تحتوي تفويضًا صريحًا داخل معالجاتها، ويمكن للـrouter استدعاء معالج legacy؛ كما أن التحقق من نطاق القسم في 02CR لا يغلق حالة قائمة `screens` الفارغة رغم اشتراط توقيع التوكن. **ليس دليلًا على اختراق أو وصول خارجي فعلي، لأن Access/WAF/Routes ما زالت غير متحققة.** كود قارئ `SERVER-33` الجديد غير ظاهر في الحزمة المعروضة.
+
+**العمل المنجز، دون نشر:** تم اعتماد نتيجة المقارنة في [SERVER-52 bundle review](print-server/SERVER52_CF_PRODUCTION_BUNDLE_READ_REVIEW.md) و[كتاب السيرفر المرحلة 52](print-server/UBUNTU_SERVER_BOOK.md). لا تكرار لإصلاحات [PR #151](https://github.com/fawakhry/TrendOs/pull/151) و[PR #154](https://github.com/fawakhry/TrendOs/pull/154) و[PR #160](https://github.com/fawakhry/TrendOs/pull/160)، وكلها ما زالت Draft. تجارب Ubuntu المحلية `43/43 PASS` باستخدام بيانات وهمية لا تثبت صلاحيات أو اتصال Production.
+
+**بوابة التشغيل الحقيقية:** `SEC-AP303-02=OPEN_HIGH_PRIORITY`؛ مطلوب تأكيد Access/WAF للمضيف الفعلي، وجرد مستهلكي المسارات القديمة وإعداد ترحيل متوافق قبل نشر حل الأمان، وموافقة منفصلة لإنشاء حساب الخدمة وDeploy Cloudflare وأول قراءة حية. **ممنوع تفعيل الحساب أو استدعاء أوردرات العملاء أو تشغيل الماكينات تلقائيًا.**
