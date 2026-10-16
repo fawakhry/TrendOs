@@ -1,0 +1,39 @@
+name: TrendOS Book26 Normalized Final Contract — Fake-Only CI
+on:
+  push:
+    branches:
+      - fix/book26-normalized-final-contract-20261016
+    paths:
+      - 'cloudflare-d1/src/normalized-import-gate.mjs'
+      - 'tests/book26_normalized_final_contract_synthetic.test.mjs'
+      - 'tests/cloudflare_normalized_import_v1.test.mjs'
+      - '.github/workflows/trendos-book26-normalized-final-synthetic-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/normalized-import-gate.mjs'
+      - 'tests/book26_normalized_final_contract_synthetic.test.mjs'
+      - 'tests/cloudflare_normalized_import_v1.test.mjs'
+      - '.github/workflows/trendos-book26-normalized-final-synthetic-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: node --check cloudflare-d1/src/normalized-import-gate.mjs
+      - name: Final marker and source-count negative tests (fake D1)
+        run: node --test tests/book26_normalized_final_contract_synthetic.test.mjs
+      - name: Existing normalized import regression (SQLite in-memory only)
+        run: node --experimental-sqlite tests/cloudflare_normalized_import_v1.test.mjs
+      - name: Qualification limits
+        run: |
+          echo "SYNTHETIC_ONLY=YES"
+          echo "FULL_CHUNK_COMPLETENESS_PROVED=NO"
+          echo "PRODUCTION_DEPLOY=NO"
