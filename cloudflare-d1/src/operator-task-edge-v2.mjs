@@ -1,4 +1,5 @@
 import { isAllowedOrigin, verifyEdgeSessionToken } from './edge-gateway.mjs';
+import {checkOperatorEdgeD1WriterConflictV1} from './operator-task-single-writer-guard-v1.mjs';
 
 const PROTOCOL = 'TRENDOS_OT_EDGE_V1';
 const DEFAULT_ORIGINS = [
@@ -170,6 +171,18 @@ export async function handleOperatorTaskEdgeRequest(request, env) {
   catch (err) { return json({ success: false, code: err.message || 'INVALID_REQUEST' }, 400, cors); }
   if (route.op === 'completeTask' && (!payload.taskId || !['جاهز للاستلام', 'تم التسليم'].includes(payload.finalStatus))) {
     return json({ success: false, code: 'COMPLETE_PAYLOAD_INVALID' }, 400, cors);
+  }
+
+  if(route.mutation){
+    // Optional BOOK24 fence applies to both claim and complete, before ANY
+    // upstream Apps Script dispatch. Invalid/unavailable D1 mode fails closed
+    // once the owner opts in. Read-only routes never need a writer gate.
+    const writer=await checkOperatorEdgeD1WriterConflictV1(env);
+    if(!writer.allowed){
+      const conflict=writer.reason==='OPERATOR_TASK_D1_WRITER_CONFLICT';
+      return json({success:false,code:writer.reason},
+        conflict?409:503,cors);
+    }
   }
 
   try {
