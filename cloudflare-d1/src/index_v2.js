@@ -16,6 +16,7 @@ import { handleOperatorTaskEdgeRequest, isOperatorTaskEdgePath } from './operato
 import { handleAutonomousPrintshopShadowRequest, isAutonomousPrintshopShadowPath } from './autonomous-printshop-shadow-v1.mjs';
 import { handleEdgeOrdersReadCanaryRequest, isEdgeOrdersReadPath } from './edge-orders-read-v1-canary.mjs';
 import { handleEdgeOrders02CRCanaryRequest, isEdgeOrders02CRPath } from './edge-orders-read-02cr-freshness.mjs';
+import { isTrendosShopServiceOrdersPath, handleTrendosShopServiceOrdersRequest } from './trendosshop-service-orders-read-v1.mjs';
 import { handleEdgeOrdersServiceRequest, isEdgeOrdersServicePath } from './edge-orders-service-v1.mjs';
 import { repairEdgeOrdersResponse02CX } from './edge-orders-line-id-repair-02cx.mjs';
 import { guardEdgeOrdersPageRequest } from './edge-orders-freshness-gate.mjs';
@@ -111,6 +112,11 @@ export default {
     // the frontend until a separate parity-gated cutover enables screen=service.
     if (isEdgeOrdersServicePath(path)) {
       return handleEdgeOrdersServiceRequest(request, env, ctx);
+    }
+
+    // SERVER-33: separate machine-reader route; default OFF, no employee/Edge token reuse.
+    if (isTrendosShopServiceOrdersPath(path)) {
+      return handleTrendosShopServiceOrdersRequest(request, env);
     }
 
     // PERF-CF-02CR qualified production-read route. 02CU wraps the existing
