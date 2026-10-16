@@ -1966,7 +1966,7 @@ async function previewAccountingFinalInvoiceCommandV1(env,auth,b){
   if(auth.mode!=='full')return deny('final-invoice-command-full-role-required',
     'فحص أدلة تقفيل الفاتورة النهائية للمسؤول المخوّل فقط.');
   const requestKey=text(b.requestKey);
-  if(!/^[\\p{L}\\p{N}_:.\\-]{12,180}$/u.test(requestKey))
+  if(!/^[\p{L}\p{N}_:.\-]{12,180}$/u.test(requestKey))
     return deny('final-invoice-command-key-invalid','معرف الأمر المحاسبي غير صالح.');
   const row=await env.DB.prepare("SELECT operation,status,request_hash AS requestHash,response_json AS responseJson FROM employee_accounting_request_ledger_v1 WHERE request_key=?")
     .bind(requestKey).first();
