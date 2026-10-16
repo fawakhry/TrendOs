@@ -1,0 +1,28 @@
+name: SERVER-56 Legacy Bridge Compatibility (Offline)
+on:
+  pull_request:
+    paths:
+      - customer_manager_d1_bridge_v1934.js
+      - matbagy_theme_v1860.js
+      - index.html
+      - cloudflare-d1/src/index.js
+      - cloudflare-d1/apps-script-importer.gs
+      - tests/server56_legacy_customer_bridge_compat.test.mjs
+      - .github/workflows/server56-legacy-bridge-compat-ci.yml
+  push:
+    branches:
+      - audit/server56-legacy-customer-bridge-compat-20261016
+permissions:
+  contents: read
+jobs:
+  fake-network-and-original-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/server56_legacy_customer_bridge_compat.test.mjs
