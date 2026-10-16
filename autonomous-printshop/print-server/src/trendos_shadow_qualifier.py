@@ -52,7 +52,7 @@ def qualify_screen_once(client: ReadRowsClient, screen: str, *,
     except Exception:
         # Do not persist/log upstream exception: it may include tokens/URLs.
         raise ShadowQualificationError("AP296_READ_FAILED") from None
-    if not isinstance(response, dict) or response.get("success") is False:
+    if not isinstance(response, dict) or response.get("success") is not True:
         raise ShadowQualificationError("AP296_INVALID_RESPONSE")
     rows = response.get("rows")
     if not isinstance(rows, list) or len(rows) > MAX_ROWS:
