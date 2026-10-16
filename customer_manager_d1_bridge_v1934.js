@@ -54,9 +54,12 @@
     var data = await d1Get('/v1/inbox', {
       limit: (params && params.limit) || 120
     });
+    if (!Array.isArray(data.conversations)) {
+      throw new Error('D1 inbox response missing conversations array');
+    }
     return {
       success: true,
-      conversations: Array.isArray(data.conversations) ? data.conversations : [],
+      conversations: data.conversations,
       dataSource: 'd1'
     };
   }
@@ -69,6 +72,9 @@
       phone: phone,
       limit: (params && params.limit) || 200
     });
+    if (!Array.isArray(messagesData.messages)) {
+      throw new Error('D1 thread response missing messages array');
+    }
 
     var context = {
       phone: phone,
