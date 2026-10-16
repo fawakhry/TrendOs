@@ -75,6 +75,35 @@ def _call_fake_transport(transport: SyntheticTransport, request: SyntheticReques
         or request.allow_redirects is not False
     ):
         raise DryRunError("AP302_UNSAFE_REQUEST_SHAPE")
+    if uri.path == _SESSION_PATH:
+        if (
+            request.method != "POST"
+            or uri.query
+            or request.json_body != {
+                "username": "FAKE_TRENDOSSHOP_READER",
+                "token": _FAKE_EMPLOYEE_TOKEN,
+            }
+            or request.headers != {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            }
+        ):
+            raise DryRunError("AP302_UNSAFE_REQUEST_SHAPE")
+    else:
+        approved_queries = {
+            urlencode({"screen": screen, "page": "1", "pageSize": str(_PAGE_SIZE)})
+            for screen in _SCREENS
+        }
+        if (
+            request.method != "GET"
+            or uri.query not in approved_queries
+            or request.json_body is not None
+            or request.headers != {
+                "Accept": "application/json",
+                "Authorization": "Bearer " + _FAKE_EDGE_TOKEN,
+            }
+        ):
+            raise DryRunError("AP302_UNSAFE_REQUEST_SHAPE")
     if type(getattr(transport, "synthetic_only", None)) is not bool or transport.synthetic_only is not True:
         raise DryRunError("AP302_TRANSPORT_NOT_SYNTHETIC")
     try:
@@ -154,8 +183,8 @@ def simulate_orders_read_once(
         or session.get("identityKind") != "dedicated_service_reader"
         or type(session.get("screens")) is not list
         or len(session["screens"]) != 2
-        or set(session["screens"]) != set(_SCREENS)
         or any(type(s) is not str for s in session["screens"])
+        or set(session["screens"]) != set(_SCREENS)
     ):
         raise DryRunError("AP302_FAKE_SESSION_SCOPE_DENIED")
 
