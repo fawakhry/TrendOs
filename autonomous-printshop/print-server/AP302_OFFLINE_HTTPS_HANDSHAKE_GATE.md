@@ -45,3 +45,11 @@
 `AP302_SYNTHETIC_TESTS=98/98_PASS`; `AP302_ACCOUNT_CREATED=NO`; `AP302_LIVE_TRANSPORT=NO`; `AP302_DEPLOYED_ROUTE_VERIFIED=NO`; `AP302_UBUNTU_UPDATED=NO`; `AP302_REAL_ORDERS=NO`; `AP302_PRODUCTION_GO=NO`.
 
 [كتاب سيرفر Ubuntu](UBUNTU_SERVER_BOOK.md) | [كتاب المطبعة](../MASTER_BOOK.md)
+
+
+## إضافة مراجعة AP-302 الأمنية — 2026-10-16
+
+- **حماية إضافية بعد الاختبارات الأصلية:** تثبيت الـMethod والـHeaders وقيم query parameters في محاكاة الجلسة وقراءة الصفحات، بحيث يُرفض أي تحويل من قراءة إلى كتابة أو أي `screen=service`، ورفض كائنات `screens` المشوهة (قائمة/قاموس بدل نص) برسالة ثابتة بدل خروج استثناء خام.
+- **اختباران جديدان** يغطيان أشكال جلسة غير صحيحة ومحاولات تغيير method/headers/query/body؛ اختبارات AP-302 أصبحت **27**.
+- **CI المُراجع بعد التحسين:** [run #38915205413](https://github.com/fawakhry/TrendOs/actions/runs/38915205413)، job `117020775632`: 27 AP-302 + 23 AP-301 + 18 AP-299 + 17 AP-298 + 15 AP-296 = **100/100 PASS**، تمت مراجعة `Ran ... tests` و`OK` لكل مجموعة.
+- التشغيل السابق `38914604319` (98/98) محفوظ كدليل تاريخي قبل التحسين. **الحالة الأحدث: 100/100 PASS**؛ كل النتائج وهمية، و`LIVE_CONNECTION=NO` و`HOST_DEPLOY=NO` و`PRODUCTION_GO=NO`.
