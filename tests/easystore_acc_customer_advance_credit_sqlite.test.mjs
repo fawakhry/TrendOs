@@ -102,40 +102,40 @@ try{
     requestId:'FAKE_CREDIT_RECEIPT_'+name+'_0001',operation:'payment_received',
     customerId,amount,paymentMethod:'نقدي',refNo:'',workDate:'2099-12-31'
   });
-  test('01 default OFF state even with D1 schema denies writes',async()=>{
+  await test('01 default OFF state even with D1 schema denies writes',async()=>{
     assert.equal(one('SELECT mode FROM employee_accounting_control_v1 WHERE singleton=1').mode,'OFF');
     const r=await send('saveCustomerAccountMovementV1915',receive('BLOCK',100));
     assert.equal(r.status,503);
     assert.equal(count('employee_accounting_customer_credit_events_v1'),0);
   });
-  test('02 READONLY mode denies customer overpayment writes',async()=>{
+  await test('02 READONLY mode denies customer overpayment writes',async()=>{
     db.exec("UPDATE employee_accounting_control_v1 SET mode='READONLY' WHERE singleton=1");
     const r=await send('saveCustomerAccountMovementV1915',receive('RO',100));
     assert.equal(r.status,503);
     assert.equal(count('employee_accounting_cashbox_v1'),0);
   });
-  test('03 fake service role cannot create credit or invoice',async()=>{
+  await test('03 fake service role cannot create credit or invoice',async()=>{
     db.exec("UPDATE employee_accounting_control_v1 SET mode='GENERAL' WHERE singleton=1");
     db.exec("UPDATE employee_accounting_write_canary_v1 SET enabled=0,max_commands=0,commands_started=0 WHERE singleton=1");
     role='service';
     assert.equal((await send('saveCustomerAccountMovementV1915',receive('FORGE',100))).status,403);
     role='admin';
   });
-  test('04 create fabricated print material, actual native D1 source',async()=>{
+  await test('04 create fabricated print material, actual native D1 source',async()=>{
     const r=await send('saveAccountingMaterial',{
       requestId:'FAKE_CREDIT_MATERIAL_0001',materialName:'FAKE_ONLY_PAPER',
       department:'طباعة',unit:'قطعة',unitCost:10,stockQty:20,active:'نعم'
     });
     assert.equal(r.success,true,JSON.stringify(r));
   });
-  test('05 invoice 97 creates debt 97 without any customer credit',async()=>{
+  await test('05 invoice 97 creates debt 97 without any customer credit',async()=>{
     const r=await send('saveEasyStoreSaleV2',sale('A',97,0));
     assert.equal(r.success,true,JSON.stringify(r));
     assert.equal(debt('FAKE_CUST_A'),97);
     assert.equal(credit('FAKE_CUST_A'),0);
     assert.equal(count('employee_accounting_final_invoices_v1'),1);
   });
-  test('06 verified cash 100 against debt 97 posts ONE receipt + 300-piastre liability',async()=>{
+  await test('06 verified cash 100 against debt 97 posts ONE receipt + 300-piastre liability',async()=>{
     const r=await send('saveCustomerAccountMovementV1915',receive('OVER',100));
     assert.equal(r.success,true,JSON.stringify(r));
     assert.equal(r.balanceBefore,97);
@@ -151,7 +151,7 @@ try{
     const debtLedger=one("SELECT amount FROM employee_accounting_party_ledger_v1 WHERE party_type='customer' AND operation='payment_received' AND party_id='FAKE_CUST_A'");
     assert.equal(debtLedger.amount,97,'remaining 3 is not falsely posted as customer debt reduction');
   });
-  test('07 exact receipt retry after ACK lost cannot duplicate credit/cashbox',async()=>{
+  await test('07 exact receipt retry after ACK lost cannot duplicate credit/cashbox',async()=>{
     const before=[count('employee_accounting_customer_credit_events_v1'),count('employee_accounting_cashbox_v1')];
     const again=await send('saveCustomerAccountMovementV1915',receive('OVER',100));
     assert.equal(again.success,true,JSON.stringify(again));
@@ -159,7 +159,7 @@ try{
     assert.equal(again.customerCredit,3);
     assert.deepEqual([count('employee_accounting_customer_credit_events_v1'),count('employee_accounting_cashbox_v1')],before);
   });
-  test('08 next 20 invoice atomically consumes +3 customer credit; 17 remains, zero cash',async()=>{
+  await test('08 next 20 invoice atomically consumes +3 customer credit; 17 remains, zero cash',async()=>{
     const priorCash=count('employee_accounting_cashbox_v1');
     const r=await send('saveEasyStoreSaleV2',sale('B',20,0));
     assert.equal(r.success,true,JSON.stringify(r));
@@ -176,7 +176,7 @@ try{
     assert.deepEqual(creditEvents('FAKE_CUST_A').map(e=>[e.kind,e.delta]),[
       ['RECEIPT_EXCESS',300],['INVOICE_CREDIT_APPLIED',-300]]);
   });
-  test('09 direct invoice 97.5 paid 100 creates 250-piastre customer liability at invoice-time',async()=>{
+  await test('09 direct invoice 97.5 paid 100 creates 250-piastre customer liability at invoice-time',async()=>{
     const r=await send('saveEasyStoreSaleV2',sale('C',97.5,100,'FAKE_CUST_B'));
     assert.equal(r.success,true,JSON.stringify(r));
     assert.equal(r.paid,97.5);
@@ -187,14 +187,14 @@ try{
     assert.equal(debt('FAKE_CUST_B'),0);
     assert.deepEqual(cash('FAKE_CUST_B').map(x=>x.amount),[100]);
   });
-  test('10 completely prepaid customer 50 with no invoices retains +50 credit',async()=>{
+  await test('10 completely prepaid customer 50 with no invoices retains +50 credit',async()=>{
     const r=await send('saveCustomerAccountMovementV1915',receive('PREPAY',50,'FAKE_CUST_B'));
     assert.equal(r.success,true,JSON.stringify(r));
     assert.equal(credit('FAKE_CUST_B'),5250);
     assert.equal(debt('FAKE_CUST_B'),0);
     assert.equal(cash('FAKE_CUST_B').length,2);
   });
-  test('11 invoice 20 with customer credit 52.5 consumes 20 and retains +32.5',async()=>{
+  await test('11 invoice 20 with customer credit 52.5 consumes 20 and retains +32.5',async()=>{
     const r=await send('saveEasyStoreSaleV2',sale('D',20,0,'FAKE_CUST_B'));
     assert.equal(r.success,true,JSON.stringify(r));
     assert.equal(r.paid,20);
@@ -205,14 +205,14 @@ try{
     assert.equal(debt('FAKE_CUST_B'),0);
     assert.equal(cash('FAKE_CUST_B').length,2);
   });
-  test('12 successful credit-backed invoice replay is idempotent',async()=>{
+  await test('12 successful credit-backed invoice replay is idempotent',async()=>{
     const before=[count('employee_accounting_customer_credit_events_v1'),count('employee_accounting_cashbox_v1'),count('employee_accounting_final_invoices_v1')];
     const repeat=await send('saveEasyStoreSaleV2',sale('D',20,0,'FAKE_CUST_B'));
     assert.equal(repeat.success,true,JSON.stringify(repeat));
     assert.equal(repeat.duplicatePrevented,true);
     assert.deepEqual([count('employee_accounting_customer_credit_events_v1'),count('employee_accounting_cashbox_v1'),count('employee_accounting_final_invoices_v1')],before);
   });
-  test('13 account/customer listing displays positive customer-facing balance',async()=>{
+  await test('13 account/customer listing displays positive customer-facing balance',async()=>{
     const r=await send('getCustomerAccountV1915',{customerId:'FAKE_CUST_B'});
     assert.equal(r.success,true,JSON.stringify(r));
     assert.equal(r.creditBalance,32.5);
@@ -226,25 +226,25 @@ try{
     assert.equal(search.success,true,JSON.stringify(search));
     assert.equal(search.customers[0].displayBalance,32.5);
   });
-  test('14 non-cent-safe payment never credits fake account',async()=>{
+  await test('14 non-cent-safe payment never credits fake account',async()=>{
     const c=credit('FAKE_CUST_B'),n=count('employee_accounting_cashbox_v1');
     const r=await send('saveCustomerAccountMovementV1915',receive('BAD',1.001,'FAKE_CUST_B'));
     assert.equal(r.success,false);
     assert.equal(credit('FAKE_CUST_B'),c);
     assert.equal(count('employee_accounting_cashbox_v1'),n);
   });
-  test('15 forged credentials cannot access customer liability or submit receipts',async()=>{
+  await test('15 forged credentials cannot access customer liability or submit receipts',async()=>{
     assert.equal((await send('getCustomerAccountV1915',{customerId:'FAKE_CUST_B'},{token:'BAD'})).status,401);
     assert.equal((await send('saveCustomerAccountMovementV1915',receive('NOAUTH',1,'FAKE_CUST_B'),{token:'BAD'})).status,401);
   });
-  test('16 unsafe reversal of credit-backed invoice must fail closed',async()=>{
+  await test('16 unsafe reversal of credit-backed invoice must fail closed',async()=>{
     const before=credit('FAKE_CUST_B');
     const r=await send('reopenAccountingFinalInvoice',{invoiceNo:'FAKE_CREDIT_INVOICE_D',reason:'FAKE_REQUEST'});
     assert.equal(r.success,false);
     assert.equal(r.code,'customer-credit-invoice-reversal-not-implemented');
     assert.equal(credit('FAKE_CUST_B'),before);
   });
-  test('17 default feature-flag OFF on same fake D1 preserves legacy overpay denial',async()=>{
+  await test('17 default feature-flag OFF on same fake D1 preserves legacy overpay denial',async()=>{
     env.EASYSTORE_CUSTOMER_CREDIT_V1='OFF';
     const c=credit('FAKE_CUST_B'),n=count('employee_accounting_cashbox_v1');
     const r=await send('saveCustomerAccountMovementV1915',receive('OFF',1,'FAKE_CUST_B'));
@@ -253,7 +253,7 @@ try{
     assert.equal(count('employee_accounting_cashbox_v1'),n);
     env.EASYSTORE_CUSTOMER_CREDIT_V1='ON';
   });
-  test('18 preserve integrity: cash equals actual funds received; credit events reconcile liability',()=>{
+  await test('18 preserve integrity: cash equals actual funds received; credit events reconcile liability',()=>{
     assert.equal(network,0);
     for(const id of ['FAKE_CUST_A','FAKE_CUST_B']){
       const delta=one("SELECT COALESCE(SUM(delta_cents),0) AS n FROM employee_accounting_customer_credit_events_v1 WHERE customer_id=?",id).n;
