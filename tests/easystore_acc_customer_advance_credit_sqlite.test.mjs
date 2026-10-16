@@ -381,7 +381,7 @@ try{
       assert.ok(c>=0);
     }
     assert.equal(one("SELECT COUNT(*) AS n FROM employee_accounting_tx_guard_v1").n,0);
-    assert.equal(one("SELECT COUNT(*) AS n FROM employee_accounting_request_ledger_v1 WHERE status='PREPARED'").n,1,
-      'rejected racing receipt is deliberately PREPARED for later review; never auto-repost');
+    assert.equal(one("SELECT COUNT(*) AS n FROM employee_accounting_request_ledger_v1 WHERE status='PREPARED'").n,2,
+      'rejected racing receipt and rejected racing invoice remain PREPARED; never auto-repost');
   });
 }finally{db.close()}
