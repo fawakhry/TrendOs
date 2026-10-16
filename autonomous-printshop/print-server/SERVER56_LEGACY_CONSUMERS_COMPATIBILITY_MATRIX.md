@@ -63,3 +63,18 @@ This is **not** the earlier `trendos-d1-api` screenshot. Both named Workers lack
 **Next bounded read-only evidence request:** inspect `trendos → Settings → Bindings` and capture **only binding type and resource display names** (e.g. whether `D1 database` exists), excluding environment variable/secret panels and values. Neither switches nor bindings should be edited. This is separate from the already-confirmed `trendos-d1-api` `DB → trendos-main` binding. Subsequently inspect published source/version safely, and map external consumers. PR #176's 9/9 synthetic fallback tests are not production authorization or breach evidence.
 
 `TRENDOS_PRODUCTION_URL=ON_AS_SHOWN`; `TRENDOS_PREVIEW_URL=ON_AS_SHOWN`; `TRENDOS_CUSTOM_DOMAINS=NONE_SHOWN`; `TRENDOS_WORKER_ACCESS=ABSENT_AS_SHOWN`; `TRENDOS_D1_BINDING=UNKNOWN`; `TRENDOS_ACCOUNT_WAF=UNKNOWN`; `SEC_AP303_02=OPEN`; `CLOUDFLARE_PRODUCTION_CHANGE=NO`.
+
+
+## SERVER-59 — separate Worker D1 binding confirmed (owner UI, 2026-10-16)
+
+**Evidence:** owner screenshot of **`Workers & Pages → trendos → Production → Settings → Bindings`**, showing `Type: D1 database`, `Name: DB`, `Value: trendos-main`. This is a **second** and independently inspected Worker. The previously reviewed `trendos-d1-api` binding also displayed `DB → trendos-main`. Both observations came from the same displayed Cloudflare account, but this screenshot provides **a database display name, not a database UUID**. Binding-level rights and which published code paths use it remain unknown.
+
+The separate `trendos` Worker also lacks Worker-specific Access (SERVER-57), while Production and Preview `workers.dev` entrypoints are switched on (SERVER-58). Its runtime `Logs`/`Traces`/`Issues` and `Logpush` controls appear off in the captured settings view. Do not infer that no traffic, data access, or incidents occurred: disabling observability simply means these telemetry features are not configured in this UI.
+
+An ordinary variable row and the `MIGRATION_SECRET` **secret name** are visible above the binding table; the screenshot shows `Value encrypted` for the secret. No secret contents, external integration URLs, or ordinary variable values are replicated into this GitHub report.
+
+**Security significance:** the V1934 browser bridge source targets `trendos.trendmall-contact.workers.dev`, and this named Worker can bind to `trendos-main` D1. Together with the public-visit notices and no Worker-specific Access, this merits urgent independent code/route/auth review. **Not proven:** absence of all other protection, unauthenticated reads, exploitation, or data leakage. Do not probe production customer/order endpoints, publish API keys, or turn on blanket Access without dependency and rollback reviews.
+
+**Next bounded owner evidence request:** from the same `trendos` Worker navigate **Deployments** and share a screenshot of the **Active deployment version ID, Ready status and traffic fraction** only. Do not open logs, code editor secrets, deploy or change settings. This lets reviewers distinguish the actual deployed `trendos` source from the separate `trendos-d1-api` version `2b40f622` before any compatibility-sensitive mitigation.
+
+`TRENDOS_BINDING_TYPE=D1_DATABASE_AS_SHOWN`; `TRENDOS_BINDING_NAME=DB`; `TRENDOS_D1_DISPLAY_NAME=trendos-main`; `DATABASE_IDENTITY_UUID=NOT_VERIFIED`; `TRENDOS_LOGS_TRACES=OFF_AS_SHOWN`; `EXTERNAL_AUTH=UNKNOWN`; `SEC_AP303_02=OPEN_HIGH_PRIORITY`; `PRODUCTION_CHANGED=NO`.
