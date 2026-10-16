@@ -1333,6 +1333,31 @@ Trend Mall`;
     if ($("accFinalRemaining")) $("accFinalRemaining").textContent = accountingMoney(remaining);
   }
 
+  // BOOK29: Keep a stable idempotency key across lost ACK and reload. The tab
+  // stores only a SHA-256 fingerprint and random requestId, never invoice PII.
+  async function accountingFinalInvoiceRequestIdV29(payload) {
+    const cryptoApi=window.crypto;
+    if(!cryptoApi||!cryptoApi.subtle||!cryptoApi.randomUUID)throw new Error("يلزم اتصال HTTPS آمن لإنشاء معرف الفاتورة.");
+    const username=String((state.user||{}).username||(state.user||{}).name||"");
+    if(!username)throw new Error("انتهت جلسة الموظف.");
+    const bytes=new TextEncoder().encode(JSON.stringify({username:username,payload:payload}));
+    const digest=await cryptoApi.subtle.digest("SHA-256",bytes);
+    const fingerprint=Array.from(new Uint8Array(digest)).map(function(v){return v.toString(16).padStart(2,"0");}).join("");
+    const storageKey="TRENDOS_BOOK29_PENDING_FINAL_INVOICE_V1";
+    let pending=state.accounting.pendingFinalInvoiceV29||null;
+    if(!pending){try{pending=JSON.parse(sessionStorage.getItem(storageKey)||"null");}catch(e){pending=null;}}
+    if(pending&&pending.fingerprint!==fingerprint)throw new Error("نتيجة الفاتورة السابقة غير مؤكدة. راجع فاتورة الأوردر أولًا قبل تغيير البيانات.");
+    if(pending&&!/^FIN-[0-9a-f-]{36}$/i.test(String(pending.requestId||"")))throw new Error("مفتاح فاتورة سابقة غير صالح؛ يلزم مراجعتها أولًا.");
+    if(!pending)pending={fingerprint:fingerprint,requestId:"FIN-"+cryptoApi.randomUUID()};
+    state.accounting.pendingFinalInvoiceV29=pending;
+    try{sessionStorage.setItem(storageKey,JSON.stringify(pending));}catch(e){}
+    return pending.requestId;
+  }
+  function clearAccountingFinalInvoiceRequestV29(){
+    state.accounting.pendingFinalInvoiceV29=null;
+    try{sessionStorage.removeItem("TRENDOS_BOOK29_PENDING_FINAL_INVOICE_V1");}catch(e){}
+  }
+
   async function saveAccountingFinalInvoice() {
     if (!accountingCanCloseFinalInvoice()) return;
     const orderId = (($("accFinalOrderId") || {}).value || "").trim();
@@ -1348,29 +1373,31 @@ Trend Mall`;
     const paid = numericAmount(($("accFinalPaid") || {}).value || 0);
     const finalTotal = Math.max(0, subtotal - discount);
     const remaining = Math.max(0, finalTotal - paid);
+    if(state.accounting.finalInvoiceSavingV29)return;
+    state.accounting.finalInvoiceSavingV29=true;
     try {
-      const res = await api("saveAccountingFinalInvoice", authParams({
-        orderId: orderId,
-        customerName: customerName,
-        lineIds: JSON.stringify(lineIds),
-        manualDescription: ($("accFinalManualDescription") || {}).value,
-        manualAmount: ($("accFinalManualAmount") || {}).value,
-        subtotal: subtotal,
-        discount: discount,
-        finalTotal: finalTotal,
-        paid: paid,
-        remaining: remaining,
-        status: ($("accFinalStatus") || {}).value,
-        notes: ($("accFinalNotes") || {}).value
-      }));
+      const description=($("accFinalManualDescription")||{}).value||"";
+      const payload={
+        orderId:orderId,customerName:customerName,lineIds:JSON.stringify(lineIds),
+        manualDescription:description,manualItem:description,
+        manualAmount:($("accFinalManualAmount")||{}).value,
+        subtotal:subtotal,discount:discount,finalTotal:finalTotal,paid:paid,remaining:remaining,
+        paymentType:($("accFinalPaymentType")||{}).value||(remaining>0?"آجل":"نقدي"),
+        status:($("accFinalStatus")||{}).value,notes:($("accFinalNotes")||{}).value
+      };
+      const requestId=await accountingFinalInvoiceRequestIdV29(payload);
+      const res=await api("saveAccountingFinalInvoice",authParams({...payload,requestId:requestId}));
       setMsg("accountingMsg", res.message || (res.success ? "تم تقفيل الفاتورة." : "فشل التقفيل."), !res.success);
       if (res.success) {
+        clearAccountingFinalInvoiceRequestV29();
         ["accFinalManualDescription", "accFinalManualAmount", "accFinalDiscount", "accFinalPaid", "accFinalNotes"].forEach(function (id) { const el = $(id); if (el) el.value = ""; });
         if ($("accountingOrderLinesList")) $("accountingOrderLinesList").innerHTML = "";
         await loadAccountingData(true);
       }
     } catch (err) {
-      setMsg("accountingMsg", err.message || "خطأ في تقفيل الفاتورة.", true);
+      setMsg("accountingMsg",err.message||"تعذر التحقق من نتيجة الفاتورة. أعد المحاولة بنفس البيانات.",true);
+    } finally {
+      state.accounting.finalInvoiceSavingV29=false;
     }
   }
 

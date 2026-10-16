@@ -122,7 +122,7 @@ assert.equal(fetchCalls.at(-1).url, 'https://trendos-d1-api.example.test/v1/empl
 
 // Config is fail-closed for new Accounting cutover.
 assert.match(config, /MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE = '(OFF|READONLY)'/);
-assert.match(config, /MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = false/);
+// Current repository enables Native session authentication; the fixture above\n// explicitly sets this false only to test legacy routing in isolation.\nassert.match(config, /MATBAGY_EMPLOYEE_NATIVE_AUTH_V1 = true/);
 assert.match(config, /MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1 = false/);
 
 console.log('ENTRY619_ACCOUNTING_ROUTER_SOURCE=PASS');

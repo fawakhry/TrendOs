@@ -1,0 +1,46 @@
+name: TrendOS Book29 Final Invoice Retry — Fake-Only CI
+on:
+  push:
+    branches:
+      - fix/book29-final-invoice-idempotency-and-parity-20261016
+    paths:
+      - 'app.js'
+      - 'index.html'
+      - 'tests/book29_final_invoice_idempotency_synthetic.test.mjs'
+      - 'tests/book29_legacy_invoice_dedupe_fake.test.mjs'
+      - '.github/workflows/trendos-book29-final-invoice-synthetic-ci.yml'
+  pull_request:
+    paths:
+      - 'app.js'
+      - 'index.html'
+      - 'tests/book29_final_invoice_idempotency_synthetic.test.mjs'
+      - 'tests/book29_legacy_invoice_dedupe_fake.test.mjs'
+      - '.github/workflows/trendos-book29-final-invoice-synthetic-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fake-only-invoice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Source syntax
+        run: node --check app.js
+      - name: Lost ACK and invoice idempotency tests (fake API only)
+        run: node --test tests/book29_final_invoice_idempotency_synthetic.test.mjs
+      - name: Fake Legacy Apps Script lost-ACK replay — never appends an invoice
+        run: node --test tests/book29_legacy_invoice_dedupe_fake.test.mjs
+      - name: Existing accounting routing contract (no live finance)
+        run: node tests/frontend_employee_accounting_family_router_entry619.test.mjs
+      - name: Existing native accounting schema contract
+        run: node tests/entry614_employee_accounting_native.test.mjs
+      - name: No production claim
+        run: |
+          echo "FIX_INVOICE_CLIENT_SOURCE_ONLY=YES"
+          echo "FAKE_ACCOUNTING_API=YES"
+          echo "REAL_FINANCE_OPERATION=NO"
+          echo "DEPLOY_OR_MERGE=NO"
