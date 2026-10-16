@@ -62,3 +62,14 @@ Audit 2026 pre-split App Script source against GitHub `Code.gs`, group the 620 A
 
 **First exact-path candidates for audit (all `UNKNOWN_NEEDS_PROOF`, none selected for removal):**
 `Code.gs`, `v1932-router.gs`, `customer-manager-backend-v1932.gs`, `customer-feedback-backend-v1.gs`, `hr-backend-v1.gs`, `attendance-backend-v1.gs`, `press-control-backend-v1.gs`, `go-live-autopilot-v1.gs`, `.github/workflows/*`. Each can still have deployed consumers/triggers and must stay until proven otherwise.
+
+## 7. First exact mirror audit batch (no removal) — 2026-10-16
+
+Read-only Git tree audit of book branch starting at `2fc7c187247b7b0cbd2e95c58cf1da00838e734b`: **101** duplicate Git blob groups / **202** paths. [All SHA and paths](LEGACY_DUPLICATE_BLOBS_AUDIT_20261016.md). Of these, **9 exact `.gs` mirror pairs** reside under `autonomous-printshop/sources/trendos/` and root; Git SHA equality confirms exact bytes. Potential first **audit-only** cleanup list = nine mirrored paths, **not nine safe deletion approvals**.
+
+- Classification: `UNKNOWN_NEEDS_PROOF` for deletion/ownership and `DUPLICATE_BYTES_VERIFIED` as a separate fact. `CONFLICTING_DUPLICATE=NOT_ESTABLISHED`.
+- Before candidate promotion: enumerate Apps Script deployment manifest/project file membership, dynamic calls, make/copy/build/scripts, Git introduction commit, real referenced package path, external service and trigger dependencies, independent encrypted archive and restore test.
+- Specific danger: a mirror inside the autonomous printshop may be a required packaging input, even if identical to a root file. Do not move one on the assumption that Git duplicate means orphan.
+- Legacy monolith `Code.gs` is **ACTIVE/SHARED/UNKNOWN pending runtime authority evidence**, not a deletion candidate. 614 old names persist in the audited book branch; 12 source spans have changed relative to the private original, 2 parser-boundary cases unresolved. [Diff](LEGACY_V1932_CURRENT_BRANCH_FUNCTION_DIFF_20261016.md).
+- Private recovery archive `TrendOS_V1932_Private_Recovery_20261016.zip` SHA256 `faaf42e0bb7cee1e9f94d43bb2a611eeb8c2f2dd286152c2951531bdd39f03dd`, ZIP & member checksums PASS in conversation-local runtime. Raw secret-risk source is **not posted publicly**. Offsite backup and environment recovery are **not verified**.
+- `APPROVED_REMOVAL_PATHS=0`; `MOVED=0`; `DELETED=0`; `BRANCHES_DELETED=0`; `MERGED=0`; `DEPLOYED=0`. Next: static call graph + deployment evidence and user-reviewed path list.
