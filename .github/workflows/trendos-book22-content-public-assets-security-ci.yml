@@ -1,0 +1,40 @@
+name: TrendOS Book22 Content R2 Public-Only Images — Fake CI
+on:
+  push:
+    branches:
+      - fix/book22-content-public-file-allowlist-20261016
+    paths:
+      - 'cloudflare-d1/src/employee-content-native-v1.mjs'
+      - 'tests/book22_content_r2_public_asset_acl_synthetic.test.mjs'
+      - '.github/workflows/trendos-book22-content-public-assets-security-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/employee-content-native-v1.mjs'
+      - 'tests/book22_content_r2_public_asset_acl_synthetic.test.mjs'
+      - '.github/workflows/trendos-book22-content-public-assets-security-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fake-content-files:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static source syntax
+        run: node --check cloudflare-d1/src/employee-content-native-v1.mjs
+      - name: Public image access/private file denial with Fake D1 + Fake R2 only
+        run: node --test tests/book22_content_r2_public_asset_acl_synthetic.test.mjs
+      - name: Inherited Content Native source contract
+        run: node tests/entry614_employee_content_native.test.mjs
+      - name: Inherited Content READONLY dispatcher contract
+        run: node tests/entry629_employee_content_readonly_dispatch.test.mjs
+      - name: No real Cloudflare/accounting actions
+        run: |
+          echo "REAL_R2_READS=ZERO"
+          echo "REAL_USER_SESSIONS=ZERO"
+          echo "DEPLOY=NO"
+          echo "MERGE=NO"
