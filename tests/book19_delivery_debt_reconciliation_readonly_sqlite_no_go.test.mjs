@@ -14,7 +14,7 @@ try{
  db.exec(fs.readFileSync('cloudflare-d1/migrations/0016_employee_core_zero_google_v1.sql','utf8'));
  db.exec(fs.readFileSync('cloudflare-d1/migrations/0017_employee_core_current_orders_v1.sql','utf8'));
  db.exec("CREATE TABLE t12_customers(customer_id TEXT PRIMARY KEY,customer_name TEXT NOT NULL,phone TEXT NOT NULL DEFAULT '',extra_phone TEXT NOT NULL DEFAULT '',active TEXT NOT NULL DEFAULT 'نعم',debt_amount REAL NOT NULL DEFAULT 0)");
- db.exec("CREATE TABLE t12_prod_orders(order_id TEXT PRIMARY KEY,customer_name TEXT NOT NULL DEFAULT '',customer_phone TEXT NOT NULL DEFAULT '')");
+ db.exec("CREATE TABLE t12_prod_orders(order_id TEXT PRIMARY KEY,customer_name TEXT NOT NULL DEFAULT '',customer_phone TEXT NOT NULL DEFAULT '',external_customer_id TEXT NOT NULL DEFAULT '')");
  db.exec("CREATE TABLE t12_prod_lines(line_id TEXT PRIMARY KEY,order_id TEXT NOT NULL)");
  db.exec("CREATE TABLE employee_accounting_party_balances_v1(party_type TEXT NOT NULL,party_id TEXT NOT NULL,balance REAL NOT NULL DEFAULT 0,PRIMARY KEY(party_type,party_id))");
  db.exec("UPDATE employee_core_control_v1 SET mode='READONLY' WHERE singleton=1");
@@ -39,6 +39,15 @@ try{
  db.prepare("INSERT INTO t12_prod_orders(order_id,customer_name,customer_phone) VALUES('FAKE_T12_ORDER','FAKE_T12_PERSON','FAKE_PHONE_T12')").run();
  db.prepare("INSERT INTO t12_prod_lines(line_id,order_id) VALUES('FAKE_T12_LINE','FAKE_T12_ORDER')").run();
  addCustomer('FAKE_CUSTOMER_T12','FAKE_T12_PERSON','FAKE_PHONE_T12',70,19);
+ const addLinked=(line,order,customer,phone,externalId,mappedId,operational,posted)=>{
+   db.prepare("INSERT INTO t12_prod_orders(order_id,customer_name,customer_phone,external_customer_id) VALUES(?,?,?,?)").run(order,customer,phone,externalId);
+   db.prepare("INSERT INTO t12_prod_lines(line_id,order_id) VALUES(?,?)").run(line,order);
+   addCustomer(mappedId,customer,phone,operational,posted);
+ };
+ addLinked('FAKE_T12_ID_MATCH','FAKE_ORDER_ID_MATCH','FAKE_LINKED_PERSON','FAKE_PHONE_LINK_MATCH','FAKE_CUSTOMER_LINK_MATCH','FAKE_CUSTOMER_LINK_MATCH',11,11);
+ addLinked('FAKE_T12_ID_CONFLICT','FAKE_ORDER_ID_CONFLICT','FAKE_CONFLICT_PERSON','FAKE_PHONE_LINK_CONFLICT','FAKE_SOMEONE_ELSE','FAKE_CUSTOMER_LINK_TARGET',48,48);
+ addLinked('FAKE_T12_ID_NO_MATCH','FAKE_ORDER_ID_NO_MATCH','FAKE_ABSENT_PERSON','FAKE_PHONE_ABSENT','FAKE_UNVERIFIED_ORDER_ID','FAKE_ABSENT_NOT_A_CUSTOMER',0,null);
+ db.prepare("DELETE FROM t12_customers WHERE customer_id='FAKE_ABSENT_NOT_A_CUSTOMER'").run();
  const DB={
    prepare(sql){let args=[];
      const stmt={
@@ -54,7 +63,7 @@ try{
  const env={DB,CORS_ORIGINS:'https://fawakhry.github.io'};
  const ctx=vm.createContext({Date,Math,Intl,JSON,URL,Request,Response,Headers,crypto:webcrypto,TextEncoder,console,
    verifyEmployeeSessionCloudFirst:async(username,token)=>{
-     if(username!=='FAKE_CORE_OWNER'||token!=='FAKE_CORE_TOKEN')return {ok:false};
+     if(!['FAKE_CORE_OWNER','FAKE_DIAA_PRINT'].includes(username)||token!=='FAKE_CORE_TOKEN')return {ok:false};
      return {ok:true,authSource:'FAKE_AUTH_ONLY',body:{user:{username,role,department}}};
    }
  });
@@ -139,6 +148,49 @@ try{
      const r=await send('FAKE_SNAPSHOT_STALE');
      assert.equal(r.success,false);assert.equal(r.code,'employee-core-off');
    }finally{db.exec("UPDATE employee_core_control_v1 SET mode='READONLY' WHERE singleton=1");}
+ });
+
+ await test('11 BOOK19 exact order-linked customer ID matches candidate but remains unverified provenance',async()=>{
+   const n=changes(),r=await send('FAKE_T12_ID_MATCH');
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.orderExternalCustomerId,'FAKE_CUSTOMER_LINK_MATCH');
+   assert.equal(r.customerBindingStatus,'ORDER_ID_MATCHES_CANDIDATE_UNVERIFIED');
+   assert.equal(r.status,'SOURCES_EQUAL_IDENTITY_UNVERIFIED');
+   assert.equal(r.identityVerified,false);assert.equal(r.deliveryAuthorized,false);
+   assert.equal(changes(),n);
+ });
+ await test('12 BOOK19 order-linked customer ID conflict with one phone-match must not reveal wrong ledger',async()=>{
+   const n=changes(),r=await send('FAKE_T12_ID_CONFLICT');
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.status,'ORDER_CUSTOMER_ID_CONFLICT');
+   assert.equal(r.customerBindingStatus,'ORDER_ID_CONFLICTS_WITH_CANDIDATE');
+   assert.equal(r.customerMatchCount,1);
+   assert.equal(r.postedCustomerBalance,null,'no arbitrary unrelated person balance lookup');
+   assert.equal(r.identityVerified,false);assert.equal(r.deliveryAuthorized,false);
+   assert.equal(changes(),n);
+ });
+ await test('13 BOOK19 linked ID with zero phone matches stays unverified, not authorized or zero',async()=>{
+   const r=await send('FAKE_T12_ID_NO_MATCH');
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.customerBindingStatus,'ORDER_ID_UNVERIFIED_NO_UNIQUE_CANDIDATE');
+   assert.equal(r.customerMatchCount,0);assert.equal(r.postedCustomerBalance,null);
+ });
+ await test('14 BOOK19 verified print actor whose username includes Diaa is not admin for financial data',async()=>{
+   const before=changes();
+   role='print';department='طباعة';
+   try{
+     const r=await send('FAKE_SNAPSHOT_STALE',{body:{username:'FAKE_DIAA_PRINT',role:'admin',screen:'service'}});
+     assert.equal(r.success,false,JSON.stringify(r));
+     assert.equal(r.code,'delivery-debt-owner-role-required');
+     assert.equal(changes(),before);
+   }finally{role='admin';department='إدارة';}
+ });
+ await test('15 BOOK19 body-forged explicit linked ID cannot resolve conflict with stored order',async()=>{
+   const r=await send('FAKE_T12_ID_CONFLICT',{body:{customerId:'FAKE_CUSTOMER_LINK_TARGET',externalCustomerId:'FAKE_CUSTOMER_LINK_TARGET'}});
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.status,'ORDER_CUSTOMER_ID_CONFLICT');
+   assert.equal(r.postedCustomerBalance,null);
+   assert.equal(r.orderExternalCustomerId,'FAKE_SOMEONE_ELSE');
  });
  console.log('BOOK19_DELIVERY_DEBT_RECONCILIATION=SOURCE_ONLY_FAKE_SQLITE');
  console.log('BOOK19_PRODUCTION_WRITE=NO');
