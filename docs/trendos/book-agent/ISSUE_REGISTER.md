@@ -53,3 +53,16 @@
 | BOOK25-AI-APPROVAL | P1 | عقد AI/Knowledge يفرض `ADVISORY_ONLY` ولا يجوز تفسير الاقتراح كاعتماد | `docs/trendos/MATBAGY_MULTI_AI_ROOM_ARCHITECTURE.md`/`MATBAGY_KNOWLEDGE_EXTRACTION_ARCHITECTURE.md` | اختبار مسارات اعتماد العميل/المالك ومنع انتقال القرار المحمي تلقائيًا |
 
 **الخطوة التالية لكل بند:** اقرأ أحدث `CURRENT_TARGET_HEAD` وكود المسار بالكامل، ابحث عن الإصلاحات السابقة والفروع المتداخلة، ثم سجل إحدى حالات `ALREADY_FIXED_VERIFIED_SOURCE`, `ALREADY_FIXED_TESTED`, `STILL_PRESENT_SOURCE`, `BLOCKED_CURRENT_STATE_UNKNOWN`, `DUPLICATE_OF`. إصلاح عند الحاجة فقط بفرع منفصل وCI ودليل Commit؛ لا ترقية إلى `PRODUCTION_VERIFIED` دون صلاحية واختبار.
+
+## الفصل 26 — بلاغات سلامة الاستيراد والمرايا والنسخ (2026-10-16)
+
+المصدر: الفصل 26 في TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md؛ commit 032c8b4b25c8c5af0d917a6906a4ae8d46bf8529؛ نقطة فحص المصدر HEAD 4580ff5cb278d18434e4410f5be386fbc2ecd2c9. كل البلاغات UNVERIFIED_HISTORICAL_FINDING لحين مراجعة أحدث TARGET_HEAD؛ TESTED=NO، PRODUCTION_VERIFIED=NO. لا تكرار لبلاغ BOOK21-MIRROR-PAYLOAD.
+
+| ID | أولوية | SOURCE / BLOB SHA | وصف وخطوة التحقق | الحالة |
+|---|---|---|---|---|
+| BOOK26-MIRROR-GET-AUTH | P0 | cloudflare-d1/src/mirror-gate.mjs @ d9321c3a9c1678fd7a53abc6a24df73dbee25ebc؛ index_v2.js @ 4a555efb4b3f44ba371549d5cec055cc7ce1777f | GET /v1/mirror/sheet يُرجع raw values/display/formulas بدون auth صريح ظاهر في GET branch. تتبع middleware وdeployed version واختبر deny-before-read على Fake D1. ممنوع اختبار الوصول لبيانات العملاء الحقيقيين. | UNVERIFIED_HISTORICAL_FINDING / SOURCE_AUTH_GAP |
+| BOOK26-NORMALIZED-FINAL-PROOF | P1 | cloudflare-d1/src/normalized-import-gate.mjs @ 116398e82baae83260a5698e4a8e859665a9a68e | syncFinal=true default ومصدر sourceRowCounts هو طلب caller؛ لا يظهر اكتمال جميع chunks قبل freshnessAdvanced. اختبر missing/out-of-order/replay مع SQLite Mock. | UNVERIFIED_HISTORICAL_FINDING / SOURCE_INTEGRITY_RISK |
+| BOOK26-DELTA-CAS | P1 | cloudflare-d1/src/mirror-delta-gate.mjs @ 7822080e6f615d34065b0f2bc042c438443431de | preflight مستقل عن D1 batch وغياب apparent CAS/expected hash؛ اختبر interleaved writes بنفس baseRowCount ولا تدّع lost update في Production. | UNVERIFIED_HISTORICAL_FINDING / SOURCE_CONCURRENCY_RISK |
+| BOOK26-DEPLOY-LINEAGE | P1 | cloudflare-d1/wrangler.toml + .github/workflows/trendos-02cw-worker-promote-version-temp.yml وrollback-safe-temp.yml | source config وWorkflow definitions لا تثبت deployed SHA/Worker version. اطلب run URL وdeployed assets parity/read-only evidence مصرحًا به. | UNVERIFIED_HISTORICAL_FINDING / EVIDENCE_MISSING |
+
+التصنيف قبل أي إصلاح: ALREADY_FIXED_VERIFIED_SOURCE أو ALREADY_FIXED_TESTED أو STILL_PRESENT_SOURCE أو BLOCKED_CURRENT_STATE_UNKNOWN أو DUPLICATE_OF. استخدم CURRENT_TARGET_HEAD/CURRENT_BLOB_SHA/RELATED_PR ثم اختبارات Regression على نفس SHA وDraft PR بلا Merge أو Deploy.
