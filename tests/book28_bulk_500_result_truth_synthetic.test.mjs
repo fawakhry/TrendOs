@@ -25,10 +25,10 @@ test('BOOK28: full source window explicitly reports 500 selected and remaining 1
   assert.equal(coreBulkWindowV28(null).totalMatched,0);
 });
 
-function fakeD1({size=501,status='طلب جديد'}={}){
+function fakeD1({size=501,status='طلب جديد',native=0}={}){
   const lines=Array.from({length:size},(_,i)=>({
     orderId:'FAKE-ORDER-1',lineId:'FAKE-LINE-'+i,
-    status,department:'طباعة',sourceKind:'core-import',
+    status,department:'طباعة',sourceKind:i<native?'t12-prod':'core-import',
     itemName:'FAKE-ITEM',qty:1,notes:'',active:1
   }));
   const ledger=new Map(),events=[];
@@ -60,9 +60,9 @@ function fakeD1({size=501,status='طلب جديد'}={}){
             fault.once='';
             throw Error('FAKE_READ_INTERRUPTED');
           }
-          if(sql.includes('FROM t12_prod_lines l'))return {results:[]};
+          if(sql.includes('FROM t12_prod_lines l'))return {results:lines.filter(r=>r.sourceKind==='t12-prod').map(r=>({...r}))};
           if(sql.includes('FROM employee_core_lines_v1 l'))
-            return {results:lines.filter(r=>r.active).map(r=>({...r}))};
+            return {results:lines.filter(r=>r.active&&r.sourceKind==='core-import').map(r=>({...r}))};
           if(sql.includes('FROM employee_core_delivery_restrictions_v1'))return {results:[]};
           throw Error('UNEXPECTED_D1_ALL:'+sql.slice(0,65));
         },
@@ -102,6 +102,10 @@ function fakeD1({size=501,status='طلب جديد'}={}){
             const line=lines.find(x=>x.lineId===stmt.args[2]);
             if(!line)throw Error('UNKNOWN_FAKE_LINE');
             line.status=stmt.args[0];
+          }else if(sql.includes('INTO t12_prod_line_runtime(')){
+            const line=lines.find(x=>x.lineId===stmt.args[0]);
+            if(!line)throw Error('UNKNOWN_FAKE_NATIVE_LINE');
+            line.status=stmt.args[2];
           }else if(sql.includes('UPDATE employee_core_lines_v1 SET active=0')){
             const line=lines.find(x=>x.lineId===stmt.args[1]);
             if(!line)throw Error('UNKNOWN_FAKE_ARCHIVE_LINE');
@@ -253,4 +257,15 @@ test('BOOK28-CORE-RECOVERY: 500 selected lines need fewer than 510 statements',a
   assert.equal(res.body.remainingDueToLimit,1);
   assert.ok(f.calls.batches[0]<510,'set-wise audit keeps D1 statement count bounded');
   assert.equal(f.events.filter(x=>x.kind==='line-status').length,500);
+});
+
+test('BOOK28-CORE-RECOVERY: mixed imported/native writes preserve one audit per changed line',async()=>{
+  const f=fakeD1({size:4,native:2});
+  const response=await run(f,'bulkUpdateDepartmentStatusV1926','FAKE-RECOVERY-MIXED');
+  assert.equal(response.status,200);
+  assert.equal(response.body.changed,4);
+  assert.equal(f.lines.filter(x=>x.status==='بدأ التنفيذ').length,4);
+  assert.equal(f.events.filter(x=>x.kind==='native-status').length,2);
+  assert.equal(f.events.filter(x=>x.kind==='line-status').length,2);
+  assert.equal(f.events.filter(x=>x.kind==='bulk').length,1);
 });
