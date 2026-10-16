@@ -4848,7 +4848,9 @@ Trend Mall`;
     if (!details.rowCount) return setMsg("bulkStatusMsg", "لا توجد بنود بهذه الحالة في القسم الحالي.", true);
 
     const warning = "سيتم تحويل " + details.rowCount + " بند داخل " + details.orderCount + " أوردر في قسم " + bulkStatusDepartmentName() + " من «" + from + "» إلى «" + to + "».\n\nهذا يشمل البنود غير الظاهرة في الصفحة الحالية. هل تريد المتابعة؟";
-    if (!confirm(warning)) return;
+    if (!confirm(warning + (details.rowCount > 500
+      ? "\n\nتنبيه: المسار السحابي قد يعالج حتى 500 بند فقط في الطلب الواحد، وسيعرض عدد البنود المتبقية لإكمالها بطلب آخر."
+      : ""))) return;
 
     const button = $("bulkStatusBtn");
     state.bulkStatusSaving = true;
@@ -4888,7 +4890,9 @@ Trend Mall`;
     const details = archiveDeliveredDetails();
     if (!details.rowCount) return setMsg("bulkStatusMsg", "لا توجد بنود بحالة «تم التسليم» لأرشفتها في القسم الحالي.", true);
     const warning = "سيتم نقل " + details.rowCount + " بند داخل " + details.orderCount + " أوردر من قسم " + bulkStatusDepartmentName() + " إلى شيت الأرشيف، ثم حذفها من شيت التشغيل لتسريع القراءة.\n\nيمكن الرجوع للبيانات داخل الأرشيف لاحقًا. هل تريد المتابعة؟";
-    if (!confirm(warning)) return;
+    if (!confirm(warning + (details.rowCount > 500
+      ? "\n\nتنبيه: المسار السحابي قد يعالج حتى 500 بند فقط في الطلب الواحد، وسيعرض عدد البنود المتبقية لإكمالها بطلب آخر."
+      : ""))) return;
 
     const button = $("archiveDeliveredBtn");
     state.archiveDeliveredSaving = true;
