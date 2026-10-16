@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { handleMirrorRequest } from '../cloudflare-d1/src/mirror.js';
+import { handleMirrorRequest as handleModernMirrorRequest } from '../cloudflare-d1/src/mirror-gate.mjs';
 import routed from '../cloudflare-d1/src/index_v2.js';
 import legacy from '../cloudflare-d1/src/index.js';
 
@@ -20,7 +21,8 @@ const LEGACY_PATHS = [
   '/v1/inbox',
 ];
 const mirror = { fetch: (request, env) => handleMirrorRequest(request, env) };
-const workers = [['direct-mirror', mirror], ['v2-routed', routed]];
+const modern = { fetch: (request, env) => handleModernMirrorRequest(request, env) };
+const workers = [['direct-mirror', mirror], ['modern-gate', modern], ['v2-routed', routed]];
 const DB_SHOULD_NOT_RUN = { prepare() { throw new Error('D1 must not be queried or initialized'); } };
 
 function fakeEnv() { return { DB: DB_SHOULD_NOT_RUN, MIGRATION_SECRET: 'FAKE_SECRET_FOR_UNIT_TEST_ONLY' }; }
@@ -39,6 +41,19 @@ for (const [name, worker] of workers) {
         assert.equal((await response.json()).code, 'mirror-read-authorization-required');
       });
     }
+  }
+  if (name !== 'direct-mirror') {
+    test(`${name}: mirror capabilities is also denied before D1`, async () => {
+      const response = await worker.fetch(new Request(ORIGIN + '/v1/mirror/capabilities'), fakeEnv(), {});
+      assert.equal(response.status, 403);
+      assert.equal((await response.json()).code, 'mirror-read-authorization-required');
+    });
+    test(`${name}: anonymous mirror heartbeat is denied before D1`, async () => {
+      const response = await worker.fetch(new Request(ORIGIN + '/v1/mirror/heartbeat', {
+        method:'POST', headers:{'content-type':'application/json'}, body:'{}',
+      }), fakeEnv(), {});
+      assert.equal(response.status, 401);
+    });
   }
   test(`${name}: OPTIONS preflight does not initialize DB`, async () => {
     const response = await worker.fetch(new Request(ORIGIN + '/v1/mirror/sheets', { method: 'OPTIONS' }), fakeEnv(), {});
