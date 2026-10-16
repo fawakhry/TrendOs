@@ -52,3 +52,18 @@
 - **NEXT:** قراءة فرق نسخة V1932 مقابل نسخ GitHub وتقييم Legacy modules ثم حفظ كود آمن مستقل (بعد مراجعة الأسرار)، والعمل على `GITHUB_LEGACY_CLEANUP_PLAN.md`. الحالة الشاملة `LEGACY_ARCHIVE_IN_PROGRESS`، وليس `BOOK_COMPLETE`.
 
 *تاريخ الإدخال: 2026-10-16. هذه مادة أرشيفية تاريخية وليست امتدادًا للادعاءات الإنتاجية في الفصول 1–31.*
+
+## فصل أرشيفي 1 — مقارنة كود V1932 الأصلي مع GitHub بتاريخ 16 أكتوبر 2026
+
+بدأنا التنفيذ الفعلي بمراجعة **نسخة Apps Script الخاصة المأخوذة يوم 2026-08-24** مقابل تاريخ `Code.gs`، دون نسخ نصها إلى GitHub. أصبح [الفهرس المسموح نشره](TRENDOS_LEGACY_V1932_FUNCTION_NAMES_INDEX.md) يحتوي 614 اسم دالة مع رقم السطر وتصنيف آلي. والتحليل النحوي (AST) للنسخة نفسها أحصى 620 عقدة تعريف لدالة، بينها 13 متداخلة.
+
+**النتائج المؤكدة على مستوى الاسم:** `614/614` اسمًا من النسخة التاريخية موجودة في GitHub `Code.gs` يوم 24 أغسطس، وكذلك نسخة `main` المفحوصة. لذلك **لا يوجد دليل أن دالة اسمها اختفى** ضمن هذه العينة؛ غياب الاسم `0` لا يثبت بقاء السلوك. تاريخ GitHub لـ`Code.gs` على `main` أظهر 8 Commits فقط في المسار المرصود: آخر تعديل 29 سبتمبر 2026 أضاف عشر دوال تخص Employee Legacy Bridge، ونسخة 24 أغسطس تضم سبعة أسماء غير موجودة في النسخة الخاصة نفسها.
+
+**فرق المحتوى:** فحص حدود الدوال في المصدر النصي أعطى `604` دوال متطابقة نصيًا مع نسخة 24 أغسطس على GitHub، و**8 دوال اختلف نصها**، و**دالتين فشل تحليل نهاياتهما** فتبقيان `INCONCLUSIVE`؛ النتائج `SOURCE_ONLY/LEXICAL_HEURISTIC` وليست اختبار تشغيل أو إثبات تطابق كامل. الدوال الثمانية: `syncOrderFromLines_`، `getMatbagyNotes_`، `saveAccountingDeptLine_`، `appendLine_`، `getRows_`، `getTrendMasterCenterV1931_`، `saveCustomerAccountMovementV1915_`، `createManualOrder_`. تحليل دالتَي `trendosPortalRedirectV1931_` و`attFindToday_` يحتاج AST أفضل.
+
+**فارق فرع الكتاب عن فرع الإنتاج المصدري:** `Code.gs` في فرع الكتاب blob `e91d78dcceeeca2804e721d58e065a6a7181bfc2` يتضمن **641 اسمًا مختلفًا** مقابل 631 في `main` (blob `179526ca2f6343067dd7edebd6d290be79a6984b`). أسماء العشر الزائدة في فرع الكتاب هي `trendosLegacyOrderCreateFenceV1_` و`cwReconcileTextV1_` و`cwReconcileBoolV1_` و`cwReconcileSafeEqualV1_` و`cwReconcileCanonicalV1_` و`cwReconcileSha256V1_` و`cwReconcileHeaderIndexV1_` و`cwReconcileOrderMappingV1_` و`cwReconcilePlanV1_` و`trendosCloudWriteReconcileDryRunV1_`. هذه **فروق Branch**، ولا يجوز اعتبارها نسخًا منشورة أو حذفها أثناء التنظيف.
+
+**أرشيف خاص للمستخدم:** ملف `TrendOS_Legacy_V1932_Private_Archive_20261016.zip` يحتوي بايتات Apps Script التاريخية، Deploy Manifest وفهرس AST من 620 عقدة وSHA-256 للنسخ وملف تعليمات تحذيري؛ **ZIP Test=PASS**، حجم 190,214 بايت، SHA-256 `0eb1a5fe785c2ea07f6338713e1c314da6e10a4e03c3412f3cddcaf4976ca10f`. موجود كمرفق خاص بالمحادثة **وليس في GitHub العام**. لا تُغلق فجوة النسخة المستقلة إلا بعد أن يحفظها المالك بأمان خارجي ويُختبر فكها. الفحص النصي الأولي لم يثبت وجود بيانات اعتماد مضمنة، لكنه ليس مراجعة أسرار شاملة.
+
+**المطلوب قبل أي حذف:** تفكيك الفروق الثمانية إلى تغييرات سلوك/تصحيح/تنقل، وحسم سلطة writer/reader في كل زمن؛ فحص مراجع أسماء الجسر العشرة و`CloudWriteReconcile`؛ وإثبات نسخة Apps Script المنشورة وسياسات Secrets ثم إعداد قائمة مسارات دقيقة يتوافق عليها المالك. **الملفات المحذوفة حتى الآن: صفر.**
+
