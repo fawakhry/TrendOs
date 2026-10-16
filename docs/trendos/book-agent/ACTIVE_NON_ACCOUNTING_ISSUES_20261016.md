@@ -43,3 +43,10 @@
 - ACTIVE P1 **`BOOK28-CORE-RECOVERY-ARCHIVE`**: archiveDelivered still separate PREPARED, archive lines, order close and COMMITTED writes. Requires safe database transaction/fault-injection design that preserves archive-order lineage, particularly mixed D1 imported/native and cross-department orders.
 - ACTIVE P1 **`BOOK28-CORE-RECOVERY-LEGACY-PREPARED`**: pre-existing PREPARED requests cannot automatically clear/replay without owner-approved read-only reconciliation and deployed code/mode evidence.
 - ACTIVE P1 **`BOOK28-CORE-RECOVERY-CAS`**: concurrent source-row changes after snapshot not proven safe; do not claim full atomic authority over concurrent writers. No finance ownership change. `ZERO_GOOGLE_COMPLETE=NO`; `PRODUCTION_VERIFIED=NO`; Draft only.
+
+## 2026-10-16 — recovery status updated after archive Draft #167
+
+- **P1 `BOOK28-CORE-RECOVERY`**: Bulk transactional fix [#165](https://github.com/fawakhry/TrendOs/pull/165) plus archive transactional fix [#167](https://github.com/fawakhry/TrendOs/pull/167). **Both `PATCHED_TESTED_SYNTHETIC_ON_DRAFT`**, not deployed. #167 code SHA `4b6a143de2d46cb480a9cd395e91896f110b7030`; [dedicated CI #38935983821](https://github.com/fawakhry/TrendOs/actions/runs/38935983821) 17/17 + inherited 13/13 + 11/11 PASS; SQLite offline guards PASS.
+- **P1 `BOOK28-CORE-RECOVERY-LEGACY-PREPARED` OPEN**: historical PREPARED entries persisted before the atomic fix must be read-only reconciled and only then handled through owner-approved remediation (no automatic delete/clear).
+- **P1 `BOOK28-CORE-RECOVERY-CAS` OPEN**: draft archive guards source status and order closure in a single transaction but broader concurrent non-archive writers/stale snapshot and real D1 behavior not proven. Production schema, flags, staged data and UX acceptance remain mandatory evidence.
+- `BOOK24-TASK-AUTHORITY` P0 and other unrelated issues remain open; `ZERO_GOOGLE_COMPLETE=NO`; `PRODUCTION_VERIFIED=NO`; `MERGE=NO`; `DEPLOY=NO`. Historic entry above that said archive unchanged described the state before Draft #167 and is superseded by this dated record.
