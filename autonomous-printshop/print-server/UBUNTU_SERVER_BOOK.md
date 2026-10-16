@@ -147,3 +147,12 @@
 - Candidate code's `screensForRole('print')` also allows `press` and an empty screen string; the candidate `page` implementation checks a server-side allowed-screen list. Hence the sample candidate does not prove strict print-only entitlement, nor prove live role behavior.
 - Next: verify current server-side read contract, strict least-privilege role scope and privacy handling using test fixtures. No live login or production access performed.
 - Status: `SOURCE_REVIEW_ONLY=YES`, `EXCLUSIVE_PRINT_SCOPE=NOT_PROVEN`, `LIVE_PLATFORM_LINK=NOT_TESTED`, `HOST_CHANGED=NO`.
+
+### SERVER-20261016-14 — Matbagy-OS local-first design archive (planning/source code only)
+
+- **مالك المشروع:** طلب أن يصبح Ubuntu `TrendosShop` المستقبلي مقر حفظ محادثات تصميم ChatGPT وصورها ومرجع شغل مطبعجي، قابلًا لاحقًا للربط بخوادم خاصة/مفتوحة المصدر متعددة.
+- **الكتاب الرسمي لهذا المشروع:** `fawakhry/Matbagy-OS@feature/ubuntu-local-first-foundation-20261016` → `PROJECT_BOOK.md` والملحق `صندوق_مطبعجي/اقرأني_أولاً.md`؛ لا يُنقل تاريخ Matbagy إلى كتاب TrendOS.
+- **التغيير المُراجع في GitHub:** Draft PR https://github.com/fawakhry/Matbagy-OS/pull/9 يتضمن SQLite محلي، Local File Vault، استيراد اختياري لمحادثات ChatGPT المختارة وملفاتها، وفحص مرجعي لعدم اختراع موافقات أو أكواد أوردر. اختبارات GitHub نجحت: https://github.com/fawakhry/Matbagy-OS/actions/runs/38922608668
+- **حدود الإثبات:** `SOURCE_CODE_CANDIDATE=YES`، `CI=PASS`، `UBUNTU_HOST_ACCESS=NO`، `CHATGPT_EXPORT_IMPORTED=NO`، `LIVE_CUSTOMER_ASSETS_COPIED=NO`، `HOST_DEPLOYMENT=NO`، `PRODUCTION_SWITCH=OFF`.
+- **قبل النشر على المضيف:** قياس المساحة الحرة والتشفير والصلاحيات وتحديد موقع مخزن بيانات مستقل ونسخ احتياطية مع اختبار استعادة. لا تغيير SSH/UFW/DNS أو نقل أسرار، ولا ادعاء اتصال حي بين TrendOS وMatbagy-OS.
+- **التغيير:** توثيق تصميم السيرفر وخط سير مستقبلي فقط؛ لا تغيير برمجي في TrendOS ولا تنفيذ على Ubuntu.
