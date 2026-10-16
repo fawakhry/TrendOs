@@ -105,6 +105,42 @@ test('modern Worker legacy GETs are closed in review source, while importer rema
   assert.match(apiImporter,/'x-migration-secret': cfg\.secret/);
   assert.ok(!legacyBackend.includes('SERVER56_ALLOW_UNAUTHENTICATED_READ'));
 });
+test('SERVER-61: HTTP 200 inbox without conversations array falls back instead of reporting an empty inbox',async()=>{
+  const h=loadBridge(async()=>({ok:true,status:200,json:async()=>({success:true,other:[]})}));
+  const request={op:'inbox',limit:3};
+  const out=await h.window.trendosSecureApiV1922('customerManagerV1',request);
+  assert.equal(out.origin,'apps-script-synthetic');
+  assert.equal(h.calls.length,1);
+  assert.equal(h.calls[0].params,request);
+  assert.equal(h.attempts.length,1);
+});
+test('SERVER-61: HTTP 200 thread without messages array falls back before optional reads',async()=>{
+  const h=loadBridge(async()=>({ok:true,status:200,json:async()=>({success:true,other:[]})}));
+  const request={op:'thread',phone:'01000000000'};
+  const out=await h.window.trendosSecureApiV1922('customerManagerV1',request);
+  assert.equal(out.origin,'apps-script-synthetic');
+  assert.equal(h.calls.length,1);
+  assert.equal(h.calls[0].params,request);
+  assert.equal(h.attempts.length,1);
+  assert.ok(h.attempts[0].url.startsWith(EDGE_HOST+'/v1/messages?'));
+});
+test('SERVER-61: valid empty D1 inbox and thread responses remain valid without Apps Script fallback',async()=>{
+  const h=loadBridge(async(url)=>{
+    if (String(url).includes('/v1/inbox')) return {ok:true,status:200,json:async()=>({success:true,conversations:[]})};
+    if (String(url).includes('/v1/messages')) return {ok:true,status:200,json:async()=>({success:true,messages:[]})};
+    if (String(url).includes('/v1/orders')) return {ok:true,status:200,json:async()=>({success:true,orders:[{customerName:'SYNTHETIC'}]})};
+    throw Error('unexpected customer lookup');
+  });
+  const inbox=await h.window.trendosSecureApiV1922('customerManagerV1',{op:'inbox'});
+  const thread=await h.window.trendosSecureApiV1922('customerManagerV1',{op:'thread',phone:'01000000000'});
+  assert.equal(inbox.dataSource,'d1');
+  assert.equal(inbox.conversations.length,0);
+  assert.equal(thread.dataSource,'d1');
+  assert.equal(thread.messages.length,0);
+  assert.equal(thread.context.customerName,'SYNTHETIC');
+  assert.equal(h.calls.length,0);
+  assert.equal(h.attempts.length,3);
+});
 test('no test invokes remote worker, D1, or Apps Script HTTP',()=>{
   assert.match(EDGE_HOST,/workers\.dev$/);
   assert.match(MODERN_HOST,/workers\.dev$/);

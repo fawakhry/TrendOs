@@ -78,3 +78,32 @@ An ordinary variable row and the `MIGRATION_SECRET` **secret name** are visible 
 **Next bounded owner evidence request:** from the same `trendos` Worker navigate **Deployments** and share a screenshot of the **Active deployment version ID, Ready status and traffic fraction** only. Do not open logs, code editor secrets, deploy or change settings. This lets reviewers distinguish the actual deployed `trendos` source from the separate `trendos-d1-api` version `2b40f622` before any compatibility-sensitive mitigation.
 
 `TRENDOS_BINDING_TYPE=D1_DATABASE_AS_SHOWN`; `TRENDOS_BINDING_NAME=DB`; `TRENDOS_D1_DISPLAY_NAME=trendos-main`; `DATABASE_IDENTITY_UUID=NOT_VERIFIED`; `TRENDOS_LOGS_TRACES=OFF_AS_SHOWN`; `EXTERNAL_AUTH=UNKNOWN`; `SEC_AP303_02=OPEN_HIGH_PRIORITY`; `PRODUCTION_CHANGED=NO`.
+
+
+## SERVER-62 — legacy `trendos` Active deployment identified by owner screenshot (2026-10-16)
+
+The owner opened `Workers & Pages → trendos → Production → Deployments` and waited for the Active deployment panel to finish loading. The displayed **active version prefix is `803aa6a2`**, serving **100%** traffic, **Ready**, deployed **6 days** before the screenshot. Point-in-time readings: `0 req/sec`, `0%` error, `1.16 ms` CPU mean. No requests or sensitive data were sent to Production to obtain this evidence. These transient measurements do not prove inactivity, safety, authorization, or absence of historical incidents.
+
+The first Ready build entry carries title `Guard A2.13 workflow dispatch against obsolete main branch`, branch `main`; its title matches [GitHub commit `6b82fd3`](https://github.com/fawakhry/TrendOs/commit/6b82fd3bf00eb80669a3b5ca14ff8eab420a6074), which changes a GitHub accounting workflow file only. **A display title or branch is not a deployed source hash, bundle identity, confirmed entrypoint, or code/authorization proof.** The distinct canonical `trendos-d1-api` has a different observed version prefix `2b40f622`.
+
+**NEXT READ-ONLY SOURCE GATE:** inspect the **Build details** for the top Ready `trendos` entry using its `Build ↗` link, capture source commit/branch/build/deploy target (redacting any environment values, tokens or secrets), then correlate with GitHub and the actual legacy route/auth implementation without customer HTTP GET probes. Do not change Build Settings, Worker Access, D1 bindings, PR merge states or Production deployments. `SEC-AP303-02=OPEN_HIGH`, `SOURCE_PARITY=NOT_VERIFIED`, `BUILD_MAPPING=NOT_VERIFIED`, `DEPLOY_MUTATION=NO`.
+
+
+## SERVER-64 — manually deployed active legacy Worker, not a Cloudflare Build result (2026-10-16)
+
+The owner provided the read-only Cloudflare `trendos → Production → Deployments → View rollout history` screenshot. Its **latest active rollout** lists author `trendmall.contact`, source **`Wrangler`**, message **`Manually deployed`**, version prefix `803aa6a2`, traffic **100%**, date ~6 days before the screenshot. Earlier rollouts also show manual Wrangler sources, without commit provenance. This is a distinct observation from the Failed Build #885ad227 and other independent `Build ↗` entries.
+
+**Confirmed:** active rollout was via Wrangler, NOT demonstrably a product of the CI/Build row titles. **Not confirmed:** CLI device, uploaded source bundle/hash, Git SHA, exact deployed handler, Runtime authorization, access/waf behavior or data exposure. Do not identify `6b82fd3` or `a31c254` as the `803aa6a2` deployed source based on Build row descriptions. `SEC-AP303-02` remains high/open.
+
+Next **read-only** step: inspect active Worker code through the Cloudflare `Edit code` view **without modifying or deploying**; gather safe non-secret entrypoint/router details and then compare with GitHub static sources. Do not show token/secret/config values, live customer/order HTTP responses, or modify Cloudflare settings.
+
+
+## SERVER-65 — Owner-observed active source, locally missing legacy and mirror GET auth (2026-10-16)
+
+The Cloudflare `trendos` editor showed **`803aa6a2 (Active)`** and a bundled `index_v2.js` code tab; the owner provided a full text transcription in chat. The *transcribed Markdown* has SHA-256 `df34577595296c93ffd02e1c31091a9ee4d3dec69bc1b37f81ce85a0b792d0eb` (not a Cloudflare-signed/deployed artifact hash). Sensitive full source was **not** committed to GitHub.
+
+**New evidence beyond SERVER-56:** the actual observed active service's `src/index.js` GET router has no local authentication guard for orders, customer, messages or inbox. Its separate `src/mirror.js` GET router also lacks such a gate for sheet catalog/stats/row access and calls schema initializer before checking GET routes. POST import uses `MIGRATION_SECRET`, not applicable to read paths. Explicit Origin/CORS is not non-browser authorization. An isolated Node VM with a fabricated DB and no networking returned HTTP 200 without credentials on 7 fake GET cases (five customer/order and two mirror aggregate/catalog), a fake mirror row name returned 404 after D1 lookup; all touched fake DB and the catalog call issued fake DDL preparations. No live Production customer/order/mirror route tested, and no evidence of a real leak/incident was collected.
+
+**Protection coverage gap:** Draft PR #154 only guards legacy GET paths in a review of `trendos-d1-api` source; it neither certifies an independent `trendos` version deployment nor applies to mirror GETs. Draft PRs #176 and #184 test/repair frontend fallback, not server authentication. Do not merge or deploy these as an assumed complete containment. Separate Worker identity, external Access/WAF, consumer dependencies and rollback require assessment before owner-authorized mitigation.
+
+**Decision gate:** `SEC_AP303_02=SOURCE_GAP_CONFIRMED`, `PRODUCTION_EXPOSURE=UNKNOWN`, `URGENT_REVIEW=YES`, `GITHUB_PRODUCT_CHANGE=NO`, `PRODUCTION_CHANGE=NO`. Details and exact synthetic test paths are in `UBUNTU_SERVER_BOOK.md` SERVER-65, not duplicated as runnable public Worker requests here.
