@@ -1,0 +1,64 @@
+name: TrendOS Book24 Edge-D1 Writer Conflict Guard — Fake Only
+on:
+  push:
+    branches:
+      - fix/book24-edge-d1-single-writer-guard-20261016
+    paths:
+      - 'cloudflare-d1/src/operator-task-edge-v2.mjs'
+      - 'cloudflare-d1/src/operator-task-single-writer-guard-v1.mjs'
+      - 'tests/book24_operator_edge_d1_writer_guard_synthetic.test.mjs'
+      - '.github/workflows/trendos-book24-edge-d1-writer-guard-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/operator-task-edge-v2.mjs'
+      - 'cloudflare-d1/src/operator-task-single-writer-guard-v1.mjs'
+      - 'tests/book24_operator_edge_d1_writer_guard_synthetic.test.mjs'
+      - '.github/workflows/trendos-book24-edge-d1-writer-guard-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fake-edge-d1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: |
+          node --check cloudflare-d1/src/operator-task-edge-v2.mjs
+          node --check cloudflare-d1/src/operator-task-single-writer-guard-v1.mjs
+          node --check tests/book24_operator_edge_d1_writer_guard_synthetic.test.mjs
+      - name: Book24 fake Edge vs D1 authority and Google proxy
+        run: node --test tests/book24_operator_edge_d1_writer_guard_synthetic.test.mjs
+      - name: Edge HMAC, auth, route, Apps Script contract regressions
+        run: |
+          node --test tests/operator_task_edge_v2.test.mjs
+          node --test tests/cloudflare_edge_gateway_v1.test.mjs
+      - name: Default-off and read-only safety assertions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          edge=Path('cloudflare-d1/src/operator-task-edge-v2.mjs').read_text()
+          guard=Path('cloudflare-d1/src/operator-task-single-writer-guard-v1.mjs').read_text()
+          assert 'TRENDOS_OPERATOR_TASK_SINGLE_WRITER_GUARD_V1' in guard
+          assert "return {allowed:true,checked:false,reason:'OPERATOR_TASK_WRITER_GUARD_DISABLED'}" in guard
+          assert guard.count('env.DB.prepare(')==1
+          assert 'SELECT mode FROM operator_task_control WHERE singleton_id=1 LIMIT 1' in guard
+          assert '.run(' not in guard and '.batch(' not in guard
+          assert 'if(route.mutation)' in edge
+          assert edge.index('checkOperatorEdgeD1WriterConflictV1(env)')<edge.index('const upstream = await callAppsScript(')
+          assert 'env.DB' not in edge
+          print('BOOK24_EDGE_D1_GUARD_STATIC=PASS')
+          PY
+      - name: Explicit no deployment
+        run: |
+          echo 'REAL_D1=NO'
+          echo 'REAL_GOOGLE=NO'
+          echo 'OPERATOR_EDGE_FLAG_CHANGE=NO'
+          echo 'MACHINE_OPERATION=NO'
+          echo 'DEPLOY=NO'
+          echo 'MERGE=NO'
+          echo 'PRODUCTION_VERIFIED=NO'
