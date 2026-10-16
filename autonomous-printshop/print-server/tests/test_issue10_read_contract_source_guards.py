@@ -10,8 +10,8 @@ SHADOW = ROOT / "autonomous-printshop/print-server/src/trendos_shadow_qualifier.
 class ReadContractSourceGuards(unittest.TestCase):
     def test_employee_core_page_adapter_is_explicitly_not_server_paged(self):
         code = DISPATCHER.read_text(encoding="utf-8")
-        self.assertRegex(code, r"p\\.action\\s*=\\s*requestedAction\\s*===\\s*'getRowsPageV1931'\\s*\\?\\s*'getRows'")
-        self.assertRegex(code, r"if\\s*\\(requestedAction\\s*===\\s*'getRowsPageV1931'\\s*&&\\s*out\\s*&&\\s*out\\.success\\s*===\\s*true\\)")
+        self.assertRegex(code, r"p\.action\s*=\s*requestedAction\s*===\s*'getRowsPageV1931'\s*\?\s*'getRows'")
+        self.assertRegex(code, r"if\s*\(requestedAction\s*===\s*'getRowsPageV1931'\s*&&\s*out\s*&&\s*out\.success\s*===\s*true\)")
         self.assertIn("out.serverPaged = false", code)
 
     def test_shadow_refuses_page_markers(self):
