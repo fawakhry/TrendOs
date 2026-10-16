@@ -390,3 +390,13 @@
 - **الاختبار الفعلي:** `git status --porcelain=v1 --branch` نجح بصريًا فقط. لا يوجد اختبار اتصال أوردرات/إعدادات Cloudflare أو تقييم لمساحة الأقراص بعد.
 - **الحالة:** `AP281_WORKTREE_CLEAN_AS_REPORTED=YES`; `AP281_DETACHED_HEAD=YES`; `IGNORED_FILES_CHECKED=NO`; `UBUNTU_UPDATED=NO`; `NEW_WORKTREE_CREATED=NO`; `SERVICE_ACCOUNT_CREATED=NO`; `LIVE_READ=NO`; `PRODUCTION_GO=NO`.
 - **الخطوة التالية (أمر واحد للمالك وصورة):** `df -h "$HOME"` لفحص السعة المتاحة على القسم الذي يحتوي مجلدات المستخدم. لا تغيير على القرص أو Git؛ بعد ظهور النتيجة تقرر مكان نسخة التطوير المستقلة دون إعادة استخدام أو حذف AP-281.
+
+
+### SERVER-20261016-41 — Ubuntu disk capacity before isolated development worktree (2026-10-16)
+- **Problem / objective:** verify available capacity for a third isolated TrendOS Git worktree without reusing/deleting the main or AP-281 worktrees.
+- **Actual owner evidence:** screenshot of `df -h "$HOME"` on `trend-main@TrendosShop`, showing filesystem `/dev/sda2`, mounted at `/`, `Size=109G`, `Used=18G`, `Avail=85G`, `Use%=18%`. Command returned to the terminal prompt without errors. This is free-space evidence only; it is not an exact size estimate for a future worktree.
+- **Reviewed:** previous worktree inventory SERVER-39, clean-staging check SERVER-40, owner Ubuntu screenshot, and latest source branch [Draft PR #160](https://github.com/fawakhry/TrendOs/pull/160). Existing paths: `/home/trend-main/TrendOs` at old AP-155 commit `a238ce5a...`; `/home/trend-main/TrendOs-AP281-staging-66b64ab` at detached `66b64ab...`.
+- **Actual result:** there is sufficient **apparent** capacity to proceed with a *controlled attempt* to prepare a new isolated development worktree, subject to normal file-count/quota checks. No storage or Git files were modified by the diagnostic.
+- **Risk constraints:** do not touch worktree `TrendOs` or AP-281; avoid broad `git pull`, merges, and production service startups. PR #160 remains draft, Cloudflare production not changed, account unprovisioned. Worktree may still contain ignored files not inspected by porcelain.
+- **Next one-owner-command action:** `git -C "$HOME/TrendOs" fetch --no-tags origin feature/server33-readonly-service-endpoint-20261016`. This downloads the **specific review branch** into Git's FETCH_HEAD without switching the current checked-out branch or modifying the working tree; fetch changes local Git object/metadata and is **not** a deployment. Ask the owner for screenshot before adding the isolated worktree.
+- **Status:** `DISK_CHECK=PASS_AS_SHOWN`; `AVAILABLE_SPACE=85G_AS_SHOWN`; `NEW_WORKTREE_CREATED=NO`; `SOURCE_BRANCH_FETCHED_ON_UBUNTU=NOT_YET`; `UBUNTU_APP_UPDATED=NO`; `CLOUDFLARE_DEPLOY=NO`; `REAL_ORDER_READ=NO`; `PR_MERGE=NO`.
