@@ -131,3 +131,12 @@
 - COMMIT: `dbcc302ebda312c75678ee8248bfb2a3814154cc`, new blob `c48f67c205cf4c22c8cee32b666006881ad789b1`; independent fetch verified queue heading.
 - RESULT: no tests executed; `TESTED=NO`, `PRODUCTION_VERIFIED=NO`. Queue entries are hypotheses/source contracts, not production incident assertions.
 - NEXT: chapter 21 audit observability/data integrity and test run evidence; later continue inventory to remaining modules, then final document review; no background work assumed.
+
+
+## 2026-10-16 / FRESHNESS-OBSERVABILITY-017 — الفصل الحادي والعشرون
+- PREPARE: branch HEAD `70a839ba79897e55e0d4e49b2b412f2cbaa6ba50`, existing chapters through 20, Draft PR #132 unmerged.
+- READ: `edge-orders-freshness-gate.mjs`, `edge-orders-idle-verifier.mjs`, `edge-orders-idle-heartbeat.mjs`, `edge-orders-read-02cr-freshness.mjs`, `mirror-gate.mjs`, `mirror-delta-gate.mjs`, `edge-orders-read-02cr-canary.mjs`, `index_v2.js`, `trendos-edge-orders-read-v1.js`; tests `cloudflare_edge_orders_idle_freshness_integration_v1.test.mjs` and `trendos_integrity_dashboard_v1.test.js`.
+- FINDINGS: older Edge read freshness gate fail-closed on stale catalog, optionally uses Apps Script idle heartbeat; 02CR qualified-snapshot policy treats old sync age as advisory once structural checks pass and supplies degradation warnings. Mirror row-count parity is not content-hash parity. Client fails closed, despite server `fallback:apps-script` metadata. CI branch query total_count=0; no exact-head CI proof obtained. Distinguish SOURCE_ONLY from TESTED.
+- WRITE: chapter 21 commit `1fbe13e69ccf99703bbc084f8ff28a5d3a69ad68`, blob `c5d7d444b01ab26a7d7d4b1989e50b28cff25177`; fetched again and verified.
+- STATUS: `SOURCE_ONLY`, `TESTED=NO`, `PRODUCTION_VERIFIED=NO`; stale/overlay parity `BLOCKED`. No real operational data read, no tests executed, no merges/code changes.
+- NEXT: chapter 22 employee content, Marketplace and branches, then log source→test queue.
