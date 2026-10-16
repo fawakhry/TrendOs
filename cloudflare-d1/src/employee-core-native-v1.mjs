@@ -207,10 +207,10 @@ async function trendMaster(env,user,body){
   const kpis=[...activeByActor.values()].map(x=>({...x,completionPercent:x.total?Math.round(x.completed*100/x.total):0,score:x.total?Math.round(x.completed*100/x.total):0}));
   return {
     success:true,
-    system:{activeLines:rows.length,archivedLines:(archived.rows||[]).reduce((s,r)=>s+num(r.lineCount),0),dataVersion:num((await control(env)).dataVersion),pagingEnabled:true,duplicateGroups:0,duplicateRows:0,duplicateHealthy:true,deliveryPolicy:'التسليم مفتوح عدا قائمة المنع عند وجود مديونية',invoicePaymentRequired:false,stockAutoDeduct:'عند اعتماد فاتورة القسم'},
-    employeePerformance:kpis,stockAlerts:materials,messageQueue:[],archive:archived,
+    system:{activeLines:rows.length,archivedLines:(archived.rows||[]).reduce((s,r)=>s+num(r.lineCount),0),dataVersion:num((await control(env)).dataVersion),pagingEnabled:true,duplicateGroups:null,duplicateRows:null,duplicateHealthy:null,duplicateEvidence:'UNKNOWN',deliveryPolicy:'التسليم مفتوح عدا قائمة المنع عند وجود مديونية',invoicePaymentRequired:false,stockAutoDeduct:'عند اعتماد فاتورة القسم'},
+    employeePerformance:kpis,stockAlerts:materials,messageQueue:null,messageQueueEvidence:'UNAVAILABLE',archive:archived,
     debtControl:{customers:debtCustomers,restrictions:[...deny.values()].map(r=>({customer:r.customer_name,reason:r.reason,validUntil:r.valid_until,createdBy:'D1',active:true,expired:false}))},
-    dayClose:null,
+    dayClose:null,dayCloseEvidence:'UNAVAILABLE',
     permissions:{canManageArchive:isAdmin(user)||key(user.role)==='service',canManageDebtRestrictions:isAdmin(user),canRunAutomation:false,canInstallAutomation:false,canCloseDay:isAdmin(user),canManageStock:isAdmin(user)},
     version:'ENTRY614_D1_EMPLOYEE_CORE_V1'
   };
