@@ -614,7 +614,7 @@ export function normalizeDeptLineFieldsV29(body){
   function decimal(name){
     const raw=b[name];
     const n=Number(raw);
-    if(!Number.isFinite(n)||n<0||!/^\\d+(?:\\.\\d+)?$/.test(String(raw).trim())){
+    if(!Number.isFinite(n)||n<0||!/^\d+(?:\.\d+)?$/.test(String(raw).trim())){
       throw commandErrorV1('accounting-field-invalid','قيمة الحقل '+name+' يجب أن تكون رقمًا غير سالب.');
     }
     return n;
