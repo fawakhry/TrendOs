@@ -3016,26 +3016,6 @@ ZERO_GOOGLE_COMPLETE=YES
 | Legacy employee/business actions | Mixed أثناء Zero-Google | **نعم، حتى يثبت نقل كل عائلة** |
 | Apps Script | Version 159 موجود في Production حسب Entry595 | **لا يُحذف بعد** |
 
-## 9. آخر Evidence يجب حمله لأي شات جديد
-
-```ini
-MASTER_BOOK_BASELINE=ENTRY595
-FRONTEND=CLOUDFLARE
-FRONTEND_ACTIVE_VERSION=a26589a4-e2e0-4ed5-9abf-e1b19b56ce0e
-FRONTEND_VERIFY_RUN=36915414626
-API=CLOUDFLARE_WORKER
-API_ACTIVE_VERSION=23be0ab2-0a2b-4b81-bf54-e2f05f847989
-DATABASE=D1
-ORDER_CREATE_MODE=GENERAL
-DUPLICATE_GUARD_READY=YES
-CUSTOMER_WRITE_MODE=GENERAL
-CUSTOMER_MASTER_ROWS=247
-EMPLOYEE_LOGIN=GOOGLE_BACKED
-APPS_SCRIPT_VERSION=159
-ZERO_GOOGLE_COMPLETE=NO
-NEXT_PROGRAM=CONTINUE_ZERO_GOOGLE_PLAN
-```
-
 ## 11. خارطة الطريق بعد Zero-Google — TrendOS V1 المستهدف 01/03/2027
 
 > **قاعدة الاستئناف:** لا تبدأ هذه الخارطة كبرنامج التنفيذ الرئيسي قبل إغلاق §5 وإثبات `ZERO_GOOGLE_COMPLETE=YES`. بعد Zero-Google تُعاد baseline/GO-NO-GO للحالة الفعلية ثم تُستكمل المراحل من أول بوابة غير مغلقة. الهدف 01/03/2027 هدف Product وليس ضمان موعد إذا لم تجتز البوابات.
@@ -6807,3 +6787,5 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - **الخطوة التالية:** تثبيت إصدار Worker `trendos` الفعلي بدليل Cloudflare read-only وربطه بمصدر الكود ومصفوفة المستهلكين، ثم مراجعة التصريح والتوافق والـrollback قبل أي Merge/Deploy بموافقة المالك.
 
 - **MIGRATION UNIT 004 / §§8–8A archive navigation / 2026-10-16:** فهرس الأرشيف وقواعد منع تضخم الكتاب (2617 حرفًا) رُحّلا تاريخيًا إلى الملحق «ط» في [copy commit 506b74bf3d4e](https://github.com/fawakhry/TrendOs/commit/506b74bf3d4e48427458e30e0827153283175775)، مع أولوية سياسة التعايش الجديدة. تحقق `EXACT_VERBATIM_MATCH=PASS (2617/2617)` من الكتاب القديم والموحد والأرشيف `b2788ecb4c187717e020321954a1ea449c1aa0d5` (blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`). المصدر السابق للنسخ `168b0bec04da6910fa9f27860a7348d377ada79d`، والكتاب القديم عند حذف الوحدة HEAD `fe21d102e259942ee9340ee3a3de349d95d6ded4` / blob `e0f693c8f7b5a4f79fc0c832493a41d22ff72e49`. حُذف القسمان §8 و§8A والفرع التاريخي `قواعد منع تضخم الكتاب` فقط. **تم الحفاظ على إضافة إيجنت السيرفر SERVER-20261016-61 المسجلة بالتوازي في commit `fe21d102e259942ee9340ee3a3de349d95d6ded4`** دون أي تعديل بها. الكتاب القديم `ACTIVE_WRITE` والجديد `FROZEN / MIGRATION_ONLY`. `NO_RUNTIME_MUTATION`.
+
+- **MIGRATION UNIT 005 / §9 Entry595 baseline handoff / 2026-10-16:** كُتلة `MASTER_BOOK_BASELINE=ENTRY595` القديمة (508 حرفًا) محفوظة حرفيًا بالملحق التاريخي «ي» في الموحد [copy commit f19d127c0070](https://github.com/fawakhry/TrendOs/commit/f19d127c00701b813ec96e8546204fe2312ef7d0)؛ `EXACT_VERBATIM_MATCH=PASS (508/508)` مع الأصل والأرشيف عند `b2788ecb4c187717e020321954a1ea449c1aa0d5` (blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`). المصدر قبل النسخ `e18818a007ec2f59ac29799b6c7cbff040fb6511` blob `220a246698aec558da8d2066af4fdf107677bbd8`؛ قيم ACTIVE_VERSION والـGoogle/Customer rows **تاريخية** وليست حالة Production الحالية. بعد إعادة القراءة والتحقق حُذف قسم §9 فقط من القديم، وبقيت خارطة الطريق §11، كل Entries الجديدة، وإضافة `SERVER-20261016-61` و`ACTIVE_WRITE`. `NO_DEPLOY` / `NO_RUNTIME_MUTATION`.
