@@ -50,3 +50,16 @@ This is **not** the earlier `trendos-d1-api` screenshot. Both named Workers lack
 **Next read-only check:** owner visits `trendos → Domains` and shares the status of Production/Preview URLs and any custom routes only, without flipping any switches; follow with a non-secret source/binding inventory. Current code is not deployed or approved by this audit.
 
 `TRENDOS_WORKER_SPECIFIC_ACCESS=ABSENT_AS_SHOWN`; `TRENDOS_WORKER_EXTERNAL_EXPOSURE=UNVERIFIED`; `TRENDOS_WORKER_D1_BINDING=UNKNOWN`; `OTHER_SECURITY_CONTROLS=UNKNOWN`; `SEC_AP303_02=OPEN`; `NO_PRODUCTION_ACTION=YES`.
+
+
+## SERVER-58 — independent `trendos` Worker Domains inspection (owner screenshot, 2026-10-16)
+
+**Screenshot origin:** `Workers & Pages → trendos → Production → Domains`, not the separate `trendos-d1-api` Worker.
+
+**Visible facts:** Production `trendos.trendmall-contact.workers.dev` and wildcard Preview `*.trendos.trendmall-contact.workers.dev` have blue enabled switches. Both display Cloudflare's message **"Anyone with this URL can visit. Enable Access"**. The `Custom Domains and Routes` list shows **"No custom domains"** with no added zone routes. A separate SERVER-57 screenshot confirms there is no `trendos` Worker-specific Access policy.
+
+**Consequence and limits:** the historical bridge `customer_manager_d1_bridge_v1934.js` points exactly at this publicly visitable Production hostname in source. Public reachability does **not** establish a successful unauthenticated customer GET, whether D1 is bound to this separate Worker, what source version is active, or whether account-level WAF/hostname rules or application-layer checks protect sensitive routes. Avoid probing real customer paths or opening production logs.
+
+**Next bounded read-only evidence request:** inspect `trendos → Settings → Bindings` and capture **only binding type and resource display names** (e.g. whether `D1 database` exists), excluding environment variable/secret panels and values. Neither switches nor bindings should be edited. This is separate from the already-confirmed `trendos-d1-api` `DB → trendos-main` binding. Subsequently inspect published source/version safely, and map external consumers. PR #176's 9/9 synthetic fallback tests are not production authorization or breach evidence.
+
+`TRENDOS_PRODUCTION_URL=ON_AS_SHOWN`; `TRENDOS_PREVIEW_URL=ON_AS_SHOWN`; `TRENDOS_CUSTOM_DOMAINS=NONE_SHOWN`; `TRENDOS_WORKER_ACCESS=ABSENT_AS_SHOWN`; `TRENDOS_D1_BINDING=UNKNOWN`; `TRENDOS_ACCOUNT_WAF=UNKNOWN`; `SEC_AP303_02=OPEN`; `CLOUDFLARE_PRODUCTION_CHANGE=NO`.
