@@ -41,3 +41,20 @@ and states no Worker-specific policy is configured and traffic remains public **
 **Do NOT press "Protect this Worker behind Access" or change DNS/WAF now**. This API is shared with UI, employee/customer logins, Apps Script bridge and other integration workflows; a blanket change risks an outage. Proceed with (1) route/domain inventory from the Worker `Domains` tab (screenshot only), (2) external-access enforcement inventory including account/hostname rules, (3) legacy consumer dependency audit, (4) compatibility-tested containment fix/rollback plan, (5) distinct owner authorization for production changes. Preserve current Cloudflare Worker and Ubuntu status in the meantime.
 
 `WORKER_ACCESS_POLICY=NO`; `HOSTNAME_ACCOUNT_CONTROLS=NOT_AUDITED`; `SEC_AP303_02=HIGH_PRIORITY_OPEN`; `NO_DEPLOY_NO_ACCESS_CHANGE=TRUE`.
+
+
+## SERVER-54 Domains: public Production and Preview Worker URLs enabled — 2026-10-16
+
+Owner screenshot of `trendos-d1-api → Production → Domains` shows:
+- Production `workers.dev` host `trendos-d1-api.trendmall-contact.workers.dev`, switch visibly enabled (blue), text **"Anyone with this URL can visit. Enable Access"**.
+- Preview wildcard host `*.trendos-d1-api.trendmall-contact.workers.dev`, switch visibly enabled (blue), same publicly visitable notice.
+- The `Custom Domains and Routes` section shows **"No custom domains"** and has no listed custom routes.
+- Combined with prior Access screenshot: this Worker has **no Worker-specific Access protection**. Account-wide rules, external security filtering (WAF/rate limits/bot rules), application-level authorization on particular routes, and preview-version permissions are not fully verified.
+
+**Security decision:** heightened urgency for `SEC-AP303-02` source-level sensitive-read handler gap. Public host reachability **does not by itself establish data exposure** or an exploit. No live endpoint requests, unauthorized probes, sensitive logs or real D1/customer queries were performed. The distinct `trendos` Worker observed in repository's historic bridge is not necessarily the same publicly reachable surface as `trendos-d1-api`; assess each independently and do not assume bridge usage implies same endpoint reachability.
+
+**Compatibility blockers remain:** both Production and Preview switches must stay unchanged until the owner authorizes a planned release. Existing UI/employee/Apps Script consumers may rely on those hosts. Draft PR #154's default-deny legacy GET patch must not ship without a consumer migration/rollback audit. Staged testing and targeted hardening are safer than a blanket Access switch-off.
+
+**Read-only next step:** inspect `Settings` page **without** showing secrets, tokens or values. Ask for screenshot of non-sensitive configuration section headings and `workers.dev`/routing feature names only. Do not flip either switch, create Access policy, deploy, or change account settings.
+
+`WORKER_PRODUCTION_URL_ENABLED=YES_AS_SHOWN`; `WORKER_PREVIEW_URL_ENABLED=YES_AS_SHOWN`; `NO_CUSTOM_ROUTES_LISTED=YES_AS_SHOWN`; `WORKER_SPECIFIC_ACCESS=ABSENT`; `EXTERNAL_REQUEST_AUTH_PATH_VERIFIED=NO`; `BREACH_CONFIRMED=NO`; `PRODUCTION_CHANGED=NO`.
