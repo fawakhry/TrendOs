@@ -1158,15 +1158,21 @@ async function customerReceiptWithCreditV1(env,auth,b,party,normalizedCommand,be
   // Customer-credit application on a future invoice creates no cashbox row.
   statements.push(env.DB.prepare("INSERT INTO employee_accounting_cashbox_v1(cashbox_tx_id,request_key,work_date,movement_type,party_id,party_name,department,amount,payment_method,ref_no,source,notes,actor,created_at_ms) SELECT ?,?,?,'CUSTOMER_RECEIPT',?,?,?,?,?,?,?,?,?,? FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?")
     .bind(uid('CSH'),ledgerKey+'-CASH',workDate,party.partyId,party.partyName,text(b.department),cash,text(b.paymentMethod||b.method),text(b.refNo||b.reference),sourceSystemV1(b),text(b.notes),auth.user.username,now,party.partyId,ledgerKey,credit.version+1));
+  // Audit evidence and cash/credit mutations must commit or roll back together.
+  // If audit INSERT fails the entire D1 batch is rejected, leaving PREPARED for manual review.
+  statements.push(auditEventStatementV1(env,request,'customer-credit-receipt',party.partyId,'post',
+    auth.user.username,{cash,oldDebtPaid:debtPaid,customerCreditCreatedCents:creditCreatedCents,
+      before,after:customerCreditMoneyV1(debtBeforeCents-debtPaidCents)}));
   const guardSql="(SELECT COUNT(*) FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=? AND version=?)"+
     "+(SELECT COUNT(*) FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?)"+
     "+(SELECT COUNT(*) FROM employee_accounting_party_ledger_v1 WHERE request_key=?)"+
     "+(SELECT COUNT(*) FROM employee_accounting_customer_credit_events_v1 WHERE request_key=?)"+
-    "+(SELECT COUNT(*) FROM employee_accounting_cashbox_v1 WHERE request_key=?)";
-  const expected=3+(debtPaidCents>0?1:0)+(creditCreatedCents>0?1:0);
+    "+(SELECT COUNT(*) FROM employee_accounting_cashbox_v1 WHERE request_key=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_events_v1 WHERE request_key=?)";
+  const expected=4+(debtPaidCents>0?1:0)+(creditCreatedCents>0?1:0);
   statements.push(...txGuardPairV1(env,ledgerKey+'-CREDIT-GUARD',expected,guardSql,
     [party.partyId,ledgerKey,version+1,party.partyId,ledgerKey,credit.version+1,
-     ledgerKey,ledgerKey+'-CREDIT',ledgerKey+'-CASH']));
+     ledgerKey,ledgerKey+'-CREDIT',ledgerKey+'-CASH',ledgerKey]));
   await env.DB.batch(statements);
   const check=await env.DB.prepare("SELECT balance FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=?")
     .bind(party.partyId,ledgerKey).first();
@@ -1179,8 +1185,6 @@ async function customerReceiptWithCreditV1(env,auth,b,party,normalizedCommand,be
     cashboxPosted:true,receiptCashAmount:cash,creditCreated:customerCreditMoneyV1(creditCreatedCents),
     version:'A2_D1_CUSTOMER_CREDIT_OFF_BY_DEFAULT_V1'};
   await commitCommandV1(env,request,response);
-  await auditEventV1(env,request,'customer-credit-receipt',party.partyId,'post',auth.user.username,
-    {cash,oldDebtPaid:debtPaid,customerCreditCreatedCents:creditCreatedCents,before,after:response.balance});
   return response;
 }
 
@@ -1782,6 +1786,12 @@ async function saveCustomerCreditDirectSaleV1(env,auth,b){
     statements.push(env.DB.prepare("INSERT INTO employee_accounting_cashbox_v1("+cashCols.join(',')+") SELECT "+cashCols.map(()=>'?').join(',')+" FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?")
       .bind(...vals,customer.partyId,ctx.requestKey,credit.version+1));
   }
+  // The credit-backed invoice's audit row participates in the SAME atomic
+  // D1 batch as stock, customer debt, credit liability, cash and invoice lines.
+  statements.push(auditEventStatementV1(env,ctx,'direct-sale',invoiceNo,'post',auth.user.username,
+    {customerId:customer.partyId,total,creditApplied:m(appliedCents),cashReceived:cash,
+      remaining,oldDebtPaid:m(cashForOldCents),newCreditCreated:m(newAdvanceCents),
+      stockMaterialCount:stockCount}));
   const quotedKeys=arr=>arr.map(()=>'?').join(',');
   let guardSql="(SELECT COUNT(*) FROM employee_accounting_stock_moves_v1 WHERE request_key=?)"+
     "+(SELECT COUNT(*) FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND request_key=?)"+
@@ -1792,7 +1802,9 @@ async function saveCustomerCreditDirectSaleV1(env,auth,b){
   if(ledgerKeys.length){guardSql+="+(SELECT COUNT(*) FROM employee_accounting_party_ledger_v1 WHERE request_key IN ("+quotedKeys(ledgerKeys)+"))";guardBind.push(...ledgerKeys);}
   if(creditKeys.length){guardSql+="+(SELECT COUNT(*) FROM employee_accounting_customer_credit_events_v1 WHERE request_key IN ("+quotedKeys(creditKeys)+"))";guardBind.push(...creditKeys);}
   if(cashCents>0){guardSql+="+(SELECT COUNT(*) FROM employee_accounting_cashbox_v1 WHERE request_key=?)";guardBind.push(ctx.requestKey+'-CASH');}
-  const expected=stockCount+3+ledgerKeys.length+creditKeys.length+(cashCents>0?1:0);
+  guardSql+="+(SELECT COUNT(*) FROM employee_accounting_events_v1 WHERE request_key=?)";
+  guardBind.push(ctx.requestKey);
+  const expected=stockCount+4+ledgerKeys.length+creditKeys.length+(cashCents>0?1:0);
   statements.push(...txGuardPairV1(env,ctx.requestKey+'-GUARD',expected,guardSql,guardBind));
   await env.DB.batch(statements);
   const written=await env.DB.prepare("SELECT invoice_no AS invoiceNo,final_total AS finalTotal,paid,remaining,manual_cost AS manualCost,credit_applied AS creditApplied,cash_received AS cashReceived,credit_created AS creditCreated FROM employee_accounting_final_invoices_v1 WHERE request_key=?")
@@ -1805,9 +1817,6 @@ async function saveCustomerCreditDirectSaleV1(env,auth,b){
     customerDebtRemaining:m(newDebtCents),customerDisplayBalance:m(newCreditCents-newDebtCents),
     stockMaterialCount:stockCount,version:'A2_D1_CUSTOMER_CREDIT_OFF_BY_DEFAULT_V1'};
   await commitCommandV1(env,ctx,response);
-  await auditEventV1(env,ctx,'direct-sale',invoiceNo,'post',auth.user.username,
-    {customerId:customer.partyId,total,creditApplied:response.creditApplied,cashReceived:cash,remaining,
-      oldDebtPaid:m(cashForOldCents),newCreditCreated:response.customerCreditCreated,stockMaterialCount:stockCount});
   return response;
 }
 
