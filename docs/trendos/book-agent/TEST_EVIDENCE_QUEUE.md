@@ -230,3 +230,9 @@
 | BOOK31-FILE-SSO | existing | Chapter 20/30 token-in-URL and revocation concerns; separate `files.matbagy.com` service, not local port 4782 | deny unauthorized file read by server ACL after independent review |
 
 **Source tests to inspect (not executed):** `autonomous-printshop/print-server/tests/test_ap277_write_guard_synthetic.py`, `test_ap279_bridge_shadow_synthetic.py`, `test_ap296_trendos_shadow_schema_synthetic.py`, `test_platform_bridge.py`. On closing each ID require `TARGET_SOURCE_HEAD`, `LOCAL_HOST_HEAD`, `TEST_COMMAND`, `ACTUAL_RESULT`, `CI_RUN_URL/TEST_SHA`, `DEPLOYED_PARITY` and owner approval for any real login or Ubuntu changes. No Print/Laser/Files/Agent service is declared LIVE from GitHub docs.
+
+## CH27 + BOOK30 login-handshake retry — latest exact SHA (2026-10-16)
+
+- `TEST_SHA=95326bbf0b07dfdddb2bc430564eab2eb3b542c6`; [Book27 #38915520537](https://github.com/fawakhry/TrendOs/actions/runs/38915520537) PASS **13/13** (previous 10 + 3 mock SSO missing-session/forged-ACK/logout cases); old Entry619 and no-autorefresh regressions PASS; [A61 #38915520552](https://github.com/fawakhry/TrendOs/actions/runs/38915520552) PASS.
+- `BOOK30-SSO-LOGOUT-RACE` covered **at browser sender layer only**, checks active role/token/identity at send and each resend, no stale token posted after account switch; receiving EasyStore backend expiry/revocation/role trust and real browser integration `NOT_TESTED`.
+- `BOOK27-ACCOUNTING-ROLE-HINT` remains `PARTIAL_PATCH_TESTED` despite green UI suites. No financial operation, real login, WhatsApp send or deployed Worker touched.
