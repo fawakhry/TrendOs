@@ -7,6 +7,8 @@ on:
       - cloudflare-d1/src/mirror-service-read-v1.mjs
       - cloudflare-d1/production-shadow/index.js
       - tests/server68_isolated_stage_preflight.test.mjs
+      - tests/server68_secure_mirror_pagination_compat.test.mjs
+      - cloudflare-d1/D1_Orders_Read_Cutover.gs
       - .github/workflows/server68-isolated-stage-preflight.yml
   push:
     branches:
@@ -30,6 +32,7 @@ jobs:
       - name: Check staging target isolation, source auth and role-limited clients
         run: |
           node --test tests/server68_isolated_stage_preflight.test.mjs \
+            tests/server68_secure_mirror_pagination_compat.test.mjs \
             tests/server67_purpose_scoped_mirror_service_read.test.mjs \
             tests/server67_apps_script_signed_mirror_client_offline.test.mjs \
             tests/server66_legacy_mirror_read_gate.test.mjs \
