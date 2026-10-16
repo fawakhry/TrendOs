@@ -549,3 +549,21 @@
 | `runAccountingCloseBtn` | `app.js:7576+` existing Trend Master day-close action | Apps Script workflow source | Readiness/blocked states covered §27 |
 
 Do not mark any of these controls `TESTED` without actual mounted frontend asset and test evidence. This table is a reviewed subset, not complete 479-element inventory.
+
+
+## Dynamic event mapping — chapter 30 (2026-10-16, SOURCE_ONLY)
+
+**Identity/session handoff controls:** تكملة الفصول 14 و20 و27 و29، بدون ادعاء اختبار Browser حي.
+
+| UI/control | Event/action | authority/owner | مراجعة |
+|---|---|---|---|
+| `loginBtn` | `doLogin` app.js:1896 | Employee Auth Cloud native وفق config/dispatcher | Role وSessionVersion على الخادم |
+| `customerLoginBtn` | `doCustomerLogin` app.js:1940 | Customer Legacy transport حاليًا | Customer identity منفصل |
+| Employee restore | `loadSession` ثم `verifyRestoredEmployeeSessionV1` app.js:1697–1765 | `verifyEmployeeSession` D1 Native | التحقق بعد استعادة المتصفح |
+| Employee invalidation | `forceEmployeeReloginV2` app.js:1792–1830 | Native Auth logout/password routes | local reset ≠ logout in external services |
+| `accountingBtn` | EasyStore SSO handoff app.js:11020–11080 | external EasyStore receiver | BOOK30-SSO-LOGOUT-RACE وBOOK30-SSO-AUDIENCE |
+| `accountingDayCloseBtn` (dynamic) | app.js:11078–11104 | EasyStore independent authorization | owner finance approval |
+| `remoteFilesBtn` | app.js:1386–1406 | External file-server `/trendos-sso` | file-server token URL known chapter20 |
+| Orders session exchange | Cloud bridge `/v1/edge/orders/session` | Cloud first + short-lived Edge token | existing chapter14 token revocation |
+
+**Chapter 30 coverage state:** SOURCE_ONLY; zero runtime tests; compare receiving EasyStore and Ubuntu server authority before asserting full SSO lifecycle.
