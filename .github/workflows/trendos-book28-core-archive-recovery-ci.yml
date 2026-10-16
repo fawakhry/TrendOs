@@ -1,0 +1,106 @@
+name: TrendOS Book28 Atomic Archive Recovery — Fake D1
+on:
+  push:
+    branches:
+      - fix/book28-core-archive-atomic-recovery-20261016
+    paths:
+      - 'cloudflare-d1/src/employee-core-native-v1.mjs'
+      - 'tests/book28_bulk_500_result_truth_synthetic.test.mjs'
+      - '.github/workflows/trendos-book28-core-archive-recovery-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/employee-core-native-v1.mjs'
+      - 'tests/book28_bulk_500_result_truth_synthetic.test.mjs'
+      - '.github/workflows/trendos-book28-core-archive-recovery-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  archive-transaction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and 17 fake recovery scenarios
+        run: |
+          node --check cloudflare-d1/src/employee-core-native-v1.mjs
+          node --check tests/book28_bulk_500_result_truth_synthetic.test.mjs
+          node --test tests/book28_bulk_500_result_truth_synthetic.test.mjs
+      - name: Inherited line scope/auth/dispatcher
+        run: |
+          node --test tests/book28_core_line_write_scope_synthetic.test.mjs
+          node --test tests/book25_26_p0_auth_synthetic.test.mjs
+          node tests/entry644_employee_core_general_dispatch.test.mjs
+          node tests/entry650_employee_core_order_page_read.test.mjs
+      - name: SQLite JSON archive, status guard, cross-department close
+        run: |
+          python3 - <<'PY'
+          import sqlite3,json
+          db=sqlite3.connect(':memory:')
+          db.executescript("""
+          CREATE TABLE employee_core_lines_v1(line_id TEXT PRIMARY KEY,order_id TEXT,active INTEGER,status TEXT);
+          CREATE TABLE employee_core_orders_v1(order_id TEXT PRIMARY KEY,active INTEGER,customer_name TEXT,
+            customer_phone TEXT,department TEXT,priority TEXT,source TEXT,notes TEXT,raw_json TEXT);
+          CREATE TABLE t12_prod_lines(line_id TEXT PRIMARY KEY,order_id TEXT,status TEXT);
+          CREATE TABLE t12_prod_orders(order_id TEXT PRIMARY KEY,customer_name TEXT,customer_phone TEXT,
+            department TEXT,priority TEXT,source TEXT,notes TEXT);
+          CREATE TABLE employee_core_archive_lines_v1(line_id TEXT PRIMARY KEY,order_id TEXT,department TEXT,
+            item_name TEXT,qty INTEGER,priority TEXT,status TEXT,notes TEXT,snapshot_json TEXT,archived_by TEXT,request_key TEXT);
+          CREATE TABLE employee_core_archive_orders_v1(order_id TEXT PRIMARY KEY,customer_name TEXT,customer_phone TEXT,
+            department TEXT,priority TEXT,status TEXT,source TEXT,notes TEXT,snapshot_json TEXT,archived_by TEXT,request_key TEXT);
+          INSERT INTO employee_core_orders_v1 VALUES('O',1,'Fake','','طباعة','','','','{}');
+          INSERT INTO employee_core_lines_v1 VALUES('I','O',1,'تم التسليم');
+          INSERT INTO t12_prod_orders VALUES('O','Fake','','طباعة','','','');
+          INSERT INTO t12_prod_lines VALUES('N','O','تم التسليم');
+          """)
+          row={'lineId':'I','orderId':'O','department':'طباعة','itemName':'FAKE','qty':1,
+            'priority':'','status':'تم التسليم','notes':''}
+          payload=json.dumps([row],ensure_ascii=False)
+          db.execute("""INSERT INTO employee_core_archive_lines_v1
+            (line_id,order_id,department,item_name,qty,priority,status,notes,snapshot_json,archived_by,request_key)
+            SELECT json_extract(value,'$.lineId'),json_extract(value,'$.orderId'),
+              COALESCE(json_extract(value,'$.department'),''),
+              COALESCE(json_extract(value,'$.itemName'),''),
+              COALESCE(json_extract(value,'$.qty'),1),
+              COALESCE(json_extract(value,'$.priority'),''),
+              COALESCE(json_extract(value,'$.status'),''),
+              COALESCE(json_extract(value,'$.notes'),''),
+              value,?,? FROM json_each(?)""",('fake','fake-request',payload))
+          db.execute("UPDATE employee_core_lines_v1 SET active=0 WHERE line_id IN (SELECT value FROM json_each(?))",
+            (json.dumps(['I']),))
+          def eligible():
+            return db.execute("""SELECT NOT EXISTS(SELECT 1 FROM employee_core_lines_v1 l
+              LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+              WHERE l.order_id='O' AND l.active=1 AND a.line_id IS NULL)
+              AND NOT EXISTS(SELECT 1 FROM t12_prod_lines l
+              LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+              WHERE l.order_id='O' AND a.line_id IS NULL)""").fetchone()[0]
+          assert eligible()==0, 'native unarchived line MUST block close'
+          row2={**row,'lineId':'N'}
+          db.execute("""INSERT INTO employee_core_archive_lines_v1
+            (line_id,order_id,department,item_name,qty,priority,status,notes,snapshot_json,archived_by,request_key)
+            SELECT json_extract(value,'$.lineId'),json_extract(value,'$.orderId'),
+              json_extract(value,'$.department'),json_extract(value,'$.itemName'),
+              json_extract(value,'$.qty'),json_extract(value,'$.priority'),
+              json_extract(value,'$.status'),json_extract(value,'$.notes'),value,?,?
+            FROM json_each(?)""",('fake','fake-request-2',json.dumps([row2],ensure_ascii=False)))
+          assert eligible()==1, 'fully archived mixed source order must close'
+          count=db.execute('SELECT COUNT(*) FROM employee_core_archive_lines_v1').fetchone()[0]
+          assert count==2
+          try:
+            db.execute("SELECT CASE WHEN 1=2 THEN 1 ELSE json_extract('BOOK28_STALE','$.x') END").fetchone()
+            raise AssertionError('SQLite abort guard did not abort')
+          except sqlite3.OperationalError as e:
+            assert 'malformed JSON' in str(e),str(e)
+          print('SQLITE_ARCHIVE_INSERT=2/2 MIXED_ORDER_CLOSE=SAFE STALE_GUARD=ABORT')
+          PY
+      - name: No production side effects
+        run: |
+          echo 'REAL_D1=NO'
+          echo 'REAL_GOOGLE=NO'
+          echo 'MERGE=NO'
+          echo 'DEPLOY=NO'
+          echo 'PRODUCTION_VERIFIED=NO'

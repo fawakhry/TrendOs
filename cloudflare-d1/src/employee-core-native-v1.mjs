@@ -178,10 +178,6 @@ async function requestLedger(env,requestKey,action,actor,body,deferInsert=false)
   await prepareStatement.run();
   return {ok:true,replay:false};
 }
-async function commitLedger(env,requestKey,response){
-  await env.DB.prepare("UPDATE employee_core_request_ledger_v1 SET status='COMMITTED',response_json=? WHERE request_key=?")
-    .bind(JSON.stringify(response),requestKey).run();
-}
 async function activity(env,limit=50){
   const n=Math.max(1,Math.min(Math.trunc(num(limit,50)),200)),all=[];
   const safe=async(sql)=>{
@@ -292,37 +288,17 @@ async function bulkStatus(env,user,body){
 async function archiveDelivered(env,user,body){
   const screen=text(body.screen),requestId=text(body.requestId);
   if(!screenAllowed(user,screen))return {success:false,message:'ليس لديك صلاحية أرشفة هذا القسم.'};
-  const led=await requestLedger(env,requestId,'archiveDeliveredDepartmentV1926',user.username,{screen});
+  const led=await requestLedger(env,requestId,'archiveDeliveredDepartmentV1926',user.username,{screen},true);
   if(!led.ok)return {success:false,code:led.code};if(led.replay)return led.response;
-  const window=coreBulkWindowV28((await coreRows(env,screen)).filter(r=>text(r.status)==='تم التسليم')),delivered=window.items;
-  const statements=[];
-  for(const r of delivered){
-    statements.push(env.DB.prepare(`
-      INSERT OR IGNORE INTO employee_core_archive_lines_v1(line_id,order_id,department,item_name,qty,priority,status,notes,snapshot_json,archived_by,request_key)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?)
-    `).bind(r.lineId,r.orderId,r.department,r.itemName,num(r.qty,1),r.priority,r.status,r.notes,JSON.stringify(r),user.username,requestId));
-    if(r.sourceKind==='core-import') statements.push(env.DB.prepare("UPDATE employee_core_lines_v1 SET active=0,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE line_id=?").bind(user.username,r.lineId));
-  }
-  if(statements.length)await env.DB.batch(statements);
-  const orders=[...new Set(delivered.map(r=>r.orderId).filter(Boolean))],fully=[],remaining=await coreRows(env,'service');
-  for(const orderId of orders){
-    if(!remaining.some(r=>r.orderId===orderId)){
-      let o=await env.DB.prepare("SELECT order_id,customer_name,customer_phone,department,priority,status,source,notes,raw_json FROM employee_core_orders_v1 WHERE order_id=?").bind(orderId).first();
-      if(!o)o=await env.DB.prepare("SELECT order_id,customer_name,customer_phone,department,priority,status,source,notes,'{}' AS raw_json FROM t12_prod_orders WHERE order_id=?").bind(orderId).first();
-      if(o){
-        fully.push(orderId);
-        await env.DB.prepare(`
-          INSERT OR IGNORE INTO employee_core_archive_orders_v1(order_id,customer_name,customer_phone,department,priority,status,source,notes,snapshot_json,archived_by,request_key)
-          VALUES(?,?,?,?,?,?,?,?,?,?,?)
-        `).bind(orderId,text(o.customer_name),text(o.customer_phone),text(o.department),text(o.priority),'تم التسليم',text(o.source),text(o.notes),text(o.raw_json)||JSON.stringify(o),user.username,requestId).run();
-        await env.DB.prepare("UPDATE employee_core_orders_v1 SET active=0,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE order_id=?").bind(user.username,orderId).run();
-      }
-    }
-  }
-  if(delivered.length){
-    await env.DB.prepare("UPDATE employee_core_control_v1 SET data_version=data_version+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1").run();
-    await event(env,'archiveDeliveredDepartmentV1926','screen',screen,user.username,{archivedLines:delivered.length,archivedOrders:fully.length,requestId});
-  }
+
+  // One unarchived cross-department snapshot; an order is complete only when
+  // *every* visible line belonging to that order is in the selected 500.
+  // The in-transaction SQL closure conditions recheck for new/remaining lines.
+  const all=await coreRows(env,'service');
+  const window=coreBulkWindowV28(all.filter(r=>screenMatches(screen,r.department,r.heatPress)&&text(r.status)==='تم التسليم'));
+  const delivered=window.items,selectedIds=new Set(delivered.map(r=>text(r.lineId)));
+  const orders=[...new Set(delivered.map(r=>text(r.orderId)).filter(Boolean))];
+  const fully=orders.filter(orderId=>all.filter(r=>text(r.orderId)===orderId).every(r=>selectedIds.has(text(r.lineId))));
   const response={success:true,archivedLines:delivered.length,archivedOrders:fully.length,partialOrders:Math.max(0,orders.length-fully.length),
     matchedLines:window.totalMatched,selectedLines:window.selectedLines,remainingDueToLimit:window.remainingDueToLimit,
     partialByLimit:window.partialByLimit,partial:window.partialByLimit,
@@ -330,9 +306,128 @@ async function archiveDelivered(env,user,body){
       ?'تمت أرشفة '+delivered.length+' من '+window.totalMatched+' بند مطابق. تبقى '+window.remainingDueToLimit+' بند خارج حد 500 بند لكل طلب. راجع النتائج وأعد المحاولة بطلب جديد للباقي.'
       :'تمت أرشفة '+delivered.length+' بند من '+window.totalMatched+' بند مطابق.',
     screen,requestId,version:'ENTRY614_D1_EMPLOYEE_CORE_V1'};
-  await commitLedger(env,requestId,response);return response;
-}
 
+  // BOOK28-CORE-RECOVERY archive phase: D1.batch is a single transaction.
+  // Any failed SQL assertion rolls back PREPARED, snapshots, deactivation,
+  // order closure, audit and COMMITTED together. No external side effects.
+  const statements=[led.prepareStatement];
+  if(delivered.length){
+    const snapshots=JSON.stringify(delivered);
+    // Guard source status + active visibility + absence of prior archive,
+    // not a client-provided screen. SQLite json_extract on malformed JSON
+    // intentionally aborts the transaction if the snapshot is stale.
+    statements.push(env.DB.prepare(`
+      SELECT CASE WHEN (
+        SELECT COUNT(*) FROM json_each(?) AS j
+        WHERE CASE json_extract(j.value,'$.sourceKind')
+          WHEN 'core-import' THEN EXISTS (
+            SELECT 1 FROM employee_core_lines_v1 l
+            JOIN employee_core_orders_v1 o ON o.order_id=l.order_id
+            LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+            WHERE l.line_id=json_extract(j.value,'$.lineId')
+              AND l.order_id=json_extract(j.value,'$.orderId')
+              AND l.active=1 AND o.active=1 AND l.status='تم التسليم'
+              AND a.line_id IS NULL
+          )
+          WHEN 't12-prod' THEN EXISTS (
+            SELECT 1 FROM t12_prod_lines l
+            JOIN t12_prod_orders o ON o.order_id=l.order_id
+            LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
+            LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+            WHERE l.line_id=json_extract(j.value,'$.lineId')
+              AND l.order_id=json_extract(j.value,'$.orderId')
+              AND COALESCE(r.status,l.status)='تم التسليم'
+              AND a.line_id IS NULL
+          )
+          ELSE 0 END
+      )=? THEN 1 ELSE json_extract('BOOK28_ARCHIVE_STALE_SNAPSHOT','$.x') END AS archiveSnapshotValid
+    `).bind(snapshots,delivered.length));
+
+    // One set-wise insert (500 cap), not 500 separate statements.
+    statements.push(env.DB.prepare(`
+      INSERT INTO employee_core_archive_lines_v1
+        (line_id,order_id,department,item_name,qty,priority,status,notes,snapshot_json,archived_by,request_key)
+      SELECT json_extract(value,'$.lineId'),json_extract(value,'$.orderId'),
+        COALESCE(json_extract(value,'$.department'),''),
+        COALESCE(json_extract(value,'$.itemName'),''),
+        COALESCE(json_extract(value,'$.qty'),1),
+        COALESCE(json_extract(value,'$.priority'),''),
+        COALESCE(json_extract(value,'$.status'),''),
+        COALESCE(json_extract(value,'$.notes'),''),
+        value,?,?
+      FROM json_each(?)
+    `).bind(user.username,requestId,snapshots));
+    const importedIds=delivered.filter(r=>r.sourceKind==='core-import').map(r=>r.lineId);
+    if(importedIds.length){
+      statements.push(env.DB.prepare(`
+        UPDATE employee_core_lines_v1
+        SET active=0,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP
+        WHERE active=1 AND line_id IN (SELECT value FROM json_each(?))
+      `).bind(user.username,JSON.stringify(importedIds)));
+    }
+  }
+  if(fully.length){
+    const ids=JSON.stringify(fully);
+    // Both native and imported unarchived lines must be absent *inside the
+    // transaction*. Imported order metadata takes precedence where present.
+    const noRemaining=`
+      NOT EXISTS (
+        SELECT 1 FROM employee_core_lines_v1 l
+        LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+        WHERE l.order_id=candidate.order_id AND l.active=1 AND a.line_id IS NULL
+      ) AND NOT EXISTS (
+        SELECT 1 FROM t12_prod_lines l
+        LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+        WHERE l.order_id=candidate.order_id AND a.line_id IS NULL
+      )`;
+    statements.push(env.DB.prepare(`
+      INSERT OR IGNORE INTO employee_core_archive_orders_v1
+        (order_id,customer_name,customer_phone,department,priority,status,source,notes,snapshot_json,archived_by,request_key)
+      SELECT candidate.order_id,candidate.customer_name,candidate.customer_phone,
+        candidate.department,candidate.priority,'تم التسليم',candidate.source,
+        candidate.notes,COALESCE(NULLIF(candidate.raw_json,''),'{}'),?,?
+      FROM employee_core_orders_v1 AS candidate
+      JOIN json_each(?) AS eligible ON eligible.value=candidate.order_id
+      WHERE ${noRemaining}
+      UNION ALL
+      SELECT candidate.order_id,candidate.customer_name,candidate.customer_phone,
+        candidate.department,candidate.priority,'تم التسليم',candidate.source,
+        candidate.notes,'{}',?,?
+      FROM t12_prod_orders AS candidate
+      JOIN json_each(?) AS eligible ON eligible.value=candidate.order_id
+      WHERE NOT EXISTS (SELECT 1 FROM employee_core_orders_v1 x WHERE x.order_id=candidate.order_id)
+        AND ${noRemaining}
+    `).bind(user.username,requestId,ids,user.username,requestId,ids));
+
+    // Do not silently report an order closure if another writer introduced
+    // an unarchived line. Abort ALL archive effects, including ledger, rather
+    // than produce a response that does not match the committed D1 state.
+    statements.push(env.DB.prepare(`
+      SELECT CASE WHEN (
+        SELECT COUNT(*) FROM employee_core_archive_orders_v1 a
+        JOIN json_each(?) j ON j.value=a.order_id
+      )=? THEN 1 ELSE json_extract('BOOK28_ARCHIVE_ORDER_NOT_CLOSED','$.x') END AS archiveOrderClosureValid
+    `).bind(ids,fully.length));
+
+    // Native t12 orders have no active column; imported orders can be
+    // deactivated only after archive-order evidence exists.
+    statements.push(env.DB.prepare(`
+      UPDATE employee_core_orders_v1 SET active=0,updated_by=?,
+        version=version+1,updated_at=CURRENT_TIMESTAMP
+      WHERE active=1 AND order_id IN (SELECT value FROM json_each(?))
+        AND order_id IN (SELECT order_id FROM employee_core_archive_orders_v1)
+    `).bind(user.username,ids));
+  }
+  if(delivered.length){
+    statements.push(env.DB.prepare("UPDATE employee_core_control_v1 SET data_version=data_version+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1"));
+    statements.push(env.DB.prepare("INSERT INTO employee_core_events_v1(action,entity_type,entity_id,actor,payload_json) VALUES(?,?,?,?,?)")
+      .bind('archiveDeliveredDepartmentV1926','screen',screen,user.username,JSON.stringify({archivedLines:delivered.length,archivedOrders:fully.length,requestId})));
+  }
+  statements.push(env.DB.prepare("UPDATE employee_core_request_ledger_v1 SET status='COMMITTED',response_json=? WHERE request_key=?")
+    .bind(JSON.stringify(response),requestId));
+  await env.DB.batch(statements);
+  return response;
+}
 // BOOK28-CORE-LINE-SCOPE: resolve the target from trusted D1 metadata,
 // never from client-supplied body.screen, an employee name, or a UI hint.
 // For writes, service is NOT a wildcard permission over other departments.
