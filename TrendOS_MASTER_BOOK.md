@@ -3110,17 +3110,6 @@ ZERO_GOOGLE_COMPLETE=NO
 NEXT_PROGRAM=CONTINUE_ZERO_GOOGLE_PLAN
 ```
 
-## 10. Cleaning checkpoint — 2026-10-02
-
-تم تنظيف الكتاب بناءً على قرار المالك أثناء مشروع النقل Google → Cloud:
-- أزيلت من الكتاب الحي التفاصيل المطولة الخاصة بمراحل Google التي انتقلت أو أصبحت historical/superseded.
-- لم تُحذف أي dependency Google ما زالت مثبتة كحالة تشغيلية.
-- لم يحدث أي Runtime/Cloudflare/D1/Apps Script mutation بسبب هذا التنظيف.
-- Git history يحتفظ بالنسخة السابقة كاملة عند blob `9f5af80f436effbd3154751d05032608d657462a`.
-- المرجع التفصيلي التاريخي يبقى الصندوق الأسود وتقارير Entries.
-- أي Cutover لاحق يجب أن يحذف من قسم dependencies فقط بعد Runtime verification، لا بعد source/CI وحدهما.
-
-
 ## 11. خارطة الطريق بعد Zero-Google — TrendOS V1 المستهدف 01/03/2027
 
 > **قاعدة الاستئناف:** لا تبدأ هذه الخارطة كبرنامج التنفيذ الرئيسي قبل إغلاق §5 وإثبات `ZERO_GOOGLE_COMPLETE=YES`. بعد Zero-Google تُعاد baseline/GO-NO-GO للحالة الفعلية ثم تُستكمل المراحل من أول بوابة غير مغلقة. الهدف 01/03/2027 هدف Product وليس ضمان موعد إذا لم تجتز البوابات.
@@ -6872,3 +6861,5 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - **PROJECT SCOPE:** `autonomous-printshop/MASTER_BOOK.md` and independent project books not changed/deleted. `WHATS_AGENT_BOOK.md` is a separate older Whats Agent project book; not classified as intermediate or authorized for removal.
 - **OPERATIONS:** Product code unchanged; no deployment, merge, runtime mutation, or independent-project deletion.
 - **NEXT:** Migrate the old MASTER sections to unified book in controlled portions, verifying SHA/sections, keeping new frozen for autonomous daily writing. Then final owner-approved cutover. No more duplicate TrendOS books.
+
+- **MIGRATION UNIT 001 — 2026-10-16 / MASTER_CLEANING_CHECKPOINT_20261002:** `COPY→VERIFY→REMOVE` مُنفّذ للقسم التاريخي القديم `## 10. Cleaning checkpoint — 2026-10-02` فقط. المصدر عند بداية النقل [commit e42a9978](https://github.com/fawakhry/TrendOs/commit/e42a9978fd361284d6887b069449272528d7430d)، Git blob `e7a55dadda6d736ae50bca0fcc4b8013503f8fd5`. نُسخ النص حرفيًا (619 حرفًا) إلى الملحق التاريخي «و» في الكتاب الموحد عبر [copy commit c1b9290d89a8](https://github.com/fawakhry/TrendOs/commit/c1b9290d89a8004805bf0d78efd042987c2c0a59)؛ أُعيدت قراءة الوجهة من GitHub وثبت `EXACT_TEXT_MATCH=PASS (619/619)` مع مصدر القديم وأرشيف `b2788ecb4c187717e020321954a1ea449c1aa0d5` (blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`). أُزيل نص القسم وحده من هذا الكتاب بعد فحص المقارنة، مع بقاء جميع Entry والأعمال الأخرى و`ACTIVE_WRITE`. `HISTORICAL` / `DOCUMENTATION_ONLY` / `NO_RUNTIME_CLAIM`. Commit الإزالة هو الذي يحتوي هذا السجل في Git. 66 Entry ما زالت بحاجة إلى مصالحة مستقلة، لا ادعاء `FULLY_VERIFIED`. لا تغيير في كتب المشاريع الأخرى ولا main/الأرشيف/الإنتاج.
