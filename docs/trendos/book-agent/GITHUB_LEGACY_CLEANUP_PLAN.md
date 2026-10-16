@@ -49,7 +49,7 @@
 
 ## 5. Next concrete batch
 
-Audit 2026 pre-split App Script source against GitHub `Code.gs`, group 614 function definitions by module and status, hash/diff source without exposing secrets; scan pre-split file history to tag candidates. After verified archive, produce the **first exact-path deletion proposal** rather than removing all old files speculatively.
+Audit 2026 pre-split App Script source against GitHub `Code.gs`, group the 620 AST function declarations (614 line-anchored regex baseline) by module and status, hash/diff source without exposing secrets; scan pre-split file history to tag candidates. After verified archive, produce the **first exact-path deletion proposal** rather than removing all old files speculatively.
 
 ## 6. New audit outcome — no validated deletion set yet (2026-10-16)
 
