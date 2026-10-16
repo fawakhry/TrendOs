@@ -156,3 +156,11 @@
 - **حدود الإثبات:** `SOURCE_CODE_CANDIDATE=YES`، `CI=PASS`، `UBUNTU_HOST_ACCESS=NO`، `CHATGPT_EXPORT_IMPORTED=NO`، `LIVE_CUSTOMER_ASSETS_COPIED=NO`، `HOST_DEPLOYMENT=NO`، `PRODUCTION_SWITCH=OFF`.
 - **قبل النشر على المضيف:** قياس المساحة الحرة والتشفير والصلاحيات وتحديد موقع مخزن بيانات مستقل ونسخ احتياطية مع اختبار استعادة. لا تغيير SSH/UFW/DNS أو نقل أسرار، ولا ادعاء اتصال حي بين TrendOS وMatbagy-OS.
 - **التغيير:** توثيق تصميم السيرفر وخط سير مستقبلي فقط؛ لا تغيير برمجي في TrendOS ولا تنفيذ على Ubuntu.
+
+### SERVER-20261016-15 — Owner changed design-memory scope: new ChatGPT work ONLY / zero additional cost
+- **Owner's latest instruction:** Do not import historical ChatGPT exports or old Google Drive design assets. Start a **fresh, zero-extra-paid-service** reusable template library from future design chats by invoking `مطبعجي نمذج` from the relevant chat.
+- **Matbagy reference:** `fawakhry/Matbagy-OS@main` — `صندوق_مطبعجي/SCHEMA/NEW_CHAT_TEMPLATE_PROTOCOL.md` and `صندوق_مطبعجي/TEMPLATES/INDEX.md`. Documentation and protocol committed via merged PR https://github.com/fawakhry/Matbagy-OS/pull/10. The old ChatGPT ZIP/archive PR #9 was closed unmerged.
+- **Scope:** Extract template brief, actual results, attempt history/feedback, print constraints and reusable instructions; persist sanitized text via available GitHub connector. Customer photos and original result files must **not** be claimed on Ubuntu without a verified bytes transfer and checksum. Existing old files remain untouched.
+- **Server:** No live connection, upload, API endpoint, SSH/UFW change, storage deployment or backup validation performed. Future secured media intake into Ubuntu is **PENDING**, not implemented. Do not promise true one-word saving of image bytes until this gate is closed.
+- **Costs:** No new API/cloud subscription; existing ChatGPT plan, hardware, home electricity and internet are not cost-free.
+- **Status:** `NEW_CHAT_TEMPLATE_CONTRACT=MERGED_TO_MATBAGY_MAIN`; `TEXT_TEMPLATE_WORKFLOW=CONNECTOR_ASSISTED`; `UBUNTU_MEDIA_TRANSFER=NOT_BUILT`; `LIVE_HOST_WRITE=NO`; `DEPRECATED_OLD_IMPORT=STOPPED`.
