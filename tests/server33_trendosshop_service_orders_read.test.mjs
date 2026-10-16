@@ -58,6 +58,8 @@ async function env(db,enabled='true'){
     DB:db, TRENDOSSHOP_SERVICE_READ_ENABLED:enabled,
     TRENDOSSHOP_READER_PRINCIPAL:'trendosshop_order_reader',
     TRENDOSSHOP_READER_TOKEN_SHA256_HEX:Buffer.from(digest).toString('hex'),
+    TRENDOSSHOP_READER_ISSUED_AT_MS:Date.now()-1000,
+    TRENDOSSHOP_READER_EXPIRES_AT_MS:Date.now()+60_000,
   };
 }
 function req(query='screen=print&page=1&pageSize=20',token=SECRET,method='GET',extra={}){
@@ -77,6 +79,16 @@ test('unprovisioned principal and digest deny before D1',async()=>{
   e.TRENDOSSHOP_READER_PRINCIPAL='trendosshop_order_reader';
   delete e.TRENDOSSHOP_READER_TOKEN_SHA256_HEX;
   assert.equal((await worker.fetch(req(),e,{})).status,503);
+  assert.equal(db.seen.length,0);
+});
+test('expired or overly long credential window rejects before D1',async()=>{
+  const db=fakeDb(),e=await env(db);
+  e.TRENDOSSHOP_READER_EXPIRES_AT_MS=Date.now()-1;
+  assert.equal((await worker.fetch(req(),e,{})).status,401);
+  e.TRENDOSSHOP_READER_EXPIRES_AT_MS=Date.now()+24*60*60*1000;
+  assert.equal((await worker.fetch(req(),e,{})).status,401);
+  delete e.TRENDOSSHOP_READER_ISSUED_AT_MS;
+  assert.equal((await worker.fetch(req(),e,{})).status,401);
   assert.equal(db.seen.length,0);
 });
 test('absent, wrong and employee-looking Bearer cannot access D1',async()=>{
