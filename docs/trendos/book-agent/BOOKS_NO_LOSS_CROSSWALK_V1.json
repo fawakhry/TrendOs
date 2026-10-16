@@ -38,16 +38,16 @@
     "entry_number_count": 66,
     "entry_heading_count": 58,
     "mention_only_count": 8,
-    "explicitly_mentioned_in_current_catalog": 10,
-    "unmentioned_by_exact_entry_label_in_current_catalog": 56,
+    "explicitly_mentioned_in_current_catalog": 12,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 54,
     "reconciled_entry_count": 0,
     "unreconciled_entry_count": 66,
     "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation.",
-    "historical_entry_heading_sections_migrated_exact_count": 6,
+    "historical_entry_heading_sections_migrated_exact_count": 8,
     "initial_entry_heading_count": 58,
     "original_snapshot_reconciled_count": 0,
-    "migration_progress_note": "9 exact, independently checked transfers: 6 historical Entry-heading blocks (597,598,601-607) and 3 other historical blocks. 66 Entry IDs still need full provenance/runtime/cross-reference reconciliation; latest runtime not inferred.",
-    "total_migration_units_exact_verified": 9,
+    "migration_progress_note": "11 exact verified migration units total: 8 historical Entry-heading blocks (Entry597,598,601 through 609) plus 3 other historical blocks. Entry608 copied in 3 separate original-text chunks, reassembled and exact-match verified before deleting original. Full references and current deployed behavior remain OPEN.",
+    "total_migration_units_exact_verified": 11,
     "non_entry_historical_migration_units_exact_verified": 3
   },
   "book_policy": {
@@ -1390,24 +1390,72 @@
       "source_first_line": 312,
       "source_heading_line": 312,
       "mention_count_in_master": 3,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_NATIVE_AUTH_READONLY_ASSESSMENT",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "010",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          608
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "9314ba36d5e8387b3f1d996b14154f20cdae2c1a",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "س",
+        "copy_commits": [
+          "749610729526eac88d641746e2d3fbc829d1cc0b",
+          "9e8a651f007c8407b8edc5a196ad80525104be48",
+          "7df4d07de1a8f94f4be8d469eab7da969e788a0d"
+        ],
+        "remove_commit": "1bdba339bc869f2be120b7cd49d068b172511390",
+        "text_characters": 12997,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED"
+      }
     },
     {
       "entry_id": 609,
       "source_first_line": 568,
       "source_heading_line": 568,
       "mention_count_in_master": 5,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_NATIVE_AUTH_REPO_ONLY_INVENTORY",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "011",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          609
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "7719c426968b6cc8d5b9403a80ca80223961d3f1",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ع",
+        "copy_commits": [
+          "87a86289a0c2fcc030b61e331bfe22fdc632485a"
+        ],
+        "remove_commit": "e5d359cfa69f5b77b4b4eea0b2d6b09463616271",
+        "text_characters": 1713,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED"
+      }
     },
     {
       "entry_id": 610,
@@ -2005,12 +2053,12 @@
   ],
   "latest_review": {
     "date": "2026-10-16",
-    "head_before_crosswalk_commit": "0e85c9ead8f0b849ff0d07e41fb19e4abea70d27",
-    "active_master_blob_sha": "9314ba36d5e8387b3f1d996b14154f20cdae2c1a",
-    "new_catalog_blob_sha": "3dcd7c7c41bac3f7561decb074d5c8d96df4100f",
+    "head_before_crosswalk_commit": "e5d359cfa69f5b77b4b4eea0b2d6b09463616271",
+    "active_master_blob_sha": "ec88bc809a6de7026db46ddf848f31609c7467ae",
+    "new_catalog_blob_sha": "cecb061f537a3775139f07127e1a5ec6480df702",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "9 exact units; Entry607 historic disconnect handoff preserved, never to be treated as current resume instruction. No full entry reconciliation claimed."
+    "notes": "11 exact units; active writer remains old master and unified book frozen except migration. Headings/line-number snapshot historical. All 66 Entry IDs remain unresolved for complete references and runtime parity."
   },
   "non_entry_section_migrations": [
     {
