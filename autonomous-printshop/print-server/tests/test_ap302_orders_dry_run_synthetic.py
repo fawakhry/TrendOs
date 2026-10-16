@@ -133,6 +133,32 @@ class AP302OfflineOnly(unittest.TestCase):
                 simulate_orders_read_once(t)
             self.assertEqual(len(t.requests), 1)
 
+    def test_malformed_nested_session_screens_fails_with_fixed_code(self):
+        for screens in (["print", ["laser"]], ["print", {"laser": True}]):
+            t = Recorder(session={**Recorder().session, "screens": screens})
+            with self.subTest(screens=str(screens)), self.assertRaisesRegex(
+                    DryRunError, "AP302_FAKE_SESSION_SCOPE_DENIED"):
+                simulate_orders_read_once(t)
+            self.assertEqual(len(t.requests), 1)
+
+    def test_transport_rejects_unexpected_method_query_and_headers(self):
+        t = Recorder()
+        cases = [
+            replace(_fake_session_request(), method="GET"),
+            replace(_fake_session_request(), json_body={"username": "FAKE_TRENDOSSHOP_READER", "token": "WRONG"}),
+            replace(_fake_session_request(), url=_fake_session_request().url + "?debug=1"),
+            replace(_fake_screen_request("print"), method="POST"),
+            replace(_fake_screen_request("laser"), headers={"Authorization": "Bearer OTHER"}),
+            replace(_fake_screen_request("print"),
+                    url="https://trendos-synthetic.invalid/v1/edge/orders/02cr/page?screen=service&page=1&pageSize=20"),
+            replace(_fake_screen_request("print"), json_body={"status": "update"}),
+        ]
+        for req in cases:
+            with self.subTest(url=req.url), self.assertRaisesRegex(
+                    DryRunError, "AP302_UNSAFE_REQUEST_SHAPE"):
+                _call_fake_transport(t, req)
+        self.assertEqual(t.requests, [])
+
     def test_session_requires_fake_token(self):
         for token in ("REAL_TOKEN", "", None):
             t = Recorder(session={**Recorder().session, "edgeToken": token})
