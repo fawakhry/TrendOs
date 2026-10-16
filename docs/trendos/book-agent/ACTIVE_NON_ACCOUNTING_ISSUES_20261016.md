@@ -36,3 +36,8 @@
 | P2 | `BOOK23-CLEANING-RACE`, `BOOK21-OBSERVABILITY`, `BOOK31-SAFE-START-PROFILE` | Scheduling race, audit without PII, safe isolated start. | Offline source/FakeDB tests. |
 
 **Interpretation:** Queue is a triage/filter view, NOT an exhaustive closure list. Each historical ID must be rechecked against the **latest code and competing PRs** before any patch. A green fake test is `TESTED_SYNTHETIC`, never `PRODUCTION_VERIFIED`. Do not move finance back into this queue unless the owner explicitly asks.
+
+## 2026-10-16 — BOOK24 readiness expiry and future machine mapping safety
+
+- **P1 partial `BOOK24-READINESS-LATEST-EXPIRY`** [Draft #179](https://github.com/fawakhry/TrendOs/pull/179), `PATCHED_TESTED_SYNTHETIC_ON_DRAFT`. Select latest DESIGN/MATERIAL/MACHINE event before expiry so expired latest never revives older READY; future-dated latest event/machine observation/mapping cannot qualify READY. [CI #38944074026](https://github.com/fawakhry/TrendOs/actions/runs/38944074026) **16/16 new synthetic PASS**, inherited pure readiness and shadow worker contracts PASS. No real machine task assignment.
+- **`BOOK24-READINESS-PARITY` P1** still requires source adapter consistency, sensor clocks, deployment SHA/flags, runtime shadow evidence and owner-reviewed staging. **`BOOK24-TASK-AUTHORITY` P0 STILL OPEN**: task writer cutover requires real read-only deployment inventory and shared authority. #171/#173/#175/#177 safeguards are Draft and not deployed. `ZERO_GOOGLE_COMPLETE=NO`, `PRODUCTION_VERIFIED=NO`, `MERGE=NO`, `DEPLOY=NO`; financial authority delegated EasyStore.
