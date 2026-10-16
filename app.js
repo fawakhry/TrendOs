@@ -11067,7 +11067,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     // Mutable config must not route credentials to an untrusted SSO origin.
     // EasyStore backend remains the only authority for financial roles.
     if(targetOrigin!=='https://fawakhry.github.io'||!child||!u||!u.token||!nonce)return false;
-    // BOOK30 logout race: never keep pushing a previous session's bearer token
+    // BOOK30 logout race: never retry an obsolete bearer token
     // after logout, password change, or account switch in the current tab.
     function sessionStillCurrent(){
       var live=(window.trendosState||window.state||{}).user||{};
