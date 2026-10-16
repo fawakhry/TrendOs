@@ -217,3 +217,14 @@
 - STATUS: SOURCE_ONLY, TESTED=NO, PRODUCTION_VERIFIED=NO. No customer/worker/Apps Script/EasyStore access or deployment; no code changes, no merge.
 - OWNER REPORT: Required immediately after each chapter, include issues and repair prompt. Chapter 27 source findings communicated separately in same response.
 - NEXT: chapter 28 rest of Order table filters/bulk/archive UI/Edge dispatcher; continue 479-element mapping without interpreting static IDs as live verified.
+
+
+## 2026-10-16 / CHAPTER28-ORDERS-BULK-025 — الفصل الثامن والعشرون
+- PREPARE: branch HEAD `be3faac2e557809ed78d66fd6f97be35a8ef5699`; previous completed book chapter 27, PR #132 Draft/unmerged.
+- READ: `app.js` blob `9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875` (loadRows, bulk/archiving/paging, filters/stat patch); `cloudflare-d1/src/employee-core-native-v1.mjs` blob `90b8d2d2353b3cbb2d85f8500e54bc64cfc3c82e`; `employee-api-dispatcher-v1.js`, `trendos-edge-orders-read-v1.js`, `Code.gs` Legacy bulk/archive + page, tests Entry644 and Entry650.
+- FINDINGS: `BOOK28-CORE-LINE-SCOPE` P0 code-level missing per-line department authorization in Core `updateSingleLine` versus other read/bulk routes; debt guard already raised chapter 19, no duplicate. `BOOK28-BULK-500-SCOPE` P1 per-call Core limit 500 with global-count UI promise. `BOOK28-CORE-RECOVERY` P1 PREPARED/COMMITTED ledger separate from bulk/archive multi-stage writes may block safe replay after partial failure. Paging/filter parity already raised chapter 13; stats filter mapping review only (not confirmed bug).
+- WRITE: chapter 28 appended and verified commit `8a81bfba819a21963b68266ded5850528d9805de`, blob `e6d3e53e78d7a54dbae8cded09619ee9a5ed48aa`.
+- REGISTER: issues appended after refreshing concurrent edits from other agents: first stale SHA write got GitHub 409 without overwriting; reconciled and verified commit `46ebab132c0407b1da0f10992159c3948e063f2a`, blob `087b36d7236c88ade7dd92a4ee4f27dad4cce6a0`.
+- TEST EVIDENCE: tests/fake-only queue updated commit `aeee98196d16dbff992e90c0f75536cf457cd230`, verified; UI element inventory mapping updated commit `46ed45386613608aab0dfe5115007628b560af1d`, verified.
+- STATUS: `SOURCE_ONLY`, `TESTED=NO`, `PRODUCTION_VERIFIED=NO`; no runtime action, order change, archive, deployment or merge. After-chapter user issues and repair prompt included by agent.
+- NEXT: chapter 29 accounting screens/operating expenses/financial approvals and report end-to-end authority; continue after presenting chapter 28 findings.
