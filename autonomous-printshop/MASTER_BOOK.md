@@ -10724,3 +10724,33 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 بسبب وجود عنوان workers.dev عام وغياب Worker-specific Access (SERVER-53/54)، ووجود مسارات legacy غير محمية صراحةً داخل معالجاتها بالكود المعروض (SERVER-52)، تبقى `SEC-AP303-02=HIGH_PRIORITY_OPEN` إلى أن تُراجع سياسات الحماية الأخرى ومستهلكو المسارات، دون ادعاء وقوع اختراق أو قراءة بيانات غير مصرح بها. تقارير الأدلة: [كتاب السيرفر SERVER-55](print-server/UBUNTU_SERVER_BOOK.md) و[تقرير أمن Cloudflare](print-server/SERVER52_CF_PRODUCTION_BUNDLE_READ_REVIEW.md).
 
 **لا اعتماد إنتاجي بعد:** لا نفعّل `trendosshop_order_reader` أو ننشر إصلاحًا يكسر عمل المستهلكين، ولا نُصدر Secrets، ولا نشغل طابعات أو ليزر؛ يلزم تقييم مسار الاحتواء وخطة رجوع ثم موافقة صريحة من المالك. `CLOUDFLARE_CHANGED=NO`, `UBUNTU_LIVE_READ=NO`.
+
+
+## SERVER-20261016-56 — اختبار توافق إدارة العملاء قبل حماية المسارات القديمة (2026-10-16)
+
+**العمل المنفذ:** تأكدت سلسلة المصدر `index.html → matbagy_theme_v1860.js → customer_manager_d1_bridge_v1934.js → trendosSecureApiV1922`، وجسر D1 القديم يستخدم Worker مستقلًا بعنوان `trendos.trendmall-contact.workers.dev` (ليس `trendos-d1-api`). يقرأ inbox/thread قبل Fallback إلى Apps Script، بينما الإرسال والتسليم والإغلاق تمر على الـAPI الأصلي. مصدر `apps-script-importer.gs` يستخدم `POST /v1/import/batch` بكلمة سر منفصلة، فلا يجب أن يتعطل بسبب سياسة GET.
+
+تم إنشاء [Draft PR #176](https://github.com/fawakhry/TrendOs/pull/176) على فرع مراجعة مستقل، مع اختبار VM وهمي يثبت Fallback عند رد `403` أو فشل شبكة من دون استدعاء Production أو بيانات عملاء. [CI #38940926060](https://github.com/fawakhry/TrendOs/actions/runs/38940926060) **9/9 PASS**. [مصفوفة المستهلكين والتوافق](print-server/SERVER56_LEGACY_CONSUMERS_COMPATIBILITY_MATRIX.md) و[تفاصيل كتاب السيرفر](print-server/UBUNTU_SERVER_BOOK.md) توضح ما ثبت وما لم يثبت.
+
+**الحالة:** لا دمج أو نشر، ولا تفعيل Ubuntu أو حساب الخدمة. نجاح المحاكاة لا يثبت أن جميع مستخدمي الواجهة أو التطبيقات الخارجية سيلجؤون إلى Apps Script. تدقيق `SEC-AP303-02` لم ينته؛ مطلوب جرد Worker `trendos` الآخر وسياسات Access/WAF والمستهلكين قبل اعتماد التغيير وتحديد Rollback. `PROD_GO=NO`.
+
+
+## SERVER-20261016-57 — خدمة Cloudflare القديمة `trendos`: لا سياسة Access خاصة (2026-10-16)
+
+وفق لقطة المالك من `Workers & Pages → trendos → Production → Access` تظهر رسالة `This Worker is not protected by Access`. هذا Worker مختلف عن `trendos-d1-api` الذي فُحص في SERVER-51–55، ويستخدمه جسر إدارة العملاء V1934 في المصدر. **غياب Worker-specific Access لا يثبت وجود كشف للبيانات**، ولا يؤكد وجود/غياب قواعد حماية Hostname/Account/WAF أو ربط D1 لدى هذه الخدمة الثانية.
+
+تم تحديث [كتاب السيرفر المرحلة 57](print-server/UBUNTU_SERVER_BOOK.md) و[مصفوفة المستهلكين](print-server/SERVER56_LEGACY_CONSUMERS_COMPATIBILITY_MATRIX.md). لا تغيير إنتاجي ولا دمج. الخطوة القادمة عرض `Domains` للخدمة `trendos` للتحقق من تفعيل Production/Preview، مع إبقاء `SEC-AP303-02=OPEN_HIGH_PRIORITY` و`LIVE_ORDER_READER=OFF`.
+
+
+## SERVER-20261016-58 — جرد Production/Preview للخدمة القديمة `trendos` (2026-10-16)
+
+أثبتت صورة Cloudflare داخل `trendos → Production → Domains` أن عنوان `trendos.trendmall-contact.workers.dev` وعناوين `*.trendos.trendmall-contact.workers.dev` الخاصة بالـPreview **مفعّلة**، مع عبارة `Anyone with this URL can visit`، ولا توجد Custom Domains أو Routes مدرجة. يضاف هذا إلى نتيجة SERVER-57 التي تثبت غياب Access policy خاصة بالـWorker. تُستخدم هذه الخدمة القديمة في **كود** جسر إدارة العملاء V1934، وهي مختلفة عن `trendos-d1-api`.
+
+**ملاحظة أمان:** لم نثبت اتصال `trendos` بقاعدة D1 أو السماح بقراءة بيانات العملاء من دون تصريح؛ ولا نعرف كل ضوابط الحساب أو WAF. `SEC-AP303-02` لا تزال مفتوحة. أُضيف الجرد إلى [كتاب السيرفر](print-server/UBUNTU_SERVER_BOOK.md) و[مصفوفة التوافق](print-server/SERVER56_LEGACY_CONSUMERS_COMPATIBILITY_MATRIX.md). الخطوة التالية قراءة نوع الـBindings للخدمة `trendos` فقط دون عرض Secrets، ثم استكمال التأهيل الأمني قبل موافقة إنتاجية مستقلة. `NO_DEPLOY=YES` و`UBUNTU_LIVE_ORDER_READ=NO`.
+
+
+## SERVER-20261016-59 — تأكيد D1 Binding للخدمة القديمة `trendos` (2026-10-16)
+
+أظهرت صورة `trendos → Production → Settings → Bindings` وجود ربط من نوع `D1 database` باسم `DB` إلى مورد يُعرض باسم `trendos-main`. سبق أن ظهر **نفس اسم قاعدة البيانات** في خدمة `trendos-d1-api` المختلفة. لذلك لم تعد فرضية أن خدمة `trendos` القديمة مجرد واجهة بلا D1 صحيحة وفق الربط المعروض؛ لكن لا تزال هوية UUID وفحص التفويض الداخلي ورموز إصدار الكود المنشور غير مثبتة. لا دليل على تسريب بيانات.
+
+مع وجود Production/Preview URLs قابلة للزيارة وغياب Worker-specific Access لكلتا الخدمتين حسب لقطات مستقلة، يظل `SEC-AP303-02=HIGH_PRIORITY_OPEN`. سجلات `Logs/Traces` للخدمة القديمة ظاهرة غير مفعّلة؛ لا يُستنتج من ذلك عدم وقوع طلبات. تم تحديث [كتاب السيرفر](print-server/UBUNTU_SERVER_BOOK.md) و[مصفوفة المستهلكين](print-server/SERVER56_LEGACY_CONSUMERS_COMPATIBILITY_MATRIX.md)، بدون كشف أسرار أو نقل URL متغيرات البيئة أو تعديل Production. **الخطوة القادمة:** قراءة إصدار النشر النشط في تبويب Deployments للخدمة القديمة فقط، ثم تدقيق مسارات التفويض بالكود بدون إرسال طلبات حساسة. `NO_DEPLOY=YES` و`UBUNTU_LIVE_READ=NO`.
