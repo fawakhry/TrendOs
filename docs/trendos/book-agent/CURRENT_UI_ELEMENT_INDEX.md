@@ -492,3 +492,25 @@
 ## Next gap
 - Read JS scripts and emitted templates; map every ID to listeners, API route, permission, data read/writer, error state, regression test and deployed verification. Add dynamic nodes and components omitted by static HTML parser.
 - Label every orphaned/hidden/dead control as `SOURCE_ONLY`, `DISABLED`, `RETIRED` or `LIVE` **only with evidence**. Do not remove production code from a catalog decision.
+
+
+## Dynamic event mapping — chapter 27, 2026-10-16 (SOURCE_ONLY)
+
+**Append-only overlay:** 479 HTML IDs and 97 static buttons remain the frozen inventory; these mappings are a **source-only audited subset**, not a live browser proof or a reinterpretation of all elements. Paths from `app.js` blob `9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875`, `index.html` blob `788074c5fb4c3d4db2af9dc0b4dabffe3c34cfc1`; `Code.gs` blob `e91d78dcceeeca2804e721d58e065a6a7181bfc2`. Chapter 27 has permanent GitHub line links.
+
+| Control | Static HTML line | JS binding/handler line | API / related backend | Condition / finding | Proof |
+|---|---:|---|---|---|---|
+| `loginBtn` | 62 | app.js:7498–7500 `doLogin` | employee auth native/legacy cutover | employee login, §14 | SOURCE_ONLY |
+| `customerLoginBtn` | 79 | app.js:7442 `doCustomerLogin` | customerLogin → Legacy customer authority via Cloud | client session, §16 | SOURCE_ONLY |
+| `remoteFilesBtn` | 96 | app.js:7454 and :8304 | files SSO external | overridden/rebound `onclick`, §20/27 | SOURCE_ONLY |
+| `refreshBtn` | 95 | app.js:7502, :8294, :8743 | `loadRows` / main refresh | multiple click handlers, BOOK27-REFRESH-OVERLAP | SOURCE_LISTENER_OVERLAP |
+| `endDayBtn` | 101 | app.js:7539–7541, :4550–4587 | local dashboard / alert | displays department summary **not close day** | SOURCE_ONLY |
+| `runAccountingCloseBtn` | 140 | app.js:7576–7578 `runAccountingCloseV1931` | Code.gs:12003 `runAccountingDayAutomationV1921` | server recomputes blockers; preview null UI issue | SOURCE_UI_READINESS_RISK |
+| `runTrendAutomationBtn` | 138 | app.js:7572–7574 | Code.gs:5181 `runTrendMasterAutomationV1931` | requires server admin; may write queue | SOURCE_ONLY |
+| `installTrendAutomationBtn` | 139 | app.js:7574–7576 | Code.gs:5183 `installTrendMasterAutomationV1931` | requires server admin; could install hourly trigger | SOURCE_ONLY |
+| `refreshTrendMasterBtn` | 137 | app.js:7570–7572 | `getTrendMasterCenterV1931` via native Core or legacy | manager scope already BOOK25-MANAGER-AUTH | SOURCE_ONLY |
+| `saveDebtRestrictionBtn` | 165 | app.js:7594–7602 | Code.gs:4384 `saveDebtDeliveryRestrictionV1931` | server restricts by employee identity; customer-name key | SOURCE_ONLY |
+| `.open-automation-wa` (dynamic) | n/a | app.js:7589–7593 | Code.gs:5184 `markAutomationMessageSentV1931` | marks sent upon open; BOOK27-WA-OPEN-IS-SENT | SOURCE_SEND_SEMANTICS |
+| `accountingBtn` | 100 | app.js:11001–11104 | external EasyStore SSO | client role hint; server scope unknown BOOK27-ACCOUNTING-ROLE-HINT | SOURCE_UI_SCOPE_REVIEW |
+
+**Next coverage work:** trace the remaining static controls and generated DOM elements; for each provide `ID/selector, handler source SHA, API, backend auth, reader/writer, test run SHA, deployed asset version`. Do not treat this table as complete or tested.
