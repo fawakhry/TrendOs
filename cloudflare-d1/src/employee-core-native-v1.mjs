@@ -397,7 +397,9 @@ async function updateSingleLine(env,user,body){
 async function previewDeliveryDebtReconciliationV1(env,user,body){
   const deny=(code,message)=>({success:false,code,message,deliveryAuthorized:false,
     postingAllowed:false,automaticRetryAuthorized:false,financeRelease:'NO_GO'});
-  if(!isAdmin(user))return deny('delivery-debt-owner-role-required',
+  // Finance preview requires the actual verified ADMIN role. A username or
+  // department containing an owner's name is not a finance permission.
+  if(key(user&&user.role)!=='admin')return deny('delivery-debt-owner-role-required',
     'مقارنة مديونية التشغيل برصيد الحسابات متاحة للمسؤول الموثق فقط.');
   const lineId=text(body&&body.lineId);
   if(!/^[\p{L}\p{N}_:.\-]{3,180}$/u.test(lineId))
@@ -405,7 +407,7 @@ async function previewDeliveryDebtReconciliationV1(env,user,body){
   let imported,native;
   try{
     imported=await env.DB.prepare("SELECT l.line_id AS lineId,l.order_id AS orderId,o.customer_name AS customerName,o.customer_phone AS customerPhone,l.debt_amount AS operationalDebt FROM employee_core_lines_v1 l JOIN employee_core_orders_v1 o ON o.order_id=l.order_id WHERE l.line_id=? AND l.active=1 AND o.active=1").bind(lineId).first();
-    native=await env.DB.prepare("SELECT l.line_id AS lineId,l.order_id AS orderId,o.customer_name AS customerName,o.customer_phone AS customerPhone FROM t12_prod_lines l JOIN t12_prod_orders o ON o.order_id=l.order_id WHERE l.line_id=?").bind(lineId).first();
+    native=await env.DB.prepare("SELECT l.line_id AS lineId,l.order_id AS orderId,o.customer_name AS customerName,o.customer_phone AS customerPhone,o.external_customer_id AS orderExternalCustomerId FROM t12_prod_lines l JOIN t12_prod_orders o ON o.order_id=l.order_id WHERE l.line_id=?").bind(lineId).first();
   }catch{return deny('delivery-debt-source-schema-unavailable','مصدر بيانات الأوردر غير متاح للفحص الآمن.');}
   if((!!imported)===(!!native))return deny('delivery-debt-line-not-unique',
     'معرف البند غير موجود أو موجود في مصدرين؛ لا يمكن تحديد مصدر المديونية.');
@@ -417,11 +419,20 @@ async function previewDeliveryDebtReconciliationV1(env,user,body){
       .bind(phone,phone,phone,phone,customerName).all()).results||[];
   }catch{return deny('delivery-debt-customer-schema-unavailable','مصدر ربط هوية العميل غير متاح للفحص الآمن.');}
   const matches=candidates.length;
+  const orderExternalCustomerId=native?text(native.orderExternalCustomerId):'';
+  const candidateId=matches===1?text(candidates[0].customerId):'';
+  const customerBindingStatus=!orderExternalCustomerId?'UNBOUND':
+    matches!==1?'ORDER_ID_UNVERIFIED_NO_UNIQUE_CANDIDATE':
+    orderExternalCustomerId===candidateId?'ORDER_ID_MATCHES_CANDIDATE_UNVERIFIED':
+    'ORDER_ID_CONFLICTS_WITH_CANDIDATE';
   let operationalDebt=imported?num(imported.operationalDebt):null;
-  let postedBalance=null,status='NO_UNIQUE_CUSTOMER_MATCH';
+  let postedBalance=null,status=customerBindingStatus==='ORDER_ID_CONFLICTS_WITH_CANDIDATE'
+    ?'ORDER_CUSTOMER_ID_CONFLICT':'NO_UNIQUE_CUSTOMER_MATCH';
   let matchedCustomerId='';
-  if(matches===1){
-    matchedCustomerId=text(candidates[0].customerId);
+  // A present order-linked ID that disagrees with the phone/name candidate
+  // is a hard conflict: do not fetch the OTHER person's account balance.
+  if(matches===1&&customerBindingStatus!=='ORDER_ID_CONFLICTS_WITH_CANDIDATE'){
+    matchedCustomerId=candidateId;
     if(!imported)operationalDebt=num(candidates[0].operationalDebt);
     let balance;
     try{
@@ -436,7 +447,8 @@ async function previewDeliveryDebtReconciliationV1(env,user,body){
   return {success:true,code:'delivery-debt-reconciliation-evidence-only',
     status,lineId,orderId:text(line.orderId),sourceKind,
     operationalDebt,postedCustomerBalance:postedBalance,
-    customerMatchCount:matches,matchedCustomerId:matches===1?matchedCustomerId:'',
+    customerMatchCount:matches,matchedCustomerId:matchedCustomerId,
+    orderExternalCustomerId,customerBindingStatus,
     identityMatchBasis:phone?'PHONE_UNVERIFIED':'NAME_UNVERIFIED',
     identityVerified:false,sourceOnly:true,
     evidenceCoverage:'BOUNDED_READS_NOT_ATOMIC_SNAPSHOT',
