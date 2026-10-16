@@ -1,0 +1,39 @@
+name: AP-299 Print + Laser Multi-Service Synthetic CI
+
+on:
+  push:
+    branches:
+      - feature/ap299-multiservice-scope-20261016
+    paths:
+      - autonomous-printshop/print-server/src/trendos_service_scope_gate.py
+      - autonomous-printshop/print-server/tests/test_ap299_multiservice_scope_synthetic.py
+      - .github/workflows/autonomous-printshop-ap299-multiservice-ci.yml
+  pull_request:
+    paths:
+      - autonomous-printshop/print-server/src/trendos_service_scope_gate.py
+      - autonomous-printshop/print-server/tests/test_ap299_multiservice_scope_synthetic.py
+      - .github/workflows/autonomous-printshop-ap299-multiservice-ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-multiservice-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Multi-service, print-only and AP296 schema synthetic tests
+        working-directory: autonomous-printshop/print-server
+        run: |
+          python -m py_compile src/trendos_service_scope_gate.py tests/test_ap299_multiservice_scope_synthetic.py
+          python -B -m unittest discover -s tests -p 'test_ap299_multiservice_scope_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap298_print_scope_gate_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap296_trendos_shadow_schema_synthetic.py' -v
+          echo "AP299_SOURCE_ONLY=YES; PRINT_AND_LASER=SIMULATED; NEW_SERVICES=REGISTRY_GATED"
+          echo "REAL_PLATFORM=OFF; REAL_CREDENTIALS=NONE; PRINTING=OFF; PRODUCTION_GO=NO"
