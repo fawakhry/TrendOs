@@ -1622,3 +1622,56 @@
 - Production scope المطلوب للإغلاق، إذا صرّح به المالك صراحة: **apply 0011 فقط → deploy API target فقط → reconcile exactly the verified 15 rows to `تم التسليم` داخل legacy runtime overlay → deploy qualified frontend only → read-only postflight**. لا تغيير Order IDs، لا Google write، لا Apps Script v159، ولا business CREATE test.
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY598 -->
+
+---
+
+## الملحق التاريخي ط — فهرس الأرشيف وقواعد منع تضخم الكتاب القديم
+
+> **التصنيف:** `HISTORICAL` / `ARCHIVAL_NAVIGATION`، مع حفظ قواعد التوثيق القديمة كمرجع للقرار؛ أي وصف للكتاب القديم كمرجع الحالة الجارية **ملغى بسياسة التعايش الأحدث في صدر هذا الكتاب**. لا تُغير هذه الإضافة سياسة `FROZEN / MIGRATION_ONLY` ولا تعطي صلاحية ترحيل كتب EasyStore أو المطبعة الذاتية.
+> **الأصل:** [TrendOS_MASTER_BOOK.md @ 168b0bec04da](https://github.com/fawakhry/TrendOs/blob/168b0bec04da6910fa9f27860a7348d377ada79d/TrendOS_MASTER_BOOK.md)، Git blob `9243105da4a54a809c20e9cf2e7faaa79bcf4266`، القسمان `§8` و`§8A` والفرع `قواعد منع تضخم الكتاب`.
+> **الاسترجاع:** [فرع الأرشيف عند commit b2788ecb](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md)، blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`. **تاريخ النقل:** 2026-10-16.
+> **معيار التحقق:** يجب بقاء الـ2617 حرفًا التالية متطابقة تمامًا مع المصدر والأرشيف قبل حذفها من الكتاب القديم.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ARCHIVE_NAV_POLICY -->
+## 8. ما لا يعود جزءًا من القراءة اليومية
+
+تم إخراج التفاصيل التالية من الـActive Book لأنها تاريخية/superseded:
+- Entry-by-entry diagnostic narration القديمة.
+- T11/T10/02xx/PERF-CF staging history.
+- TEST D1 mirror fixture chronology.
+- historical Google writer maps التي استُبدلت بمسارات Cloud live.
+- Apps Script staging harnesses وrehearsal procedures غير المستخدمة في Production الحالي.
+- historical promotion failures التي أعقبها independent Production PASS.
+- inventory/full-read batches والـmetadata-only coverage.
+
+للتدقيق أو rollback archaeology: استخدم Git history و`docs/trendos/blackbox/منصة ترند/` والـEntry reports بدل إعادة تضخيم هذا الكتاب.
+
+## 8A. فهرس الأرشيف — أين توجد التفاصيل التي خرجت من الكتاب الحي
+
+> **قاعدة الأرشفة:** الكتاب الرئيسي هو مرجع الحالة الحية والتشغيل والصيانة والخارطة الحالية. لا نعيد إليه السرد التاريخي المطول بعد إغلاق الموضوع. الأرشيف يحفظ التاريخ والدليل، والكتاب يشير إليه فقط.
+
+| ما الذي تبحث عنه؟ | المرجع الأساسي |
+|---|---|
+| التحقيقات، الأدلة، تفاصيل الأعطال والـEntries القديمة | `docs/trendos/blackbox/` |
+| سجل التنفيذ التاريخي المتسلسل | `docs/trendos/TRENDOS_EXECUTION_LEDGER.md` |
+| قرارات المشروع ولماذا اتُخذت | `docs/trendos/TRENDOS_DECISIONS.md` |
+| حالة وتسليم العمل بين الجلسات/المطورين | `docs/trendos/TRENDOS_HANDOFF.md` |
+| ذاكرة المشروع التاريخية | `docs/trendos/TRENDOS_PROJECT_MEMORY.md` |
+| سجلات العمل القديمة | `docs/trendos/TRENDOS_WORKLOG.md` |
+| نقاط التحقق المحفوظة | `docs/trendos/checkpoints/` |
+| جرد وتحليلات المكونات القديمة | `docs/trendos/inventory/` |
+| تفاصيل التنفيذ الفنية | `docs/trendos/implementation/` |
+| مواد وتجارب الـstaging التاريخية | `docs/trendos/staging/` |
+| مواد الكتاب القديمة/المجزأة | `docs/trendos/master-book/` |
+| تاريخ الحسابات التفصيلي | `TRENDOS_ACCOUNTING_BLACKBOX_2026-09-04.md` و`docs/trendos/TRENDOS_ACCOUNTING_FULL_REVIEW_2026-09-04.md` |
+| خارطة المنتج الأصلية حتى 01/03/2027 | `docs/trendos/TRENDOS_ROADMAP_2027-03-01.md` |
+| أي نسخة أو معلومة أزيلت من الملفات الحالية | Git history، مع baseline قبل تنظيف 2026-10-02 عند blob `9f5af80f436effbd3154751d05032608d657462a` |
+
+### قواعد منع تضخم الكتاب
+1. لا يُنقل السرد التاريخي من الأرشيف إلى الكتاب الرئيسي لمجرد أنه مفيد للتدقيق؛ يوضع مرجع له فقط.
+2. النتيجة التشغيلية الحالية تبقى في الكتاب؛ خطوات الوصول القديمة إليها تذهب للأرشيف.
+3. إذا عاد موضوع مؤرشف ليصبح dependency حية، يُعاد **ملخص حالته الحالية فقط** إلى الكتاب، لا تاريخه كاملًا.
+4. أي موضوع يُؤرشف مستقبلًا يجب أن يترك في الكتاب: اسم الموضوع، النتيجة النهائية، مكان الأرشيف، وآخر دليل موثوق.
+5. الأرشيف لا يعلو على Runtime الحالي عند التعارض؛ ترتيب الدليل في مقدمة الكتاب يظل الحاكم.
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ARCHIVE_NAV_POLICY -->
