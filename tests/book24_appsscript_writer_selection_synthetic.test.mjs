@@ -151,3 +151,42 @@ test('BOOK24: separate Script Properties stores do NOT prove global writer exclu
   assert.equal(separateOt.call.operator(),'OPERATOR_TASK_V2');
   assert.equal(separateWq.state.executions.length+separateOt.state.executions.length,2);
 });
+
+test('BOOK24: misspelled enabled property blocks BOTH writers instead of disabling safety',()=>{
+  for(const enabled of ['tru','enable','onx','1 ','نعمم','TRUEE','FALSEE','unknown']){
+    const f=sandbox({enabled,owner:'WORK_QUEUE_V1'});
+    assert.throws(()=>f.call.work(),/BOOK24_SCRIPT_WRITER_GUARD_VALUE_INVALID/,enabled);
+    assert.throws(()=>f.call.operator(),/BOOK24_SCRIPT_WRITER_GUARD_VALUE_INVALID/,enabled);
+    assert.deepEqual(f.state.executions,[]);
+    assert.equal(f.state.exits,2);
+    assert.deepEqual(f.state.propertyReads,[ENABLE,ENABLE],
+      'bad toggle must deny before reading selected writer');
+  }
+});
+test('BOOK24: explicitly disabled values remain backwards compatible',()=>{
+  for(const enabled of [undefined,'','0','false','FALSE','no','off',' Off ']){
+    const f=sandbox({enabled,owner:'D1'});
+    assert.equal(f.call.work(),'WORK_QUEUE_V1');
+    assert.equal(f.call.operator(),'OPERATOR_TASK_V2');
+    assert.deepEqual(f.state.executions,['WORK_QUEUE_V1','OPERATOR_TASK_V2']);
+  }
+});
+test('BOOK24: valid owner toggle spellings remain recognized by both lanes',()=>{
+  for(const enabled of ['1','true','YES','on','enabled','نعم']){
+    const f=sandbox({enabled,owner:'OPERATOR_TASK_V2'});
+    assert.throws(()=>f.call.work(),/BOOK24_WORK_QUEUE_NOT_SELECTED_WRITER/);
+    assert.equal(f.call.operator(),'OPERATOR_TASK_V2');
+    assert.deepEqual(f.state.executions,['OPERATOR_TASK_V2']);
+  }
+});
+test('BOOK24: new owner selector cannot be bypassed by a bad toggle after owner flip',()=>{
+  const f=sandbox({enabled:'1',owner:'WORK_QUEUE_V1'});
+  f.call.work();
+  f.state.props[ENABLE]='treu';
+  f.state.props[OWNER]='OPERATOR_TASK_V2';
+  assert.throws(()=>f.call.work(),/BOOK24_SCRIPT_WRITER_GUARD_VALUE_INVALID/);
+  assert.throws(()=>f.call.operator(),/BOOK24_SCRIPT_WRITER_GUARD_VALUE_INVALID/);
+  assert.deepEqual(f.state.executions,['WORK_QUEUE_V1']);
+  assert.equal(f.state.enters,3);
+  assert.equal(f.state.exits,3);
+});
