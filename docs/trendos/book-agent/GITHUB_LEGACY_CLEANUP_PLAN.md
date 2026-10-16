@@ -73,3 +73,7 @@ Read-only Git tree audit of book branch starting at `2fc7c187247b7b0cbd2e95c58cf
 - Legacy monolith `Code.gs` is **ACTIVE/SHARED/UNKNOWN pending runtime authority evidence**, not a deletion candidate. 614 old names persist in the audited book branch; 12 source spans have changed relative to the private original, 2 parser-boundary cases unresolved. [Diff](LEGACY_V1932_CURRENT_BRANCH_FUNCTION_DIFF_20261016.md).
 - Private recovery archive `TrendOS_V1932_Private_Recovery_20261016.zip` SHA256 `faaf42e0bb7cee1e9f94d43bb2a611eeb8c2f2dd286152c2951531bdd39f03dd`, ZIP & member checksums PASS in conversation-local runtime. Raw secret-risk source is **not posted publicly**. Offsite backup and environment recovery are **not verified**.
 - `APPROVED_REMOVAL_PATHS=0`; `MOVED=0`; `DELETED=0`; `BRANCHES_DELETED=0`; `MERGED=0`; `DEPLOYED=0`. Next: static call graph + deployment evidence and user-reviewed path list.
+
+### 7.1 Nine mirrored paths provenance enriched
+
+Source bodies inspected for nine root App Script modules and 192 named function declarations counted; last path-affecting Git commit and date, Git blob SHA, module purpose and presence of external API names recorded in [provenance report](LEGACY_FIRST_MIRROR_PAIR_PROVENANCE_20261016.md). No proof of first use, last actual use, deployment project membership or absence of consumers. The corresponding nine autonomous-printshop mirror paths remain **audit-only** and **0** deletions approved; do not equate folder placement with separate-repository migration.
