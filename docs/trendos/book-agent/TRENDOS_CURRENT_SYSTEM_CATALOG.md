@@ -13,6 +13,8 @@
 - **أصل المنصة القديم:** [`TRENDOS_LEGACY_PRE_SPLIT_BOOK.md`](TRENDOS_LEGACY_PRE_SPLIT_BOOK.md) مع [`LEGACY_SOURCE_RECOVERY_REGISTER.md`](LEGACY_SOURCE_RECOVERY_REGISTER.md) و[`GITHUB_LEGACY_CLEANUP_PLAN.md`](GITHUB_LEGACY_CLEANUP_PLAN.md). لا تُدرج الأكواد القديمة كوظائف حية لمجرد وجودها.
 - **كتالوج الاختبارات:** [`CURRENT_TEST_EVIDENCE_LEDGER.md`](CURRENT_TEST_EVIDENCE_LEDGER.md)، **قائمة التحقيق** [`TEST_EVIDENCE_QUEUE.md`](TEST_EVIDENCE_QUEUE.md)، و**الأخطاء** [`ISSUE_REGISTER.md`](ISSUE_REGISTER.md)، **السجل** [`AGENT_LOG.md`](AGENT_LOG.md).
 
+**تحديث 16 أكتوبر 2026:** أضيف الفصل **32** لأمان ملفات Cloudflare/R2 وخادم الطباعة المحلي، بتصنيف `SOURCE_ONLY` وربط البلاغات الموجودة لا مضاعفتها. أصبحت الفصول **1–32**؛ الـ31 فصلًا الأولى من المسودة المحفوظة دون فقد.
+
 ## قواعد الاعتماد على هذا الكتاب
 
 1. **هذا الملف هو مدخل المعرفة الرسمي لمنصة TrendOS الحالية**. مضمونه يُحدَّث بأدلة مراجعة على أحدث HEAD، مع حفظ النسب إلى Commit وملفات التشغيل/الاختبار. لا يُمنح أي فصل ختم `PRODUCTION_VERIFIED` إلا بربط نسخة النشر والفحص الفعلي في البيئة الصحيحة.
