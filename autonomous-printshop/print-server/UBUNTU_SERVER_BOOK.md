@@ -210,3 +210,10 @@
 - **Handoff:** [`AP302_OFFLINE_HTTPS_HANDSHAKE_GATE.md`](AP302_OFFLINE_HTTPS_HANDSHAKE_GATE.md) records the route divergence and gating G1–G5 to actual deployed backend role + session/row schema, real HTTPS transport after review, explicit owner approval for account creation/any live read, and eventual host staging separately.
 - **No host/production changes:** `TrendosShop` still running owner-preserved older local Git, no Ubuntu `pull` or daemon changes; no SSH/UFW/router exposure; no Cloudflare/D1/Secrets mutation; no printer or laser job executed.
 - **Gate:** `AP302_FAKE_REGRESSION=98_OF_98_PASS`; `AP302_ACCOUNT_NOT_CREATED=YES`; `AP302_REAL_ENDPOINT_NOT_VERIFIED=YES`; `AP302_LIVE_CONNECTION=NO`; `AP302_PRODUCTION_GO=NO`.
+
+
+### SERVER-20261016-21 — AP-302 fail-closed request/claim hardening; latest fake CI 100/100 (2026-10-16)
+- **Review after AP-302 initial 98/98 PASS:** `src/trendos_orders_dry_run.py` now checks exactly the expected simulated `POST` session fields and `GET` page fields (method, query, headers, body, fixed fake host), refusing request mutation or implicit expansion of the mock screen scope. Nested/unhashable items in fake `screens` fail closed to `AP302_FAKE_SESSION_SCOPE_DENIED` without uncaught exception or upstream data leakage.
+- **New regressions:** 2 new AP-302 unittest methods for malformed session `screens` and unexpected method/URL/body/query/headers.
+- **Independent hosted CI:** [run 38915205413](https://github.com/fawakhry/TrendOs/actions/runs/38915205413), job `117020775632` completed **SUCCESS**; inspected logs: `Ran 27 tests` AP302 + `23` AP301 + `18` AP299 + `17` AP298 + `15` AP296 all `OK` = **100/100 PASS**. Earlier `98/98` CI in SERVER-20261016-20 remains a factual historical checkpoint, now superseded for latest AP-302 coverage.
+- **Documentation:** appended new evidence to [`AP302_OFFLINE_HTTPS_HANDSHAKE_GATE.md`](AP302_OFFLINE_HTTPS_HANDSHAKE_GATE.md). `AP302_TESTS_LATEST=100_OF_100_PASS`; `DRAFT_PR_144=OPEN`; `MOCK_ONLY=YES`; `UBUNTU_UPDATED=NO`; `ACCOUNT_CREATED=NO`; `DEPLOYED_API_VERIFIED=NO`; `LIVE_CUSTOMER_READ=NO`; `PRODUCTION_GO=NO`.
