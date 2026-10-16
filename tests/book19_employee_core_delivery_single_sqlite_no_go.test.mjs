@@ -65,13 +65,27 @@ try {
   insCloud('FAKE_T12_RACE_DEBT','FAKE_T12_O_RACE_DEBT','Native Race Debt','FAKE_PHONE_004',0);
   insCloud('FAKE_T12_RACE_BULK','FAKE_T12_O_RACE_BULK','Native Race Bulk','FAKE_PHONE_005',35);
   insCloud('FAKE_T12_BULK_OK','FAKE_T12_O_BULK_OK','Native Bulk Allowed','FAKE_PHONE_006',0);
+  insCloud('FAKE_T12_DUP_PHONE','FAKE_T12_O_DUP_PHONE','Shared Phone Order','FAKE_SHARED_PHONE',0);
+  insCloud('FAKE_T12_DUP_NAME','FAKE_T12_O_DUP_NAME','Shared Name Customer','',0);
+  insCloud('FAKE_T12_LATE_DUP','FAKE_T12_O_LATE_DUP','Late Phone Identity','FAKE_LATE_PHONE',0);
+  insCloud('FAKE_T12_BULK_AMBIG','FAKE_T12_O_BULK_AMBIG','Bulk Shared Customer','FAKE_BULK_SHARED',0);
+  insCloud('FAKE_T12_BULK_UNIQUE','FAKE_T12_O_BULK_UNIQUE','Bulk Unique Customer','FAKE_BULK_UNIQUE',0);
+  db.prepare("INSERT INTO t12_customers(customer_id,customer_name,phone,debt_amount) VALUES(?,?,?,?)")
+    .run('FAKE_DUPLICATE_PHONE_ID','Different Restricted Customer','FAKE_SHARED_PHONE',80);
+  db.prepare("INSERT INTO t12_customers(customer_id,customer_name,phone,debt_amount) VALUES(?,?,?,?)")
+    .run('FAKE_DUPLICATE_NAME_ID','Shared Name Customer','',50);
+  db.prepare("INSERT INTO t12_customers(customer_id,customer_name,phone,debt_amount) VALUES(?,?,?,?)")
+    .run('FAKE_DUPLICATE_BULK_ID','Another Bulk Person','FAKE_BULK_SHARED',65);
+  db.prepare("UPDATE t12_prod_lines SET status='جاهز للاستلام' WHERE line_id IN (?,?)")
+    .run('FAKE_T12_BULK_AMBIG','FAKE_T12_BULK_UNIQUE');
   db.prepare("UPDATE t12_prod_lines SET status='تحت التنفيذ' WHERE line_id IN (?,?)")
     .run('FAKE_T12_RACE_BULK','FAKE_T12_BULK_OK');
   for(const [key,name,until] of [
     ['debt blocked','Debt Blocked',''],['debt expired','Debt Expired','2001-01-01'],
     ['other department','Other Department',''],['native blocked','Native Blocked',''],
     ['native clear','Native Clear',''],['imported race debt','Imported Race Debt',''],
-    ['native race debt','Native Race Debt','']
+    ['native race debt','Native Race Debt',''],
+    ['different restricted customer','Different Restricted Customer','']
   ])db.prepare("INSERT INTO employee_core_delivery_restrictions_v1(customer_key,customer_name,valid_until) VALUES(?,?,?)")
     .run(key,name,until);
 
@@ -333,6 +347,67 @@ try {
     assert.equal(one("SELECT status FROM t12_prod_line_runtime WHERE line_id='FAKE_T12_RACE_BULK'"),undefined);
     assert.equal(one("SELECT COUNT(*) AS n FROM t12_prod_runtime_events WHERE line_id='FAKE_T12_BULK_OK' AND new_status='تم التسليم'").n,1);
     assert.notDeepEqual(effects(),before,'allowed T12 order should transition exactly once');
+  });
+
+  await test('17 BOOK19 shared phone T12 order cannot inherit arbitrarily selected customer balance',async()=>{
+    const before=effects();
+    const r=await send('updateLine',{lineId:'FAKE_T12_DUP_PHONE',status:'تم التسليم'});
+    assert.equal(r.success,false,JSON.stringify(r));
+    assert.equal(r.code,'employee-core-customer-identity-ambiguous');
+    assert.equal(r.deliveryBlocked,true);
+    assert.deepEqual(effects(),before,'different restricted client sharing phone may never authorize delivery');
+  });
+  await test('18 BOOK19 repeated exact customer name without phone is identity-ambiguous and blocks delivery',async()=>{
+    const before=effects();
+    const r=await send('updateLine',{lineId:'FAKE_T12_DUP_NAME',status:'تم التسليم'});
+    assert.equal(r.success,false,JSON.stringify(r));
+    assert.equal(r.code,'employee-core-customer-identity-ambiguous');
+    assert.deepEqual(effects(),before);
+  });
+  await test('19 BOOK19 late matching customer inserted after read cannot bypass write-time T12 unique ID gate',async()=>{
+    const before=effects();
+    let injected=false;
+    beforeStatusWrite=()=>{
+      injected=true;
+      db.prepare("INSERT INTO t12_customers(customer_id,customer_name,phone,debt_amount) VALUES(?,?,?,?)")
+        .run('FAKE_LATE_SECOND_MATCH','Different Late Customer','FAKE_LATE_PHONE',95);
+    };
+    let r;
+    try{r=await send('updateLine',{lineId:'FAKE_T12_LATE_DUP',status:'تم التسليم'});}
+    finally{beforeStatusWrite=null;}
+    assert.equal(injected,true,'the new match must appear after line read and before SQL status write');
+    assert.equal(r.success,false,JSON.stringify(r));
+    assert.equal(r.deliveryBlocked,true);
+    assert.deepEqual(effects(),before,'no financial/line side effects from late duplicate identity');
+  });
+  await test('20 BOOK19 bulk with ambiguous T12 phone must not record mixed delivered orders',async()=>{
+    const before=effects();
+    role='print';department='طباعة';
+    let r;
+    try{r=await send('bulkUpdateDepartmentStatusV1926',{
+      screen:'print',fromStatus:'جاهز للاستلام',toStatus:'تم التسليم',
+      requestId:'FAKE_BULK_AMBIGUOUS_T12_20261016_0001'});
+    }finally{role='service';department='خدمة العملاء';}
+    assert.equal(r.success,false,JSON.stringify(r));
+    assert.deepEqual(effects(),before,'ambiguous and unique candidate should both roll back on mixed bulk');
+    assert.equal(one("SELECT status FROM employee_core_request_ledger_v1 WHERE request_key=?",'FAKE_BULK_AMBIGUOUS_T12_20261016_0001')?.status,'PREPARED');
+  });
+  await test('21 BOOK19 after disambiguating only fake T12 customer, bulk delivery of unique clients proceeds',async()=>{
+    db.prepare("DELETE FROM t12_customers WHERE customer_id='FAKE_DUPLICATE_BULK_ID'").run();
+    const before=effects();
+    role='print';department='طباعة';
+    let r;
+    try{r=await send('bulkUpdateDepartmentStatusV1926',{
+      screen:'print',fromStatus:'جاهز للاستلام',toStatus:'تم التسليم',
+      requestId:'FAKE_BULK_DISAMBIGUATED_T12_20261016_0001'});
+    }finally{role='service';department='خدمة العملاء';}
+    assert.equal(r.success,true,JSON.stringify(r));
+    assert.equal(r.changed,2,JSON.stringify(r));
+    for(const lineId of ['FAKE_T12_BULK_AMBIG','FAKE_T12_BULK_UNIQUE']){
+      assert.equal(one('SELECT status FROM t12_prod_line_runtime WHERE line_id=?',lineId)?.status,'تم التسليم');
+    }
+    assert.notDeepEqual(effects(),before);
+    assert.equal(network,0);
   });
   console.log('BOOK19_NATIVE_SINGLE_DELIVERY=FAKE_SQLITE_SOURCE_ONLY');
   console.log('BOOK19_CORE_FINANCE_RELEASE=NO_GO');
