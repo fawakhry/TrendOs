@@ -36,3 +36,8 @@
 | P2 | `BOOK23-CLEANING-RACE`, `BOOK21-OBSERVABILITY`, `BOOK31-SAFE-START-PROFILE` | Scheduling race, audit without PII, safe isolated start. | Offline source/FakeDB tests. |
 
 **Interpretation:** Queue is a triage/filter view, NOT an exhaustive closure list. Each historical ID must be rechecked against the **latest code and competing PRs** before any patch. A green fake test is `TESTED_SYNTHETIC`, never `PRODUCTION_VERIFIED`. Do not move finance back into this queue unless the owner explicitly asks.
+
+## 2026-10-16 — BOOK24 direct Apps Script single-writer selector on Draft #175
+
+- **P0 partial `BOOK24-APPS_SCRIPT-WRITER-SELECTION`**: [Draft #175](https://github.com/fawakhry/TrendOs/pull/175) adds DEFAULT-OFF `TRENDOS_TASK_SCRIPT_SINGLE_WRITER_GUARD_V1_ENABLED` with ScriptLock-scoped `TRENDOS_TASK_SCRIPT_WRITER_V1` chosen as `WORK_QUEUE_V1`, `OPERATOR_TASK_V2`, `D1`, or `NONE`. When opt-in is enabled only the matching Apps Script lane mutates; D1/NONE deny both. Source/test SHA `17092ee19c5a435a598f64ac5c6bde3fd281a3eb`; [CI #38941153851](https://github.com/fawakhry/TrendOs/actions/runs/38941153851) 13/13 fake + inherited WQ 11/11, Operator V2 13/13, Edge 4/4 PASS, Gaber material and browser SUCCESS. No property or deployment changes.
+- **`BOOK24-TASK-AUTHORITY` parent P0 remains OPEN**, with separate-project Script Property namespace and uncoordinated direct Apps Script versus D1 writer; negative mock proves independent projects can both allow their own lane. Need deployed script-project/lock namespace inventory, operational single authoritative store selection and owner-approved global handoff; #171 protects D1 mode, #173 only the opt-in Edge proxy. `ZERO_GOOGLE_COMPLETE=NO`, `MERGE=NO`, `DEPLOY=NO`, `PRODUCTION_VERIFIED=NO`.
