@@ -19,6 +19,11 @@ on:
       - 'autonomous-printshop/print-server/src/trendos_shadow_qualifier.py'
       - 'autonomous-printshop/print-server/trendos_shadow_schema_demo.py'
       - 'autonomous-printshop/print-server/tests/test_ap296_trendos_shadow_schema_synthetic.py'
+      - 'autonomous-printshop/print-server/tests/test_shadow_strict_success.py'
+      - 'autonomous-printshop/print-server/tests/test_issue10_read_contract_source_guards.py'
+      - 'autonomous-printshop/print-server/tests/test_issue8_native_auth_config_source.py'
+      - 'employee-api-dispatcher-v1.js'
+      - 'config.js'
       - '.github/workflows/autonomous-printshop-ap296-trendos-shadow-schema-ci.yml'
   workflow_dispatch:
 
