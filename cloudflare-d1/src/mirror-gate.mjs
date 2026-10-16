@@ -318,6 +318,13 @@ export async function handleMirrorRequest(request, env, ctx) {
     return json({ success: false, message: 'Mirror route not found' }, 404, cors);
   }
 
+  // BOOK26 P0: SELECT-only is not an authorization policy. Restrict mirror
+  // sheet names, metadata, row values AND formulas to migration operators.
+  // Fail before all D1 reads; no token/secret in the URL or error response.
+  if (request.method === 'GET' && !migrationAuthorized(request, env)) {
+    return json({ success: false, code: 'mirror-read-unauthorized' }, 401, cors);
+  }
+
   // Read paths are deliberately implemented here with SELECT-only statements.
   // They must never call legacy ensureMirrorSchema(), so parity/freshness probes
   // remain observational even if a table is unexpectedly absent.
