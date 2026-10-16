@@ -21,3 +21,9 @@
 - **AUTOMATION:** تم تعديل مهمة `TrendOS Current Catalog` اليومية لتبدأ كل دورة بالكتالوج الجديد والأدلة وتعمل على gap صغيرة وتوثق failure، دون أي دمج/نشر.
 - **RESULT:** `DOCS_ONLY_COMMITS_CONFIRMED` حتى commit `8d7337...`. **لا حذف لأي كود أو تغيير production أو تشغيل اختبار جديد.** `CATALOG_COMPLETE=NO`, `CONTENT_AND_RUNTIME_PARITY_OPEN`.
 - **NEXT:** إعادة جلب files/head للتحقق المستقل؛ ثم تعقب كل زر في app.js وكل module آخر إلى handler/API/data/test، وقراءة كاملة لكود المصدر الحيوي تدريجيًا، وترحيل الاختبارات المرتبطة بحالي الإنتاج مع كل فشل.
+
+## 2026-10-16 / CURRENT-UI-RULES-003
+- READ: `app.js` lines 1–145, blob `9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875` on book branch; role screens, status lists, visibility, priorities, heat press, fly print and debt helper.
+- WRITE: added chapter 8 to `TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md`; commit `d628239f2d91329feadad7562ddb2586aa708a4e`; independent re-fetch confirmed chapter present, blob `1681417910f222315f28321bf2eeddbe5809331e`.
+- RESULT: SOURCE_ONLY. No runtime or permission parity claim, no product code change, merge, deploy or live test.
+- NEXT: trace callers and API authorization for these UI rules and match exact-head tests before upgrading coverage.
