@@ -13,7 +13,7 @@
       "authority": "CANONICAL_DOCUMENTATION",
       "verification": "PARTIALLY_VERIFIED",
       "deployment_certified": false,
-      "chapter_count": 31
+      "chapter_count": 32
     },
     {
       "priority": 2,
@@ -84,8 +84,10 @@
     "all_live_writers_attributed": false,
     "all_tests_reconciled": false,
     "all_issues_resolved": false,
-    "final_completeness_owner_acceptance": false
+    "final_completeness_owner_acceptance": false,
+    "chapters_contiguous_from_one_to_32": true,
+    "chapter_32_file_print_scope": "SOURCE_ONLY_NOT_RUNTIME_TESTED"
   },
   "writer_contract": "Read latest GitHub HEAD and the three authoritative books; update current catalog for evidenced present behavior; append decisions to master book when properly authorized and independently reviewed; update legacy book only for history; record SOURCE_ONLY/TESTED/BLOCKED/PRODUCTION_VERIFIED distinctly; append audit log, cross-check latest branches and competing PRs before declaring issues.",
-  "adoption_status": "DOCUMENTATION_CANONICAL_APPROVED; FULL_CATALOG_CERTIFICATION_PENDING"
+  "adoption_status": "DOCUMENTATION_CANONICAL_APPROVED; 32_CHAPTERS_DOCUMENTED; FULL_CATALOG_CERTIFICATION_PENDING"
 }
