@@ -114,3 +114,11 @@
 مكرر ولا يُعاد إدخاله: BOOK21-MIRROR-PAYLOAD (row-count vs full row payload hash).
 
 عند اختبار أي ID سجل TEST_COMMAND, EXPECTED, ACTUAL, ENVIRONMENT, TARGET_SHA, RUN_URL, RUN_SHA, FIX_SHA, REGRESSION_PASS, PRODUCTION_PARITY؛ لا تحول File test source إلى TESTED تلقائيًا.
+
+## 2026-10-16 — BOOK28-CORE-RECOVERY exact code SHA CI
+
+- SOURCE: `fix/book28-bulk-500-result-truth-20261016@00d5f39967ec4f700a6bdea8a9b8e9d17d96e626`, direct `PREPARED` ledger insert followed by separate D1 mutations and response commit.
+- CHANGE: `fix/book28-core-bulk-atomic-ledger-20261016` Draft [#165](https://github.com/fawakhry/TrendOs/pull/165), exact CODE HEAD `3c0efd19677936882a3686806bf6308990616b2e`. Bulk-only atomic transaction; archive intentionally not claimed fixed.
+- TEST: `node --test tests/book28_bulk_500_result_truth_synthetic.test.mjs` 10/10 PASS, covers 500/501/1201 window, exact 500, idempotent replay, archive 501 two requests unchanged, fault before read, D1 batch rollback, lost ACK replay, 500-line statement budget and imported/native audit event parity. Dedicated [#38933618875](https://github.com/fawakhry/TrendOs/actions/runs/38933618875) SUCCESS.
+- REGRESSION: 13/13 [Core line scope](https://github.com/fawakhry/TrendOs/actions/runs/38933618992) PASS, 11/11 [manager/mirror](https://github.com/fawakhry/TrendOs/actions/runs/38933618906) PASS, [Book28 bulk #38933619033](https://github.com/fawakhry/TrendOs/actions/runs/38933619033) PASS, [A61 browser #38933618869](https://github.com/fawakhry/TrendOs/actions/runs/38933618869) PASS; SQLite in-memory event count 500/500, Entry644/650 PASS.
+- `RUNTIME_EVIDENCE=NOT_VERIFIED`; `PRODUCTION_VERIFIED=NO`. Pre-existing PREPARED ledgers and archive failure recovery remain blocked until authorized audit; never auto-delete/replay.
