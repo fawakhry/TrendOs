@@ -10733,3 +10733,10 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 تم إنشاء [Draft PR #176](https://github.com/fawakhry/TrendOs/pull/176) على فرع مراجعة مستقل، مع اختبار VM وهمي يثبت Fallback عند رد `403` أو فشل شبكة من دون استدعاء Production أو بيانات عملاء. [CI #38940926060](https://github.com/fawakhry/TrendOs/actions/runs/38940926060) **9/9 PASS**. [مصفوفة المستهلكين والتوافق](print-server/SERVER56_LEGACY_CONSUMERS_COMPATIBILITY_MATRIX.md) و[تفاصيل كتاب السيرفر](print-server/UBUNTU_SERVER_BOOK.md) توضح ما ثبت وما لم يثبت.
 
 **الحالة:** لا دمج أو نشر، ولا تفعيل Ubuntu أو حساب الخدمة. نجاح المحاكاة لا يثبت أن جميع مستخدمي الواجهة أو التطبيقات الخارجية سيلجؤون إلى Apps Script. تدقيق `SEC-AP303-02` لم ينته؛ مطلوب جرد Worker `trendos` الآخر وسياسات Access/WAF والمستهلكين قبل اعتماد التغيير وتحديد Rollback. `PROD_GO=NO`.
+
+
+## SERVER-20261016-57 — خدمة Cloudflare القديمة `trendos`: لا سياسة Access خاصة (2026-10-16)
+
+وفق لقطة المالك من `Workers & Pages → trendos → Production → Access` تظهر رسالة `This Worker is not protected by Access`. هذا Worker مختلف عن `trendos-d1-api` الذي فُحص في SERVER-51–55، ويستخدمه جسر إدارة العملاء V1934 في المصدر. **غياب Worker-specific Access لا يثبت وجود كشف للبيانات**، ولا يؤكد وجود/غياب قواعد حماية Hostname/Account/WAF أو ربط D1 لدى هذه الخدمة الثانية.
+
+تم تحديث [كتاب السيرفر المرحلة 57](print-server/UBUNTU_SERVER_BOOK.md) و[مصفوفة المستهلكين](print-server/SERVER56_LEGACY_CONSUMERS_COMPATIBILITY_MATRIX.md). لا تغيير إنتاجي ولا دمج. الخطوة القادمة عرض `Domains` للخدمة `trendos` للتحقق من تفعيل Production/Preview، مع إبقاء `SEC-AP303-02=OPEN_HIGH_PRIORITY` و`LIVE_ORDER_READER=OFF`.
