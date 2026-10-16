@@ -494,6 +494,123 @@ try{
       .run('FAKE_CREDIT_INVOICE_D');
     assert.deepEqual(liabilitySnapshot(),previous);
   });
+
+  // 2026-10-16 PREPARED FORENSICS: intentionally NO financial commands.
+  // These fake SQLite tests never unlock, retry, refund or reconcile a ledger.
+  const forensicSnapshot=()=>({
+    balances:liabilitySnapshot(),
+    requestStates:all('SELECT request_key,status FROM employee_accounting_request_ledger_v1 ORDER BY request_key'),
+    creditEvents:all('SELECT request_key,delta_cents FROM employee_accounting_customer_credit_events_v1 ORDER BY request_key'),
+    cashbox:all('SELECT request_key,amount FROM employee_accounting_cashbox_v1 ORDER BY request_key')
+  });
+  await test('33 stale invoice PREPARED exposes no visible effects but NEVER authorizes automatic replay',async()=>{
+    const before=forensicSnapshot();
+    const key=staleInvoice.requestId;
+    assert.equal(one('SELECT status FROM employee_accounting_request_ledger_v1 WHERE request_key=?',key).status,'PREPARED');
+    const r=await send('previewCustomerCreditPreparedCommandV1',{requestKey:key});
+    assert.equal(r.success,true,JSON.stringify(r));
+    assert.equal(r.commandStatus,'PREPARED');
+    assert.equal(r.operation,'credit-direct-sale');
+    assert.equal(r.observedEffectCount,0);
+    assert.equal(r.reviewState,'PREPARED_WITHOUT_VISIBLE_EFFECTS_STILL_UNRESOLVED');
+    assert.equal(r.automaticRetryAuthorized,false);
+    assert.equal(r.postingAllowed,false);
+    assert.equal(r.manualReconciliationRequired,true);
+    assert.equal(r.financeRelease,'NO_GO');
+    assert.deepEqual(forensicSnapshot(),before);
+  });
+  await test('34 stale receipt PREPARED inspectable in READONLY even if credit feature flag OFF',async()=>{
+    const before=forensicSnapshot();
+    env.EASYSTORE_CUSTOMER_CREDIT_V1='OFF';
+    db.exec("UPDATE employee_accounting_control_v1 SET mode='READONLY' WHERE singleton=1");
+    try{
+      const r=await send('previewCustomerCreditPreparedCommandV1',{requestKey:staleReceipt.requestId});
+      assert.equal(r.success,true,JSON.stringify(r));
+      assert.equal(r.operation,'party-ledger:customer:payment_received');
+      assert.equal(r.creditFeatureEnabled,false);
+      assert.equal(r.commandStatus,'PREPARED');
+      assert.equal(r.observedEffectCount,0);
+      assert.equal(r.automaticRetryAuthorized,false);
+      assert.equal(r.refundAuthorized,false);
+    }finally{
+      env.EASYSTORE_CUSTOMER_CREDIT_V1='ON';
+      db.exec("UPDATE employee_accounting_control_v1 SET mode='GENERAL' WHERE singleton=1");
+    }
+    assert.deepEqual(forensicSnapshot(),before);
+  });
+  await test('35 successful credit invoice and excess receipt have distinct bounded evidence footprints',async()=>{
+    const before=forensicSnapshot();
+    const invoice=await send('previewCustomerCreditPreparedCommandV1',{requestKey:sale('D',20,0,'FAKE_CUST_B').requestId});
+    assert.equal(invoice.success,true,JSON.stringify(invoice));
+    assert.equal(invoice.commandStatus,'COMMITTED');
+    assert.equal(invoice.evidence.invoiceCount,1);
+    assert.equal(invoice.evidence.creditEventCount,1);
+    assert.ok(invoice.evidence.stockMovementCount>0);
+    assert.ok(invoice.observedEffectCount>=3);
+    assert.equal(invoice.reviewState,'COMMITTED_EVIDENCE_CHECK_ONLY');
+    assert.equal(invoice.automaticRetryAuthorized,false);
+    const receipt=await send('previewCustomerCreditPreparedCommandV1',{requestKey:receive('OVER',100).requestId});
+    assert.equal(receipt.success,true,JSON.stringify(receipt));
+    assert.equal(receipt.commandStatus,'COMMITTED');
+    assert.equal(receipt.evidence.invoiceCount,0);
+    assert.equal(receipt.evidence.cashCount,1);
+    assert.equal(receipt.evidence.creditEventCount,1);
+    assert.equal(receipt.refundAuthorized,false);
+    assert.deepEqual(forensicSnapshot(),before);
+  });
+  await test('36 forged full role, unauthenticated caller, invalid keys and unrelated operation fail closed',async()=>{
+    const before=forensicSnapshot();
+    role='service';
+    try{
+      const denied=await send('previewCustomerCreditPreparedCommandV1',{
+        requestKey:staleInvoice.requestId,role:'admin',ownerVerified:true
+      });
+      assert.equal(denied.success,false);
+      assert.equal(denied.status,403);
+    }finally{role='admin';}
+    const invalidToken=await send('previewCustomerCreditPreparedCommandV1',
+      {requestKey:staleInvoice.requestId},{token:'FAKE_BAD_TOKEN'});
+    assert.equal(invalidToken.status,401);
+    for(const requestKey of ['../bad','x','FAKE_CREDIT_TEST_KEY!',''.padEnd(181,'A')]){
+      const r=await send('previewCustomerCreditPreparedCommandV1',{requestKey});
+      assert.equal(r.success,false,JSON.stringify(r));
+      assert.equal(r.code,'customer-credit-prepared-key-required');
+      assert.equal(r.postingAllowed,false);
+    }
+    const absent=await send('previewCustomerCreditPreparedCommandV1',{requestKey:'FAKE_UNKNOWN_PREPARED_0001'});
+    assert.equal(absent.code,'customer-credit-prepared-not-found');
+    const unrelated=await send('previewCustomerCreditPreparedCommandV1',{requestKey:'FAKE_CREDIT_MATERIAL_0001'});
+    assert.equal(unrelated.code,'customer-credit-prepared-out-of-scope');
+    assert.deepEqual(forensicSnapshot(),before);
+  });
+  await test('37 mocked interrupted commit with prior effects stays manual review; never marked safe to replay',async()=>{
+    const key=sale('D',20,0,'FAKE_CUST_B').requestId;
+    const before=forensicSnapshot();
+    db.prepare("UPDATE employee_accounting_request_ledger_v1 SET status='PREPARED' WHERE request_key=?").run(key);
+    try{
+      const r=await send('previewCustomerCreditPreparedCommandV1',{requestKey:key});
+      assert.equal(r.success,true,JSON.stringify(r));
+      assert.equal(r.commandStatus,'PREPARED');
+      assert.ok(r.observedEffectCount>=3);
+      assert.equal(r.reviewState,'PREPARED_WITH_EFFECTS_MANUAL_RECONCILIATION');
+      assert.equal(r.automaticRetryAuthorized,false);
+      assert.equal(r.creditRestorationAuthorized,false);
+      assert.equal(r.postingAllowed,false);
+    }finally{
+      db.prepare("UPDATE employee_accounting_request_ledger_v1 SET status='COMMITTED' WHERE request_key=?").run(key);
+    }
+    assert.deepEqual(forensicSnapshot(),before);
+  });
+  await test('38 repeated PREPARED preview is idempotent read and does not alter credit, cash or pending state',async()=>{
+    const before=forensicSnapshot();
+    const req={requestKey:staleReceipt.requestId};
+    const a=await send('previewCustomerCreditPreparedCommandV1',req);
+    const b=await send('previewCustomerCreditPreparedCommandV1',req);
+    assert.deepEqual(b,a);
+    assert.equal(a.automaticRetryAuthorized,false);
+    assert.deepEqual(forensicSnapshot(),before);
+    assert.equal(network,0);
+  });
   await test('21 preserve integrity: cash equals actual funds received; credit events reconcile liability',()=>{
     assert.equal(network,0);
     for(const id of ['FAKE_CUST_A','FAKE_CUST_B']){
