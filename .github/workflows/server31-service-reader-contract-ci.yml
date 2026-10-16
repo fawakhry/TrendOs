@@ -1,0 +1,26 @@
+name: SERVER-31 Service Reader Policy (Proposed Only)
+on:
+  pull_request:
+    paths:
+      - autonomous-printshop/print-server/SERVICE_ORDER_READER_POLICY_V1.json
+      - tests/server31_service_reader_contract.test.mjs
+      - .github/workflows/server31-service-reader-contract-ci.yml
+  push:
+    branches:
+      - feature/server31-service-reader-auth-contract-20261016
+
+permissions:
+  contents: read
+
+jobs:
+  contract-only-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/server31_service_reader_contract.test.mjs

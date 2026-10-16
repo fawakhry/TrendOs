@@ -1,0 +1,79 @@
+{
+  "schema": "trendosshop.service-order-reader.policy.v1",
+  "policyStatus": "PROPOSED_NOT_DEPLOYED",
+  "principal": {
+    "id": "trendosshop_order_reader",
+    "kind": "dedicated-service-principal",
+    "provisioned": false,
+    "enabled": false,
+    "mayUseEmployeeIdentity": false
+  },
+  "authorization": {
+    "authority": "D1-backend-only",
+    "defaultDeny": true,
+    "operation": "orders.read",
+    "screens": [
+      "print",
+      "laser"
+    ],
+    "lineScoped": true,
+    "requireMatchedOrderIdAndLineId": true,
+    "requestedScreenNeverGrantsAccess": true,
+    "acceptedFields": [
+      "orderId",
+      "lineId",
+      "screen",
+      "serviceCode",
+      "status",
+      "quantity"
+    ],
+    "forbiddenScreens": [
+      "service",
+      "press",
+      ""
+    ],
+    "forbiddenOperations": [
+      "orders.write",
+      "orders.status.change",
+      "customers.directory.read",
+      "accounting.read",
+      "accounting.write",
+      "files.write",
+      "devices.execute",
+      "printers.execute",
+      "laser.execute",
+      "sessions.admin"
+    ]
+  },
+  "security": {
+    "issuer": "dedicated-service-issuer-to-be-implemented",
+    "audience": "trendos-d1-api",
+    "tokenStoredInRepository": false,
+    "externalSecretSourceRequired": true,
+    "shortLivedAndRevocable": true,
+    "httpsOutgoingOnly": true,
+    "allowRedirects": false,
+    "liveCloudflareAccessVerified": false
+  },
+  "readClient": {
+    "enabled": false,
+    "oneShotOnly": true,
+    "host": "trendos-d1-api.trendmall-contact.workers.dev",
+    "maxPageSize": 20,
+    "maxResponseBytes": 131072,
+    "timeoutSeconds": 5,
+    "localFilesystemWrites": false
+  },
+  "changeGates": {
+    "cloudflareDeployOwnerApprovalRequired": true,
+    "accountCreationOwnerApprovalRequired": true,
+    "ubuntuExecutionOwnerApprovalRequired": true,
+    "productionOrdersReadOwnerApprovalRequired": true
+  },
+  "evidence": {
+    "existingSynthetic": "AP-301+AP-302",
+    "serverSideAuthorizationImplemented": false,
+    "liveAuthQualified": false,
+    "actualBackendPathApproved": false
+  }
+}
