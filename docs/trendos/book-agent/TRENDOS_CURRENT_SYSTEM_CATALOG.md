@@ -2007,3 +2007,74 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=CREATE_AND_RUN_DEDICATED_READONLY_ENTRY608_CONTROL_PLANE_CHECK; NO_AUTH_ENABLE
   ```
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY608_PART_1 -->
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY608_PART_2 -->
+- Dedicated read-only workflow created in commit `27387a7e02c305fab46a24a0309bee544d31f24d`.
+- First assessment run `37120602621`, job `111195790507` = **FAIL before Production checks**.
+- Failure cause: historical `tests/employee_legacy_action_classification_a61.test.mjs` still asserts that seven modules contain direct `TREND_API_URL|API_URL`; current source has already rerouted those modules through `trendosEmployeeApiV1`. This is a **stale test expectation**, not a runtime rollback.
+- Run1 boundary:
+  ```ini
+  STATUS=FAIL_STALE_TEST_EXPECTATION
+  RUN_ID=37120602621
+  JOB_ID=111195790507
+  COMMIT=27387a7e02c305fab46a24a0309bee544d31f24d
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=PATCH_READONLY_WORKFLOW_TO_USE_CURRENT_DISPATCHER_INVENTORY_AND_RERUN
+  ```
+- Read-only workflow patched in commit `21addc5dc449679dba24c68ba8399f5905e74ea4` to test current dispatcher truth instead of the stale direct-URL assertion.
+- Run2 `37120688311`, job `111196031173` = **SUCCESS**.
+- Run2 verified:
+  ```ini
+  API_VERSION=ce156662-a698-47fc-b73c-dfd4657be9f5
+  API_DEPLOYMENT=477ee04d-10ac-4fc3-9ba6-e81691bcd286
+  API_TRAFFIC=100
+  UI_VERSION=adfb5056-af23-4d7f-8e12-7de6417dfce2
+  UI_DEPLOYMENT=a066abb8-4c33-4050-813b-123df4140450
+  UI_TRAFFIC=100
+  CF_BRIDGE_SECRET_PRESENT=NO
+  AUTH_MODE=OFF
+  AUTH_ENV_ENABLED=NO
+  AUTH_USERS=0
+  NATIVE_READY_USERS=0
+  D1_SESSION_COUNT=0
+  D1_LIVE_SESSION_COUNT=0
+  LEGACY_BOOTSTRAP_ENABLED=NO
+  LEGACY_SESSION_ENROLL_ENABLED=NO
+  ENROLL_CANARY_CONFIGURED=NO
+  ENROLL_NONCE_CONFIGURED=NO
+  BRIDGE_ENABLED=NO
+  BRIDGE_UPSTREAM_CONFIGURED=YES
+  BRIDGE_SECRET_CONFIGURED=NO
+  BRIDGE_ALLOWED_POLICY_COUNT=0
+  PLAINTEXT_STORED=NO
+  RAW_NATIVE_TOKEN_FORWARDED=NO
+  PLAINTEXT_PASSWORD_FORWARDED=NO
+  ORDER_CREATE_BASELINE=PASS
+  LEGACY_LINE_RUNTIME_BASELINE=PASS
+  LOGIN_FAST_MARKERS=PASS
+  DUPLICATE_GUARD_UI_PRESERVED=YES
+  REFRESH_FIX_PRESERVED=YES
+  LEGACY_LINE_ROUTE_PRESERVED=YES
+  ```
+- Apps Script bridge probe in Run2 returned HTTP 302 because the diagnostic curl did not follow the Apps Script redirect, so:
+  ```ini
+  APPS_SCRIPT_BRIDGE_ENABLED=NOT_PROVEN
+  APPS_SCRIPT_BRIDGE_SECRET_PRESENCE=NOT_PROVEN
+  ```
+  This is a diagnostic limitation, not a runtime failure. The next safe action is a read-only redirect-following probe only.
+- Run2 boundary:
+  ```ini
+  STATUS=READONLY_ASSESSMENT_PASS_APPS_SCRIPT_GATE_NOT_YET_PROVEN
+  RUN_ID=37120688311
+  JOB_ID=111196031173
+  COMMIT=21addc5dc449679dba24c68ba8399f5905e74ea4
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=FOLLOW_APPS_SCRIPT_REDIRECT_READONLY_AND_RECORD_RESULT; NO_AUTH_ENABLE
+  ```
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY608_PART_2 -->
