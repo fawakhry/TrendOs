@@ -264,3 +264,11 @@
 - **حدود الإثبات:** لا يوجد فحص مستقل لبصمة ملف الـDownloads مقابل ملف الأرشيف خارج تقرير الأداة، ولا يوجد Backup آخر على قرص مستقل أو Restore test؛ ملفات الشات الأصلية والتنزيلات يجب أن تبقى. لا يوجد Remote API أو مزامنة آلية من ChatGPT إلى Ubuntu. سجل GitHub الخاص بالنموذج يبقى موسومًا `PENDING_LOCAL_ASSET` حتى بناء آلية إثبات/مزامنة Metadata لاحقة؛ ولا نضيف أسماء ملفات العملاء، صورهم، أو مساراتهم إلى مستودع GitHub.
 - **الحالة:** `FIRST_REAL_MEDIA_ARCHIVE=SUCCESS_OWNER_SCREENSHOT`؛ `TEMPLATE=TPL-2026-000001`؛ `REAL_FILES=2`؛ `M001=PASS`؛ `M002=PASS`؛ `LOCAL_VERIFY=TRUE`؛ `OFFHOST_BACKUP=NOT_VERIFIED`؛ `SAFE_TO_DELETE_CHAT=FALSE`.
 - **التالي:** إتاحة استدعاء صور النموذج بسهولة بالـAsset IDs من جهاز Ubuntu، ثم تفعيل نسخ احتياطي مستقل واختبار استعادة عند توصيل الهارد الخارجي. لا تشغّل واجهة عامة أو تحوّل المستودع إلى مخزن صور عملاء.
+
+### SERVER-20261016-28 — Real Matbagy design V1 asset retrieved by code, checksum verified
+- **الدليل:** لقطة Terminal من المالك `trend-main@TrendosShop` بتاريخ 2026-10-16. الأمر: `python3 "$HOME/Matbagy-OS/runtime/ubuntu/matbagy_media_vault.py" locate --root "$HOME/MatbagyData" --template TPL-2026-000001 --asset TPL-2026-000001-M002`.
+- **ناتج محقق على جهاز المالك:** `template_id = TPL-2026-000001`؛ `asset_id = TPL-2026-000001-M002`؛ `verified = true`؛ `local_file` داخل `/home/trend-main/MatbagyData/tenants/TENANT_001/TPL-2026-000001/assets/` بامتداد `.png` واسم محتوى مبني على SHA-256.
+- **معنى الاختبار:** أكدت أداة الاستدعاء إمكانية تحديد الملف الحقيقي وتصديق بصمته بعد الحفظ، وليس إثبات فتحه ومعاينته بصريًا. `V1_LOCATE=PASS_OWNER_SCREENSHOT`؛ `REAL_ASSET_BYTES=LOCAL`؛ `IMAGE_GUI_OPEN=NOT_TESTED`.
+- **خطوة المتابعة السهلة:** افتح نافذة Files على Ubuntu، اضغط `Ctrl+L` واكتب المسار المحلي لمجلد `.../TPL-2026-000001/assets/` ثم افتح صورة PNG؛ لا يلزم Terminal، ولا رفعها إلى GitHub. تحتفظ بالملفات الأصلية وبالشات لأن `EXTERNAL_BACKUP=DEFERRED` و`SAFE_TO_DELETE_CHAT=FALSE`.
+- **الأعمال المستقبلية المنفصلة:** زر / واجهة محلية لاستدعاء الصور بالأكواد دون Terminal، ومزامنة بيانات وصفية آمنة مع GitHub لاحقًا؛ لا يوجد وصول مباشر من ChatGPT إلى صور السيرفر ولا خدمة ويب مكشوفة.
+- **نطاق الإثبات:** لم ينفذ المساعد أي أمر على سيرفر Ubuntu؛ الصور ونتائج Terminal قدمها المستخدم.
