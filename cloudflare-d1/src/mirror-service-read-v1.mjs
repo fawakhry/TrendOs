@@ -24,8 +24,8 @@ function answer(status, code, body = {}) {
   });
 }
 export function isMirrorServiceReadPath(path) {
-  return ROUTES.has(String(path || '').replace(/\\/+$/, '').slice(PREFIX.length)) &&
-    String(path || '').replace(/\\/+$/, '').startsWith(PREFIX);
+  return ROUTES.has(String(path || '').replace(/\/+$/, '').slice(PREFIX.length)) &&
+    String(path || '').replace(/\/+$/, '').startsWith(PREFIX);
 }
 
 function validQuery(url, kind) {
@@ -40,8 +40,8 @@ function validQuery(url, kind) {
   if (!ALLOWED_ROW_SHEETS.has(sheetName)) return {ok:false};
   const limit = url.searchParams.get('limit') ?? '50';
   const offset = url.searchParams.get('offset') ?? '0';
-  if (!/^(?:[1-9]|[1-9]\\d|100)$/.test(limit)) return {ok:false};
-  if (!/^(?:0|[1-9]\\d{0,4})$/.test(offset) || Number(offset) > 50000) return {ok:false};
+  if (!/^(?:[1-9]|[1-9]\d|100)$/.test(limit)) return {ok:false};
+  if (!/^(?:0|[1-9]\d{0,4})$/.test(offset) || Number(offset) > 50000) return {ok:false};
   return {ok:true, sheetName, limit:Number(limit), offset:Number(offset)};
 }
 
@@ -53,7 +53,7 @@ const AUTH_HEADER_NAMES = Object.freeze({
 });
 export function mirrorReadSignaturePayload(method, url, timestamp, nonce, principal) {
   const u = url instanceof URL ? url : new URL(url);
-  return [method, u.pathname, u.search, String(timestamp), nonce, principal].join('\\n');
+  return [method, u.pathname, u.search, String(timestamp), nonce, principal].join('\n');
 }
 
 async function checkAuth(request, env, url, kind) {
@@ -63,7 +63,7 @@ async function checkAuth(request, env, url, kind) {
   const rawSecret = kind === 'sheet' ? env.MIRROR_PARITY_READ_HMAC_SECRET : env.MIRROR_METADATA_READ_HMAC_SECRET;
   if (typeof rawSecret !== 'string' || rawSecret.length < 32 || rawSecret.length > 256) return false;
   const stamp = request.headers.get(AUTH_HEADER_NAMES.timestamp) || '';
-  if (!/^[1-9]\\d{9,11}$/.test(stamp)) return false;
+  if (!/^[1-9]\d{9,11}$/.test(stamp)) return false;
   const requestTime = Number(stamp) * 1000;
   if (!Number.isSafeInteger(requestTime) || Math.abs(Date.now() - requestTime) > WINDOW_MS) return false;
   const nonce = request.headers.get(AUTH_HEADER_NAMES.nonce) || '';
@@ -79,7 +79,7 @@ async function checkAuth(request, env, url, kind) {
 }
 export async function handleMirrorServiceRead(request, env = {}) {
   const url = new URL(request.url);
-  const path = url.pathname.replace(/\\/+$/, '') || '/';
+  const path = url.pathname.replace(/\/+$/, '') || '/';
   if (!isMirrorServiceReadPath(path)) return null;
   if (request.method !== 'GET') return answer(405, 'method-not-allowed');
   if (env.MIRROR_SERVICE_READ_ENABLED !== 'true') return answer(404, 'mirror-service-disabled');
