@@ -75,3 +75,11 @@
 - WRITE: chapter 14 appended, commit `d16394a99afd2a147284bf15d5f33c946aba06fe`, blob `e00b9a21d3e04c6b597bce0cf2cd2a083a5f1525`; independent fetch verified.
 - STATUS: `SOURCE_ONLY`, security/runtime checks `BLOCKED`, `TESTED=NO`, `PRODUCTION_VERIFIED=NO`. No real authentication calls or accounts touched; no code, migration, server, or merge operations.
 - NEXT: chapters on order status transitions/line runtime and customer-facing modules, then source-to-test ledger reconciliation.
+
+
+## 2026-10-16 / ORDER-LINE-010 — الفصل الخامس عشر
+- READ: `app.js` saveLine, `trendos-edge-orders-read-v1.js` updateLine router and POST, `cloudflare-d1/src/t12-operational-runtime-handler.mjs` Native and Legacy, `t12-legacy-line-runtime.mjs`, and prior D1 native writers.
+- FINDINGS: authenticated UI updateLine → guarded Edge runtime writes to `t12_prod_line_runtime`+events or `t12_legacy_line_runtime`+events with readback and separate identity resolution. Legacy branch checks `legacyDeliveryGate` before `تم التسليم`; Native branch shown does NOT invoke equivalent gate. Different delivery/debt enforcement is `SOURCE_ONLY` candidate requiring isolated parity testing; no production incident claim. Also status allowlist isn't full transition matrix.
+- WRITE: chapter 15 commit `8d687e6a7e0e61d3df217b7aceab3cd362f1c072`, blob `15efd6ccc9c55cc5d3fb92493ca795ba1d075e08`; independent content fetch verified.
+- STATUS: `SOURCE_ONLY`; delivery debt guard `BLOCKED`; `TESTED=NO` and `PRODUCTION_VERIFIED=NO`. No live data, deployments, code edits, financial operations or merge.
+- NEXT: Audit customer portal/drafts and notification pathways in a new chapter; reconcile associated test/run SHA; continue complete module-by-module catalog.
