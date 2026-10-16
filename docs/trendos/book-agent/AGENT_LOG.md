@@ -172,3 +172,11 @@
 - WRITE: chapter 25 commit `67b346ac43005da2c43d016dcc02426fa010b039`, blob `2219ecd1f91afd30eb7788c01827bb7ed949e310`. First immediate fetch returned previous version; second fresh fetch with branch HEAD confirmed chapter and new blob. GitHub verified.
 - STATUS: `SOURCE_ONLY`; manager information scope `SOURCE_AUTH_GAP`; runtime/tests `BLOCKED`; `TESTED=NO`, `PRODUCTION_VERIFIED=NO`. Docs only, no staff/customer/financial operations, no deployment or merge.
 - NEXT: add chapter 25 test gaps, verify overall head/log/queue; subsequent chapter 26 investigate data migration/import/export and release/deploy evidence.
+
+## 2026-10-16 / OWNER-POLICY-021 — البلاغ التاريخي لا يعني عطلًا قائمًا
+
+- **قرار المالك:** أثناء تسجيل الكتاب تُعرض أخطاء من مراحل قديمة؛ بعضها ربما صُلِح لاحقًا. قبل تنفيذ أي إصلاح، يجب مقارنة البلاغ مع أحدث HEAD/PR/الكود والاختبارات وتحديد إن كان قائمًا الآن، أو سبق إصلاحه، أو تكرارًا، أو غير قابل للتحقق. لا يُستهلك وقت التطوير في إعادة إصلاح عطل مغلق بالفعل.
+- **WRITE:** إنشاء `docs/trendos/book-agent/ISSUE_REGISTER.md` في commit `d81f984c24f6b0c5a5936c1b283dde8c6a8cecbd` وتحديث عقد الإيجنت `README.md` في commit `dc36ba54b16fe44705fcd1fbfcb14900f80d3cd6`؛ حالات التحقق وشروط الإغلاق مُلزمة.
+- **EXAMPLE:** BOOK20-R2-FILE-AUTH أُخذ من الفصل 20 باعتباره finding SOURCE_ONLY؛ ظهر نفس blob `f415d06ccd15ba241d679c61b7afeb6ec904e4b8` على فرعي كتاب المنصة والمطبعة، وفيه وصول GET إلى `serveFile` قبل `authenticate` الظاهر. `main` عند هذا الفحص لا يحتوي الملف في المسار نفسه؛ لذلك لا حكم على الإنتاج أو عدم وجود إصلاح في فرع آخر. P0، `STILL_PRESENT_SOURCE` على الفرعين المراجعين، `PRODUCTION_VERIFIED=NO`. معالجة ضمن فرع أمني مستقل فقط إن ثبتت الثغرة بعد التحقق من بقية middleware وR2.
+- **EVIDENCE:** HEAD فرع الإيجنت عند بدء فحص هذه المهمة `b422c237ca8d11954dc3c1aa99964f87aab5a9a3`، blob للملف أعلاه؛ لا تشغيل إنتاجي ولا أسرار ولا اختبار موظف فعلي.
+- **STATUS:** POLICY_RECORDED / SECURITY_TRIAGE_SOURCE_ONLY; لا إعلان TESTED أو CLOSED للأمن حتى وجود اختبارات وحماية كل المسارات.
