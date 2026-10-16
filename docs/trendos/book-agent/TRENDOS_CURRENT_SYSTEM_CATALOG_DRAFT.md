@@ -768,3 +768,43 @@
 | TESTED | لم تُشغّل اختبارات في هذه الجولة | اقرأ [`tests/entry614_employee_ops_native.test.mjs` س1–42](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/tests/entry614_employee_ops_native.test.mjs#L1-L42) واربط Run/test SHA |
 
 **النتيجة:** Employee Ops يضم تنفيذ D1 مصدرّي لجلسات حضور وHR ونظافة ومكبس، لكنه **ليس برنامجًا إنتاجيًا متحققًا للخصومات أو أتمتة التشغيل**. `TESTED=NO`, `PRODUCTION_VERIFIED=NO`.
+
+
+---
+
+# 24. المطبعة الذاتية كمشروع مرتبط: التحكم والمشرف والأدلة — دون خلط سلطات (16 أكتوبر 2026)
+
+**حد الكتاب:** المطبعة الذاتية مشروع Orchestration أعلى TrendOS، ولها كتاب Canonical **مستقل** [`autonomous-printshop/MASTER_BOOK.md` 1–55](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/MASTER_BOOK.md#L1-L55)، الذي يمنع نسخ Entries المشروع إلى `TrendOS_MASTER_BOOK.md`. هذا الفصل مجرد **خريطة ربط تقنية** لبوابات TrendOS الحالية، وليس تكرار سجل إنجازات المطبعة الذاتية أو شهادة إنتاج مستقلة. **`SOURCE_ONLY`** لهذا الربط؛ أي Claims Production داخل الكتاب المستقل تحتاج مراجعة أدلتها/الرن تايم بصورة منفصلة.
+
+## 24.1 توزيع المسؤوليات
+- [`autonomous-printshop/MASTER_BOOK.md` 1–67](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/MASTER_BOOK.md#L1-L67): TrendOS مصدر أوردرات/عملاء/تشغيل في المسارات المعتمدة؛ Matbagy-OS هو مسؤول AI Orchestrator؛ EasyStore مرجع الحسابات، وOperator Tasks مسؤول عن المهام المادية وفق حدود التفعيل. الهدف تقليل تدخل المالك في الروتين، وليس إلغاء حضور الموظف.
+- [`autonomous-printshop/core/autonomy-policy-v1.mjs` 6–58](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/core/autonomy-policy-v1.mjs#L6-L58) يصنف `AI_AUTO`, `HUMAN_PHYSICAL`, `HUMAN_EXCEPTION`, `OWNER_ONLY`, `BLOCKED`. [`autonomous-printshop/core/autonomy-policy-v1.mjs` 92–150](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/core/autonomy-policy-v1.mjs#L92-L150) قرار الأتمتة `autopilotEnabled` **OFF افتراضيًا**، والطلبات الناقصة/الجديدة/المحتاجة اعتماد تذهب لاستثناء بشري. هذه سياسة مصدرية؛ ليست دليل تنفيذ تلقائي.
+- [`autonomous-printshop/core/operational-reality-v1.mjs` 1–37](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/core/operational-reality-v1.mjs#L1-L37) يصنف العمل وأسباب التعطل/عدم الأهلية؛ [`autonomous-printshop/core/readiness-evidence-v1.mjs` 9–84](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/core/readiness-evidence-v1.mjs#L9-L84) يربط لكل `lineId` ثلاث أدلة `DESIGN/MATERIAL/MACHINE` وقيم READY/BLOCKED/UNKNOWN، ويتعامل مع غياب الدليل باعتباره UNKNOWN، لا توافرًا افتراضيًا.
+
+## 24.2 تحضير التصميم والخامة والماكينة
+- [`autonomous-printshop/core/design-preflight-v1.mjs` 17–111](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/core/design-preflight-v1.mjs#L17-L111) يقيّم ملف تصميم ومتطلبات recipe ويعيد `productionReady` فقط بعد PASS؛ لا يتعامل مع صورة العميل على أنها تصميم قابل للطباعة بلا preflight.
+- [`autonomous-printshop/core/material-readiness-candidate-v2.mjs` 1–69](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/core/material-readiness-candidate-v2.mjs#L1-L69) يقيم كفاية الخامة ويولد `BLOCKED` عند النقص؛ توليد READY مشروط بـ`allowReady===true` و`accountingGeneral===true` وشروط إضافية؛ ده يحمي من اتخاذ قرار صرف خامات قبل تأهيل مصدر الرصيد المالي/المخزني.
+- [`autonomous-printshop/core/machine-readiness-v1.mjs` 24–85](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/core/machine-readiness-v1.mjs#L24-L85) يربط الماكينة بالبند وObservation أخير وله مدة صلاحية محدودّة: دليل READY حتى 15 دقيقة، وBLOCKED/MAINTENANCE حتى 8 ساعات، طبقًا للمصدر. **مؤشر تاريخي أو قول موظف غير مؤهل لا يصنع Machine READY دائم**.
+
+## 24.3 مهام Operator بين التصميم والتنفيذ
+- [`autonomous-printshop/core/operator-task-authority-v1.mjs` 1–13](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/core/operator-task-authority-v1.mjs#L1-L13) يعرّف D1 task authority foundation مع شرط task واحدة نشطة للموظف والبند وidempotent claim/complete. [`autonomous-printshop/core/operator-task-authority-v1.mjs` 55–101](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/core/operator-task-authority-v1.mjs#L55-L101): OFF وSHADOW يمنعان mutation؛ CANARY يقيّد مشغلًا واحدًا؛ GENERAL نظريًا يسمح حسب control. **وجود module لا يعني أنه المسار الذي يستعمله جميع الموظفين**؛ الفصل 19 أثبت أن Edge Operator Task V2 الموجود يرسل assertion إلى Apps Script.
+- [`autonomous-printshop/observer/worker.mjs` 61–76](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/observer/worker.mjs#L61-L76): Observer يلتزم `SHADOW` وReadiness `SHADOW`؛ [`autonomous-printshop/observer/worker.mjs` 153–207](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/observer/worker.mjs#L153-L207) يقدّم preview دون business writes ولا إسناد وظيفي. **سجل قرار Shadow أو Observations ليس أوردرًا نُفّذ**.
+
+## 24.4 Control Tower والاستثناءات المحمية
+- [`autonomous-printshop/dashboard/worker.mjs` 1–60](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/dashboard/worker.mjs#L1-L60) يقرأ لوحة التحكم من Service Bindings `SHADOW` و`READINESS_COLLECTOR`، مع مؤشرات qualified Canary؛ [`autonomous-printshop/core/control-tower-panel-status-v1.mjs` 1–47](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/core/control-tower-panel-status-v1.mjs#L1-L47) يفصل Freshness لكل Panel عن اكتمال الحقيقة، ويرجع `UNAVAILABLE` عند نقص الدليل بدل عرض صفر خادع.
+- [`autonomous-printshop/core/owner-exception-model-v1.mjs` 1–104](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/core/owner-exception-model-v1.mjs#L1-L104) يصنف أعطال الماكينة ونقص الخامات ورفض العميل والسعر الحساس حسب من يملك القرار؛ لا يُمنح الـAI سلطة خصم أو رد مال أو عقوبة موظف بمجرد وجود توصية.
+- [`autonomous-printshop/employee-supervisor/worker.mjs` 88–112](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/employee-supervisor/worker.mjs#L88-L112): المشرف يجمع بلاغات عوائق الموظفين، ويعلن `businessWrites:false` و`employeeAssignment:false` و`writeAuthority:'AUTONOMOUS_EMPLOYEE_BLOCKER_EVENTS_ONLY'`. هذا ليس تصريحًا بإنهاء الأوردر، بل مسار توثيق حالات الاستثناء.
+
+## 24.5 فجوات الربط وعبور حدود التشغيل
+| بوابة | القيد في المصدر | دليل التأهيل المطلوب |
+|---|---|---|
+| Order Authority | حالة الأوردر/الموعد والـflyPrint ما زالت تحت فصول 10–15 | IDs موحدة وسياسة التسليم، source exact-head |
+| Customer Design | بروفات التصميم وملكية العميل قد تبقى Legacy؛ الفصل 16 | دليل owner approval وasset provenance في Matbagy-OS |
+| Material | `accountingGeneral` شرط READY في مادة V2 | مصدر مخزون معتمد ورفض CANARY/OFF + دفاتر EasyStore |
+| Machine | OBS + TTL لا تعني فرمان تشغيل | إثبات ماكينة/Operator قبل job assignment |
+| Task | دالة D1 موجودة لكن V2 Edge قد يستخدم Apps Script | تحديد authority واحد وإثبات claim/complete على نسخة منشورة |
+| Owner Exceptions | منع قرار مالي/عقوبة بلا صاحب قرار | سجل approval واضح وتصعيد وإغلاق أدلة |
+| Automation | SHADOW/READ_ONLY لا ينفّذان الإنتاج | اختبار CANARY مصرح به بعينات وهمية ثم separate production approval |
+| TESTED/PRODUCTION_VERIFIED | لم ننفذ Workflows ولا نتصل بخدمات حية | اختبار وحدات مثل [`autonomous-printshop/tests/autonomous_printshop_shadow_route_v1.test.mjs` 1–30](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/tests/autonomous_printshop_shadow_route_v1.test.mjs#L1-L30) و[`autonomous-printshop/tests/machine_readiness_v1.test.mjs` 1–30](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/tests/machine_readiness_v1.test.mjs#L1-L30) + runtime SHA |
+
+**النتيجة:** تركيب أجزاء المطبعة الذاتية موجود في المستودع، لكن الإيجنت سجل **حدود الصلاحية ودليل الجاهزية**، دون وصف Shadow بأنه تشغيل آلي مكتمل. للاطلاع على تاريخ نشر المطبعة الذاتية وتطور AP-081/AP-082 ارجع للكتاب المستقل، ولا تنقل نتائجه لتصنيف TrendOS ما لم يرتبط بنفس الـruntime والـdeploy.
