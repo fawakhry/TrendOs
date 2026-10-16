@@ -75,3 +75,12 @@ Source HEAD `8536c300ec1dab56968a1f937e879b2bbc47a5c9`.
 3. Preserve one-to-many and changed filename mappings; never conflate `Code.gs` with all nine routed .gs modules.
 4. Audit secrets and private customer content before any new publication. Never paste credential-like strings, raw JSON customer records or whole Drive docs into a public Markdown book.
 5. **Deletion gate:** only after a verified independent backup, source/target exact-match or documented intentional transformation, restoration test, live dependency scan, owner approval, and **Draft PR** with reviewed file list. No force-push, branch rewrite, actual delete or merge by the archival book agent.
+
+
+## 6) Initial source-shape comparison — V1932 private vs GitHub main (2026-10-16)
+
+**Original Library file:** `TrendOS_Code_FULL_V1932_2026-08-24.gs` has 11,811 lines and **614 function declarations, all 614 names distinct** (parsed locally).
+
+**GitHub `Code.gs`** at commit `6b82fd3bf00eb80669a3b5ca14ff8eab420a6074`, blob `179526ca2f6343067dd7edebd6d290be79a6984b`: **12,254 lines, 632 function declarations, 631 distinct names**, per a source text scan. Root file size according to GitHub contents API: 752,490 bytes.
+
+**Result:** `SHAPE_MISMATCH_CONFIRMED`; this is **not byte-identical as a whole source file** and cannot be deduplicated or discarded purely because the names look similar. Still `FUNCTION_LEVEL_DIFF_PENDING`: need a private identifier-level + function-body diff, timestamp/commit lineage and secret redaction before archiving a new public code copy. One duplicate function declaration in current GitHub source merits code-level review but is **not proof of a runtime problem**. No original-code bytes were sent to GitHub in this work.
