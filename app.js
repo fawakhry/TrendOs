@@ -5350,7 +5350,7 @@ Trend Mall`;
     const username = text(user.username || user.name);
     const token = text(user.token);
     const base = text(window.MATBAGY_EMPLOYEE_API_URL || window.MATBAGY_EDGE_ORDERS_API_URL).replace(/\/+$/, '');
-    if (!username || !token || !/^https?:\/\//i.test(base)) return;
+    if (!username || !token || !(/^https:\/\//i.test(base) || /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(base))) return;
     await Promise.all(items.map(async function (element) {
       let objectUrl = '';
       try {
@@ -5363,7 +5363,7 @@ Trend Mall`;
         if (!response.ok) throw new Error('Not authorized to fetch file');
         const blob = await response.blob();
         objectUrl = URL.createObjectURL(blob);
-        if (state.user !== user || !state.orderConversationRow || !element.isConnected) {
+        if (state.user !== user || text(state.user.token) !== token || !state.orderConversationRow || !element.isConnected) {
           URL.revokeObjectURL(objectUrl);
           return;
         }
