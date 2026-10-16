@@ -1985,7 +1985,7 @@ async function previewCustomerCreditInvoiceReviewV1(env,auth,b){
     invoiceTotalCents:amounts.final_total,originalPaidCents:amounts.paid,
     originalRemainingCents:amounts.remaining,originalCreditAppliedCents:amounts.credit_applied,
     originalCashReceivedCents:amounts.cash_received,originalCreditCreatedCents:amounts.credit_created,
-    availableCustomerCreditCents:customerCreditCents,currentCustomerDebtCents,
+    availableCustomerCreditCents:customerCreditCents,currentCustomerDebtCents:currentDebtCents,
     proposedInvoiceTotalCents:proposedCents,
     proposedDifferenceCents:proposedCents===null?null:amounts.final_total-proposedCents,
     evidenceEventsVerified:expected.length,
