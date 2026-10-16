@@ -7,6 +7,7 @@ import {
   handleEdgeOrders02CRCanaryRequest,
 } from '../cloudflare-d1/src/edge-orders-read-02cr-canary.mjs';
 import { issueOrdersEdgeToken } from '../cloudflare-d1/src/edge-orders-read-v1.mjs';
+import deployedRouterCandidate from '../cloudflare-d1/src/index_v2.js';
 
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
@@ -79,6 +80,34 @@ test('strict helper accepts exact matching granted screen only', () => {
   assert.equal(allowsOrdersReadScreen({screens:['print','press','']},'print'),true);
   assert.equal(allowsOrdersReadScreen({screens:['print','press','']},'laser'),false);
   assert.equal(allowsOrdersReadScreen({screens:['laser']},'service'),false);
+});
+
+test('full v2 router rejects signed empty scope before D1 mirror metadata', async () => {
+  let dbQueries = 0;
+  const token = await issueOrdersEdgeToken(
+    { sub:'FAKE_AP303_SERVICE', role:'service', screens:[] }, SECRET,
+  );
+  const response = await deployedRouterCandidate.fetch(
+    new Request(BASE, { method:'GET', headers:{Authorization:'Bearer ' + token} }),
+    { EDGE_SESSION_SECRET:SECRET, DB:{ prepare(){ dbQueries++; throw new Error('D1 MUST NOT BE TOUCHED'); } } },
+    {},
+  );
+  assert.equal(response.status,403);
+  assert.equal(dbQueries,0);
+});
+
+test('full v2 router rejects signed wrong-screen scope before D1', async () => {
+  let dbQueries = 0;
+  const token = await issueOrdersEdgeToken(
+    { sub:'FAKE_AP303_SERVICE', role:'laser', screens:['laser'] }, SECRET,
+  );
+  const response = await deployedRouterCandidate.fetch(
+    new Request(BASE, { method:'GET', headers:{Authorization:'Bearer ' + token} }),
+    { EDGE_SESSION_SECRET:SECRET, DB:{ prepare(){ dbQueries++; throw new Error('D1 MUST NOT BE TOUCHED'); } } },
+    {},
+  );
+  assert.equal(response.status,403);
+  assert.equal(dbQueries,0);
 });
 
 test('non-routable test host only; no network client, backend or secrets', () => {
