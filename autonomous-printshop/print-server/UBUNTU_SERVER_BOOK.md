@@ -196,3 +196,12 @@
 - **الخطوة التالية المقترحة للمالك على Ubuntu:** `sudo apt update && sudo apt install -y gh`، ثم `gh --version`. هذا **اقتراح** ولم يُثبت تنفيذه. بعد ذلك Login بالمتصفح دون مشاركة كلمات مرور أو رموز.
 - **حدود التنفيذ:** الصورة لا تعرض تثبيت برنامج أو نقل أي صور؛ لم ينفذ المساعد أوامر Ubuntu بنفسه، ولم يغيّر بيانات اعتماد أو مفاتيح أو منافذ.
 - **الحالة:** `GH_CLI=NOT_INSTALLED`، `MATBAGY_CLONE=INTERRUPTED`، `GH_AUTH=NOT_VERIFIED`، `LOCAL_MEDIA_VAULT=NOT_DEPLOYED`.
+
+### SERVER-20261016-20 — GitHub CLI installed successfully on home Ubuntu
+- **المصدر:** صورة Terminal قدمها المالك بتاريخ 2026-10-16، المستخدم `trend-main@TrendosShop`. نتيجة انتهاء تثبيت `gh` على Ubuntu.
+- **الدليل:** `Setting up gh (2.45.0-1ubuntu0.3)...` ثم `gh --version` أعاد `gh version 2.45.0 (2025-07-18 Ubuntu 2.45.0-1ubuntu0.3)`، مع رابط الإصدار الرسمي. مؤشر الـShell عاد دون أخطاء.
+- **حالة المرحلة:** `GITHUB_CLI_INSTALLED=VERIFIED`، `GITHUB_CLI_VERSION=2.45.0`. أظهر APT أن 36 حزمة أخرى لم تُرقّ؛ لا يُعد ذلك إذنًا بتحديثها تلقائيًا.
+- **ما لم يحدث بعد:** لا يوجد دليل نجاح `gh auth login` أو اكتمال استنساخ `fawakhry/Matbagy-OS`. لم يبدأ حفظ صور المستخدم على Ubuntu.
+- **الخطوة التالية للمالك:** نفذ على جهازه `gh auth login --hostname github.com --git-protocol https --web`، ثم أتم مصادقة جهاز GitHub من المتصفح مع مراجعة الأذونات. تجنب مشاركة OTP/device code، Password، PAT، أو محتويات إعدادات المصادقة في المحادثة أو الصور.
+- **الحد الأمني:** لم ينفذ ChatGPT أوامر على `TrendosShop` ولم يغيّر SSH/UFW/DNS أو ينقل أسرار.
+- **النتيجة:** `GH_CLI_INSTALLED=YES`؛ `GH_AUTH=NOT_VERIFIED`؛ `MATBAGY_CLONE=NOT_VERIFIED`؛ `UBUNTU_MEDIA_VAULT=NOT_DEPLOYED`.
