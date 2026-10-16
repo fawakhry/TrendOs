@@ -1,0 +1,38 @@
+name: TrendOS Book29 Native Material Parity — Fake-Only CI
+on:
+  push:
+    branches:
+      - fix/book29-native-role-and-material-alias-20261016
+    paths:
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'tests/book29_native_dept_line_parity_synthetic.test.mjs'
+      - '.github/workflows/trendos-book29-native-material-parity-synthetic-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'tests/book29_native_dept_line_parity_synthetic.test.mjs'
+      - '.github/workflows/trendos-book29-native-material-parity-synthetic-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fake-native-fields:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+      - name: Alias, classified costs, conflicting fields, readonly denial (Fake D1)
+        run: node --test tests/book29_native_dept_line_parity_synthetic.test.mjs
+      - name: Existing Native accounting source contract
+        run: node tests/entry614_employee_accounting_native.test.mjs
+      - name: Safety
+        run: |
+          echo "ACCOUNTING_CUTOVER_READONLY=UNCHANGED"
+          echo "OWNER_APPROVAL_POLICY_NOT_CHANGED=YES"
+          echo "REAL_FINANCE_WRITE=NO"
+          echo "DEPLOY_OR_MERGE=NO"

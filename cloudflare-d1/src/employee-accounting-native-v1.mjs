@@ -604,14 +604,46 @@ async function saveTemplate(env,auth,b){
   await event(env,'template',id,existing?'update':'create',auth.user.username,{department,name,version});
   return {success:true,message:existing?'الصنف موجود وتم تحديثه بدل إضافته مرة أخرى.':'تم حفظ الصنف.',updated:!!existing,calculatedCost:calculated,componentsJson:JSON.stringify(Array.isArray(components)?components:[]),version:'ENTRY614_D1_ACCOUNTING_V1'};
 }
+// BOOK29: Normalize physically consumed material quantity, but NEVER interpret
+// legacy laborCost as operatingCost (or salaries/rent/electricity as order cost).
+// This contract is evaluated BEFORE any accounting D1 write. Source-cutover
+// stays READONLY until an approved accounting classification protocol exists.
+export function normalizeDeptLineFieldsV29(body){
+  const b=body||{};
+  function supplied(name){return b[name]!==undefined&&b[name]!==null&&String(b[name]).trim()!=='';}
+  function decimal(name){
+    const raw=b[name];
+    const n=Number(raw);
+    if(!Number.isFinite(n)||n<0||!/^\d+(?:\.\d+)?$/.test(String(raw).trim())){
+      throw commandErrorV1('accounting-field-invalid','قيمة الحقل '+name+' يجب أن تكون رقمًا غير سالب.');
+    }
+    return n;
+  }
+  const names=['materialConsumption','materialQty','consumption'].filter(supplied);
+  const values=names.map(decimal);
+  if(values.length>1 && values.some(v=>Math.abs(v-values[0])>1e-9)){
+    throw commandErrorV1('accounting-material-quantity-conflict','تعارض كمية الخام بين الحقول؛ راجع الوحدة والكمية قبل الحفظ.');
+  }
+  if(supplied('laborCost') && decimal('laborCost')>0){
+    throw commandErrorV1('accounting-labor-classification-required',
+      'تكلفة العمالة لم يُعتمد تصنيفها؛ لا يمكن ترحيلها تلقائيًا إلى تكلفة تشغيل الأوردر.');
+  }
+  return {
+    materialConsumption:values.length?values[0]:0,
+    operatingCost:supplied('operatingCost')?decimal('operatingCost'):0
+  };
+}
+
 async function saveDeptLine(env,auth,b){
   if(!['full','print','laser'].includes(auth.mode))return {success:false,message:'إضافة بنود حسابات القسم غير مسموحة.'};
   const orderId=text(b.orderId),itemName=text(b.itemName||b.name),qty=Math.max(num(b.qty||b.quantity,1),0.000001);
   let department=text(b.department)||auth.department;if(auth.mode==='print')department='طباعة';if(auth.mode==='laser')department='ليزر';
   if(!orderId||!department)return {success:false,message:'رقم الأوردر والقسم مطلوبان.'};
+  // Fail closed on ambiguous or unclassified legacy fields BEFORE any D1 write.
+  const normalizedFields=normalizeDeptLineFieldsV29(b);
   const id=text(b.id||b.accountingLineId)||uid('ACC'),materialName=text(b.materialName);
-  const materialConsumption=num(b.materialConsumption||b.consumption),materialCost=num(b.materialCost)||materialConsumption*await materialCost(env,materialName);
-  const operating=num(b.operatingCost),other=num(b.otherCost),total=num(b.totalCost,materialCost+operating+other),sale=num(b.salePrice||b.lineTotal||b.systemSalePrice),profit=sale-total;
+  const materialConsumption=normalizedFields.materialConsumption,materialCost=num(b.materialCost)||materialConsumption*await materialCost(env,materialName);
+  const operating=normalizedFields.operatingCost,other=num(b.otherCost),total=num(b.totalCost,materialCost+operating+other),sale=num(b.salePrice||b.lineTotal||b.systemSalePrice),profit=sale-total;
   const existing=await env.DB.prepare("SELECT version FROM employee_accounting_dept_lines_v1 WHERE accounting_line_id=?").bind(id).first(),version=existing?Number(existing.version||1)+1:1;
   await env.DB.prepare(`
     INSERT INTO employee_accounting_dept_lines_v1(accounting_line_id,order_id,line_id,customer_name,department,item_type,item_name,qty,material_name,material_consumption,material_cost,operating_cost,other_cost,total_cost,system_cost,system_sale_price,sale_price,profit,billing_status,notes,raw_json,updated_by,version)
@@ -887,6 +919,8 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else out={success:false,code:'employee-accounting-action-unknown',message:'Accounting action is not supported.'};
     return json({...out,authority:'d1-employee-accounting-v1',authSource:auth.authSource},out&&out.success===false?400:200,h);
   }catch(err){
-    return json({success:false,code:text(err&&err.code)||'employee-accounting-failed',message:text(err&&err.message)||'Employee accounting failed',authority:'d1-employee-accounting-v1'},500,h);
+    const code=text(err&&err.code)||'employee-accounting-failed';
+    const status=code.startsWith('accounting-field-')||code==='accounting-material-quantity-conflict'||code==='accounting-labor-classification-required'?400:500;
+    return json({success:false,code,message:text(err&&err.message)||'Employee accounting failed',authority:'d1-employee-accounting-v1'},status,h);
   }
 }
