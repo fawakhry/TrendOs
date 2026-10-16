@@ -230,3 +230,12 @@
 - **ما لم يتم:** لم يُعرض أي ناتج `add` لملف أصلي أو نتيجة V1؛ لم يظهر `verify` بعد حفظ صورتين؛ لا دليل على وسيلة نسخ احتياطي مستقلة أو استعادة مجربة. `CUSTOMER_MEDIA_SAVED=NO_EVIDENCE`؛ `OFFHOST_BACKUP=NOT_VERIFIED`؛ `SAFE_TO_DELETE_CHAT=FALSE`.
 - **الخطوة الآمنة التالية:** فحص وسائط التخزين المتاحة قراءة فقط بواسطة `lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINTS,TRAN`، وتأكيد صلاحيات مجلد `MatbagyData` دون طباعة محتويات العملاء. بعد تخصيص نسخة احتياطية مستقلة، نقل الملفين الفعليين للنموذج `TPL-2026-000001` مع SHA-256 واختبار `verify`. لا تحتاج الخدمة منفذ شبكة أو API مدفوع.
 - **حد الوصول:** النتائج أدلة من صورة Terminal مالك الجهاز، وليس اتصال SSH أو تشغيل أوامر بواسطة المساعد.
+
+### SERVER-20261016-24 — Ubuntu storage topology and MatbagyData permissions verified
+- **الدليل:** صورتان Terminal من المالك بتاريخ 2026-10-16 من `trend-main@TrendosShop`. الأمران المنفذان: `lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINTS,TRAN` و`stat -c '%A %U:%G %n' "$HOME/MatbagyData"`.
+- **الأقراص المثبتة:** `sda 111.8G sata`، `sda1 1G vfat /boot/efi`، `sda2 110.7G ext4 /`. ظهور `loop*` أجهزة Snap ليس تخزينًا احتياطيًا مستقلاً.
+- **USB الظاهر:** `sdb 0B usb` بلا Filesystem أو Mountpoint؛ **لا يُعتبر قرصًا احتياطيًا صالحًا**. لا تفترض حجمه أو حالته أو تكتب/تهيئ/تقسّم `/dev/sdb` بغير موافقة صريحة وفحص منفصل.
+- **الأذونات المثبتة:** `drwx------ trend-main:trend-main /home/trend-main/MatbagyData`، أي `0700` ومالك المجلد `trend-main`. المخزن محفوظ ضمن قرص `sda2`، وليس على وسيط مستقل.
+- **قرار المرحلة:** `LOCAL_VAULT_INITIALIZED=YES` واختبارات Ubuntu السابقة `9/9 PASS`، لكن `INDEPENDENT_BACKUP_DEVICE=NOT_DETECTED` و`RESTORE_TEST=NOT_RUN`. لا ننقل/نحذف صورة العميل الأصلية دون تحديد وسيلة نسخ منفصلة، مثل وسيط USB حقيقي موجود بالفعل أو جهاز آخر يملكه المستخدم؛ لا حاجة إلى خدمة API أو اشتراك تخزين مدفوع.
+- **الخطوة التالية:** سؤال المالك هل يملك فلاشة/هارد خارجي صالح أو كمبيوتر آخر لنسخ احتياطي؛ ويمكن إجراء اختبارات إضافية بملفات اصطناعية فقط حتى توفير نسخة مستقلة. لا تغيير في TrendOs وSSH/UFW، ولا سجل تثبيت جديد أو استيراد صور عملاء.
+- **النتيجة:** `DISK_LAYOUT_VERIFIED=OWNER_SCREENSHOT`; `VAULT_PERMISSIONS=0700_CORRECT`; `USB_SDB=0B_NOT_USABLE_AS_BACKUP`; `OFFHOST_BACKUP=NOT_VERIFIED`; `CUSTOMER_MEDIA_ARCHIVED=NOT_VERIFIED`.
