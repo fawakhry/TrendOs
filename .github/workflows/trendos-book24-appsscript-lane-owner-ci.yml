@@ -1,0 +1,62 @@
+name: TrendOS Book24 Apps Script Single Writer Lane — Mock CI
+on:
+  push:
+    branches:
+      - fix/book24-appsscript-lane-owner-guard-20261016
+    paths:
+      - 'work-queue-backend-v1.gs'
+      - 'operator-task-workflow-v2.gs'
+      - 'tests/book24_appsscript_writer_selection_synthetic.test.mjs'
+      - '.github/workflows/trendos-book24-appsscript-lane-owner-ci.yml'
+  pull_request:
+    paths:
+      - 'work-queue-backend-v1.gs'
+      - 'operator-task-workflow-v2.gs'
+      - 'tests/book24_appsscript_writer_selection_synthetic.test.mjs'
+      - '.github/workflows/trendos-book24-appsscript-lane-owner-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  selected-writer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Node syntax for isolated mock
+        run: node --check tests/book24_appsscript_writer_selection_synthetic.test.mjs
+      - name: Script Properties and ScriptLock cross-lane tests
+        run: node --test tests/book24_appsscript_writer_selection_synthetic.test.mjs
+      - name: Work Queue and Operator V2 inherited contracts
+        run: |
+          node --test tests/work_queue_v1_contract.test.mjs
+          node --test tests/operator_task_workflow_v2_contract.test.mjs
+          node --test tests/operator_task_edge_v2.test.mjs
+      - name: Strict property read and no mutation controls
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          wq=Path('work-queue-backend-v1.gs').read_text()
+          ot=Path('operator-task-workflow-v2.gs').read_text()
+          for source in (wq,ot):
+            assert "TRENDOS_TASK_SCRIPT_SINGLE_WRITER_GUARD_V1_ENABLED" in source
+            assert "TRENDOS_TASK_SCRIPT_WRITER_V1" in source
+            assert ".setProperty(" not in source
+            assert "trendosWithLock_('script',guarded,30000)" in source
+            assert "try{return guarded();}finally{lock.releaseLock();}" in source
+          assert "selected!=='WORK_QUEUE_V1'" in wq
+          assert "selected!=='OPERATOR_TASK_V2'" in ot
+          print('BOOK24_SCRIPT_OWNER_READ_IN_LOCK=PASS')
+          PY
+      - name: No external calls or deployment
+        run: |
+          echo 'REAL_GOOGLE=NO'
+          echo 'SCRIPT_PROPERTY_WRITES=NO'
+          echo 'REAL_D1=NO'
+          echo 'PRINTERS=NO'
+          echo 'DEPLOY=NO'
+          echo 'MERGE=NO'
+          echo 'PRODUCTION_VERIFIED=NO'
