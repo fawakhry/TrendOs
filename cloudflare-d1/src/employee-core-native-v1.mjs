@@ -215,6 +215,41 @@ async function trendMaster(env,user,body){
     version:'ENTRY614_D1_EMPLOYEE_CORE_V1'
   };
 }
+// BOOK19: bind delivery eligibility into the WRITE statement itself.
+// Earlier screen/projection reads are useful for UX only, never write authority.
+// Imported debt is still the source row snapshot: NOT a live accounting balance.
+function importedCoreWriteGate(row,isDelivery){
+  let sql=" AND department=? AND order_id=? AND EXISTS (SELECT 1 FROM employee_core_orders_v1 o WHERE o.order_id=employee_core_lines_v1.order_id AND o.active=1 AND o.customer_name=?)";
+  const bind=[text(row.department),text(row.orderId),text(row.customer)];
+  if(isDelivery){
+    sql+=" AND NOT EXISTS (SELECT 1 FROM employee_core_delivery_restrictions_v1 r WHERE r.customer_key=? AND r.active=1 AND (r.valid_until='' OR r.valid_until>=?) AND employee_core_lines_v1.debt_amount>0)";
+    bind.push(customerKey(row.customer),nowCairoDate());
+  }
+  return {sql,bind};
+}
+// Native/T12: preserve existing phone-first/name-only-when-blank policy, and
+// deny if *any* matched positive-debt customer has an active restriction.
+// Identity duplicates remain a separate G2/G4 owner-resolution requirement.
+function t12CoreWriteGate(row,isDelivery){
+  let sql=" FROM t12_prod_lines l JOIN t12_prod_orders o ON o.order_id=l.order_id WHERE l.line_id=? AND l.order_id=? AND l.department=? AND o.customer_name=? AND o.customer_phone=?";
+  const bind=[text(row.lineId),text(row.orderId),text(row.department),text(row.customer),text(row.customerPhone)];
+  if(isDelivery){
+    sql+=" AND NOT EXISTS (SELECT 1 FROM t12_customers c JOIN employee_core_delivery_restrictions_v1 r ON r.customer_key=? AND r.active=1 AND (r.valid_until='' OR r.valid_until>=?) WHERE c.active='نعم' AND c.debt_amount>0 AND ((o.customer_phone<>'' AND (c.phone=o.customer_phone OR c.extra_phone=o.customer_phone)) OR (o.customer_phone='' AND c.customer_name=o.customer_name)))";
+    bind.push(customerKey(row.customer),nowCairoDate());
+  }
+  return {sql,bind};
+}
+function coreOneWriteApplied(result){
+  const n=Number(result&&result.meta&&result.meta.changes!==undefined
+    ?result.meta.changes:result&&result.changes);
+  return Number.isSafeInteger(n)&&n===1;
+}
+// SQLite changes() returns the number of rows changed by the immediately
+// preceding status UPDATE/UPSERT, inside the SAME D1 batch transaction.
+// A zero-row update makes the mandatory actor NOT NULL constraint abort the
+// whole batch, so even earlier permitted rows are rolled back with the race.
+const guardedBulkActorSql="CASE WHEN changes()=1 THEN ? ELSE NULL END";
+
 async function bulkStatus(env,user,body){
   const screen=text(body.screen),fromStatus=text(body.fromStatus),toStatus=text(body.toStatus),requestId=text(body.requestId);
   if(!screenAllowed(user,screen))return {success:false,message:'ليس لديك صلاحية تغيير حالات هذا القسم جماعيًا.'};
@@ -231,17 +266,24 @@ async function bulkStatus(env,user,body){
     const statements=[];
     for(const row of changed){
       if(row.sourceKind==='core-import'){
-        statements.push(env.DB.prepare("UPDATE employee_core_lines_v1 SET status=?,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE line_id=? AND active=1")
-          .bind(toStatus,user.username,row.lineId));
-        statements.push(env.DB.prepare("INSERT INTO employee_core_events_v1(action,entity_type,entity_id,actor,payload_json) VALUES('line-status','line',?,?,?)")
+        const gate=importedCoreWriteGate(row,toStatus==='تم التسليم');
+        statements.push(env.DB.prepare(
+          "UPDATE employee_core_lines_v1 SET status=?,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE line_id=? AND active=1 AND status=?"+gate.sql)
+          .bind(toStatus,user.username,row.lineId,fromStatus,...gate.bind));
+        statements.push(env.DB.prepare("INSERT INTO employee_core_events_v1(action,entity_type,entity_id,actor,payload_json) VALUES('line-status','line',?,"+guardedBulkActorSql+",?)")
           .bind(row.lineId,user.username,JSON.stringify({orderId:row.orderId,oldStatus:fromStatus,newStatus:toStatus,screen,requestId})));
       }else{
-        statements.push(env.DB.prepare(`
-          INSERT INTO t12_prod_line_runtime(line_id,order_id,status,notes,updated_by,version,updated_at)
-          VALUES(?,?,?,?,?,1,CURRENT_TIMESTAMP)
-          ON CONFLICT(line_id) DO UPDATE SET status=excluded.status,updated_by=excluded.updated_by,version=t12_prod_line_runtime.version+1,updated_at=CURRENT_TIMESTAMP
-        `).bind(row.lineId,row.orderId,toStatus,row.notes||'',user.username));
-        statements.push(env.DB.prepare("INSERT INTO t12_prod_runtime_events(order_id,line_id,event_type,old_status,new_status,actor,payload_json) VALUES(?,?,?,?,?,?,?)")
+        const gate=t12CoreWriteGate(row,toStatus==='تم التسليم');
+        // SELECT eligibility is evaluated by SQLite at the actual write time.
+        // CAS current runtime status (or base-line status if no runtime row).
+        const stmt=`INSERT INTO t12_prod_line_runtime(line_id,order_id,status,notes,updated_by,version,updated_at)
+          SELECT l.line_id,l.order_id,?,?,?,1,CURRENT_TIMESTAMP `+gate.sql+
+          ` AND COALESCE((SELECT rt.status FROM t12_prod_line_runtime rt WHERE rt.line_id=l.line_id),l.status)=?
+          ON CONFLICT(line_id) DO UPDATE SET status=excluded.status,updated_by=excluded.updated_by,
+            version=t12_prod_line_runtime.version+1,updated_at=CURRENT_TIMESTAMP
+            WHERE t12_prod_line_runtime.status=?`;
+        statements.push(env.DB.prepare(stmt).bind(toStatus,row.notes||'',user.username,...gate.bind,fromStatus,fromStatus));
+        statements.push(env.DB.prepare("INSERT INTO t12_prod_runtime_events(order_id,line_id,event_type,old_status,new_status,actor,payload_json) VALUES(?,?,?,?,?,"+guardedBulkActorSql+",?)")
           .bind(row.orderId,row.lineId,'bulk-status',fromStatus,toStatus,user.username,JSON.stringify({screen,requestId})));
       }
     }
@@ -309,20 +351,25 @@ async function updateSingleLine(env,user,body){
       message:'لا يمكن تسجيل تم التسليم: العميل عليه مديونية وضمن قائمة منع التسليم الفعالة.'};
   const imported=await env.DB.prepare("SELECT order_id AS orderId,status,notes FROM employee_core_lines_v1 WHERE line_id=? AND active=1").bind(lineId).first();
   if(imported){
-    await env.DB.prepare("UPDATE employee_core_lines_v1 SET status=CASE WHEN ?='' THEN status ELSE ? END,notes=CASE WHEN ? IS NULL THEN notes ELSE ? END,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE line_id=?")
-      .bind(status,status,notes,notes,user.username,lineId).run();
+    const gate=importedCoreWriteGate(target,status==='تم التسليم');
+    const applied=await env.DB.prepare("UPDATE employee_core_lines_v1 SET status=CASE WHEN ?='' THEN status ELSE ? END,notes=CASE WHEN ? IS NULL THEN notes ELSE ? END,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE line_id=? AND active=1"+gate.sql)
+      .bind(status,status,notes,notes,user.username,lineId,...gate.bind).run();
+    if(!coreOneWriteApplied(applied))return {success:false,code:'employee-core-line-write-eligibility-changed',
+      deliveryBlocked:status==='تم التسليم',message:'تغيرت أهلية البند أو قرار منع التسليم أثناء الحفظ؛ راجع الحالة دون إعادة التنفيذ التلقائي.'};
     await event(env,'updateLine','line',lineId,user.username,{orderId:imported.orderId,oldStatus:imported.status,status:status||imported.status});
     return {success:true,lineId,orderId:text(imported.orderId),status:status||text(imported.status),notes:notes==null?text(imported.notes):notes,source:'employee-core-d1'};
   }
   const cloud=await env.DB.prepare("SELECT order_id AS orderId,status FROM t12_prod_lines WHERE line_id=?").bind(lineId).first();
   if(!cloud)return {success:false,code:'line-not-found',message:'البند غير موجود في D1.'};
-  await env.DB.prepare(`
-    INSERT INTO t12_prod_line_runtime(line_id,order_id,status,notes,updated_by,version,updated_at)
-    VALUES(?,?,?,?,?,1,CURRENT_TIMESTAMP)
+  const gate=t12CoreWriteGate(target,status==='تم التسليم');
+  const applied=await env.DB.prepare(`INSERT INTO t12_prod_line_runtime(line_id,order_id,status,notes,updated_by,version,updated_at)
+    SELECT l.line_id,l.order_id,?,?,?,1,CURRENT_TIMESTAMP `+gate.sql+`
     ON CONFLICT(line_id) DO UPDATE SET
       status=CASE WHEN excluded.status='' THEN t12_prod_line_runtime.status ELSE excluded.status END,
       notes=excluded.notes,updated_by=excluded.updated_by,version=t12_prod_line_runtime.version+1,updated_at=CURRENT_TIMESTAMP
-  `).bind(lineId,cloud.orderId,status,notes==null?'':notes,user.username).run();
+  `).bind(status,notes==null?'':notes,user.username,...gate.bind).run();
+  if(!coreOneWriteApplied(applied))return {success:false,code:'employee-core-line-write-eligibility-changed',
+    deliveryBlocked:status==='تم التسليم',message:'تغيرت أهلية البند أو قرار منع التسليم أثناء الحفظ؛ راجع الحالة دون إعادة التنفيذ التلقائي.'};
   return {success:true,lineId,orderId:text(cloud.orderId),status:status||text(cloud.status),notes:notes||'',source:'t12-prod-runtime'};
 }
 
