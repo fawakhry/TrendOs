@@ -58,3 +58,12 @@
 - WRITE: chapter 12 commit `3450195967e14eb4d8020f913950dad67d0e2c98`, blob `44385fca70bdc1edf0623181af27ff71b7e7773d`; independent fetch confirmed.
 - RESULT: no tests executed or prod changes. `TESTED=NO`, `PRODUCTION_VERIFIED=NO`.
 - NEXT: chapter 13 serverPaging UI → Edge page API → SQL filters/totalRows -> tests; then chapter 14 employee authorization/session.
+
+
+## 2026-10-16 / PAGINATION-008 — الفصل الثالث عشر
+- HEAD before continuation: `58dac8a7fbe90957869a8af79462684f7b25ebb5`; verified prior chapters 10–12 and log on GitHub following interrupted user network session.
+- READ: `app.js` `loadRows`, `serverPaging`, `renderPagination`, `applyFiltersAndRender`; `trendos-edge-orders-read-v1.js` wrapped getRows and `edgePage`; `src/index_v2.js`, `edge-orders-read-02cr-canary.mjs`, `edge-orders-read-v1.mjs`, `edge-orders-service-v1.mjs`, relevant test filenames.
+- FINDINGS: UI page query → Cloud Edge `GET /v1/edge/orders/02cr/page` Bearer → verified token and screen claim → three D1 mirrors + overlays + in-memory filter/sort/slice. `serverPaged` is API pagination, **not paginated SQL retrieval**. Snapshot stability, client/server filtering discrepancies, missing/empty screens claim and `__DEBT__` authority remain open. No live read/test.
+- WRITE: chapter 13 in `TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md`, commit `e9f427b19680352b852e2c1da87e09227688dd51`, blob `0d7562336ab3b297f2b60259f3080ac0d6996190`; post-write fetch verified exact blob and chapter.
+- STATUS: `SOURCE_ONLY`, `TESTED=NO`, `PRODUCTION_VERIFIED=NO`, runtime gaps `BLOCKED`. No production/customer mutations, code edits, PR merge or deploy.
+- NEXT: chapter 14 session lifecycle and staff permissions, then reconcile exact-head tests and continue remaining modules.
