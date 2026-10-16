@@ -181,3 +181,10 @@
 - **القرار:** لا نحتاج تثبيت Python أو شراء استضافة للمرحلة المحلية. نستخدم دليل Matbagy الرسمي `runtime/ubuntu/LOCAL_MEDIA_VAULT_GUIDE_AR.md`، ونضيف نسخة خاصة من `fawakhry/Matbagy-OS` في مجلد مستقل بعد تأهيل مصادقة GitHub محليًا، دون تعديل TrendOs/staging أو SSH/UFW.
 - **تحفظ:** 85G مساحة متاحة وقت الصورة فقط، وليست ضمانًا لأرشيف دائم. نسخة احتياطية منفصلة مع اختبار استعادة مطلوبة قبل اعتبار صور العملاء آمنة؛ اتصال ChatGPT→Ubuntu ونقل صور V1 لم يحدث.
 - **النتيجة:** `PYTHON3=3.12.3_OWNER_VERIFIED`؛ `ROOT_FREE=85G_SCREENSHOT_VERIFIED`؛ `MATBAGY_CHECKOUT=MISSING`؛ `UBUNTU_MEDIA_VAULT_INITIALIZED=NO`؛ `CUSTOMER_FILES_TRANSFERRED=NO`؛ `HOST_CHANGES_BY_AGENT=NO`.
+
+### SERVER-20261016-18 — Matbagy private clone paused at GitHub HTTPS username prompt
+- **الدليل:** صورة Terminal جديدة أرسلها المالك في المحادثة بتاريخ 2026-10-16 من `trend-main@TrendosShop`. الأمر الظاهر: `git clone https://github.com/fawakhry/Matbagy-OS.git "$HOME/Matbagy-OS"`، ثم `Cloning into '/home/trend-main/Matbagy-OS'...` وبعده `Username for 'https://github.com':` مع مؤشر انتظار الإدخال.
+- **النتيجة المدعومة:** HTTPS clone بدأ **لكن تنزيل محتوى المستودع لم يثبت اكتماله**؛ نقطة الوقوف هي المصادقة على GitHub لمستودع Matbagy-OS الخاص، ولا توجد رسالة نجاح، ولا يجوز اعتبار المجلد checkout صالحًا. لا توجد بيانات اعتماد ظاهرة في الصورة ولم تُطلب قيم أسرار.
+- **معلومات جانبية ظاهرة:** `git -C "$HOME/TrendOs" fetch --no-tags origin feature/server33-readonly-service-endpoint-20261016` انتهى برسائل Fetch؛ هذا تنفيذ محلي مستقل قام به المالك ويخص TrendOs، ولا يعد تنزيلًا لـMatbagy-OS أو تفويضًا بتعديل ترند.
+- **المتابعة الآمنة:** إلغاء Prompt الحالي بـ`Ctrl+C` ثم التحقق للقراءة فقط من وجود GitHub CLI بالأمر `command -v gh || echo "GH_NOT_INSTALLED"`. إن وُجد، استخدام تسجيل الدخول من المتصفح بدل إرسال GitHub Password أو PAT في المحادثة أو تصويرهما. يراجع المستخدم حالة مجلد Matbagy-OS بعد إلغاء clone قبل أي إعادة محاولة؛ لا حذف بدون دليل أو إذن.
+- **الحالة:** `PRIVATE_GITHUB_AUTH_REQUIRED=YES`؛ `MATBAGY_CLONE_COMPLETED=NOT_VERIFIED`؛ `GH_CLI_PRESENT=UNKNOWN`؛ `CUSTOMER_MEDIA_TRANSFERRED=NO`؛ `SECRET_SHARED=NO`؛ `AGENT_HOST_ACCESS=NO`.
