@@ -110,3 +110,21 @@ Inconclusive: `trendosPortalRedirectV1931_`, `attFindToday_`. These counts are *
 **Private user archive generated and integrity-tested (not pushed to GitHub):** `TrendOS_Legacy_V1932_Private_Archive_20261016.zip` (190,214 bytes; SHA-256 `0eb1a5fe785c2ea07f6338713e1c314da6e10a4e03c3412f3cddcaf4976ca10f`), containing original V1932 source, source manifest, full offline 620-node AST index with function SHA-256, checksum manifest and README. ZIP integrity validated. Coarse credential scan produced 27 credential-related identifier mentions, **zero high-specificity hardcoded assignments matching the narrow pattern**; **neither result proves absence of secrets**. User must retain the private download securely to claim a backup outside ChatGPT; no proof of offsite storage here. Do not upload ZIP to public GitHub.
 
 **Next code-level audit:** inspect diffs for eight functions without leaking private code; classify behavior change, deployment version and caller of the 10 later auth-bridge additions; build audited cleanup candidates only after independent archive and verified external live dependencies.
+
+
+## 7) V1932 name-level comparison with immutable GitHub Code.gs snapshot (2026-10-16)
+
+**Actual completed comparison** — private original `TrendOS_Code_FULL_V1932_2026-08-24.gs` at SHA-256 `d0d16e3e5863d6a2da7b31e5b4e60fd709b9ddd43cc2761fc64bde1d130b4e87` vs [GitHub `Code.gs` at `6b82fd3`](https://github.com/fawakhry/TrendOs/blob/6b82fd3bf00eb80669a3b5ca14ff8eab420a6074/Code.gs), Git blob `179526ca2f6343067dd7edebd6d290be79a6984b`. On the old file, TypeScript AST parser detected **620 declaration nodes, 617 distinct names, of which 607 are top-level names and 13 declarations nested**; GitHub `Code.gs` was enumerated by a start-of-line `function NAME(` pattern: **632 declarations / 631 distinct names**. Because the parsers differ, only **identifier presence** is compared, not bodies or parse tree equivalence.
+
+| Result | Names |
+|---|---:|
+| Shared exact function identifiers | **614** |
+| Names found only in private old AST | **3** (`closeRest`, `closeWork`, `set`) — all three are **nested**, **zero top-level original names absent** |
+| Names found only in current GitHub Code.gs | **17** |
+| Original top-level names missing from GitHub under the regex-based scan | **0 of 607** |
+
+**Seventeen names present in GitHub, absent from V1932 backup's AST:** `customerAccountApplyPaymentToFinalInvoicesV1932_`, `score`, `trendosAllowedScreensForUserV1932_`, `trendosCloudEmployeeLegacyBridgeExecuteV1_`, `trendosConsumeEmployeeLegacyBridgeNonceV1_`, `trendosEmployeeLegacyBridgeDecodeV1_`, `trendosEmployeeLegacyBridgeEnabledV1_`, `trendosEmployeeLegacyBridgeForbiddenActionV1_`, `trendosEmployeeLegacyBridgeHmacV1_`, `trendosEmployeeLegacyBridgeSecretV1_`, `trendosEmployeeLegacyPayloadDigestV1_`, `trendosEmployeeLegacyStableValueV1_`, `trendosV1932CheckDuplicateLinesNow`, `trendosV1932DuplicateLinesAudit_`, `trendosV1932FindLineRowById_`, `trendosV1932FixDuplicateLinesNow`, `trendosVerifyEmployeeLegacyBridgeAssertionV1_`. **Their exact first-appearance commit/history and runtime status are not proven.** In particular, the names referencing legacy bridge security are **not** safe archival/deletion candidates without dependency analysis.
+
+**Status:** `NAME_LEVEL_DIFF_COMPLETE`; `FUNCTION_BODY_DIFF_PENDING`; `RUNTIME_PARITY_UNKNOWN`; `PRODUCTION_VERIFIED=NO`. Original code bytes and literals remain private; this report publishes only function identifiers and counts.
+
+**Private manifest saved in user Library folder `/TrendOS-Legacy-Archive/`:** `LEGACY_V1932_FUNCTION_INDEX.md` (all 620 rows and body SHA-256 fingerprints, no bodies), `legacy_v1932_functions_private_index.json`, `PRIVATE_ARCHIVE_MANIFEST.json`; library upload succeeded. The raw `TrendOS_Code_FULL_V1932_2026-08-24.gs` was already in the user's private Library, and is **NOT uploaded to public GitHub**. Private file-body SHA256 fingerprints enable future exact body comparison once a parser/digest of GitHub source and original bytes is established.
