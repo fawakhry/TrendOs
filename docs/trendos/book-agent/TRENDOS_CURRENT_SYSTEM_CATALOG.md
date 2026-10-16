@@ -2078,3 +2078,105 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   NEXT_ACTION=FOLLOW_APPS_SCRIPT_REDIRECT_READONLY_AND_RECORD_RESULT; NO_AUTH_ENABLE
   ```
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY608_PART_2 -->
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY608_PART_3 -->
+- Run3 `37120854362`, job `111196510135` = **SUCCESS** after enabling redirect following.
+- All Cloudflare/D1/frontend baseline checks remained PASS and unchanged.
+- Apps Script diagnostic returned HTTP `405` because the probe used `curl -L` together with explicit `-X POST`; curl therefore forced POST onto the redirected `script.googleusercontent` content URL instead of following the redirect semantics used by the application fetch. No application request path or Production code changed.
+- Run3 boundary:
+  ```ini
+  STATUS=READONLY_PASS_PROBE_METHOD_STILL_INCONCLUSIVE
+  RUN_ID=37120854362
+  JOB_ID=111196510135
+  COMMIT=f2e29f3d101e3ba9a85acfe2a61ca3c95a4cd94a
+  APPS_SCRIPT_PROBE_HTTP=405
+  APPS_SCRIPT_BRIDGE_ENABLED=NOT_PROVEN
+  APPS_SCRIPT_BRIDGE_SECRET_PRESENCE=NOT_PROVEN
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=REMOVE_FORCED_POST_FROM_READONLY_CURL_REDIRECT_PROBE_AND_RERUN
+  ```
+- Run4 `37121042270`, job `111197046754` = **SUCCESS** with redirect semantics aligned to the application path.
+- Apps Script live probe result:
+  ```ini
+  APPS_SCRIPT_BRIDGE_PROBE_HTTP=200
+  APPS_SCRIPT_BRIDGE_ROUTE_LIVE=YES
+  APPS_SCRIPT_BRIDGE_ENABLED=NO
+  APPS_SCRIPT_BRIDGE_SECRET_PRESENCE=NOT_OBSERVABLE_WHILE_DISABLED
+  APPS_SCRIPT_SECRET_VALUE_LOGGED=NO
+  ```
+- Independent Cloudflare runtime remains:
+  ```ini
+  CF_BRIDGE_SECRET_PRESENT=NO
+  BRIDGE_ENABLED=NO
+  BRIDGE_SECRET_CONFIGURED=NO
+  BRIDGE_ALLOWED_POLICY_COUNT=0
+  AUTH_MODE=OFF
+  D1_USER_COUNT=0
+  ```
+- Runtime therefore agrees with the safe interpretation of Entries606/607: the compatibility bridge code exists on both sides, but **the Production bridge is not configured/armed**. Native Auth must remain OFF.
+- Run4 boundary:
+  ```ini
+  STATUS=ENTRY608_READONLY_ASSESSMENT_PASS
+  RUN_ID=37121042270
+  JOB_ID=111197046754
+  COMMIT=fc1dc2f17ddcf97e97bc1122ab220e9e3e284027
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=REPO_ONLY_BRIDGE_AND_ENROLLMENT_QUALIFICATION; PRODUCTION_SECRET_CONFIG_OR_AUTH_ENABLE_REQUIRES_EXPLICIT_APPROVAL
+  ```
+- لا نغيّر Product code بسبب هذا الفشل؛ نعدّل أداة الفحص فقط كي تقيس current truth بدل contract تاريخي superseded.
+- Run2 final read-only result:
+  - workflow commit: `21addc5dc449679dba24c68ba8399f5905e74ea4`.
+  - Run `37120688311`, Job `111196031173` = **SUCCESS**.
+  - Active API version/deployment unchanged: `ce156662-a698-47fc-b73c-dfd4657be9f5` / `477ee04d-10ac-4fc3-9ba6-e81691bcd286`, traffic 100%.
+  - Active UI version/deployment unchanged: `adfb5056-af23-4d7f-8e12-7de6417dfce2` / `a066abb8-4c33-4050-813b-123df4140450`, traffic 100%.
+  - Cloudflare secret-name list read succeeded; `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1` = **ABSENT**. No secret value was printed.
+  - Auth health and direct D1 read agree:
+    ```ini
+    AUTH_MODE=OFF
+    AUTH_ENV_ENABLED=NO
+    D1_USER_COUNT=0
+    D1_NATIVE_READY_COUNT=0
+    D1_SESSION_COUNT=0
+    D1_LIVE_SESSION_COUNT=0
+    LEGACY_BOOTSTRAP_ENABLED=NO
+    LEGACY_SESSION_ENROLL_ENABLED=NO
+    NATIVE_ONLY=NO
+    ENROLL_CANARY_CONFIGURED=NO
+    ENROLL_NONCE_CONFIGURED=NO
+    PLAINTEXT_STORED=NO
+    ```
+  - Bridge health:
+    ```ini
+    BRIDGE_ENABLED=NO
+    BRIDGE_UPSTREAM_CONFIGURED=YES
+    BRIDGE_SECRET_CONFIGURED=NO
+    BRIDGE_ALLOWED_POLICY_COUNT=0
+    RAW_NATIVE_TOKEN_FORWARDED=NO
+    PLAINTEXT_PASSWORD_FORWARDED=NO
+    ```
+  - Orders safety baseline preserved: GENERAL create + duplicate guard PASS; legacy line runtime PASS; frontend duplicate guard/refresh recovery/legacy-line route PASS.
+  - Apps Script invalid-assertion probe returned HTTP 302 before useful JSON classification, therefore Script Properties secret/enablement remain **NOT_PROVEN** from read-only public runtime. No mutation was attempted to resolve that ambiguity.
+  - Owner screenshot during Run2 shows `جارٍ تسجيل الدخول...` after submit; this is consistent with the remaining legacy Auth hop and is not evidence of a frontend static-load regression.
+  - Final Run2 boundary:
+    ```ini
+    STATUS=READONLY_ASSESSMENT_PASS_BRIDGE_GATE_BLOCKED
+    RUN_ID=37120688311
+    JOB_ID=111196031173
+    COMMIT=21addc5dc449679dba24c68ba8399f5905e74ea4
+    Production_touched=NO
+    D1_touched=NO
+    Apps_Script_touched=NO
+    Secrets_touched=NO
+    Auth_mode_changed=NO
+    Order_Customer_data_changed=NO
+    NEXT_ACTION=REPO_ONLY_EXACT_BRIDGE_POLICY_AND_ENROLLMENT_CUTOVER_PLAN; PRODUCTION_MUTATION_REQUIRES_EXPLICIT_APPROVAL
+    ```
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY608_PART_3 -->
