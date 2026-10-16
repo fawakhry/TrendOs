@@ -133,7 +133,6 @@ function fakeD1({size=501,status='طلب جديد',native=0}={}){
           }else if(sql.includes('UPDATE employee_core_orders_v1 SET active=0')){
             for(const id of JSON.parse(stmt.args[1]))if(archiveOrders.has(id))ordersActive.set(id,false);
           }else if(sql.includes('INSERT INTO employee_core_request_ledger_v1')){
-          if(sql.includes('INSERT INTO employee_core_request_ledger_v1')){
             const [key,action,actor,canonical]=stmt.args;
             if(ledger.has(key))throw Error('FAKE_DUPLICATE_REQUEST_KEY');
             ledger.set(key,{canonicalJson:canonical,responseJson:'',status:'PREPARED'});
