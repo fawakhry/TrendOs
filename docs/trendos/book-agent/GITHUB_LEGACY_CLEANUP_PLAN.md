@@ -1,5 +1,23 @@
 # GitHub cleanup after pre-split legacy recovery — controlled plan
 
+## OWNER ARCHIVE DIRECTIVE 2026-10-16 — ONE_BOOK_ONLY
+
+> **أمر المالك النهائي والملزم:** المطلوب **كتاب TrendOS واحد فقط** هو `docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md`. كل قسم يُنقل من أي كتاب قديم إلى الكتاب الواحد (فصل نشط أو ملحق تاريخي مميز) **يُزال من الكتاب القديم بمجرد ثبوت نقل كل محتواه**؛ وبعد انتهاء آخر قسم يُحذف ملف الكتاب القديم كله. ممنوع إنشاء كتب جديدة أو إبقاء نسخ مكررة لمجرد الاحتياط. الاحتياط يكون عبر Git history وفرع الأرشيف لا كتاب ثان.
+
+**قواعد التنفيذ:**
+- 1. PRE-SNAPSHOT: فرع الأرشيف المستقل `archive/trendos-books-before-single-book-20261016` عند `b2788ecb4c187717e020321954a1ea449c1aa0d5` يحفظ النسخ قبل النقل. لا يُحذف ولا تُعاد كتابة تاريخه.
+- 2. MOVE: انقل النص كاملاً أو قسمًا محددًا مع المصدر والـblob SHA إلى الكتاب الوحيد؛ ما لا يثبت نشاطه الحالي يوضع في **ملحق تاريخي داخل نفس الكتاب** مع حالته الحقيقية، ولا يُعامل ككود حي.
+- 3. VERIFY: إعادة قراءة المصدر والهدف والنسخة المؤرشفة، مقارنة نصية أو تفصيلية كاملة، ثم تسجيل commit المصدر وcommit النقل وطول/بصمة النقل.
+- 4. REMOVE: حذف **القسم المنقول فقط** من القديم بعد تحقق النقل، ثم حذف الكتاب القديم كاملًا عندما يكون كل محتواه قد نُقل؛ أي فشل في المطابقة يمنع الحذف ويبقيه `MIGRATION_BLOCKED`.
+- 5. SAFETY: هذا التفويض يخص **ملفات كتب التوثيق القديمة**، ولا يصرح بحذف كود Runtime أو ملفات عملاء أو أدوات المحاسبة أو كتاب مستقل لمشروع آخر، ولا يسمح بنقل أسرار إلى مستودع عام، ولا Merge/Deploy.
+
+**حالة التنفيذ الحالية عند تسجيل الأمر:** `TRENDOS_LEGACY_PRE_SPLIT_BOOK.md` نُقل كاملًا كملحق أ، تحقق تطابقه النصي مع نسخة الأرشيف، وحُذف القديم commit `be5e1951d5fb84f583640b03d291cb3abeee4a0f`. `TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md` نُقل متن الفصول 1–31 حرفيًا، ونُقلت مقدمته الفريدة (1517 حرفًا) لملحق ج، ثم حُذف الملف القديم commit `21f6b07c370b1570fc6e1253be014da7b33239c1`. **`TrendOS_MASTER_BOOK.md` لا يزال موجودًا**: محاولة نقل النص كاملًا عبر الأداة لم تكتمل بسبب فحص السلامة، ولذلك **ممنوع حذفه** قبل نقل موثق ومطابق. لا يُسوَّق المشروع ككتاب واحد فعليًا قبل اكتمال هذا البند.
+
+**قاعدة الأولوية:** يلغي هذا الأمر أي `NO_DELETE` قديم **في نطاق كتب التوثيق المنقولة والمتحقق منها فقط**؛ يظل `NO_DELETE` إلزاميًا للكود التشغيلي والأرشيف غير المحقق وكل بيانات العملاء. لا يغيّر حالة الاختبارات أو التشغيل. سجل الإدخال الآلي [`CATALOG_AUTHORITY_MANIFEST_V1.json`](CATALOG_AUTHORITY_MANIFEST_V1.json)، وكتاب المنصة الوحيد المستهدف [`TRENDOS_CURRENT_SYSTEM_CATALOG.md`](TRENDOS_CURRENT_SYSTEM_CATALOG.md).
+
+---
+
+
 > OWNER DECISION · 2026-10-16. **The goal is a tidy active GitHub, not deleting the history or current service code.** All actions in this phase are **inventory/documentation + protected archive ref only**. Do not delete/move any active file, workflow or branch just because it is old, or because a different project now owns a feature.
 
 ## 0. Current safety checkpoint (completed)
