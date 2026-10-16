@@ -166,8 +166,12 @@ try {
   });
   await test('08 restricted customer bulk delivery retains earlier skip policy and allows only eligible items',async()=>{
     const before=one("SELECT status FROM employee_core_lines_v1 WHERE line_id='FAKE_L_BLOCKED'").status;
-    const r=await send('bulkUpdateDepartmentStatusV1926',{screen:'print',
-      fromStatus:'تحت التنفيذ',toStatus:'تم التسليم',requestId:'FAKE_BULK_GATE_20261016_001'});
+    role='print';department='طباعة';
+    let r;
+    try{
+      r=await send('bulkUpdateDepartmentStatusV1926',{screen:'print',
+        fromStatus:'تحت التنفيذ',toStatus:'تم التسليم',requestId:'FAKE_BULK_GATE_20261016_001'});
+    }finally{role='service';department='خدمة العملاء';}
     assert.equal(r.success,true,JSON.stringify(r));
     assert.equal(r.skippedDebt>=1,true,JSON.stringify(r));
     assert.equal(one("SELECT status FROM employee_core_lines_v1 WHERE line_id='FAKE_L_BLOCKED'").status,before);
