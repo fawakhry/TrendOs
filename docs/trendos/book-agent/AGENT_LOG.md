@@ -108,3 +108,11 @@
 - WRITE: chapter 18 append commit `235f803975535ee6a0f9bcc521b045599ec5b789`, content blob `add87398d5c6f471116ded450f85581a660b12cc`; fetched independently and verified.
 - STATUS: `SOURCE_ONLY`, financial/ownership/parity `BLOCKED`, `TESTED=NO`, `PRODUCTION_VERIFIED=NO`. No accounting actions executed, no production mutation, no PR merge.
 - NEXT: reconcile chapter audit findings into structured evidence gap queue and continue operational module inventory (staff Core/Tasks, Files, reporting).
+
+
+## 2026-10-16 / CORE-TASKS-014 — الفصل التاسع عشر
+- READ: `cloudflare-d1/src/employee-core-native-v1.mjs`, `operator-task-edge-v2.mjs`, `autonomous-printshop-shadow-v1.mjs`, dispatcher/config, Entry650/Operator Task test source.
+- FINDINGS: Core GET rows/page alias returns `serverPaged:false`, unlike 02CR; Core bulk status checks delivery restriction but single updateLine writer shown doesn't enforce same restriction. Operator Task V2 is Cloudflare HMAC proxy to Apps Script actual Task authority, not native independent. Autonomous printshop is admin read-only shadow recommendation with no writes/assignment/machine/material/employee readiness. All SOURCE_ONLY and needs runtime parity.
+- WRITE: chapter 19 commit `80fec77db7df90c200a4e47b5a19deadb4b318f6`, blob `4bb757ca7063dda86c03275812d5be4261485fc7`, separate fetch verified.
+- STATUS: `SOURCE_ONLY`; guard parity, task cutover and autonomous execution `BLOCKED`; `TESTED=NO`, `PRODUCTION_VERIFIED=NO`. Docs-only.
+- NEXT: chapter 20 file/attachment interfaces, access control and storage, then evidence queue reconciliation.
