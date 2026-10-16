@@ -1,0 +1,41 @@
+{
+  "_notice": "OWNER-READ-ONLY-EVIDENCE_TEMPLATE. Never upload actual script IDs, tokens, customer records or secrets. A populated template is not production certification.",
+  "selectedOwner": "UNKNOWN",
+  "inventoryComplete": false,
+  "readonlyEvidenceAttested": false,
+  "ownerApprovalForHandoff": false,
+  "scriptLanes": [
+    {
+      "lane": "WORK_QUEUE_V1",
+      "projectFingerprint": "UNKNOWN",
+      "guardDeployed": false,
+      "guardEnabled": false,
+      "selectedOwner": "UNKNOWN",
+      "codeVersionVerified": false,
+      "lockNamespaceVerified": false,
+      "activeTaskCount": null
+    },
+    {
+      "lane": "OPERATOR_TASK_V2",
+      "projectFingerprint": "UNKNOWN",
+      "guardDeployed": false,
+      "guardEnabled": false,
+      "selectedOwner": "UNKNOWN",
+      "codeVersionVerified": false,
+      "lockNamespaceVerified": false,
+      "activeTaskCount": null
+    }
+  ],
+  "d1": {
+    "mode": "UNKNOWN",
+    "controlModeVerified": false,
+    "codeVersionVerified": false,
+    "activeTaskCount": null
+  },
+  "edge": {
+    "enabled": null,
+    "codeVersionVerified": false,
+    "d1ConflictGuardDeployed": false,
+    "d1ConflictGuardEnabled": false
+  }
+}
