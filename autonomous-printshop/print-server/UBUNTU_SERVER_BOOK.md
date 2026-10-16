@@ -172,3 +172,12 @@
 - **Host baseline still not established:** Ubuntu's latest free-space/available backup, Python version and \`~/Matbagy-OS\` checkout **NOT VERIFIED**. User has not yet run read-only commands or sent results. No SSH session, filesystem write, photo transfer, upload, port, DNS, Cloudflare or firewall operation carried out on \`TrendosShop\` by this assistant.
 - **Next local owner action, read-only:** \`python3 --version\`, \`df -h "$HOME"\`, \`ls -ld "$HOME/Matbagy-OS" 2>/dev/null\`. Check current SSD headroom and backup plan before adding actual images. Then use guide on \`Matbagy-OS@main\` on Ubuntu with synthetic sample first.
 - **Status:** \`REPO_CODE=MERGED\`; \`PR_CI=PASS\`; \`UBUNTU_DEPLOY=NOT_STARTED\`; \`CUSTOMER_MEDIA_IMPORTED=NO\`; \`FULL_BACKUP_RESTORE_VERIFIED=NO\`; \`SAFE_TO_DELETE_CHAT=FALSE\`.
+
+### SERVER-20261016-17 — Owner Ubuntu screenshot: Python, disk headroom, Matbagy checkout
+- **الدليل:** صورة Terminal قدمها المالك في المحادثة بتاريخ 2026-10-16، ظاهر فيها المستخدم `trend-main@TrendosShop`. هذه أدلة عرض محلية من المالك، لا SSH من ChatGPT.
+- **الأوامر المصورة:** `python3 --version`، `df -h "$HOME"`، واختبار `[ -d "$HOME/Matbagy-OS" ]` مع إخراج `MATBAGY_REPO=EXISTS/MISSING`.
+- **النتيجة المؤكدة:** `Python 3.12.3`؛ على `/dev/sda2` mounted `/`: `Size 109G`، `Used 18G`، `Avail 85G`، `Use% 18%`. النتيجة `MATBAGY_REPO=MISSING`: المسار `$HOME/Matbagy-OS` غير موجود حين الفحص.
+- **سياق إضافي منفصل:** بداية الصورة تعرض فحص `git status --porcelain=v1 --branch` على `$HOME/TrendOs-AP281-staging-66b64ab` مع `## HEAD (no branch)`؛ هذا staging مختلف، وليس سببًا لتغيير أو تحديث مستودع TrendOs.
+- **القرار:** لا نحتاج تثبيت Python أو شراء استضافة للمرحلة المحلية. نستخدم دليل Matbagy الرسمي `runtime/ubuntu/LOCAL_MEDIA_VAULT_GUIDE_AR.md`، ونضيف نسخة خاصة من `fawakhry/Matbagy-OS` في مجلد مستقل بعد تأهيل مصادقة GitHub محليًا، دون تعديل TrendOs/staging أو SSH/UFW.
+- **تحفظ:** 85G مساحة متاحة وقت الصورة فقط، وليست ضمانًا لأرشيف دائم. نسخة احتياطية منفصلة مع اختبار استعادة مطلوبة قبل اعتبار صور العملاء آمنة؛ اتصال ChatGPT→Ubuntu ونقل صور V1 لم يحدث.
+- **النتيجة:** `PYTHON3=3.12.3_OWNER_VERIFIED`؛ `ROOT_FREE=85G_SCREENSHOT_VERIFIED`؛ `MATBAGY_CHECKOUT=MISSING`؛ `UBUNTU_MEDIA_VAULT_INITIALIZED=NO`؛ `CUSTOMER_FILES_TRANSFERRED=NO`؛ `HOST_CHANGES_BY_AGENT=NO`.
