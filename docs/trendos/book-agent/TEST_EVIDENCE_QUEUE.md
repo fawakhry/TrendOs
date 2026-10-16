@@ -214,3 +214,19 @@
 - **BOOK27-DAYCLOSE-UNKNOWN:** fake `null`, exception, malformed, inconsistent, blocked and legitimate ready preview. **PASS**: unknown NOT_READY, valid blocker disables button, only unblocked verified preview shows ready; no financial mutation or real day-close run.
 - **BOOK27-ACCOUNTING-ROLE-HINT:** fake tampered browser storage, untrusted HTTP/HTTPS origin, allowlisted EasyStore URL and SSO token NOT in URL. **PASS UI-only**; role/expired-session enforcement by receiving EasyStore backend and SSO audience/expiry/revoke cross-service NOT VERIFIED. Subsequent tests should emulate expired native session and forged ACK with a verified destination provider contract, plus release staging.
 - **REGRESSION LIMIT:** VM source extraction and synthetic handlers are not full browser E2E; old code used multiple identical function names (`roleMode`) and test extraction was corrected after a red run. `CI_GREEN_SYNTHETIC=true` only, `APP_DEPLOYED_SHA=UNKNOWN`, `BACKEND_EASYSTORE_VERIFIED=false`. No regression run proves real customer or monetary operation.
+
+
+## اختبارات الفصل 31 — Ubuntu TrendosShop وPrint/Laser Service (2026-10-16)
+
+**نوع الدليل:** `SOURCE_ONLY` + Host Owner Terminal evidence for existing Ubuntu checkpoints. `TESTED_NOW=NO`, `PRODUCTION_VERIFIED=NO`. أول مرحلة مجازة تصميميًا فقط، **بمحاكاة خارج السيرفر وبدون بيانات/توكنات فعلية**، والسيرفر **في البيت** وليس على شبكة ماكينة إنتاج مثبتة.
+
+| ID | P | تجربة تحقق معزولة | معيار القبول |
+|---|---|---|---|
+| BOOK31-PRINT-ONLY-POLL-SCOPE | P1 | Fake TrendOS client allows getRows(print), denies service/laser/press؛ initialize Bridge configured `pollScreens=['print']` and capture baseline + status transition, observeOnly true | no privilege expansion, no cross-dept data, snapshot success limited to authorized screens, no real order/folder writes |
+| BOOK31-LOCAL-READ-ACL | P1 | Mock HTTP GET of status/state/orders/order-files/preview from unauthorized identity under future reverse-proxy assumptions; assert POST remains token-gated | classify public vs private routes, deny private customer reads, preserve loopback-only default and no route publicly exposed |
+| BOOK31-HOST-SOURCE-PARITY | P1 | Compare owner-observed local HEAD `a238ce5a830bc5a7968dc020cd8168c85fa8c446` with AP155 candidate `ab21183f9444b8ebb49932f1b1e4f3c381888851`, config and tested code IDs; stage-only mock harness if separately approved | no blind pull, no claim CI result applies to host until same tested artifact/config proved |
+| BOOK31-SAFE-START-PROFILE | P2 | Controlled offline fake run with temp storage, TrendOS+FastMode disabled; default live mode MUST fail closed, no real popup/network/printing | `AP277_LIVE_CAPABILITIES_BLOCKED_BY_DEFAULT` intact, `observeOnly` doesn't misrepresent startup disk effects |
+| BOOK31-HOST-SECURITY | existing | Independent Server Book SERVER-20261016-01…13: SSH socket/UFW/password/key/owner Git evidence; no remote scans; **do not duplicate issue** | keep host hardening/read-only access approval gates open |
+| BOOK31-FILE-SSO | existing | Chapter 20/30 token-in-URL and revocation concerns; separate `files.matbagy.com` service, not local port 4782 | deny unauthorized file read by server ACL after independent review |
+
+**Source tests to inspect (not executed):** `autonomous-printshop/print-server/tests/test_ap277_write_guard_synthetic.py`, `test_ap279_bridge_shadow_synthetic.py`, `test_ap296_trendos_shadow_schema_synthetic.py`, `test_platform_bridge.py`. On closing each ID require `TARGET_SOURCE_HEAD`, `LOCAL_HOST_HEAD`, `TEST_COMMAND`, `ACTUAL_RESULT`, `CI_RUN_URL/TEST_SHA`, `DEPLOYED_PARITY` and owner approval for any real login or Ubuntu changes. No Print/Laser/Files/Agent service is declared LIVE from GitHub docs.
