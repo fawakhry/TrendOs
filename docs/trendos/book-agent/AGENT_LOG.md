@@ -250,3 +250,9 @@
 - UI INDEX: Chapter29 control mapping commit `876fd5c194ededf0d42424b4cb750b80b1fafbae`, blob `94b6c85092c2be49433cf0980668ed550a9a78b2`; verified.
 - STATUS: `SOURCE_ONLY`, `TESTED=NO`, `PRODUCTION_VERIFIED=NO`; no EasyStore session, employee approvals, accounting writes, code changes, deploys or merges. Chapter-level issue report and repair prompt included for owner.
 - NEXT: chapter 30 SSO/session/employee identity and cross-tool authorization boundaries; report new issues immediately after finishing that chapter.
+
+## 2026-10-16 / CH25-CH26-P0-REQUAL-024
+
+- Refreshed exact source on Draft PR #137 at SHA `239696efdf369ed5f89a7e08718e6a46fa76da6f`. Mirror GET now supports migration operator secret **or** verified admin employee Bearer + username header. All other employee roles/anonymous/invalid sessions fail closed before mirror sheet SQL. Incident remains SOURCE_ONLY on inspected Draft, not production confirmed.
+- First synthetic admin-positive attempt exposed a Bearer regexp escaping mistake (CI #38911686997 FAIL); fixed at `239696ef...`. [P0 CI #38911785696](https://github.com/fawakhry/TrendOs/actions/runs/38911785696) PASS (11 new synthetic + old mirror & manager regression), [A61 #38911785804](https://github.com/fawakhry/TrendOs/actions/runs/38911785804) PASS at same SHA; Draft unmerged/no deploy.
+- Issue register latest evidence commit `448873073826e267e936f1911c62a3fff163eaff`; evidence queue latest commit `6af33eac1512e4e02996b1867c50135c27340f91`. Full P0 server production parity, R2 public bucket status, Delta CAS and normalized import completeness remain BLOCKED and must not be announced closed.
