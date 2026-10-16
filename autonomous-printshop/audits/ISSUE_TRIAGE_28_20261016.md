@@ -15,7 +15,7 @@ Status: SOURCE_ONLY triage, NOT production authorization. Base commit: ab21183f9
 
 Resolved items are removed from the active backlog after CI evidence. #9 is CLOSED (synthetic/source scope only); see closure evidence below.
 8. Book versus config.js native employee auth setting: SOURCE_ONLY discrepancy; compare deployed config separately.
-10. getRows versus getRowsPageV1931: SOURCE_ONLY; compare permission and pagination contracts.
+10. getRows versus getRowsPageV1931: SOURCE_ONLY; dispatcher routes both as CORE_READ_ACTIONS, while Edge orders route targets paginated getRowsPageV1931. These are distinct read contracts, NOT interchangeable. Review server-side permissions, pagination, staleness, fallback, and least-privilege before closing. No live request authorized.
 11. Employee least-privilege read scope: BLOCKED pending authorization matrix tests.
 12. Durable Andon/exception state storage: UNKNOWN current runtime; design audit and idempotency checks.
 13. Operator Task activation gates: OFF / NO_GO.
