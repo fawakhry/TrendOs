@@ -50,3 +50,11 @@
 - WRITE: appended chapter 11; commit `41e17d03434f0ef1b95c415564ae8c75d2dcb565`, new blob `65220b5278826ed75d763ba2e8d57eb5a61ac2e8`. Post-write independent fetch verified new blob and chapter.
 - RESULT: `SOURCE_ONLY`; `TESTED=NO`; `PRODUCTION_VERIFIED=NO`; no production reads/writes of customer records, no code changes, no merge/deploy.
 - NEXT: independent chapter 12 on fly print server rule and same-day promise, then pagination and employee sessions.
+
+
+## 2026-10-16 / FLY-PRINT-007 — الفصل الثاني عشر
+- READ: `app.js` fly UI, expectedDeliveryTextFromNow (+2 days), `cloud-write-order-contract-v2.mjs`, `t12-order-create-shadow-intent.mjs`, `t12-general-create.mjs`, matching test source names.
+- FINDING: Backend source restricts fast-print to print and forces urgent; D1 writer persists urgency/flag. UI statement promises same-day, whereas fallback date helper adds two days and order INSERT does not include expected delivery. Possible source inconsistency, not proven production incident. `SOURCE_ONLY`; same-day `BLOCKED`.
+- WRITE: chapter 12 commit `3450195967e14eb4d8020f913950dad67d0e2c98`, blob `44385fca70bdc1edf0623181af27ff71b7e7773d`; independent fetch confirmed.
+- RESULT: no tests executed or prod changes. `TESTED=NO`, `PRODUCTION_VERIFIED=NO`.
+- NEXT: chapter 13 serverPaging UI → Edge page API → SQL filters/totalRows -> tests; then chapter 14 employee authorization/session.
