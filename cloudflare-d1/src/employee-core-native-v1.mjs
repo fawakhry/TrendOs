@@ -215,13 +215,22 @@ async function trendMaster(env,user,body){
     version:'ENTRY614_D1_EMPLOYEE_CORE_V1'
   };
 }
+// BOOK28-BULK-500-SCOPE: report exactly how much the 500-item safety cap
+// selected from one verified source snapshot. Never claim "all" was processed.
+export function coreBulkWindowV28(matched){
+  const source=Array.isArray(matched)?matched:[];
+  const items=source.slice(0,500);
+  const remainingDueToLimit=Math.max(0,source.length-items.length);
+  return {items,totalMatched:source.length,selectedLines:items.length,
+    remainingDueToLimit,partialByLimit:remainingDueToLimit>0};
+}
 async function bulkStatus(env,user,body){
   const screen=text(body.screen),fromStatus=text(body.fromStatus),toStatus=text(body.toStatus),requestId=text(body.requestId);
   if(!screenAllowed(user,screen))return {success:false,message:'ليس لديك صلاحية تغيير حالات هذا القسم جماعيًا.'};
   if(!STATUSES.has(fromStatus)||!STATUSES.has(toStatus)||fromStatus===toStatus)return {success:false,message:'الحالة الحالية أو الجديدة غير مسموح بها.'};
   const led=await requestLedger(env,requestId,'bulkUpdateDepartmentStatusV1926',user.username,{screen,fromStatus,toStatus});
   if(!led.ok)return {success:false,code:led.code};if(led.replay)return led.response;
-  const all=await coreRows(env,screen),candidates=all.filter(r=>text(r.status)===fromStatus).slice(0,500);
+  const all=await coreRows(env,screen),window=coreBulkWindowV28(all.filter(r=>text(r.status)===fromStatus)),candidates=window.items;
   const changed=[],skippedDebt={};
   for(const row of candidates){
     if(toStatus==='تم التسليم'&&row.deliveryDebtRestricted){skippedDebt[row.customer||row.lineId]=true;continue;}
@@ -249,7 +258,13 @@ async function bulkStatus(env,user,body){
     await env.DB.prepare("UPDATE employee_core_control_v1 SET data_version=data_version+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1").run();
     await event(env,'bulkUpdateDepartmentStatusV1926','screen',screen,user.username,{fromStatus,toStatus,changed:changed.length,requestId});
   }
-  const response={success:true,changed:changed.length,affectedOrders:new Set(changed.map(r=>r.orderId)).size,skippedDebt:Object.keys(skippedDebt).length,skippedFinance:0,financeReasons:{},screen,fromStatus,toStatus,requestId,version:'ENTRY614_D1_EMPLOYEE_CORE_V1'};
+  const response={success:true,changed:changed.length,affectedOrders:new Set(changed.map(r=>r.orderId)).size,skippedDebt:Object.keys(skippedDebt).length,skippedFinance:0,financeReasons:{},
+    matchedLines:window.totalMatched,selectedLines:window.selectedLines,remainingDueToLimit:window.remainingDueToLimit,
+    partialByLimit:window.partialByLimit,partial:window.partialByLimit,
+    message:window.partialByLimit
+      ?'تم تعديل '+changed.length+' من '+window.totalMatched+' بند مطابق. تبقى '+window.remainingDueToLimit+' بند خارج حد 500 بند لكل طلب. راجع النتائج وأعد المحاولة بطلب جديد للباقي.'
+      :'تم تعديل '+changed.length+' بند من '+window.totalMatched+' بند مطابق في هذا الطلب.',
+    screen,fromStatus,toStatus,requestId,version:'ENTRY614_D1_EMPLOYEE_CORE_V1'};
   await commitLedger(env,requestId,response);return response;
 }
 async function archiveDelivered(env,user,body){
@@ -257,7 +272,7 @@ async function archiveDelivered(env,user,body){
   if(!screenAllowed(user,screen))return {success:false,message:'ليس لديك صلاحية أرشفة هذا القسم.'};
   const led=await requestLedger(env,requestId,'archiveDeliveredDepartmentV1926',user.username,{screen});
   if(!led.ok)return {success:false,code:led.code};if(led.replay)return led.response;
-  const delivered=(await coreRows(env,screen)).filter(r=>text(r.status)==='تم التسليم').slice(0,500);
+  const window=coreBulkWindowV28((await coreRows(env,screen)).filter(r=>text(r.status)==='تم التسليم')),delivered=window.items;
   const statements=[];
   for(const r of delivered){
     statements.push(env.DB.prepare(`
@@ -286,7 +301,13 @@ async function archiveDelivered(env,user,body){
     await env.DB.prepare("UPDATE employee_core_control_v1 SET data_version=data_version+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1").run();
     await event(env,'archiveDeliveredDepartmentV1926','screen',screen,user.username,{archivedLines:delivered.length,archivedOrders:fully.length,requestId});
   }
-  const response={success:true,archivedLines:delivered.length,archivedOrders:fully.length,partialOrders:Math.max(0,orders.length-fully.length),screen,requestId,version:'ENTRY614_D1_EMPLOYEE_CORE_V1'};
+  const response={success:true,archivedLines:delivered.length,archivedOrders:fully.length,partialOrders:Math.max(0,orders.length-fully.length),
+    matchedLines:window.totalMatched,selectedLines:window.selectedLines,remainingDueToLimit:window.remainingDueToLimit,
+    partialByLimit:window.partialByLimit,partial:window.partialByLimit,
+    message:window.partialByLimit
+      ?'تمت أرشفة '+delivered.length+' من '+window.totalMatched+' بند مطابق. تبقى '+window.remainingDueToLimit+' بند خارج حد 500 بند لكل طلب. راجع النتائج وأعد المحاولة بطلب جديد للباقي.'
+      :'تمت أرشفة '+delivered.length+' بند من '+window.totalMatched+' بند مطابق.',
+    screen,requestId,version:'ENTRY614_D1_EMPLOYEE_CORE_V1'};
   await commitLedger(env,requestId,response);return response;
 }
 
