@@ -221,3 +221,12 @@
 - **الخطوة التالية للمالك:** تشغيل `python3 -m unittest discover -s "$HOME/Matbagy-OS/runtime/ubuntu" -p 'test_matbagy_media_vault.py' -v`؛ **بشرط نجاح الاختبارات** تشغيل `python3 "$HOME/Matbagy-OS/runtime/ubuntu/matbagy_media_vault.py" init --root "$HOME/MatbagyData"`. الاختبارات تنشئ بيانات اصطناعية في مسارات مؤقتة فقط؛ التهيئة تنشئ مجلدًا خاصًا فارغًا.
 - **حماية نطاق العمل:** لا تغيير TrendOs، UFW/SSH، Cloudflare، أرقام الطلبات أو بيانات عملاء. قبل إدخال صور حقيقية مطلوب backup خارجي واختبار استعادة. لا ادعاء أن الصور محفوظة أو أن الأداة نشرت كخدمة.
 - **الحالة:** `MATBAGY_REPO_ON_UBUNTU=YES`، `VAULT_SCRIPT_PRESENT=YES`، `UBUNTU_VAULT_TESTS=NOT_RUN_OR_NOT_EVIDENCED`، `VAULT_INITIALIZED=NOT_VERIFIED`، `CUSTOMER_MEDIA_IMPORTED=NO`.
+
+### SERVER-20261016-23 — Matbagy Ubuntu media vault tests PASS and local initialization confirmed
+- **الدليل:** صورة Terminal جديدة مقدمة من مالك السيرفر بتاريخ 2026-10-16 من `trend-main@TrendosShop`.
+- **فحص الأداة:** `python3 -m unittest discover -s "$HOME/Matbagy-OS/runtime/ubuntu" -p 'test_matbagy_media_vault.py' -v`. الناتج المعروض: نجاح اختبارات التحقق من التوقيع والامتدادات/الروابط الرمزية، عبور المسار، فصل الصورة الأصلية عن الناتجة، البصمات الرقمية، رفض الأدوار والنسخ غير الصحيحة، منع التخزين داخل Git، وباقي الاختبارات. الخاتمة: `Ran 9 tests in 0.183s` ثم `OK`.
+- **تهيئة مخزن الصور:** `python3 "$HOME/Matbagy-OS/runtime/ubuntu/matbagy_media_vault.py" init --root "$HOME/MatbagyData"` أعاد JSON فيه `"status": "LOCAL_VAULT_INITIALIZED"`، `"root": "/home/trend-main/MatbagyData"`، `"storage": "LOCAL_ONLY"`، `"no_remote_upload": true`.
+- **ما ثبت:** `UBUNTU_VAULT_TESTS=PASS_9_OF_9`؛ `VAULT_INITIALIZED=YES_OWNER_SCREENSHOT`؛ `PRIVATE_DATA_ROOT=/home/trend-main/MatbagyData`؛ `NO_NETWORK_UPLOAD=YES`. هذا يثبت تجهيز برنامج الأرشفة ومجلده على المضيف، وليس حفظ صور عملاء أو تحقق نسخ احتياطية.
+- **ما لم يتم:** لم يُعرض أي ناتج `add` لملف أصلي أو نتيجة V1؛ لم يظهر `verify` بعد حفظ صورتين؛ لا دليل على وسيلة نسخ احتياطي مستقلة أو استعادة مجربة. `CUSTOMER_MEDIA_SAVED=NO_EVIDENCE`؛ `OFFHOST_BACKUP=NOT_VERIFIED`؛ `SAFE_TO_DELETE_CHAT=FALSE`.
+- **الخطوة الآمنة التالية:** فحص وسائط التخزين المتاحة قراءة فقط بواسطة `lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINTS,TRAN`، وتأكيد صلاحيات مجلد `MatbagyData` دون طباعة محتويات العملاء. بعد تخصيص نسخة احتياطية مستقلة، نقل الملفين الفعليين للنموذج `TPL-2026-000001` مع SHA-256 واختبار `verify`. لا تحتاج الخدمة منفذ شبكة أو API مدفوع.
+- **حد الوصول:** النتائج أدلة من صورة Terminal مالك الجهاز، وليس اتصال SSH أو تشغيل أوامر بواسطة المساعد.
