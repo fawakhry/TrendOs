@@ -411,3 +411,14 @@
 - **الاختبارات والنتائج:** Git fetch `completed` بحسب الصورة؛ اختبارات SERVER-33/34 المعروفة مصدرية ببيانات وهمية وليست إثبات إنتاج. لا أخطاء من Git fetch؛ قيود Network Namespace الظاهرة تخص اختبارًا محليًا منفصلًا.
 - **الخطوة التالية (أمر واحد للمالك وصورة):** `git -C "$HOME/TrendOs" worktree add --detach "$HOME/TrendOs-server-reader-staging" FETCH_HEAD`. يستخدم الكود الذي تم جلبه للتو، وينشئ مجلدًا منفصلًا مع تعديل بيانات Git الإدارية فقط، دون تغيير ملفات الـWorktrees القديمة. يتطلب مراقبة النتيجة؛ لو المسار موجود بالفعل سيرفض Git ويجب التوقف وعدم الحذف أو الإجبار. **لا يشغّل Print Server أو الطلبات الحقيقية**.
 - **حالة التنفيذ:** `SOURCE_FETCH_TO_FETCH_HEAD=SUCCESS_AS_SHOWN`; `NEW_STAGING_WORKTREE_CREATED=NO`; `OLD_WORKTREES_UNTOUCHED=YES_AS_OBSERVED`; `MOCK_AGENT_REAL_ORCHESTRATION=NO`; `NETWORK_ISOLATION_PROVEN=NO`; `CLOUDFLARE_DEPLOY=NO`; `SERVICE_ACCOUNT_CREATED=NO`; `LIVE_ORDERS=NO`.
+
+
+### SERVER-20261016-43 — Second owner fetch successful; staging worktree still not created (2026-10-16)
+- **الهدف:** متابعة تجهيز نسخة Ubuntu التجريبية باستعمال أدلة حقيقية، دون الخلط بين `git fetch` وإنشاء `git worktree`.
+- **دليل المالك:** صورة من `trend-main@TrendosShop` توضح تشغيل `git -C "$HOME/TrendOs" fetch --no-tags origin feature/server33-readonly-service-endpoint-20261016` للمرة الثانية. تظهر `Receiving objects: 100% (538/538)` و`Resolving deltas: 100% (384/384)` و`* branch ... -> FETCH_HEAD` ثم عودة الـprompt بدون خطأ.
+- **حدث منفصل في الصورة:** أمر Terminal ملصوق وظهر معه escape `^[[200~`، ثم `FOKHA_CONFIRM_TRANSIENT_ONCE=YES: command not found`، قبل Git fetch. لا يوجد دليل أن سكربت `fokha-user-transient-probe.sh --run` نُفذ فعليًا في هذه المحاولة؛ **لا ينبغي إعادة تشغيله أو اعتباره اجتاز اختبار العزل**. لا تعديل لإعدادات systemd أو صلاحيات النظام.
+- **الفرق بين المطلوب والمنفذ:** التعليمات السابقة كانت `git ... worktree add --detach ... FETCH_HEAD`، لكن الصورة تؤكد `fetch` فقط؛ لا يظهر تنفيذ `worktree add` أو إنشاء `TrendOs-server-reader-staging`. لا نعتبر بيئة الاختبار مُنشأة.
+- **المراجعات:** صورة Terminal، GitHub PR #160 وحالته Draft/Open/غير مدمج، كتاب السيرفر حتى SERVER-42؛ لم يتم تنفيذ أي أمر على Ubuntu بواسطة الإيجنت.
+- **اختبارات ونتائج:** Git fetch ناجح بالصورة، مع عدم وجود اختبارات API حية أو محلية جديدة موثقة. الفشل الظاهر خاص بصياغة الأمر الملصوق لا باختبار موثق للإيجنتات.
+- **الخطوة التالية للمالك (أمر واحد فقط وانتظار صورة):** `git -C "$HOME/TrendOs" worktree add --detach "$HOME/TrendOs-server-reader-staging" FETCH_HEAD`. ينشئ نسخة مستقلة عن مسار التشغيل القديم؛ لو وجد المسار بالفعل أو رفض Git، توقف بلا حذف أو Force. لا يفعل Cloudflare أو يستقبل أوردرات حقيقية.
+- **الحالة:** `FETCH_HEAD_AVAILABLE=YES_AS_SHOWN`; `STAGING_WORKTREE_CREATED=NOT_PROVEN`; `OLD_WORKTREES_UPDATED=NO_EVIDENCE`; `AGENT_SCRIPT_EXECUTED=NOT_PROVEN`; `UBUNTU_LIVE_READER=OFF`; `CLOUDFLARE_PROD_CHANGED=NO`; `PR_MERGED=NO`.
