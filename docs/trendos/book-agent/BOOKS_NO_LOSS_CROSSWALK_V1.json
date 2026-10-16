@@ -38,16 +38,16 @@
     "entry_number_count": 66,
     "entry_heading_count": 58,
     "mention_only_count": 8,
-    "explicitly_mentioned_in_current_catalog": 16,
-    "unmentioned_by_exact_entry_label_in_current_catalog": 50,
+    "explicitly_mentioned_in_current_catalog": 17,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 49,
     "reconciled_entry_count": 0,
     "unreconciled_entry_count": 66,
     "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation.",
-    "historical_entry_heading_sections_migrated_exact_count": 12,
+    "historical_entry_heading_sections_migrated_exact_count": 13,
     "initial_entry_heading_count": 58,
     "original_snapshot_reconciled_count": 0,
-    "migration_progress_note": "15 verified exact historical transfer units through Entry613. No current production authorization inferred from Entry613 (superseded). 66 original entries remain unreconciled.",
-    "total_migration_units_exact_verified": 15,
+    "migration_progress_note": "16 verified exact historical migrations through Entry614, which transferred in two chunks. 66 Entry IDs remain unreconciled; historical CI and source-only parity are not a current Production assertion.",
+    "total_migration_units_exact_verified": 16,
     "non_entry_historical_migration_units_exact_verified": 3
   },
   "book_policy": {
@@ -1598,12 +1598,37 @@
       "source_first_line": 1173,
       "source_heading_line": 1173,
       "mention_count_in_master": 7,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_ZERO_GOOGLE_EMPLOYEE_FUNCTIONS_REPO_ONLY",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "016",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          614
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "891df6327d4e4daae46bed6c0cd6dc1249f0474c",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ت",
+        "copy_commits": [
+          "fca2d6544e84f115e54b643faa98dec61fffdd5b",
+          "11f02351f195411e7c0c231a5ad1ea6f814f1a24"
+        ],
+        "remove_commit": "20fe433c0392513dd2d151a0490556ec10f4d05a",
+        "text_characters": 16708,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "2 copied pieces reassembled and compared exactly to archive/current source. Source-only migration does NOT prove current D1 backfill or live API cutover. SERVER-67 retained."
+      }
     },
     {
       "entry_id": 615,
@@ -2141,12 +2166,12 @@
   ],
   "latest_review": {
     "date": "2026-10-16",
-    "head_before_crosswalk_commit": "de68fae17ebe91467d978e90833b5becbdb4f2aa",
-    "active_master_blob_sha": "d145200542970413cf6d7a7679631ad2e0f2066c",
-    "new_catalog_blob_sha": "3ba647b87ac8563986357ba2ca0063e6b7df785f",
+    "head_before_crosswalk_commit": "20fe433c0392513dd2d151a0490556ec10f4d05a",
+    "active_master_blob_sha": "3b4419a16bd9fbbc66fdf0b537f1890312372ff5",
+    "new_catalog_blob_sha": "9ff88ae0496abcc042badb9ce4f37ea5f9b1ebed",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "15 exact transfers through Entry613, historical approval superseded; old active and SERVER-64/65/66 kept; 66 Entry IDs still need full cross-references."
+    "notes": "16 exact transfers through Entry614; SERVER-64/65/66/67 preserved in live old master; all 66 original Entry IDs pending complete reconciliation."
   },
   "non_entry_section_migrations": [
     {
