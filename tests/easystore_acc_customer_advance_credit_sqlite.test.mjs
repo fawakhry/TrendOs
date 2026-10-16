@@ -372,6 +372,128 @@ try{
     assert.equal(credit('FAKE_CUST_B'),previousCredit);
     assert.equal(count('employee_accounting_final_invoices_v1'),previousInvoices);
   });
+  const liabilitySnapshot=()=>({
+    creditA:credit('FAKE_CUST_A'),creditB:credit('FAKE_CUST_B'),
+    debtA:debt('FAKE_CUST_A'),debtB:debt('FAKE_CUST_B'),
+    cash:count('employee_accounting_cashbox_v1'),
+    events:count('employee_accounting_customer_credit_events_v1'),
+    invoices:count('employee_accounting_final_invoices_v1'),
+    partyEvents:count('employee_accounting_party_ledger_v1'),
+    stockMoves:count('employee_accounting_stock_moves_v1'),
+    stock:one('SELECT SUM(stock_qty) AS total FROM employee_accounting_materials_v1').total
+  });
+  await test('24 native full-role invoice review reads credit-used and cash receipt evidence without posting',async()=>{
+    const previous=liabilitySnapshot();
+    const r=await send('previewCustomerCreditInvoiceReviewV1',{
+      invoiceNo:'FAKE_CREDIT_INVOICE_B',proposedInvoiceTotal:'15.00'
+    });
+    assert.equal(r.success,true,JSON.stringify(r));
+    assert.equal(r.invoiceTotalCents,2000);
+    assert.equal(r.originalCreditAppliedCents,300);
+    assert.equal(r.originalCashReceivedCents,0);
+    assert.equal(r.originalCreditCreatedCents,0);
+    assert.equal(r.originalRemainingCents,1700);
+    assert.equal(r.proposedInvoiceTotalCents,1500);
+    assert.equal(r.proposedDifferenceCents,500);
+    assert.equal(r.evidenceEventsVerified,1);
+    assert.equal(r.creditRestorationAuthorized,false);
+    assert.equal(r.cashRefundAuthorized,false);
+    assert.equal(r.postingAllowed,false);
+    assert.equal(r.financeRelease,'NO_GO');
+    assert.deepEqual(liabilitySnapshot(),previous);
+  });
+  await test('25 read-only review shows excess cash invoice liability and blocks automatic compensation',async()=>{
+    const previous=liabilitySnapshot();
+    const r=await send('previewCustomerCreditInvoiceReviewV1',{
+      invoiceNo:'FAKE_CREDIT_INVOICE_C',proposedInvoiceTotal:'80.00'
+    });
+    assert.equal(r.success,true,JSON.stringify(r));
+    assert.equal(r.invoiceTotalCents,9750);
+    assert.equal(r.originalCashReceivedCents,10000);
+    assert.equal(r.originalCreditCreatedCents,250);
+    assert.equal(r.originalCreditAppliedCents,0);
+    assert.equal(r.proposedDifferenceCents,1750);
+    assert.equal(r.approvalRequired,true);
+    assert.equal(r.postingAllowed,false);
+    assert.deepEqual(liabilitySnapshot(),previous);
+  });
+  await test('26 invoice cancellation proposal of zero returns only review preview; no credit or cash mutated',async()=>{
+    const previous=liabilitySnapshot();
+    const r=await send('previewCustomerCreditInvoiceReviewV1',{
+      invoiceNo:'FAKE_CREDIT_INVOICE_D',proposedInvoiceTotal:0
+    });
+    assert.equal(r.success,true,JSON.stringify(r));
+    assert.equal(r.originalCreditAppliedCents,2000);
+    assert.equal(r.proposedDifferenceCents,2000);
+    assert.equal(r.creditRestorationAuthorized,false);
+    assert.deepEqual(liabilitySnapshot(),previous);
+  });
+  await test('27 ordinary staff and forged browser role cannot view private invoice credit review',async()=>{
+    const previous=liabilitySnapshot();
+    role='service';
+    try{
+      const denied=await send('previewCustomerCreditInvoiceReviewV1',{
+        invoiceNo:'FAKE_CREDIT_INVOICE_D',role:'admin',ownerVerified:true
+      });
+      assert.equal(denied.success,false);
+      assert.equal(denied.status,403);
+    }finally{role='admin'}
+    assert.deepEqual(liabilitySnapshot(),previous);
+  });
+  await test('28 missing and unsafe modified totals fail closed before returning review',async()=>{
+    const previous=liabilitySnapshot();
+    for(const proposedInvoiceTotal of ['-1','12.345','nan',{},'9999999999999999999999']){
+      const r=await send('previewCustomerCreditInvoiceReviewV1',{
+        invoiceNo:'FAKE_CREDIT_INVOICE_D',proposedInvoiceTotal
+      });
+      assert.equal(r.success,false,JSON.stringify(r));
+      assert.equal(r.postingAllowed,false);
+    }
+    const missing=await send('previewCustomerCreditInvoiceReviewV1',{invoiceNo:'FAKE_NOT_EXISTING'});
+    assert.equal(missing.success,false);
+    assert.deepEqual(liabilitySnapshot(),previous);
+  });
+  await test('29 changing a historic credit-applied invoice still fails CLOSED; no financial POST',async()=>{
+    const previous=liabilitySnapshot();
+    for(const action of ['reopenAccountingFinalInvoice','modifyCustomerCreditInvoice']){
+      const r=await send(action,{invoiceNo:'FAKE_CREDIT_INVOICE_D',
+        reason:'FAKE_CHANGE_REQUEST',proposedInvoiceTotal:12.50});
+      assert.equal(r.success,false,JSON.stringify({action,r}));
+    }
+    assert.deepEqual(liabilitySnapshot(),previous);
+  });
+  await test('30 even with the credit FEATURE FLAG OFF, historic credit-backed invoice cannot be reversed',async()=>{
+    const previous=liabilitySnapshot();
+    env.EASYSTORE_CUSTOMER_CREDIT_V1='OFF';
+    try{
+      const r=await send('reopenAccountingFinalInvoice',{invoiceNo:'FAKE_CREDIT_INVOICE_D',reason:'FAKE_RETURN'});
+      assert.equal(r.success,false,JSON.stringify(r));
+      assert.equal(r.code,'customer-credit-invoice-reversal-not-implemented');
+      const preview=await send('previewCustomerCreditInvoiceReviewV1',{invoiceNo:'FAKE_CREDIT_INVOICE_D'});
+      assert.equal(preview.success,false);
+      assert.equal(preview.code,'customer-credit-review-feature-off');
+    }finally{env.EASYSTORE_CUSTOMER_CREDIT_V1='ON'}
+    assert.deepEqual(liabilitySnapshot(),previous);
+  });
+  await test('31 duplicate review calls are pure reads; no invoice, ledger, credit or cash duplication',async()=>{
+    const previous=liabilitySnapshot();
+    const first=await send('previewCustomerCreditInvoiceReviewV1',{invoiceNo:'FAKE_CREDIT_INVOICE_D',proposedInvoiceTotal:15});
+    const second=await send('previewCustomerCreditInvoiceReviewV1',{invoiceNo:'FAKE_CREDIT_INVOICE_D',proposedInvoiceTotal:15});
+    assert.equal(first.success,true,JSON.stringify(first));
+    assert.deepEqual(second,first);
+    assert.deepEqual(liabilitySnapshot(),previous);
+  });
+  await test('32 corrupt invoice credit amount / missing immutable event evidence are rejected without compensating write',async()=>{
+    const previous=liabilitySnapshot();
+    db.prepare("UPDATE employee_accounting_final_invoices_v1 SET credit_applied=credit_applied+1 WHERE invoice_no=?")
+      .run('FAKE_CREDIT_INVOICE_D');
+    const broken=await send('previewCustomerCreditInvoiceReviewV1',{invoiceNo:'FAKE_CREDIT_INVOICE_D'});
+    assert.equal(broken.success,false);
+    assert.ok(['customer-credit-review-invoice-integrity','customer-credit-review-event-lineage-unproven'].includes(broken.code),JSON.stringify(broken));
+    db.prepare("UPDATE employee_accounting_final_invoices_v1 SET credit_applied=credit_applied-1 WHERE invoice_no=?")
+      .run('FAKE_CREDIT_INVOICE_D');
+    assert.deepEqual(liabilitySnapshot(),previous);
+  });
   await test('21 preserve integrity: cash equals actual funds received; credit events reconcile liability',()=>{
     assert.equal(network,0);
     for(const id of ['FAKE_CUST_A','FAKE_CUST_B']){
