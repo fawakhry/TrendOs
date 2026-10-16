@@ -477,7 +477,8 @@ async function getCustomerAccountV1915V1(env,auth,b){
   const view=customerViewV1({...customer,current_balance:balance,credit_cents:creditCents});
   return {
     success:true,customer:view,partyName:view.name,balance,creditBalance:creditCents/100,
-    outstandingDebt:balance,displayBalance:creditCents/100-balance,transactions:tx,
+    outstandingDebt:balance,displayBalance:creditCents/100-balance,
+    creditFeatureEnabled:customerCreditEnabledV1(env),transactions:tx,
     permissions:{canCollect:true,canAdjust:auth.mode==='full'},
     version:'A1_D1_READ_MODEL_V1'
   };
