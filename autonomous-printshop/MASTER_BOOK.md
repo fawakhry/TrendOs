@@ -10747,3 +10747,10 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 أثبتت صورة Cloudflare داخل `trendos → Production → Domains` أن عنوان `trendos.trendmall-contact.workers.dev` وعناوين `*.trendos.trendmall-contact.workers.dev` الخاصة بالـPreview **مفعّلة**، مع عبارة `Anyone with this URL can visit`، ولا توجد Custom Domains أو Routes مدرجة. يضاف هذا إلى نتيجة SERVER-57 التي تثبت غياب Access policy خاصة بالـWorker. تُستخدم هذه الخدمة القديمة في **كود** جسر إدارة العملاء V1934، وهي مختلفة عن `trendos-d1-api`.
 
 **ملاحظة أمان:** لم نثبت اتصال `trendos` بقاعدة D1 أو السماح بقراءة بيانات العملاء من دون تصريح؛ ولا نعرف كل ضوابط الحساب أو WAF. `SEC-AP303-02` لا تزال مفتوحة. أُضيف الجرد إلى [كتاب السيرفر](print-server/UBUNTU_SERVER_BOOK.md) و[مصفوفة التوافق](print-server/SERVER56_LEGACY_CONSUMERS_COMPATIBILITY_MATRIX.md). الخطوة التالية قراءة نوع الـBindings للخدمة `trendos` فقط دون عرض Secrets، ثم استكمال التأهيل الأمني قبل موافقة إنتاجية مستقلة. `NO_DEPLOY=YES` و`UBUNTU_LIVE_ORDER_READ=NO`.
+
+
+## SERVER-20261016-59 — تأكيد D1 Binding للخدمة القديمة `trendos` (2026-10-16)
+
+أظهرت صورة `trendos → Production → Settings → Bindings` وجود ربط من نوع `D1 database` باسم `DB` إلى مورد يُعرض باسم `trendos-main`. سبق أن ظهر **نفس اسم قاعدة البيانات** في خدمة `trendos-d1-api` المختلفة. لذلك لم تعد فرضية أن خدمة `trendos` القديمة مجرد واجهة بلا D1 صحيحة وفق الربط المعروض؛ لكن لا تزال هوية UUID وفحص التفويض الداخلي ورموز إصدار الكود المنشور غير مثبتة. لا دليل على تسريب بيانات.
+
+مع وجود Production/Preview URLs قابلة للزيارة وغياب Worker-specific Access لكلتا الخدمتين حسب لقطات مستقلة، يظل `SEC-AP303-02=HIGH_PRIORITY_OPEN`. سجلات `Logs/Traces` للخدمة القديمة ظاهرة غير مفعّلة؛ لا يُستنتج من ذلك عدم وقوع طلبات. تم تحديث [كتاب السيرفر](print-server/UBUNTU_SERVER_BOOK.md) و[مصفوفة المستهلكين](print-server/SERVER56_LEGACY_CONSUMERS_COMPATIBILITY_MATRIX.md)، بدون كشف أسرار أو نقل URL متغيرات البيئة أو تعديل Production. **الخطوة القادمة:** قراءة إصدار النشر النشط في تبويب Deployments للخدمة القديمة فقط، ثم تدقيق مسارات التفويض بالكود بدون إرسال طلبات حساسة. `NO_DEPLOY=YES` و`UBUNTU_LIVE_READ=NO`.
