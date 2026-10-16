@@ -164,3 +164,11 @@
 - WRITE: chapter 24 commit `2fce377e418cab38f37b5f29bf2e31d6c8174185`, blob `d7b60c649d7ef61721812ae2cfac84086997c049`; separate fetch verified.
 - STATUS: `SOURCE_ONLY`; Task authority integration/runtimes `BLOCKED`; `TESTED=NO`; `PRODUCTION_VERIFIED=NO` in this book run; no changes to independent autonomy master book or production.
 - NEXT: queue autonomy integration tests then verify final branch HEAD; continuation chapter 25 to cover remaining reporting/AI modules.
+
+
+## 2026-10-16 / MANAGER-ANALYTICS-021 — الفصل الخامس والعشرون
+- READ: `manager-center-v1932.js`, `trend-master-resilience-v1931.js`, `trend-master-panels-v1931.gs`, `cloudflare-d1/src/employee-core-native-v1.mjs`, `work-queue-v1.js`, `work-queue-backend-v1.gs`, `customer-feedback-v1.js`, `customer-feedback-backend-v1.gs`, `docs/trendos/MATBAGY_MULTI_AI_ROOM_ARCHITECTURE.md`, `docs/trendos/MATBAGY_KNOWLEDGE_EXTRACTION_ARCHITECTURE.md`, `config.js`.
+- FINDINGS: Manager frontend button hides by local admin check, but employee Core endpoint `getTrendMasterCenterV1931` source branch does not show the same role/screen authorization before returning all-service activity, customer debt and restrictions; `getActivityLog` same concern. Priority security parity tests needed, no production exposure claimed. Progressive dashboard reader is not what Manager Center `load()` currently invokes in source. Work Queue V1 remains legacy Apps Script and separately flagged; customer feedback AUTO_SCAN=false. Multi-AI and Knowledge extraction architecture is advisory/evidence-gated.
+- WRITE: chapter 25 commit `67b346ac43005da2c43d016dcc02426fa010b039`, blob `2219ecd1f91afd30eb7788c01827bb7ed949e310`. First immediate fetch returned previous version; second fresh fetch with branch HEAD confirmed chapter and new blob. GitHub verified.
+- STATUS: `SOURCE_ONLY`; manager information scope `SOURCE_AUTH_GAP`; runtime/tests `BLOCKED`; `TESTED=NO`, `PRODUCTION_VERIFIED=NO`. Docs only, no staff/customer/financial operations, no deployment or merge.
+- NEXT: add chapter 25 test gaps, verify overall head/log/queue; subsequent chapter 26 investigate data migration/import/export and release/deploy evidence.
