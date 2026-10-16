@@ -1072,6 +1072,99 @@ async function partyBalanceV1(env,type,partyId){
   const r=await env.DB.prepare("SELECT balance FROM employee_accounting_party_balances_v1 WHERE party_type=? AND party_id=?").bind(type,partyId).first();
   return r?num(r.balance):0;
 }
+// Owner-approved 2026-10-16 CUSTOMER ADVANCES. Default OFF: no production
+// behavior change without dedicated migration, staging qualification and release.
+// Values in the new LIABILITY ledger are integer PIASTRES, not floating EGP.
+function customerCreditEnabledV1(env){
+  return text(env&&env.EASYSTORE_CUSTOMER_CREDIT_V1).toUpperCase()==='ON';
+}
+function customerCreditCentsV1(value){
+  if(typeof value!=='string'&&typeof value!=='number')return null;
+  const s=String(value);
+  if(!/^\d+(?:\.\d{1,2})?$/.test(s))return null;
+  const [units,fraction='']=s.split('.');
+  const result=Number(units)*100+Number((fraction+'00').slice(0,2));
+  return Number.isSafeInteger(result)&&result>=0?result:null;
+}
+function customerCreditMoneyV1(cents){return cents/100;}
+async function customerCreditRowV1(env,customerId){
+  await env.DB.prepare("INSERT OR IGNORE INTO employee_accounting_customer_credits_v1(customer_id,credit_cents,version,last_request_key,updated_at_ms) VALUES(?,0,1,'',?)")
+    .bind(customerId,Date.now()).run();
+  const row=await env.DB.prepare("SELECT credit_cents AS creditCents,version FROM employee_accounting_customer_credits_v1 WHERE customer_id=?")
+    .bind(customerId).first();
+  if(!row||!Number.isSafeInteger(Number(row.creditCents))||Number(row.creditCents)<0)
+    throw commandErrorV1('customer-credit-invalid-liability','الرصيد الدائن غير موثق أو تالف.');
+  return {creditCents:Number(row.creditCents),version:Math.max(1,Math.trunc(num(row.version,1)))};
+}
+async function customerCreditReadV1(env,customerId){
+  const row=await env.DB.prepare("SELECT credit_cents AS creditCents FROM employee_accounting_customer_credits_v1 WHERE customer_id=?")
+    .bind(customerId).first();
+  const credit=Number(row&&row.creditCents||0);
+  if(!Number.isSafeInteger(credit)||credit<0)
+    throw commandErrorV1('customer-credit-invalid-liability','الرصيد الدائن غير سليم.');
+  return credit;
+}
+// All SQL mutations below run in ONE D1 batch and an optimistic dual-version
+// guard; if one request wins a concurrent race the other transaction rolls back.
+async function customerReceiptWithCreditV1(env,auth,b,party,normalizedCommand,before,version){
+  const amountCents=customerCreditCentsV1(b.amount),debtBeforeCents=customerCreditCentsV1(before);
+  if(amountCents===null||amountCents===0||debtBeforeCents===null)
+    throw commandErrorV1('customer-credit-invalid-cents','المبلغ يجب أن يكون موجبًا وبحد أقصى قرشين عشريين.');
+  const credit=await customerCreditRowV1(env,party.partyId);
+  if(credit.creditCents>0&&debtBeforeCents>0)
+    throw commandErrorV1('customer-credit-debt-reconciliation-required','العميل له رصيد دائن ومديونية معًا، يلزم مراجعة الرصيد أولًا.');
+  const debtPaidCents=Math.min(amountCents,debtBeforeCents);
+  const creditCreatedCents=amountCents-debtPaidCents;
+  if(creditCreatedCents>Number.MAX_SAFE_INTEGER-credit.creditCents)
+    throw commandErrorV1('customer-credit-overflow','مبلغ الرصيد الدائن يتجاوز الحد الآمن.');
+  const newCredit=credit.creditCents+creditCreatedCents;
+  const request=await beginCommandV1(env,auth,'party-ledger:customer:payment_received',normalizedCommand);
+  if(request.replay)return {...request.response,success:true,duplicatePrevented:true};
+  const now=Date.now(),workDate=workDateKeyV1(b.workDate||b.date),
+    debtPaid=customerCreditMoneyV1(debtPaidCents),cash=customerCreditMoneyV1(amountCents);
+  const ledgerKey=request.requestKey,statements=[];
+  statements.push(env.DB.prepare("UPDATE employee_accounting_party_balances_v1 SET balance=balance-?,version=version+1,last_request_key=?,party_name=?,updated_at_ms=?,updated_at=CURRENT_TIMESTAMP WHERE party_type='customer' AND party_id=? AND version=? AND balance>=?")
+    .bind(debtPaid,ledgerKey,party.partyName,now,party.partyId,version,debtPaid));
+  statements.push(env.DB.prepare("UPDATE employee_accounting_customer_credits_v1 SET credit_cents=credit_cents+?,version=version+1,last_request_key=?,updated_at_ms=?,updated_at=CURRENT_TIMESTAMP WHERE customer_id=? AND version=? AND EXISTS(SELECT 1 FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=? AND version=?)")
+    .bind(creditCreatedCents,ledgerKey,now,party.partyId,credit.version,party.partyId,ledgerKey,version+1));
+  if(debtPaidCents>0){
+    statements.push(env.DB.prepare("INSERT INTO employee_accounting_party_ledger_v1(transaction_id,request_key,party_id,party_type,party_name,operation,operation_label,amount,effect,payment_method,ref_no,balance_before,balance_after,created_by,notes,source,created_at_ms) SELECT ?,?,?,'customer',?,'payment_received','سداد مديونية العميل',?,-1,?,?,?,?,?,?,?,?,? FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?")
+      .bind(uid('LED'),ledgerKey,party.partyId,party.partyName,debtPaid,text(b.paymentMethod||b.method),text(b.refNo||b.reference),before,customerCreditMoneyV1(debtBeforeCents-debtPaidCents),auth.user.username,text(b.notes),sourceSystemV1(b),now,party.partyId,ledgerKey,credit.version+1));
+  }
+  if(creditCreatedCents>0){
+    statements.push(env.DB.prepare("INSERT INTO employee_accounting_customer_credit_events_v1(event_id,request_key,customer_id,kind,amount_cents,delta_cents,credit_before_cents,credit_after_cents,actor,source,created_at_ms) SELECT ?,?,?,'RECEIPT_EXCESS',?,?,?,?,?,?,? FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?")
+      .bind(uid('CRD'),ledgerKey+'-CREDIT',party.partyId,creditCreatedCents,creditCreatedCents,credit.creditCents,newCredit,auth.user.username,sourceSystemV1(b),now,party.partyId,ledgerKey,credit.version+1));
+  }
+  // Physical cash includes the WHOLE payment (not only the debt portion).
+  // Customer-credit application on a future invoice creates no cashbox row.
+  statements.push(env.DB.prepare("INSERT INTO employee_accounting_cashbox_v1(cashbox_tx_id,request_key,work_date,movement_type,party_id,party_name,department,amount,payment_method,ref_no,source,notes,actor,created_at_ms) SELECT ?,?,?,'CUSTOMER_RECEIPT',?,?,?,?,?,?,?,?,?,? FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?")
+    .bind(uid('CSH'),ledgerKey+'-CASH',workDate,party.partyId,party.partyName,text(b.department),cash,text(b.paymentMethod||b.method),text(b.refNo||b.reference),sourceSystemV1(b),text(b.notes),auth.user.username,now,party.partyId,ledgerKey,credit.version+1));
+  const guardSql="(SELECT COUNT(*) FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=? AND version=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_party_ledger_v1 WHERE request_key=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_customer_credit_events_v1 WHERE request_key=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_cashbox_v1 WHERE request_key=?)";
+  const expected=3+(debtPaidCents>0?1:0)+(creditCreatedCents>0?1:0);
+  statements.push(...txGuardPairV1(env,ledgerKey+'-CREDIT-GUARD',expected,guardSql,
+    [party.partyId,ledgerKey,version+1,party.partyId,ledgerKey,credit.version+1,
+     ledgerKey,ledgerKey+'-CREDIT',ledgerKey+'-CASH']));
+  await env.DB.batch(statements);
+  const check=await env.DB.prepare("SELECT balance FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=?")
+    .bind(party.partyId,ledgerKey).first();
+  if(!check)throw commandErrorV1('customer-credit-guard-rejected','تعارض تحصيل متزامن؛ الطلب محفوظ للمراجعة.');
+  const response={success:true,partyId:party.partyId,partyType:'customer',partyName:party.partyName,
+    balanceBefore:before,balance:customerCreditMoneyV1(debtBeforeCents-debtPaidCents),
+    outstandingDebt:customerCreditMoneyV1(debtBeforeCents-debtPaidCents),
+    customerCredit:customerCreditMoneyV1(newCredit),customerCreditCents:newCredit,
+    customerDisplayBalance:customerCreditMoneyV1(newCredit-(debtBeforeCents-debtPaidCents)),
+    cashboxPosted:true,receiptCashAmount:cash,creditCreated:customerCreditMoneyV1(creditCreatedCents),
+    version:'A2_D1_CUSTOMER_CREDIT_OFF_BY_DEFAULT_V1'};
+  await commitCommandV1(env,request,response);
+  await auditEventV1(env,request,'customer-credit-receipt',party.partyId,'post',auth.user.username,
+    {cash,oldDebtPaid:debtPaid,customerCreditCreatedCents:creditCreatedCents,before,after:response.balance});
+  return response;
+}
+
 async function partyLedger(env,auth,b){
   if(!['full','final'].includes(auth.mode))return {success:false,message:'حسابات العملاء والموردين عند ضياء / رحمه / ريفان فقط.'};
   let type=key(b.partyType||b.type||'customer');type=type.includes('supplier')||type.includes('مورد')?'supplier':'customer';
@@ -1106,6 +1199,8 @@ async function partyLedger(env,auth,b){
       if(priorCtx.replay)return {...priorCtx.response,success:true,duplicatePrevented:true};
     }
   }
+  if(type==='customer'&&op==='payment_received'&&customerCreditEnabledV1(env))
+    return customerReceiptWithCreditV1(env,auth,b,party,normalizedCommand,before,version);
   if(delta<0&&amount>before+0.000001)return {success:false,message:'المبلغ أكبر من الرصيد المستحق الحالي: '+before+' ج.'};
 
   const ctx=await beginCommandV1(env,auth,'party-ledger:'+type+':'+op,normalizedCommand);
