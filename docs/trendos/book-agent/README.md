@@ -1,5 +1,8 @@
 # TrendOS Book Agent — عقد التشغيل V1
 
+**الباب الواحد ومنع سقوط المعرفة (إلزامي):** اقرأ أولًا [`TRENDOS_BOOKS_SINGLE_INDEX.md`](TRENDOS_BOOKS_SINGLE_INDEX.md) ثم [`BOOKS_NO_LOSS_CROSSWALK_V1.json`](BOOKS_NO_LOSS_CROSSWALK_V1.json) لفحص أي Entry غير مصالَح. يوجد 66 رقم Entry في MASTER و165 عنوان قسم، وجميع الـ66 حالتهم `OPEN` حتى تصنيف حقيقي. اختيار الكتالوج مرجعًا لا يسمح بإسقاط أي Entry أو حذف مسودة أو تحويل قرار تاريخي إلى وصف LIVE. قبل كل دورة تحقق من latest HEAD، حدد ما أُنجز بالفعل وحدث فقط الناقص.
+
+
 ## Canonical documentation routing — 2026-10-16
 
 > **قرار المالك الأحدث:** اعتمدنا ثلاثة كتب، كل واحد بنطاق مختلف، ومُدخلها الآلي [`CATALOG_AUTHORITY_MANIFEST_V1.json`](CATALOG_AUTHORITY_MANIFEST_V1.json). هذا القرار ينظم المرجع الأحدث، ولا يلغى الأرشيف أو سجلات الأدلة ولا يعطي حق Deploy/Merge/Delete.
