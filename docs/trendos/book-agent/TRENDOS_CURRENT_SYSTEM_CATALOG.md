@@ -1675,3 +1675,35 @@
 5. الأرشيف لا يعلو على Runtime الحالي عند التعارض؛ ترتيب الدليل في مقدمة الكتاب يظل الحاكم.
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ARCHIVE_NAV_POLICY -->
+
+---
+
+## الملحق التاريخي ي — سجل حالات الإصدار عند Entry595 (نسخة 2026-10-02)
+
+> **التصنيف:** `HISTORICAL`، و`RECORDED_STATE_AT_ENTRY595` فقط. قيم `FRONTEND_ACTIVE_VERSION` و`API_ACTIVE_VERSION` و`EMPLOYEE_LOGIN` و`CUSTOMER_MASTER_ROWS` أدناه ليست حكمًا على الحالة الحية الآن. كل الادعاءات داخل كتلة INI تاريخية. لا تُستخدم لدفع نشر أو لاستنتاج صفر Google.
+> **المصدر:** [TrendOS_MASTER_BOOK.md @ e18818a007ec](https://github.com/fawakhry/TrendOs/blob/e18818a007ec2f59ac29799b6c7cbff040fb6511/TrendOS_MASTER_BOOK.md)، Git blob `220a246698aec558da8d2066af4fdf107677bbd8`. **تاريخ الترحيل:** 2026-10-16.
+> **الاسترجاع:** [أرشيف ما قبل التوحيد](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md)، blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`.
+> **سلامة البيانات:** النص التالي بالكامل 508 أحرف مطابق حرفيًا لقسم §9 في الكتاب القديم والأرشيف، دون إدخال بيانات عميل فردية.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY595_BASELINE_BLOCK -->
+## 9. آخر Evidence يجب حمله لأي شات جديد
+
+```ini
+MASTER_BOOK_BASELINE=ENTRY595
+FRONTEND=CLOUDFLARE
+FRONTEND_ACTIVE_VERSION=a26589a4-e2e0-4ed5-9abf-e1b19b56ce0e
+FRONTEND_VERIFY_RUN=36915414626
+API=CLOUDFLARE_WORKER
+API_ACTIVE_VERSION=23be0ab2-0a2b-4b81-bf54-e2f05f847989
+DATABASE=D1
+ORDER_CREATE_MODE=GENERAL
+DUPLICATE_GUARD_READY=YES
+CUSTOMER_WRITE_MODE=GENERAL
+CUSTOMER_MASTER_ROWS=247
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+APPS_SCRIPT_VERSION=159
+ZERO_GOOGLE_COMPLETE=NO
+NEXT_PROGRAM=CONTINUE_ZERO_GOOGLE_PLAN
+```
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY595_BASELINE_BLOCK -->
