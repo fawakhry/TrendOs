@@ -1,0 +1,78 @@
+name: TrendOS Book24 Writer Toggle and Offline Handoff Qualification
+on:
+  push:
+    branches:
+      - fix/book24-writer-toggle-failclosed-cutover-audit-20261016
+    paths:
+      - 'work-queue-backend-v1.gs'
+      - 'operator-task-workflow-v2.gs'
+      - 'tests/book24_appsscript_writer_selection_synthetic.test.mjs'
+      - 'autonomous-printshop/core/book24-task-writer-cutover-preflight-v1.mjs'
+      - 'autonomous-printshop/tests/book24_task_writer_cutover_preflight_v1.test.mjs'
+      - 'scripts/book24-task-writer-cutover-check-v1.mjs'
+      - 'docs/trendos/book-agent/BOOK24_TASK_WRITER_OFFLINE_EVIDENCE_TEMPLATE_V1.json'
+      - '.github/workflows/trendos-book24-writer-handoff-no-go-ci.yml'
+  pull_request:
+    paths:
+      - 'work-queue-backend-v1.gs'
+      - 'operator-task-workflow-v2.gs'
+      - 'tests/book24_appsscript_writer_selection_synthetic.test.mjs'
+      - 'autonomous-printshop/core/book24-task-writer-cutover-preflight-v1.mjs'
+      - 'autonomous-printshop/tests/book24_task_writer_cutover_preflight_v1.test.mjs'
+      - 'scripts/book24-task-writer-cutover-check-v1.mjs'
+      - 'docs/trendos/book-agent/BOOK24_TASK_WRITER_OFFLINE_EVIDENCE_TEMPLATE_V1.json'
+      - '.github/workflows/trendos-book24-writer-handoff-no-go-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fake-handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check syntax
+        run: |
+          node --check tests/book24_appsscript_writer_selection_synthetic.test.mjs
+          node --check autonomous-printshop/core/book24-task-writer-cutover-preflight-v1.mjs
+          node --check autonomous-printshop/tests/book24_task_writer_cutover_preflight_v1.test.mjs
+          node --check scripts/book24-task-writer-cutover-check-v1.mjs
+      - name: Strict default-off and fail-closed malformed flag
+        run: node --test tests/book24_appsscript_writer_selection_synthetic.test.mjs
+      - name: Cross-project writer deployment and D1 no-go
+        run: node --test autonomous-printshop/tests/book24_task_writer_cutover_preflight_v1.test.mjs
+      - name: Inherited Work Queue and Operator V2 source contracts
+        run: |
+          node --test tests/work_queue_v1_contract.test.mjs
+          node --test tests/operator_task_workflow_v2_contract.test.mjs
+          node --test tests/operator_task_edge_v2.test.mjs
+      - name: Owner evidence template must produce BLOCKED and exit 2
+        run: |
+          set +e
+          node scripts/book24-task-writer-cutover-check-v1.mjs docs/trendos/book-agent/BOOK24_TASK_WRITER_OFFLINE_EVIDENCE_TEMPLATE_V1.json > /tmp/book24-guard-result.json
+          result=$?
+          set -e
+          test "$result" -eq 2
+          python3 - <<'PY'
+          import json
+          j=json.load(open('/tmp/book24-guard-result.json'))
+          assert j['currentDisposition']=='BLOCKED'
+          assert j['activationCertified'] is False
+          assert j['activationPerformed'] is False
+          assert j['productionVerified'] is False
+          assert 'WRITER_DEPLOYMENT_INVENTORY_INCOMPLETE' in j['blockers']
+          assert 'SCRIPT_PROJECT_FINGERPRINT_MISSING' in j['blockers']
+          print('BOOK24_OFFLINE_TEMPLATE_NO_GO=PASS')
+          PY
+      - name: Safety and zero live operations
+        run: |
+          echo 'REAL_GOOGLE=NO'
+          echo 'REAL_D1=NO'
+          echo 'REAL_CUSTOMER_DATA=NO'
+          echo 'OWNER_ACTIVATION=NO'
+          echo 'DEPLOY=NO'
+          echo 'MERGE=NO'
+          echo 'PRODUCTION_VERIFIED=NO'

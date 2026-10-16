@@ -70,10 +70,13 @@ function wqRequireEnabledV1_(){
 function wqRequireScriptWriterV1_(){
   let props;
   try{props=PropertiesService.getScriptProperties();}catch(e){throw new Error('BOOK24_SCRIPT_WRITER_GUARD_UNAVAILABLE');}
-  let enabled;
-  try{enabled=wqBoolV1_(props.getProperty('TRENDOS_TASK_SCRIPT_SINGLE_WRITER_GUARD_V1_ENABLED'));}
+  let rawGuard;
+  try{rawGuard=wqTxtV1_(props.getProperty('TRENDOS_TASK_SCRIPT_SINGLE_WRITER_GUARD_V1_ENABLED')).toLowerCase();}
   catch(e){throw new Error('BOOK24_SCRIPT_WRITER_GUARD_UNAVAILABLE');}
-  if(!enabled)return; // Default OFF: preserve current legacy behavior until approval.
+  // Only absent/explicit FALSE is legacy mode. An owner typo must NOT silently
+  // turn off a previously intended exclusive-writer safety control.
+  if(!rawGuard||['0','false','no','off'].indexOf(rawGuard)!==-1)return;
+  if(!wqBoolV1_(rawGuard))throw new Error('BOOK24_SCRIPT_WRITER_GUARD_VALUE_INVALID'); // Default OFF: preserve current legacy behavior until approval.
   let selected;
   try{selected=wqTxtV1_(props.getProperty('TRENDOS_TASK_SCRIPT_WRITER_V1')).toUpperCase();}
   catch(e){throw new Error('BOOK24_SCRIPT_WRITER_OWNER_UNKNOWN');}
