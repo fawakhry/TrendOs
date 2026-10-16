@@ -1928,7 +1928,7 @@ async function previewCustomerCreditPreparedCommandV1(env,auth,b){
   if(auth.mode!=='full')return deny('customer-credit-prepared-full-role-required',
     'مراجعة أوامر التحصيل والفواتير العالقة للمسؤول المخوّل فقط.');
   const requestKey=text(b.requestKey);
-  if(!/^[\\p{L}\\p{N}_:.\\-]{12,180}$/u.test(requestKey))
+  if(!/^[\p{L}\p{N}_:.\-]{12,180}$/u.test(requestKey))
     return deny('customer-credit-prepared-key-required','معرف طلب محاسبي صالح مطلوب.');
   const request=await env.DB.prepare("SELECT operation,status,request_hash AS requestHash FROM employee_accounting_request_ledger_v1 WHERE request_key=?")
     .bind(requestKey).first();
