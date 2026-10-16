@@ -294,6 +294,19 @@ async function updateSingleLine(env,user,body){
   const lineId=text(body.lineId||body.id),status=text(body.status),notes=body.notes==null?null:text(body.notes);
   if(!lineId)return {success:false,message:'lineId مطلوب.'};
   if(status&&!STATUSES.has(status))return {success:false,message:'الحالة غير مسموح بها.'};
+  // BOOK19/BOOK28: use the same authoritative server-side row projection as
+  // bulk delivery. Body-supplied customer, debt, role, screen or department
+  // must NEVER authorize delivery or cross-department writes.
+  const target=(await coreRows(env,'service')).find(r=>text(r.lineId)===lineId);
+  if(!target)return {success:false,code:'line-not-found',message:'البند غير موجود أو غير نشط في D1.'};
+  const hasScope=isAdmin(user)||screenAllowed(user,'service')||
+    ['print','laser','press'].some(screen=>screenAllowed(user,screen)&&
+      screenMatches(screen,target.department,target.heatPress==='نعم'?1:0));
+  if(!hasScope)return {success:false,code:'employee-core-line-department-denied',
+    message:'ليس لديك صلاحية تعديل بند القسم المطلوب.'};
+  if(status==='تم التسليم'&&target.deliveryDebtRestricted)
+    return {success:false,code:'employee-core-delivery-debt-restricted',deliveryBlocked:true,
+      message:'لا يمكن تسجيل تم التسليم: العميل عليه مديونية وضمن قائمة منع التسليم الفعالة.'};
   const imported=await env.DB.prepare("SELECT order_id AS orderId,status,notes FROM employee_core_lines_v1 WHERE line_id=? AND active=1").bind(lineId).first();
   if(imported){
     await env.DB.prepare("UPDATE employee_core_lines_v1 SET status=CASE WHEN ?='' THEN status ELSE ? END,notes=CASE WHEN ? IS NULL THEN notes ELSE ? END,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE line_id=?")
