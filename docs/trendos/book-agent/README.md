@@ -1,7 +1,24 @@
 # TrendOS Book Agent — عقد التشغيل V1
 
+## Canonical documentation routing — 2026-10-16
 
-> **قرار المالك الأحدث · 2026-10-16 · LEGACY_PRE_SPLIT_ARCHIVE:** المهمة الأساسية الآن **جمع وحفظ كل كود النظام القديم قبل تقسيمه**، بما فيه الوظائف المتوقفة والمنقولة إلى مشاريع مستقلة، وضمّها إلى [كتاب النظام القديم](TRENDOS_LEGACY_PRE_SPLIT_BOOK.md) و[سجل المصادر](LEGACY_SOURCE_RECOVERY_REGISTER.md)، تمهيدًا لـ[تنظيف GitHub المراجع](GITHUB_LEGACY_CLEANUP_PLAN.md). **هذا القرار يعلو على شرط CURRENT_ONLY المؤرخ 2026-10-14 في هذا الملف وفي BOOK_VNEXT_OUTLINE.md**. يبقى `TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md` سجلًا مرحليًا لما راجعه الإيجنت ولا يُحذف أو يعاد تسميته دون قرار. لا تُنسخ كتب EasyStore/Matbagy-OS/Fokha؛ تربط الأكواد القديمة بمصدرها وحالة هجرتها فقط. ما زالت قواعد NO_DEPLOY/NO_MERGE/NO_DELETE وSecret/PII safety ملزمة.
+> **قرار المالك الأحدث:** اعتمدنا ثلاثة كتب، كل واحد بنطاق مختلف، ومُدخلها الآلي [`CATALOG_AUTHORITY_MANIFEST_V1.json`](CATALOG_AUTHORITY_MANIFEST_V1.json). هذا القرار ينظم المرجع الأحدث، ولا يلغى الأرشيف أو سجلات الأدلة ولا يعطي حق Deploy/Merge/Delete.
+
+1. **الكتالوج الرسمي لوظائف TrendOS الحالية:** [`TRENDOS_CURRENT_SYSTEM_CATALOG.md`](TRENDOS_CURRENT_SYSTEM_CATALOG.md) — **CANONICAL_DOCUMENTATION / PARTIALLY_VERIFIED**، يحوي الفصول 1–31 كاملة. كتاب رسمي في **التوثيق**، وليس شهادة اختبار جميع الوظائف في الإنتاج. قبل تغيير حالة LIVE، تحقق من deployed SHA وبيئة Runtime.
+2. **تاريخ التطوير والقرارات:** [`TrendOS_MASTER_BOOK.md`](../../../TrendOS_MASTER_BOOK.md) — سجل هندسي تاريخي حي ومصدر قرارات، وليس نسخة متكررة من كتالوج الحالة الحالية. يظل بلا تعديل من هذا الإيجنت ما لم يُفتح نطاق مراجعة منفصل مناسب.
+3. **القديم قبل تقسيم المشاريع:** [`TRENDOS_LEGACY_PRE_SPLIT_BOOK.md`](TRENDOS_LEGACY_PRE_SPLIT_BOOK.md) — الأكواد الأصلية والقديمة والمتوقفة والمنقولة؛ معه [سجل استرداد المصدر](LEGACY_SOURCE_RECOVERY_REGISTER.md) و[خطة GitHub الآمنة](GITHUB_LEGACY_CLEANUP_PLAN.md). لا يُدمج النص الخام السري في GitHub العام.
+
+**المسودة الأصلية:** [`TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md`](TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md) مرجع محفوظ قبل الترويج، لا تُحذف ولا تصبح دفترًا موازيًا للتحديثات الجديدة. **عند استكمال الفصل 32 وما يليه اكتب في الملف الرسمي فقط** بعد قراءة أحدث HEAD/الفهرس وتحديد SOURCE_ONLY/TESTED/BLOCKED والربط بـCommit/PR الصحيح.
+
+**إلزام لكل إيجنت:** يبدأ بالكتالوج الحالي، ويتحقق من أحدث المصدر والـPRs قبل إعلان مشكلة أو إصلاح، ويستشير MASTER_BOOK للخلفية والقرار، ويرجع للأرشيف فقط لتحليل أصل الكود أو الهجرة. كتب EasyStore وMatbagy-OS وFokha والمطبعة الذاتية وUbuntu مستقلة؛ اعرض الربط فقط. التوثيق لا يسمح بـMerge/Deploy/Delete/Secrets/Real customer data.
+
+**بوابات الإغلاق:** فهرسة مداخل التشغيل والمراجع الديناميكية وأصحاب البيانات، مصالحة اختبارات SHA وCI والأعطال، فحص روابط/تغطية الملف الحي، إثبات النشر والتشغيل، وموافقة المالك على اكتمال الكتالوج. حالة `FULLY_VERIFIED` **لم تتحقق**.
+
+---
+
+
+
+> **قرار الأرشفة المؤرخ 2026-10-16 · LEGACY_PRE_SPLIT_ARCHIVE (يظل ساريًا ضمن نطاقه التاريخي):** المهمة الأساسية الآن **جمع وحفظ كل كود النظام القديم قبل تقسيمه**، بما فيه الوظائف المتوقفة والمنقولة إلى مشاريع مستقلة، وضمّها إلى [كتاب النظام القديم](TRENDOS_LEGACY_PRE_SPLIT_BOOK.md) و[سجل المصادر](LEGACY_SOURCE_RECOVERY_REGISTER.md)، تمهيدًا لـ[تنظيف GitHub المراجع](GITHUB_LEGACY_CLEANUP_PLAN.md). **هذا القرار يعلو على شرط CURRENT_ONLY المؤرخ 2026-10-14 في هذا الملف وفي BOOK_VNEXT_OUTLINE.md**. يبقى `TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md` سجلًا مرحليًا لما راجعه الإيجنت ولا يُحذف أو يعاد تسميته دون قرار. لا تُنسخ كتب EasyStore/Matbagy-OS/Fokha؛ تربط الأكواد القديمة بمصدرها وحالة هجرتها فقط. ما زالت قواعد NO_DEPLOY/NO_MERGE/NO_DELETE وSecret/PII safety ملزمة.
 
 > 2026-10-14 | STATUS: SETUP / DOCS-ONLY | BASE: PR #130 @ `a80eb3761082659ed5a484695d08993214316e4a`
 >
