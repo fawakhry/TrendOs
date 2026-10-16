@@ -38,16 +38,16 @@
     "entry_number_count": 66,
     "entry_heading_count": 58,
     "mention_only_count": 8,
-    "explicitly_mentioned_in_current_catalog": 15,
-    "unmentioned_by_exact_entry_label_in_current_catalog": 51,
+    "explicitly_mentioned_in_current_catalog": 16,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 50,
     "reconciled_entry_count": 0,
     "unreconciled_entry_count": 66,
     "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation.",
-    "historical_entry_heading_sections_migrated_exact_count": 11,
+    "historical_entry_heading_sections_migrated_exact_count": 12,
     "initial_entry_heading_count": 58,
     "original_snapshot_reconciled_count": 0,
-    "migration_progress_note": "14 exact units migrated through Entry612. 66 Entry IDs remain OPEN for cross-reference and latest Runtime reconciliation; no new Production proof.",
-    "total_migration_units_exact_verified": 14,
+    "migration_progress_note": "15 verified exact historical transfer units through Entry613. No current production authorization inferred from Entry613 (superseded). 66 original entries remain unreconciled.",
+    "total_migration_units_exact_verified": 15,
     "non_entry_historical_migration_units_exact_verified": 3
   },
   "book_policy": {
@@ -1564,12 +1564,34 @@
       "source_first_line": 1092,
       "source_heading_line": 1092,
       "mention_count_in_master": 5,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_SUPERSEDED_PRODUCTION_CANARY_APPROVAL",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "015",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          613
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "5664d6013c26a56dde5aba23af55cfa26e2b0ffb",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ش",
+        "copy_commit": "6254784f1ecd2762f6b2f4d9b31a65d576820d45",
+        "remove_commit": "de68fae17ebe91467d978e90833b5becbdb4f2aa",
+        "text_characters": 3856,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Superseded by Zero-Google functions first. Historical permission for one named employee is not a current authorization."
+      }
     },
     {
       "entry_id": 614,
@@ -2119,12 +2141,12 @@
   ],
   "latest_review": {
     "date": "2026-10-16",
-    "head_before_crosswalk_commit": "a601500f87acedf0237f7d0e143bbfa50cd766db",
-    "active_master_blob_sha": "5664d6013c26a56dde5aba23af55cfa26e2b0ffb",
-    "new_catalog_blob_sha": "ef5a7bd3ddf0fe977c2a049e3ed540d1053f4a1c",
+    "head_before_crosswalk_commit": "de68fae17ebe91467d978e90833b5becbdb4f2aa",
+    "active_master_blob_sha": "d145200542970413cf6d7a7679631ad2e0f2066c",
+    "new_catalog_blob_sha": "3ba647b87ac8563986357ba2ca0063e6b7df785f",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "14 exact migrations; Entry612 copied/verified/removed; active old master and concurrent SERVER-64/65/66 remain; 66 entries require full reconciliation."
+    "notes": "15 exact transfers through Entry613, historical approval superseded; old active and SERVER-64/65/66 kept; 66 Entry IDs still need full cross-references."
   },
   "non_entry_section_migrations": [
     {
