@@ -94,3 +94,20 @@
 ## سجل تغييرات هذا الكتاب
 
 - **2026-10-16 — إنشاء سجل مركزي:** تجميع نتائج فحوصات SSH/UFW/Git الموضحة أعلاه من لقطات Terminal قدّمها المالك في المحادثة. `DOCS_ONLY=YES`, `UBUNTU_REMOTE_EXECUTION=NO`, `MERGE=NO`, `DEPLOY=NO`. تُضاف الدفعات التالية بمدخل جديد، ولا يُحذف التاريخ.
+
+
+### SERVER-20261016-10 — exact local Git HEAD and comparison with current GitHub branch
+- **Date/evidence:** 2026-10-16, owner screenshot from `trend-main@TrendosShop` terminal, not ChatGPT SSH or a tool run on the owner's host.
+- **Local read-only command:** `git -C "$HOME/TrendOs" rev-parse HEAD`.
+- **Exact owner-visible output:** `a238ce5a830bc5a7968dc020cd8168c85fa8c446`; shell returned to normal prompt.
+- **GitHub comparison (read-only connector, observed in the same session):**
+  - Repository: `fawakhry/TrendOs`.
+  - Target branch: `feature/ap155-imac-ssh-service-absent-owner-install-20261012`.
+  - Compared local `HEAD=a238ce5a830bc5a7968dc020cd8168c85fa8c446` to remote branch `HEAD=ab21183f9444b8ebb49932f1b1e4f3c381888851` (PR #95, open/draft/unmerged at verification).
+  - GitHub compare status: `ahead` from local to remote, `ahead_by=98`, `behind_by=0`, `merge_base=a238ce5a830bc5a7968dc020cd8168c85fa8c446`. These are **98 GitHub commits beyond the owner Ubuntu HEAD**, not 98 locally fetched updates.
+  - Earlier `git status` on the host printed `[behind 80]` relative to its **locally cached** `origin/feature/ap155-imac-ssh-service-absent-owner-install-20261012`. Difference between 80 and 98 is not contradictory: locally cached tracking refs can be stale. Do not infer exactly when the extra remote commits landed.
+  - GitHub compared 47 changed paths, including print-server `src/server.py`, `src/folders.py`, `src/platform_bridge.py`, `src/config.py`, new `src/trendos_shadow_qualifier.py`, offline employee demo, security docs and fake-only tests. Diff summary is **not** approval to replace the local code; direct host worktree remains unchanged.
+- **Result:** `HOST_GIT_HEAD_VERIFIED=a238ce5a830bc5a7968dc020cd8168c85fa8c446`; `GITHUB_BRANCH_HEAD_AT_CHECK=ab21183f9444b8ebb49932f1b1e4f3c381888851`; `REMOTE_AHEAD_COMMITS=98`; `REMOTE_COMPARE_BEHIND=0`; `HOST_UPDATES_APPLIED=NO`.
+- **Prior deployments distinction:** The AP-281 separately approved temporary staging folder `$HOME/TrendOs-AP281-staging-66b64ab` is documented in the canonical Printshop book and must not be conflated with the current `$HOME/TrendOs` worktree.
+- **Next engineering decision:** Review the 47 changed GitHub paths and prioritize least-privilege, isolated fake-data read-path qualification, not blind `git pull`. There is no permission to run `print-server/run.py` (live defaults), open port 22, activate a persistent service, access customers, or operate printers. If another Ubuntu command is required, offer only one read-only command and wait for owner screenshot.
+- **Evidence/authority:** `LOCAL_SHA=OWNER_SCREENSHOT`, `GITHUB_COMPARE=READ_ONLY`, `SOURCE_DIFF=REVIEW_PENDING`, `RUNTIME_TRENDOS_CONNECTION=NOT_TESTED`, `DOCS_ONLY=YES`, `DEPLOY=NO`.
