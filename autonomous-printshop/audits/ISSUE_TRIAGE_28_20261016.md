@@ -13,7 +13,7 @@ Status: SOURCE_ONLY triage, NOT production authorization. Base commit: ab21183f9
 
 ## P1 — source/contracts
 
-Resolved items are removed from the active backlog only after CI evidence; item #9 is provisionally patched and awaits CI, see Pending verification below.
+Resolved items are removed from the active backlog after CI evidence. #9 is CLOSED (synthetic/source scope only); see closure evidence below.
 8. Book versus config.js native employee auth setting: SOURCE_ONLY discrepancy; compare deployed config separately.
 10. getRows versus getRowsPageV1931: SOURCE_ONLY; compare permission and pagination contracts.
 11. Employee least-privilege read scope: BLOCKED pending authorization matrix tests.
@@ -39,8 +39,8 @@ Resolved items are removed from the active backlog only after CI evidence; item 
 27. Immediate agent-to-agent messaging: UNKNOWN; registry describes issue-backed scheduled pilot, not verified live responses.
 28. Autonomous multi-agent handoff: UNKNOWN; require evidence of first completed specialist cycle.
 
-## Pending verification
-- #9 strict-success fail-closed patch and synthetic test staged at commit c4e5b65d2d4e881ce14f885d8c655b7d95cab349; CI NOT_RUN/UNKNOWN. Not CLOSED until passing checks. Historical finding remains in Git history.
+## Closed (not active backlog)
+- #9 strict-success fail-closed contract: CLOSED for synthetic/source scope, tested at commit 7d586c75e1783d3a451e3d761efcf0e0e5049e73. AP-296 hosted synthetic PASS https://github.com/fawakhry/TrendOs/actions/runs/38900935137 ; Policy V1 PASS https://github.com/fawakhry/TrendOs/actions/runs/38900935295 . Historical first-run FAIL https://github.com/fawakhry/TrendOs/actions/runs/38900803018 remains preserved. NOT DEPLOYED, NOT VERIFIED RUNTIME.
 
 ## Execution order
 A. Reconfirm HEAD/base/mergeability, CI and canonical book blob before modifying book. B. Add isolated synthetic strict-success tests and source-only patch. C. Audit read permissions and API contract. D. Resolve book branch divergence by owner-approved review only. E. Request separate explicit authorization for each host/network/printer action; never infer authorization from this backlog.
