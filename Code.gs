@@ -4714,6 +4714,47 @@ function bulkStatusAppendActivityV1926_(entries, username, fromStatus, toStatus,
   sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, lastCol).setValues(rows);
 }
 
+// BOOK19/BOOK28: re-bind legacy bulk candidates to the actual Sheet rows and
+// re-read the customer debt/restriction tables immediately before the FIRST
+// status write. A ScriptLock cannot prevent human/external Sheet mutations,
+// so a concurrent disagreement must fail closed, without partial delivery.
+// This is a last preflight, NOT a transactional Sheets compare-and-swap.
+function legacyBulkPreflightV1931_(sheet,targetRows,activity,fromStatus,toStatus,columns) {
+  if (!sheet || !Array.isArray(targetRows) || targetRows.length !== activity.length)
+    return {ok:false,code:'legacy-bulk-recheck-invalid',message:'بيانات دفعة التسليم غير متطابقة.'};
+  const h=columns;
+  const liveDebt=toStatus==='تم التسليم'?buildCustomerPhoneMap_():{};
+  const liveBans=toStatus==='تم التسليم'?debtDeliveryRestrictionMapV1931_():{};
+  const liveLastRow=sheet.getLastRow();
+  for (let i=0;i<targetRows.length;i++){
+    const rowNumber=targetRows[i];
+    const item=activity[i];
+    if (rowNumber<2 || rowNumber>liveLastRow)
+      return {ok:false,code:'legacy-bulk-row-changed',message:'تغيّر ترتيب أو عدد صفوف الأوردرات أثناء الحفظ.'};
+    const row=sheet.getRange(rowNumber,1,1,h.lastNeededCol).getValues()[0];
+    const id=normalize_(valueAt_(row,h.colLineId));
+    const orderId=normalize_(valueAt_(row,h.colOrderId))||normalize_(valueAt_(row,h.colOrderCode));
+    const customer=normalize_(valueAt_(row,h.colCustomer));
+    const department=normalize_(valueAt_(row,h.colDept));
+    const current=normalize_(valueAt_(row,h.colStatus));
+    if ((toStatus==='تم التسليم' && !id) ||
+        id !== item.lineId || orderId !== item.orderId ||
+        customer !== item.customer || department !== item.department ||
+        current !== fromStatus)
+      return {ok:false,code:'legacy-bulk-row-changed',
+        message:'تغيّر البند أو القسم أو حالته بعد تجهيز الدفعة؛ لم يتم تغيير أي بند.'};
+    if (toStatus==='تم التسليم'){
+      const debt=parseDebtAmount_((liveDebt[searchKey_(customer)]||{}).debtAmount||0);
+      const restriction=liveBans[searchKey_(customer)]||null;
+      const gate=trendosDeliveryGateV1931_(orderId,customer,null,debt,restriction);
+      if (debt>0 && restriction || !gate.ok)
+        return {ok:false,code:'legacy-bulk-delivery-eligibility-changed',deliveryBlocked:true,
+          message:'تغيرت مديونية أو قيود منع التسليم بعد تجهيز الدفعة؛ لم يتم التسليم.'};
+    }
+  }
+  return {ok:true};
+}
+
 function bulkUpdateDepartmentStatusV1926_(e) {
   const p = (e && e.parameter) || {};
   const auth = authorize_(p.username, p.token);
@@ -4800,6 +4841,15 @@ function bulkUpdateDepartmentStatusV1926_(e) {
     });
 
     if (targetRows.length) {
+      // No status/ready/notification write is allowed before this fresh
+      // row-identity, fromStatus, latest customer debt and ban recheck.
+      const recheck=legacyBulkPreflightV1931_(sheet,targetRows,activity,fromStatus,toStatus,{
+        lastNeededCol: lastNeededCol,colLineId:colLineId,colOrderId:colOrderId,
+        colOrderCode:colOrderCode,colCustomer:colCustomer,colDept:colDept,colStatus:colStatus
+      });
+      if (!recheck.ok) return {success:false,code:recheck.code,
+        deliveryBlocked:!!recheck.deliveryBlocked,message:recheck.message,
+        changed:0,automaticRetryAuthorized:false};
       bulkStatusSetRangeListV1926_(sheet, targetRows, colStatus, toStatus);
       if (colReady) bulkStatusSetRangeListV1926_(sheet, targetRows, colReady, isReadyStatus_(toStatus) ? "نعم" : "لا");
       if (colUpdated) bulkStatusSetRangeListV1926_(sheet, targetRows, colUpdated, now);
