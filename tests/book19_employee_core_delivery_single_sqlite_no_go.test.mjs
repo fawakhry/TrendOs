@@ -292,6 +292,13 @@ try {
   });
 
   await test('15 BOOK19 T12 bulk update with late debt restriction rolls back every candidate and its event',async()=>{
+    // Earlier test 08 can legitimately deliver these artificial T12 candidates.
+    // Reset only the synthetic runtime fixture so this test definitely reaches
+    // the real bulk SQL path rather than giving a false positive.
+    db.prepare("DELETE FROM t12_prod_line_runtime WHERE line_id IN (?,?)")
+      .run('FAKE_T12_RACE_BULK','FAKE_T12_BULK_OK');
+    db.prepare("DELETE FROM t12_prod_runtime_events WHERE line_id IN (?,?)")
+      .run('FAKE_T12_RACE_BULK','FAKE_T12_BULK_OK');
     const before=effects();
     role='print';department='طباعة';
     let injected=false;
