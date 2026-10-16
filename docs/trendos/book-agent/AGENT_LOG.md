@@ -33,3 +33,12 @@
 - WRITE: Chapter 9 of current catalog covers fly-print priority, state/paging, local permissions, input normalization, and explicit verification gaps. Commit `33c7f28d9cf1b58690856db2112c9b8fb7cebcb7`.
 - VERIFY: independently fetched chapter 9, blob `e24ad3abba674a0b4dc015d1a13e8d479cd511da`.
 - RESULT: SOURCE_ONLY; no production changes, no runtime assertions. NEXT: trace manual order/customer coding API writers and authorization.
+
+
+## 2026-10-16 / MANUAL-ORDER-005 — الفصل العاشر
+- PREPARE: book branch HEAD `d8d3ee9963d9fa9b91742c21f89f673e1f8e7dde`؛ تحقق من أن الفصل التاسع آخر فصل مكتمل، وPR #132 Draft/غير مدموج.
+- READ: `index.html`، `app.js`، `browser-api-transport-v1.js`، `employee-api-dispatcher-v1.js`، `trendos-edge-orders-read-v1.js`، `cloudflare-d1/wrangler.toml`، `production-shadow/index.js`، `src/index_v2.js`، `edge-orders-read-v1.mjs`، `t12-general-create-handler.mjs`، `t12-general-create.mjs`، `cloud-write-order-contract-v2.mjs`، `t12-order-create-shadow-intent.mjs`.
+- FINDINGS: UI createManualOrder → Cloud POST `/v1/t12/orders/create` → verified Bearer → D1 batch on guarded control; flyPrint print-only + urgent in canonical contract; same-day delivery writer not yet proven; GENERAL role check may be broader than UI guard; Edge token exchange source still references Apps Script upstream. All SOURCE_ONLY.
+- WRITE: chapter 10 appended to `TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md`, commit `ccb02ffadd12a566fa7811b5375368565e70ecd2`, blob `27988e0f1ec7274d844d08d4a79ad7a0db28fab4`. Independent post-write fetch verified chapter text and blob.
+- RESULT: `SOURCE_ONLY`; `TESTED=NO`; `PRODUCTION_VERIFIED=NO`; no product code changes, no runtime calls, no production mutations.
+- NEXT: chapter 11 trace `createCustomer` UI → Cloud route → authorization → `t12_customers` and ledger, then flyPrint/paging/session gaps.
