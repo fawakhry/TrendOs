@@ -8,12 +8,14 @@ on:
       - 'cloudflare-d1/src/mirror-gate.mjs'
       - 'cloudflare-d1/src/employee-core-native-v1.mjs'
       - 'tests/book25_26_p0_auth_synthetic.test.mjs'
+      - 'tests/cloudflare_mirror_safety_v1.test.mjs'
       - '.github/workflows/trendos-book25-26-p0-security-synthetic-ci.yml'
   pull_request:
     paths:
       - 'cloudflare-d1/src/mirror-gate.mjs'
       - 'cloudflare-d1/src/employee-core-native-v1.mjs'
       - 'tests/book25_26_p0_auth_synthetic.test.mjs'
+      - 'tests/cloudflare_mirror_safety_v1.test.mjs'
       - '.github/workflows/trendos-book25-26-p0-security-synthetic-ci.yml'
   workflow_dispatch:
 permissions:
@@ -34,6 +36,10 @@ jobs:
           node --check tests/book25_26_p0_auth_synthetic.test.mjs
       - name: Fake-only mirror and manager permission regressions
         run: node --test tests/book25_26_p0_auth_synthetic.test.mjs
+      - name: Existing mirror read-only/migration contract regression
+        run: node tests/cloudflare_mirror_safety_v1.test.mjs
+      - name: Existing manager direct core contract regression
+        run: node tests/entry646_manager_center_core_direct.test.mjs
       - name: No production or deployment
         run: |
           echo "FAKE_D1_ONLY=YES"
