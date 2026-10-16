@@ -153,7 +153,7 @@ test('BOOK24: separate Script Properties stores do NOT prove global writer exclu
 });
 
 test('BOOK24: misspelled enabled property blocks BOTH writers instead of disabling safety',()=>{
-  for(const enabled of ['tru','enable','onx','1 ','نعمم','TRUEE','FALSEE','unknown']){
+  for(const enabled of ['tru','enable','onx','1x','نعمم','TRUEE','FALSEE','unknown']){
     const f=sandbox({enabled,owner:'WORK_QUEUE_V1'});
     assert.throws(()=>f.call.work(),/BOOK24_SCRIPT_WRITER_GUARD_VALUE_INVALID/,enabled);
     assert.throws(()=>f.call.operator(),/BOOK24_SCRIPT_WRITER_GUARD_VALUE_INVALID/,enabled);
