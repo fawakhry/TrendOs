@@ -301,3 +301,10 @@ This is a source-evidence queue for canonical [Chapter 32](TRENDOS_CURRENT_SYSTE
 | B32-FILE-LIFECYCLE | Both Workers and local `platform_bridge.py` blob `7321393be0299863483eb7479dc28b1917039036` | Synthetic file upload/display/revoke and staged bridge status→folder workflow; checksum/approval/retry vs duplicated/cross-order access. | SOURCE_ONLY / NOT_RUN / NO_PROD_CREDENTIALS |
 
 **Issue dedup:** reuse `BOOK20-R2-FILE-AUTH` and `BOOK22-CONTENT-R2-ACL`, do not create new production incidents from historical inspected blobs. Refer to [chapter 32](TRENDOS_CURRENT_SYSTEM_CATALOG.md).
+
+## 2026-10-16 — BOOK24 readiness latest-expiry and future timestamp synthetic proof
+
+- Parent official Book HEAD `5fd822498f93df5a1d1ee5f2359c00d45de462e2`; [Draft PR #179](https://github.com/fawakhry/TrendOs/pull/179) source/test/workflow SHA `dfe9e0c674ea01a3d758bdb2150bdbaa811eaeed`.
+- New `node --test autonomous-printshop/tests/book24_readiness_expiry_resurrection_guard.test.mjs`: **16/16 PASS**. Newer expired BLOCKED/UNKNOWN/READY must not resurrect older READY; future most-recent evidence invalidates current READY; same-ms deterministic ID; valid latest READY still qualifies synthetic shadow recommendation; future mapping/observation denies MACHINE READY, inverted windows invalid, MAINTENANCE remains BLOCKED.
+- Inherited `node autonomous-printshop/tests/readiness_evidence_v1.test.mjs`, `machine_readiness_v1.test.mjs`, `readiness_evidence_writer_v1.test.mjs`, `readiness_collector_v1.test.mjs`, `production_shadow_worker_v1.test.mjs`, `operator_task_canary_qualification_v1.test.mjs` PASS. [Book24 CI #38944074026](https://github.com/fawakhry/TrendOs/actions/runs/38944074026) **SUCCESS** with all workflow steps success; no production operations.
+- The evidence proves behavior of repository code on a **synthetic** clock and line/machine records, not the actual deployed shadow worker, machine sensor truth, or task dispatch. `REAL_D1=NO`, `REAL_MACHINES=NO`, `PRODUCTION_VERIFIED=NO`, `ZERO_GOOGLE_COMPLETE=NO`.
