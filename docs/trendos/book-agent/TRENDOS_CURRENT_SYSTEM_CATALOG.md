@@ -2845,3 +2845,178 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
 
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY613 -->
+
+---
+
+## الملحق التاريخي ت — Entry614 / Zero-Google Employee Functions First
+
+> **التصنيف:** `HISTORICAL / REPO_ONLY_QUALIFICATION_RECORDED / NOT_CURRENT_PRODUCTION_PROOF`. نقل تاريخي لمصادر واختبارات Cloudflare/D1، دون اعتبار الخطوات قد نُشرت حاليًا.
+> **المصدر:** [القديم عند النقل](https://github.com/fawakhry/TrendOs/blob/3b8f245d82c9765b11b1c9828af65d4bacd85fe1/TrendOS_MASTER_BOOK.md)، blob `891df6327d4e4daae46bed6c0cd6dc1249f0474c`.
+> **الأرشيف:** [نسخة الاسترجاع](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md)، blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`.
+> **نسخ على جزأين، ولا إزالة قبل VERIFY كامل.**
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY614 -->
+### Entry614 — Zero-Google Employee Functions First
+- الاسم العربي للبحث: **انقل كل وظائف الموظفين من Google/Apps Script إلى Cloudflare + D1 أولًا ثم اقفل Google نهائيًا**.
+- قرار المالك صريح: **لا Compatibility Bridge Production**. لا نضيف Shared Secret ولا Script Properties جديدة على Google.
+- الهدف النهائي لهذه السلسلة:
+  ```ini
+  EMPLOYEE_BUSINESS_ACTIONS_APPS_SCRIPT=0
+  EMPLOYEE_RUNTIME_GOOGLE_DEPENDENCY=0
+  EMPLOYEE_LOGIN=D1_NATIVE
+  EMPLOYEE_SESSION=D1_NATIVE
+  APPS_SCRIPT_AUTH_FALLBACK=0
+  ZERO_GOOGLE_COMPLETE=YES
+  ```
+- نقطة البداية الحالية من Runtime/Entries609-612:
+  - 46 top-level active legacy employee business actions.
+  - 29 active op-scoped policies.
+  - 2 hybrid legacy fallbacks: `updateLine`, `markCustomerNotified`.
+  - 69 full-active-parity policy keys were bridge-equivalent inventory; الآن ستستخدم كمصفوفة نقل، لا كBridge allowlist.
+  - `getRowsPageV1931` Cloud/Edge بالفعل.
+  - Orders create/customer write/duplicate guard/refresh fix/legacy line baseline يجب الحفاظ عليهم.
+- استراتيجية النقل:
+  1. read-only inventory: D1 schema + action→handler→data-source map.
+  2. نقل read-only actions إلى Cloud/D1 أولًا.
+  3. نقل writes لكل عائلة مع idempotency/audit/versioning.
+  4. إزالة frontend legacy fallbacks لكل عائلة بعد qualification.
+  5. تكرار حتى `EMPLOYEE_BUSINESS_ACTIONS_APPS_SCRIPT=0`.
+  6. بعدها فقط Employee Login/Auth → D1 Native، ثم حذف Apps Script employee runtime.
+- لا Big Bang Production. كل family لها repo qualification → read-only preflight → controlled deploy → postflight.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_STARTED_ZERO_GOOGLE_FUNCTIONS_FIRST
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=READONLY_D1_SCHEMA_AND_ACTION_DATA_SOURCE_INVENTORY
+  ```
+- Static current-source scan pinned **46 active legacy employee top-level actions** from Entry609 against current `Code.gs` router/handlers; no Production mutation.
+- Dedicated D1/Runtime read-only inventory workflow created:
+  - `.github/workflows/trendos-entry614-zero-google-d1-inventory-readonly.yml`
+  - commit `6e73eea786d2749651611e2b41aa47b657758358`
+  - reads Production auth/bridge/order/customer baselines, D1 sqlite schema, mirror catalog, and key counts using SELECT only.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_READONLY_INVENTORY_WORKFLOW_CREATED
+  COMMIT=6e73eea786d2749651611e2b41aa47b657758358
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=READ_ENTRY614_D1_INVENTORY_RUN_AND_BUILD_MIGRATION_FAMILIES
+  ```
+- Entry614 inventory Run1:
+  - Run `37129335398`
+  - Job `111221130746`
+  - conclusion = **FAIL after useful read-only inventory**.
+- Failure cause: final key-count query referenced nonexistent generic tables `orders` / `order_lines`; current D1 uses T12 production tables such as `t12_prod_orders` / `t12_prod_lines`.
+- Before failure, Runtime proved:
+  - Auth OFF, Bridge OFF, Orders GENERAL, Customers GENERAL.
+  - D1 object count = **34**.
+  - D1 has dedicated Order/Customer/Auth runtime tables plus generic `sheet_catalog/sheet_rows`, but **no dedicated native D1 tables yet for Attendance/HR/Cleaning/Press/Accounting/Platform/Marketplace/etc.**
+  - `sheet_catalog` contains 87 historical mirrored sheet datasets, including HR, attendance, cleaning, press, accounting, marketplace, conversations, platform, notes, etc.; these mirror timestamps are historical and are **seed/migration evidence only, not current authority**.
+- This establishes the core Zero-Google requirement: employee families need D1-owned schemas + Cloud handlers; simply reading historical `sheet_rows` cannot be the final Zero-Google authority.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_READONLY_RUN1_FAIL_BAD_COUNT_TABLE_NAMES
+  RUN_ID=37129335398
+  JOB_ID=111221130746
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=PATCH_READONLY_COUNT_QUERY_TO_CURRENT_T12_TABLES_AND_RERUN
+  ```
+- Entry614 inventory Run2:
+  - Run `37129432965`
+  - Job `111221415747`
+  - conclusion = **FAIL only in optional aggregate count query**.
+- Runtime schema + 87-sheet mirror catalog were re-read successfully and unchanged; no mutation occurred. The optional multi-table count statement remains nonessential to the migration design and is dropped from the critical gate rather than spending more rounds on diagnostics.
+- Authoritative structural conclusion:
+  ```ini
+  D1_NATIVE_EMPLOYEE_DOMAIN_TABLES=NOT_PRESENT
+  D1_GENERIC_HISTORICAL_SHEET_MIRROR=PRESENT
+  ORDERS_CUSTOMERS_AUTH_NATIVE_TABLES=PRESENT
+  ZERO_GOOGLE_REQUIRES_NEW_D1_DOMAIN_SCHEMAS=YES
+  ```
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_INVENTORY_SUFFICIENT_OPTIONAL_COUNT_DIAGNOSTIC_FAILED
+  RUN_ID=37129432965
+  JOB_ID=111221415747
+  COMMIT=9177b420460f9cd92cf567ac46a82522ed9ca17d
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=BUILD_ZERO_GOOGLE_DOMAIN_SCHEMAS_AND_CLOUD_HANDLERS_REPO_ONLY
+  ```
+- Zero-Google operational family source built repo-only:
+  - migration `0012_employee_ops_zero_google_v1.sql` commit `65eacba00ffb093e0381cb246300f86c050288fb`.
+  - D1-owned schemas added for Attendance, attendance pulses/config/special-times, HR employees/requests/skills/performance, Cleaning daily, Press settings/sessions, request ledger and audit events.
+  - control row `ENTRY614_EMPLOYEE_OPS_V1` defaults `OFF`; applying schema alone cannot cut traffic over.
+  - Cloud handler `cloudflare-d1/src/employee-ops-native-v1.mjs` commit `32d80569165c4eda797d7d4030c2e3683a98712d`.
+  - routes implemented for `attendanceV1`, `attendanceClockinV1`, `hrV1`, `cleaningV1`, `pressControlV1`.
+  - business logic contains **zero Apps Script/Google calls**; temporary auth verification can use existing Cloud session bridge until final D1-auth cutover.
+  - Worker route wired in `index_v2.js` commit `c1e21c7a8cfeaed27716cc6ab4ef06d6f183ddf8`.
+  - regression test `tests/entry614_employee_ops_native.test.mjs` commit `a69f0036442edfe1c92a76e776a643ea68260924`.
+- None of these commits are deployed; D1 migration 0012 is **not applied yet**.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_OPS_FAMILY_SOURCE_BUILT_REPO_ONLY
+  COMMIT=a69f0036442edfe1c92a76e776a643ea68260924
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  API_DEPLOY=NO
+  NEXT_ACTION=RUN_OPS_NATIVE_CI_THEN_BUILD_NEXT_ZERO_GOOGLE_FAMILIES
+  ```
+- Employee Ops native repo CI:
+  - Run `37130008916`
+  - conclusion = **SUCCESS**
+  - schema default-OFF verified, no Order/Customer schema mutation, Production Auth/Bridge stayed OFF, Orders baseline PASS.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_OPS_FAMILY_REPO_QUALIFIED
+  RUN_ID=37130008916
+  COMMIT=6139ba339a09686621ffff9a172946d1dbd518fc
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  API_DEPLOY=NO
+  NEXT_ACTION=BUILD_CONTENT_CONFIG_CONVERSATION_ACCOUNTING_FAMILIES_REPO_ONLY
+  ```
+- Content/Config Zero-Google family started Repository-only:
+  - migration `0013_employee_content_zero_google_v1.sql` commit `135d6de491d4fd102ea2b4eca05d4a6f8b2dc79c`.
+  - adds default-OFF `employee_content_control_v1`, D1-native content records, file metadata, audit events, and seed records for original Platform Sections / HQ Franchise / Service Route defaults.
+  - native handler `employee-content-native-v1.mjs` commit `557488e52d927d5273fcaf1f9a4df2d2e71235da`.
+  - covers Platform Sections, Franchise branches + customer branch assignment, Service Routes, Marketplace vendors/products, White-label, lead phones, Platform Ads, Knowledge, Matbagy Notes.
+  - file/image writes target Cloudflare R2 binding `FILES`; **no Google Drive runtime path is used**. If R2 is absent, file writes fail closed.
+  - Worker route wired in `index_v2.js` commit `c1e0f6c219cf1f51809ad0224ee3196e66d8cfbf`.
+- All Content control remains default-OFF. Migration 0013 not applied and source not deployed.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_CONTENT_FAMILY_SOURCE_BUILT_REPO_ONLY
+  COMMIT=c1e0f6c219cf1f51809ad0224ee3196e66d8cfbf
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  API_DEPLOY=NO
+  R2_touched=NO
+  NEXT_ACTION=ADD_CONTENT_NATIVE_REGRESSION_AND_REPO_CI
+  ```
+- Content native regression added:
+  - `tests/entry614_employee_content_native.test.mjs`
+  - commit `c3a9450f9d7b9b7b8cc1d7a79cfadf4575e6d4f7`
+  - checks 20 action contracts, default-OFF schema, D1 authority marker, zero Google business calls, R2 file target, Worker routing.
+- Dedicated repo-only CI added:
+  - `.github/workflows/trendos-entry614-employee-content-native-ci.yml`
+  - commit `b86ebe6876f98b67e1da05538350dc982953121b`
+  - Production checks are read-only; no D1/R2/API/Apps Script mutation.
