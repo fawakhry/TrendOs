@@ -679,7 +679,7 @@ try{
 
   const financialRowsForAtomicity=()=>Object.fromEntries([
     'employee_accounting_materials_v1','employee_accounting_stock_moves_v1',
-    'employee_accounting_final_invoices_v1','employee_accounting_party_balances_v1',
+    'employee_accounting_dept_lines_v1','employee_accounting_final_invoices_v1','employee_accounting_party_balances_v1',
     'employee_accounting_customer_credits_v1','employee_accounting_party_ledger_v1',
     'employee_accounting_customer_credit_events_v1','employee_accounting_cashbox_v1',
     'employee_accounting_events_v1'
@@ -817,6 +817,57 @@ try{
     assert.deepEqual(financialRowsForAtomicity(),after,'lost ACK retry must not create second invoice or credit consumption');
     assert.equal(network,0);
   });
+
+  const fakeApprovedFinalLine=(label,amount=45)=>{
+    const orderId='FAKE_FINAL_ORDER_'+label,lineId='FAKE_FINAL_LINE_'+label;
+    db.prepare("INSERT INTO employee_accounting_dept_lines_v1(accounting_line_id,order_id,department,item_name,approval_status,sale_price,final_invoice_no,version) VALUES(?,?,'طباعة','FAKE_FINAL_SERVICE','معتمد من القسم',?,'',1)")
+      .run(lineId,orderId,amount);
+    return {requestId:'FAKE_FINAL_COMMAND_'+label+'_0001',orderId,lineIds:[lineId],
+      customerId:'FAKE_CUST_A',department:'طباعة',workDate:'2099-12-31',
+      paid:10,paymentMethod:'نقدي'};
+  };
+  await test('49 BOOK18 final-invoice audit INSERT failure must roll back invoice, cash, customer debt and close lines',async()=>{
+    const payload=fakeApprovedFinalLine('AUDIT_ERROR');
+    const before=financialRowsForAtomicity();
+    auditWriteFault=1;
+    let result;
+    try{result=await send('saveAccountingFinalInvoice',payload);}
+    finally{auditWriteFault=0;}
+    assert.equal(result.success,false,JSON.stringify(result));
+    assert.equal(result.status,500);
+    assert.deepEqual(financialRowsForAtomicity(),before,
+      'final invoice must NEVER post financial rows without atomic audit');
+    assert.equal(one('SELECT status FROM employee_accounting_request_ledger_v1 WHERE request_key=?',payload.requestId)?.status,'PREPARED');
+  });
+  await test('50 BOOK18 final-invoice COMMITTED update failure must roll back every financial row',async()=>{
+    const payload=fakeApprovedFinalLine('COMMIT_ERROR');
+    const before=financialRowsForAtomicity();
+    commandCommitFault=1;
+    let result;
+    try{result=await send('saveAccountingFinalInvoice',payload);}
+    finally{commandCommitFault=0;}
+    assert.equal(result.success,false,JSON.stringify(result));
+    assert.equal(result.status,500);
+    assert.deepEqual(financialRowsForAtomicity(),before,
+      'failed COMMITTED request state cannot strand a posted final invoice');
+    assert.equal(one('SELECT status FROM employee_accounting_request_ledger_v1 WHERE request_key=?',payload.requestId)?.status,'PREPARED');
+  });
+  await test('51 BOOK18 valid final invoice has exactly one COMMITTED replay response and exact-key audit',async()=>{
+    const payload=fakeApprovedFinalLine('SUCCESS');
+    const before=financialRowsForAtomicity();
+    const result=await send('saveAccountingFinalInvoice',payload);
+    assert.equal(result.success,true,JSON.stringify(result));
+    assert.equal(result.finalTotal,45);
+    assert.equal(result.paid,10);
+    assert.equal(result.remaining,35);
+    const saved=one('SELECT status,response_json AS responseJson FROM employee_accounting_request_ledger_v1 WHERE request_key=?',payload.requestId);
+    assert.equal(saved.status,'COMMITTED');
+    assert.equal(JSON.parse(saved.responseJson).invoiceNo,result.invoiceNo);
+    assert.equal(all('SELECT * FROM employee_accounting_events_v1 WHERE request_key=?',payload.requestId).length,1);
+    assert.equal(one('SELECT final_invoice_no AS invoiceNo FROM employee_accounting_dept_lines_v1 WHERE accounting_line_id=?',payload.lineIds[0]).invoiceNo,result.invoiceNo);
+    assert.notDeepEqual(financialRowsForAtomicity(),before);
+    assert.equal(network,0);
+  });
   await test('21 preserve integrity: cash equals actual funds received; credit events reconcile liability',()=>{
     assert.equal(network,0);
     for(const id of ['FAKE_CUST_A','FAKE_CUST_B']){
@@ -826,7 +877,7 @@ try{
       assert.ok(c>=0);
     }
     assert.equal(one("SELECT COUNT(*) AS n FROM employee_accounting_tx_guard_v1").n,0);
-    assert.equal(one("SELECT COUNT(*) AS n FROM employee_accounting_request_ledger_v1 WHERE status='PREPARED'").n,6,
-      'two race losers + two failed audit writes + two failed commit writes remain PREPARED, never auto-reposted');
+    assert.equal(one("SELECT COUNT(*) AS n FROM employee_accounting_request_ledger_v1 WHERE status='PREPARED'").n,8,
+      'two race losers + two credit audit errors + two credit commit errors + two final-invoice injected errors stay PREPARED, never auto-reposted');
   });
 }finally{db.close()}
