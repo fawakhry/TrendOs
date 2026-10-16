@@ -269,7 +269,7 @@ async function bulkStatus(env,user,body){
   `).bind(user.username,fromStatus,toStatus,screen,requestId,JSON.stringify(importEvents)));
   if(nativeEvents.length)statements.push(env.DB.prepare(`
     INSERT INTO t12_prod_runtime_events(order_id,line_id,event_type,old_status,new_status,actor,payload_json)
-    SELECT json_extract(value,'$.orderId'),json_extract(value,'$.lineId'),'bulk-status',?,?,?,?,?
+    SELECT json_extract(value,'$.orderId'),json_extract(value,'$.lineId'),'bulk-status',?,?,?,?
     FROM json_each(?)
   `).bind(fromStatus,toStatus,user.username,JSON.stringify({screen,requestId}),JSON.stringify(nativeEvents)));
   if(changed.length){
