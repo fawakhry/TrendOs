@@ -380,13 +380,18 @@ function customerViewV1(r){
   return {
     customerId:text(r.customer_id),id:text(r.customer_id),name:text(r.customer_name),customerName:text(r.customer_name),
     manager:text(r.manager),phone:text(r.phone||r.extra_phone),mobile:text(r.phone||r.extra_phone),extraPhone:text(r.extra_phone),
-    type:text(r.customer_type),active:text(r.active),debt:balance,debtAmount:balance,currentBalance:balance,remainingBalance:balance
+    type:text(r.customer_type),active:text(r.active),debt:balance,debtAmount:balance,currentBalance:balance,remainingBalance:balance,
+    creditBalance:num(r.credit_cents)/100,customerCredit:num(r.credit_cents)/100,
+    displayBalance:num(r.credit_cents)/100-balance
   };
 }
 async function getEasyStoreCustomersV1(env,b){
   const limit=Math.max(1,Math.min(Math.trunc(num(b.limit,500)),1000));
+  const creditColumn=customerCreditEnabledV1(env)
+    ? "COALESCE((SELECT cc.credit_cents FROM employee_accounting_customer_credits_v1 cc WHERE cc.customer_id=c.customer_id),0)" : "0";
   const list=await rows(env,`
     SELECT c.customer_id,c.customer_name,c.manager,c.phone,c.extra_phone,c.customer_type,c.active,
+      ${creditColumn} AS credit_cents,
       COALESCE((SELECT pb.balance FROM employee_accounting_party_balances_v1 pb
         WHERE pb.party_type='customer' AND pb.party_id=c.customer_id LIMIT 1),0) AS current_balance
     FROM t12_customers c
@@ -400,8 +405,11 @@ async function searchCustomersV1(env,b){
   const q=key(b.q);
   if(!q)return {success:true,customers:[],version:'A1_D1_READ_MODEL_V1'};
   const like='%'+q+'%';
+  const creditColumn=customerCreditEnabledV1(env)
+    ? "COALESCE((SELECT cc.credit_cents FROM employee_accounting_customer_credits_v1 cc WHERE cc.customer_id=c.customer_id),0)" : "0";
   const list=await rows(env,`
     SELECT c.customer_id,c.customer_name,c.manager,c.phone,c.extra_phone,c.customer_type,c.active,
+      ${creditColumn} AS credit_cents,
       COALESCE((SELECT pb.balance FROM employee_accounting_party_balances_v1 pb
         WHERE pb.party_type='customer' AND pb.party_id=c.customer_id LIMIT 1),0) AS current_balance
     FROM t12_customers c
@@ -465,9 +473,11 @@ async function getCustomerAccountV1915V1(env,auth,b){
     LIMIT 200
   `,[customer.customer_id]);
   const balance=await partyBalanceV1(env,'customer',text(customer.customer_id));
-  const view=customerViewV1({...customer,current_balance:balance});
+  const creditCents=customerCreditEnabledV1(env)?await customerCreditReadV1(env,text(customer.customer_id)):0;
+  const view=customerViewV1({...customer,current_balance:balance,credit_cents:creditCents});
   return {
-    success:true,customer:view,partyName:view.name,balance,transactions:tx,
+    success:true,customer:view,partyName:view.name,balance,creditBalance:creditCents/100,
+    outstandingDebt:balance,displayBalance:creditCents/100-balance,transactions:tx,
     permissions:{canCollect:true,canAdjust:auth.mode==='full'},
     version:'A1_D1_READ_MODEL_V1'
   };
@@ -1861,6 +1871,8 @@ async function finalInvoiceA2V1(env,auth,b){
   if(!(finalTotal>0))return {success:false,message:'إجمالي الفاتورة يجب أن يكون أكبر من صفر.'};
   if(paid>finalTotal+0.000001)return {success:false,message:'المدفوع لا يمكن أن يزيد عن إجمالي الفاتورة.'};
   const remaining=Math.max(0,finalTotal-paid),customer=await resolvePartyV1(env,'customer',{customerId:b.customerId,customerName:b.customerName||b.customer});
+  if(customerCreditEnabledV1(env)&&await customerCreditReadV1(env,customer.partyId)>0)
+    return {success:false,code:'customer-credit-final-invoice-needs-verified-adapter',message:'لا يمكن تجاهل رصيد العميل الدائن عند تقفيل فاتورة أقسام. يلزم المسار المعتمد أولًا.'};
   const workDate=workDateKeyV1(b.workDate||b.date),department=accountingDepartmentV1(b.department)||text(b.department)||'كل الأقسام';
   const heldPayment=Math.max(0,num(b.heldPayment)),heldFrom=text(b.heldPaymentFromInvoiceNo||b.replacesInvoiceNo);
   if(heldPayment>paid+0.000001)return {success:false,message:'المدفوع المحفوظ لا يمكن أن يزيد عن المدفوع في الفاتورة الجديدة.'};
@@ -1912,6 +1924,8 @@ async function reopenAccountingFinalInvoiceV1(env,auth,b){
   if(!reason)return {success:false,message:'سبب إرجاع الفاتورة للمراجعة مطلوب.'};
   const inv=await env.DB.prepare("SELECT * FROM employee_accounting_final_invoices_v1 WHERE invoice_no=?").bind(invoiceNo).first();
   if(!inv)return {success:false,message:'لم يتم العثور على الفاتورة '+invoiceNo};
+  if(customerCreditEnabledV1(env)&&(num(inv.credit_applied)>0||num(inv.credit_created)>0))
+    return {success:false,code:'customer-credit-invoice-reversal-not-implemented',message:'عكس فاتورة استخدمت أو أنشأت رصيدًا دائنًا يحتاج قيد تعويضي معتمدًا.'};
   if(text(inv.status)==='UNDER_REVIEW')return {success:true,duplicatePrevented:true,invoiceNo,heldPayment:num(inv.held_paid),message:'الفاتورة تحت المراجعة بالفعل.',version:'A2_D1_ACCOUNTING_V1'};
   if(text(inv.replacement_invoice_no))return {success:false,message:'لا يمكن إرجاع فاتورة مرتبطة بالفعل بفاتورة بديلة.'};
   const customer=await resolvePartyV1(env,'customer',{customerId:inv.customer_party_id,customerName:inv.customer_name});
