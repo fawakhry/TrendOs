@@ -36,6 +36,7 @@ try{
   db.exec("CREATE TABLE t12_customers(customer_id TEXT PRIMARY KEY,customer_name TEXT NOT NULL,manager TEXT NOT NULL DEFAULT '',phone TEXT NOT NULL DEFAULT '',extra_phone TEXT NOT NULL DEFAULT '',customer_type TEXT NOT NULL DEFAULT '',active TEXT NOT NULL DEFAULT 'نعم',updated_at TEXT DEFAULT CURRENT_TIMESTAMP)");
   for(const id of ['FAKE_CUST_A','FAKE_CUST_B'])
     db.prepare("INSERT INTO t12_customers(customer_id,customer_name) VALUES(?,?)").run(id,'FAKE_ONLY_'+id);
+  let auditWriteFault=0; // synthetic audit INSERT failure, never a real D1 or customer write
   let creditRaceGate=null; // deterministic LOCAL interleaving: both credit reads see one stale version
   const DB={
     prepare(sql){
@@ -60,7 +61,13 @@ try{
           return Promise.resolve(result);
         },
         all(){return Promise.resolve({results:db.prepare(stmt.sql).all(...stmt.args)});},
-        run(){return Promise.resolve(db.prepare(stmt.sql).run(...stmt.args));}
+        run(){
+          if(auditWriteFault>0 && stmt.sql.includes('INSERT INTO employee_accounting_events_v1')){
+            auditWriteFault--;
+            return Promise.reject(Error('SYNTHETIC_AUDIT_INSERT_FAILURE'));
+          }
+          return Promise.resolve(db.prepare(stmt.sql).run(...stmt.args));
+        }
       };
       w.__statement=stmt;
       return w;
@@ -68,7 +75,13 @@ try{
     async batch(items){
       db.exec('BEGIN IMMEDIATE');
       try{
-        const result=items.map(q=>db.prepare(q.__statement.sql).run(...q.__statement.args));
+        const result=items.map(q=>{
+          if(auditWriteFault>0 && q.__statement.sql.includes('INSERT INTO employee_accounting_events_v1')){
+            auditWriteFault--;
+            throw Error('SYNTHETIC_AUDIT_INSERT_FAILURE');
+          }
+          return db.prepare(q.__statement.sql).run(...q.__statement.args);
+        });
         db.exec('COMMIT');
         return result;
       }catch(error){
@@ -649,6 +662,58 @@ try{
     assert.deepEqual(forensicSnapshot(),before);
     assert.equal(network,0);
   });
+
+  const financialRowsForAtomicity=()=>Object.fromEntries([
+    'employee_accounting_materials_v1','employee_accounting_stock_moves_v1',
+    'employee_accounting_final_invoices_v1','employee_accounting_party_balances_v1',
+    'employee_accounting_customer_credits_v1','employee_accounting_party_ledger_v1',
+    'employee_accounting_customer_credit_events_v1','employee_accounting_cashbox_v1',
+    'employee_accounting_events_v1'
+  ].map(t=>[t,all('SELECT * FROM '+t+' ORDER BY rowid')]));
+  await test('41 BOOK18 audit INSERT fault on cash/credit receipt must roll back entire finance batch',async()=>{
+    const before=financialRowsForAtomicity();
+    const request=receive('AUDIT_INSERT_FAIL',5,'FAKE_CUST_B');
+    auditWriteFault=1;
+    let result;
+    try{result=await send('saveCustomerAccountMovementV1915',request);}
+    finally{auditWriteFault=0;}
+    assert.equal(result.success,false,JSON.stringify(result));
+    assert.equal(result.status,500);
+    assert.deepEqual(financialRowsForAtomicity(),before,
+      'audit failure must not leave cash, liability, balances, ledgers, events or stock posted');
+    const state=one('SELECT status FROM employee_accounting_request_ledger_v1 WHERE request_key=?',request.requestId);
+    assert.equal(state?.status,'PREPARED');
+    const repeated=await send('saveCustomerAccountMovementV1915',request);
+    assert.equal(repeated.success,false,'PREPARED must not automatically replay');
+    assert.deepEqual(financialRowsForAtomicity(),before);
+  });
+  await test('42 BOOK18 audit INSERT fault on credit-backed invoice must roll back stock, credit, debt, invoice',async()=>{
+    const before=financialRowsForAtomicity();
+    const request=sale('AUDIT_INSERT_FAIL',10,0,'FAKE_CUST_B');
+    auditWriteFault=1;
+    let result;
+    try{result=await send('saveEasyStoreSaleV2',request);}
+    finally{auditWriteFault=0;}
+    assert.equal(result.success,false,JSON.stringify(result));
+    assert.equal(result.status,500);
+    assert.deepEqual(financialRowsForAtomicity(),before,
+      'invoice financial transaction may not commit without its audit record');
+    assert.equal(one('SELECT status FROM employee_accounting_request_ledger_v1 WHERE request_key=?',request.requestId)?.status,'PREPARED');
+    assert.equal((await send('saveEasyStoreSaleV2',request)).success,false,
+      'safe replay is blocked until manual PREPARED reconciliation');
+    assert.deepEqual(financialRowsForAtomicity(),before);
+  });
+  await test('43 BOOK18 successful customer credit receipt and invoice each have a durable exact-key audit event',async()=>{
+    const before=financialRowsForAtomicity();
+    for(const requestKey of [receive('OVER',100).requestId,sale('D',20,0,'FAKE_CUST_B').requestId]){
+      const events=all('SELECT event_type,entity_type FROM employee_accounting_events_v1 WHERE request_key=?',requestKey);
+      assert.equal(events.length,1,requestKey+' missing exact command audit');
+      assert.equal(events[0].event_type,'post');
+      assert.equal(one('SELECT status FROM employee_accounting_request_ledger_v1 WHERE request_key=?',requestKey).status,'COMMITTED');
+    }
+    assert.deepEqual(financialRowsForAtomicity(),before);
+    assert.equal(network,0);
+  });
   await test('21 preserve integrity: cash equals actual funds received; credit events reconcile liability',()=>{
     assert.equal(network,0);
     for(const id of ['FAKE_CUST_A','FAKE_CUST_B']){
@@ -658,7 +723,7 @@ try{
       assert.ok(c>=0);
     }
     assert.equal(one("SELECT COUNT(*) AS n FROM employee_accounting_tx_guard_v1").n,0);
-    assert.equal(one("SELECT COUNT(*) AS n FROM employee_accounting_request_ledger_v1 WHERE status='PREPARED'").n,2,
-      'rejected racing receipt and rejected racing invoice remain PREPARED; never auto-repost');
+    assert.equal(one("SELECT COUNT(*) AS n FROM employee_accounting_request_ledger_v1 WHERE status='PREPARED'").n,4,
+      'two rejected race losers + two injected audit failures must remain PREPARED, not auto-reposted');
   });
 }finally{db.close()}
