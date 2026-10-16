@@ -58,3 +58,28 @@ Owner screenshot of `trendos-d1-api → Production → Domains` shows:
 **Read-only next step:** inspect `Settings` page **without** showing secrets, tokens or values. Ask for screenshot of non-sensitive configuration section headings and `workers.dev`/routing feature names only. Do not flip either switch, create Access policy, deploy, or change account settings.
 
 `WORKER_PRODUCTION_URL_ENABLED=YES_AS_SHOWN`; `WORKER_PREVIEW_URL_ENABLED=YES_AS_SHOWN`; `NO_CUSTOM_ROUTES_LISTED=YES_AS_SHOWN`; `WORKER_SPECIFIC_ACCESS=ABSENT`; `EXTERNAL_REQUEST_AUTH_PATH_VERIFIED=NO`; `BREACH_CONFIRMED=NO`; `PRODUCTION_CHANGED=NO`.
+
+
+## SERVER-55 Production Settings and D1 binding inventory — 2026-10-16
+
+**Owner-provided screenshots (three overlapping vertical portions):** `trendos-d1-api → Production → Settings`, specifically the `Runtime variables and secrets` and `Bindings` sections, with headings visible for `Observability`, `Runtime`, `Builds`, `Trigger events`, `General` and `Danger zone`.
+
+**Confirmed facts:**
+- In Production bindings, the variable **`DB`** is linked to a **D1 database named `trendos-main`**. The Worker has a production database binding; this screenshot does **not** establish which specific request handlers were invoked by public traffic.
+- Secret entries appear with the display placeholder **`Value encrypted`**. Values were not requested, decrypted, copied or retained in this document.
+- Runtime flags for legacy employee authentication, Cloud Auth, idle/mirror handling and production recovery/create lanes are configured, including mixed true/false values. Several names are truncated in the screenshots, so their exact identifiers and effective semantics **cannot be established solely from these images**. Do not infer that a broad ability such as all writes is disabled or that all reads are protected.
+- The proposed new service-principal `trendosshop_order_reader` does **not appear in the visible rows**. Absence from screenshot is not an exhaustive binding/secret verification, and the source contract explicitly says `provisioned:false`; no service principal was created.
+- One normal variable includes a remote Apps Script integration URL and another lists allowed browser origins. **Do not copy these values into reports or public issues**. Allowed CORS origins are not a per-request authentication or authorization check.
+
+**Risk synthesis:** The earlier editor code review showed legacy order/customer GET handlers with no local explicit authorization and a legacy fallback. Cloudflare Access dashboard states there is no Worker-specific Access policy, and Domains shows public `workers.dev` Production/Preview toggles; this new screenshot confirms the same Worker can access Production D1 through binding `DB`. This supports **urgent security review**, but does not prove an attacker can reach the legacy data routes, execute a query, or retrieve customer data; WAF/account rules and other middleware have not been fully assessed. Don't call sensitive endpoints in Production.
+
+**Required next actions before any live order read (no production changes authorized):**
+1. Inventory live consumers and compatibility of `/v1/orders`, `/v1/customer`, `/v1/messages`, `/v1/inbox` and old fallback paths across UI/Apps Script/integrations; distinguish the separate `trendos` Worker from `trendos-d1-api`.
+2. Review the exact non-secret source of Cloudflare per-request protection, origin and account policies, and preview host restrictions. Avoid exposing variable **values**, client IDs or secrets.
+3. Test fail-closed boundary and authorized legacy replacement paths on disposable synthetic/staging data; plan a rollback without weakening authentication. Draft PR #151/#154 already contain proposed fixes and should be reused, not rebuilt from scratch.
+4. Obtain **explicit owner approval** before changing Cloudflare Production Access, bindings, Worker release, secrets, Preview availability or creating a real machine principal.
+5. Keep SERVER-33/34 on Ubuntu synthetic-only; no D1 live read, printer or laser run.
+
+**Do not publish screenshots with URL variable contents in a public repository.** This entry intentionally records only selected non-secret names/behaviors.
+
+`LIVE_DB_BINDING=DB_TO_trendos-main_AS_SHOWN`; `SECRETS_ENCRYPTED_IN_UI=YES`; `WORKER_SPECIFIC_ACCESS=NO_AS_SHOWN`; `SERVICE_PRINCIPAL_PROVISIONED=NO_EVIDENCE`; `BACKEND_AUTH_COVERAGE=NOT_VERIFIED`; `SEC_AP303_02=OPEN_HIGH_PRIORITY`; `PROD_ACTIONS=NONE`.
