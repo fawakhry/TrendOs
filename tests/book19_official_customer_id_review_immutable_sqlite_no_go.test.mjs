@@ -42,7 +42,7 @@ try{
   await test('02 official customer PRIMARY KEY candidate is FK-valid but ALWAYS unverified',()=>{
     add('FAKE_T12_REGISTERED_ORDER','CUS-C000111');
     const r=one("SELECT customer_id AS customerId,review_status AS reviewStatus,finance_authorized AS canPay,delivery_authorized AS canDeliver FROM t12_order_customer_binding_review_v1 WHERE order_id='FAKE_T12_REGISTERED_ORDER'");
-    assert.deepEqual(r,{customerId:'CUS-C000111',reviewStatus:'UNVERIFIED',canPay:0,canDeliver:0});
+    assert.deepEqual({...r},{customerId:'CUS-C000111',reviewStatus:'UNVERIFIED',canPay:0,canDeliver:0});
   });
   await test('03 caller external_customer_id cannot be treated as official accounting key',()=>{
     assert.equal(one("SELECT external_customer_id AS id FROM t12_prod_orders WHERE order_id='FAKE_T12_EXTERNAL_ORDER'").id,'999002');
@@ -53,7 +53,7 @@ try{
     assert.throws(()=>add('FAKE_MISSING_ORDER','CUS-C000111'),/FOREIGN KEY constraint failed/i);
     assert.equal(count('t12_order_customer_binding_review_v1'),1);
   });
-  await test('05 foreign key rejection for deleted/inactive or unregistered ID and only customer PK',()=>{
+  await test('05 foreign key rejection for unknown customer ID; official primary key required',()=>{
     assert.throws(()=>add('FAKE_T12_EXTERNAL_ORDER','CUS-NOT-A-CUSTOMER'),/FOREIGN KEY constraint failed/i);
     assert.equal(count('t12_order_customer_binding_review_v1'),1);
   });
