@@ -27,3 +27,9 @@
 - WRITE: added chapter 8 to `TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md`; commit `d628239f2d91329feadad7562ddb2586aa708a4e`; independent re-fetch confirmed chapter present, blob `1681417910f222315f28321bf2eeddbe5809331e`.
 - RESULT: SOURCE_ONLY. No runtime or permission parity claim, no product code change, merge, deploy or live test.
 - NEXT: trace callers and API authorization for these UI rules and match exact-head tests before upgrading coverage.
+
+## 2026-10-16 / CURRENT-SESSION-004
+- READ: app.js lines 145–330, blob `9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875`.
+- WRITE: Chapter 9 of current catalog covers fly-print priority, state/paging, local permissions, input normalization, and explicit verification gaps. Commit `33c7f28d9cf1b58690856db2112c9b8fb7cebcb7`.
+- VERIFY: independently fetched chapter 9, blob `e24ad3abba674a0b4dc015d1a13e8d479cd511da`.
+- RESULT: SOURCE_ONLY; no production changes, no runtime assertions. NEXT: trace manual order/customer coding API writers and authorization.
