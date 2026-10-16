@@ -37,3 +37,19 @@
 ## تذكير للكتاب
 
 الفصل الذي يصف تاريخ تطور النظام ليس دليلًا أن كل فجوة رآها قائمة الآن. **المصدر الحالي + النسخة المنشورة الموثقة + نتيجة الاختبار المرتبطة بنفس SHA** هي أساس الحالة؛ حافظ على سجل تاريخ الإصلاحات منفصلًا عن قائمة الأعطال النشطة.
+
+
+## الفصل 25 — إدخال البلاغات (2026-10-16، دون ادعاء فشل إنتاجي)
+
+**مصدر التسجيل:** [الفصل 25](TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md) في كتاب الإيجنت، كتابة المصدر بcommit `67b346ac43005da2c43d016dcc02426fa010b039`. فرع الكتاب `agent/trendos-book-audit-v1-20261014` عند فحص التوثيق HEAD `4b7a40630eb2dd8b10570697f6e8cb1f3aab4440` (قد يتغير). **كل بند هنا `UNVERIFIED_HISTORICAL_FINDING` بغرض triage على أحدث كود فعلي ثم تمييز ما صلح/ما زال مفتوحًا؛ `TESTED=NO` و`PRODUCTION_VERIFIED=NO`**. قائمة اختباراتهم في `TEST_EVIDENCE_QUEUE.md`، ولا يُعاد إنشاء بلاغ مكرر عند ظهور المشكلة في فصل آخر.
+
+| ID | الأولوية | ملاحظة المصدر عند تسجيل الفصل | المسار/المصدر | مطلوب إثباته |
+|---|---|---|---|---|
+| BOOK25-MANAGER-AUTH | P0 | زر المدير مخفي بالواجهة، لكن dispatch `getTrendMasterCenterV1931/getActivityLog` في Core لا يظهر معه نفس فحص role/screen قبل جمع الديون والنشاط | `manager-center-v1932.js` blob `3d83a67f23056e2428b184c29e984fea871627b3`؛ `cloudflare-d1/src/employee-core-native-v1.mjs` blob `90b8d2d2353b3cbb2d85f8500e54bc64cfc3c82e` | أحدث HEAD + جميع middleware/role guards + test mock 401/403 وكشف بيانات وهمية |
+| BOOK25-MANAGER-PROGRESSIVE | P2 | `loadProgressive` مُعرّفة لكن `load()` ما زالت تستخدم `getTrendMasterCenterV1931` في موضع القراءة | `manager-center-v1932.js`; `trend-master-resilience-v1931.js` | تأكد أن مسار الواجهة الحالي يستعملها/لا يستعملها، واختبر failure/timeout |
+| BOOK25-KPI-TRUTH | P1 | بعض القيم المحسوبة أو الافتراضية `messageQueue:[]/dayClose:null/duplicateHealthy:true` لا تكفي لتقرير صحة كل المصادر | `cloudflare-d1/src/employee-core-native-v1.mjs` | مقارنة المصادر الحية بعد إذن، و`UNKNOWN` مقابل الصفر المرصود |
+| BOOK25-WORKQUEUE-MIGRATION | P1 | Work Queue V1 Apps Script وOperator Task V2/Cloud D1 لديهم عقود منفصلة | `work-queue-v1.js`/`work-queue-backend-v1.gs`؛ `cloudflare-d1/src/operator-task-edge-v2.mjs` | إثبات Task Writer واحد على النسخة المنشورة، وreplay/claim race مع Mock |
+| BOOK25-FEEDBACK-AUTOMATION | P1 | AUTO_SCAN=false في config المصدر، وbackend تقييم العميل legacy قابل للإرسال بعد `تم التسليم` | `config.js`/`customer-feedback-v1.js`/`customer-feedback-backend-v1.gs` | تحقق flag الفعلي ومنع إرسال مكرر وتعامل receipt/rating في sandbox بلا رسائل حقيقية |
+| BOOK25-AI-APPROVAL | P1 | عقد AI/Knowledge يفرض `ADVISORY_ONLY` ولا يجوز تفسير الاقتراح كاعتماد | `docs/trendos/MATBAGY_MULTI_AI_ROOM_ARCHITECTURE.md`/`MATBAGY_KNOWLEDGE_EXTRACTION_ARCHITECTURE.md` | اختبار مسارات اعتماد العميل/المالك ومنع انتقال القرار المحمي تلقائيًا |
+
+**الخطوة التالية لكل بند:** اقرأ أحدث `CURRENT_TARGET_HEAD` وكود المسار بالكامل، ابحث عن الإصلاحات السابقة والفروع المتداخلة، ثم سجل إحدى حالات `ALREADY_FIXED_VERIFIED_SOURCE`, `ALREADY_FIXED_TESTED`, `STILL_PRESENT_SOURCE`, `BLOCKED_CURRENT_STATE_UNKNOWN`, `DUPLICATE_OF`. إصلاح عند الحاجة فقط بفرع منفصل وCI ودليل Commit؛ لا ترقية إلى `PRODUCTION_VERIFIED` دون صلاحية واختبار.
