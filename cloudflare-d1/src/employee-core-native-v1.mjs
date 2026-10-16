@@ -234,6 +234,12 @@ function t12CoreWriteGate(row,isDelivery){
   let sql=" FROM t12_prod_lines l JOIN t12_prod_orders o ON o.order_id=l.order_id WHERE l.line_id=? AND l.order_id=? AND l.department=? AND o.customer_name=? AND o.customer_phone=?";
   const bind=[text(row.lineId),text(row.orderId),text(row.department),text(row.customer),text(row.customerPhone)];
   if(isDelivery){
+    // BOOK19: do not let duplicate phone/name matches silently choose an
+    // arbitrary debtor. Enforce UNIQUE active identity at SQL write-time,
+    // including customers added after the earlier coreRows read.
+    sql+=" AND (SELECT COUNT(*) FROM t12_customers cid WHERE cid.active='نعم' AND "+
+      "((o.customer_phone<>'' AND (cid.phone=o.customer_phone OR cid.extra_phone=o.customer_phone)) "+
+      "OR (o.customer_phone='' AND cid.customer_name=o.customer_name)))=1";
     sql+=" AND NOT EXISTS (SELECT 1 FROM t12_customers c JOIN employee_core_delivery_restrictions_v1 r ON r.customer_key=? AND r.active=1 AND (r.valid_until='' OR r.valid_until>=?) WHERE c.active='نعم' AND c.debt_amount>0 AND ((o.customer_phone<>'' AND (c.phone=o.customer_phone OR c.extra_phone=o.customer_phone)) OR (o.customer_phone='' AND c.customer_name=o.customer_name)))";
     bind.push(customerKey(row.customer),nowCairoDate());
   }
@@ -361,6 +367,17 @@ async function updateSingleLine(env,user,body){
   }
   const cloud=await env.DB.prepare("SELECT order_id AS orderId,status FROM t12_prod_lines WHERE line_id=?").bind(lineId).first();
   if(!cloud)return {success:false,code:'line-not-found',message:'البند غير موجود في D1.'};
+  if(status==='تم التسليم'){
+    // Verified source ID is not available in this legacy order record.
+    // If two active customer records match the same phone or name, refuse
+    // delivery instead of arbitrarily taking the last LEFT JOIN row.
+    const matches=await env.DB.prepare(`SELECT COUNT(*) AS n FROM t12_customers c WHERE c.active='نعم'
+      AND ((?<>'' AND (c.phone=? OR c.extra_phone=?)) OR (?='' AND c.customer_name=?))`)
+      .bind(target.customerPhone,target.customerPhone,target.customerPhone,target.customerPhone,target.customer).first();
+    if(Number(matches&&matches.n)>1)
+      return {success:false,code:'employee-core-customer-identity-ambiguous',deliveryBlocked:true,
+        message:'تم العثور على أكثر من عميل بنفس رقم الهاتف أو الاسم. يلزم تحديد هوية العميل قبل التسليم.'};
+  }
   const gate=t12CoreWriteGate(target,status==='تم التسليم');
   const applied=await env.DB.prepare(`INSERT INTO t12_prod_line_runtime(line_id,order_id,status,notes,updated_by,version,updated_at)
     SELECT l.line_id,l.order_id,?,?,?,1,CURRENT_TIMESTAMP `+gate.sql+`
