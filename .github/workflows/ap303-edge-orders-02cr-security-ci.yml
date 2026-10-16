@@ -1,0 +1,35 @@
+name: AP-303 Edge Orders 02CR Screen Grant Regression
+
+on:
+  push:
+    branches:
+      - fix/ap303-edge-read-scope-fail-closed-20261016
+    paths:
+      - cloudflare-d1/src/edge-orders-read-02cr-canary.mjs
+      - tests/ap303_edge_orders_02cr_fail_closed.test.mjs
+      - .github/workflows/ap303-edge-orders-02cr-security-ci.yml
+  pull_request:
+    paths:
+      - cloudflare-d1/src/edge-orders-read-02cr-canary.mjs
+      - tests/ap303_edge_orders_02cr_fail_closed.test.mjs
+      - .github/workflows/ap303-edge-orders-02cr-security-ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  source-only-no-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test validly signed FAKE tokens with missing scope
+        run: |
+          node --test tests/ap303_edge_orders_02cr_fail_closed.test.mjs
+          echo "AP303_SOURCE_HARDENING=TESTED; PRODUCTION_API=OFF; FAKE_HMAC_ONLY=YES"
+          echo "GH_SECRETS=UNUSED; CUSTOMER_RECORDS=NONE; UBUNTU_DEPLOY=NO"

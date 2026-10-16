@@ -213,6 +213,17 @@ export function isEdgeOrders02CRPath(path) {
   return (String(path || '').replace(/\/+$/, '') || '/') === PATH_02CR;
 }
 
+/** A valid signature alone is not a screen grant. Empty/malformed claims deny. */
+export function allowsOrdersReadScreen(payload, screen) {
+  const screens = payload && payload.screens;
+  return Array.isArray(screens)
+    && screens.length > 0
+    && screens.every((value) => typeof value === 'string')
+    && typeof screen === 'string'
+    && screen.trim().length > 0
+    && screens.includes(screen);
+}
+
 export async function handleEdgeOrders02CRCanaryRequest(request, env) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
@@ -223,8 +234,11 @@ export async function handleEdgeOrders02CRCanaryRequest(request, env) {
   if (!verified.ok) return json({ success:false, code:verified.reason, message:'Unauthorized orders edge session' }, 401, corsHeaders(request, env));
 
   const screen = text(url.searchParams.get('screen') || 'service');
-  const allowed = Array.isArray(verified.payload.screens) ? verified.payload.screens : [];
-  if (allowed.length && !allowed.includes(screen)) return json({ success:false, message:'غير مصرح لك بعرض أوردرات هذا القسم.' }, 403, corsHeaders(request, env));
+  // Fail closed: a signed session without a concrete screen grant does not
+  // permit an orders read. The normal issuer always supplies a screen list.
+  if (!allowsOrdersReadScreen(verified.payload, screen)) {
+    return json({ success:false, code:'orders-screen-not-authorized', message:'غير مصرح لك بعرض أوردرات هذا القسم.' }, 403, corsHeaders(request, env));
+  }
   const params = Object.fromEntries(url.searchParams.entries());
   if (text(params.statusFilter) === '__DEBT__') return json({ success:false, code:'apps-script-required', fallback:'apps-script', message:'Debt-filtered orders require the authoritative Apps Script lane.' }, 409, corsHeaders(request, env));
 
