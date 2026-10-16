@@ -221,6 +221,7 @@ try{
     assert.equal(r.customer.displayBalance,32.5);
     const list=await send('getEasyStoreCustomers');
     assert.equal(list.success,true,JSON.stringify(list));
+    assert.ok(list.customers.some(x=>x.customerId==='FAKE_CUST_B'),JSON.stringify({list:list.customers,source:all('SELECT customer_id,customer_name,active FROM t12_customers')}));
     assert.equal(list.customers.find(x=>x.customerId==='FAKE_CUST_B').creditBalance,32.5);
     const search=await send('searchCustomers',{q:'FAKE_CUST_B'});
     assert.equal(search.success,true,JSON.stringify(search));
