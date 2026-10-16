@@ -270,3 +270,14 @@ Evidence: book-branch Code.gs blob e91d78dcceeeca2804e721d58e065a6a7181bfc2; pri
 - **BOOK28-BULK-500-SCOPE P1** — [Draft #159](https://github.com/fawakhry/TrendOs/pull/159), `TEST_RUN_SHA=00d5f39967ec4f700a6bdea8a9b8e9d17d96e626`, [Book28 501-row fake Core #38925036096](https://github.com/fawakhry/TrendOs/actions/runs/38925036096) **5/5 PASS**; independent inherited [P0 scope #38925036145](https://github.com/fawakhry/TrendOs/actions/runs/38925036145) PASS (13/13), [P0 mirror/manager #38925035997](https://github.com/fawakhry/TrendOs/actions/runs/38925035997) PASS (11/11) and [A61 #38925036019](https://github.com/fawakhry/TrendOs/actions/runs/38925036019) PASS on exact SHA. Original Entry644/Entry650 PASS. Fake 501 matches → 500 changed, remaining 1 explicitly; same requestId replay is **no write** and returns same snapshot result, new ID picks remaining 1; same for archive, exact 500 → no false partial. UI warns when count over 500. **No real D1/customer/order mutation**.
 - **Next platform queue only:** `BOOK22-CONTENT-R2-ACL` private assets, `BOOK26-NORMALIZED-FINAL-PROOF` missing chunks, `BOOK26-DELTA-CAS` concurrency, `BOOK28-CORE-RECOVERY` partial commit and `BOOK25-WORKQUEUE-MIGRATION` one Task writer. Finance-specific delivery restrictions remain with EasyStore agent; no owner finance approval/release here.
 - `SOURCE_PATCH_TESTED_SYNTHETIC=YES`; `PRODUCTION_VERIFIED=NO`; `DRAFT_ONLY=YES`; `DEPLOY=NO`; `MERGE=NO`.
+
+### LEGACY evidence gate follow-up (reference and boundaries) — 2026-10-16
+
+| Gate | Input/target | Result and remaining test |
+|---|---|---|
+| LEGACY-ARCHIVE-002 | SOURCE_REGISTRY `1cc07df9fa1f988b01157db507260742f98e00fc`, BUILD_MATRIX `72c9ad859cdc8ced1a69c2d5a89e15eeaf437216` | **PASS SOURCE**: 9/9 registered; 8/9 Build Matrix represented. **BLOCKED RUNTIME**: live Apps Script file list, deployment, triggers and copy tasks unavailable. |
+| LEGACY-ARCHIVE-004 | V1932 AST original line ranges and Code.gs current blob `e91d78dcceeeca2804e721d58e065a6a7181bfc2` | **PASS EXACT-TEXT**: portal redirect old/new both 827 chars equal, attFindToday old/new both 447 chars equal. Remaining 12 changed bodies need AST+semantic review; no prod test. |
+| LEGACY-ARCHIVE-001 | private V1932 ZIP | Prior local ZIP integrity PASS, external independently encrypted backup + clean restore **NOT TESTED**. |
+| LEGACY-ARCHIVE-003 | connected Drive | Historical backup name absent from connected search; alternate source read **BLOCKED**. |
+
+Do not replace these with CI/build green labels. Actual application `TESTED_RUNTIME=NO` and `PRODUCTION_VERIFIED=NO`. [Report](LEGACY_MIRROR_DEPENDENCY_AUDIT_20261016.md).
