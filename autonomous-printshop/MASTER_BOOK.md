@@ -10724,3 +10724,12 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 بسبب وجود عنوان workers.dev عام وغياب Worker-specific Access (SERVER-53/54)، ووجود مسارات legacy غير محمية صراحةً داخل معالجاتها بالكود المعروض (SERVER-52)، تبقى `SEC-AP303-02=HIGH_PRIORITY_OPEN` إلى أن تُراجع سياسات الحماية الأخرى ومستهلكو المسارات، دون ادعاء وقوع اختراق أو قراءة بيانات غير مصرح بها. تقارير الأدلة: [كتاب السيرفر SERVER-55](print-server/UBUNTU_SERVER_BOOK.md) و[تقرير أمن Cloudflare](print-server/SERVER52_CF_PRODUCTION_BUNDLE_READ_REVIEW.md).
 
 **لا اعتماد إنتاجي بعد:** لا نفعّل `trendosshop_order_reader` أو ننشر إصلاحًا يكسر عمل المستهلكين، ولا نُصدر Secrets، ولا نشغل طابعات أو ليزر؛ يلزم تقييم مسار الاحتواء وخطة رجوع ثم موافقة صريحة من المالك. `CLOUDFLARE_CHANGED=NO`, `UBUNTU_LIVE_READ=NO`.
+
+
+## SERVER-20261016-56 — اختبار توافق إدارة العملاء قبل حماية المسارات القديمة (2026-10-16)
+
+**العمل المنفذ:** تأكدت سلسلة المصدر `index.html → matbagy_theme_v1860.js → customer_manager_d1_bridge_v1934.js → trendosSecureApiV1922`، وجسر D1 القديم يستخدم Worker مستقلًا بعنوان `trendos.trendmall-contact.workers.dev` (ليس `trendos-d1-api`). يقرأ inbox/thread قبل Fallback إلى Apps Script، بينما الإرسال والتسليم والإغلاق تمر على الـAPI الأصلي. مصدر `apps-script-importer.gs` يستخدم `POST /v1/import/batch` بكلمة سر منفصلة، فلا يجب أن يتعطل بسبب سياسة GET.
+
+تم إنشاء [Draft PR #176](https://github.com/fawakhry/TrendOs/pull/176) على فرع مراجعة مستقل، مع اختبار VM وهمي يثبت Fallback عند رد `403` أو فشل شبكة من دون استدعاء Production أو بيانات عملاء. [CI #38940926060](https://github.com/fawakhry/TrendOs/actions/runs/38940926060) **9/9 PASS**. [مصفوفة المستهلكين والتوافق](print-server/SERVER56_LEGACY_CONSUMERS_COMPATIBILITY_MATRIX.md) و[تفاصيل كتاب السيرفر](print-server/UBUNTU_SERVER_BOOK.md) توضح ما ثبت وما لم يثبت.
+
+**الحالة:** لا دمج أو نشر، ولا تفعيل Ubuntu أو حساب الخدمة. نجاح المحاكاة لا يثبت أن جميع مستخدمي الواجهة أو التطبيقات الخارجية سيلجؤون إلى Apps Script. تدقيق `SEC-AP303-02` لم ينته؛ مطلوب جرد Worker `trendos` الآخر وسياسات Access/WAF والمستهلكين قبل اعتماد التغيير وتحديد Rollback. `PROD_GO=NO`.
