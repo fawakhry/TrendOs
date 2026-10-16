@@ -36,12 +36,29 @@ try{
   db.exec("CREATE TABLE t12_customers(customer_id TEXT PRIMARY KEY,customer_name TEXT NOT NULL,manager TEXT NOT NULL DEFAULT '',phone TEXT NOT NULL DEFAULT '',extra_phone TEXT NOT NULL DEFAULT '',customer_type TEXT NOT NULL DEFAULT '',active TEXT NOT NULL DEFAULT 'نعم',updated_at TEXT DEFAULT CURRENT_TIMESTAMP)");
   for(const id of ['FAKE_CUST_A','FAKE_CUST_B'])
     db.prepare("INSERT INTO t12_customers(customer_id,customer_name) VALUES(?,?)").run(id,'FAKE_ONLY_'+id);
+  let creditRaceGate=null; // deterministic LOCAL interleaving: both credit reads see one stale version
   const DB={
     prepare(sql){
       const stmt={sql:String(sql),args:[]};
       const w={
         bind(...args){stmt.args=args;return w;},
-        first(){return Promise.resolve(db.prepare(stmt.sql).get(...stmt.args)||null);},
+        first(){
+          const result=db.prepare(stmt.sql).get(...stmt.args)||null;
+          const gate=creditRaceGate;
+          if(gate && stmt.sql.includes("SELECT credit_cents AS creditCents,version FROM employee_accounting_customer_credits_v1")
+            && stmt.args[0]==='FAKE_CUST_B'){
+            gate.snapshots.push({cents:Number(result.creditCents),version:Number(result.version)});
+            return new Promise((resolve,reject)=>{
+              const timeout=setTimeout(()=>reject(Error('CREDIT_STALE_SNAPSHOT_BARRIER_TIMEOUT')),5000);
+              gate.waiters.push(()=>{clearTimeout(timeout);resolve(result)});
+              if(gate.waiters.length===2){
+                creditRaceGate=null;
+                for(const notify of gate.waiters)notify();
+              }
+            });
+          }
+          return Promise.resolve(result);
+        },
         all(){return Promise.resolve({results:db.prepare(stmt.sql).all(...stmt.args)});},
         run(){return Promise.resolve(db.prepare(stmt.sql).run(...stmt.args));}
       };
@@ -254,7 +271,57 @@ try{
     assert.equal(count('employee_accounting_cashbox_v1'),n);
     env.EASYSTORE_CUSTOMER_CREDIT_V1='ON';
   });
-  await test('18 preserve integrity: cash equals actual funds received; credit events reconcile liability',()=>{
+  let winningReceipt=null,staleReceipt=null;
+  await test('18 two truly overlapping 1 EGP advances use atomic debt + credit CAS; only one posts',async()=>{
+    const beforeCash=count('employee_accounting_cashbox_v1');
+    const beforeEvents=count('employee_accounting_customer_credit_events_v1');
+    const beforeCredit=credit('FAKE_CUST_B');
+    const gate={waiters:[],snapshots:[]};
+    creditRaceGate=gate;
+    const a=receive('RACE_A',1,'FAKE_CUST_B'),b=receive('RACE_B',1,'FAKE_CUST_B');
+    let results;
+    try{
+      results=await Promise.all([
+        send('saveCustomerAccountMovementV1915',a),
+        send('saveCustomerAccountMovementV1915',b)
+      ]);
+    }finally{creditRaceGate=null}
+    assert.equal(gate.snapshots.length,2,'both payments must observe same precommit credit snapshot');
+    assert.deepEqual(gate.snapshots.map(v=>v.cents),[beforeCredit,beforeCredit]);
+    assert.equal(gate.snapshots[0].version,gate.snapshots[1].version);
+    const success=results.filter(x=>x.success===true),failure=results.filter(x=>x.success===false);
+    assert.equal(success.length,1,JSON.stringify(results));
+    assert.equal(failure.length,1,JSON.stringify(results));
+    winningReceipt=results[0].success?a:b;
+    staleReceipt=results[0].success?b:a;
+    assert.equal(credit('FAKE_CUST_B'),beforeCredit+100);
+    assert.equal(debt('FAKE_CUST_B'),0);
+    assert.equal(count('employee_accounting_cashbox_v1'),beforeCash+1);
+    assert.equal(count('employee_accounting_customer_credit_events_v1'),beforeEvents+1);
+    assert.equal(failure[0].status,500,'stale version must fail closed, not silently post');
+  });
+  await test('19 concurrent winner replay is exactly-once and loser PREPARED cannot be replayed',async()=>{
+    const counts=()=>[count('employee_accounting_cashbox_v1'),count('employee_accounting_customer_credit_events_v1')];
+    const before=counts();
+    const winner=await send('saveCustomerAccountMovementV1915',winningReceipt);
+    assert.equal(winner.success,true,JSON.stringify(winner));
+    assert.equal(winner.duplicatePrevented,true);
+    assert.deepEqual(counts(),before);
+    const loser=await send('saveCustomerAccountMovementV1915',staleReceipt);
+    assert.equal(loser.success,false);
+    assert.deepEqual(counts(),before);
+    assert.equal(Number(one("SELECT COUNT(*) AS n FROM employee_accounting_request_ledger_v1 WHERE status='PREPARED'").n),1);
+  });
+  await test('20 final post-race customer credit liability reconciles without fabricated revenue',async()=>{
+    const r=await send('getCustomerAccountV1915',{customerId:'FAKE_CUST_B'});
+    assert.equal(r.success,true,JSON.stringify(r));
+    assert.equal(r.displayBalance,33.5);
+    assert.equal(r.creditBalance,33.5);
+    assert.equal(r.outstandingDebt,0);
+    assert.equal(cash('FAKE_CUST_B').reduce((n,x)=>n+x.amount,0),151);
+    assert.equal(creditEvents('FAKE_CUST_B').reduce((n,x)=>n+x.delta,0),3350);
+  });
+  await test('21 preserve integrity: cash equals actual funds received; credit events reconcile liability',()=>{
     assert.equal(network,0);
     for(const id of ['FAKE_CUST_A','FAKE_CUST_B']){
       const delta=one("SELECT COALESCE(SUM(delta_cents),0) AS n FROM employee_accounting_customer_credit_events_v1 WHERE customer_id=?",id).n;
@@ -263,6 +330,7 @@ try{
       assert.ok(c>=0);
     }
     assert.equal(one("SELECT COUNT(*) AS n FROM employee_accounting_tx_guard_v1").n,0);
-    assert.equal(one("SELECT COUNT(*) AS n FROM employee_accounting_request_ledger_v1 WHERE status='PREPARED'").n,0);
+    assert.equal(one("SELECT COUNT(*) AS n FROM employee_accounting_request_ledger_v1 WHERE status='PREPARED'").n,1,
+      'rejected racing receipt is deliberately PREPARED for later review; never auto-repost');
   });
 }finally{db.close()}
