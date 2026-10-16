@@ -189,3 +189,13 @@
 - WRITE: register six chapter 25 issue intake rows in `ISSUE_REGISTER.md`, commit `aea6cd565580ecd3823b0340aaea25ec10ab77ca`; independent fetch verified. Do not claim production incident; current-state triage required before fix. Evidence queue IDs `BOOK25-*` already existed; no duplicates written there.
 - STATUS: DOCS_ONLY / SOURCE_ONLY; `TESTED=NO`, `PRODUCTION_VERIFIED=NO`; no production code/deploy/merge/message.
 - NEXT: resume chapter 26 migration/import/export and deployment lineage, followed immediately by an issue report for chapter 26 before starting 27.
+
+## 2026-10-16 / CHAPTER26-IMPORT-PRIVACY-023 — الفصل السادس والعشرون
+- PREPARE: source branch HEAD 4580ff5cb278d18434e4410f5be386fbc2ecd2c9; book had chapters 1–25, PR #132 Draft/unmerged. Respect CURRENT_ONLY outline; no historical migration journal in book.
+- READ: cloudflare-d1/wrangler.toml, production-shadow/index.js, src/index_v2.js, src/normalized-import-gate.mjs, src/mirror-delta-gate.mjs, src/mirror-gate.mjs, Apps Script D1_Orders_Live_Sync_V2.gs and D1_Normalized_Live_Sync_V2.gs, Workflows 02CW postdeploy/promote/rollback, tests cloudflare_normalized_import_v1.test.mjs, d1_normalized_live_sync_delta_v2.test.mjs, d1_orders_live_sync_delta_v2.test.mjs, cloudflare_mirror_safety_v1.test.mjs; source read only.
+- FINDINGS: P0 SOURCE_AUTH_GAP in raw /v1/mirror/sheet GET serving values/display/formulas without visible GET authorization in mirror handler; runtime perimeter/version unknown. P1 normalized batch final freshness accepts caller-declared sourceRowCounts without cross-chunk completeness check; P1 mirror delta preflight is before atomic DB batch, no CAS on base; P1 deployed version/source parity not independently evidenced. BOOK21-MIRROR-PAYLOAD prior ID reused instead of duplicate.
+- WRITE: chapter 26 append commit 032c8b4b25c8c5af0d917a6906a4ae8d46bf8529, content blob 0472dcd5effcddbbda3f2e225f4d4ee0a5629f0c; independently fetched and verified.
+- REGISTER: four issue intake entries commit 1816fa774dec2eb427c05f218a223c017fcce616, blob e772c81adca7aeb69659b04b13c6912ef57654d7; independently fetched and verified.
+- TEST QUEUE: four new entries commit d1d1f0a87c662720ce479dd11b9f0214166bd128, blob 15c771f53a79af62aacdb74533b99778a52cfa98; independently fetched and verified.
+- STATUS: SOURCE_ONLY, TESTED=NO, PRODUCTION_VERIFIED=NO; no live customers, database writes, Cloudflare changes, or PR merge. Post-chapter user report + copyable repair prompt required by README contract.
+- NEXT: chapter 27 active UI elements/source listeners and end-to-end tested contract; report any issues immediately after the chapter.
