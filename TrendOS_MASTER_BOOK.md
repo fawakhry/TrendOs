@@ -146,86 +146,6 @@ BUSINESS_CREATE_TEST_SENT=NO
 
 
 
-### Entry613 — Approved Production Canary for ضياء
-- الموافقة الصريحة المستلمة: **موافق على Production Canary، نفذ، والموظف: ضياء**.
-- الاسم العربي للبحث: **تنفيذ Canary Native Auth لموظف ضياء — staged production cutover**.
-- هذه الموافقة تسمح ببدء Production mutations المطلوبة للـcanary ضمن حدود الأمان المؤهلة في Entry610/611/612، مع منع Big Bang أو Global Native Auth.
-- Canary identity:
-  ```ini
-  CANARY_USERNAME=ضياء
-  CANARY_SCOPE=ONE_EMPLOYEE_ONLY
-  GLOBAL_NATIVE_AUTH=FORBIDDEN
-  NATIVE_ONLY=FORBIDDEN_UNTIL_POST_BOOTSTRAP_PROOF
-  ```
-- ترتيب التنفيذ الإلزامي:
-  1. تثبيت shared bridge secret نفسه في Cloudflare + Apps Script بدون إظهاره.
-  2. إثبات Apps Script bridge enabled + secret configured عبر challenge غير صالح فقط.
-  3. نشر Worker runner-only TRANSITIONAL: Auth enabled, legacy bootstrap enabled, native-only OFF, Bridge enabled, exact 69 policies.
-  4. D1 auth control من OFF إلى TRANSITIONAL فقط بعد نجاح 1–3.
-  5. postflight كامل Orders/Customers/refresh/duplicate guard.
-  6. نشر Frontend canary لضياء فقط؛ بقية الموظفين Legacy.
-  7. أول دخول ضياء من الواجهة يعمل bootstrap من Legacy إلى PBKDF2/D1 بدون تخزين plaintext.
-  8. إثبات second login = `d1-native-employee-v1` ثم Bridge business smoke.
-- ممنوع استخدام workflows التاريخية TEMP الخاصة بـDiya credentials أو تخزين كلمة مرور ضياء في GitHub.
-- blocker التنفيذي الحالي: نحتاج جلسة Browser Profile مصادق عليها إلى **Cloudflare Dashboard + Google Apps Script** لضبط السر المشترك وApps Script property بأمان؛ لا توجد API connector مباشرة لـScript Properties في الجلسة.
-- التسجيل:
-  ```ini
-  STATUS=ENTRY613_APPROVED_EXECUTION_STARTED
-  APPROVAL=YES
-  CANARY_USERNAME=ضياء
-  Production_touched=NO_YET
-  D1_touched=NO_YET
-  Apps_Script_touched=NO_YET
-  Secrets_touched=NO_YET
-  NEXT_ACTION=QUALIFY_EXACT_ACTIVATION_MANIFEST_THEN_AUTHENTICATE_BROWSER_PROFILE_FOR_SECRET_INSTALL
-  ```
-- Exact activation manifest pinned:
-  - file: `docs/trendos/staging/ENTRY613_DIYA_PRODUCTION_CANARY_MANIFEST.json`
-  - commit: `f292b8e4cbe034ea01b23daa42555abdd5e37de9`
-  - canary = `ضياء`
-  - exact bridge policies = 69
-  - global Native Auth remains forbidden.
-- Manifest regression added:
-  - file: `tests/entry613_diya_production_canary_manifest.test.mjs`
-  - commit: `63e1fb146ff892a8f51fd84fe182f7357eefc4a0`
-- Dedicated manifest CI:
-  - workflow commit: `467b6065b84dba55dfa120240d560797ebdb7f68`
-  - Run `37124017425`
-  - Job `111205584637`
-  - conclusion: **SUCCESS**
-  - verified `ENTRY613_CANARY_USERNAME=ضياء`, `ENTRY613_POLICY_COUNT=69`, `ENTRY613_GLOBAL_NATIVE_AUTH=NO`, `ENTRY613_REPO_DEFAULT_OFF=YES`.
-  - Production pre-mutation Auth/Bridge remained OFF.
-- Current execution gate is now only the authenticated secret/property installation on both Cloudflare and Google Apps Script.
-- التسجيل:
-  ```ini
-  STATUS=ENTRY613_MANIFEST_QUALIFIED_WAITING_BROWSER_AUTH
-  RUN_ID=37124017425
-  JOB_ID=111205584637
-  COMMIT=467b6065b84dba55dfa120240d560797ebdb7f68
-  CANARY_USERNAME=ضياء
-  BRIDGE_POLICY_COUNT=69
-  Production_touched=NO_YET
-  D1_touched=NO_YET
-  Apps_Script_touched=NO_YET
-  Secrets_touched=NO_YET
-  NEXT_ACTION=AUTHENTICATE_TINYFISH_PROFILE_TO_CLOUDFLARE_AND_GOOGLE_APPS_SCRIPT_THEN_INSTALL_SHARED_SECRET
-  ```
-
-- قرار المالك بعد التأهيل وقبل أي mutation: **لا نفعّل Compatibility Bridge على Production؛ ننقل كل وظائف الموظفين إلى Cloudflare/D1 أولًا ونُنهي Zero-Google، ثم ننقل Login/Auth كآخر خطوة.**
-- Entry613 أصبح superseded قبل secret install / bridge enable / D1 TRANSITIONAL / frontend canary.
-- لا Google Script Property تغيرت، لا Cloudflare secret أضيف، لا Auth mode تغير، لا deploy Production تم.
-- إغلاق Entry613:
-  ```ini
-  STATUS=SUPERSEDED_BY_ZERO_GOOGLE_FUNCTIONS_FIRST
-  Production_touched=NO
-  D1_touched=NO
-  Apps_Script_touched=NO
-  Secrets_touched=NO
-  API_DEPLOY=NO
-  FRONTEND_DEPLOY=NO
-  NEXT_ACTION=ENTRY614_ZERO_GOOGLE_EMPLOYEE_FUNCTIONS_FIRST
-  ```
-
 
 ### Entry614 — Zero-Google Employee Functions First
 - الاسم العربي للبحث: **انقل كل وظائف الموظفين من Google/Apps Script إلى Cloudflare + D1 أولًا ثم اقفل Google نهائيًا**.
@@ -5930,3 +5850,10 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - COPY commit: `71288432bb7f344f6c28b236ed403bc0ef2b92e0`؛ Archive: `b2788ecb4c187717e020321954a1ea449c1aa0d5`؛ source blob: `dbe5c9bdcc298a7a97dcd7d6466832d02aa03382`.
 - REMOVE commit: هذا الـCommit، يسجل SHA النهائي في Crosswalk؛ لا نشر ولا تفعيل Production.
 - `TrendOS_MASTER_BOOK.md` باقٍ `ACTIVE_WRITE`، وكل سجلات SERVER محفوظة، وEntry613 باقٍ.
+
+
+## BOOK-MIGRATION-20261016-015 — Entry613 superseded canary historical transfer
+- الحالة: `COPY_VERIFIED_OLD_SECTION_REMOVED`، 3,856 حرفًا تطابقت حرفيًا بين النص الأصلي وأرشيفه والملحق «ش»؛ `EXACT_VERBATIM_MATCH=PASS`.
+- **تنبيه ملزم:** تصريح Canary المذكور في هذا السجل **ملغى تاريخيًا** بقرار Zero-Google-first؛ ليس موافقة Production سارية.
+- COPY commit: `6254784f1ecd2762f6b2f4d9b31a65d576820d45`؛ Archive: `b2788ecb4c187717e020321954a1ea449c1aa0d5`؛ source blob: `5664d6013c26a56dde5aba23af55cfa26e2b0ffb`.
+- REMOVE commit: هذا الـCommit، SHA الفعلي يثبت في Crosswalk. الكتاب القديم يستمر ACTIVE_WRITE وكل سجلات SERVER محفوظة.
