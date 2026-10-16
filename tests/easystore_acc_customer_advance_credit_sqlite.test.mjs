@@ -723,7 +723,7 @@ try{
       assert.ok(c>=0);
     }
     assert.equal(one("SELECT COUNT(*) AS n FROM employee_accounting_tx_guard_v1").n,0);
-    assert.equal(one("SELECT COUNT(*) AS n FROM employee_accounting_request_ledger_v1 WHERE status='PREPARED'").n,2,
-      'rejected racing receipt and rejected racing invoice remain PREPARED; never auto-repost');
+    assert.equal(one("SELECT COUNT(*) AS n FROM employee_accounting_request_ledger_v1 WHERE status='PREPARED'").n,4,
+      'two rejected race losers + two injected audit failures must remain PREPARED, not auto-reposted');
   });
 }finally{db.close()}
