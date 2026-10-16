@@ -38,16 +38,16 @@
     "entry_number_count": 66,
     "entry_heading_count": 58,
     "mention_only_count": 8,
-    "explicitly_mentioned_in_current_catalog": 9,
-    "unmentioned_by_exact_entry_label_in_current_catalog": 57,
+    "explicitly_mentioned_in_current_catalog": 10,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 56,
     "reconciled_entry_count": 0,
     "unreconciled_entry_count": 66,
     "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation.",
-    "historical_entry_heading_sections_migrated_exact_count": 5,
+    "historical_entry_heading_sections_migrated_exact_count": 6,
     "initial_entry_heading_count": 58,
     "original_snapshot_reconciled_count": 0,
-    "migration_progress_note": "8 exact migration units verified cumulatively: 5 Entry-heading blocks covering Entry597,598,601-606, plus 3 non-Entry historical blocks. Full 66-Entry cross-reference and current-runtime reconciliation remains OPEN. Snapshot count/line numbers are historical baseline.",
-    "total_migration_units_exact_verified": 8,
+    "migration_progress_note": "9 exact, independently checked transfers: 6 historical Entry-heading blocks (597,598,601-607) and 3 other historical blocks. 66 Entry IDs still need full provenance/runtime/cross-reference reconciliation; latest runtime not inferred.",
+    "total_migration_units_exact_verified": 9,
     "non_entry_historical_migration_units_exact_verified": 3
   },
   "book_policy": {
@@ -1357,12 +1357,33 @@
       "source_first_line": 258,
       "source_heading_line": 258,
       "mention_count_in_master": 1,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_DISCONNECT_HANDOFF",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "009",
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          607
+        ],
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "defb99946c3a78ba463957e7c2df9973ddac52be",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ن",
+        "copy_commit": "e28842e751bfb6f105eb99deee00e049d571da59",
+        "remove_commit": "0e85c9ead8f0b849ff0d07e41fb19e4abea70d27",
+        "text_characters": 3175,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED"
+      }
     },
     {
       "entry_id": 608,
@@ -1984,12 +2005,12 @@
   ],
   "latest_review": {
     "date": "2026-10-16",
-    "head_before_crosswalk_commit": "d9b553ba7db1cd62836e687f5c86a85a840b1454",
-    "active_master_blob_sha": "defb99946c3a78ba463957e7c2df9973ddac52be",
-    "new_catalog_blob_sha": "4cda109162e13f9534d73ce1881bceeffe20f250",
+    "head_before_crosswalk_commit": "0e85c9ead8f0b849ff0d07e41fb19e4abea70d27",
+    "active_master_blob_sha": "9314ba36d5e8387b3f1d996b14154f20cdae2c1a",
+    "new_catalog_blob_sha": "3dcd7c7c41bac3f7561decb074d5c8d96df4100f",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "8 exact migration units. Grouped headings may cover multiple Entry IDs; source-heading inventory is an immutable initial snapshot, not a current file line list. New SERVER-63 entry preserved in active master."
+    "notes": "9 exact units; Entry607 historic disconnect handoff preserved, never to be treated as current resume instruction. No full entry reconciliation claimed."
   },
   "non_entry_section_migrations": [
     {
