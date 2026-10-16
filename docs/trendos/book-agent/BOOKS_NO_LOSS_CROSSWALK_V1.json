@@ -1,0 +1,1813 @@
+{
+  "schema": "TRENDOS_BOOKS_NO_LOSS_CROSSWALK_V1",
+  "audited_at": "2026-10-16",
+  "repo": "fawakhry/TrendOs",
+  "working_branch": "agent/trendos-book-audit-v1-20261014",
+  "snapshot_commit": "fe38103e1fe667f02ae20226d8113272112a1802",
+  "authoritative_docs": {
+    "current": {
+      "path": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+      "blob_sha": "53ae4194011e8c28b12d468d0ed02754a1d03448",
+      "chapters_count": 32,
+      "status": "CANONICAL_DOCUMENTATION_PARTIALLY_VERIFIED"
+    },
+    "engineering": {
+      "path": "TrendOS_MASTER_BOOK.md",
+      "blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+      "section_headings": 165,
+      "distinct_entry_numbers": 66,
+      "status": "PRESERVED_HISTORY_RECONCILIATION_OPEN"
+    },
+    "legacy": {
+      "path": "docs/trendos/book-agent/TRENDOS_LEGACY_PRE_SPLIT_BOOK.md",
+      "blob_sha": "04500f9503f25d49aada9f90b432cd6a6700adb7",
+      "section_headings": 14,
+      "status": "PRESERVED_ARCHIVE_SEPARATE_FROM_RUNTIME"
+    }
+  },
+  "frozen_draft": {
+    "path": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md",
+    "blob_sha": "acded3ba6729eb7f0a5fd8de560ae5091d630b88",
+    "chapter_count": 31,
+    "preservation": "UNCHANGED",
+    "original_frozen_body_preserved_in_canonical": true,
+    "exact_text_scope": "All content from '# فهرس الأبواب' through end of chapter 31, excluding the new chapter-32 separator",
+    "matched_js_string_characters": 213981
+  },
+  "master_crosswalk": {
+    "entry_number_count": 66,
+    "entry_heading_count": 58,
+    "mention_only_count": 8,
+    "explicitly_mentioned_in_current_catalog": 1,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 65,
+    "reconciled_entry_count": 0,
+    "unreconciled_entry_count": 66,
+    "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation."
+  },
+  "book_policy": {
+    "only_current_catalog_receives_present_system_descriptions": true,
+    "engineering_master_preserved_as_change_decision_record": true,
+    "legacy_book_preserved_as_historical_provenance": true,
+    "crosswalk_before_deletion_or_archival_required": true,
+    "forbid_silent_reclassification": true,
+    "versioned_source_sha_required": true,
+    "no_runtime_deploy_claims_without_evidence": true,
+    "no_merge_or_deploy_or_deletion": true
+  },
+  "current_chapters": [
+    {
+      "chapter_id": 1,
+      "title": "ما يُعد «حاليًا» في هذا الكتاب"
+    },
+    {
+      "chapter_id": 2,
+      "title": "شاشات الواجهة والأدوار: أول فحص مباشر"
+    },
+    {
+      "chapter_id": 3,
+      "title": "تكوين واتصال أجزاء النظام: مصادر فقط"
+    },
+    {
+      "chapter_id": 4,
+      "title": "دليل الأكواد والتغطية — خط الأساس"
+    },
+    {
+      "chapter_id": 5,
+      "title": "الاختبارات بما فيها الفاشل — أول سجل مراجعته"
+    },
+    {
+      "chapter_id": 6,
+      "title": "طريقة قراءة الكتالوج والتعامل مع العطل"
+    },
+    {
+      "chapter_id": 7,
+      "title": "ما لم يُنجز بعد — شروط عدم إعلان الاكتمال"
+    },
+    {
+      "chapter_id": 8,
+      "title": "تدقيق محدد: قواعد عرض الأقسام والحالات في واجهة الموظف (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 9,
+      "title": "تدقيق محدد: حالة الجلسة والصلاحيات المحلية وإدخال الأوردرات (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 10,
+      "title": "تتبع إنشاء الأوردر اليدوي: UI → API → Authorization → D1 (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 11,
+      "title": "تتبع تكويد العملاء: شاشة الإدارة → API → صلاحية الخادم → D1 (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 12,
+      "title": "قاعدة «طباعة على الطاير»: أولوية التنفيذ وموعد التسليم (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 13,
+      "title": "مسار Pagination: من شاشة الأوردرات إلى D1 ونتيجة الصفحة (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 14,
+      "title": "جلسات الموظفين وصلاحياتهم: Native Auth وEdge tokens وواجهة العرض (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 15,
+      "title": "تحديث حالة بند الأوردر والملاحظات: UI → Edge runtime → D1 (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 16,
+      "title": "بوابة العميل ومسودات الأوردرات والملفات — مسار السلطة الحالي (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 17,
+      "title": "الإشعارات وواتساب ومحادثات الأوردرات — النسخ والتسجيل والإرسال الحقيقي (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 18,
+      "title": "تكامل الحسابات والذمم: TrendOS ↔ EasyStore ↔ D1 (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 19,
+      "title": "تشغيل الموظفين والمهام والمطبعة الذاتية — صلاحية القرار والتنفيذ (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 20,
+      "title": "ملفات المطبعة والمرفقات وبروفات الأوردرات: الوصول والتخزين (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 21,
+      "title": "مراقبة النظام وسلامة المرايا والاختبارات — الفرق بين صحة البيانات وتشغيلها (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 22,
+      "title": "إدارة محتوى المنصة والفروع والسوق والإعلانات — صلاحيات Content D1 (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 23,
+      "title": "شؤون الموظفين والحضور والنظافة والمكبس — Employee Ops D1 (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 24,
+      "title": "المطبعة الذاتية كمشروع مرتبط: التحكم والمشرف والأدلة — دون خلط سلطات (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 25,
+      "title": "لوحات المدير والتقارير والتقييمات ومصادر الذكاء (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 26,
+      "title": "سلامة مسارات الاستيراد والمرايا وإثبات نسخة النشر الحالية (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 27,
+      "title": "تتبع شاشات TrendOS وأزرار التشغيل والعقود من UI إلى API (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 28,
+      "title": "شاشة الأوردرات: البحث والفلاتر والتغيير الجماعي والأرشفة — ربط الواجهة بالسلطة (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 29,
+      "title": "شاشة الحسابات ومصروفات التشغيل والموافقات والتقارير — حدود TrendOS / EasyStore (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 30,
+      "title": "الجلسات وصلاحيات الدخول الموحد: TrendOS وEasyStore وخادم الملفات (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 31,
+      "title": "سيرفر TrendosShop المنزلي وخدمات Ubuntu والطباعة/الليزر — حالة الربط الحقيقية (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 32,
+      "title": "أمان دورة حياة الملفات والبروفات بين العميل والموظف وPrint/Laser — تدقيق المصدر (16 أكتوبر 2026)"
+    }
+  ],
+  "master_section_heading_inventory": [
+    {
+      "line": 1,
+      "level": 1,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 31,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 33,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 46,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 61,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 71,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 85,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 107,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 118,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 162,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 204,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 238,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 258,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 312,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 568,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 604,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 760,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 952,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 1092,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 1173,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 1526,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 1696,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 2256,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 2322,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 2410,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 2536,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 2657,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 2919,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 2926,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 2941,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 2943,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 2969,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 2981,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 2993,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3007,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3021,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3034,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3047,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3068,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3075,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3095,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3106,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3110,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3115,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3126,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3135,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3142,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3151,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3160,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3167,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3172,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3175,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3182,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3185,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3189,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3193,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3211,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3220,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3227,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3236,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3276,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3353,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3355,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3375,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3453,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3468,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3484,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3550,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3603,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3720,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3767,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3826,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3881,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3968,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4031,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4085,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4171,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4239,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4310,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4374,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4436,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4464,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4503,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4555,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4640,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4706,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4730,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4736,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4778,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4826,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4885,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4922,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4975,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5053,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5122,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5126,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5142,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5162,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5197,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5253,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5263,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5317,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5406,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5527,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5568,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5585,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5610,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5628,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5651,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5656,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5673,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5713,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5744,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5758,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5778,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5792,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5810,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5828,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5856,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5920,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5926,
+      "level": 5,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5934,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5949,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5978,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5990,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6016,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6028,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6036,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6044,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6053,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6082,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6117,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6124,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6143,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6154,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6161,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6195,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6202,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6220,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6226,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6261,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6267,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6285,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6300,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6309,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6325,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6365,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6408,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6433,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6470,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6518,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6560,
+      "level": 5,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6572,
+      "level": 5,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6604,
+      "level": 5,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6636,
+      "level": 5,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6671,
+      "level": 5,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6752,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6760,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6771,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6782,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6788,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6799,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6808,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6819,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6833,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    }
+  ],
+  "master_entries": [
+    {
+      "entry_id": 498,
+      "source_first_line": 2931,
+      "source_heading_line": null,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER"
+    },
+    {
+      "entry_id": 533,
+      "source_first_line": 6647,
+      "source_heading_line": null,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER"
+    },
+    {
+      "entry_id": 595,
+      "source_first_line": 3032,
+      "source_heading_line": null,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER"
+    },
+    {
+      "entry_id": 596,
+      "source_first_line": 71,
+      "source_heading_line": 71,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 597,
+      "source_first_line": 85,
+      "source_heading_line": 85,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 598,
+      "source_first_line": 107,
+      "source_heading_line": 107,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 599,
+      "source_first_line": 104,
+      "source_heading_line": 118,
+      "mention_count_in_master": 6,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 600,
+      "source_first_line": 31,
+      "source_heading_line": null,
+      "mention_count_in_master": 5,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER"
+    },
+    {
+      "entry_id": 601,
+      "source_first_line": 162,
+      "source_heading_line": 162,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 602,
+      "source_first_line": 185,
+      "source_heading_line": null,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER"
+    },
+    {
+      "entry_id": 603,
+      "source_first_line": 204,
+      "source_heading_line": 204,
+      "mention_count_in_master": 5,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 604,
+      "source_first_line": 215,
+      "source_heading_line": null,
+      "mention_count_in_master": 5,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER"
+    },
+    {
+      "entry_id": 605,
+      "source_first_line": 219,
+      "source_heading_line": null,
+      "mention_count_in_master": 8,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER"
+    },
+    {
+      "entry_id": 606,
+      "source_first_line": 238,
+      "source_heading_line": 238,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 607,
+      "source_first_line": 258,
+      "source_heading_line": 258,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 608,
+      "source_first_line": 312,
+      "source_heading_line": 312,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 609,
+      "source_first_line": 568,
+      "source_heading_line": 568,
+      "mention_count_in_master": 5,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 610,
+      "source_first_line": 604,
+      "source_heading_line": 604,
+      "mention_count_in_master": 8,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 611,
+      "source_first_line": 760,
+      "source_heading_line": 760,
+      "mention_count_in_master": 15,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 612,
+      "source_first_line": 952,
+      "source_heading_line": 952,
+      "mention_count_in_master": 5,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 613,
+      "source_first_line": 1092,
+      "source_heading_line": 1092,
+      "mention_count_in_master": 5,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 614,
+      "source_first_line": 1173,
+      "source_heading_line": 1173,
+      "mention_count_in_master": 7,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 615,
+      "source_first_line": 1526,
+      "source_heading_line": 1526,
+      "mention_count_in_master": 18,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 616,
+      "source_first_line": 2322,
+      "source_heading_line": 2322,
+      "mention_count_in_master": 7,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 617,
+      "source_first_line": 2410,
+      "source_heading_line": 2410,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 618,
+      "source_first_line": 2536,
+      "source_heading_line": 2536,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 619,
+      "source_first_line": 2657,
+      "source_heading_line": 2657,
+      "mention_count_in_master": 7,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 620,
+      "source_first_line": 3276,
+      "source_heading_line": 3276,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 621,
+      "source_first_line": 3353,
+      "source_heading_line": 3353,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 622,
+      "source_first_line": 3484,
+      "source_heading_line": 3484,
+      "mention_count_in_master": 7,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 623,
+      "source_first_line": 3603,
+      "source_heading_line": 3603,
+      "mention_count_in_master": 18,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 624,
+      "source_first_line": 4310,
+      "source_heading_line": 4310,
+      "mention_count_in_master": 6,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 625,
+      "source_first_line": 4464,
+      "source_heading_line": 4464,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 626,
+      "source_first_line": 4555,
+      "source_heading_line": 4555,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 627,
+      "source_first_line": 4640,
+      "source_heading_line": 4640,
+      "mention_count_in_master": 5,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 628,
+      "source_first_line": 6371,
+      "source_heading_line": null,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER"
+    },
+    {
+      "entry_id": 630,
+      "source_first_line": 4736,
+      "source_heading_line": 4736,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 631,
+      "source_first_line": 4775,
+      "source_heading_line": 4778,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 632,
+      "source_first_line": 4823,
+      "source_heading_line": 4826,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 633,
+      "source_first_line": 4885,
+      "source_heading_line": 4885,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 634,
+      "source_first_line": 4919,
+      "source_heading_line": 4922,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 635,
+      "source_first_line": 4972,
+      "source_heading_line": 4975,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 636,
+      "source_first_line": 5050,
+      "source_heading_line": 5053,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 637,
+      "source_first_line": 5122,
+      "source_heading_line": 5122,
+      "mention_count_in_master": 15,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 638,
+      "source_first_line": 5610,
+      "source_heading_line": 5610,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 639,
+      "source_first_line": 5651,
+      "source_heading_line": 5651,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 640,
+      "source_first_line": 5744,
+      "source_heading_line": 5744,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 641,
+      "source_first_line": 5856,
+      "source_heading_line": 5856,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 642,
+      "source_first_line": 4,
+      "source_heading_line": 5920,
+      "mention_count_in_master": 11,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 643,
+      "source_first_line": 6016,
+      "source_heading_line": 6016,
+      "mention_count_in_master": 14,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 644,
+      "source_first_line": 6365,
+      "source_heading_line": 6365,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 645,
+      "source_first_line": 6408,
+      "source_heading_line": 6408,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 646,
+      "source_first_line": 6433,
+      "source_heading_line": 6433,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 647,
+      "source_first_line": 6470,
+      "source_heading_line": 6470,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 648,
+      "source_first_line": 6518,
+      "source_heading_line": 6518,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 649,
+      "source_first_line": 6572,
+      "source_heading_line": 6572,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 650,
+      "source_first_line": 6604,
+      "source_heading_line": 6604,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 651,
+      "source_first_line": 6636,
+      "source_heading_line": 6636,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 652,
+      "source_first_line": 6671,
+      "source_heading_line": 6671,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 653,
+      "source_first_line": 6760,
+      "source_heading_line": 6760,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 654,
+      "source_first_line": 6771,
+      "source_heading_line": 6771,
+      "mention_count_in_master": 6,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 655,
+      "source_first_line": 6788,
+      "source_heading_line": 6788,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 656,
+      "source_first_line": 6799,
+      "source_heading_line": 6799,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 657,
+      "source_first_line": 6808,
+      "source_heading_line": 6808,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 658,
+      "source_first_line": 6819,
+      "source_heading_line": 6819,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 659,
+      "source_first_line": 6833,
+      "source_heading_line": 6833,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    }
+  ],
+  "unresolved_gates": [
+    "Review all 165 engineering section headings and 66 distinct Entry IDs for whether current behavior, historical-only or separately owned; map verified current functions to chapters and exact source paths.",
+    "Independently enumerate repo tree vs function ownership, UI actions/handlers/writers/tests and runtime deployed SHA.",
+    "Reconcile former Draft and current catalog via full text equality after every editorial promotion; never delete historical source without backup and owner approval."
+  ]
+}
