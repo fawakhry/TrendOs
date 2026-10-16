@@ -1,4 +1,5 @@
 import { handleMirrorRequest as handleLegacyMirrorRequest } from './mirror.js';
+import { verifyEmployeeSessionCloudFirst } from './cloud-session-bridge-v3.mjs';
 
 const DEFAULT_ORIGINS = [
   'https://fawakhry.github.io',
@@ -41,7 +42,7 @@ function corsHeaders(request, env) {
   return {
     'access-control-allow-origin': allowOrigin,
     'access-control-allow-methods': 'GET,POST,OPTIONS',
-    'access-control-allow-headers': 'content-type,x-migration-secret,authorization',
+    'access-control-allow-headers': 'content-type,x-migration-secret,authorization,x-employee-username',
     'access-control-max-age': '86400',
     vary: 'Origin'
   };
@@ -62,6 +63,25 @@ function migrationAuthorized(request, env) {
   const expected = text(env.MIGRATION_SECRET);
   const supplied = text(request.headers.get('x-migration-secret'));
   return !!expected && supplied === expected;
+}
+
+// Authorize mirror reads by operator secret OR an independently verified
+// admin employee session. Both are server-side checks, never URL credentials.
+// All non-admin and unavailable-verifier cases fail closed before mirror SQL.
+async function mirrorReadAuthorized(request, env) {
+  if (migrationAuthorized(request, env)) return true;
+  const username = text(request.headers.get('x-employee-username'));
+  const match = text(request.headers.get('Authorization')).match(/^Bearer\\s+(.+)$/i);
+  if (!username || !match || !text(match[1])) return false;
+  try {
+    const verified = await verifyEmployeeSessionCloudFirst(username, match[1], env, 'edge');
+    if (!verified || verified.ok !== true) return false;
+    const body = verified.body || {};
+    const user = body.user || {};
+    return text(user.role || body.role).toLowerCase() === 'admin';
+  } catch {
+    return false;
+  }
 }
 
 export function isMirrorPath(path) {
@@ -321,7 +341,7 @@ export async function handleMirrorRequest(request, env, ctx) {
   // BOOK26 P0: SELECT-only is not an authorization policy. Restrict mirror
   // sheet names, metadata, row values AND formulas to migration operators.
   // Fail before all D1 reads; no token/secret in the URL or error response.
-  if (request.method === 'GET' && !migrationAuthorized(request, env)) {
+  if (request.method === 'GET' && !(await mirrorReadAuthorized(request, env))) {
     return json({ success: false, code: 'mirror-read-unauthorized' }, 401, cors);
   }
 
