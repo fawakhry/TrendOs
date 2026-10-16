@@ -201,6 +201,65 @@ function handoffHarness(){
   vm.runInContext(segment(APP,'  function openAccounting(dayClose){','  function mount()')+'\nthis.openAccounting=openAccounting',context);
   return {context,window,alerts,children};
 }
+function ssoProtocolHarness({live=true}={}){
+  const posts=[],removed=[],timers=[];
+  let ack;
+  const session={username:'fixture-employee',token:'SYNTHETIC_FAKE_ONLY',role:'print'};
+  const child={postMessage:(message,origin)=>posts.push({message,origin})};
+  const window={state:{user:live?{...session}:null},
+    addEventListener:(name,listener)=>{if(name==='message')ack=listener;},
+    removeEventListener:(name,listener)=>removed.push({name,listener})
+  };
+  const context={window,Date,Promise,
+    setInterval:fn=>{timers.push(fn);return timers.length;},
+    clearInterval:()=>{},
+    setTimeout:()=>{}};
+  vm.createContext(context);
+  vm.runInContext(segment(APP,'  function entry619PostEmployeeSso(child,targetOrigin,nonce,u,params){',
+    '  function openAccounting(dayClose)')+'\nthis.sso=entry619PostEmployeeSso',context);
+  return {window,child,session,posts,removed,timers,getAck:()=>ack,sso:context.sso};
+}
+
+test('BOOK27/30-SSO: expired/missing live session blocks initial token handoff',()=>{
+  const h=ssoProtocolHarness({live:false});
+  assert.equal(h.sso(h.child,'https://fawakhry.github.io','nonce',h.session,{}),false);
+  assert.equal(h.posts.length,0);
+});
+
+test('BOOK27/30-SSO: forged ACK origin/source/nonce cannot stop session-checked retry',()=>{
+  const h=ssoProtocolHarness();
+  const approved='https://fawakhry.github.io';
+  assert.equal(h.sso(h.child,approved,'nonce',h.session,{mode:'dept',roleMode:'print'}),true);
+  assert.equal(h.posts.length,1);
+  assert.equal(h.posts[0].origin,approved);
+  assert.equal(h.posts[0].message.user.token,'SYNTHETIC_FAKE_ONLY');
+  const ack=h.getAck();
+  assert.equal(typeof ack,'function');
+  for(const event of [
+    {origin:'https://evil.invalid',source:h.child,data:{type:'EASYSTORE_EMPLOYEE_SSO_ACK_V1',nonce:'nonce'}},
+    {origin:approved,source:{},data:{type:'EASYSTORE_EMPLOYEE_SSO_ACK_V1',nonce:'nonce'}},
+    {origin:approved,source:h.child,data:{type:'EASYSTORE_EMPLOYEE_SSO_ACK_V1',nonce:'WRONG'}}
+  ])ack(event);
+  h.timers[0]();
+  assert.equal(h.posts.length,2,'forged ack must not stop an authorized retry');
+  ack({origin:approved,source:h.child,data:{type:'EASYSTORE_EMPLOYEE_SSO_ACK_V1',nonce:'nonce'}});
+  h.timers[0]();
+  assert.equal(h.posts.length,2,'valid ack stops handoff');
+  assert.equal(h.removed.length,1);
+});
+
+test('BOOK30-SSO-LOGOUT-RACE: no token replay after logout or account switch',()=>{
+  const h=ssoProtocolHarness();
+  assert.equal(h.sso(h.child,'https://fawakhry.github.io','nonce',h.session,{}),true);
+  assert.equal(h.posts.length,1);
+  h.window.state.user={username:'another',token:'REPLACED_SESSION'};
+  h.timers[0]();
+  assert.equal(h.posts.length,1);
+  h.window.state.user={...h.session};
+  h.timers[0]();
+  assert.equal(h.posts.length,1,'once stopped after account switch, never resume old token');
+});
+
 test('BOOK27-SSO: forged stored admin string does not grant admin UI hint',()=>{
   const h=handoffHarness();
   assert.equal(h.context.roleMode(),'print');
