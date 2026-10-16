@@ -1761,3 +1761,49 @@ NEXT_PROGRAM=CONTINUE_ZERO_GOOGLE_PLAN
 - الخطوة التالية: **Repo-qualify staged native employee login cutover + login-surface module deferral**، ثم Production preflight قبل أي تفعيل.
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY601_602 -->
+
+---
+
+## الملحق التاريخي ل — Entries603–605 / نشر وتحسين واجهة Login-fast
+
+> **التصنيف:** `HISTORICAL` / `SOURCE_RECORDED_DEPLOYED_VERSION_VERIFIED_AT_EVENT_TIME`. تسلسل Repo qualification وProduction publish وpostflight قديم، مع الإبقاء على نجاح CI وفشل postflight المدمج كما هو دون قلبهما لحكم على Latest Production. لم يُعد تشغيل الاختبارات أو فحص نشر جديد في هذه الدورة.
+> **المصدر الكامل:** [TrendOS_MASTER_BOOK.md @ 5aa548e86ede](https://github.com/fawakhry/TrendOs/blob/5aa548e86edef2c7a88b18bc1c7de4b11da2f2c7/TrendOS_MASTER_BOOK.md)، Git blob `95471182cac9c6ead230cf44187875dd65feb937`، قسم `Entry603/604/605`.
+> **نسخة الاستعادة:** [الأرشيف السابق للتوحيد](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md)، Git blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`؛ **تاريخ الترحيل:** 2026-10-16.
+> **نطاق النسخ:** النص الأصلي الكامل (1885 حرفًا) دون أي بيانات عميل؛ استنتاجات «LIVE» تخص زمن Entry605 فقط.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY603_605 -->
+### Entry603/604/605 — Login-fast Frontend Production = CLOSED PASS
+- الهدف: تقليل زمن ظهور/تفاعل واجهة الدخول بدون تغيير Employee Auth authority.
+- Entry603 Repo qualification:
+  - `tests/frontend_login_fast_surface_entry603.test.mjs` يثبت أن unauthenticated config ينشئ **0 dynamic employee module requests**.
+  - بعد session: critical modules = 2 (`trendos-edge-orders-read-v1.js` + resume guard).
+  - deferred authenticated modules = 16 بعد 250ms.
+  - `bootMain()` يبدأ authenticated loader قبل تحميل Rows، مع بقاء `loadInitialRowsWhenEdgeReady()` fail-closed.
+  - Entry603 CI final = run `37042691120` SUCCESS.
+  - Duplicate Guard CI = run `37042720774` SUCCESS.
+  - Entry597 legacy runtime CI = run `37042779029` SUCCESS.
+  - A61 full browser transport regression = run `37042884091` SUCCESS.
+- Entry604 Production publish:
+  - أول run `37043068818` وقف قبل إنشاء Version بسبب uploader qualification marker قديم؛ **no Production mutation**.
+  - run `37043168584`: qualification/pre-guard/package PASS، created version `adfb5056-af23-4d7f-8e12-7de6417dfce2` zero-traffic ثم promote accepted إلى 100%.
+  - postflight المدمج وقف بعد promote في static marker phase؛ لم يُعاد deploy.
+- Entry605 independent read-only postflight:
+  - run `37043542864` = **SUCCESS**.
+  - UI version `adfb5056-af23-4d7f-8e12-7de6417dfce2` @100%.
+  - UI deployment `a066abb8-4c33-4050-813b-123df4140450`.
+  - assets ready on attempt 1، root/config/app/edge HTTP 200.
+  - login-fast markers = YES.
+  - Native Auth frontend remains OFF.
+  - Duplicate Guard UI + Browser Refresh fix preserved.
+  - API create/runtime health preserved؛ no API deploy، no D1 mutation، no Apps Script touch.
+- الحالة:
+```ini
+LOGIN_FAST_FRONTEND_LIVE=YES
+UNAUTHENTICATED_DYNAMIC_EMPLOYEE_MODULES=0
+AUTH_CRITICAL_MODULES_AFTER_SESSION=2
+AUTH_DEFERRED_MODULES_AFTER_SESSION=16
+EMPLOYEE_NATIVE_AUTH=OFF
+APPS_SCRIPT_TOUCHED=NO
+```
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY603_605 -->
