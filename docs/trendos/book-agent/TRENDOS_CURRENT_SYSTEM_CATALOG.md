@@ -3020,3 +3020,193 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
   - `.github/workflows/trendos-entry614-employee-content-native-ci.yml`
   - commit `b86ebe6876f98b67e1da05538350dc982953121b`
   - Production checks are read-only; no D1/R2/API/Apps Script mutation.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_CONTENT_REPO_CI_CREATED
+  COMMIT=b86ebe6876f98b67e1da05538350dc982953121b
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  Production_touched=NO
+  D1_touched=NO
+  R2_touched=NO
+  Apps_Script_touched=NO
+  NEXT_ACTION=READ_CONTENT_REPO_CI
+  ```
+- Content native repo CI:
+  - Run `37130621716`
+  - Job `111224828304`
+  - conclusion = **SUCCESS**
+  - 20 Content/Config actions covered.
+  - Google business calls = 0.
+  - file target = R2.
+  - migration default-OFF; no Production/D1/R2/API/App Script mutation.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_CONTENT_FAMILY_REPO_QUALIFIED
+  RUN_ID=37130621716
+  JOB_ID=111224828304
+  COMMIT=b86ebe6876f98b67e1da05538350dc982953121b
+  Production_touched=NO
+  D1_touched=NO
+  R2_touched=NO
+  Apps_Script_touched=NO
+  API_DEPLOY=NO
+  NEXT_ACTION=BUILD_CUSTOMER_COMMS_AUTOMATION_NATIVE_FAMILY
+  ```
+- Customer Comms / Feedback / Go-Live family built Repository-only:
+  - migration `0014_employee_comms_zero_google_v1.sql` commit `84a99cadfd93c161c5337317885b1eef9cab70c5`.
+  - adds default-OFF control, feedback requests, go-live drafts, order-conversation R2 file metadata, audit events.
+  - native handler `employee-comms-native-v1.mjs` commit `56f440a6c9e741d2d47a4a24596036853f657342`.
+  - covers `customerManagerV1`, `customerFeedbackV1`, `goLiveAutopilotV1`, `getOrderConversation`, `sendOrderConversationMessage`, `uploadOrderConversationFile`.
+  - WhatsApp is called directly from Cloudflare using Cloudflare-held Meta credentials; AI suggestions call OpenAI directly from Cloudflare; files target R2.
+  - Meta webhook path is moved to Cloudflare source: `/v1/employee/comms/webhook`.
+  - `finalizeAndNotify` intentionally fails closed with `accounting-d1-authority-not-ready` until Accounting D1 authority is built; it does **not** fall back to Apps Script.
+  - Worker route wired in `index_v2.js` commit `19f0e48882fca52ef78eee1f01b978597e996dd7`.
+  - regression `tests/entry614_employee_comms_native.test.mjs` commit `7c7b427a509cb3e770e53b66cd498a70ee621b57`.
+- Source business paths contain zero Google/Apps Script calls. Migration/source not deployed.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_COMMS_FAMILY_SOURCE_BUILT_REPO_ONLY
+  COMMIT=7c7b427a509cb3e770e53b66cd498a70ee621b57
+  Production_touched=NO
+  D1_touched=NO
+  R2_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  API_DEPLOY=NO
+  NEXT_ACTION=RUN_COMMS_NATIVE_REPO_CI
+  ```
+
+
+- Zero-Google final active business gap audit:
+  - Entry609 active legacy top-level actions = **46**.
+  - Qualified native family coverage before Core = **40**:
+    - Ops = 5.
+    - Content/Config = 20.
+    - Comms/Feedback/Go-Live = 6.
+    - Accounting/Party Ledger = 9.
+  - remaining active top-level actions = **6**:
+    `archiveDeliveredDepartmentV1926`, `bulkUpdateDepartmentStatusV1926`, `getActivityLog`, `getDashboard`, `getRows`, `getTrendMasterCenterV1931`.
+  - hybrid `updateLine` + `markCustomerNotified` already have Cloud operational runtime routes and will have frontend legacy fallback removed only after data/cutover qualification.
+- Employee Core Zero-Google source built Repository-only:
+  - migration `0016_employee_core_zero_google_v1.sql`
+    - initial commit `8182ee288efc8909d41b1ec29e66cb892ed694a3`
+    - delivery restriction authority added commit `9717a092853017774fc04ca7509268c4a1718f41`.
+  - Cloud handler `employee-core-native-v1.mjs` commit `da15abb86c6827011867d4df3dad05844d25bbd6`.
+  - Worker route wired commit `33727783166e5983cf3cc03eaaa7cd2722f93e45`.
+  - coverage test commit `06c4bcb118994060dad260c2c76dbe54d407374e`.
+  - combined repo-only CI workflow commit `2052e38fbd69119c1e3cc5ff9eacae1d47bbb93e`.
+  - source control defaults OFF; migration is **not applied**, API/frontend are **not deployed**.
+  - Core archive uses additive D1 archive snapshots and never deletes `t12_prod_orders/t12_prod_lines`.
+  - Core business source contains no direct Google/Apps Script calls; current employee session verification remains temporary until final Auth cutover.
+- Full business coverage CI Run1:
+  - Run `37132362436`
+  - Job `111229836717`
+  - conclusion = **FAIL in test syntax only**.
+  - All four previously built family regressions and all handler syntax checks passed before the failure.
+  - failure: malformed regex literal in new coverage test at the `ENTRY614_EMPLOYEE_CORE_V1` marker assertion.
+  - no Production/D1/Apps Script mutation occurred.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_FULL_BUSINESS_COVERAGE_RUN1_FAIL_TEST_SYNTAX
+  RUN_ID=37132362436
+  JOB_ID=111229836717
+  COMMIT=2052e38fbd69119c1e3cc5ff9eacae1d47bbb93e
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  API_DEPLOY=NO
+  FRONTEND_DEPLOY=NO
+  NEXT_ACTION=FIX_COVERAGE_TEST_REGEX_ONLY_AND_RERUN
+  ```
+
+
+- Full Zero-Google employee business coverage rerun after test-only regex fix:
+  - Coverage Run `37132441990`
+  - Job `111230069890`
+  - conclusion = **SUCCESS**
+  - Browser transport regression Run `37132442037`
+  - Job `111230070035`
+  - conclusion = **SUCCESS**
+- Qualified source result:
+  ```ini
+  ENTRY614_ZERO_GOOGLE_EMPLOYEE_BUSINESS_COVERAGE=PASS
+  ENTRY614_ACTIVE_LEGACY_TOP_LEVEL=46
+  ENTRY614_NATIVE_FAMILY_COVERED_TOP_LEVEL=46
+  ENTRY614_UNCOVERED_ACTIVE_TOP_LEVEL=0
+  ENTRY614_HYBRID_UPDATE_NOTIFY_CLOUD_RUNTIME=YES
+  ENTRY614_CORE_GOOGLE_BUSINESS_CALLS=0
+  ENTRY614_ALL_NEW_CONTROLS_DEFAULT_OFF=YES
+  A61_NO_BROWSER_GOOGLE_TRANSPORT=PASS
+  ```
+- Production remained unchanged during qualification:
+  ```ini
+  ENTRY614_PRODUCTION_AUTH_OFF=YES
+  ENTRY614_PRODUCTION_BRIDGE_OFF=YES
+  ENTRY614_ORDER_BASELINE=PASS
+  ENTRY614_CUSTOMER_BASELINE=PASS
+  Production_touched=NO
+  D1_touched=NO
+  API_DEPLOY=NO
+  FRONTEND_DEPLOY=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  ```
+- Source coverage is now complete for all **46 currently active employee business top-level actions**, but Zero-Google is **not yet complete** because the new D1 domain tables have not been populated from current Production data and the frontend/API controls are still OFF. Current-data backfill/parity is the next mandatory gate.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_FULL_EMPLOYEE_BUSINESS_SOURCE_COVERAGE_PASS
+  RUN_ID=37132441990
+  JOB_ID=111230069890
+  SECONDARY_RUN_ID=37132442037
+  SECONDARY_JOB_ID=111230070035
+  COMMIT=6f7cd6f474aa6e3d9e3e22eec855593d623e41b7
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=BUILD_CURRENT_DATA_BACKFILL_AND_PARITY_GATE_FOR_0012_TO_0016
+  ```
+
+
+- Latest Entry614 qualification after removing runtime sheet-mirror dependency:
+  - Zero-Google business coverage Run `37133424459`
+  - Job `111232962114`
+  - conclusion = **SUCCESS**
+  - Browser transport regression Run `37133424434`
+  - Job `111232961923`
+  - conclusion = **SUCCESS**
+- Current repo truth:
+  ```ini
+  ENTRY614_ZERO_GOOGLE_EMPLOYEE_BUSINESS_COVERAGE=PASS
+  ENTRY614_ACTIVE_LEGACY_TOP_LEVEL=46
+  ENTRY614_NATIVE_FAMILY_COVERED_TOP_LEVEL=46
+  ENTRY614_UNCOVERED_ACTIVE_TOP_LEVEL=0
+  ENTRY614_HYBRID_UPDATE_NOTIFY_CLOUD_RUNTIME=YES
+  ENTRY614_CORE_GOOGLE_BUSINESS_CALLS=0
+  ENTRY614_RUNTIME_SHEET_MIRROR_DEPENDENCY=0
+  ENTRY614_CURRENT_ORDER_AUTHORITY=D1_NATIVE
+  ENTRY614_ALL_NEW_CONTROLS_DEFAULT_OFF=YES
+  A61_NO_BROWSER_GOOGLE_TRANSPORT=PASS
+  ```
+- Source-only Zero-Google business migration is now complete, but the D1 native domain tables are still empty/not applied in Production and the live frontend/API routing is still unchanged. Therefore **current-data backfill + parity** is now the blocking stage.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY614_ZERO_GOOGLE_BUSINESS_SOURCE_COMPLETE
+  RUN_ID=37133424459
+  JOB_ID=111232962114
+  SECONDARY_RUN_ID=37133424434
+  SECONDARY_JOB_ID=111232961923
+  COMMIT=f59840978424d40467ac01fbac07a79603ce439e
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  API_DEPLOY=NO
+  FRONTEND_DEPLOY=NO
+  NEXT_ACTION=ENTRY615_CURRENT_DATA_BACKFILL_INVENTORY_AND_PARITY_PLAN
+  ```
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY614 -->
