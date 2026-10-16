@@ -1,0 +1,29 @@
+name: SERVER-30 Legacy Sensitive Read Boundary (Review Only)
+
+on:
+  pull_request:
+    paths:
+      - cloudflare-d1/src/index.js
+      - cloudflare-d1/src/index_v2.js
+      - tests/server30_legacy_sensitive_read_gate.test.mjs
+      - .github/workflows/server30-legacy-read-security-ci.yml
+  push:
+    branches:
+      - audit/server30-legacy-sensitive-read-gate-20261016
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-fail-closed-no-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify legacy GETs reject before D1
+        run: node --test tests/server30_legacy_sensitive_read_gate.test.mjs

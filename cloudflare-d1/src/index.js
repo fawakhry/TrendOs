@@ -344,6 +344,19 @@ export default {
       const url = new URL(request.url);
       const path = url.pathname.replace(/\/+$/, '') || '/';
 
+      // SEC-AP303-02: Legacy customer/order reads do not have a local
+      // server-authenticated authorization boundary. Deny in the repository
+      // until callers can be migrated to purpose-scoped authenticated routes.
+      // This is deliberately independent of CORS/Origin and bearer header text.
+      // REVIEW-ONLY: downstream compatibility must be qualified before deploy.
+      if (request.method === 'GET' && (
+        path === '/v1/orders' || path.startsWith('/v1/orders/') ||
+        path === '/v1/customer' || path === '/v1/messages' || path === '/v1/inbox'
+      )) {
+        return json({ success: false, code: 'legacy-read-authorization-required',
+          message: 'This legacy read requires an authenticated replacement API.' }, 403, cors);
+      }
+
       if (request.method === 'GET' && path === '/health') {
         return json(await getHealth(env), 200, cors);
       }
