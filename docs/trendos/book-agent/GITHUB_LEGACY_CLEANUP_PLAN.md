@@ -85,3 +85,7 @@ After validating [SOURCE_REGISTRY plus BUILD_MATRIX references](LEGACY_MIRROR_DE
 Specific missing proof: newest live Apps Script editor file list and deployment version, trigger binding/caller graph, autonomous-printshop build/copy consumption, D1 authority parity, independent encrypted backup with restored source SHA and explicit owner deletion approval. The operator-task module lacks a BUILD_MATRIX path but is explicitly registered and has a non-deployed 2026-09-10 rollout candidate: do not infer stale/non-live today.
 
 Previous textual scan updated from 600 equal/12 different/2 inconclusive to **602 equal/12 different/0 inconclusive** by TypeScript AST-bounded old text ranges + exact current text windows; this is not an approval to refactor changed behavior. `FILES_MOVED=0`, `FILES_DELETED=0`, `MERGED=0`, `DEPLOYED=0`.
+
+### 8.1 Current Code.gs source guards: explicit keep
+
+Review of all twelve path commits of `Code.gs` mapped changes in the twelve original V1932 functions to concrete commit SHAs and dates. [CodeGS lineage ledger](LEGACY_V1932_CODEGS_COMMIT_LINEAGE_20261016.md). Current code has later Cloud Write route integration, order-number allocation fencing and legacy auth-bridge hardening, so **never** treat the old Code.gs or these twelve functions as drop-in restore replacements without behavior and security review. `Code.gs` and related security/order handlers remain `ACTIVE_KEEP/SHARED_DEPENDENCY_KEEP`, `DELETE_APPROVED=0`, `RESTORE_OVER_PRODUCTION=PROHIBITED`.
