@@ -395,3 +395,38 @@
 | TESTED | **لم يُجر هنا** | راجع [`tests/entry652_employee_session_lifecycle_guard.test.mjs`](https://github.com/fawakhry/TrendOs/blob/8f29bbc570634ed499303ab426874d6302ee4997/tests/entry652_employee_session_lifecycle_guard.test.mjs) و[`tests/entry652_employee_session_runtime_401_dispatch.test.mjs`](https://github.com/fawakhry/TrendOs/blob/8f29bbc570634ed499303ab426874d6302ee4997/tests/entry652_employee_session_runtime_401_dispatch.test.mjs)، ثم إثبات CI exact-head |
 
 **النتيجة:** الفصل يغطي حدود الموظف محليًا وNative session وOrders Edge scope، لكنه **ليس تصريحًا بصحة كافة الصلاحيات في الإنتاج**. التصنيفات `SOURCE_ONLY` و`BLOCKED` فقط لهذه الجولة؛ `TESTED=NO`، `PRODUCTION_VERIFIED=NO`. لا عمليات مالية أو بيانات أشخاص/أوردرات حقيقية أو نشر/دمج.
+
+
+---
+
+# 15. تحديث حالة بند الأوردر والملاحظات: UI → Edge runtime → D1 (16 أكتوبر 2026)
+
+**نطاق العمل:** توثيق كود تغيير حالة بند داخل شاشة التشغيل، لا تنفيذ أي تغيير فعلي على طلب عميل. **`SOURCE_ONLY`**: لم تُعدَّل حالات الأوردرات أو فواتير أو قواعد الإنتاج، ولا دليل تشغيل حي على نفس SHA.
+
+## 15.1 شاشة الأوردر ومعالج الحفظ
+- [`app.js` 5268–5318](https://github.com/fawakhry/TrendOs/blob/1b658d2dbfb6d95841c6a4f25df1507d0d74e676/app.js#L5268-L5318): `saveLine(row,tr)` يقرأ `.row-status` و`.row-notes`، ويبعث `api("updateLine", authParams({rowNumber,orderId,lineId,status,notes}))`؛ عند النجاح يبدّل الحالة والملاحظات محليًا ويعيد الرسم، وقد يفتح نافذة الفاتورة عند انتقال مناسب. بعض الرسائل ما زالت تقول «الشيت»؛ النص الظاهر لا يثبت مرجع التخزين. فشل الرد لا يرفع status محليًا.
+- [`trendos-edge-orders-read-v1.js` 956–993](https://github.com/fawakhry/TrendOs/blob/1b658d2dbfb6d95841c6a4f25df1507d0d74e676/trendos-edge-orders-read-v1.js#L956-L993): في Edge wrapper، إن كان `lineId` معروفًا كـCloud Native يوجه إلى `POST /v1/t12/orders/line-runtime/update`، وبخلافه إذا كان `MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED` يعالج `POST .../legacy-update`؛ في حالات عدم أهلية المستخدم أو عدم وجود lineId ثابت قد يمر لمسار fallback آخر من خلال dispatcher. **توصيف التنفيذ النهائي يعتمد على ترتيب wrappers وflags الفعلية**، وليس مجرد تعليق مصدر.
+- [`trendos-edge-orders-read-v1.js` 562–586](https://github.com/fawakhry/TrendOs/blob/1b658d2dbfb6d95841c6a4f25df1507d0d74e676/trendos-edge-orders-read-v1.js#L562-L586): كلا مساري runtime POST يستخدمان Edge bearer، ويعالجان HTTP 401 بتجديد session token ثم إعادة المحاولة مرة واحدة. عند احتمال mutation مع رد شبكة غير مؤكد، وظيفة الـhandler مصممة لقراءة حالة لاحقة؛ يجب فحص تكرار شبكة POST بالتجارب الاصطناعية.
+
+## 15.2 صلاحيات وقواعد الخادم
+- [`t12-operational-runtime-handler.mjs` 17–62](https://github.com/fawakhry/TrendOs/blob/1b658d2dbfb6d95841c6a4f25df1507d0d74e676/cloudflare-d1/src/t12-operational-runtime-handler.mjs#L17-L62): قائمة الحالات المسموحة: «طلب جديد»، «بدأ التنفيذ»، «تحت التنفيذ»، «جاهز للاستلام»، «تم التسليم»، «متوقف»، «مكرر»، «ملغى». `verifyOrdersEdgeToken` يتحقق من Bearer؛ `actorAllowed` يسمح لمدير النظام، أو صاحب `screens` المطابقة لقسم الطباعة/الليزر، كما يسمح بصلاحية `service`. مسار قسم غير معروف يُرجع allowed في الدالة على مستوى المصدر؛ سياسة الأدوار النهائية تحتاج review.
+- [`t12-operational-runtime-handler.mjs` 130–172](https://github.com/fawakhry/TrendOs/blob/1b658d2dbfb6d95841c6a4f25df1507d0d74e676/cloudflare-d1/src/t12-operational-runtime-handler.mjs#L130-L172): يتحقق من `orderId/lineId` وحالة صحيحة وحد طول notes، ومن وجود سطر Native ومن السماح للقسم؛ إذا كانت الحالة/الملاحظات مطابقة يرجع نجاحًا idempotent؛ وإلا يستخدم `db.batch` لكتابة `t12_prod_line_runtime` و`t12_prod_runtime_events` ثم readback مع منع retry أعمى عند نتيجة ملتبسة.
+- [`t12-operational-runtime-handler.mjs` 175–219](https://github.com/fawakhry/TrendOs/blob/1b658d2dbfb6d95841c6a4f25df1507d0d74e676/cloudflare-d1/src/t12-operational-runtime-handler.mjs#L175-L219): مسار Legacy يتحقق أن الهوية ليست Native، ويبحث البند في مرآة D1 ثم `t12_legacy_line_runtime` ويفرض صلاحية القسم؛ يدون الحدث في [`t12-legacy-line-runtime.mjs` 109–142](https://github.com/fawakhry/TrendOs/blob/1b658d2dbfb6d95841c6a4f25df1507d0d74e676/cloudflare-d1/src/t12-legacy-line-runtime.mjs#L109-L142)، ويؤكد الكتابة بإعادة القراءة. [`t12-legacy-line-runtime.mjs` 70–94](https://github.com/fawakhry/TrendOs/blob/1b658d2dbfb6d95841c6a4f25df1507d0d74e676/cloudflare-d1/src/t12-legacy-line-runtime.mjs#L70-L94) يجعل runtime overlay غالبًا عند عرض سطر المرآة القديمة، وليس تحديثًا مباشرًا للشيت.
+- **فجوة حالة الانتقال:** في مسار Native المعروض يوجد تحقق أن status من القائمة، لكن لا تظهر state-transition matrix صريحة تمنع مثالًا `تم التسليم` ← `طلب جديد`؛ السياسة الفعلية والتأثير على الفاتورة أو المهام يحتاجان تدقيق API واعتماد منتج قبل التعديل.
+
+## 15.3 أولوية سلامة تسليم العميل
+- **اختلاف واضح في مصدر الخادم:** [`updateLegacyLine` 197–207](https://github.com/fawakhry/TrendOs/blob/1b658d2dbfb6d95841c6a4f25df1507d0d74e676/cloudflare-d1/src/t12-operational-runtime-handler.mjs#L197-L207) إذا كانت الحالة الجديدة `تم التسليم` ينفذ `legacyDeliveryGate`، وفي حالة منع التسليم بالمديونية يرجع 409 أو يفشل مغلقًا إذا تعذر الفحص. أما [`updateLine` Native 130–172](https://github.com/fawakhry/TrendOs/blob/1b658d2dbfb6d95841c6a4f25df1507d0d74e676/cloudflare-d1/src/t12-operational-runtime-handler.mjs#L130-L172) فلا يظهر فيه نفس فحص `legacyDeliveryGate` قبل تخزين حالة `تم التسليم`.
+- هذا **احتمال عدم تماثل في حماية التسليم** في مصدر مسارين؛ لا نقول إن طلب عميل حقيقي سُلِّم بالخطأ. المطلوب قبل الاعتماد: تعريف سياسة واحدة للمديونية مع EasyStore (رصيد من؟ وقائمة منع التسليم منفصلة؟) ثم اختبار خادم اصطناعي يسمح/يرفض الحالتين Native وLegacy بصورة متساوية.
+- كون `saveLine` يفتح نافذة فاتورة عند بعض الانتقالات لا يعني ربطه بإثبات سداد أو مطابقة الحسابات. **المصدر المالي يظل في حدود EasyStore، ولا تعديل له في هذه المراجعة**.
+
+## 15.4 جدول الإثبات والتستات المطلوبة
+| عنصر | حالة الإثبات | اختبار/دليل مطلوب |
+|---|---|---|
+| UI saveLine → updateLine → runtime endpoint | SOURCE_ONLY | اختبار frontend mock لنجاح/رفض الحفظ وعدم تغيير الواجهة عند الفشل |
+| role/screen authorization | SOURCE_ONLY | اختبارات أدوار `admin/service/print/laser`، identity غير موجودة و`screens=[]` |
+| statuses + readback + event | SOURCE_ONLY | D1 in-memory بمفاتيح وهمية، event واحد لكل تغيير، وحالات ACK الملتبس |
+| تسليم عميل مقيَّد | BLOCKED — تماثل Native/Legacy غير مثبت | مقارنة رفض «تم التسليم» لكل مسار مع قائمة منع التسليم والدين، دون بيانات فعلية |
+| قائمة الانتقالات والفاتورة | BLOCKED | جدول حالات معتمد، واختبارات downgrade/reopen والربط بإيزي ستور |
+| Runtime production | BLOCKED | worker/asset SHA + نتيجة اختبار مصرح به؛ **لم يُنفذ هنا** |
+
+**النتيجة:** writer لحالات الأوردرات موثق داخل مصدر Edge/D1 وبشكل منفصل للـNative والـLegacy، مع فجوة حرجة تستلزم التحقق في بوابة تسليم المديونية. الحالة `SOURCE_ONLY` مع اختبارات `BLOCKED`، ولم نحقق `TESTED` أو `PRODUCTION_VERIFIED`.
