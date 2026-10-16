@@ -294,6 +294,58 @@ try{
    assert.equal(r.candidateCommittedReceiptEvidence,null);
    assert.equal(r.postedCustomerBalance,null);
  });
+
+ // The new migration is not applied here until its separate FK/immutability
+ // test; this fixture shapes the one optional read-only Core evidence query.
+ db.exec("CREATE TABLE t12_order_customer_binding_review_v1(order_id TEXT PRIMARY KEY,customer_id TEXT NOT NULL,review_status TEXT NOT NULL DEFAULT 'UNVERIFIED')");
+ db.prepare("INSERT INTO t12_order_customer_binding_review_v1(order_id,customer_id) VALUES(?,?)")
+   .run('FAKE_ORDER_ID_MATCH','FAKE_CUSTOMER_LINK_MATCH');
+ db.prepare("INSERT INTO t12_order_customer_binding_review_v1(order_id,customer_id) VALUES(?,?)")
+   .run('FAKE_ORDER_REGISTERED','FAKE_CUSTOMER_LINK_TARGET');
+ await test('25 BOOK19 official-ID review candidate matching phone candidate never verifies order identity',async()=>{
+   const n=changes(),r=await send('FAKE_T12_ID_MATCH');
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.orderReviewedCustomerId,'FAKE_CUSTOMER_LINK_MATCH');
+   assert.equal(r.orderCustomerReviewStatus,'REVIEW_CANDIDATE_MATCHES_UNVERIFIED');
+   assert.equal(r.customerBindingStatus,'ORDER_ID_MATCHES_CANDIDATE_UNVERIFIED');
+   assert.equal(r.identityVerified,false);assert.equal(r.deliveryAuthorized,false);
+   assert.equal(r.postingAllowed,false);assert.equal(changes(),n);
+ });
+ await test('26 BOOK19 reviewed order official customer ID conflict forbids unrelated candidate ledger lookup',async()=>{
+   const n=changes(),r=await send('FAKE_T12_REGISTERED');
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.orderCustomerMode,'registered');
+   assert.equal(r.orderReviewedCustomerId,'FAKE_CUSTOMER_LINK_TARGET');
+   assert.equal(r.orderCustomerReviewStatus,'REVIEW_CANDIDATE_CONFLICT');
+   assert.equal(r.status,'ORDER_REVIEW_CANDIDATE_CONFLICT');
+   assert.equal(r.postedCustomerBalance,null);
+   assert.equal(r.receiptEvidenceStatus,'REVIEW_CANDIDATE_CONFLICT_NO_LEDGER_READ');
+   assert.equal(r.identityVerified,false);assert.equal(r.deliveryAuthorized,false);
+   assert.equal(changes(),n);
+ });
+ await test('27 BOOK19 no order review row means no binding, even unique phone and accounting balance',async()=>{
+   const n=changes(),r=await send('FAKE_T12_LINE');
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.orderReviewedCustomerId,'');
+   assert.equal(r.orderCustomerReviewStatus,'NO_ORDER_CANDIDATE_REVIEW');
+   assert.equal(r.identityVerified,false);assert.equal(r.deliveryAuthorized,false);
+   assert.equal(changes(),n);
+ });
+ await test('28 BOOK19 imported order never claims T12 official customer review',async()=>{
+   const r=await send('FAKE_SNAPSHOT_STALE');
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.orderReviewedCustomerId,'');
+   assert.equal(r.orderCustomerReviewStatus,'NOT_APPLICABLE_IMPORTED');
+   assert.equal(r.identityVerified,false);
+ });
+ db.exec("DROP TABLE t12_order_customer_binding_review_v1");
+ await test('29 BOOK19 missing review migration is UNKNOWN, not claimed as verified',async()=>{
+   const n=changes(),r=await send('FAKE_T12_LINE');
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.orderCustomerReviewStatus,'REVIEW_SCHEMA_UNAVAILABLE');
+   assert.equal(r.identityVerified,false);assert.equal(r.deliveryAuthorized,false);
+   assert.equal(changes(),n);
+ });
  console.log('BOOK19_DELIVERY_DEBT_RECONCILIATION=SOURCE_ONLY_FAKE_SQLITE');
  console.log('BOOK19_PRODUCTION_WRITE=NO');
  console.log('FINANCE_RELEASE=NO_GO');

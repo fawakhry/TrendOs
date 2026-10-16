@@ -429,20 +429,44 @@ async function previewDeliveryDebtReconciliationV1(env,user,body){
       (orderExternalCustomerId?'REGISTERED_UNEXPECTED_EXTERNAL_ID_UNVERIFIED':'REGISTERED_ORDER_ID_UNBOUND_BY_CONTRACT'):
     orderCustomerMode==='external'?'EXTERNAL_INPUT_UNATTESTED':'UNKNOWN_ORDER_ID_ORIGIN_UNVERIFIED';
   const candidateId=matches===1?text(candidates[0].customerId):'';
+  // BOOK19 source-only OFFLINE review: this optional FK table records only
+  // an UNVERIFIED candidate ID, never an attested order/account binding.
+  // Missing migration is UNKNOWN; legacy order records remain unbound.
+  let orderReviewedCustomerId='';
+  let orderCustomerReviewStatus=imported?'NOT_APPLICABLE_IMPORTED':'REVIEW_SCHEMA_UNAVAILABLE';
+  if(native){
+    try{
+      const review=await env.DB.prepare(
+        "SELECT customer_id AS customerId FROM t12_order_customer_binding_review_v1 WHERE order_id=? LIMIT 1"
+      ).bind(text(native.orderId)).first();
+      if(review){
+        orderReviewedCustomerId=text(review.customerId);
+        orderCustomerReviewStatus=matches!==1?'REVIEW_CANDIDATE_NO_UNIQUE_PHONE_NAME':
+          orderReviewedCustomerId===candidateId?'REVIEW_CANDIDATE_MATCHES_UNVERIFIED':'REVIEW_CANDIDATE_CONFLICT';
+      }else orderCustomerReviewStatus='NO_ORDER_CANDIDATE_REVIEW';
+    }catch{
+      orderCustomerReviewStatus='REVIEW_SCHEMA_UNAVAILABLE';
+    }
+  }
+  const reviewCandidateConflict=orderCustomerReviewStatus==='REVIEW_CANDIDATE_CONFLICT';
   const customerBindingStatus=!orderExternalCustomerId?'UNBOUND':
     matches!==1?'ORDER_ID_UNVERIFIED_NO_UNIQUE_CANDIDATE':
     orderExternalCustomerId===candidateId?'ORDER_ID_MATCHES_CANDIDATE_UNVERIFIED':
     'ORDER_ID_CONFLICTS_WITH_CANDIDATE';
   let operationalDebt=imported?num(imported.operationalDebt):null;
-  let postedBalance=null,status=customerBindingStatus==='ORDER_ID_CONFLICTS_WITH_CANDIDATE'
-    ?'ORDER_CUSTOMER_ID_CONFLICT':'NO_UNIQUE_CUSTOMER_MATCH';
+  let postedBalance=null,status=reviewCandidateConflict
+    ?'ORDER_REVIEW_CANDIDATE_CONFLICT':
+    customerBindingStatus==='ORDER_ID_CONFLICTS_WITH_CANDIDATE'
+      ?'ORDER_CUSTOMER_ID_CONFLICT':'NO_UNIQUE_CUSTOMER_MATCH';
   let matchedCustomerId='';
   let candidateCommittedReceiptEvidence=null;
-  let receiptEvidenceStatus=customerBindingStatus==='ORDER_ID_CONFLICTS_WITH_CANDIDATE'
-    ?'IDENTITY_CONFLICT_NO_LEDGER_READ':'UNVERIFIED_OR_NONUNIQUE_IDENTITY';
+  let receiptEvidenceStatus=reviewCandidateConflict
+    ?'REVIEW_CANDIDATE_CONFLICT_NO_LEDGER_READ':
+    customerBindingStatus==='ORDER_ID_CONFLICTS_WITH_CANDIDATE'
+      ?'IDENTITY_CONFLICT_NO_LEDGER_READ':'UNVERIFIED_OR_NONUNIQUE_IDENTITY';
   // A present order-linked ID that disagrees with the phone/name candidate
   // is a hard conflict: do not fetch the OTHER person's account balance.
-  if(matches===1&&customerBindingStatus!=='ORDER_ID_CONFLICTS_WITH_CANDIDATE'){
+  if(matches===1&&!reviewCandidateConflict&&customerBindingStatus!=='ORDER_ID_CONFLICTS_WITH_CANDIDATE'){
     matchedCustomerId=candidateId;
     if(!imported)operationalDebt=num(candidates[0].operationalDebt);
     let balance;
@@ -484,6 +508,7 @@ async function previewDeliveryDebtReconciliationV1(env,user,body){
     operationalDebt,postedCustomerBalance:postedBalance,
     customerMatchCount:matches,matchedCustomerId:matchedCustomerId,
     orderExternalCustomerId,orderCustomerMode,orderCustomerIdProvenance,customerBindingStatus,
+    orderReviewedCustomerId,orderCustomerReviewStatus,
     receiptEvidenceStatus,candidateCommittedReceiptEvidence,
     identityMatchBasis:phone?'PHONE_UNVERIFIED':'NAME_UNVERIFIED',
     identityVerified:false,sourceOnly:true,
