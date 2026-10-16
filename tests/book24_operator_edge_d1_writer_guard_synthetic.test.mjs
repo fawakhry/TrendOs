@@ -170,3 +170,18 @@ test('BOOK24: OPTIONS never accesses D1 or Apps Script',async()=>{
   assert.equal(f.calls.select,0);
   assert.equal(state.post,before);
 });
+
+test('BOOK24: two concurrent Edge claims are both rejected when D1 is a writer',async()=>{
+  const f=fixture({mode:'GENERAL'}),before=state.post;
+  const [first,second]=await Promise.all([
+    invoke(f,{op:'claim',key:'FAKE_OPERATOR_WAEL_REQUEST'}),
+    invoke(f,{op:'claim',key:'FAKE_OPERATOR_GABER_REQUEST'})
+  ]);
+  assert.equal(first.status,409);
+  assert.equal(second.status,409);
+  assert.equal(first.body.code,'OPERATOR_TASK_D1_WRITER_CONFLICT');
+  assert.equal(second.body.code,'OPERATOR_TASK_D1_WRITER_CONFLICT');
+  assert.equal(f.calls.select,2);
+  assert.equal(f.calls.mutate,0);
+  assert.equal(state.post,before,'neither concurrent claim reaches Google');
+});
