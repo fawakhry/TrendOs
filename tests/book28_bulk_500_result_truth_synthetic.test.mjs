@@ -31,8 +31,10 @@ function fakeD1({size=501,status='طلب جديد'}={}){
     status,department:'طباعة',sourceKind:'core-import',
     itemName:'FAKE-ITEM',qty:1,notes:'',active:1
   }));
-  const ledger=new Map();
+  const ledger=new Map(),events=[];
   const calls={batches:[],preparedBusiness:0,ledgerCommits:0,auth:0,reads:0};
+  // Controlled fault points emulate atomic SQLite rollback and lost HTTP ACK.
+  const fault={once:'',atBatchIndex:-1};
   const env={EDGE_SESSION_SECRET:SECRET,TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1:'true'};
   env.DB={
     prepare(sql){
@@ -54,6 +56,10 @@ function fakeD1({size=501,status='طلب جديد'}={}){
         },
         async all(){
           calls.reads++;
+          if(fault.once==='before-read'){
+            fault.once='';
+            throw Error('FAKE_READ_INTERRUPTED');
+          }
           if(sql.includes('FROM t12_prod_lines l'))return {results:[]};
           if(sql.includes('FROM employee_core_lines_v1 l'))
             return {results:lines.filter(r=>r.active).map(r=>({...r}))};
@@ -63,6 +69,7 @@ function fakeD1({size=501,status='طلب جديد'}={}){
         async run(){
           if(sql.includes('INSERT INTO employee_core_request_ledger_v1')){
             const [key,action,actor,canonical]=this.args;
+            if(ledger.has(key))throw Error('FAKE_DUPLICATE_REQUEST_KEY');
             ledger.set(key,{canonicalJson:canonical,responseJson:'',status:'PREPARED'});
           }else if(sql.includes("UPDATE employee_core_request_ledger_v1 SET status='COMMITTED'")){
             const [response,key]=this.args;
@@ -79,21 +86,57 @@ function fakeD1({size=501,status='طلب جديد'}={}){
     },
     async batch(stmts){
       calls.batches.push(stmts.length);
-      for(const stmt of stmts){
-        if(stmt.sql.includes('UPDATE employee_core_lines_v1 SET status=')){
-          const line=lines.find(x=>x.lineId===stmt.args[2]);
-          if(!line)throw Error('UNKNOWN_FAKE_LINE');
-          line.status=stmt.args[0];
-        }else if(stmt.sql.includes('UPDATE employee_core_lines_v1 SET active=0')){
-          const line=lines.find(x=>x.lineId===stmt.args[1]);
-          if(!line)throw Error('UNKNOWN_FAKE_ARCHIVE_LINE');
-          line.active=0;
+      const before=lines.map(x=>({...x})),prior=new Map(ledger),eventLen=events.length;
+      const initialCommits=calls.ledgerCommits;
+      const mode=fault.once;fault.once='';
+      let committed=false;
+      try{
+        for(let idx=0;idx<stmts.length;idx++){
+          const stmt=stmts[idx],sql=stmt.sql;
+          if(mode==='mid-batch'&&idx>=1)throw Error('FAKE_D1_TRANSACTION_FAILED');
+          if(sql.includes('INSERT INTO employee_core_request_ledger_v1')){
+            const [key,action,actor,canonical]=stmt.args;
+            if(ledger.has(key))throw Error('FAKE_DUPLICATE_REQUEST_KEY');
+            ledger.set(key,{canonicalJson:canonical,responseJson:'',status:'PREPARED'});
+          }else if(sql.includes('UPDATE employee_core_lines_v1 SET status=')){
+            const line=lines.find(x=>x.lineId===stmt.args[2]);
+            if(!line)throw Error('UNKNOWN_FAKE_LINE');
+            line.status=stmt.args[0];
+          }else if(sql.includes('UPDATE employee_core_lines_v1 SET active=0')){
+            const line=lines.find(x=>x.lineId===stmt.args[1]);
+            if(!line)throw Error('UNKNOWN_FAKE_ARCHIVE_LINE');
+            line.active=0;
+          }else if(sql.includes("UPDATE employee_core_request_ledger_v1 SET status='COMMITTED'")){
+            const [response,key]=stmt.args,old=ledger.get(key);
+            assert.ok(old,'missing fake ledger');
+            ledger.set(key,{...old,status:'COMMITTED',responseJson:response});
+            calls.ledgerCommits++;
+            committed=true;
+          }else if(sql.includes('FROM json_each(?)')&&sql.includes('INTO employee_core_events_v1')){
+            const rows=JSON.parse(stmt.args[5]);
+            for(const row of rows)events.push({kind:'line-status',lineId:row.lineId,orderId:row.orderId});
+          }else if(sql.includes('FROM json_each(?)')&&sql.includes('INTO t12_prod_runtime_events')){
+            const rows=JSON.parse(stmt.args[4]);
+            for(const row of rows)events.push({kind:'native-status',lineId:row.lineId,orderId:row.orderId});
+          }else if(sql.includes("VALUES(?,?,?,?,?)")&&sql.includes('INTO employee_core_events_v1')){
+            events.push({kind:'bulk',actor:stmt.args[3]});
+          }
         }
+        if(mode==='after-commit-ack'&&committed)throw Error('FAKE_NETWORK_ACK_LOST');
+        return stmts.map(()=>({success:true,meta:{changes:1}}));
+      }catch(err){
+        // Model D1 batch transactional rollback on a failed SQL step.
+        // Lost response after successful COMMITTED is explicitly NOT rolled back.
+        if(!(mode==='after-commit-ack'&&committed)){
+          for(let i=0;i<lines.length;i++)Object.assign(lines[i],before[i]);
+          ledger.clear();for(const [k,v] of prior)ledger.set(k,v);
+          events.length=eventLen;calls.ledgerCommits=initialCommits;
+        }
+        throw err;
       }
-      return stmts.map(()=>({success:true}));
     }
   };
-  return {env,lines,calls,ledger};
+  return {env,lines,calls,ledger,events,fault};
 }
 async function run(f,action,requestId){
   const p={username:'fake-admin',action,screen:'print',requestId};
@@ -159,3 +202,55 @@ test('BOOK28: a 500-line exact window never advertises partial completion',async
   assert.equal(a.body.partial,false);
 });
 test('BOOK28: all fake tests abstain from network access',()=>assert.equal(outside,0));
+
+test('BOOK28-CORE-RECOVERY: read failure never strands PREPARED',async()=>{
+  const f=fakeD1({size:2});
+  f.fault.once='before-read';
+  const failed=await run(f,'bulkUpdateDepartmentStatusV1926','FAKE-RECOVERY-READ');
+  assert.equal(failed.status,500);
+  assert.equal(f.ledger.size,0);
+  assert.equal(f.lines.filter(x=>x.status==='طلب جديد').length,2);
+  const ok=await run(f,'bulkUpdateDepartmentStatusV1926','FAKE-RECOVERY-READ');
+  assert.equal(ok.status,200);
+  assert.equal(ok.body.changed,2);
+  assert.equal(f.ledger.get('FAKE-RECOVERY-READ').status,'COMMITTED');
+});
+test('BOOK28-CORE-RECOVERY: atomic D1 failure rolls back lines, events and ledger',async()=>{
+  const f=fakeD1({size:3});
+  f.fault.once='mid-batch';
+  const failed=await run(f,'bulkUpdateDepartmentStatusV1926','FAKE-RECOVERY-BATCH');
+  assert.equal(failed.status,500);
+  assert.equal(f.ledger.size,0,'no permanent PREPARED after failed atomic D1 batch');
+  assert.equal(f.events.length,0);
+  assert.equal(f.lines.filter(x=>x.status==='طلب جديد').length,3);
+  const succeeded=await run(f,'bulkUpdateDepartmentStatusV1926','FAKE-RECOVERY-BATCH');
+  assert.equal(succeeded.status,200);
+  assert.equal(succeeded.body.changed,3);
+  assert.equal(f.lines.filter(x=>x.status==='بدأ التنفيذ').length,3);
+  assert.equal(f.events.filter(x=>x.kind==='line-status').length,3);
+  assert.equal(f.events.filter(x=>x.kind==='bulk').length,1);
+});
+test('BOOK28-CORE-RECOVERY: lost HTTP ACK after commit returns saved result on same requestId',async()=>{
+  const f=fakeD1({size:4});
+  f.fault.once='after-commit-ack';
+  const lost=await run(f,'bulkUpdateDepartmentStatusV1926','FAKE-RECOVERY-ACK');
+  assert.equal(lost.status,500);
+  assert.equal(f.lines.filter(x=>x.status==='بدأ التنفيذ').length,4);
+  assert.equal(f.ledger.get('FAKE-RECOVERY-ACK').status,'COMMITTED');
+  assert.equal(f.events.filter(x=>x.kind==='line-status').length,4);
+  const batchCount=f.calls.batches.length;
+  const replay=await run(f,'bulkUpdateDepartmentStatusV1926','FAKE-RECOVERY-ACK');
+  assert.equal(replay.status,200);
+  assert.equal(replay.body.changed,4);
+  assert.equal(f.calls.batches.length,batchCount,'replay has zero new D1 business writes');
+  assert.equal(f.events.filter(x=>x.kind==='line-status').length,4);
+});
+test('BOOK28-CORE-RECOVERY: 500 selected lines need fewer than 510 statements',async()=>{
+  const f=fakeD1({size:501});
+  const res=await run(f,'bulkUpdateDepartmentStatusV1926','FAKE-RECOVERY-LIMIT');
+  assert.equal(res.status,200);
+  assert.equal(res.body.selectedLines,500);
+  assert.equal(res.body.remainingDueToLimit,1);
+  assert.ok(f.calls.batches[0]<510,'set-wise audit keeps D1 statement count bounded');
+  assert.equal(f.events.filter(x=>x.kind==='line-status').length,500);
+});
