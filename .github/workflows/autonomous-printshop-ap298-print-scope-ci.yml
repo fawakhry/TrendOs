@@ -1,0 +1,45 @@
+name: AP-298 Synthetic Print-Only Scope Gate
+
+on:
+  push:
+    branches:
+      - feature/ap298-print-only-shadow-guard-20261016
+    paths:
+      - autonomous-printshop/print-server/src/trendos_print_scope_gate.py
+      - autonomous-printshop/print-server/tests/test_ap298_print_scope_gate_synthetic.py
+      - autonomous-printshop/print-server/src/trendos_shadow_qualifier.py
+      - autonomous-printshop/print-server/tests/test_ap296_trendos_shadow_schema_synthetic.py
+      - .github/workflows/autonomous-printshop-ap298-print-scope-ci.yml
+  pull_request:
+    paths:
+      - autonomous-printshop/print-server/src/trendos_print_scope_gate.py
+      - autonomous-printshop/print-server/tests/test_ap298_print_scope_gate_synthetic.py
+      - autonomous-printshop/print-server/src/trendos_shadow_qualifier.py
+      - autonomous-printshop/print-server/tests/test_ap296_trendos_shadow_schema_synthetic.py
+      - .github/workflows/autonomous-printshop-ap298-print-scope-ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      REAL_TRENDOS_CONNECTION: "OFF"
+      PRINTING: "OFF"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax and mock-only AP298/AP296 tests
+        working-directory: autonomous-printshop/print-server
+        run: |
+          python -m py_compile src/trendos_print_scope_gate.py tests/test_ap298_print_scope_gate_synthetic.py
+          python -B -m unittest discover -s tests -p 'test_ap298_print_scope_gate_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap296_trendos_shadow_schema_synthetic.py' -v
+          echo "AP298_FAKE_ONLY_TESTED=YES"
+          echo "REAL_TRENDOS_CONNECTION=OFF; SECRETS_USED=NO; CUSTOMER_DATA=NONE; PRINTERS=OFF"
