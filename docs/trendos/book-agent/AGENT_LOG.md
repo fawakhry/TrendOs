@@ -116,3 +116,11 @@
 - WRITE: chapter 19 commit `80fec77db7df90c200a4e47b5a19deadb4b318f6`, blob `4bb757ca7063dda86c03275812d5be4261485fc7`, separate fetch verified.
 - STATUS: `SOURCE_ONLY`; guard parity, task cutover and autonomous execution `BLOCKED`; `TESTED=NO`, `PRODUCTION_VERIFIED=NO`. Docs-only.
 - NEXT: chapter 20 file/attachment interfaces, access control and storage, then evidence queue reconciliation.
+
+
+## 2026-10-16 / FILES-015 — الفصل العشرون
+- READ: `config.js` files/fast-print URLs + allowed employees; `app.js` remote files SSO token in query, customer fast print and attachment rendering, customer draft upload; `cloudflare-d1/src/legacy-browser-transport-v1.mjs`, `employee-comms-native-v1.mjs` R2 upload/serveFile and handler order; Entry614 Comms test source.
+- FINDINGS: employee SSO puts employee token in URL query (privacy/session leakage source risk); client fast-print folder URL source empty and access in JS is not server ACL; customer draft uploads remain Apps Script authority through Cloud transport; order conversation R2.put followed by D1 insert may leave orphan files on failure. HIGH-PRIORITY SOURCE AUTH GAP: `GET /v1/employee/comms/file/{id}` handled via serveFile before session/origin guard in shown source, no visible owner or visibility check. No files requested or customer data exposed in audit. Need test/deploy parity before production impact claim.
+- WRITE: chapter 20 commit `63ca6bfe7b2c7d479206492661de2d42337110f5`, blob `d7d82e54b6e70eda39202526ef489f89478c63cb`, independently fetched and verified.
+- STATUS: `SOURCE_ONLY` / `SOURCE_AUTH_GAP` / `BLOCKED`; `TESTED=NO`, `PRODUCTION_VERIFIED=NO`. Docs only, no R2 access or deployment.
+- NEXT: chapter 21 data flow/observability and test-evidence reconciliation; notify security review owner through established queue only when specifically needed and without exposing file IDs.
