@@ -205,3 +205,12 @@
 **مراجع سابقة بلا تكرار:** الفصل 14 انتهاء Edge Token؛ الفصل 20 رابط خادم الملفات؛ الفصل 27 صلاحية شاشة EasyStore المحلية.
 
 **دليل الإغلاق:** CURRENT_HEAD, TEST_COMMAND, RUN_SHA, RESULT, CI_URL, FIX_COMMIT عند الحاجة، وDEPLOYED_PARITY بعد موافقة مستقلة.
+
+## CH27-UI-SAFETY CI EVIDENCE — 2026-10-16 / PR #143
+
+- **REGRESSION HEAD:** `61431e19f85afc0c5b440ce6a477d8cd4c25951c`, `fix/book27-ui-safety-20261016`, [Draft PR #143](https://github.com/fawakhry/TrendOs/pull/143); [GitHub Actions #38914688601](https://github.com/fawakhry/TrendOs/actions/runs/38914688601) **PASS**, log proves 10/10 actual synthetic tests, old Entry619 SSO and no-auto-refresh contracts PASS. [A61 browser #38914688624](https://github.com/fawakhry/TrendOs/actions/runs/38914688624) PASS on same HEAD. Source-only fake browser/D1/Sheets with **no network, real WhatsApp or financial close**.
+- **BOOK27-REFRESH-OVERLAP:** delayed `loadRows` + repeated click / dirty / editing / saving / modal fake DOM. **PASS** coalesced one refresh while in flight; no reset of saving/editing and suppressed historical onclick.
+- **BOOK27-WA-OPEN-IS-SENT:** fake `window.open` success, blocked, unapproved URL and Code.gs `markAutomationMessageSentV1931_` with fake auth and sheet function that would throw if called. **PASS**: zero `markSent`, zero sheet operations, server returns `PROVIDER_ACK_REQUIRED`. **Unverified** delivery/provider ACK; no provider test possible in this UI-only patch.
+- **BOOK27-DAYCLOSE-UNKNOWN:** fake `null`, exception, malformed, inconsistent, blocked and legitimate ready preview. **PASS**: unknown NOT_READY, valid blocker disables button, only unblocked verified preview shows ready; no financial mutation or real day-close run.
+- **BOOK27-ACCOUNTING-ROLE-HINT:** fake tampered browser storage, untrusted HTTP/HTTPS origin, allowlisted EasyStore URL and SSO token NOT in URL. **PASS UI-only**; role/expired-session enforcement by receiving EasyStore backend and SSO audience/expiry/revoke cross-service NOT VERIFIED. Subsequent tests should emulate expired native session and forged ACK with a verified destination provider contract, plus release staging.
+- **REGRESSION LIMIT:** VM source extraction and synthetic handlers are not full browser E2E; old code used multiple identical function names (`roleMode`) and test extraction was corrected after a red run. `CI_GREEN_SYNTHETIC=true` only, `APP_DEPLOYED_SHA=UNKNOWN`, `BACKEND_EASYSTORE_VERIFIED=false`. No regression run proves real customer or monetary operation.
