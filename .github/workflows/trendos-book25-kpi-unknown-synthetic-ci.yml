@@ -1,0 +1,43 @@
+name: TrendOS Book25 KPI Unknown — Fake-Only CI
+on:
+  push:
+    branches:
+      - fix/book25-kpi-unknown-20261016
+    paths:
+      - 'cloudflare-d1/src/employee-core-native-v1.mjs'
+      - 'manager-center-v1932.js'
+      - 'tests/book25_kpi_unknown_synthetic.test.mjs'
+      - '.github/workflows/trendos-book25-kpi-unknown-synthetic-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/employee-core-native-v1.mjs'
+      - 'manager-center-v1932.js'
+      - 'tests/book25_kpi_unknown_synthetic.test.mjs'
+      - '.github/workflows/trendos-book25-kpi-unknown-synthetic-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fake-manager-kpi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: |
+          node --check cloudflare-d1/src/employee-core-native-v1.mjs
+          node --check manager-center-v1932.js
+      - name: Fake native manager KPI plus UI unknown-state regression
+        run: node --test tests/book25_kpi_unknown_synthetic.test.mjs
+      - name: Inherited P0 auth plus old manager contract
+        run: |
+          node --test tests/book25_26_p0_auth_synthetic.test.mjs
+          node tests/entry646_manager_center_core_direct.test.mjs
+      - name: Scope
+        run: |
+          echo "UNKNOWN_IS_NOT_ZERO=YES"
+          echo "REAL_KPI_SOURCES_VERIFIED=NO"
+          echo "PRODUCTION_MUTATIONS=NO"
