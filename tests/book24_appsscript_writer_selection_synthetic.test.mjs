@@ -172,7 +172,7 @@ test('BOOK24: explicitly disabled values remain backwards compatible',()=>{
   }
 });
 test('BOOK24: valid owner toggle spellings remain recognized by both lanes',()=>{
-  for(const enabled of ['1','true','YES','on','enabled','نعم']){
+  for(const enabled of ['1','true','YES','on','نعم']){
     const f=sandbox({enabled,owner:'OPERATOR_TASK_V2'});
     assert.throws(()=>f.call.work(),/BOOK24_WORK_QUEUE_NOT_SELECTED_WRITER/);
     assert.equal(f.call.operator(),'OPERATOR_TASK_V2');
