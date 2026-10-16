@@ -144,60 +144,6 @@ ORDER_IDS_CHANGED=NO
 BUSINESS_CREATE_TEST_SENT=NO
 ```
 
-### Entry607 — نقطة استئناف بعد انقطاع النت — Current truth / لا تخمين
-- سبب الـEntry: المالك طلب مراجعة ما اكتمل وما بقي بعد انقطاع الاتصال أثناء تنفيذ تحسين Login/Auth.
-- Git branch الحالي عند المراجعة: `candidate/t12-full-cloud-cutover-a56-20260929`.
-- آخر commit قبل نقطة الاستئناف: `e6b2e6bde6777e5a0dc1c152c82120a90a497510` — `docs: close login-fast frontend and record native auth gate`.
-- **ما اكتمل فعلًا قبل الانقطاع:**
-  1. تشخيص Login latency Entry601/602.
-  2. Login-fast frontend optimization Entry603 qualified.
-  3. Login-fast frontend نُشر Production عبر Entry604 ثم أُثبت مستقلًا في Entry605.
-  4. Active UI = `adfb5056-af23-4d7f-8e12-7de6417dfce2` @100%.
-  5. Active UI deployment = `a066abb8-4c33-4050-813b-123df4140450`.
-  6. unauthenticated employee dynamic modules = `0`.
-  7. بعد employee session: critical modules = `2` فورًا، deferred modules = `16` بعد 250ms.
-  8. Duplicate Guard UI + Browser Refresh recovery + Legacy Line Runtime markers محفوظة.
-  9. Entry605 independent postflight run `37043542864` = SUCCESS.
-- **لا تعِد Entry604 publish.** run `37043168584` أنشأ/promote النسخة، وEntry605 أثبتها Live. أي failure داخل Entry604 بعد promote superseded بنتيجة Entry605 الناجحة.
-- **ما لم يُنفذ قبل الانقطاع: Native Employee Auth cutover.**
-  ```ini
-  MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=false
-  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=false
-  AUTH_CONTROL_MODE=OFF
-  AUTH_ENV_ENABLED=NO
-  NATIVE_AUTH_USERS=0
-  NATIVE_READY_USERS=0
-  NATIVE_AUTH_SESSIONS=0
-  LEGACY_BRIDGE_ENABLED=NO
-  LEGACY_BRIDGE_SECRET_CONFIGURED=NO
-  LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
-  ```
-- السبب في التوقف مقصود Fail-closed: Native login لا يمكن تشغيله مع `NATIVE_AUTH_USERS=0`، والـlegacy employee actions تحتاج Compatibility Bridge بعد إصدار Native token.
-- Apps Script Version159 يحتوي كود التحقق من الـbridge لكنه يحتاج Script Properties مشتركة وآمنة:
-  - `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED`
-  - `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1`
-- المستودع لا يحتوي حاليًا على `clasp`/Apps Script API credential path/authorized maintenance endpoint يسمح بضبط الـScript Properties بأمان من CI؛ لذلك لم يتم إنشاء secret مكشوف أو قلب flags بشكل عشوائي.
-- **المتبقي الحقيقي فقط لمسار Login الجذري:**
-  1. توفير/اعتماد طريقة آمنة لضبط Bridge secret + enable property في Apps Script أو نقل legacy employee actions اللازمة إلى Cloud بحيث لا نحتاج bridge.
-  2. ضبط Cloudflare bridge secret + allowed policies بنفس السر.
-  3. تشغيل TRANSITIONAL bootstrap/enrollment بصورة bounded.
-  4. إثبات first-login bootstrap ثم second-login native لمستخدم canary.
-  5. بعد readiness: تفعيل Frontend Native Auth flag ثم read-only postflight.
-  6. إغلاق Apps Script auth fallback بعد نقل الاعتمادات المطلوبة.
-- **الحالة الحالية بعد الانقطاع:**
-  ```ini
-  LOGIN_FAST_FRONTEND_LIVE=YES
-  EMPLOYEE_LOGIN_AUTHORITY=GOOGLE_APPS_SCRIPT
-  EMPLOYEE_NATIVE_AUTH=OFF
-  EMPLOYEE_NATIVE_AUTH_PRODUCTION_CUTOVER_DONE=NO
-  APPS_SCRIPT_VERSION=159
-  APPS_SCRIPT_TOUCHED_BY_LOGIN_FAST=NO
-  PRODUCTION_MUTATION_IN_ENTRY607=NO
-  RESUME_FROM=NATIVE_AUTH_BRIDGE_GATE
-  ```
-- نقطة الاستئناف الإلزامية لأي شات لاحق: **لا تعيد تشخيص Login-fast ولا تعيد Frontend publish؛ ابدأ من Native Auth Bridge Gate في Entry606/607.**
-
-
 ### Entry608 — Native Auth read-only assessment after disconnect
 - الاسم العربي للبحث: **استكمال بطء الدخول / Native Auth بعد انقطاع النت / Bridge Gate / مراجعة فعلية بدون إعادة نشر**.
 - بدأنا من Entry606/607 كما يفرض الكتاب؛ **لم تتم إعادة Entry603/604/605** ولم يحدث rollback أو frontend re-deploy.
@@ -6713,3 +6659,5 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - **مرجع:** `autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md`، SERVER-20261016-63 على [Draft PR #184](https://github.com/fawakhry/TrendOs/pull/184)، commit `f11e4d0b901ab9072aac67254991466de743a34f`. الكتاب القديم ACTIVE_WRITE والموحد FROZEN_MIGRATION_ONLY دون تغيير.
 
 - **MIGRATION UNIT 008 / Entry606 / 2026-10-16:** بوابة Native Auth/Legacy Bridge قبل التفعيل نقلت حرفيًا إلى الملحق التاريخي «م» في الموحد [copy ae76083861a3](https://github.com/fawakhry/TrendOs/commit/ae76083861a3fb3fe8a264fea725e6ba336e2ec5)، `EXACT_VERBATIM_MATCH=PASS (1444/1444)` بمراجعة نص المصدر والأرشيف `b2788ecb4c187717e020321954a1ea449c1aa0d5` blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e` والوجهة بعد Commit النسخ. مصدر النسخ blob `fba70f07e46cc3a200d7b75c1d37241718c0754b`. حذفنا Entry606 فقط من الكتاب القديم، مع الحفاظ على Entry607 وبقية سجل التنفيذ وإضافة SERVER-63 من إيجنت السيرفر concurrent، و`ACTIVE_WRITE`. أسماء Bridge keys ليست قيم أسرار. التصنيف `HISTORICAL` / `NO_PRODUCTION_VERIFICATION`، ولا نشر أو تعديل تشغيل.
+
+- **MIGRATION UNIT 009 / Entry607 / 2026-10-16:** سجل استئناف قديم بعد انقطاع الإنترنت جرى نسخه إلى الملحق «ن» [copy e28842e751bf](https://github.com/fawakhry/TrendOs/commit/e28842e751bfb6f105eb99deee00e049d571da59) بوصفه `HISTORICAL` وليس توجيه استئناف حديثًا. المقارنة المستقلة لمتن المصدر والنسخة الجديدة والأرشيف `b2788ecb4c187717e020321954a1ea449c1aa0d5` أثبتت `EXACT_VERBATIM_MATCH=PASS (3175/3175)`. المصدر عند النقل blob `defb99946c3a78ba463957e7c2df9973ddac52be` والأرشيف blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`. أُزيل قسم Entry607 فقط من الكتاب القديم بعد إثبات المطابقة، مع بقاء Entry608 وباقي Entries وتحديثات SERVER-61/62/63 و`ACTIVE_WRITE`. لا مراجعة نشر Runtime في هذه العملية ولا تغيير تشغيل أو تعديل بيانات.
