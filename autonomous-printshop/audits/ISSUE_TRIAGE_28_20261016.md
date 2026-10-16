@@ -15,7 +15,7 @@ Status: SOURCE_ONLY triage, NOT production authorization. Base commit: ab21183f9
 
 Resolved items are removed from the active backlog after CI evidence. #9 is CLOSED (synthetic/source scope only); see closure evidence below.
 8. Book versus config.js native employee auth setting: SOURCE_ONLY discrepancy; compare deployed config separately.
-10. getRows versus getRowsPageV1931: SOURCE_ONLY; dispatcher routes both as CORE_READ_ACTIONS, while Edge orders route targets paginated getRowsPageV1931. These are distinct read contracts, NOT interchangeable. Review server-side permissions, pagination, staleness, fallback, and least-privilege before closing. No live request authorized.
+10. TrendOS read contract remaining scope: OPEN — server-side permission parity, pagination, staleness, fallback and least-privilege remain unverified. Local shadow qualifier now rejects paginated response markers (synthetic CI PASS). No live request authorized.
 11. Employee least-privilege read scope: BLOCKED pending authorization matrix tests.
 12. Durable Andon/exception state storage: UNKNOWN current runtime; design audit and idempotency checks.
 13. Operator Task activation gates: OFF / NO_GO.
@@ -51,3 +51,7 @@ References: https://github.com/fawakhry/TrendOs/pull/95 ; https://github.com/faw
 
 ## Cross-project intake (2026-10-16)
 - Received 34 TrendOS Book Agent findings, separately numbered TBA-01..TBA-34, in `autonomous-printshop/audits/TRENDOS_BOOK_AGENT_34_ISSUES_INTAKE_20261016.md`. These are **TrendOS-wide** and remain INTAKE_UNVERIFIED; do not conflate with printshop 28 or mark closed without test evidence. Cross-links: permissions #11/#26, reads #10, CI/runtime #24/#25. TrendOS Book Agent/TrendOS development owners should validate and fix TrendOS code in their own approved workflow; this printshop PR is tracking only.
+
+## Issue #10 partial qualification evidence (2026-10-16)
+- Local shadow getRows-vs-paginated payload confusion: FIXED + TESTED_SYNTHETIC at b2ebc62abb938ef992d4b711176d46721a9e6aae. Hosted AP-296 PASS https://github.com/fawakhry/TrendOs/actions/runs/38902968278 ; Printshop Policy V1 PASS https://github.com/fawakhry/TrendOs/actions/runs/38902968347 .
+- Full issue #10 remains OPEN: server-side role authorization, stable pagination, fallback and runtime source-of-truth parity not established. No deployment or live data access.
