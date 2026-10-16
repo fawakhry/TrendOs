@@ -1,0 +1,38 @@
+name: EasyStore Customer Credit Native D1 SQLite Source ONLY (NO_GO)
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  customer-credit-native-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Source checkout without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node.js 22 with in-memory SQLite
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Local D1 Worker customer credit source tests, no remote calls
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test -z "$GOOGLE_APPLICATION_CREDENTIALS"
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --check tests/easystore_acc_customer_advance_credit_sqlite.test.mjs
+          node --test tests/easystore_acc_customer_advance_credit_sqlite.test.mjs
+          echo 'EASYSTORE_CUSTOMER_CREDIT_RUNTIME=DEFAULT_OFF'
+          echo 'EASYSTORE_CREDIT_D1=FAKE_SQLITE_ONLY'
+          echo 'EASYSTORE_CREDIT_OWNER_DECISION=APPROVED'
+          echo 'EASYSTORE_FINANCE_RELEASE=NO_GO'
