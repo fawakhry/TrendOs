@@ -954,6 +954,11 @@ async function archiveAccountingTemplateV1(env,auth,b){
 }
 
 async function saveAccountingWasteV1(env,auth,b){
+  // OWNER POLICY 2026-10-16: legacy waste route posts stock immediately and has
+  // no persisted PENDING -> verified OWNER approval transition. Deny all writes
+  // until a separate, audited owner-approval workflow is implemented and tested.
+  // This guard intentionally precedes validation, command preparation and D1 writes.
+  return {success:false,code:'WASTE_OWNER_APPROVAL_WORKFLOW_REQUIRED',message:'تسجيل الهالك معطل مؤقتًا: يلزم طلب معلّق وموافقة المالك الموثقة قبل خصم المخزون.',stockPosted:false,ledgerPosted:false,financeRelease:'NO_GO'};
   if(!['full','print','laser'].includes(auth.mode))return {success:false,message:'تسجيل هوالك الأقسام متاح لضياء ومسؤول القسم فقط.'};
   const orderId=text(b.orderId),reason=text(b.reason||b.wasteType),amount=num(b.amount||b.damageCost),recovered=num(b.paid||b.damageCovered);
   if(!orderId||!reason)return {success:false,message:'رقم الأوردر وسبب الهالك مطلوبان.'};
