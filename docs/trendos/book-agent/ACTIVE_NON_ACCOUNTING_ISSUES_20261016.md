@@ -36,3 +36,9 @@
 | P2 | `BOOK23-CLEANING-RACE`, `BOOK21-OBSERVABILITY`, `BOOK31-SAFE-START-PROFILE` | Scheduling race, audit without PII, safe isolated start. | Offline source/FakeDB tests. |
 
 **Interpretation:** Queue is a triage/filter view, NOT an exhaustive closure list. Each historical ID must be rechecked against the **latest code and competing PRs** before any patch. A green fake test is `TESTED_SYNTHETIC`, never `PRODUCTION_VERIFIED`. Do not move finance back into this queue unless the owner explicitly asks.
+
+## 2026-10-16 — BOOK24 task authority, D1 mode fail-closed test
+
+- **`BOOK24-D1-OPERATOR-MODE-GUARD` P0 subissue:** [Draft #171](https://github.com/fawakhry/TrendOs/pull/171) on Book Agent branch, synthetic `PATCHED_TESTED_ON_DRAFT`. Completion now enforces OFF/SHADOW/CANARY authorization and claim/completion SQL both recheck D1 control mode at mutation time. Code SHA `dae127d167d54f3cc2c7db1593deae6a770e08ad`, [Book24 fake CI #38938191166](https://github.com/fawakhry/TrendOs/actions/runs/38938191166) **10/10 new cases PASS**, legacy authority/qualification and extracted SQL in-memory SQLite PASS; [printshop policy #38938191197](https://github.com/fawakhry/TrendOs/actions/runs/38938191197) SUCCESS. No real printer/D1/Google.
+- **`BOOK24-TASK-AUTHORITY` parent P0 remains OPEN:** confirmed separate V1 Work Queue Google writer, Edge Operator V2 Apps Script proxy and D1 authority candidate. New guard does not make separate stores share ownership or prove deployed writer exclusivity. Requires single-authority/mode lineage (deployed Worker and Edge flag + Apps Script V1 enablement + D1 control mode) and fake cross-source concurrent claim tests. Never activate two writers, change production modes, merge or deploy without explicit owner authorization.
+- `ZERO_GOOGLE_COMPLETE=NO`; `PRODUCTION_VERIFIED=NO`; changes remain Draft, accounting belongs exclusively EasyStore. Historic queue lines are dated findings and not silently deleted.
