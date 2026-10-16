@@ -21,7 +21,7 @@
 | P1 | `BOOK26-NORMALIZED-FINAL-PROOF` | Metadata guard [Draft #139](https://github.com/fawakhry/TrendOs/pull/139); missing chunk manifest, final replay/order still unproven. | Fake D1 run/chunk manifest completeness and lost-ACK tests. |
 | P1 | `BOOK26-DELTA-CAS` | Preflight not atomic with D1 batch; no transactional CAS verified. | Fake SQLite/D1 race with equal counts and different content. |
 | P1 | `BOOK26-DEPLOY-LINEAGE` | Worker/frontend SHA and published flags cannot be inferred from code. | Read-only artifacts/CI/rollback-version provenance. |
-| P1 | `BOOK28-BULK-500-SCOPE` | Backend silently limits selection to 500 while UI implies all. | Fake 501+ rows and accurate processed/remaining response. |
+| P1 | `BOOK28-BULK-500-SCOPE` | **PATCHED_TESTED_SYNTHETIC_ON_DRAFT** [#159](https://github.com/fawakhry/TrendOs/pull/159), tested SHA `00d5f39967ec4f700a6bdea8a9b8e9d17d96e626`; 501 fake rows → 500 processed, 1 remaining, retry safe; [CI #38925036096](https://github.com/fawakhry/TrendOs/actions/runs/38925036096) **5/5 PASS** plus inherited 13/13 and 11/11. | Staging/admin review and partial-snapshot concurrency still open; no merge/deploy. |
 | P1 | `BOOK28-CORE-RECOVERY` | Request PREPARED to COMMITTED spans separate writes; uncertain retry. | Fake fault-injection and replay without dropped/duplicated operations. |
 | P1 | `BOOK25-WORKQUEUE-MIGRATION`, `BOOK19-TASK-AUTHORITY` | Multiple assignment authorities; operational, NOT financial approvals. | Prove single writer/claim idempotency in fake harness. |
 | P1 | `BOOK21-MIRROR-PAYLOAD`, `BOOK21-02CR-STALE`, `BOOK21-HEARTBEAT` | Content hash parity, stale overlay, observed health semantics. | Mock mirror reconciliation and stale/timeout. |
