@@ -99,3 +99,18 @@
 | BOOK25-AI-APPROVAL | P1 | أي AI verdict أو Knowledge promotion يظل ADVISORY_ONLY قبل Evidence/Owner Approval موثَّق | BLOCKED |
 
 لا تغيير كود تشغيل أو بيانات أثناء التسجيل. `TESTED=NO` إلى أن يُرفق Workflow URL ونتيجة exact HEAD.
+
+## اختبارات الفصل 26 — استيراد البيانات وسلامة النسخ (2026-10-16)
+
+كل البنود مسجلة على أنها SOURCE_ONLY/BLOCKED، ولا توجد اختبارات تشغيل جديدة أو وصول لبيانات إنتاجية في جلسة الكتاب؛ راجع الفصل 26 وISSUE_REGISTER.md.
+
+| ID | P | اختبار إثبات آمن | المعيار | الحالة |
+|---|---|---|---|---|
+| BOOK26-MIRROR-GET-AUTH | P0 | Mock GET /v1/mirror/sheet + /sheets + /stats بحساب anonymous وemployee غير مصرح وadmin diagnostic | يجب رفض الوصول لصفوف الأعمال قبل D1 row read، والسماح فقط بالنطاق المصرح | SOURCE_AUTH_GAP / BLOCKED |
+| BOOK26-NORMALIZED-FINAL-PROOF | P1 | Mock syncFinal=true مع syncRunId فارغ، missing earlier chunk، replay final وsourceRowCounts متعارضة | freshness لا يتقدم بدون source completeness موثقة، ولا writes مزدوجة | SOURCE_INTEGRITY_RISK / BLOCKED |
+| BOOK26-DELTA-CAS | P1 | Interleaved mirror/delta لنفس sheet/baseRowCount مع payload مختلف ثم lost-ACK retry | عدم lost-update أو قبول stale base، وidempotent recovery | SOURCE_CONCURRENCY_RISK / BLOCKED |
+| BOOK26-DEPLOY-LINEAGE | P1 | مراجعة read-only workflow runs/deploy artifact metadata وUI config/source SHA | ربط code hash+worker version+frontend assets+control epoch ونشر exact version | EVIDENCE_MISSING / BLOCKED |
+
+مكرر ولا يُعاد إدخاله: BOOK21-MIRROR-PAYLOAD (row-count vs full row payload hash).
+
+عند اختبار أي ID سجل TEST_COMMAND, EXPECTED, ACTUAL, ENVIRONMENT, TARGET_SHA, RUN_URL, RUN_SHA, FIX_SHA, REGRESSION_PASS, PRODUCTION_PARITY؛ لا تحول File test source إلى TESTED تلقائيًا.
