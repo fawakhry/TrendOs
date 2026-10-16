@@ -161,7 +161,7 @@ function dashboard(rows,screen){
     heatPress:active.filter(r=>r.heatPress==='نعم').length
   };
 }
-async function requestLedger(env,requestKey,action,actor,body){
+async function requestLedger(env,requestKey,action,actor,body,deferInsert=false){
   const keyv=text(requestKey);if(!keyv)return {ok:false,code:'request-id-required'};
   const canonical=JSON.stringify(body||{});
   const old=await env.DB.prepare("SELECT canonical_json AS canonicalJson,response_json AS responseJson,status FROM employee_core_request_ledger_v1 WHERE request_key=?").bind(keyv).first();
@@ -170,8 +170,12 @@ async function requestLedger(env,requestKey,action,actor,body){
     if(text(old.status)==='COMMITTED')return {ok:true,replay:true,response:JSON.parse(old.responseJson||'{}')};
     return {ok:false,code:'request-in-flight'};
   }
-  await env.DB.prepare("INSERT INTO employee_core_request_ledger_v1(request_key,action,actor,canonical_json,status) VALUES(?,?,?,?, 'PREPARED')")
-    .bind(keyv,action,actor,canonical).run();
+  const prepareStatement=env.DB.prepare("INSERT INTO employee_core_request_ledger_v1(request_key,action,actor,canonical_json,status) VALUES(?,?,?,?, 'PREPARED')")
+    .bind(keyv,action,actor,canonical);
+  // Bulk-only atomic path: delay PREPARED until the same D1 transaction as
+  // mutations and COMMITTED. Unique request_key remains the concurrent lock.
+  if(deferInsert)return {ok:true,replay:false,prepareStatement};
+  await prepareStatement.run();
   return {ok:true,replay:false};
 }
 async function commitLedger(env,requestKey,response){
@@ -228,7 +232,7 @@ async function bulkStatus(env,user,body){
   const screen=text(body.screen),fromStatus=text(body.fromStatus),toStatus=text(body.toStatus),requestId=text(body.requestId);
   if(!screenAllowed(user,screen))return {success:false,message:'ليس لديك صلاحية تغيير حالات هذا القسم جماعيًا.'};
   if(!STATUSES.has(fromStatus)||!STATUSES.has(toStatus)||fromStatus===toStatus)return {success:false,message:'الحالة الحالية أو الجديدة غير مسموح بها.'};
-  const led=await requestLedger(env,requestId,'bulkUpdateDepartmentStatusV1926',user.username,{screen,fromStatus,toStatus});
+  const led=await requestLedger(env,requestId,'bulkUpdateDepartmentStatusV1926',user.username,{screen,fromStatus,toStatus},true);
   if(!led.ok)return {success:false,code:led.code};if(led.replay)return led.response;
   const all=await coreRows(env,screen),window=coreBulkWindowV28(all.filter(r=>text(r.status)===fromStatus)),candidates=window.items;
   const changed=[],skippedDebt={};
@@ -236,27 +240,42 @@ async function bulkStatus(env,user,body){
     if(toStatus==='تم التسليم'&&row.deliveryDebtRestricted){skippedDebt[row.customer||row.lineId]=true;continue;}
     changed.push(row);
   }
-  if(changed.length){
-    const statements=[];
-    for(const row of changed){
-      if(row.sourceKind==='core-import'){
-        statements.push(env.DB.prepare("UPDATE employee_core_lines_v1 SET status=?,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE line_id=? AND active=1")
-          .bind(toStatus,user.username,row.lineId));
-        statements.push(env.DB.prepare("INSERT INTO employee_core_events_v1(action,entity_type,entity_id,actor,payload_json) VALUES('line-status','line',?,?,?)")
-          .bind(row.lineId,user.username,JSON.stringify({orderId:row.orderId,oldStatus:fromStatus,newStatus:toStatus,screen,requestId})));
-      }else{
-        statements.push(env.DB.prepare(`
-          INSERT INTO t12_prod_line_runtime(line_id,order_id,status,notes,updated_by,version,updated_at)
-          VALUES(?,?,?,?,?,1,CURRENT_TIMESTAMP)
-          ON CONFLICT(line_id) DO UPDATE SET status=excluded.status,updated_by=excluded.updated_by,version=t12_prod_line_runtime.version+1,updated_at=CURRENT_TIMESTAMP
-        `).bind(row.lineId,row.orderId,toStatus,row.notes||'',user.username));
-        statements.push(env.DB.prepare("INSERT INTO t12_prod_runtime_events(order_id,line_id,event_type,old_status,new_status,actor,payload_json) VALUES(?,?,?,?,?,?,?)")
-          .bind(row.orderId,row.lineId,'bulk-status',fromStatus,toStatus,user.username,JSON.stringify({screen,requestId})));
-      }
+  // BOOK28-CORE-RECOVERY (bulk phase): D1 batch is transactional. PREPARED,
+  // line updates, audit events, dataVersion and COMMITTED must succeed/fail
+  // together. A crash before the batch leaves no stranded ledger; a crash
+  // after commit allows replay of the saved response with zero new writes.
+  const statements=[led.prepareStatement],importEvents=[],nativeEvents=[];
+  for(const row of changed){
+    if(row.sourceKind==='core-import'){
+      statements.push(env.DB.prepare("UPDATE employee_core_lines_v1 SET status=?,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE line_id=? AND active=1")
+        .bind(toStatus,user.username,row.lineId));
+      importEvents.push({lineId:row.lineId,orderId:row.orderId});
+    }else{
+      statements.push(env.DB.prepare(`
+        INSERT INTO t12_prod_line_runtime(line_id,order_id,status,notes,updated_by,version,updated_at)
+        VALUES(?,?,?,?,?,1,CURRENT_TIMESTAMP)
+        ON CONFLICT(line_id) DO UPDATE SET status=excluded.status,updated_by=excluded.updated_by,version=t12_prod_line_runtime.version+1,updated_at=CURRENT_TIMESTAMP
+      `).bind(row.lineId,row.orderId,toStatus,row.notes||'',user.username));
+      nativeEvents.push({lineId:row.lineId,orderId:row.orderId});
     }
-    await env.DB.batch(statements);
-    await env.DB.prepare("UPDATE employee_core_control_v1 SET data_version=data_version+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1").run();
-    await event(env,'bulkUpdateDepartmentStatusV1926','screen',screen,user.username,{fromStatus,toStatus,changed:changed.length,requestId});
+  }
+  // Set-wise audit insertion preserves one event per line while avoiding the
+  // previous 500*2 statements (a Cloudflare D1 per-invocation query hazard).
+  if(importEvents.length)statements.push(env.DB.prepare(`
+    INSERT INTO employee_core_events_v1(action,entity_type,entity_id,actor,payload_json)
+    SELECT 'line-status','line',json_extract(value,'$.lineId'),?,
+           json_object('orderId',json_extract(value,'$.orderId'),'oldStatus',?,'newStatus',?,'screen',?,'requestId',?)
+    FROM json_each(?)
+  `).bind(user.username,fromStatus,toStatus,screen,requestId,JSON.stringify(importEvents)));
+  if(nativeEvents.length)statements.push(env.DB.prepare(`
+    INSERT INTO t12_prod_runtime_events(order_id,line_id,event_type,old_status,new_status,actor,payload_json)
+    SELECT json_extract(value,'$.orderId'),json_extract(value,'$.lineId'),'bulk-status',?,?,?,?
+    FROM json_each(?)
+  `).bind(fromStatus,toStatus,user.username,JSON.stringify({screen,requestId}),JSON.stringify(nativeEvents)));
+  if(changed.length){
+    statements.push(env.DB.prepare("UPDATE employee_core_control_v1 SET data_version=data_version+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1"));
+    statements.push(env.DB.prepare("INSERT INTO employee_core_events_v1(action,entity_type,entity_id,actor,payload_json) VALUES(?,?,?,?,?)")
+      .bind('bulkUpdateDepartmentStatusV1926','screen',screen,user.username,JSON.stringify({fromStatus,toStatus,changed:changed.length,requestId})));
   }
   const response={success:true,changed:changed.length,affectedOrders:new Set(changed.map(r=>r.orderId)).size,skippedDebt:Object.keys(skippedDebt).length,skippedFinance:0,financeReasons:{},
     matchedLines:window.totalMatched,selectedLines:window.selectedLines,remainingDueToLimit:window.remainingDueToLimit,
@@ -265,7 +284,10 @@ async function bulkStatus(env,user,body){
       ?'تم تعديل '+changed.length+' من '+window.totalMatched+' بند مطابق. تبقى '+window.remainingDueToLimit+' بند خارج حد 500 بند لكل طلب. راجع النتائج وأعد المحاولة بطلب جديد للباقي.'
       :'تم تعديل '+changed.length+' بند من '+window.totalMatched+' بند مطابق في هذا الطلب.',
     screen,fromStatus,toStatus,requestId,version:'ENTRY614_D1_EMPLOYEE_CORE_V1'};
-  await commitLedger(env,requestId,response);return response;
+  statements.push(env.DB.prepare("UPDATE employee_core_request_ledger_v1 SET status='COMMITTED',response_json=? WHERE request_key=?")
+    .bind(JSON.stringify(response),requestId));
+  await env.DB.batch(statements);
+  return response;
 }
 async function archiveDelivered(env,user,body){
   const screen=text(body.screen),requestId=text(body.requestId);
