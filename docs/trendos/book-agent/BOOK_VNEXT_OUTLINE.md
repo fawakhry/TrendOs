@@ -16,7 +16,7 @@
 - إزالة تاريخ الـGit أو أرشيف المصدر أو حذف كود/Workflow منشور أثناء عمل التوثيق. المستخدم طلب تنقية **الكتاب الجديد** وليس تغييرات إنتاج غير قابلة للاسترجاع.
 
 ## المخرجات
-1. `TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md`: **الكتاب نفسه** من الغلاف، يضاف إليه كل قسم بعد مراجعته؛ لا يُسوّق كمكتمل.
+1. `TRENDOS_CURRENT_SYSTEM_CATALOG.md`: **الكتاب الرسمي للتوثيق الحالي**؛ يستقبل الفصول الجديدة بعد إثباتها، ولا يُسوّق كمكتمل. المسودة القديمة محفوظة كمرجع تاريخي.
 2. `CURRENT_TREE_BASELINE.md`: كل file path + blob SHA من recursive tree غير مقطوعة، تصنيف أولي يحتاج مراجعة محتوى وحالة runtime.
 3. `CURRENT_UI_ELEMENT_INDEX.md`: كل HTML static ID والحقل والزر؛ ثم تضاف UI dynamic events/routes من JS.
 4. `CURRENT_TEST_EVIDENCE_LEDGER.md` (عند إنشائه): لكل اختبار مع `expected/actual/fail/pass/run_head_sha/deployment_context`، ومحاولات الفشل بما فيها CI setup issues، وشروط اعتماد exact-current-head.
@@ -51,3 +51,7 @@
 - هل لم يُمس الكود التشغيلي أو الملفات الأصلية والأرشيف خلال التوثيق؟
 
 **الحالة اليوم:** تم تثبيت frozen inventory يشمل 1995 ملفًا/75 مجلدًا، واستخرج 479 static HTML ID، وأنشئ غلاف ومسودة الكتاب. هذا لا يمثل فحص المحتوى الكامل أو runtime parity؛ تلك الأعمال `OPEN`.
+
+## 2026-10-16 — Canonical file routing
+
+**تعديل اعتماد المالك:** [`TRENDOS_CURRENT_SYSTEM_CATALOG.md`](TRENDOS_CURRENT_SYSTEM_CATALOG.md) هو الكتاب الحالي الرسمي **للتوثيق**، والنسخة `TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md` تبقى محفوظة (legacy editorial snapshot) ولا تُحدّث بالتوازي. فصول 1–31 نُقلت مع أحكامها، والكتابة التالية تبدأ بالفصل 32 في الملف الرسمي. لا يُعتبر `CANONICAL_DOCUMENTATION` مساويًا لـ`FULLY_VERIFIED` أو `PRODUCTION_VERIFIED`. [عقد القراءة للكل](CATALOG_AUTHORITY_MANIFEST_V1.json). خطة الإغلاق القديمة تظل سارية: تغطية الملفات والأزرار والقراء/الكُتاب، اختبارات exact SHA، أخطاء مصالَحة، deployed parity، وروابط سليمة وموافقة المالك.
