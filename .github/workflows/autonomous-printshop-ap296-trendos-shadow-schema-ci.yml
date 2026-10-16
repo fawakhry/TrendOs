@@ -8,12 +8,26 @@ on:
       - 'autonomous-printshop/print-server/src/trendos_shadow_qualifier.py'
       - 'autonomous-printshop/print-server/trendos_shadow_schema_demo.py'
       - 'autonomous-printshop/print-server/tests/test_ap296_trendos_shadow_schema_synthetic.py'
+      - 'autonomous-printshop/print-server/tests/test_shadow_strict_success.py'
+      - 'autonomous-printshop/print-server/tests/test_issue10_read_contract_source_guards.py'
+      - 'autonomous-printshop/print-server/tests/test_issue8_native_auth_config_source.py'
+      - 'autonomous-printshop/print-server/tests/edge_orders_page_contract_synthetic.test.mjs'
+      - 'cloudflare-d1/src/edge-orders-read-v1.mjs'
+      - 'employee-api-dispatcher-v1.js'
+      - 'config.js'
       - '.github/workflows/autonomous-printshop-ap296-trendos-shadow-schema-ci.yml'
   pull_request:
     paths:
       - 'autonomous-printshop/print-server/src/trendos_shadow_qualifier.py'
       - 'autonomous-printshop/print-server/trendos_shadow_schema_demo.py'
       - 'autonomous-printshop/print-server/tests/test_ap296_trendos_shadow_schema_synthetic.py'
+      - 'autonomous-printshop/print-server/tests/test_shadow_strict_success.py'
+      - 'autonomous-printshop/print-server/tests/test_issue10_read_contract_source_guards.py'
+      - 'autonomous-printshop/print-server/tests/test_issue8_native_auth_config_source.py'
+      - 'autonomous-printshop/print-server/tests/edge_orders_page_contract_synthetic.test.mjs'
+      - 'cloudflare-d1/src/edge-orders-read-v1.mjs'
+      - 'employee-api-dispatcher-v1.js'
+      - 'config.js'
       - '.github/workflows/autonomous-printshop-ap296-trendos-shadow-schema-ci.yml'
   workflow_dispatch:
 
@@ -32,10 +46,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Fake-only schema, no secrets or platform traffic
         run: |
           python -B trendos_shadow_schema_demo.py
           python -B -m unittest discover -s tests -p 'test_ap296_trendos_shadow_schema_synthetic.py' -v
+          # Issue #8 and #10 source/synthetic guards must ACTUALLY execute in CI.
+          python -B -m unittest discover -s tests -p 'test_shadow_strict_success.py' -v
+          python -B -m unittest discover -s tests -p 'test_issue10_read_contract_source_guards.py' -v
+          python -B -m unittest discover -s tests -p 'test_issue8_native_auth_config_source.py' -v
+          node --test tests/edge_orders_page_contract_synthetic.test.mjs
           python -B -m unittest discover -s tests -p 'test_ap281_home_employee_demo_synthetic.py' -v
           python -B -m unittest discover -s tests -p 'test_ap280_employee_assist_synthetic.py' -v
           python -B -m unittest discover -s tests -p 'test_ap279_bridge_shadow_synthetic.py' -v
