@@ -601,3 +601,46 @@
 | TESTED / PRODUCTION_VERIFIED | **NO / NO** | [`tests/entry650_employee_core_order_page_read.test.mjs` 1–35](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/tests/entry650_employee_core_order_page_read.test.mjs#L1-L35) و[`tests/operator_task_edge_v2.test.mjs` 1–35](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/tests/operator_task_edge_v2.test.mjs#L1-L35) مع نتائج CI exact SHA |
 
 **حالة الفصل:** مصدر فقط؛ اختبارات منع التسليم وجاهزية Task execution والمطبعة الذاتية `BLOCKED`. **لم يُعطِ الإيجنت أي أمر للموظفين أو الماكينات، ولم يعدّل كود النظام أو يدمج PR.**
+
+
+---
+
+# 20. ملفات المطبعة والمرفقات وبروفات الأوردرات: الوصول والتخزين (16 أكتوبر 2026)
+
+**الوظيفة:** فتح خادم ملفات المطبعة للموظف، مساحة رفع العميل للملفات الجاهزة، مرفقات مسودات العميل، وملفات محادثة الأوردر (R2). **حالة الإثبات: `SOURCE_ONLY`، مع فجوات أمن وصول `BLOCKED`**. لم تُفتح أي روابط ملفات فعلية، ولم نقرأ ملفات عميل، ولم نرفع أو نحذف ملفات.
+
+## 20.1 رابط ملفات الموظف وSSO
+- [`config.js` 43–52](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/config.js#L43-L52): `MATBAGY_FILE_SERVER_URL` يشير إلى `files.matbagy.com` في إعدادات المصدر، وقائمة أسماء موظفين مسموحة بالواجهة.
+- [`app.js` 1380–1405](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/app.js#L1380-L1405): `openRemoteFileServer` يفحص `employeeCanOpenRemoteFiles()` محليًا ووجود token، ثم يفتح `/trendos-sso` مع `username` و`token` داخل **Query String**.
+- **فجوة أمنية موثقة في المصدر:** نقل token جلسة الموظف في URL قد يعرّضه إلى سجل المتصفح، سجلات الويب أو تسربات `Referer` بحسب سياسة الطرف المقابل. **لا يعني ثبوت تسريب بالفعل**؛ لكنه يحتاج مراجعة دقيقة للخادم المستقبل وإلغاء الاعتماد على session token مباشر داخل عنوان URL لصالح تذكرة قصيرة العمر ومرة واحدة عبر قناة محمية.
+- إخفاء زر الملفات أو مطابقة الاسم في JS **ليس ACL للخادم**. يلزم فحص `/trendos-sso` الفعلي وموفر الملفات بصورة مستقلة على بيئة معزولة.
+
+## 20.2 ملف «طباعة على الطاير» للعميل
+- [`app.js` 1408–1445](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/app.js#L1408-L1445): `customerCanUseFastPrintFolder` يحسب الإتاحة من قيم في `state.customer` أو `MATBAGY_FAST_PRINT_ALLOWED_CUSTOMERS` الموجودة بالمتصفح؛ `openCustomerFastPrintFiles` يفتح رابط رفع خارجي إذا كان مضبوطًا.
+- [`config.js` 62–68](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/config.js#L62-L68): `MATBAGY_FAST_PRINT_UPLOAD_URL='' ` والقائمة الافتراضية فارغة في مصدر هذه النسخة. **بالتالي مش مثبت وجود مسار رفع ملفات جاهز من زر العميل على النسخة المطابقة للمصدر**. لا نخلط ذلك مع `flyPrint` علم الأوردر نفسه (الفصل 12).
+- **فجوة الصلاحية:** الـclient flag يقرر عرض/فتح الزر فقط، ولا يثبت أن السيرفر الخارجي يطبق صلاحية العميل على المجلد أو نوع الملفات.
+
+## 20.3 مرفقات مسودة العميل (Legacy Authority)
+- [`app.js` 3902–3933](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/app.js#L3902-L3933): `uploadFilesForDraftItem` يرفض محليًا ملفات أكبر من 25MB، يحول البايتات إلى Base64 ثم يبعث `uploadCustomerDraftFile` مع `draftId/itemId/fileName/mimeType/size`.
+- [`cloudflare-d1/src/legacy-browser-transport-v1.mjs` 8–35](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/cloudflare-d1/src/legacy-browser-transport-v1.mjs#L8-L35) و[`cloudflare-d1/src/legacy-browser-transport-v1.mjs` 85–106](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/cloudflare-d1/src/legacy-browser-transport-v1.mjs#L85-L106) يظهران أن مسار الرفع تابع لعائلة حساب العميل Legacy التي ينقلها Cloud إلى Apps Script، **مش رفع R2 Native للعميل**. تحقق خادم الرفع الأصلي (هوية العميل وOwnership والحجم والنوع وmime sniffing) غير مثبت في هذه الجولة.
+- [`app.js` 3740–3825](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/app.js#L3740-L3825): معاينة صور/مستندات بواسطة روابط `attachmentUrl` وعناصر `href/src`، مع `escapeHtml` في المواضع المرصودة؛ لا يثبت هذا وحده صحة URL scheme أو private-read ACL. يلزم اختبار روابط آمنة بدون كشف ملفات عميل آخر.
+
+## 20.4 ملفات محادثات الأوردر للموظف — Cloudflare R2
+- [`cloudflare-d1/src/employee-comms-native-v1.mjs` 188–207](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/cloudflare-d1/src/employee-comms-native-v1.mjs#L188-L207): `orderConversation` يقرأ محادثة أوردر وبيانات ملفات `employee_order_conversation_files_v1`، مع `visible_to_customer` علامة مرئية؛ هذه ليست بالضرورة آلية تفويض لكل قراءة ملف.
+- [`cloudflare-d1/src/employee-comms-native-v1.mjs` 207–230](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/cloudflare-d1/src/employee-comms-native-v1.mjs#L207-L230): `uploadOrderFile` يفك Base64، يفرض حجم ≤25MB في المصدر، ويكتب على R2 `FILES` ثم يسجل الملف/بصمة SHA256/metadata ورابطه في D1. **فجوة اتساق:** D1 insert يأتي بعد `R2.put`، دون معاملة ذرية مشتركة؛ فشل تسجيل D1 يترك احتمال R2 object يتيم يحتاج cleanup/reconciliation.
+- **ملاحظة أمنية مهمة للغاية (SOURCE_ONLY):** [`cloudflare-d1/src/employee-comms-native-v1.mjs` 226–232](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/cloudflare-d1/src/employee-comms-native-v1.mjs#L226-L232) `serveFile` يقرأ R2 بالـfileId ويرجع bytes، و[`cloudflare-d1/src/employee-comms-native-v1.mjs` 305–315](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/cloudflare-d1/src/employee-comms-native-v1.mjs#L305-L315) يستدعيه لمسار `GET /v1/employee/comms/file/{id}` **قبل** فحص الـOrigin أو session على طلبات `/v1/employee/comms`. لا يظهر فحص `visible_to_customer` أو owner/session في `serveFile` المرصود. **ده مؤشر تصميم خطر يستوجب اختبار وصول غير مصرح في بيئة test وقياس حالة النشر**، وليس إثبات حصول تسريب بيانات فعلية.
+- رابط الملف قد يُبنى من `FILES_PUBLIC_BASE_URL` إن كان مضبوطًا؛ فلازم فحص ما إذا كانت R2 objects مكشوفة عبر أصل عام خارج handler أيضًا قبل اعتماد الحماية.
+- [`cloudflare-d1/src/employee-comms-native-v1.mjs` 319–326](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/cloudflare-d1/src/employee-comms-native-v1.mjs#L319-L326) يقيّد **POST** حسب `OFF/READONLY/GENERAL`، لكن ترتيب `GET file` السابق يلزم فحص سياسة الملفات على حدة؛ لا يجوز افتراض إن وضع `READONLY` يمنع قراءة مرفقات العميل.
+
+## 20.5 الأدلة والفجوات المطلوبة للإغلاق
+| المسار | الحالة | اختبار القبول |
+|---|---|---|
+| Employee File SSO URL | SOURCE_SECURITY_RISK | تحقق عدم تسرب token في URL/log/history/referrer واستبداله بتذكرة قصيرة العمر |
+| Fast Print external folder | BLOCKED | إثبات رابط منشور وخادم يفرض صلاحية مستقلة عن browser flag |
+| Customer Draft upload | SOURCE_ONLY | اختبارات MIME/size/path/owner في Authority الأصلي مع حسابين وهميين |
+| R2 upload → D1 insert | SOURCE_ATOMICITY_RISK | fault injection بعد R2.put والتأكد من cleanup وعدم ملفات يتيمة |
+| GET /employee/comms/file | **SOURCE_AUTH_GAP — CRITICAL REVIEW** | اختبار 401/403 لـanonymous/other user/no-visible file على بيئة معزولة وتثبيت deny-before-read |
+| Version/deploy parity | BLOCKED | ربط الملف المرصود بالـWorker والـR2/public URL الفعليين |
+| TESTED/PRODUCTION_VERIFIED | **NO/NO** | مراجعة [`tests/entry614_employee_comms_native.test.mjs` 1–40](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/tests/entry614_employee_comms_native.test.mjs#L1-L40) واختبارات ملفات جديدة على same SHA |
+
+**الحكم:** الكتاب يسجل **مخاطر مصدرية تحتاج فحصًا سريعًا** دون لمس أي ملفات عملاء أو إصدار طلبات GET/PUT إنتاجية. إصلاحها يقع على إيجنت التطوير الأمني، بينما إيجنت الكتاب يوثق ويراقب دليل الإغلاق فقط.
