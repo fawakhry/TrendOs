@@ -38,16 +38,16 @@
     "entry_number_count": 66,
     "entry_heading_count": 58,
     "mention_only_count": 8,
-    "explicitly_mentioned_in_current_catalog": 12,
-    "unmentioned_by_exact_entry_label_in_current_catalog": 54,
+    "explicitly_mentioned_in_current_catalog": 13,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 53,
     "reconciled_entry_count": 0,
     "unreconciled_entry_count": 66,
     "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation.",
-    "historical_entry_heading_sections_migrated_exact_count": 8,
+    "historical_entry_heading_sections_migrated_exact_count": 9,
     "initial_entry_heading_count": 58,
     "original_snapshot_reconciled_count": 0,
-    "migration_progress_note": "11 exact verified migration units total: 8 historical Entry-heading blocks (Entry597,598,601 through 609) plus 3 other historical blocks. Entry608 copied in 3 separate original-text chunks, reassembled and exact-match verified before deleting original. Full references and current deployed behavior remain OPEN.",
-    "total_migration_units_exact_verified": 11,
+    "migration_progress_note": "12 verified exact historical transfers, including Entry608 split into 3 verified chunks and Entry610 26-to-27 historical policy correction. All 66 original Entry IDs still OPEN for complete cross-references/current-runtime audit; historical SOURCE/CI claims are not current live proof.",
+    "total_migration_units_exact_verified": 12,
     "non_entry_historical_migration_units_exact_verified": 3
   },
   "book_policy": {
@@ -1462,12 +1462,34 @@
       "source_first_line": 604,
       "source_heading_line": 604,
       "mention_count_in_master": 8,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_NATIVE_AUTH_REPO_ONLY_QUALIFICATION",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "012",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          610
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "2594e6a3d14e20cf2170de4bb4bf87cc2a42ebb2",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ف",
+        "copy_commit": "d90b0de7f3639d4c90caa9cb2eb642d222a56024",
+        "remove_commit": "bb411482de4da569ceadeefb57e5b513047b3367",
+        "text_characters": 7011,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Snapshot Entry609 26 read-only pilot policies superseded by historical Entry610 27; current production not reverified."
+      }
     },
     {
       "entry_id": 611,
@@ -2053,12 +2075,12 @@
   ],
   "latest_review": {
     "date": "2026-10-16",
-    "head_before_crosswalk_commit": "e5d359cfa69f5b77b4b4eea0b2d6b09463616271",
-    "active_master_blob_sha": "ec88bc809a6de7026db46ddf848f31609c7467ae",
-    "new_catalog_blob_sha": "cecb061f537a3775139f07127e1a5ec6480df702",
+    "head_before_crosswalk_commit": "bb411482de4da569ceadeefb57e5b513047b3367",
+    "active_master_blob_sha": "a0dc31b19f142774baba51c94025ed4e4b4b88fe",
+    "new_catalog_blob_sha": "80df95bcb21e4dde8439a85c53b6c8b16b4a7084",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "11 exact units; active writer remains old master and unified book frozen except migration. Headings/line-number snapshot historical. All 66 Entry IDs remain unresolved for complete references and runtime parity."
+    "notes": "12 exact section migrations; active old and frozen new preserved; concurrent SERVER-64 remains in old master; 66 entries unreconciled."
   },
   "non_entry_section_migrations": [
     {
