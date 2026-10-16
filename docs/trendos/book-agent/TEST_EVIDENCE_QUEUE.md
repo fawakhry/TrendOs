@@ -288,3 +288,16 @@ Do not replace these with CI/build green labels. Actual application `TESTED_RUNT
 - Positive: public sections, marketplace vendor/product and ads images GET without employee login. Negative: private Knowledge/Notes/branch/service; hidden/inactive owners, HTML/SVG, key/path/ID spoofing and absent file all deny **before R2 GET**. Raw public base blocks **new** Content uploads before PUT.
 - Initial [#38926108546](https://github.com/fawakhry/TrendOs/actions/runs/38926108546) 10/11 due fake auth session audit counted as Content writes; [#38926248566](https://github.com/fawakhry/TrendOs/actions/runs/38926248566) 11/11 but inherited Entry629 stale bridge preflight/count and OFF versus READONLY config fixture. Adjusted test instrumentation/fixture only, no runtime flags.
 - Still BLOCKED: old raw public R2 URLs and bucket/custom domain metadata, deployed Worker/source SHA, image consumer browser staging. `PRODUCTION_VERIFIED=NO`; `DEPLOY=NO`; `MERGE=NO`.
+
+## CATALOG-32 — File lifecycle, R2 ACL and local print bridge (2026-10-16)
+
+This is a source-evidence queue for canonical [Chapter 32](TRENDOS_CURRENT_SYSTEM_CATALOG.md) — **not** execution evidence. All checks below are `NOT_RUN_THIS_PASS` and `PRODUCTION_VERIFIED=NO`.
+
+| Gate | Existing issue / code | Exact safe test | State |
+|---|---|---|---|
+| B32-COMMS-FILE-OWNER-ACL | `BOOK20-R2-FILE-AUTH`, `employee-comms-native-v1.mjs` blob `f415d06ccd15ba241d679c61b7afeb6ec904e4b8` | Fake D1/R2 GET for anonymous, disallowed employee, wrong order, `visible_to_customer=false`, authorized owner; assert deny before R2 get. Avoid real customer assets and URLs. | SOURCE_GET_BEFORE_AUTH / NOT_RUN / DEPLOYED_UNKNOWN |
+| B32-CONTENT-PUBLIC-SCOPE | `BOOK22-CONTENT-R2-ACL`, `employee-content-native-v1.mjs` blob `fab5eeeca0ecc9312380054b32f01a44639f4664` | Public-only explicit collection/active-owner, private/missing/inactive 403 or 404 before R2 GET; Draft PR #161 (OPEN DRAFT at `b4fafcf15baffa4ae998736d0ce07456d142fee1`) separately source/test-reviewed; deployed commit parity must be checked. | NOT_RUN_THIS_PASS / DRAFT_NOT_MERGED / PRODUCTION_UNKNOWN |
+| B32-LOCAL-PREVIEW-PATH | `autonomous-printshop/print-server/src/server.py` `e92e6851ad147f5ae2bea9659b032c125e1fe70d`; `config.py` `46a526338db882a6e9cdb18ad07850d1728b5d65` | Local synthetic outside-root traversal, symlinks, loopback vs nonloopback startup and unauthorized POST into preview/settings/approval endpoints. Never expose internet port to test. | SOURCE_DEFAULT_LOOPBACK / NOT_RUN / HOST_UNKNOWN |
+| B32-FILE-LIFECYCLE | Both Workers and local `platform_bridge.py` blob `7321393be0299863483eb7479dc28b1917039036` | Synthetic file upload/display/revoke and staged bridge status→folder workflow; checksum/approval/retry vs duplicated/cross-order access. | SOURCE_ONLY / NOT_RUN / NO_PROD_CREDENTIALS |
+
+**Issue dedup:** reuse `BOOK20-R2-FILE-AUTH` and `BOOK22-CONTENT-R2-ACL`, do not create new production incidents from historical inspected blobs. Refer to [chapter 32](TRENDOS_CURRENT_SYSTEM_CATALOG.md).
