@@ -7,7 +7,7 @@ const DEFAULT_ORIGINS=[
   'https://trendos-ui.trendmall-contact.workers.dev',
   'http://localhost:8000','http://127.0.0.1:8000','http://localhost:5500','http://127.0.0.1:5500'
 ];
-const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth','calculateAccountingLaserQuoteV1913','getDailyDepartmentReportV1920','previewAccountingAutomationV1921']);
+const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth','calculateAccountingLaserQuoteV1913','getDailyDepartmentReportV1920','previewAccountingAutomationV1921','previewCustomerCreditInvoiceReviewV1']);
 
 function text(v){return String(v==null?'':v).trim();}
 function key(v){return text(v).toLowerCase();}
@@ -1918,6 +1918,82 @@ async function finalInvoiceA2V1(env,auth,b){
   return response;
 }
 
+// OWNER POLICY 2026-10-16: READ-ONLY assessment of a credit-backed invoice.
+// No refund, accounting adjustment, credit restoration, inventory reversal,
+// request-ledger mutation or approval occurs. Only verified full-role session
+// can inspect synthetic/private invoice evidence. Owner authority for reversal
+// remains UNPROVEN; caller-provided role/ownerVerified fields are ignored.
+async function previewCustomerCreditInvoiceReviewV1(env,auth,b){
+  const deny=(code,message)=>({success:false,code,message,postingAllowed:false,
+    creditRestorationAuthorized:false,financeRelease:'NO_GO'});
+  if(auth.mode!=='full')
+    return deny('customer-credit-review-full-role-required','مراجعة الفاتورة المالية للمسؤول المخوّل فقط.');
+  if(!customerCreditEnabledV1(env))
+    return deny('customer-credit-review-feature-off','الرصيد الدائن غير مفعل.');
+  const invoiceNo=text(b.invoiceNo||b.no);
+  if(!invoiceNo||invoiceNo.length>180)
+    return deny('customer-credit-review-invoice-required','رقم فاتورة صالح مطلوب.');
+  const inv=await env.DB.prepare("SELECT invoice_no,customer_party_id,final_total,paid,remaining,credit_applied,cash_received,credit_created,status FROM employee_accounting_final_invoices_v1 WHERE invoice_no=?")
+    .bind(invoiceNo).first();
+  if(!inv)return deny('customer-credit-review-invoice-not-found','الفاتورة غير موجودة.');
+  if(text(inv.status)!=='CLOSED')
+    return deny('customer-credit-review-invoice-not-closed','حالة الفاتورة لا تسمح باقتراح تعديل.');
+  const moneyFields=['final_total','paid','remaining','credit_applied','cash_received','credit_created'];
+  const amounts={};
+  for(const field of moneyFields){
+    const cents=customerCreditCentsV1(inv[field]);
+    if(cents===null)return deny('customer-credit-review-invalid-evidence','مبالغ الفاتورة غير قابلة للتدقيق بالقروش.');
+    amounts[field]=cents;
+  }
+  if(amounts.final_total!==amounts.paid+amounts.remaining
+    || amounts.paid<amounts.credit_applied
+    || amounts.cash_received<amounts.paid-amounts.credit_applied
+    || amounts.cash_received-(amounts.paid-amounts.credit_applied)!==amounts.credit_created)
+    return deny('customer-credit-review-invoice-integrity','تعارض بين المقبوض والرصيد المستخدم وباقي الفاتورة.');
+  if(amounts.credit_applied===0&&amounts.credit_created===0)
+    return deny('customer-credit-review-no-credit-effect','الفاتورة لا تحتوي حركة رصيد دائن.');
+  const customerId=text(inv.customer_party_id);
+  if(!customerId)return deny('customer-credit-review-customer-missing','معرف العميل غير موثق.');
+  const events=await rows(env,
+    "SELECT kind,amount_cents AS amountCents,delta_cents AS deltaCents,credit_before_cents AS creditBeforeCents,credit_after_cents AS creditAfterCents FROM employee_accounting_customer_credit_events_v1 WHERE related_invoice_no=? AND customer_id=?",
+    [invoiceNo,customerId]);
+  const expected=[];
+  if(amounts.credit_applied>0)expected.push({kind:'INVOICE_CREDIT_APPLIED',
+    amountCents:amounts.credit_applied,deltaCents:-amounts.credit_applied});
+  if(amounts.credit_created>0)expected.push({kind:'INVOICE_EXCESS',
+    amountCents:amounts.credit_created,deltaCents:amounts.credit_created});
+  if(events.length!==expected.length)
+    return deny('customer-credit-review-event-lineage-unproven','حركات الرصيد الدائن لا تطابق بيانات الفاتورة.');
+  for(const evidence of expected){
+    const matching=events.filter(row=>text(row.kind)===evidence.kind
+      &&Number(row.amountCents)===evidence.amountCents
+      &&Number(row.deltaCents)===evidence.deltaCents
+      &&Number(row.creditBeforeCents)+Number(row.deltaCents)===Number(row.creditAfterCents));
+    if(matching.length!==1)
+      return deny('customer-credit-review-event-lineage-unproven','حركة الرصيد الدائن غير مطابقة أو مكررة.');
+  }
+  const customerCreditCents=await customerCreditReadV1(env,customerId);
+  const currentDebtCents=customerCreditCentsV1(await partyBalanceV1(env,'customer',customerId));
+  if(currentDebtCents===null||currentDebtCents>0&&customerCreditCents>0)
+    return deny('customer-credit-review-customer-balance-conflict','رصيد العميل يحتاج تسوية قبل المراجعة.');
+  const proposedRaw=b.proposedInvoiceTotal;
+  const proposedCents=(proposedRaw===undefined||proposedRaw===null||proposedRaw==='')?null:customerCreditCentsV1(proposedRaw);
+  if(proposedRaw!==undefined&&proposedRaw!==null&&proposedRaw!==''&&proposedCents===null)
+    return deny('customer-credit-review-invalid-proposal','مبلغ التعديل يجب أن يكون قيمة صحيحة بالقروش.');
+  return {success:true,code:'customer-credit-invoice-review-preview-only',
+    invoiceNo,customerId,invoiceStatus:text(inv.status),
+    invoiceTotalCents:amounts.final_total,originalPaidCents:amounts.paid,
+    originalRemainingCents:amounts.remaining,originalCreditAppliedCents:amounts.credit_applied,
+    originalCashReceivedCents:amounts.cash_received,originalCreditCreatedCents:amounts.credit_created,
+    availableCustomerCreditCents:customerCreditCents,currentCustomerDebtCents,
+    proposedInvoiceTotalCents:proposedCents,
+    proposedDifferenceCents:proposedCents===null?null:amounts.final_total-proposedCents,
+    evidenceEventsVerified:expected.length,
+    approvalRequired:true,compensationAndReversalPolicy:'OWNER_DECISION_AND_STAGING_REQUIRED',
+    cashRefundAuthorized:false,postingAllowed:false,creditRestorationAuthorized:false,
+    stockAdjustmentAuthorized:false,customerBalanceChanged:false,financeRelease:'NO_GO'};
+}
+
 async function reopenAccountingFinalInvoiceV1(env,auth,b){
   if(auth.mode!=='full')return {success:false,message:'إرجاع الفاتورة للمراجعة متاح لضياء فقط.'};
   const invoiceNo=text(b.invoiceNo||b.no),reason=text(b.reason);
@@ -2047,6 +2123,7 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='searchCustomers')out=await searchCustomersV1(env,b);
     else if(action==='getEasyStoreSuppliers')out=await getEasyStoreSuppliersV1(env,b);
     else if(action==='getCustomerAccountV1915')out=await getCustomerAccountV1915V1(env,auth,b);
+    else if(action==='previewCustomerCreditInvoiceReviewV1')out=await previewCustomerCreditInvoiceReviewV1(env,auth,b);
     else if(action==='easyStoreSystemHealth')out=await easyStoreSystemHealthV1(env,auth);
     else if(action==='calculateAccountingLaserQuoteV1913')out=await calculateAccountingLaserQuoteV1913V1(env,auth,b);
     else if(action==='getDailyDepartmentReportV1920')out=await dailyDepartmentReportV1(env,auth,b);
