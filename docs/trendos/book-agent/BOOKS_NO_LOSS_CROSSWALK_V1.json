@@ -38,16 +38,16 @@
     "entry_number_count": 66,
     "entry_heading_count": 58,
     "mention_only_count": 8,
-    "explicitly_mentioned_in_current_catalog": 14,
-    "unmentioned_by_exact_entry_label_in_current_catalog": 52,
+    "explicitly_mentioned_in_current_catalog": 15,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 51,
     "reconciled_entry_count": 0,
     "unreconciled_entry_count": 66,
     "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation.",
-    "historical_entry_heading_sections_migrated_exact_count": 10,
+    "historical_entry_heading_sections_migrated_exact_count": 11,
     "initial_entry_heading_count": 58,
     "original_snapshot_reconciled_count": 0,
-    "migration_progress_note": "13 verified exact historical transfers through Entry611, including Entry608 split into three chunks, Entry610 historical 27-policy correction, and Entry611 default-OFF canary repo-only qualification. 66 original Entry IDs remain OPEN for full cross-reference/current Runtime reconciliation.",
-    "total_migration_units_exact_verified": 13,
+    "migration_progress_note": "14 exact units migrated through Entry612. 66 Entry IDs remain OPEN for cross-reference and latest Runtime reconciliation; no new Production proof.",
+    "total_migration_units_exact_verified": 14,
     "non_entry_historical_migration_units_exact_verified": 3
   },
   "book_policy": {
@@ -1530,12 +1530,34 @@
       "source_first_line": 952,
       "source_heading_line": 952,
       "mention_count_in_master": 5,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_NATIVE_AUTH_PRODUCTION_PREFLIGHT_ONLY",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "014",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          612
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "dbe5c9bdcc298a7a97dcd7d6466832d02aa03382",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ر",
+        "copy_commit": "71288432bb7f344f6c28b236ed403bc0ef2b92e0",
+        "remove_commit": "a601500f87acedf0237f7d0e143bbfa50cd766db",
+        "text_characters": 5200,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Historical Production preflight records only; no present-day authorization inferred."
+      }
     },
     {
       "entry_id": 613,
@@ -2097,12 +2119,12 @@
   ],
   "latest_review": {
     "date": "2026-10-16",
-    "head_before_crosswalk_commit": "44d164c6475ac59941e16b9839556f355e184d82",
-    "active_master_blob_sha": "dbe5c9bdcc298a7a97dcd7d6466832d02aa03382",
-    "new_catalog_blob_sha": "36ec280c5df46b027c14c4b89d8288e67e44c00f",
+    "head_before_crosswalk_commit": "a601500f87acedf0237f7d0e143bbfa50cd766db",
+    "active_master_blob_sha": "5664d6013c26a56dde5aba23af55cfa26e2b0ffb",
+    "new_catalog_blob_sha": "ef5a7bd3ddf0fe977c2a049e3ed540d1053f4a1c",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "13 exact section migrations; Entry611 archived exact, old master ACTIVE_WRITE and frozen new preserved; concurrent SERVER-64/65/66 retained; all 66 original entries unreconciled."
+    "notes": "14 exact migrations; Entry612 copied/verified/removed; active old master and concurrent SERVER-64/65/66 remain; 66 entries require full reconciliation."
   },
   "non_entry_section_migrations": [
     {
