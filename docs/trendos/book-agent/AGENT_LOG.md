@@ -100,3 +100,11 @@
 - WRITE: chapter 17 commit `6f0a55b1a0b0d6ccbabeff499229f93774a33f9f`, blob `67d969404e961ad02b18d407ada1bae8284a8bc0`; separate post-write fetch verified chapter.
 - STATUS: `SOURCE_ONLY`, runtime/security `BLOCKED`, `TESTED=NO`, `PRODUCTION_VERIFIED=NO`; no Meta/WhatsApp sends, client messages, changes to product code or server.
 - NEXT: chapter 18 accounting data authority and approvals boundary; then source-to-test evidence reconciliations and outstanding issue catalog.
+
+
+## 2026-10-16 / ACCOUNTING-013 — الفصل الثامن عشر
+- READ: `config.js` and `employee-api-dispatcher-v1.js` READONLY accounting route; `cloudflare-d1/src/accounting-native-module.mjs` preview read-only integration contract; `employee-accounting-native-v1.mjs` auth, control, customer balances, finalInvoice and ledger; `employee-comms-native-v1.mjs` finalizeAndNotify guard; Gaber EasyStore pure material ledger adapters; three verified existing test filenames.
+- FINDINGS: Accounting preview module and employee-accounting D1 endpoint are different authority boundaries. Source frontend READONLY restricts write activation; D1 handler can write if mode GENERAL. Role mapping still references employee names. `getEasyStoreCustomersV1` uses party ID while `searchCustomersV1` uses name for balance retrieval; potential identity discrepancy. `finalInvoice` persists invoice/lines then calls partyLedger separately; no single atomic transaction covers all financial legs in the displayed writer. Must fault-test on isolated D1; do not infer real financial incident.
+- WRITE: chapter 18 append commit `235f803975535ee6a0f9bcc521b045599ec5b789`, content blob `add87398d5c6f471116ded450f85581a660b12cc`; fetched independently and verified.
+- STATUS: `SOURCE_ONLY`, financial/ownership/parity `BLOCKED`, `TESTED=NO`, `PRODUCTION_VERIFIED=NO`. No accounting actions executed, no production mutation, no PR merge.
+- NEXT: reconcile chapter audit findings into structured evidence gap queue and continue operational module inventory (staff Core/Tasks, Files, reporting).
