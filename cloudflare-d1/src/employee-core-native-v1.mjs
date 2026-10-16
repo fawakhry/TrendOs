@@ -1,8 +1,9 @@
 import { verifyEmployeeSessionCloudFirst } from './cloud-session-bridge-v3.mjs';
+import {readCorePreparedRequestsV1} from './employee-core-prepared-audit-v1.mjs';
 
 const ROOT='/v1/employee/core';
 const HEALTH=ROOT+'/health';
-const READ_ACTIONS=new Set(['getRows','getRowsPageV1931','getDashboard','getActivityLog','getTrendMasterCenterV1931']);
+const READ_ACTIONS=new Set(['getRows','getRowsPageV1931','getDashboard','getActivityLog','getTrendMasterCenterV1931','auditPreparedRequestsV1']);
 const WRITE_ACTIONS=new Set(['bulkUpdateDepartmentStatusV1926','archiveDeliveredDepartmentV1926','updateLine','markCustomerNotified']);
 const STATUSES=new Set(['طلب جديد','بدأ التنفيذ','تحت التنفيذ','جاهز للاستلام','تم التسليم','متوقف','مكرر','ملغى']);
 const DEFAULT_ORIGINS=[
@@ -530,7 +531,7 @@ export async function handleEmployeeCoreNativeRequest(request,env){
   // BOOK25 P0: A client-hidden manager button is not server authorization.
   // Restrict private activity, archive, debt and staff KPI data to explicit
   // authenticated admin role. Reject BEFORE those queries run.
-  if((action==='getTrendMasterCenterV1931'||action==='getActivityLog')&&key(a.user.role)!=='admin'){
+  if((action==='getTrendMasterCenterV1931'||action==='getActivityLog'||action==='auditPreparedRequestsV1')&&key(a.user.role)!=='admin'){
     return json({success:false,code:'manager-access-denied'},403,cors(request,env));
   }
   try{
@@ -548,7 +549,8 @@ export async function handleEmployeeCoreNativeRequest(request,env){
           version:'ENTRY650_D1_EMPLOYEE_CORE_PAGE_ALIAS_V1'
         };
       }
-    }else if(action==='getDashboard'){
+    }else if(action==='auditPreparedRequestsV1')out=await readCorePreparedRequestsV1(env,{page:body.page,pageSize:body.pageSize});
+    else if(action==='getDashboard'){
       const screen=text(body.screen)||'service';if(!screenAllowed(a.user,screen))out={success:false,message:'غير مصرح لك بعرض أوردرات هذا القسم.'};
       else {const rows=await coreRows(env,screen);out={success:true,dashboard:dashboard(rows,screen),version:'ENTRY614_D1_EMPLOYEE_CORE_V1'};}
     }else if(action==='getActivityLog')out={success:true,rows:await activity(env,body.limit)};
