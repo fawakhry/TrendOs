@@ -89,5 +89,22 @@
     "chapter_32_file_print_scope": "SOURCE_ONLY_NOT_RUNTIME_TESTED"
   },
   "writer_contract": "Read latest GitHub HEAD and the three authoritative books; update current catalog for evidenced present behavior; append decisions to master book when properly authorized and independently reviewed; update legacy book only for history; record SOURCE_ONLY/TESTED/BLOCKED/PRODUCTION_VERIFIED distinctly; append audit log, cross-check latest branches and competing PRs before declaring issues.",
-  "adoption_status": "DOCUMENTATION_CANONICAL_APPROVED; 32_CHAPTERS_DOCUMENTED; FULL_CATALOG_CERTIFICATION_PENDING"
+  "adoption_status": "DOCUMENTATION_CANONICAL_APPROVED; 32_CHAPTERS_DOCUMENTED; FULL_CATALOG_CERTIFICATION_PENDING",
+  "no_loss_reconciliation": {
+    "entrypoint_path": "docs/trendos/book-agent/TRENDOS_BOOKS_SINGLE_INDEX.md",
+    "crosswalk_path": "docs/trendos/book-agent/BOOKS_NO_LOSS_CROSSWALK_V1.json",
+    "crosswalk_blob_sha_at_creation": "74ec2ae34111bca604af41ebfdcc483e41eddc89",
+    "source_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+    "frozen_draft_original_core_exact_match": true,
+    "frozen_draft_original_core_characters": 213981,
+    "original_chapters_preserved": 31,
+    "current_chapter_count": 32,
+    "master_heading_count": 165,
+    "master_entry_ids": 66,
+    "master_entries_explicitly_mentioned_in_catalog": 1,
+    "master_entry_reconciliations_complete": 0,
+    "classification_gate": "EVERY_ENTRY_MUST_BE_MAPPED_OR_EXPLICITLY_CLASSIFIED_WITH_EVIDENCE; NEVER DELETE_UNMAPPED_SOURCE",
+    "status": "OPEN_66_PENDING_REVIEW",
+    "not_production_certification": true
+  }
 }
