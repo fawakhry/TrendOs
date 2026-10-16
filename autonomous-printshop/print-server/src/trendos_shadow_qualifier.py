@@ -25,6 +25,9 @@ class ReadRowsClient(Protocol):
 
 SCREENS = frozenset(("service", "print", "laser", "press"))
 MAX_ROWS = 5000
+# AP issue #10: a paginated getRowsPageV1931 result is NOT a getRows snapshot.
+# This shadow qualifier never requests or silently translates paginated reads.
+SHADOW_READ_ACTION = "getRows"
 
 
 def qualify_screen_once(client: ReadRowsClient, screen: str, *,
@@ -54,6 +57,8 @@ def qualify_screen_once(client: ReadRowsClient, screen: str, *,
         raise ShadowQualificationError("AP296_READ_FAILED") from None
     if not isinstance(response, dict) or response.get("success") is not True:
         raise ShadowQualificationError("AP296_INVALID_RESPONSE")
+    if any(key in response for key in ("page", "pageSize", "totalPages", "nextCursor", "cursor", "snapshotId")):
+        raise ShadowQualificationError("AP296_PAGINATED_CONTRACT_NOT_SUPPORTED")
     rows = response.get("rows")
     if not isinstance(rows, list) or len(rows) > MAX_ROWS:
         raise ShadowQualificationError("AP296_INVALID_ROWS")
