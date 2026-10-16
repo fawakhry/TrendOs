@@ -121,3 +121,21 @@
 - **Security decision:** DO NOT use old employee/session credentials or Diaa's potentially admin-scoped token as a Print Server read-only test account; do not print/export token values, use CI echo, transfer secrets to Ubuntu, or run a secret-backed workflow. First owner may verify **names only** in GitHub repository **Settings → Secrets and variables → Actions**, including relevant Environment secrets, without showing or sending secret values.
 - **Next access gate:** independently qualify a dedicated least-privilege identity restricted to the print department, identify server-side action/scope before first live login, and obtain separate owner authorization for any actual live read.
 - **Result:** `SERVER_CREDENTIAL_HINT=DOCUMENTED`; `KNOWN_HISTORICAL_SECRET_NAME=TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN`; `LAST_HISTORICAL_SESSION=401_SESSION_MISS`; `DIAA_PRINT_ONLY_SCOPE=NOT_PROVEN`; `GITHUB_SECRET_LISTING_ACCESS=NOT_AVAILABLE`; `CREDENTIALS_EXPOSED=NO`; `LIVE_INTEGRATION=NOT_ATTEMPTED`; `DOCS_ONLY=YES`.
+
+
+### SERVER-20261016-12 — GitHub Actions secret names verified by owner screenshot (2026-10-16)
+- **Evidence source:** direct owner screenshot of GitHub **Settings → Secrets and variables → Actions**, `Secrets` tab, in the TrendOS repository context discussed. The screenshot displays eight **Repository secrets**. Only names and GitHub relative last-updated labels are visible; encrypted values, username identity, expiration, access scopes, and actual authentication validity are **not** visible.
+- **Verified names (names only, no values):**
+  1. `CLOUDFLARE_ACCOUNT_ID`
+  2. `CLOUDFLARE_API_TOKEN`
+  3. `CLOUDTOKEN`
+  4. `TRENDOS_EDGE_SESSION_SECRET_PREVIEW`
+  5. `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN`
+  6. `TRENDOS_PROD_QUALIFY_PASSWORD`
+  7. `TRENDOS_PROD_QUALIFY_USERNAME`
+  8. `TRENDOS_PROD_RECONCILE_QUALITY_SECRET`
+- **Environment section:** screenshot shows `This environment has no secrets` for the *displayed environment view*; do not generalize this to every GitHub Environment or all deployments.
+- **Reconciliation with SERVER-20261016-11:** `TRENDOS_PROD_QUALIFY_EMPLOYEE_TOKEN` **name is confirmed to exist now**. Earlier 2026-10-09 owner chat record reported an attempted qualification returning `401 / Session miss`. Current token validity, role, whether this token belongs to Diaa, and the availability of a separate dedicated print-only employee account **remain unverified**. The `USERNAME` and `PASSWORD` secret **names** are present, but their values and user identity are not visible.
+- **Operational boundary:** Repository/Actions secrets are not automatically installed or readable on home Ubuntu. Do not copy or print their values to GitHub logs, shell history, screenshots, chat, application configs, or GitHub commits. Do not run a secret-backed workflow, perform live login, test production routes, change privileges or create credentials based on this metadata-only check.
+- **Required engineering qualification:** analyze the actual active TrendOS employee order-read API, whether it can grant **server-enforced print department read-only** scope, and the isolated outbound HTTPS one-shot read pathway **with fake tests first**. Secure separate owner approval before creating/altering a live scoped account or using any live credential or customer data.
+- **Result:** `REPOSITORY_SECRETS_METADATA_COUNT=8`, `QUALIFY_TOKEN_NAME_EXISTS=OWNER_SCREENSHOT_VERIFIED`, `QUALIFY_USERNAME_SECRET_NAME_EXISTS=YES`, `QUALIFY_PASSWORD_SECRET_NAME_EXISTS=YES`, `SECRET_VALUE_READ=NO`, `LIVE_CREDENTIAL_VALID=UNKNOWN`, `PRINT_ONLY_ROLE_PROVEN=NO`, `UBUNTU_CHANGED=NO`, `PROD_CHANGED=NO`, `DOCS_ONLY=YES`.
