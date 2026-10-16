@@ -136,14 +136,14 @@ class AP296ShadowSchemaQualification(unittest.TestCase):
 
     def test_malformed_row_fails_entire_snapshot(self):
         for invalid in (None, "not-row", 7, ["x"]):
-            c = FakeClient({"rows": [{"orderId": "X"}, invalid]})
+            c = FakeClient({"success": True, "rows": [{"orderId": "X"}, invalid]})
             with self.subTest(invalid=invalid), self.assertRaisesRegex(
                 ShadowQualificationError, "AP296_INVALID_ROW_OBJECT"
             ):
                 qualify_screen_once(c, "print")
 
     def test_missing_row_fields_are_explicit_not_ready(self):
-        c = FakeClient({"rows": [
+        c = FakeClient({"success": True, "rows": [
             {"orderId": "", "lineId": "", "status": ""},
             {"order_id": 12, "line_id": 30, "status": None},
             {"orderId": 44, "lineId": True, "status": "جديد"},
@@ -158,7 +158,7 @@ class AP296ShadowSchemaQualification(unittest.TestCase):
 
     def test_excessive_snapshot_fails_closed(self):
         rows = [{"lineId": "x", "status": "جديد"}] * (MAX_ROWS + 1)
-        c = FakeClient({"rows": rows})
+        c = FakeClient({"success": True, "rows": rows})
         with self.assertRaisesRegex(ShadowQualificationError, "AP296_INVALID_ROWS"):
             qualify_screen_once(c, "print")
 
