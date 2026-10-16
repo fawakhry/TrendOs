@@ -38,6 +38,7 @@ try{
     db.prepare("INSERT INTO t12_customers(customer_id,customer_name) VALUES(?,?)").run(id,'FAKE_ONLY_'+id);
   let auditWriteFault=0; // synthetic audit INSERT failure, never a real D1 or customer write
   let commandCommitFault=0; // fake loss of command COMMITTED update; never production D1
+  let postBatchReadFault=null; // fake loss of ACK read after successful finance COMMITTED batch
   let creditRaceGate=null; // deterministic LOCAL interleaving: both credit reads see one stale version
   const DB={
     prepare(sql){
@@ -45,6 +46,10 @@ try{
       const w={
         bind(...args){stmt.args=args;return w;},
         first(){
+          if(postBatchReadFault && stmt.sql.includes(postBatchReadFault)){
+            postBatchReadFault=null;
+            return Promise.reject(Error('SYNTHETIC_POST_COMMIT_ACK_LOST'));
+          }
           const result=db.prepare(stmt.sql).get(...stmt.args)||null;
           const gate=creditRaceGate;
           if(gate && stmt.sql.includes("SELECT credit_cents AS creditCents,version FROM employee_accounting_customer_credits_v1")
@@ -768,6 +773,48 @@ try{
       assert.equal(all('SELECT * FROM employee_accounting_events_v1 WHERE request_key=?',command.requestId).length,1);
     }
     assert.deepEqual(financialRowsForAtomicity(),before);
+    assert.equal(network,0);
+  });
+
+  await test('47 BOOK18 lost ACK after committed receipt is safe to replay once; credit/cash unchanged',async()=>{
+    const request=receive('LOST_ACK_COMMITTED',2,'FAKE_CUST_B');
+    const before=financialRowsForAtomicity();
+    postBatchReadFault="SELECT balance FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=?";
+    let uncertain;
+    try{uncertain=await send('saveCustomerAccountMovementV1915',request);}
+    finally{postBatchReadFault=null;}
+    assert.equal(uncertain.success,false,JSON.stringify(uncertain));
+    assert.equal(uncertain.status,500);
+    const committed=one('SELECT status,response_json AS responseJson FROM employee_accounting_request_ledger_v1 WHERE request_key=?',request.requestId);
+    assert.equal(committed?.status,'COMMITTED','money and ACK ledger must commit together');
+    assert.equal(JSON.parse(committed.responseJson).success,true);
+    const after=financialRowsForAtomicity();
+    assert.notDeepEqual(after,before,'a real local credit receipt was already posted before lost ACK');
+    assert.equal(all('SELECT * FROM employee_accounting_events_v1 WHERE request_key=?',request.requestId).length,1);
+    const duplicate=await send('saveCustomerAccountMovementV1915',request);
+    assert.equal(duplicate.success,true,JSON.stringify(duplicate));
+    assert.equal(duplicate.duplicatePrevented,true);
+    assert.deepEqual(financialRowsForAtomicity(),after,'repeated request must not double the money');
+  });
+  await test('48 BOOK18 lost ACK after committed credit-backed invoice cannot spend customer credit twice',async()=>{
+    const request=sale('LOST_ACK_COMMITTED',4,0,'FAKE_CUST_B');
+    const before=financialRowsForAtomicity();
+    postBatchReadFault='SELECT invoice_no AS invoiceNo,final_total AS finalTotal,paid,remaining';
+    let uncertain;
+    try{uncertain=await send('saveEasyStoreSaleV2',request);}
+    finally{postBatchReadFault=null;}
+    assert.equal(uncertain.success,false,JSON.stringify(uncertain));
+    assert.equal(uncertain.status,500);
+    const committed=one('SELECT status,response_json AS responseJson FROM employee_accounting_request_ledger_v1 WHERE request_key=?',request.requestId);
+    assert.equal(committed?.status,'COMMITTED');
+    assert.equal(JSON.parse(committed.responseJson).success,true);
+    const after=financialRowsForAtomicity();
+    assert.notDeepEqual(after,before,'invoice posted atomically before loss of ACK');
+    assert.equal(all('SELECT * FROM employee_accounting_events_v1 WHERE request_key=?',request.requestId).length,1);
+    const duplicate=await send('saveEasyStoreSaleV2',request);
+    assert.equal(duplicate.success,true,JSON.stringify(duplicate));
+    assert.equal(duplicate.duplicatePrevented,true);
+    assert.deepEqual(financialRowsForAtomicity(),after,'lost ACK retry must not create second invoice or credit consumption');
     assert.equal(network,0);
   });
   await test('21 preserve integrity: cash equals actual funds received; credit events reconcile liability',()=>{
