@@ -148,3 +148,11 @@
 - WRITE: chapter 22 commit `73a5f54c81ec86e6ab34a1a4b0060029ac6cc0ee`, content blob `a82f3c18545f3695cd616638ad117fafaef4b365`; separately fetched and verified.
 - STATUS: `SOURCE_ONLY`; access/race/identity `BLOCKED`; `TESTED=NO`, `PRODUCTION_VERIFIED=NO`; docs only.
 - NEXT: chapter 23 employee attendance, HR, cleaning and press; then evidence queue update.
+
+
+## 2026-10-16 / EMPLOYEE-OPS-019 — الفصل الثالث والعشرون
+- READ: `config.js` Ops GENERAL flag; `employee-api-dispatcher-v1.js` Ops actions; `cloudflare-d1/src/employee-ops-native-v1.mjs` complete attendance/HR/cleaning/press source; `tests/entry614_employee_ops_native.test.mjs` (source inspection, not execution).
+- FINDINGS: D1 employee Ops offers day attendance/pulses, clockin Cairo TZ, HR requests scoped by role, cleaning event, and press sessions with computed kWh/estimated electricity expense. Attendance individual pulse writes show no requestId idempotency; tests needed for replay/concurrency. Press queue counts unique orders, not pieces or machine-readiness; estimated electricity is overhead and not authoritative direct job cost. Runtime/deployed parity unknown.
+- WRITE: chapter 23 commit `78a1ac9690b273e4c875dc164eab72311c061368`, blob `ada187bf36f67edece89934af7e6fcc701b71959`. Independent follow-up fetch verified exact chapter heading; earlier literal verification expression omitted 'النظافة', corrected before marking verified.
+- STATUS: `SOURCE_ONLY`; `TESTED=NO`; `PRODUCTION_VERIFIED=NO`; no D1 mutations, employee attendance/HR requests, accounting, or deployments.
+- NEXT: add chapter 21–23 test IDs to evidence queue and inspect next unreviewed module, then report precise continuation.
