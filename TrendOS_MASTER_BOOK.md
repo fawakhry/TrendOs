@@ -144,48 +144,6 @@ ORDER_IDS_CHANGED=NO
 BUSINESS_CREATE_TEST_SENT=NO
 ```
 
-### Entry601/602 — بطء واجهة/تسجيل دخول الموظفين — Root cause confirmed
-- الاسم العربي للبحث: **الدخول بطيء / واجهة الدخول بطيئة / تسجيل دخول الموظف بطيء / Apps Script login latency / Employee Auth**.
-- Entry601 read-only latency diagnosis:
-  - Static root ≈ `0.15s`.
-  - `config.js` ≈ `0.14s`.
-  - `app.js` حجمه ≈ `580731 bytes` ووصل ≈ `0.22s` في القياس.
-  - direct Cloud API health ≈ `0.36–0.45s`.
-  - legacy empty Login عبر `/v1/legacy-api` وصل Apps Script ثم رجع في محاولة ≈ `1.90s`.
-  - محاولة تالية علقت ≈ `28.53s` وانتهت `502 LEGACY_UPSTREAM_UNAVAILABLE`.
-- هذا القياس الفارغ لا ينفذ password hash ولا session write؛ لذلك يثبت أن جزءًا كبيرًا من البطء موجود في **Cloudflare → Apps Script/Google hop نفسه** قبل منطق الدخول الحقيقي.
-- Login الحقيقي أبطأ إضافيًا لأن Apps Script `login_` يعمل:
-  1. `findUser_` → فتح/قراءة Users Sheet.
-  2. `passwordHashV1922_` → 1200 SHA-256 rounds للحسابات المهاجرة.
-  3. كتابة Token.
-  4. كتابة Last Login.
-  5. `SpreadsheetApp.flush()`.
-- Frontend الحالي ما زال:
-  ```ini
-  MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=false
-  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=false
-  ```
-  لذلك Login authority الحالية Google-backed عبر `/v1/legacy-api`.
-- تحميل شاشة الدخول يحمل `app.js` الكبير وconfig يبدأ 18 dynamic modules؛ هذا حمل Frontend ثانوي يمكن تخفيفه، لكنه **ليس** سبب الـ28.5s.
-- Entry602 read-only native-auth readiness:
-  ```ini
-  AUTH_SCHEMA_READY=YES
-  AUTH_CONTROL_MODE=OFF
-  AUTH_ENV_ENABLED=NO
-  NATIVE_AUTH_USERS=0
-  NATIVE_READY_USERS=0
-  NATIVE_AUTH_SESSIONS=0
-  LIVE_NATIVE_SESSIONS=0
-  PLAINTEXT_STORED=NO
-  ```
-- لذلك ممنوع مجرد قلب Native Auth إلى ON: لا يوجد مستخدمون مهاجرون حاليًا وسيؤدي ذلك إلى كسر الدخول/الأعمال القديمة.
-- الحل الجذري: staged Employee Auth cutover إلى D1 مع enrollment + compatibility bridge/Cloud migration للـlegacy employee actions، ثم تفعيل Native Login بعد إثبات readiness.
-- تحسين Frontend وحده (defer non-login modules) مسموح كتحسين مستقل لكنه لا يُعد إغلاقًا لمشكلة Login latency.
-- التشخيص فقط: لا Production mutation، لا Auth toggle، لا Google write، لا Apps Script deploy.
-- Entry601 runs: `37040400844` و`37040549662`.
-- Entry602 run: `37040933704` = SUCCESS.
-- الخطوة التالية: **Repo-qualify staged native employee login cutover + login-surface module deferral**، ثم Production preflight قبل أي تفعيل.
-
 ### Entry603/604/605 — Login-fast Frontend Production = CLOSED PASS
 - الهدف: تقليل زمن ظهور/تفاعل واجهة الدخول بدون تغيير Employee Auth authority.
 - Entry603 Repo qualification:
@@ -6796,3 +6754,5 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - **Source provenance gate still open:** top Ready Build description matches [commit `6b82fd3`](https://github.com/fawakhry/TrendOs/commit/6b82fd3bf00eb80669a3b5ca14ff8eab420a6074), which modifies a GitHub accounting workflow file. The displayed main branch and Build label are **not** proof of deployed Worker entrypoint/bundle SHA or route authorization. No source parity to Production `trendos` was demonstrated.
 - **Canonical detailed evidence:** `autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md` (SERVER-62) and `SERVER56_LEGACY_CONSUMERS_COMPATIBILITY_MATRIX.md` on Draft [PR #184](https://github.com/fawakhry/TrendOs/pull/184) review branch, commits `0aba37ffdb408beab148234c700d96e08fa1c2cd` and `81212326e44bbca8d08beb8e6b49179bd0118151`.
 - **Next gate:** inspect the first Ready Build's read-only details (actual commit/build config/entrypoint/deployment linkage, no secrets), then verify live version source relationship and inventory consumers/authorization/rollback before any change. `SEC-AP303-02=OPEN_HIGH` / `TRENDOS_VERSION_IDENTIFIED=PASS` / `SOURCE_PARITY=NOT_VERIFIED` / `NO_MERGE_NO_DEPLOY_NO_HTTP_SENSITIVE_GET`. Old TrendOS MASTER remains `ACTIVE_WRITE`; frozen unified book remains unchanged.
+
+- **MIGRATION UNIT 006 / Entries601–602 / 2026-10-16:** نقل تاريخ قياسات بطء Employee Login إلى الملحق التاريخي «ك» في الكتاب الموحد [copy e78b6e2cf135](https://github.com/fawakhry/TrendOs/commit/e78b6e2cf13534d12189e24bc03790e878c58b0b). `EXACT_VERBATIM_MATCH=PASS (2281/2281)` أُثبت بإعادة قراءة GitHub المصدر والوجهة وأرشيف `b2788ecb4c187717e020321954a1ea449c1aa0d5` blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`. مصدر `TrendOS_MASTER_BOOK.md` عند النسخ blob `8daeaaeb7d490d1c7df1fc684449a1f616bc05ef`. بعد التحقق فقط أزيلت كتلة `Entry601/602` من القديم؛ Entry603/604/605 وتسجيلات SERVER-61/62 وسجل التطوير النشط باقية. تصنيف `HISTORICAL` لا يثبت وضع Google/Auth الإنتاجي الآن. Commit هذا التحديث هو سجل الحذف، `NO_DEPLOY` / `NO_PRODUCTION_MUTATION`.
