@@ -407,7 +407,7 @@ async function previewDeliveryDebtReconciliationV1(env,user,body){
   let imported,native;
   try{
     imported=await env.DB.prepare("SELECT l.line_id AS lineId,l.order_id AS orderId,o.customer_name AS customerName,o.customer_phone AS customerPhone,l.debt_amount AS operationalDebt FROM employee_core_lines_v1 l JOIN employee_core_orders_v1 o ON o.order_id=l.order_id WHERE l.line_id=? AND l.active=1 AND o.active=1").bind(lineId).first();
-    native=await env.DB.prepare("SELECT l.line_id AS lineId,l.order_id AS orderId,o.customer_name AS customerName,o.customer_phone AS customerPhone,o.external_customer_id AS orderExternalCustomerId FROM t12_prod_lines l JOIN t12_prod_orders o ON o.order_id=l.order_id WHERE l.line_id=?").bind(lineId).first();
+    native=await env.DB.prepare("SELECT l.line_id AS lineId,l.order_id AS orderId,o.customer_name AS customerName,o.customer_phone AS customerPhone,o.customer_mode AS orderCustomerMode,o.external_customer_id AS orderExternalCustomerId FROM t12_prod_lines l JOIN t12_prod_orders o ON o.order_id=l.order_id WHERE l.line_id=?").bind(lineId).first();
   }catch{return deny('delivery-debt-source-schema-unavailable','مصدر بيانات الأوردر غير متاح للفحص الآمن.');}
   if((!!imported)===(!!native))return deny('delivery-debt-line-not-unique',
     'معرف البند غير موجود أو موجود في مصدرين؛ لا يمكن تحديد مصدر المديونية.');
@@ -420,6 +420,14 @@ async function previewDeliveryDebtReconciliationV1(env,user,body){
   }catch{return deny('delivery-debt-customer-schema-unavailable','مصدر ربط هوية العميل غير متاح للفحص الآمن.');}
   const matches=candidates.length;
   const orderExternalCustomerId=native?text(native.orderExternalCustomerId):'';
+  const orderCustomerMode=native?key(native.orderCustomerMode):'';
+  // T12 V2 creation source: 'registered' intentionally stores NO external ID;
+  // 'external' stores client-supplied numeric light/external ID, NOT an attested
+  // t12_customers.customer_id. These are evidence tags, never authorization.
+  const orderCustomerIdProvenance=!native?'IMPORTED_NO_T12_ORDER_ID_BINDING':
+    orderCustomerMode==='registered'?
+      (orderExternalCustomerId?'REGISTERED_UNEXPECTED_EXTERNAL_ID_UNVERIFIED':'REGISTERED_ORDER_ID_UNBOUND_BY_CONTRACT'):
+    orderCustomerMode==='external'?'EXTERNAL_INPUT_UNATTESTED':'UNKNOWN_ORDER_ID_ORIGIN_UNVERIFIED';
   const candidateId=matches===1?text(candidates[0].customerId):'';
   const customerBindingStatus=!orderExternalCustomerId?'UNBOUND':
     matches!==1?'ORDER_ID_UNVERIFIED_NO_UNIQUE_CANDIDATE':
@@ -448,7 +456,7 @@ async function previewDeliveryDebtReconciliationV1(env,user,body){
     status,lineId,orderId:text(line.orderId),sourceKind,
     operationalDebt,postedCustomerBalance:postedBalance,
     customerMatchCount:matches,matchedCustomerId:matchedCustomerId,
-    orderExternalCustomerId,customerBindingStatus,
+    orderExternalCustomerId,orderCustomerMode,orderCustomerIdProvenance,customerBindingStatus,
     identityMatchBasis:phone?'PHONE_UNVERIFIED':'NAME_UNVERIFIED',
     identityVerified:false,sourceOnly:true,
     evidenceCoverage:'BOUNDED_READS_NOT_ATOMIC_SNAPSHOT',
