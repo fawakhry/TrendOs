@@ -6755,3 +6755,11 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - الغرض: عمليات Accounting التي تدمج هذا shared base لاحقًا تحمل حماية customer+department بدل استبدالها بمصدر V1 قديم. سياسة Accounting READONLY37 محفوظة.
 - الحزمة الحية Accounting072bffff أعيد بناؤها byte-for-byte من merge-tree1e349332+0e3d35f0؛ overlay T12 وحده يعطي1d8fb904d48f2d48f2cfcc5b026dba94edddd094344a78af95e94f099d1ea52a ويحفظ Accounting/Core/Comms/Foundation.
 - سجل النشر والفحص الأخير يُحفظ على audit/t12-customer-lane-runtime-20261008؛ هذا commit هو حماية مصدر من reversion، وليس تنفيذ migration جديدة أو تغيير frontend تلقائيًا.
+
+
+### TrendosShop Ubuntu host — 2026-10-16 owner-evidence pointer (NOT DEPLOYED)
+
+- **Detailed host-by-host-step book (server operations):** [`autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md`](autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md), immutable sequential owner Terminal checkpoints `SERVER-20261016-01`–`SERVER-20261016-09`. **Canonical Autonomous Printshop operational history remains in** [`autonomous-printshop/MASTER_BOOK.md`](autonomous-printshop/MASTER_BOOK.md); do not relocate/mix Printshop AP history into this general TrendOS book.
+- **Runtime evidence owner provided, not model SSH telemetry:** `TrendosShop` still physically at home; `ssh.socket active/listening` on port 22, `UFW active/default-deny-incoming`, no configured `trend-main` authorized_keys, effective SSH `passwordauthentication yes`; password authentication and remote accessibility not yet hardened or tested. No public firewall or router opening authorized.
+- **Local code Git check:** owner's `git status --short --branch` shows tracking behind 80 at screenshot time with no local modifications listed; no Ubuntu `fetch/pull/reset/checkout` done. New GitHub docs do not land on the host. `TrendOS_PLATFORM_READ=NOT_VERIFIED`; `PRINTSHOPS_PRODUCTION=NO`; `GITHUB_DOCS_ONLY=YES`.
+- **Next safe check on physical Ubuntu (one read-only command):** `git -C "$HOME/TrendOs" rev-parse HEAD`. Avoid live `print-server/run.py`, external SSH exposure, customer or D1/print writes until independently authorized and validated.
