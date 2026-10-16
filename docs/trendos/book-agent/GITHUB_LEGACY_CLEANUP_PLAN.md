@@ -45,7 +45,7 @@
 
 ## 4. Measurable progress fields
 
-`repo_count_visible=8` · `trendos_historical_source_bytes_fingerprinted=731855` · `original_v1932_function_definitions=614` · `matbagy_design_workflow_sources_migrated=146` · `protected_snapshot_branch=CREATED_VERIFIED` · `external_sources_fully_recovered=NO` · `offsite_backup_verified=NO` · `files_removed=0` · `branches_deleted=0` · `production_code_changed=NO` · `actual_cleaning_approved=NOT_YET_REQUESTED`.
+`repo_count_visible=8` · `trendos_historical_source_bytes_fingerprinted=731855` · `original_v1932_line_regex_declarations=614` · `original_v1932_ast_declarations=620` · `matbagy_design_workflow_sources_migrated=146` · `protected_snapshot_branch=CREATED_VERIFIED` · `external_sources_fully_recovered=NO` · `offsite_backup_verified=NO` · `files_removed=0` · `branches_deleted=0` · `production_code_changed=NO` · `actual_cleaning_approved=NOT_YET_REQUESTED`.
 
 ## 5. Next concrete batch
 
