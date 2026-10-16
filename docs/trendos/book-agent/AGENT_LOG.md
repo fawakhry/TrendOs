@@ -359,3 +359,10 @@
 - OTHER SOURCES: Eight repository main trees read, no exact SHA matches between TrendOs@main blobs and other repositories' default branches in a narrow SHA-only cross-check. No repeat of existing Matbagy-Design-Workflow 146-file migration. Drive deploy folder visible, no children from direct query, historical backup filename absent in connected search. Not evidence backup was destroyed.
 - WRITES: Docs-only V1932 current-branch report, Git duplicate metadata report, pre-split book chapter 9, recovery register section 9, cleanup plan section 7, issue/test evidence sections and AGENT_LOG. No operational code edited. No secret-bearing raw source uploaded.
 - STATE: SOURCE_ONLY, LOCAL_ARCHIVE_VERIFIED, TESTED_RUNTIME=NO, PRODUCTION_VERIFIED=NO, OFFSITE_VERIFIED=NO, DELETIONS=0, MERGES=0, DEPLOYS=0. NEXT: Both ASTs, callgraph, exact source timeline and independent recoverable backup before owner-approved delete path proposal.
+
+### Follow-up: first nine mirror content inspection
+
+- Actual source bodies of nine root Apps Script modules inspected; 192 named function declarations, 9 identical-Git-blob autonomous-printshop mirror pairs.
+- Per-module latest path-changing commit, date, function counts, purpose and SHA are in [LEGACY_FIRST_MIRROR_PAIR_PROVENANCE_20261016.md](LEGACY_FIRST_MIRROR_PAIR_PROVENANCE_20261016.md) (report commit 8b3ad639dd8c0fe9fecd759873e7cacb0171b9a9).
+- Unique full source/document file bodies inspected this pass = 24; tree metadata paths do not count as body reads. Latest commit date is NOT last runtime use. score is present in two indented nested-like scopes; no proven global conflict.
+- Both mirrors remain UNKNOWN_NEEDS_PROOF; approved deletions 0, deployment proof NO, offsite backup proof NO.
