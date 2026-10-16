@@ -205,3 +205,10 @@
 - **الخطوة التالية للمالك:** نفذ على جهازه `gh auth login --hostname github.com --git-protocol https --web`، ثم أتم مصادقة جهاز GitHub من المتصفح مع مراجعة الأذونات. تجنب مشاركة OTP/device code، Password، PAT، أو محتويات إعدادات المصادقة في المحادثة أو الصور.
 - **الحد الأمني:** لم ينفذ ChatGPT أوامر على `TrendosShop` ولم يغيّر SSH/UFW/DNS أو ينقل أسرار.
 - **النتيجة:** `GH_CLI_INSTALLED=YES`؛ `GH_AUTH=NOT_VERIFIED`؛ `MATBAGY_CLONE=NOT_VERIFIED`؛ `UBUNTU_MEDIA_VAULT=NOT_DEPLOYED`.
+
+### SERVER-20261016-21 — GitHub CLI device authorization successful (owner screenshot)
+- **الدليل:** لقطة شاشة Terminal ومتصفح GitHub أرسلها المالك بتاريخ 2026-10-16. تظهر رسالة `Logged in as fawakhry` في `gh auth login`، و`Configured git protocol`، وصفحة GitHub تفيد باكتمال ربط الجهاز.
+- **النتيجة:** `GH_DEVICE_AUTH=SUCCESS_OWNER_SCREENSHOT`، `GITHUB_ACCOUNT=fawakhry`، `GIT_PROTOCOL=https`. الدليل يخص مصادقة GitHub CLI على الجهاز، **ولا يثبت اكتمال Clone أو تنزيل أي صور**.
+- **الخطوة المقترحة التالية:** فحص وجود `$HOME/Matbagy-OS` ثم استخدام `gh repo clone fawakhry/Matbagy-OS "$HOME/Matbagy-OS"` **فقط لو المجلد غير موجود**؛ لا تحذف ملفات ناتجة عن المحاولة السابقة بدون فحصها. التأكد من وجود `runtime/ubuntu/matbagy_media_vault.py` بعد اكتمال التنزيل.
+- **الحماية:** لا حاجة لإرسال Device Code أو Token أو أي اعتماد للشات. لا تعديل على مستودع TrendOs أو SSH أو UFW؛ لا تشغيل مخزن صور قبل فحص الكود والتجربة.
+- **الحالة:** `GH_AUTH=SUCCESS`، `MATBAGY_CLONE=NOT_VERIFIED`، `UBUNTU_MEDIA_VAULT=NOT_DEPLOYED`، `CUSTOMER_MEDIA_IMPORTED=NO`، `HOST_COMMANDS_BY_ASSISTANT=NONE`.
