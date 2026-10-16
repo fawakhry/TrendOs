@@ -1,5 +1,20 @@
 # GitHub cleanup after pre-split legacy recovery — controlled plan
 
+## OWNER TRANSITION OVERRIDE — 2026-10-16 / TWO CO-LOCATED BOOKS
+
+> **الأمر الأحدث للمالك يعلو على أي أمر ONE_BOOK_ONLY الفوري أدناه:** إلى حين اكتمال نقل كل محتويات القديم، يوجد **كتابان فقط تابعان لتوثيق TrendOS** على نفس الفرع `agent/trendos-book-audit-v1-20261014`: `TrendOS_MASTER_BOOK.md` (يسجل العمل الجديد يوميًا = ACTIVE_WRITE) و`docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md` (مجمّد = READ_ONLY_FOR_AUTONOMOUS_AGENTS، باستثناء ترحيل قديم متحقق فقط).
+
+- يُثبت داخل **الكتاب القديم** رابط الكتاب الجديد وحالة التجميد، وكل تسجيل عمل اليوم يذهب إلى القديم لا الجديد.
+- النقل من القديم إلى الجديد يكون متدرجًا، بالتحقق من المصدر وSHA/الأرشيف ومطابقة النص، ثم إزالة المقطع المنقول من القديم. **لا حذف للقديم كله** قبل ترحيل جميع أجزائه وموافقة المالك على CUTOVER.
+- **بعد CUTOVER فقط:** يصبح الكتاب الجديد هو ACTIVE_WRITE الوحيد ويحذف الملف القديم من الفرع. الأجزاء المحذوفة من القديم موجودة في الجديد + Git History + نسخة الأرشيف.
+- لا تُنشأ كتب TrendOS وسيطة أخرى؛ `TRENDOS_BOOKS_SINGLE_INDEX.md` نُقل كاملًا لملحق D وحُذف بعد إثبات المطابقة؛ `BOOK_VNEXT_OUTLINE.md` نُقل لملحق E وحُذف أيضًا. المسودة والأرشيف القديم المنفصلان منقولان للملاحق أ/ج وحُذفا من فرع العمل سابقًا.
+- **إعفاء ملكية المشاريع الأخرى:** لا يمس القرار `autonomous-printshop/MASTER_BOOK.md` ولا كتب EasyStore/Matbagy-OS/Fokha وغيرها. `WHATS_AGENT_BOOK.md` مشروع فرعي قديم؛ يحتاج تدقيق ملكية منفصل قبل اعتباره كتابًا وسيطًا أو إزالته.
+- **NO-AUTO-WRITES** هنا سياسة إلزامية للإيجنتات ومكتوبة في القديم والجديد وعقد JSON؛ ليست Github admin ruleset ولا تثبت منع push فنيًا. يلزم مالك المستودع لتفعيل branch protection/ruleset إن رغب.
+- **المرجع:** [القديم القابل للكتابة](../../../TrendOS_MASTER_BOOK.md) و[الجديد المجمّد](TRENDOS_CURRENT_SYSTEM_CATALOG.md) و[Snapshot الاسترجاع](https://github.com/fawakhry/TrendOs/tree/archive/trendos-books-before-single-book-20261016). لا تغيير إنتاج ولا دمج ولا حذف كود.
+
+---
+
+
 ## OWNER ARCHIVE DIRECTIVE 2026-10-16 — ONE_BOOK_ONLY
 
 > **أمر المالك النهائي والملزم:** المطلوب **كتاب TrendOS واحد فقط** هو `docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md`. كل قسم يُنقل من أي كتاب قديم إلى الكتاب الواحد (فصل نشط أو ملحق تاريخي مميز) **يُزال من الكتاب القديم بمجرد ثبوت نقل كل محتواه**؛ وبعد انتهاء آخر قسم يُحذف ملف الكتاب القديم كله. ممنوع إنشاء كتب جديدة أو إبقاء نسخ مكررة لمجرد الاحتياط. الاحتياط يكون عبر Git history وفرع الأرشيف لا كتاب ثان.
