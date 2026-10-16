@@ -259,7 +259,13 @@ export async function claimNextOperatorTaskV1(db,input={},options={}){
         task_id, task_type, order_id, line_id, department, operator_id, status,
         priority_snapshot, due_at_snapshot, source_data_version, source_input_hash,
         claim_idempotency_key
-      ) VALUES (?, 'ORDINARY', ?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?, ?)
+      )
+      SELECT ?, 'ORDINARY', ?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?, ?
+       WHERE EXISTS (
+         SELECT 1 FROM operator_task_control
+          WHERE singleton_id = 1
+            AND (mode = 'GENERAL' OR (mode = 'CANARY' AND canary_operator_id = ?))
+       )
     `).bind(
       taskId,
       candidate.orderId,
@@ -270,7 +276,8 @@ export async function claimNextOperatorTaskV1(db,input={},options={}){
       candidate.dueIso||candidate.dueRaw||null,
       sourceDataVersion,
       sourceInputHash,
-      claimKey
+      claimKey,
+      operatorId
     );
 
     const insertEvent=db.prepare(`
@@ -381,6 +388,13 @@ export async function completeOperatorTaskV1(db,input={},options={}){
   }
   if(current.status!=='ACTIVE') throw new Error('OPERATOR_TASK_NOT_ACTIVE');
 
+  // BOOK24: completing an existing task still mutates D1. OFF/SHADOW
+  // must deny it, and CANARY must be restricted to its designated operator.
+  // Completed same-key replay above is read-only and remains allowed.
+  const control=await readOperatorTaskControlV1(db);
+  const gate=operatorTaskMutationGateV1(control,operatorId);
+  if(!gate.allowed) throw new Error(gate.reason);
+
   const eventId=idFactory(options,'operator-task-event');
   const resultPayload=input.result==null?{}:input.result;
 
@@ -395,10 +409,16 @@ export async function completeOperatorTaskV1(db,input={},options={}){
        AND operator_id = ?
        AND status = 'ACTIVE'
        AND completion_idempotency_key IS NULL
+       AND EXISTS (
+         SELECT 1 FROM operator_task_control
+          WHERE singleton_id = 1
+            AND (mode = 'GENERAL' OR (mode = 'CANARY' AND canary_operator_id = ?))
+       )
   `).bind(
     completionKey,
     jsonText(resultPayload),
     taskId,
+    operatorId,
     operatorId
   );
 

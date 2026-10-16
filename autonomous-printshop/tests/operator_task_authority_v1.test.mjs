@@ -139,7 +139,7 @@ assert.equal(out.reason,'OPERATOR_TASK_ACTIVE_EXISTS');
 assert.equal(db.state.batchCalls,0);
 
 const active={taskId:'task-1',taskType:'ORDINARY',orderId:'10',lineId:'10-1',department:'طباعة',operatorId:'wael',status:'ACTIVE'};
-db=fakeDb({byId:{'task-1':active}});
+db=fakeDb({control:{mode:'GENERAL'},byId:{'task-1':active}});
 out=await completeOperatorTaskV1(db,{
   taskId:'task-1',operatorId:'wael',completionIdempotencyKey:'done-1',
   result:{quality:'PASS'}
