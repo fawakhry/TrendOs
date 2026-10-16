@@ -188,3 +188,11 @@
 - **معلومات جانبية ظاهرة:** `git -C "$HOME/TrendOs" fetch --no-tags origin feature/server33-readonly-service-endpoint-20261016` انتهى برسائل Fetch؛ هذا تنفيذ محلي مستقل قام به المالك ويخص TrendOs، ولا يعد تنزيلًا لـMatbagy-OS أو تفويضًا بتعديل ترند.
 - **المتابعة الآمنة:** إلغاء Prompt الحالي بـ`Ctrl+C` ثم التحقق للقراءة فقط من وجود GitHub CLI بالأمر `command -v gh || echo "GH_NOT_INSTALLED"`. إن وُجد، استخدام تسجيل الدخول من المتصفح بدل إرسال GitHub Password أو PAT في المحادثة أو تصويرهما. يراجع المستخدم حالة مجلد Matbagy-OS بعد إلغاء clone قبل أي إعادة محاولة؛ لا حذف بدون دليل أو إذن.
 - **الحالة:** `PRIVATE_GITHUB_AUTH_REQUIRED=YES`؛ `MATBAGY_CLONE_COMPLETED=NOT_VERIFIED`؛ `GH_CLI_PRESENT=UNKNOWN`؛ `CUSTOMER_MEDIA_TRANSFERRED=NO`؛ `SECRET_SHARED=NO`؛ `AGENT_HOST_ACCESS=NO`.
+
+### SERVER-20261016-19 — Github CLI availability check on TrendosShop
+- **الدليل:** صورة شاشة Terminal من المالك بتاريخ 2026-10-16، المستخدم `trend-main@TrendosShop`.
+- **الأمر والنتيجة:** `command -v gh || echo "GH_NOT_INSTALLED"` أعاد `GH_NOT_INSTALLED`؛ لا يوجد أمر `gh` قابل للتشغيل ضمن PATH الحالي.
+- **سياق التنزيل:** `git clone https://github.com/fawakhry/Matbagy-OS.git "$HOME/Matbagy-OS"` ظهر له `Username for 'https://github.com':` ثم `^C`، وعاد Shell prompt. لا يوجد دليل اكتمال Clone أو نجاح تسجيل دخول.
+- **الخطوة التالية المقترحة للمالك على Ubuntu:** `sudo apt update && sudo apt install -y gh`، ثم `gh --version`. هذا **اقتراح** ولم يُثبت تنفيذه. بعد ذلك Login بالمتصفح دون مشاركة كلمات مرور أو رموز.
+- **حدود التنفيذ:** الصورة لا تعرض تثبيت برنامج أو نقل أي صور؛ لم ينفذ المساعد أوامر Ubuntu بنفسه، ولم يغيّر بيانات اعتماد أو مفاتيح أو منافذ.
+- **الحالة:** `GH_CLI=NOT_INSTALLED`، `MATBAGY_CLONE=INTERRUPTED`، `GH_AUTH=NOT_VERIFIED`، `LOCAL_MEDIA_VAULT=NOT_DEPLOYED`.
