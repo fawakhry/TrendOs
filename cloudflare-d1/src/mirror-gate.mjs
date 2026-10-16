@@ -71,7 +71,7 @@ function migrationAuthorized(request, env) {
 async function mirrorReadAuthorized(request, env) {
   if (migrationAuthorized(request, env)) return true;
   const username = text(request.headers.get('x-employee-username'));
-  const match = text(request.headers.get('Authorization')).match(/^Bearer\\s+(.+)$/i);
+  const match = text(request.headers.get('Authorization')).match(/^Bearer\s+(.+)$/i);
   if (!username || !match || !text(match[1])) return false;
   try {
     const verified = await verifyEmployeeSessionCloudFirst(username, match[1], env, 'edge');
