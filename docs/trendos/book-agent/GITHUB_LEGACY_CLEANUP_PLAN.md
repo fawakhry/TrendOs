@@ -50,3 +50,15 @@
 ## 5. Next concrete batch
 
 Audit 2026 pre-split App Script source against GitHub `Code.gs`, group 614 function definitions by module and status, hash/diff source without exposing secrets; scan pre-split file history to tag candidates. After verified archive, produce the **first exact-path deletion proposal** rather than removing all old files speculatively.
+
+## 6. New audit outcome — no validated deletion set yet (2026-10-16)
+
+- **Legacy source identity covered:** 614 of 614 line-leading function names in private V1932 snapshot remain in observed GitHub main source; **zero name-missing cases**. Partial lexical function body review: 604 identical spans, 8 changed, 2 inconclusive. Only a **function-name and text-span comparison**, not a test or deployment claim.
+- **Main `Code.gs` history:** 8 path commits observed, with the last September 29 auth bridge adding 10 functions. The 24 August GitHub blob contains seven more names than the private 24 August backup. Sources must not be reduced to one file version.
+- **Branch drift:** Book branch `Code.gs` has 10 unique names not in main, including `trendosLegacyOrderCreateFenceV1_` and nine `cwReconcile*`/CloudWrite helpers. **DO NOT auto-merge book branch product code and DO NOT delete these functions as assumed duplicates**.
+- **All branch names scanned:** 269 across 3 paginated pages. **Not** equal to inactive/unused: no branch deletions or history rewriting.
+- **Private recovery archive produced:** `TrendOS_Legacy_V1932_Private_Archive_20261016.zip`, SHA256 `0eb1a5fe785c2ea07f6338713e1c314da6e10a4e03c3412f3cddcaf4976ca10f`, zip integrity verified. This is conversation-local and not proven offsite saved; raw source not uploaded to public GitHub.
+- **Safe decision for first deletion batch:** `CANDIDATES_APPROVED=0`, `FILES_REMOVED=0`, `BRANCHES_REMOVED=0`. Until call-graph, deployment proof, independent private backup and owner approval establish candidates, the right cleanup is **document and preserve, not delete**.
+
+**First exact-path candidates for audit (all `UNKNOWN_NEEDS_PROOF`, none selected for removal):**
+`Code.gs`, `v1932-router.gs`, `customer-manager-backend-v1932.gs`, `customer-feedback-backend-v1.gs`, `hr-backend-v1.gs`, `attendance-backend-v1.gs`, `press-control-backend-v1.gs`, `go-live-autopilot-v1.gs`, `.github/workflows/*`. Each can still have deployed consumers/triggers and must stay until proven otherwise.
