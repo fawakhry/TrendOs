@@ -87,3 +87,12 @@ The owner opened `Workers & Pages → trendos → Production → Deployments` an
 The first Ready build entry carries title `Guard A2.13 workflow dispatch against obsolete main branch`, branch `main`; its title matches [GitHub commit `6b82fd3`](https://github.com/fawakhry/TrendOs/commit/6b82fd3bf00eb80669a3b5ca14ff8eab420a6074), which changes a GitHub accounting workflow file only. **A display title or branch is not a deployed source hash, bundle identity, confirmed entrypoint, or code/authorization proof.** The distinct canonical `trendos-d1-api` has a different observed version prefix `2b40f622`.
 
 **NEXT READ-ONLY SOURCE GATE:** inspect the **Build details** for the top Ready `trendos` entry using its `Build ↗` link, capture source commit/branch/build/deploy target (redacting any environment values, tokens or secrets), then correlate with GitHub and the actual legacy route/auth implementation without customer HTTP GET probes. Do not change Build Settings, Worker Access, D1 bindings, PR merge states or Production deployments. `SEC-AP303-02=OPEN_HIGH`, `SOURCE_PARITY=NOT_VERIFIED`, `BUILD_MAPPING=NOT_VERIFIED`, `DEPLOY_MUTATION=NO`.
+
+
+## SERVER-64 — manually deployed active legacy Worker, not a Cloudflare Build result (2026-10-16)
+
+The owner provided the read-only Cloudflare `trendos → Production → Deployments → View rollout history` screenshot. Its **latest active rollout** lists author `trendmall.contact`, source **`Wrangler`**, message **`Manually deployed`**, version prefix `803aa6a2`, traffic **100%**, date ~6 days before the screenshot. Earlier rollouts also show manual Wrangler sources, without commit provenance. This is a distinct observation from the Failed Build #885ad227 and other independent `Build ↗` entries.
+
+**Confirmed:** active rollout was via Wrangler, NOT demonstrably a product of the CI/Build row titles. **Not confirmed:** CLI device, uploaded source bundle/hash, Git SHA, exact deployed handler, Runtime authorization, access/waf behavior or data exposure. Do not identify `6b82fd3` or `a31c254` as the `803aa6a2` deployed source based on Build row descriptions. `SEC-AP303-02` remains high/open.
+
+Next **read-only** step: inspect active Worker code through the Cloudflare `Edit code` view **without modifying or deploying**; gather safe non-secret entrypoint/router details and then compare with GitHub static sources. Do not show token/secret/config values, live customer/order HTTP responses, or modify Cloudflare settings.
