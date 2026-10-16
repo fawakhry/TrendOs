@@ -15,7 +15,7 @@ Status: SOURCE_ONLY triage, NOT production authorization. Base commit: ab21183f9
 
 Resolved items are removed from the active backlog after CI evidence. #9 is CLOSED (synthetic/source scope only); see closure evidence below.
 8. Book versus config.js native employee auth setting: SOURCE_ONLY discrepancy; compare deployed config separately.
-10. TrendOS read contract remaining scope: OPEN — server-side permission parity, pagination, staleness, fallback and least-privilege remain unverified. Local shadow qualifier now rejects paginated response markers (synthetic CI PASS). No live request authorized.
+10. TrendOS server-side read permission, pagination and fallback parity: OPEN / BLOCKED for runtime evidence; see #10 local contract CLOSED below. Requires TrendOS API authority and controlled non-production server test. No live request authorized.
 11. Employee least-privilege read scope: BLOCKED pending authorization matrix tests.
 12. Durable Andon/exception state storage: UNKNOWN current runtime; design audit and idempotency checks.
 13. Operator Task activation gates: OFF / NO_GO.
@@ -40,6 +40,8 @@ Resolved items are removed from the active backlog after CI evidence. #9 is CLOS
 28. Autonomous multi-agent handoff: UNKNOWN; require evidence of first completed specialist cycle.
 
 ## Closed (not active backlog)
+- #10A local printshop shadow read contract: CLOSED / TESTED_SYNTHETIC. `getRows` response success must be literal true; page markers rejected; unauthorized screen, empty scope, disconnected client, timeout, malformed rows and upstream failures rejected. Last tested SHA e5d7cf2ead549fe09d61c15ff9cc104e2103fc75; AP-296 PASS https://github.com/fawakhry/TrendOs/actions/runs/38903736183 ; Policy V1 PASS https://github.com/fawakhry/TrendOs/actions/runs/38903736269 . No production verification. Remaining #10B server contract remains OPEN; do not claim overall #10 closed.
+
 - #9 strict-success fail-closed contract: CLOSED for synthetic/source scope, tested at commit 7d586c75e1783d3a451e3d761efcf0e0e5049e73. AP-296 hosted synthetic PASS https://github.com/fawakhry/TrendOs/actions/runs/38900935137 ; Policy V1 PASS https://github.com/fawakhry/TrendOs/actions/runs/38900935295 . Historical first-run FAIL https://github.com/fawakhry/TrendOs/actions/runs/38900803018 remains preserved. NOT DEPLOYED, NOT VERIFIED RUNTIME.
 
 ## Execution order
