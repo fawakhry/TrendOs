@@ -37,3 +37,16 @@ The bridge hardcodes the distinct Worker `trendos.trendmall-contact.workers.dev`
 6. After rollout approval, run minimally invasive metadata-only/authorized checks with redaction. No unsanctioned Production tests.
 
 `OWNER_APPROVAL_FOR_PRODUCTION=NOT_GRANTED` · `D1_PRODUCTION_QUERIES=NONE` · `PR_MERGE=NO` · `WORKER_DEPLOY=NO` · `UBUNTU_LIVE_READ=NO`.
+
+
+## SERVER-57 — separate `trendos` Worker Access state (owner UI, 2026-10-16)
+
+An owner screenshot explicitly shows **`Workers & Pages → trendos → Production → Access`** reporting **"This Worker is not protected by Access"**, **"No Worker-specific policy is configured. Traffic remains public unless a hostname or account policy applies."**, and **"Not protected yet"**.
+
+This is **not** the earlier `trendos-d1-api` screenshot. Both named Workers lack a per-Worker Access policy *as displayed*, but hostname/account protection, WAF, active deployment parity, route behavior, bindings and current external consumer traffic for **`trendos`** remain **unknown**.
+
+**Impact to this matrix:** the source-confirmed `customer_manager_d1_bridge_v1934.js` points to `https://trendos.trendmall-contact.workers.dev`. The legacy frontend's test-proven Apps Script fallback is relevant to this different service. Do not infer that PR #154 for `trendos-d1-api` would fix the `trendos` deployment. Preventing a possible security gap in one does not harden the other automatically. Do not invoke sensitive routes for exposure testing.
+
+**Next read-only check:** owner visits `trendos → Domains` and shares the status of Production/Preview URLs and any custom routes only, without flipping any switches; follow with a non-secret source/binding inventory. Current code is not deployed or approved by this audit.
+
+`TRENDOS_WORKER_SPECIFIC_ACCESS=ABSENT_AS_SHOWN`; `TRENDOS_WORKER_EXTERNAL_EXPOSURE=UNVERIFIED`; `TRENDOS_WORKER_D1_BINDING=UNKNOWN`; `OTHER_SECURITY_CONTROLS=UNKNOWN`; `SEC_AP303_02=OPEN`; `NO_PRODUCTION_ACTION=YES`.
