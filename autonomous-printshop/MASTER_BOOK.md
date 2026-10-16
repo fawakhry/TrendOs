@@ -10680,3 +10680,15 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 **المراجعات مكدسة للتنظيم فقط:** `#151 → #153 → #154 → #155`، جميعها Draft وممنوع الدمج التلقائي. لا يعني نجاح CI للبيانات الوهمية أن سيرفر Ubuntu متصل بالمنصة.
 
 `SERVER_BOOK_UPDATED=SOURCE_ONLY`; `CLOUDFLARE_DEPLOY=NO`; `UBUNTU_DEPLOY=NO`; `CUSTOMER_RECORDS_ACCESSED=NO`; `PRINT_LASER_ACTIVE=NO`; `PRODUCTION_GO=NO`.
+
+
+## SERVER-20261016-33–35 — ربط قراءة الطباعة والليزر: مصدر مُنفذ لكن غير منشور (2026-10-16)
+
+**مرجع التنفيذ التفصيلي:** [كتاب السيرفر، المراحل SERVER-20261016-33 إلى 35](print-server/UBUNTU_SERVER_BOOK.md). **المراجعة:** [Draft PR #160](https://github.com/fawakhry/TrendOs/pull/160) فوق PR #155. هذا استكمال لسياسة AP-301/AP-302، **وليس** إنشاء خدمة Cloudflare إضافية.
+
+- **SERVER-33 — كود Backend:** مسار مستقل داخل `cloudflare-d1/src/index_v2.js`، معالج `src/trendosshop-service-orders-read-v1.mjs`، مغلق افتراضيًا. مراجعة `wrangler.toml` أكدت أن مدخل المصدر الفعلي هو `production-shadow/index.js` الذي يستدعي `src/index_v2.js`. لا إذن لقراءة `service/press` ولا لأي كتابة؛ يتحقق من هوية خدمة مستقلة ذات صلاحية قصيرة (≤15 دقيقة) و`print/laser` قبل D1. يقرأ بنود الأوردرات المؤهلة فقط ويُخرج الحقول الستة `orderId,lineId,screen,serviceCode,status,quantity` مع حد 20 بندًا لكل شاشة.
+- **SERVER-34 — كود عميل Ubuntu:** `print-server/src/trendosshop_read_once.py` منفصل عن `run.py`، لا يعمل تلقائيًا، يتطلب تفعيلًا وقرارًا صريحين، HTTPS ثابت/TLS صحيح/رفض redirects/بدون retries، قراءة صفحة واحدة لكل قسم. المخرجات أعداد مجمّعة فقط بلا ملفات أو بيانات عملاء أو تشغيل أجهزة.
+- **نتائج الاختبارات الفعلية:** [Backend SERVER-33 #38925618302](https://github.com/fawakhry/TrendOs/actions/runs/38925618302) **SUCCESS**؛ [Ubuntu FakeTransport SERVER-34 #38925618259](https://github.com/fawakhry/TrendOs/actions/runs/38925618259) **SUCCESS**؛ [TrendOS Integrity #38925618231](https://github.com/fawakhry/TrendOs/actions/runs/38925618231) **SUCCESS**، على commit `0d982418bb487c547ca31f1e51f6a97c7f9818fb`. **نجاح اختبارات وهمية فقط**؛ لا طلب مباشر على Production.
+- **SERVER-35 — البوابات الباقية:** مطابقة إصدار Cloudflare المنشور مع الكود؛ معالجة توافق المستهلكين لمسارات SEC-AP303-02؛ تدقيق فروق حالات الأوردرات ومصدر T12/الميرور؛ موافقة جديدة على إنشاء حساب الخدمة وضبط Cloudflare Production؛ موافقة منفصلة على تحديث Ubuntu وعلى اختبار HTTPS حقيقي واحد ببيانات غير حساسة في السجلات. تفاصيل العقد والقيود: [SERVER33_34_READINESS_GATE.md](print-server/SERVER33_34_READINESS_GATE.md).
+- **الحالة:** `GITHUB_SOURCE_READY_FOR_REVIEW`، `REAL_ACCOUNT=NO`، `CLOUDFLARE_DEPLOY=NO`، `UBUNTU_CODE_UPDATED=NO`، `LIVE_ORDERS=NO`، `AUTO_PRINT=OFF`، `PR_MERGE=NO`، `GO_LIVE=NO`.
+
