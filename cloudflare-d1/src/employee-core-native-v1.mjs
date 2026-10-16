@@ -2,7 +2,7 @@ import { verifyEmployeeSessionCloudFirst } from './cloud-session-bridge-v3.mjs';
 
 const ROOT='/v1/employee/core';
 const HEALTH=ROOT+'/health';
-const READ_ACTIONS=new Set(['getRows','getDashboard','getActivityLog','getTrendMasterCenterV1931']);
+const READ_ACTIONS=new Set(['getRows','getDashboard','getActivityLog','getTrendMasterCenterV1931','previewDeliveryDebtReconciliationV1']);
 const WRITE_ACTIONS=new Set(['bulkUpdateDepartmentStatusV1926','archiveDeliveredDepartmentV1926','updateLine','markCustomerNotified']);
 const STATUSES=new Set(['طلب جديد','بدأ التنفيذ','تحت التنفيذ','جاهز للاستلام','تم التسليم','متوقف','مكرر','ملغى']);
 const DEFAULT_ORIGINS=[
@@ -390,6 +390,61 @@ async function updateSingleLine(env,user,body){
   return {success:true,lineId,orderId:text(cloud.orderId),status:status||text(cloud.status),notes:notes||'',source:'t12-prod-runtime'};
 }
 
+// BOOK19: owner-only, read-only cross-source evidence inspection.
+// NEVER silently replace a delivery rule or treat phone/name matches as
+// authoritative customer identity. Account balance row absence is UNKNOWN,
+// not a zero balance. This endpoint cannot update stock/cash/credit/orders.
+async function previewDeliveryDebtReconciliationV1(env,user,body){
+  const deny=(code,message)=>({success:false,code,message,deliveryAuthorized:false,
+    postingAllowed:false,automaticRetryAuthorized:false,financeRelease:'NO_GO'});
+  if(!isAdmin(user))return deny('delivery-debt-owner-role-required',
+    'مقارنة مديونية التشغيل برصيد الحسابات متاحة للمسؤول الموثق فقط.');
+  const lineId=text(body&&body.lineId);
+  if(!/^[\p{L}\p{N}_:.\-]{3,180}$/u.test(lineId))
+    return deny('delivery-debt-line-id-invalid','معرف البند غير صالح.');
+  let imported,native;
+  try{
+    imported=await env.DB.prepare("SELECT l.line_id AS lineId,l.order_id AS orderId,o.customer_name AS customerName,o.customer_phone AS customerPhone,l.debt_amount AS operationalDebt FROM employee_core_lines_v1 l JOIN employee_core_orders_v1 o ON o.order_id=l.order_id WHERE l.line_id=? AND l.active=1 AND o.active=1").bind(lineId).first();
+    native=await env.DB.prepare("SELECT l.line_id AS lineId,l.order_id AS orderId,o.customer_name AS customerName,o.customer_phone AS customerPhone FROM t12_prod_lines l JOIN t12_prod_orders o ON o.order_id=l.order_id WHERE l.line_id=?").bind(lineId).first();
+  }catch{return deny('delivery-debt-source-schema-unavailable','مصدر بيانات الأوردر غير متاح للفحص الآمن.');}
+  if((!!imported)===(!!native))return deny('delivery-debt-line-not-unique',
+    'معرف البند غير موجود أو موجود في مصدرين؛ لا يمكن تحديد مصدر المديونية.');
+  const line=imported||native,sourceKind=imported?'core-import':'t12-prod';
+  const phone=text(line.customerPhone),customerName=text(line.customerName);
+  let candidates;
+  try{
+    candidates=(await env.DB.prepare("SELECT customer_id AS customerId,debt_amount AS operationalDebt FROM t12_customers WHERE active='نعم' AND ((?<>'' AND (phone=? OR extra_phone=?)) OR (?='' AND customer_name=?)) ORDER BY customer_id LIMIT 2")
+      .bind(phone,phone,phone,phone,customerName).all()).results||[];
+  }catch{return deny('delivery-debt-customer-schema-unavailable','مصدر ربط هوية العميل غير متاح للفحص الآمن.');}
+  const matches=candidates.length;
+  let operationalDebt=imported?num(imported.operationalDebt):null;
+  let postedBalance=null,status='NO_UNIQUE_CUSTOMER_MATCH';
+  let matchedCustomerId='';
+  if(matches===1){
+    matchedCustomerId=text(candidates[0].customerId);
+    if(!imported)operationalDebt=num(candidates[0].operationalDebt);
+    let balance;
+    try{
+      balance=await env.DB.prepare("SELECT balance FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=?").bind(matchedCustomerId).first();
+    }catch{return deny('delivery-debt-ledger-schema-unavailable','دفتر الأرصدة المحاسبية غير متاح. لا تفترض أن الرصيد صفر.');}
+    if(balance&&balance.balance!==null&&balance.balance!==undefined){
+      postedBalance=num(balance.balance);
+      status=Math.round(operationalDebt*100)===Math.round(postedBalance*100)
+        ?'SOURCES_EQUAL_IDENTITY_UNVERIFIED':'SOURCES_DIFFER';
+    }else status='NO_POSTED_BALANCE';
+  }
+  return {success:true,code:'delivery-debt-reconciliation-evidence-only',
+    status,lineId,orderId:text(line.orderId),sourceKind,
+    operationalDebt,postedCustomerBalance:postedBalance,
+    customerMatchCount:matches,matchedCustomerId:matches===1?matchedCustomerId:'',
+    identityMatchBasis:phone?'PHONE_UNVERIFIED':'NAME_UNVERIFIED',
+    identityVerified:false,sourceOnly:true,
+    evidenceCoverage:'BOUNDED_READS_NOT_ATOMIC_SNAPSHOT',
+    balanceAuthority:'ACCOUNTING_LEDGER_READ_ONLY_NOT_AUTO_LINKED',
+    deliveryAuthorized:false,postingAllowed:false,automaticRetryAuthorized:false,
+    manualReconciliationRequired:true,financeRelease:'NO_GO'};
+}
+
 async function markNotified(env,user,body){
   const lineId=text(body.lineId||body.id),message=text(body.message||body.lastWhatsAppMessage),when=text(body.notifiedAt)||new Date().toISOString();
   if(!lineId)return {success:false,message:'lineId مطلوب.'};
@@ -446,6 +501,7 @@ export async function handleEmployeeCoreNativeRequest(request,env){
       else {const rows=await coreRows(env,screen);out={success:true,dashboard:dashboard(rows,screen),version:'ENTRY614_D1_EMPLOYEE_CORE_V1'};}
     }else if(action==='getActivityLog')out={success:true,rows:await activity(env,body.limit)};
     else if(action==='getTrendMasterCenterV1931')out=await trendMaster(env,a.user,body);
+    else if(action==='previewDeliveryDebtReconciliationV1')out=await previewDeliveryDebtReconciliationV1(env,a.user,body);
     else if(action==='bulkUpdateDepartmentStatusV1926')out=await bulkStatus(env,a.user,body);
     else if(action==='archiveDeliveredDepartmentV1926')out=await archiveDelivered(env,a.user,body);
     else if(action==='updateLine')out=await updateSingleLine(env,a.user,body);
