@@ -65,6 +65,11 @@ async function invoke(fixture,action='updateLine',more={}){
 function make(opts={}){
   const f=fixture(opts);f.username=opts.username||'fake-print';return f;
 }
+// Native auth bridge may legitimately update its own session audit row during
+// session verification. A denied *order operation* must have zero Core writes.
+function orderWrites(calls){
+  return calls.runs.filter(v=>/employee_core_lines_v1|employee_core_events_v1|t12_prod_line_runtime/.test(v.sql));
+}
 const actions=['updateLine','markCustomerNotified'];
 const sources=['imported','t12'];
 test('BOOK28: print employee cannot update or notify laser lines, even if body.screen is forged',async()=>{
@@ -73,7 +78,7 @@ test('BOOK28: print employee cannot update or notify laser lines, even if body.s
     const x=await invoke(f,action,{screen:'print',screens:['laser']});
     assert.equal(x.status,403,action+' '+source);
     assert.equal(x.body.code,'line-write-scope-denied');
-    assert.equal(x.calls.runs.length,0);
+    assert.equal(orderWrites(x.calls).length,0);
     assert.ok(x.calls.importedReads>=1);
   }
 });
@@ -82,7 +87,7 @@ test('BOOK28: laser employee cannot edit/notify print lines',async()=>{
     const f=make({source,role:'laser',department:'ليزر',lineDepartment:'طباعة'});
     const x=await invoke(f,action,{screen:'laser'});
     assert.equal(x.status,403,action+' '+source);
-    assert.equal(x.calls.runs.length,0);
+    assert.equal(orderWrites(x.calls).length,0);
   }
 });
 test('BOOK28: admin-looking username with non-admin session cannot bypass department guard',async()=>{
@@ -90,7 +95,7 @@ test('BOOK28: admin-looking username with non-admin session cannot bypass depart
     const f=make({username,role:'print',department:'طباعة',lineDepartment:'ليزر'});
     const x=await invoke(f,'updateLine');
     assert.equal(x.status,403,username);
-    assert.equal(x.calls.runs.length,0);
+    assert.equal(orderWrites(x.calls).length,0);
   }
 });
 test('BOOK28: unknown department fails closed for non-admin for each writer',async()=>{
@@ -98,7 +103,7 @@ test('BOOK28: unknown department fails closed for non-admin for each writer',asy
     const f=make({role:'service',department:'خدمة العملاء',lineDepartment:'غير معروف'});
     const x=await invoke(f,action);
     assert.equal(x.status,403,action);
-    assert.equal(x.calls.runs.length,0);
+    assert.equal(orderWrites(x.calls).length,0);
   }
 });
 test('BOOK28: verified print/laser roles may edit and notify their OWN departments',async()=>{
@@ -108,7 +113,7 @@ test('BOOK28: verified print/laser roles may edit and notify their OWN departmen
       const x=await invoke(f,action);
       assert.equal(x.status,200,role+'/'+source+'/'+action);
       assert.equal(x.body.success,true);
-      assert.ok(x.calls.runs.length>0,'expected fake-only D1 write');
+      assert.ok(orderWrites(x.calls).length>0,'expected fake-only D1 write');
     }
 });
 test('BOOK28: verified explicit screens override role or user-supplied fake screens',async()=>{
@@ -117,13 +122,13 @@ test('BOOK28: verified explicit screens override role or user-supplied fake scre
   f=make({role:'service',department:'خدمة العملاء',screens:['laser'],lineDepartment:'طباعة'});
   let x=await invoke(f,'updateLine',{screens:['print'],screen:'print'});
   assert.equal(x.status,403);
-  assert.equal(x.calls.runs.length,0);
+  assert.equal(orderWrites(x.calls).length,0);
 });
 test('BOOK28: service is NOT a wildcard permission to mutate another department',async()=>{
   const f=make({role:'service',department:'خدمة العملاء',screens:['service'],lineDepartment:'ليزر'});
   const x=await invoke(f,'markCustomerNotified',{screen:'service'});
   assert.equal(x.status,403);
-  assert.equal(x.calls.runs.length,0);
+  assert.equal(orderWrites(x.calls).length,0);
 });
 test('BOOK28: service can update customer-service own line',async()=>{
   const f=make({role:'service',department:'خدمة العملاء',lineDepartment:'خدمة العملاء'});
@@ -146,14 +151,14 @@ test('BOOK28: expired or invalid session cannot read line metadata or write it',
     assert.equal(x.status,401);
     assert.equal(x.calls.importedReads,0);
     assert.equal(x.calls.t12Reads,0);
-    assert.equal(x.calls.runs.length,0);
+    assert.equal(orderWrites(x.calls).length,0);
   }
 });
 test('BOOK28: missing line returns not found and zero writes',async()=>{
   const f=make({role:'admin',hasLine:false});
   const x=await invoke(f);
   assert.equal(x.body.code,'line-not-found');
-  assert.equal(x.calls.runs.length,0);
+  assert.equal(orderWrites(x.calls).length,0);
 });
 test('BOOK28: Core READONLY denies writes BEFORE line metadata access',async()=>{
   const f=make({mode:'READONLY',role:'admin'});
@@ -161,6 +166,6 @@ test('BOOK28: Core READONLY denies writes BEFORE line metadata access',async()=>
   assert.equal(x.status,503);
   assert.equal(x.body.code,'employee-core-readonly');
   assert.equal(x.calls.importedReads,0);
-  assert.equal(x.calls.runs.length,0);
+  assert.equal(orderWrites(x.calls).length,0);
 });
 test('BOOK28: no real network calls in any test',()=>assert.equal(externalCalls,0));
