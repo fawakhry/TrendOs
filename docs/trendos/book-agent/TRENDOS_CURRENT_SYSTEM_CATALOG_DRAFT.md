@@ -685,3 +685,46 @@
 | BOOK21-OBSERVABILITY | event correlation end-to-end، Health/alert owner/threshold، دون أي أسرار أو PII في Logs | BLOCKED |
 
 **الحكم النهائي للفصل:** البنية فيها قواعد مفيدة لفحص metadata وheartbeat ومنع القراءة عند بعض حالات عدم الاتساق، لكن لا يوجد في جولة المصدر دليل `TESTED` جديد أو `PRODUCTION_VERIFIED`. لا نغير كود النظام أو نحاول تعديل المرايا لتجهيز الأدلة.
+
+
+---
+
+# 22. إدارة محتوى المنصة والفروع والسوق والإعلانات — صلاحيات Content D1 (16 أكتوبر 2026)
+
+**الوظيفة:** إدارة أقسام TrendOS، الفروع/الفرنشايز، ربط العملاء بالفروع، مقدمي الخدمة، بائعي ومنتجات Marketplace، العلامة البيضاء، الإعلانات، المعرفة والنوت. **الحالة `SOURCE_ONLY`**؛ لا تعديلات لمنتجات أو فروع أو بيانات عملاء أو ملفات إنتاجية خلال التدقيق.
+
+## 22.1 نقطة دخول الواجهة وحدود Cutover
+- [`config.js` س28–34](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/config.js#L28-L34) يضع `MATBAGY_EMPLOYEE_CONTENT_CUTOVER_MODE='READONLY'` في مصدر إعدادات المتصفح. [`employee-api-dispatcher-v1.js` س87–98](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/employee-api-dispatcher-v1.js#L87-L98) قائمة `CONTENT_READ_ACTIONS` هي تسعة أنواع قراءة، و[`employee-api-dispatcher-v1.js` س269–278](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/employee-api-dispatcher-v1.js#L269-L278) لا يوجه إلى Native Content إلا القراءة عند Native session route enabled؛ أفعال الكتابة ليست ضمن هذا التوجيه.
+- [`cloudflare-d1/src/index_v2.js` س7–14](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/index_v2.js#L7-L14) يركّب مسار `/v1/employee/content`. [`cloudflare-d1/src/employee-content-native-v1.mjs` س1–19](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-content-native-v1.mjs#L1-L19) يحدد مجموعتين مستقلتين READ/WRITE. [`cloudflare-d1/src/employee-content-native-v1.mjs` س250–283](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-content-native-v1.mjs#L250-L283) يتحقق من جلسة الموظف و`employee_content_control_v1`؛ `OFF` يرفض و`READONLY` يمنع الكتابات و`GENERAL` قد يسمح بها طبقًا لـ`canManage`. **لا نعتبر أعمال الحفظ Native منشورة بمجرد وجود دوالها**.
+
+## 22.2 نموذج تخزين المحتوى
+- [`cloudflare-d1/src/employee-content-native-v1.mjs` س54–81](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-content-native-v1.mjs#L54-L81) يستخدم `employee_content_records_v1` بمفاتيح `collection + record_id`، `record_json`، active/sort/order/version، وجدول `employee_content_events_v1` للأثر. استعلامات list/read تفصل النشط عن غير النشط. `softDelete` يجعل `active=0`، لا يحذف السجل مباشرة.
+- **فجوة التزامن:** `upsert` يقرأ version ثم يكتب version+1 دون إظهار شرط `WHERE version=expected` على الـUPDATE. طلبان متزامنان لتغيير نفس السجل ممكن يؤديان إلى overwrite آخر تعديل؛ يحتاج اختبار conflict/optimistic locking ولا نعلن حادثة إنتاج.
+- [`cloudflare-d1/src/employee-content-native-v1.mjs` س29–39](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-content-native-v1.mjs#L29-L39): `canManage` يفحص `admin`، وباقي الصلاحيات مبنية جزئيًا على أسماء موظفين محددة أو `role=service`؛ السماح بكل الموظفين في `notes` مقصود حسب الدالة لكن يجب مطابقة الصلاحية مع سياسة المنتج. **لا تستخدم أسماء الموظفين كبديل عن RBAC ممنوح ومراجع باستمرار**.
+
+## 22.3 فروع مطبعجي وربط العملاء
+- [`cloudflare-d1/src/employee-content-native-v1.mjs` س155–182](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-content-native-v1.mjs#L155-L182) يقرأ ويحفظ `franchise_branches` و`service_provider_routes` ويسمح بإخفاء الشركاء عن العميل بحسب `customerVisibility` و`branchRole`. إخفاء أحدهم في الاستجابة العامة لا يثبت عدم عرضه في مسارات واجهة أخرى؛ يلزم تحقق متعدد المصادر.
+- [`cloudflare-d1/src/employee-content-native-v1.mjs` س123–140](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-content-native-v1.mjs#L123-L140) `assignCustomerBranch` يبحث باستخدام `customer_id` أو أكواد قديمة أو `customer_name_key` ويأخذ `LIMIT 1` بأولوية لمعرف العميل؛ **لو الاسم يطابق أكثر من عميل، ينتج اختيار واحد دون إشارة ambiguity ظاهرة في هذا الكاتب**. مطلوب رفض الالتباس أو الاعتماد على معرف العميل المستقر، ثم اختبار بيانات وهمية بأسماء متشابهة قبل الوثوق بربط الفرع.
+- الكتابة الفعلية هنا `UPDATE t12_customers` مع event ضمن `db.batch`، بشرط صلاحية Content و`GENERAL`. لا يعني ذلك تنفيذ تسعير، توزيع شغل أو تفعيل فرع على ماكينة.
+
+## 22.4 سوق Trend Mall ومعرفة الموظفين
+- [`cloudflare-d1/src/employee-content-native-v1.mjs` س184–201](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-content-native-v1.mjs#L184-L201) يعالج `marketplace_vendors/products` ويحفظ الأكواد/الأسماء/الترتيب؛ وقد يرفع صورة R2 عند وجود base64. وجود منتجات في D1 **مش برهان وجود بيع/دفع/عمولة أو مخزون موحَّد مع EasyStore**.
+- [`cloudflare-d1/src/employee-content-native-v1.mjs` س227–250](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-content-native-v1.mjs#L227-L250) يقرأ/يحفظ `knowledge` و`notes` كوثائق تشغيلة؛ تخزين قواعد المعرفة لا يثبت أنها استُخدمت في إجابة تلقائية صحيحة أو صلاحيات عرض أسرار داخل النص.
+- [`cloudflare-d1/src/employee-content-native-v1.mjs` س205–223](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-content-native-v1.mjs#L205-L223) يتعامل مع أرقام عملاء محتملين والإعلانات، وهي بيانات تحتاج سياسة وصول/احتفاظ وموافقة نشر؛ إظهارها في إدارة المحتوى لا يثبت مشاركة العميل لموافقته التسويقية.
+
+## 22.5 ملفات R2 داخل Content
+- [`cloudflare-d1/src/employee-content-native-v1.mjs` س83–110](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-content-native-v1.mjs#L83-L110): `uploadPublicFile` يضع الملف على R2 ثم ينشئ metadata في `employee_content_files_v1` ورابط public أو proxy؛ فشل D1 بعد PUT يترك احتمال object يتيم (كما في الفصل 20).
+- **ملاحظة مراجعة أمنية مستقلة:** [`cloudflare-d1/src/employee-content-native-v1.mjs` س103–109](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-content-native-v1.mjs#L103-L109) `serveFile` يرجع bytes بمجرد معرفة fileId مع `cache-control: public`، و[`cloudflare-d1/src/employee-content-native-v1.mjs` س250–267](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-content-native-v1.mjs#L250-L267) يعالج GET قبل المصادقة، مع Origin guard لكنه **ليس user authorization**. قد يكون ده مقصودًا لصور إعلانات ومنتجات منشورة، لكن يجب تعريف collection/public policy صريحة والتأكد من منع رفع مواد داخلية ثم كشفها عبر نفس route. **SOURCE_ONLY** وليس دليل كشف بيانات حقيقي.
+
+## 22.6 الاختبارات/الأدلة
+| الحالة | المطلوب | التصنيف |
+|---|---|---|
+| READONLY vs GENERAL | التحقق من flag الواجهة + control الخادم + deploy SHA، والتأكد أن writes لا تعمل في READONLY | SOURCE_ONLY / BLOCKED |
+| RBAC collections | موظفون بأدوار مختلفة وقراءة بيانات خاصة وإدارة فروع/إعلانات | BLOCKED |
+| تسمية عميل وربط فرع | اسمين متطابقين/أكواد مختلفة، رفض الالتباس أو اختيار معرف صريح | SOURCE_AMBIGUITY_RISK |
+| upsert المتزامن | إرسال تعديلين بنفس version واختبار منع lost update | SOURCE_CONCURRENCY_RISK |
+| R2 Content GET | عام/خاص لكل collection، anonymous/other user، cache headers، path spoofing | SOURCE_AUTH_POLICY_GAP |
+| بازار ومبيعات | إثبات أن marketplace catalog ليس financial order authority بدون عقد دفع/أوردر | BLOCKED |
+| TESTED | **لا اختبارات منفذة في هذه الجولة** | راجع [`tests/entry614_employee_content_native.test.mjs` س1–50](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/tests/entry614_employee_content_native.test.mjs#L1-L50) و[`tests/entry629_employee_content_readonly_dispatch.test.mjs` س1–50](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/tests/entry629_employee_content_readonly_dispatch.test.mjs#L1-L50) واربط Run exact SHA |
+
+**الحكم:** وجود Writer للمحتوى وMarketplace لا يعني انتقال سلطة الحفظ بالكامل إلى Cloud Native على الواجهة؛ هناك فجوات وصول/تزامن/هوية تحتاج إثباتًا على نسخة معزولة. `TESTED=NO` و`PRODUCTION_VERIFIED=NO`.
