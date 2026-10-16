@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import routed from '../cloudflare-d1/src/index_v2.js';
 import {handleMirrorServiceRead, mirrorReadSignaturePayload} from '../cloudflare-d1/src/mirror-service-read-v1.mjs';
+import { MirrorServiceNonceGuardV1 } from '../cloudflare-d1/src/mirror-service-replay-guard-v1.mjs';
 
 const HOST = 'https://server67-only.invalid';
 const META = 'trendos_mirror_metadata';
@@ -34,7 +35,26 @@ function fixture() {
       }
     };
   }};
-  return {audit, env:{
+  const replayRows=new Map();
+  const storage={
+    async transaction(action) {
+      return action({
+        get:async key=>replayRows.get(key),
+        put:async (key,value)=>{replayRows.set(key,value);}
+      });
+    },
+    async getAlarm(){return null;},
+    async setAlarm(){},
+    async list(){return new Map(replayRows);},
+    async delete(key){replayRows.delete(key);}
+  };
+  const replayGuard=new MirrorServiceNonceGuardV1({storage});
+  const replayNamespace={
+    idFromName:name=>name,
+    get:() => ({fetch:request=>replayGuard.fetch(request)})
+  };
+  return {audit, replayRows, env:{
+    MIRROR_SERVICE_READ_REPLAY_DO:replayNamespace,
     DB,
     MIRROR_SERVICE_READ_ENABLED:'true',
     MIRROR_METADATA_READ_ENABLED:'true',
@@ -141,6 +161,41 @@ test('wrong service path never reaches dedicated handler',async()=>{
   const x=fixture(),r=await handleMirrorServiceRead(new Request(route('/v1/service/mirror/not-a-route')),x.env);
   assert.equal(r,null);assert.equal(x.audit.length,0);
 });
+test('identical signed request cannot be used twice (durable replay lock)',async()=>{
+  const x=fixture();
+  const req=await signed(route('/v1/service/mirror/stats'));
+  const first=await routed.fetch(req,x.env,{});
+  assert.equal(first.status,200);
+  const dbCount=x.audit.length;
+  const second=await routed.fetch(req,x.env,{});
+  assert.equal(second.status,409);
+  assert.equal((await second.json()).code,'request-replay-denied');
+  assert.equal(x.audit.length,dbCount);
+});
+test('missing replay Durable Object binding always denies before DB',async()=>{
+  const x=fixture();delete x.env.MIRROR_SERVICE_READ_REPLAY_DO;
+  const r=await routed.fetch(await signed(route('/v1/service/mirror/stats')),x.env,{});
+  assert.equal(r.status,503);assert.equal((await r.json()).code,'replay-guard-unavailable');
+  assert.equal(x.audit.length,0);
+});
+test('replay guard transaction rejects reused nonce and malformed receipt',async()=>{
+  const store=new Map();
+  const storage={
+    transaction:async callback=>callback({
+      get:async key=>store.get(key),put:async(key,v)=>{store.set(key,v);}
+    }),
+    getAlarm:async()=>null,setAlarm:async()=>{},
+  };
+  const guard=new MirrorServiceNonceGuardV1({storage});
+  const url='https://mirror-replay.internal/consume';
+  const payload={scope:META,nonce:'R'.repeat(24),validUntil:Date.now()+20000};
+  const request=()=>new Request(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+  assert.equal((await guard.fetch(request())).status,200);
+  assert.equal((await guard.fetch(request())).status,409);
+  assert.equal((await guard.fetch(new Request(url,{method:'GET'}))).status,404);
+  assert.equal((await guard.fetch(new Request(url,{method:'POST',body:'{}'}))).status,400);
+});
+
 test('all generated URLs remain reserved .invalid',()=>{
   assert.equal(new URL(HOST).hostname.endsWith('.invalid'),true);
 });
