@@ -16,7 +16,7 @@ const ORIGINAL_FETCH = globalThis.fetch;
 // Fail any unexpected network: the test must not reach Apps Script/Cloudflare.
 globalThis.fetch = async () => { throw new Error('NETWORK_FORBIDDEN_IN_FAKE_TEST'); };
 
-async function fixture({ role='print', username='demo-employee', assigned=true, active=true, file=true, visible=1, publicBase='', orderId=ORDER }={}) {
+async function fixture({ role='print', username='demo-employee', assigned=true, active=true, file=true, visible=1, publicBase='', orderId=ORDER, controlMode='READONLY' }={}) {
   const calls={ r2Get:0, r2Put:0, fileMetadata:0, orderLookup:0, writes:0 };
   const env={
     EDGE_SESSION_SECRET:SECRET,
@@ -33,7 +33,7 @@ async function fixture({ role='print', username='demo-employee', assigned=true, 
               screensJson:JSON.stringify([role]),sessionVersion:1,currentSessionVersion:1,
               active:1,expiresAtMs:Date.now()+600000,mustChange:0};
           }
-          if(sql.includes('FROM employee_comms_control_v1'))return {mode:'READONLY'};
+          if(sql.includes('FROM employee_comms_control_v1'))return {mode:controlMode};
           if(sql.includes('FROM employee_order_conversation_files_v1')) {
             calls.fileMetadata++;
             return file?{orderId,r2Key:'private/synthetic/fixture',mimeType:'application/pdf',
@@ -47,7 +47,12 @@ async function fixture({ role='print', username='demo-employee', assigned=true, 
           if(sql.includes('FROM employee_core_lines_v1'))return null;
           return null;
         },
-        async all(){ return {results:[]}; },
+        async all(){
+          if(sql.includes('FROM employee_order_conversation_files_v1'))return {results:[{
+            fileId:ID,orderId:ORDER,name:'synthetic.pdf',url:'https://public.unit.invalid/old-private-key',visibleToCustomer:0
+          }]};
+          return {results:[]};
+        },
         async run(){ calls.writes++; return {success:true}; }
       };
     }},
@@ -148,6 +153,35 @@ test('reject non-GET file access before R2 and reject untrusted Origin',async()=
   const origin=await handleEmployeeCommsNativeRequest(new Request(ROOT+ID,{headers:{Origin:'https://evil.unit.invalid'}}),env);
   assert.equal(origin.status,403);
   assert.equal(calls.r2Get,0);
+});
+
+test('authenticated conversation metadata never echoes stored public R2 object URL',async()=>{
+  const {env}=await fixture();
+  const req=new Request('https://unit.invalid/v1/employee/comms',{
+    method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({action:'getOrderConversation',orderId:ORDER,username:'demo-employee',token:TOKEN})
+  });
+  const response=await handleEmployeeCommsNativeRequest(req,env);
+  assert.equal(response.status,200);
+  const body=await response.json();
+  assert.equal(body.success,true);
+  assert.equal(body.files.length,1);
+  assert.equal(body.files[0].url,'/v1/employee/comms/file/'+ID);
+  assert.doesNotMatch(JSON.stringify(body),/public\\.unit\\.invalid/);
+});
+
+test('public R2 base blocks new uploads before FILES.put',async()=>{
+  const {env,calls}=await fixture({controlMode:'GENERAL',publicBase:'https://public.unit.invalid'});
+  const req=new Request('https://unit.invalid/v1/employee/comms',{
+    method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({action:'uploadOrderConversationFile',orderId:ORDER,username:'demo-employee',token:TOKEN,
+      fileName:'synthetic.pdf',mimeType:'application/pdf',base64:'AQID'})
+  });
+  const response=await handleEmployeeCommsNativeRequest(req,env);
+  const result=await response.json();
+  assert.equal(result.success,false);
+  assert.equal(result.code,'r2-public-url-unsafe');
+  assert.equal(calls.r2Put,0);
 });
 
 test.after(()=>{globalThis.fetch=ORIGINAL_FETCH;});
