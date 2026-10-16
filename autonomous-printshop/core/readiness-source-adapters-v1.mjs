@@ -25,14 +25,18 @@ function legacyReadyState(v){
   return '';
 }
 
-export function legacyDesignEvidenceCandidatesV1(rows=[]){
+export function legacyDesignEvidenceCandidatesV1(rows=[],options={}){
+  const nowMs=Number.isFinite(Number(options.nowMs))?Number(options.nowMs):Date.now();
   const out=[];
   for(const row of Array.isArray(rows)?rows:[]){
     const state=legacyReadyState(row.ready);
     const lineId=text(row.lineId||row.line_id);
     const updatedAt=text(row.updatedAt||row.updated_at);
     const observedAtMs=parseUtc(updatedAt);
-    if(!lineId||!state||!observedAtMs) continue;
+    // A future legacy updated_at is not proof that design is READY now.
+    // Do not let invalid clock data make the collector write a future event
+    // (or abort the rest of the SHADOW collection).
+    if(!lineId||!state||!observedAtMs||observedAtMs>nowMs) continue;
     out.push({
       lineId,
       kind:'DESIGN',
@@ -141,22 +145,30 @@ export async function collectExistingReadinessEvidenceV1(db,options={}){
         FROM autonomous_line_machine_mapping_events
     `).all(),
     db.prepare(`
-      SELECT observation_id AS observationId,
-             machine_id AS machineId,
-             machine_state AS machineState,
-             source_kind AS sourceKind,
-             source_ref AS sourceRef,
-             confidence,
-             evidence_json AS evidenceJson,
-             observed_at_ms AS observedAtMs,
-             expires_at_ms AS expiresAtMs
-        FROM autonomous_machine_observations
-       WHERE expires_at_ms>?
-    `).bind(Number.isFinite(Number(options.nowMs))?Number(options.nowMs):Date.now()).all()
+      SELECT observationId,machineId,machineState,sourceKind,sourceRef,
+             confidence,evidenceJson,observedAtMs,expiresAtMs
+        FROM (
+          SELECT observation_id AS observationId,
+                 machine_id AS machineId,
+                 machine_state AS machineState,
+                 source_kind AS sourceKind,
+                 source_ref AS sourceRef,
+                 confidence,
+                 evidence_json AS evidenceJson,
+                 observed_at_ms AS observedAtMs,
+                 expires_at_ms AS expiresAtMs,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY machine_id
+                   ORDER BY observed_at_ms DESC,observation_id DESC
+                 ) AS latestRank
+            FROM autonomous_machine_observations
+        )
+       WHERE latestRank=1
+    `).all()
   ]);
 
   const candidates=[
-    ...legacyDesignEvidenceCandidatesV1(legacyResult.results||[]),
+    ...legacyDesignEvidenceCandidatesV1(legacyResult.results||[],options),
     ...(materialSnapshot&&materialSnapshot.qualified
       ? materialBlockerEvidenceCandidatesV1(materialSnapshot.rows||[],options)
       : []),
