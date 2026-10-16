@@ -62,9 +62,24 @@ function otAuthorizeV2_(p){
   if(auth.operatorTaskRole==='OTHER')return {ok:false,message:'نظام التاسكات متاح لوائل وجابر والإدارة فقط.'};
   return auth;
 }
+// BOOK24: select exactly one Apps Script task writer under the existing lock.
+// Read-only Operator V2 queries do not run through this mutation wrapper.
+function otRequireScriptWriterV2_(){
+  let props;
+  try{props=PropertiesService.getScriptProperties();}catch(e){throw new Error('BOOK24_SCRIPT_WRITER_GUARD_UNAVAILABLE');}
+  let enabled;
+  try{enabled=otBoolV2_(props.getProperty('TRENDOS_TASK_SCRIPT_SINGLE_WRITER_GUARD_V1_ENABLED'));}
+  catch(e){throw new Error('BOOK24_SCRIPT_WRITER_GUARD_UNAVAILABLE');}
+  if(!enabled)return; // No deployed property modified: historical default OFF.
+  let selected;
+  try{selected=otTxtV2_(props.getProperty('TRENDOS_TASK_SCRIPT_WRITER_V1')).toUpperCase();}
+  catch(e){throw new Error('BOOK24_SCRIPT_WRITER_OWNER_UNKNOWN');}
+  if(selected!=='OPERATOR_TASK_V2')throw new Error('BOOK24_OPERATOR_V2_NOT_SELECTED_WRITER');
+}
 function otWithLockV2_(fn){
-  if(typeof trendosWithLock_==='function')return trendosWithLock_('script',fn,30000);
-  const lock=LockService.getScriptLock();lock.waitLock(30000);try{return fn();}finally{lock.releaseLock();}
+  const guarded=function(){otRequireScriptWriterV2_();return fn();};
+  if(typeof trendosWithLock_==='function')return trendosWithLock_('script',guarded,30000);
+  const lock=LockService.getScriptLock();lock.waitLock(30000);try{return guarded();}finally{lock.releaseLock();}
 }
 function otSheetV2_(create){
   const ss=typeof ss_==='function'?ss_():SpreadsheetApp.getActiveSpreadsheet();
