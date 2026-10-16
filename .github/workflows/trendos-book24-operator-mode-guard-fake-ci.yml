@@ -1,0 +1,52 @@
+name: TrendOS Book24 Operator D1 Mutation Mode Guard — Offline CI
+on:
+  push:
+    branches:
+      - fix/book24-operator-d1-mutation-mode-guard-20261016
+    paths:
+      - 'autonomous-printshop/core/operator-task-authority-v1.mjs'
+      - 'autonomous-printshop/tests/operator_task_authority_v1.test.mjs'
+      - 'autonomous-printshop/tests/book24_operator_d1_mode_guard_synthetic.test.mjs'
+      - 'autonomous-printshop/tests/book24_operator_sql_mode_gate_sqlite.py'
+      - '.github/workflows/trendos-book24-operator-mode-guard-fake-ci.yml'
+  pull_request:
+    paths:
+      - 'autonomous-printshop/core/operator-task-authority-v1.mjs'
+      - 'autonomous-printshop/tests/operator_task_authority_v1.test.mjs'
+      - 'autonomous-printshop/tests/book24_operator_d1_mode_guard_synthetic.test.mjs'
+      - 'autonomous-printshop/tests/book24_operator_sql_mode_gate_sqlite.py'
+      - '.github/workflows/trendos-book24-operator-mode-guard-fake-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mode-guard-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax-check operator authority and fake guard tests
+        run: |
+          node --check autonomous-printshop/core/operator-task-authority-v1.mjs
+          node --check autonomous-printshop/tests/book24_operator_d1_mode_guard_synthetic.test.mjs
+          python3 -m py_compile autonomous-printshop/tests/book24_operator_sql_mode_gate_sqlite.py
+      - name: Existing operator authority and qualification regression
+        run: |
+          node autonomous-printshop/tests/operator_task_authority_v1.test.mjs
+          node autonomous-printshop/tests/operator_task_canary_qualification_v1.test.mjs
+      - name: Book24 OFF/SHADOW/CANARY/GENERAL and control flip fake tests
+        run: node --test autonomous-printshop/tests/book24_operator_d1_mode_guard_synthetic.test.mjs
+      - name: Execute exact source mutations with SQLite in-memory
+        run: python3 autonomous-printshop/tests/book24_operator_sql_mode_gate_sqlite.py
+      - name: No deployment or production calls
+        run: |
+          echo 'REAL_D1=NO'
+          echo 'OPERATOR_EDGE_ACTIVATION=NO'
+          echo 'REAL_APPS_SCRIPT=NO'
+          echo 'REAL_PRINT_SERVER=NO'
+          echo 'MERGE=NO'
+          echo 'DEPLOY=NO'
+          echo 'PRODUCTION_VERIFIED=NO'
