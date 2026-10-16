@@ -78,3 +78,12 @@ An ordinary variable row and the `MIGRATION_SECRET` **secret name** are visible 
 **Next bounded owner evidence request:** from the same `trendos` Worker navigate **Deployments** and share a screenshot of the **Active deployment version ID, Ready status and traffic fraction** only. Do not open logs, code editor secrets, deploy or change settings. This lets reviewers distinguish the actual deployed `trendos` source from the separate `trendos-d1-api` version `2b40f622` before any compatibility-sensitive mitigation.
 
 `TRENDOS_BINDING_TYPE=D1_DATABASE_AS_SHOWN`; `TRENDOS_BINDING_NAME=DB`; `TRENDOS_D1_DISPLAY_NAME=trendos-main`; `DATABASE_IDENTITY_UUID=NOT_VERIFIED`; `TRENDOS_LOGS_TRACES=OFF_AS_SHOWN`; `EXTERNAL_AUTH=UNKNOWN`; `SEC_AP303_02=OPEN_HIGH_PRIORITY`; `PRODUCTION_CHANGED=NO`.
+
+
+## SERVER-62 — legacy `trendos` Active deployment identified by owner screenshot (2026-10-16)
+
+The owner opened `Workers & Pages → trendos → Production → Deployments` and waited for the Active deployment panel to finish loading. The displayed **active version prefix is `803aa6a2`**, serving **100%** traffic, **Ready**, deployed **6 days** before the screenshot. Point-in-time readings: `0 req/sec`, `0%` error, `1.16 ms` CPU mean. No requests or sensitive data were sent to Production to obtain this evidence. These transient measurements do not prove inactivity, safety, authorization, or absence of historical incidents.
+
+The first Ready build entry carries title `Guard A2.13 workflow dispatch against obsolete main branch`, branch `main`; its title matches [GitHub commit `6b82fd3`](https://github.com/fawakhry/TrendOs/commit/6b82fd3bf00eb80669a3b5ca14ff8eab420a6074), which changes a GitHub accounting workflow file only. **A display title or branch is not a deployed source hash, bundle identity, confirmed entrypoint, or code/authorization proof.** The distinct canonical `trendos-d1-api` has a different observed version prefix `2b40f622`.
+
+**NEXT READ-ONLY SOURCE GATE:** inspect the **Build details** for the top Ready `trendos` entry using its `Build ↗` link, capture source commit/branch/build/deploy target (redacting any environment values, tokens or secrets), then correlate with GitHub and the actual legacy route/auth implementation without customer HTTP GET probes. Do not change Build Settings, Worker Access, D1 bindings, PR merge states or Production deployments. `SEC-AP303-02=OPEN_HIGH`, `SOURCE_PARITY=NOT_VERIFIED`, `BUILD_MAPPING=NOT_VERIFIED`, `DEPLOY_MUTATION=NO`.
