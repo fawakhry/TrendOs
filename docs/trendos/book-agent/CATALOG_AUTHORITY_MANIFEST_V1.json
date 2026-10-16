@@ -1,9 +1,9 @@
 {
-  "schema": "TRENDOS_BOOK_AUTHORITY_MANIFEST_V1",
+  "schema": "TRENDOS_SINGLE_BOOK_ARCHIVE_POLICY_V2",
   "owner_approved_at": "2026-10-16",
   "repository": "fawakhry/TrendOs",
   "work_branch": "agent/trendos-book-audit-v1-20261014",
-  "source_of_truth_notice": "Canonical means where to consult and maintain documentation; it is not a proof of deployed/runtime status or completeness.",
+  "source_of_truth_notice": "Exactly one editable TrendOS book (TRENDOS_CURRENT_SYSTEM_CATALOG.md), containing current chapters plus marked historical annexes. Machine ledgers are ancillary, not books. Source and deployment evidence remain necessary.",
   "reading_order": [
     {
       "priority": 1,
@@ -14,38 +14,18 @@
       "verification": "PARTIALLY_VERIFIED",
       "deployment_certified": false,
       "chapter_count": 32
-    },
-    {
-      "priority": 2,
-      "role": "CHANGELOG_AND_ARCHITECTURE_JOURNAL",
-      "path": "TrendOS_MASTER_BOOK.md",
-      "scope": "Engineering changes, decisions, entry history, cutover stages, observed checkpoints",
-      "authority": "CANONICAL_HISTORY",
-      "verification": "MIXED_HISTORICAL_AND_RECENT"
-    },
-    {
-      "priority": 3,
-      "role": "LEGACY_PRE_SPLIT_ARCHIVE",
-      "path": "docs/trendos/book-agent/TRENDOS_LEGACY_PRE_SPLIT_BOOK.md",
-      "scope": "Original TrendOS before projects separated, original source identity, migration and archiving",
-      "authority": "CANONICAL_LEGACY_ARCHIVE",
-      "verification": "IN_PROGRESS"
     }
   ],
   "preservation": [
     {
-      "role": "FROZEN_DRAFT_REFERENCE",
-      "path": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md",
-      "source_blob_at_promotion": "acded3ba6729eb7f0a5fd8de560ae5091d630b88",
-      "status": "PRESERVED_DO_NOT_DELETE"
+      "role": "PRE_SINGLE_BOOK_ARCHIVE",
+      "ref": "archive/trendos-books-before-single-book-20261016",
+      "commit_sha": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+      "status": "DO_NOT_DELETE"
     },
     {
-      "role": "SOURCE_RECOVERY",
-      "path": "docs/trendos/book-agent/LEGACY_SOURCE_RECOVERY_REGISTER.md"
-    },
-    {
-      "role": "CLEANUP_GATE",
-      "path": "docs/trendos/book-agent/GITHUB_LEGACY_CLEANUP_PLAN.md"
+      "role": "FULL_SINGLE_BOOK_SOURCE",
+      "path": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md"
     }
   ],
   "current_catalog_evidence": [
@@ -88,8 +68,8 @@
     "chapters_contiguous_from_one_to_32": true,
     "chapter_32_file_print_scope": "SOURCE_ONLY_NOT_RUNTIME_TESTED"
   },
-  "writer_contract": "Read latest GitHub HEAD and the three authoritative books; update current catalog for evidenced present behavior; append decisions to master book when properly authorized and independently reviewed; update legacy book only for history; record SOURCE_ONLY/TESTED/BLOCKED/PRODUCTION_VERIFIED distinctly; append audit log, cross-check latest branches and competing PRs before declaring issues.",
-  "adoption_status": "DOCUMENTATION_CANONICAL_APPROVED; 32_CHAPTERS_DOCUMENTED; FULL_CATALOG_CERTIFICATION_PENDING",
+  "writer_contract": "One editable TrendOS book only. Append current verified functionality to canonical chapters, history in its explicit historical appendices. For each old section: copy/migrate, fetch both from latest branch, compare full content, verify archive branch, then remove old section. Delete prior book only after ALL sections verified migrated. Never move secrets or PII to public content. Do not create alternate books; do not deploy or touch live code.",
+  "adoption_status": "ONE_BOOK_OWNER_DIRECTIVE_ACTIVE; 2_OLD_BOOK_FILES_DELETED; MASTER_MIGRATION_BLOCKED; FULL_VERIFICATION_PENDING",
   "no_loss_reconciliation": {
     "entrypoint_path": "docs/trendos/book-agent/TRENDOS_BOOKS_SINGLE_INDEX.md",
     "crosswalk_path": "docs/trendos/book-agent/BOOKS_NO_LOSS_CROSSWALK_V1.json",
@@ -105,6 +85,40 @@
     "master_entry_reconciliations_complete": 0,
     "classification_gate": "EVERY_ENTRY_MUST_BE_MAPPED_OR_EXPLICITLY_CLASSIFIED_WITH_EVIDENCE; NEVER DELETE_UNMAPPED_SOURCE",
     "status": "OPEN_66_PENDING_REVIEW",
-    "not_production_certification": true
-  }
+    "not_production_certification": true,
+    "source_master_remains_until_verified": true,
+    "old_multiple_books_policy_superseded": true,
+    "canonical_book_count_goal": 1,
+    "files_migrated_and_removed": 2,
+    "files_remaining_to_merge": 1,
+    "archive_checkpoint": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "no_delete_without_exact_transfer": true
+  },
+  "latest_owner_directive": "ONE_BOOK_ONLY_MOVE_VERIFY_REMOVE_OLD",
+  "historical_sources_archived": [
+    {
+      "previous_path": "docs/trendos/book-agent/TRENDOS_LEGACY_PRE_SPLIT_BOOK.md",
+      "original_blob_sha": "04500f9503f25d49aada9f90b432cd6a6700adb7",
+      "source_branch": "archive/trendos-books-before-single-book-20261016",
+      "consolidated_in_canonical": "Historical appendix A",
+      "transfer_verified": "EXACT_TEXT_TRIM_END",
+      "old_path_status": "DELETED_FROM_WORK_BRANCH"
+    },
+    {
+      "previous_path": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md",
+      "original_blob_sha": "acded3ba6729eb7f0a5fd8de560ae5091d630b88",
+      "source_branch": "archive/trendos-books-before-single-book-20261016",
+      "consolidated_in_canonical": "Exact common 31 chapters plus original prologue in historical appendix C",
+      "transfer_verified": "EXACT_TEXT_TWO_SEGMENTS",
+      "old_path_status": "DELETED_FROM_WORK_BRANCH"
+    },
+    {
+      "previous_path": "TrendOS_MASTER_BOOK.md",
+      "original_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+      "source_branch": "archive/trendos-books-before-single-book-20261016",
+      "consolidated_in_canonical": null,
+      "transfer_verified": "NOT_COMPLETED",
+      "old_path_status": "RETAINED_PENDING_SAFE_TRANSFER"
+    }
+  ]
 }
