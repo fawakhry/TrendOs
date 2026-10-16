@@ -3016,47 +3016,6 @@ ZERO_GOOGLE_COMPLETE=YES
 | Legacy employee/business actions | Mixed أثناء Zero-Google | **نعم، حتى يثبت نقل كل عائلة** |
 | Apps Script | Version 159 موجود في Production حسب Entry595 | **لا يُحذف بعد** |
 
-## 8. ما لا يعود جزءًا من القراءة اليومية
-
-تم إخراج التفاصيل التالية من الـActive Book لأنها تاريخية/superseded:
-- Entry-by-entry diagnostic narration القديمة.
-- T11/T10/02xx/PERF-CF staging history.
-- TEST D1 mirror fixture chronology.
-- historical Google writer maps التي استُبدلت بمسارات Cloud live.
-- Apps Script staging harnesses وrehearsal procedures غير المستخدمة في Production الحالي.
-- historical promotion failures التي أعقبها independent Production PASS.
-- inventory/full-read batches والـmetadata-only coverage.
-
-للتدقيق أو rollback archaeology: استخدم Git history و`docs/trendos/blackbox/منصة ترند/` والـEntry reports بدل إعادة تضخيم هذا الكتاب.
-
-## 8A. فهرس الأرشيف — أين توجد التفاصيل التي خرجت من الكتاب الحي
-
-> **قاعدة الأرشفة:** الكتاب الرئيسي هو مرجع الحالة الحية والتشغيل والصيانة والخارطة الحالية. لا نعيد إليه السرد التاريخي المطول بعد إغلاق الموضوع. الأرشيف يحفظ التاريخ والدليل، والكتاب يشير إليه فقط.
-
-| ما الذي تبحث عنه؟ | المرجع الأساسي |
-|---|---|
-| التحقيقات، الأدلة، تفاصيل الأعطال والـEntries القديمة | `docs/trendos/blackbox/` |
-| سجل التنفيذ التاريخي المتسلسل | `docs/trendos/TRENDOS_EXECUTION_LEDGER.md` |
-| قرارات المشروع ولماذا اتُخذت | `docs/trendos/TRENDOS_DECISIONS.md` |
-| حالة وتسليم العمل بين الجلسات/المطورين | `docs/trendos/TRENDOS_HANDOFF.md` |
-| ذاكرة المشروع التاريخية | `docs/trendos/TRENDOS_PROJECT_MEMORY.md` |
-| سجلات العمل القديمة | `docs/trendos/TRENDOS_WORKLOG.md` |
-| نقاط التحقق المحفوظة | `docs/trendos/checkpoints/` |
-| جرد وتحليلات المكونات القديمة | `docs/trendos/inventory/` |
-| تفاصيل التنفيذ الفنية | `docs/trendos/implementation/` |
-| مواد وتجارب الـstaging التاريخية | `docs/trendos/staging/` |
-| مواد الكتاب القديمة/المجزأة | `docs/trendos/master-book/` |
-| تاريخ الحسابات التفصيلي | `TRENDOS_ACCOUNTING_BLACKBOX_2026-09-04.md` و`docs/trendos/TRENDOS_ACCOUNTING_FULL_REVIEW_2026-09-04.md` |
-| خارطة المنتج الأصلية حتى 01/03/2027 | `docs/trendos/TRENDOS_ROADMAP_2027-03-01.md` |
-| أي نسخة أو معلومة أزيلت من الملفات الحالية | Git history، مع baseline قبل تنظيف 2026-10-02 عند blob `9f5af80f436effbd3154751d05032608d657462a` |
-
-### قواعد منع تضخم الكتاب
-1. لا يُنقل السرد التاريخي من الأرشيف إلى الكتاب الرئيسي لمجرد أنه مفيد للتدقيق؛ يوضع مرجع له فقط.
-2. النتيجة التشغيلية الحالية تبقى في الكتاب؛ خطوات الوصول القديمة إليها تذهب للأرشيف.
-3. إذا عاد موضوع مؤرشف ليصبح dependency حية، يُعاد **ملخص حالته الحالية فقط** إلى الكتاب، لا تاريخه كاملًا.
-4. أي موضوع يُؤرشف مستقبلًا يجب أن يترك في الكتاب: اسم الموضوع، النتيجة النهائية، مكان الأرشيف، وآخر دليل موثوق.
-5. الأرشيف لا يعلو على Runtime الحالي عند التعارض؛ ترتيب الدليل في مقدمة الكتاب يظل الحاكم.
-
 ## 9. آخر Evidence يجب حمله لأي شات جديد
 
 ```ini
@@ -6846,3 +6805,5 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - **المرجع التفصيلي:** `autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md`، بند `SERVER-20261016-61` على فرع PR #184، توثيق CI commit `71501744835f99803a809136cda9101ab28bbf66`.
 - **بوابات مفتوحة:** `SEC-AP303-02=OPEN_HIGH`؛ Worker `trendos` القديم ليس Worker `trendos-d1-api`، وإصدار `trendos` النشط ومصدره وحماية WAF/Access والمستهلكون الخارجيون لم يُتحقق منها. PRs #151/#154/#160/#176/#184 لم تُدمج وقت المراجعة. `CLOUDFLARE_DEPLOY=NO`، `D1_LIVE_PROBE=NO`، `UBUNTU_LIVE=NO`، `PRINT_LASER=OFF`.
 - **الخطوة التالية:** تثبيت إصدار Worker `trendos` الفعلي بدليل Cloudflare read-only وربطه بمصدر الكود ومصفوفة المستهلكين، ثم مراجعة التصريح والتوافق والـrollback قبل أي Merge/Deploy بموافقة المالك.
+
+- **MIGRATION UNIT 004 / §§8–8A archive navigation / 2026-10-16:** فهرس الأرشيف وقواعد منع تضخم الكتاب (2617 حرفًا) رُحّلا تاريخيًا إلى الملحق «ط» في [copy commit 506b74bf3d4e](https://github.com/fawakhry/TrendOs/commit/506b74bf3d4e48427458e30e0827153283175775)، مع أولوية سياسة التعايش الجديدة. تحقق `EXACT_VERBATIM_MATCH=PASS (2617/2617)` من الكتاب القديم والموحد والأرشيف `b2788ecb4c187717e020321954a1ea449c1aa0d5` (blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`). المصدر السابق للنسخ `168b0bec04da6910fa9f27860a7348d377ada79d`، والكتاب القديم عند حذف الوحدة HEAD `fe21d102e259942ee9340ee3a3de349d95d6ded4` / blob `e0f693c8f7b5a4f79fc0c832493a41d22ff72e49`. حُذف القسمان §8 و§8A والفرع التاريخي `قواعد منع تضخم الكتاب` فقط. **تم الحفاظ على إضافة إيجنت السيرفر SERVER-20261016-61 المسجلة بالتوازي في commit `fe21d102e259942ee9340ee3a3de349d95d6ded4`** دون أي تعديل بها. الكتاب القديم `ACTIVE_WRITE` والجديد `FROZEN / MIGRATION_ONLY`. `NO_RUNTIME_MUTATION`.
