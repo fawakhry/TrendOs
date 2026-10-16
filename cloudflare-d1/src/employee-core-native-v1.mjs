@@ -290,19 +290,47 @@ async function archiveDelivered(env,user,body){
   await commitLedger(env,requestId,response);return response;
 }
 
+// BOOK28-CORE-LINE-SCOPE: resolve the target from trusted D1 metadata,
+// never from client-supplied body.screen, an employee name, or a UI hint.
+// For writes, service is NOT a wildcard permission over other departments.
+function lineWriteScreen(row){
+  const department=normalizeArabic(row&&row.department);
+  if(/ليزر|laser/.test(department))return 'laser';
+  if(/طباعه|print/.test(department))return 'print';
+  if(/مكبس|press/.test(department))return 'press';
+  if(/خدمه|service/.test(department))return 'service';
+  return '';
+}
+function lineWriteAllowed(user,row){
+  if(key(user&&user.role)==='admin')return true;
+  const screen=lineWriteScreen(row);
+  if(!screen)return false; // Unknown department: deny, do not grant "service".
+  const screens=Array.isArray(user&&user.screens)?user.screens.map(key).filter(Boolean):[];
+  if(screens.length)return screens.includes(screen);
+  const role=key(user&&user.role),department=normalizeArabic(user&&user.department);
+  if(screen==='print')return role==='print'||/طباعه/.test(department);
+  if(screen==='laser')return role==='laser'||/ليزر/.test(department);
+  if(screen==='press')return role==='press'||/مكبس/.test(department);
+  return role==='service'||/خدمه/.test(department);
+}
+function lineScopeDenied(){
+  return {success:false,code:'line-write-scope-denied',message:'غير مصرح لك بتغيير بيانات هذا القسم.'};
+}
 async function updateSingleLine(env,user,body){
   const lineId=text(body.lineId||body.id),status=text(body.status),notes=body.notes==null?null:text(body.notes);
   if(!lineId)return {success:false,message:'lineId مطلوب.'};
   if(status&&!STATUSES.has(status))return {success:false,message:'الحالة غير مسموح بها.'};
-  const imported=await env.DB.prepare("SELECT order_id AS orderId,status,notes FROM employee_core_lines_v1 WHERE line_id=? AND active=1").bind(lineId).first();
+  const imported=await env.DB.prepare("SELECT order_id AS orderId,status,notes,department FROM employee_core_lines_v1 WHERE line_id=? AND active=1").bind(lineId).first();
   if(imported){
+    if(!lineWriteAllowed(user,imported))return lineScopeDenied();
     await env.DB.prepare("UPDATE employee_core_lines_v1 SET status=CASE WHEN ?='' THEN status ELSE ? END,notes=CASE WHEN ? IS NULL THEN notes ELSE ? END,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE line_id=?")
       .bind(status,status,notes,notes,user.username,lineId).run();
     await event(env,'updateLine','line',lineId,user.username,{orderId:imported.orderId,oldStatus:imported.status,status:status||imported.status});
     return {success:true,lineId,orderId:text(imported.orderId),status:status||text(imported.status),notes:notes==null?text(imported.notes):notes,source:'employee-core-d1'};
   }
-  const cloud=await env.DB.prepare("SELECT order_id AS orderId,status FROM t12_prod_lines WHERE line_id=?").bind(lineId).first();
+  const cloud=await env.DB.prepare("SELECT order_id AS orderId,status,department FROM t12_prod_lines WHERE line_id=?").bind(lineId).first();
   if(!cloud)return {success:false,code:'line-not-found',message:'البند غير موجود في D1.'};
+  if(!lineWriteAllowed(user,cloud))return lineScopeDenied();
   await env.DB.prepare(`
     INSERT INTO t12_prod_line_runtime(line_id,order_id,status,notes,updated_by,version,updated_at)
     VALUES(?,?,?,?,?,1,CURRENT_TIMESTAMP)
@@ -316,15 +344,17 @@ async function updateSingleLine(env,user,body){
 async function markNotified(env,user,body){
   const lineId=text(body.lineId||body.id),message=text(body.message||body.lastWhatsAppMessage),when=text(body.notifiedAt)||new Date().toISOString();
   if(!lineId)return {success:false,message:'lineId مطلوب.'};
-  const imported=await env.DB.prepare("SELECT order_id AS orderId FROM employee_core_lines_v1 WHERE line_id=? AND active=1").bind(lineId).first();
+  const imported=await env.DB.prepare("SELECT order_id AS orderId,department FROM employee_core_lines_v1 WHERE line_id=? AND active=1").bind(lineId).first();
   if(imported){
+    if(!lineWriteAllowed(user,imported))return lineScopeDenied();
     await env.DB.prepare("UPDATE employee_core_lines_v1 SET customer_notified='نعم',notified_at=?,notified_by=?,last_whatsapp_message=CASE WHEN ?='' THEN last_whatsapp_message ELSE ? END,last_whatsapp_at=?,last_whatsapp_by=?,updated_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE line_id=?")
       .bind(when,user.username,message,message,when,user.username,user.username,lineId).run();
     await event(env,'markCustomerNotified','line',lineId,user.username,{orderId:imported.orderId});
     return {success:true,lineId,orderId:text(imported.orderId),source:'employee-core-d1'};
   }
-  const cloud=await env.DB.prepare("SELECT order_id AS orderId,status FROM t12_prod_lines WHERE line_id=?").bind(lineId).first();
+  const cloud=await env.DB.prepare("SELECT order_id AS orderId,status,department FROM t12_prod_lines WHERE line_id=?").bind(lineId).first();
   if(!cloud)return {success:false,code:'line-not-found',message:'البند غير موجود في D1.'};
+  if(!lineWriteAllowed(user,cloud))return lineScopeDenied();
   await env.DB.prepare(`
     INSERT INTO t12_prod_line_runtime(line_id,order_id,status,customer_notified,notified_at,notified_by,last_whatsapp_message,last_whatsapp_at,last_whatsapp_by,updated_by,version,updated_at)
     VALUES(?,?,?,'نعم',?,?,?,?,?,?,1,CURRENT_TIMESTAMP)
@@ -390,7 +420,7 @@ export async function handleEmployeeCoreNativeRequest(request,env){
     else if(action==='updateLine')out=await updateSingleLine(env,a.user,body);
     else if(action==='markCustomerNotified')out=await markNotified(env,a.user,body);
     else out={success:false,code:'employee-core-action-unknown'};
-    return json(out,out.success===false?400:200,cors(request,env));
+    return json(out,out.success===false?(out.code==='line-write-scope-denied'?403:400):200,cors(request,env));
   }catch(err){
     return json({success:false,code:text(err&&err.code)||'employee-core-error',message:text(err&&err.message)||'Employee core failed'},500,cors(request,env));
   }
