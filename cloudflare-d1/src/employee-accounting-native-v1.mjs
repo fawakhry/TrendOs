@@ -1163,20 +1163,6 @@ async function customerReceiptWithCreditV1(env,auth,b,party,normalizedCommand,be
   statements.push(auditEventStatementV1(env,request,'customer-credit-receipt',party.partyId,'post',
     auth.user.username,{cash,oldDebtPaid:debtPaid,customerCreditCreatedCents:creditCreatedCents,
       before,after:customerCreditMoneyV1(debtBeforeCents-debtPaidCents)}));
-  const guardSql="(SELECT COUNT(*) FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=? AND version=?)"+
-    "+(SELECT COUNT(*) FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?)"+
-    "+(SELECT COUNT(*) FROM employee_accounting_party_ledger_v1 WHERE request_key=?)"+
-    "+(SELECT COUNT(*) FROM employee_accounting_customer_credit_events_v1 WHERE request_key=?)"+
-    "+(SELECT COUNT(*) FROM employee_accounting_cashbox_v1 WHERE request_key=?)"+
-    "+(SELECT COUNT(*) FROM employee_accounting_events_v1 WHERE request_key=?)";
-  const expected=4+(debtPaidCents>0?1:0)+(creditCreatedCents>0?1:0);
-  statements.push(...txGuardPairV1(env,ledgerKey+'-CREDIT-GUARD',expected,guardSql,
-    [party.partyId,ledgerKey,version+1,party.partyId,ledgerKey,credit.version+1,
-     ledgerKey,ledgerKey+'-CREDIT',ledgerKey+'-CASH',ledgerKey]));
-  await env.DB.batch(statements);
-  const check=await env.DB.prepare("SELECT balance FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=?")
-    .bind(party.partyId,ledgerKey).first();
-  if(!check)throw commandErrorV1('customer-credit-guard-rejected','تعارض تحصيل متزامن؛ الطلب محفوظ للمراجعة.');
   const response={success:true,partyId:party.partyId,partyType:'customer',partyName:party.partyName,
     balanceBefore:before,balance:customerCreditMoneyV1(debtBeforeCents-debtPaidCents),
     outstandingDebt:customerCreditMoneyV1(debtBeforeCents-debtPaidCents),
@@ -1184,7 +1170,28 @@ async function customerReceiptWithCreditV1(env,auth,b,party,normalizedCommand,be
     customerDisplayBalance:customerCreditMoneyV1(newCredit-(debtBeforeCents-debtPaidCents)),
     cashboxPosted:true,receiptCashAmount:cash,creditCreated:customerCreditMoneyV1(creditCreatedCents),
     version:'A2_D1_CUSTOMER_CREDIT_OFF_BY_DEFAULT_V1'};
-  await commitCommandV1(env,request,response);
+  // One durable response and COMMITTED state must share the financial batch.
+  // A failed state update rolls back the cash/credit/audit/invoice evidence.
+  const responseJson=JSON.stringify(response);
+  statements.push(env.DB.prepare("UPDATE employee_accounting_request_ledger_v1 SET status='COMMITTED',response_json=?,updated_at=CURRENT_TIMESTAMP WHERE request_key=? AND status='PREPARED'")
+    .bind(responseJson,request.requestKey));
+  const guardSql="(SELECT COUNT(*) FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=? AND version=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_party_ledger_v1 WHERE request_key=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_customer_credit_events_v1 WHERE request_key=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_cashbox_v1 WHERE request_key=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_events_v1 WHERE request_key=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_request_ledger_v1 WHERE request_key=? AND status='COMMITTED' AND response_json=?)";
+  const expected=5+(debtPaidCents>0?1:0)+(creditCreatedCents>0?1:0);
+  statements.push(...txGuardPairV1(env,ledgerKey+'-CREDIT-GUARD',expected,guardSql,
+    [party.partyId,ledgerKey,version+1,party.partyId,ledgerKey,credit.version+1,
+     ledgerKey,ledgerKey+'-CREDIT',ledgerKey+'-CASH',ledgerKey,ledgerKey,responseJson]));
+  await env.DB.batch(statements);
+  const check=await env.DB.prepare("SELECT balance FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=?")
+    .bind(party.partyId,ledgerKey).first();
+  if(!check)throw commandErrorV1('customer-credit-guard-rejected','تعارض تحصيل متزامن؛ الطلب محفوظ للمراجعة.');
+  // Response was committed in the same atomic finance transaction.
+  // A later lost HTTP ACK is safe to replay from the committed request ledger.
   return response;
 }
 
@@ -1792,6 +1799,17 @@ async function saveCustomerCreditDirectSaleV1(env,auth,b){
     {customerId:customer.partyId,total,creditApplied:m(appliedCents),cashReceived:cash,
       remaining,oldDebtPaid:m(cashForOldCents),newCreditCreated:m(newAdvanceCents),
       stockMaterialCount:stockCount}));
+  // All invoice values are derived from validated cents and stock snapshots
+  // before the transaction. Persist the replay response atomically with money.
+  const response={success:true,invoiceNo,department,finalTotal:total,
+    paid:invoicePaid,remaining,manualCost,creditApplied:m(appliedCents),
+    cashReceived:cash,customerCreditCreated:m(newAdvanceCents),
+    customerCreditRemaining:m(newCreditCents),customerDebtRemaining:m(newDebtCents),
+    customerDisplayBalance:m(newCreditCents-newDebtCents),stockMaterialCount:stockCount,
+    version:'A2_D1_CUSTOMER_CREDIT_OFF_BY_DEFAULT_V1'};
+  const responseJson=JSON.stringify(response);
+  statements.push(env.DB.prepare("UPDATE employee_accounting_request_ledger_v1 SET status='COMMITTED',response_json=?,updated_at=CURRENT_TIMESTAMP WHERE request_key=? AND status='PREPARED'")
+    .bind(responseJson,ctx.requestKey));
   const quotedKeys=arr=>arr.map(()=>'?').join(',');
   let guardSql="(SELECT COUNT(*) FROM employee_accounting_stock_moves_v1 WHERE request_key=?)"+
     "+(SELECT COUNT(*) FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND request_key=?)"+
@@ -1802,21 +1820,17 @@ async function saveCustomerCreditDirectSaleV1(env,auth,b){
   if(ledgerKeys.length){guardSql+="+(SELECT COUNT(*) FROM employee_accounting_party_ledger_v1 WHERE request_key IN ("+quotedKeys(ledgerKeys)+"))";guardBind.push(...ledgerKeys);}
   if(creditKeys.length){guardSql+="+(SELECT COUNT(*) FROM employee_accounting_customer_credit_events_v1 WHERE request_key IN ("+quotedKeys(creditKeys)+"))";guardBind.push(...creditKeys);}
   if(cashCents>0){guardSql+="+(SELECT COUNT(*) FROM employee_accounting_cashbox_v1 WHERE request_key=?)";guardBind.push(ctx.requestKey+'-CASH');}
-  guardSql+="+(SELECT COUNT(*) FROM employee_accounting_events_v1 WHERE request_key=?)";
-  guardBind.push(ctx.requestKey);
-  const expected=stockCount+4+ledgerKeys.length+creditKeys.length+(cashCents>0?1:0);
+  guardSql+="+(SELECT COUNT(*) FROM employee_accounting_events_v1 WHERE request_key=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_request_ledger_v1 WHERE request_key=? AND status='COMMITTED' AND response_json=?)";
+  guardBind.push(ctx.requestKey,ctx.requestKey,responseJson);
+  const expected=stockCount+5+ledgerKeys.length+creditKeys.length+(cashCents>0?1:0);
   statements.push(...txGuardPairV1(env,ctx.requestKey+'-GUARD',expected,guardSql,guardBind));
   await env.DB.batch(statements);
   const written=await env.DB.prepare("SELECT invoice_no AS invoiceNo,final_total AS finalTotal,paid,remaining,manual_cost AS manualCost,credit_applied AS creditApplied,cash_received AS cashReceived,credit_created AS creditCreated FROM employee_accounting_final_invoices_v1 WHERE request_key=?")
     .bind(ctx.requestKey).first();
   if(!written)throw commandErrorV1('customer-credit-invoice-guard-rejected','تعارض عند حفظ الفاتورة أو استخدام الرصيد الدائن. الطلب محفوظ للمراجعة.');
-  const response={success:true,invoiceNo:text(written.invoiceNo),department,finalTotal:num(written.finalTotal),
-    paid:num(written.paid),remaining:num(written.remaining),manualCost:num(written.manualCost),
-    creditApplied:num(written.creditApplied),cashReceived:num(written.cashReceived),
-    customerCreditCreated:num(written.creditCreated),customerCreditRemaining:m(newCreditCents),
-    customerDebtRemaining:m(newDebtCents),customerDisplayBalance:m(newCreditCents-newDebtCents),
-    stockMaterialCount:stockCount,version:'A2_D1_CUSTOMER_CREDIT_OFF_BY_DEFAULT_V1'};
-  await commitCommandV1(env,ctx,response);
+  // The response and COMMITTED state were written within the same guarded batch.
+  // This final SELECT is an additional consistency read, not a second commit.
   return response;
 }
 
