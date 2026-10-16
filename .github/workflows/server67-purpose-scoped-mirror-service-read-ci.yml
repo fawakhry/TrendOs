@@ -3,6 +3,12 @@ on:
   pull_request:
     paths:
       - cloudflare-d1/src/mirror-service-read-v1.mjs
+      - cloudflare-d1/src/mirror-service-replay-guard-v1.mjs
+      - cloudflare-d1/production-shadow/index.js
+      - cloudflare-d1/D1_Mirror_Service_Read_V1.gs
+      - cloudflare-d1/D1_Full_Migration.gs
+      - cloudflare-d1/D1_Orders_Read_Cutover.gs
+      - tests/server67_apps_script_signed_mirror_client_offline.test.mjs
       - cloudflare-d1/src/mirror-gate.mjs
       - cloudflare-d1/src/index_v2.js
       - tests/server67_purpose_scoped_mirror_service_read.test.mjs
@@ -28,6 +34,7 @@ jobs:
       - name: Assert signed backend read and legacy denial against fake DB only
         run: |
           node --test tests/server67_purpose_scoped_mirror_service_read.test.mjs \
+            tests/server67_apps_script_signed_mirror_client_offline.test.mjs \
             tests/server66_legacy_mirror_read_gate.test.mjs \
             tests/server56_legacy_customer_bridge_compat.test.mjs \
             tests/server30_legacy_sensitive_read_gate.test.mjs
