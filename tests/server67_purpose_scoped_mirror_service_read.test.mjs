@@ -117,7 +117,7 @@ for(const variant of ['missing','wrong-key','expired','future','tampered','brows
     else if(variant==='future')req=await signed(url,{timestamp:Math.floor(Date.now()/1000)+100});
     else if(variant==='browser')req=await signed(url,{origin:'https://fawakhry.github.io'});
     else if(variant==='bad-nonce')req=await signed(url,{nonce:'short'});
-    else if(variant==='tampered')req=await signed(url+'&injected=1');
+    else if(variant==='tampered') { const signedOriginal=await signed(url); req=new Request(url+'?injected=1',{headers:signedOriginal.headers}); }
     else {req=await signed(url);delete x.env.MIRROR_METADATA_READ_HMAC_SECRET;}
     // Tampered query is denied by scope before signature. All variants fail closed.
     const r=await routed.fetch(req,x.env,{});
