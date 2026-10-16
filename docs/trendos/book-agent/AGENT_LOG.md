@@ -42,3 +42,11 @@
 - WRITE: chapter 10 appended to `TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md`, commit `ccb02ffadd12a566fa7811b5375368565e70ecd2`, blob `27988e0f1ec7274d844d08d4a79ad7a0db28fab4`. Independent post-write fetch verified chapter text and blob.
 - RESULT: `SOURCE_ONLY`; `TESTED=NO`; `PRODUCTION_VERIFIED=NO`; no product code changes, no runtime calls, no production mutations.
 - NEXT: chapter 11 trace `createCustomer` UI → Cloud route → authorization → `t12_customers` and ledger, then flyPrint/paging/session gaps.
+
+
+## 2026-10-16 / CUSTOMER-CODING-006 — الفصل الحادي عشر
+- READ: `app.js` createCustomer/UI/permissions، `index.html`، `trendos-edge-orders-read-v1.js` customer Cloud wrapper، `employee-api-dispatcher-v1.js`، `index_v2.js`، `t12-customer-write-handler.mjs`، `t12-customer-master.mjs`، test filenames from `tests/`، إضافة إلى سياق auth edge.
+- FINDINGS: client action `createCustomer` → `/v1/t12/customers/write` → signed edge bearer + admin/service/named-user check → mode control → upsert of `t12_customers`, ledger/events. `CUS-C...` code internal, not proof of chat-code activation; debtAmount source field not EasyStore finance authority. Source only.
+- WRITE: appended chapter 11; commit `41e17d03434f0ef1b95c415564ae8c75d2dcb565`, new blob `65220b5278826ed75d763ba2e8d57eb5a61ac2e8`. Post-write independent fetch verified new blob and chapter.
+- RESULT: `SOURCE_ONLY`; `TESTED=NO`; `PRODUCTION_VERIFIED=NO`; no production reads/writes of customer records, no code changes, no merge/deploy.
+- NEXT: independent chapter 12 on fly print server rule and same-day promise, then pagination and employee sessions.
