@@ -86,3 +86,16 @@
 | BOOK24-OWNER-APPROVAL | P0 | Owner-only exceptions مثل خصم/رد مال/إجراء وظيفي لا تتحول AI_AUTO دون approval مسجل | BLOCKED |
 
 **مراعاة الكتاب المستقل:** أدلة `autonomous-printshop/MASTER_BOOK.md` لا تعتبر `TrendOS PRODUCTION_VERIFIED` إلا بتطابق runtime SHA والحدود بين المشروعين، ولا تكرر الـEntries هنا.
+
+
+## اختبارات لوحة المدير والذكاء — الفصل 25 (SOURCE_ONLY؛ 16 أكتوبر 2026)
+| ID | الأولوية | الفرضية وطريقة الإثبات | الحالة |
+|---|---|---|---|
+| BOOK25-MANAGER-AUTH | P0 | Fake Employee token دور print/laser يطلب `getTrendMasterCenterV1931` / `getActivityLog`: يجب عدم إرجاع قيود الديون وأسماء العملاء أو سجلات الأقسام غير المصرح بها | SOURCE_AUTH_GAP |
+| BOOK25-MANAGER-PROGRESSIVE | P2 | اختبار زر Manager Center: هل يستخدم Reader المقسم أم monolithic GET؟ simulate timeout/failure/stale per panel | SOURCE_UI_GAP |
+| BOOK25-KPI-TRUTH | P1 | مقارنة `messageQueue:[]`, `dayClose:null`, `duplicateHealthy` مع مصادر مستقلة، منع اعتبار UNKNOWN=0 | BLOCKED |
+| BOOK25-WORKQUEUE-MIGRATION | P1 | إثبات سلطة claim واحدة بين Work Queue V1 (Apps Script) وOperator Task V2/Cloud D1، مع replay/lock | BLOCKED |
+| BOOK25-FEEDBACK-AUTOMATION | P1 | AUTO_SCAN OFF حسب المصدر؛ اختبار إرسال Meta/تكرار رسالة/نتيجة تقييم 1–5 في sandbox | BLOCKED |
+| BOOK25-AI-APPROVAL | P1 | أي AI verdict أو Knowledge promotion يظل ADVISORY_ONLY قبل Evidence/Owner Approval موثَّق | BLOCKED |
+
+لا تغيير كود تشغيل أو بيانات أثناء التسجيل. `TESTED=NO` إلى أن يُرفق Workflow URL ونتيجة exact HEAD.
