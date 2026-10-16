@@ -1,0 +1,41 @@
+name: AP-302 Offline Multi-Service Order Read Dry Run
+
+on:
+  push:
+    branches:
+      - feature/ap302-multiservice-dryrun-20261016
+    paths:
+      - autonomous-printshop/print-server/src/trendos_orders_dry_run.py
+      - autonomous-printshop/print-server/tests/test_ap302_orders_dry_run_synthetic.py
+      - .github/workflows/autonomous-printshop-ap302-orders-dry-run-ci.yml
+  pull_request:
+    paths:
+      - autonomous-printshop/print-server/src/trendos_orders_dry_run.py
+      - autonomous-printshop/print-server/tests/test_ap302_orders_dry_run_synthetic.py
+      - .github/workflows/autonomous-printshop-ap302-orders-dry-run-ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  offline-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline-only AP302 and AP301-296 regressions
+        working-directory: autonomous-printshop/print-server
+        run: |
+          python -m py_compile src/trendos_orders_dry_run.py tests/test_ap302_orders_dry_run_synthetic.py
+          python -B -m unittest discover -s tests -p 'test_ap302_orders_dry_run_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap301_service_identity_plan_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap299_multiservice_scope_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap298_print_scope_gate_synthetic.py' -v
+          python -B -m unittest discover -s tests -p 'test_ap296_trendos_shadow_schema_synthetic.py' -v
+          echo "AP302_TRANSPORT=FAKE_ONLY; REAL_HOST=NONE; REAL_ACCOUNT=NONE; LIVE_ORDERS=OFF"
+          echo "GH_SECRETS=UNUSED; UBUNTU_DEPLOY=NO; PRINTING=OFF"
