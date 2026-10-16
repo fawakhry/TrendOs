@@ -2001,7 +2001,10 @@ async function reopenAccountingFinalInvoiceV1(env,auth,b){
   if(!reason)return {success:false,message:'سبب إرجاع الفاتورة للمراجعة مطلوب.'};
   const inv=await env.DB.prepare("SELECT * FROM employee_accounting_final_invoices_v1 WHERE invoice_no=?").bind(invoiceNo).first();
   if(!inv)return {success:false,message:'لم يتم العثور على الفاتورة '+invoiceNo};
-  if(customerCreditEnabledV1(env)&&(num(inv.credit_applied)>0||num(inv.credit_created)>0))
+  // Never bypass credit-backed invoice reversal protection when the feature flag is
+  // switched OFF after earlier credits were posted. Historical credit evidence
+  // remains binding even in READONLY/legacy operation.
+  if(num(inv.credit_applied)>0||num(inv.credit_created)>0)
     return {success:false,code:'customer-credit-invoice-reversal-not-implemented',message:'عكس فاتورة استخدمت أو أنشأت رصيدًا دائنًا يحتاج قيد تعويضي معتمدًا.'};
   if(text(inv.status)==='UNDER_REVIEW')return {success:true,duplicatePrevented:true,invoiceNo,heldPayment:num(inv.held_paid),message:'الفاتورة تحت المراجعة بالفعل.',version:'A2_D1_ACCOUNTING_V1'};
   if(text(inv.replacement_invoice_no))return {success:false,message:'لا يمكن إرجاع فاتورة مرتبطة بالفعل بفاتورة بديلة.'};
