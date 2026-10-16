@@ -71,6 +71,15 @@ function d1FullPost_(path, payload) {
 }
 
 function d1FullGet_(path) {
+  // SERVER-67: optional signed backend route; OFF by default and fail closed
+  // when selected but the reference signer was not installed in Apps Script.
+  if (String(PropertiesService.getScriptProperties()
+      .getProperty('D1_MIRROR_SERVICE_READ_V1_ENABLED') || '') === 'true') {
+    if (typeof d1MirrorServiceReadV1_ !== 'function') {
+      throw new Error('SERVER67_SIGNER_NOT_INSTALLED');
+    }
+    return d1MirrorServiceReadV1_(path);
+  }
   const cfg = d1FullConfig_();
   const response = UrlFetchApp.fetch(cfg.apiUrl + path, {
     method: 'get',
