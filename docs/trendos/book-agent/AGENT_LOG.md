@@ -199,3 +199,10 @@
 - TEST QUEUE: four new entries commit d1d1f0a87c662720ce479dd11b9f0214166bd128, blob 15c771f53a79af62aacdb74533b99778a52cfa98; independently fetched and verified.
 - STATUS: SOURCE_ONLY, TESTED=NO, PRODUCTION_VERIFIED=NO; no live customers, database writes, Cloudflare changes, or PR merge. Post-chapter user report + copyable repair prompt required by README contract.
 - NEXT: chapter 27 active UI elements/source listeners and end-to-end tested contract; report any issues immediately after the chapter.
+
+## 2026-10-16 / SECURITY-BOOK20-R2-022 — إغلاق محلي مشروط وإبقاء P0 إنتاجي مفتوح
+
+- **Owner precedence:** طبّق سياسة «بلاغ الكتاب تاريخي حتى فحص أحدث HEAD» قبل التطوير. مصدر الملف على فرعي الكتاب/المطبعة blob `f415d06ccd15ba241d679c61b7afeb6ec904e4b8` أظهر GET قبل المصادقة؛ router `index_v2.js` يحيل للـhandler دون طبقة مستقلة واضحة.
+- **ACTION:** فرع `fix/book20-r2-employee-file-auth-20261016` + [Draft PR #136](https://github.com/fawakhry/TrendOs/pull/136). فصل صلاحيات GET عن رفع/محادثة الأوردر، ومنع روابط R2 العامة الجديدة وإضافة تحميل Blob UI مؤقت موثق مع رأس Authorization، دون tokens في URLs.
+- **TESTED_FAKE_ONLY:** `d304d305c698e9eafaddecb62b9e56521392d2a6`, [Actions #38908425048](https://github.com/fawakhry/TrendOs/actions/runs/38908425048) PASS: 12 handler cases + 3 UI cases + previous Entry614 comms contract; [Actions #38908424627](https://github.com/fawakhry/TrendOs/actions/runs/38908424627) PASS browser Cloud transport. Tests used fake D1/R2 and tokens; no production touch.
+- **LIMITATION:** Cloudflare R2 public domain and previously issued URLs not confirmed disabled; Worker deployed SHA and real employee order scope not tested. `SOURCE_PATCH_TESTED=YES`, `PRODUCTION_VERIFIED=NO`, `R2_PUBLIC_BYPASS_CLOSED=NO`, `P0_REMAINS_OPEN`; no merge/deploy. تفاصيل في `ISSUE_REGISTER.md`.
