@@ -32,6 +32,27 @@ class StrictSuccessTests(unittest.TestCase):
                 with self.assertRaisesRegex(qualifier.ShadowQualificationError, "AP296_PAGINATED_CONTRACT_NOT_SUPPORTED"):
                     qualifier.qualify_screen_once(FakeClient(payload), "print")
 
+    def test_nested_edge_pagination_is_never_full_snapshot(self):
+        # Actual Edge page-shape uses nested pagination plus serverPaged=true.
+        page_payloads = [
+            {"pagination": {"page": 1, "pageSize": 20, "totalRows": 50, "totalPages": 3}},
+            {"serverPaged": True},
+            {"serverPaged": None},
+            {"serverPaged": "false"},
+            {"pageInfo": {"hasNext": True}},
+            {"hasOlder": True},
+            {"totalRows": 50},
+        ]
+        for extra in page_payloads:
+            with self.subTest(extra=extra):
+                response = {"success": True, "rows": [{"orderId": "X", "lineId": "Y", "status": "new"}], **extra}
+                with self.assertRaisesRegex(qualifier.ShadowQualificationError, "AP296_PAGINATED_CONTRACT_NOT_SUPPORTED"):
+                    qualifier.qualify_screen_once(FakeClient(response), "print")
+
+    def test_core_explicit_unpaged_snapshot_is_supported(self):
+        response = {"success": True, "rows": [], "serverPaged": False, "dataSource": "employee-core-d1"}
+        self.assertEqual(qualifier.qualify_screen_once(FakeClient(response), "print")["rowCount"], 0)
+
     def test_denies_empty_or_invalid_screen_scope_before_call(self):
         class CountingClient(FakeClient):
             def __init__(self):
