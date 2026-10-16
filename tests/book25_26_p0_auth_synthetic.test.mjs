@@ -15,14 +15,28 @@ const oldFetch=globalThis.fetch;
 globalThis.fetch=async()=>{fakeNetworkCalls++;throw new Error('NO_EXTERNAL_NETWORK_ALLOWED');};
 test.after(()=>{globalThis.fetch=oldFetch;});
 
-function fakeMirrorEnv(){
-  const calls={sql:0};
-  const env={ MIGRATION_SECRET, DB:{prepare(sql) {
-    calls.sql++;
-    return { bind(){return this;},async all(){return {results:[]};},async first(){
-      return {sheetCount:0,rowCount:0,readySheets:0,pendingSheets:0};
-    }};
-  }}};
+function fakeMirrorEnv({role='admin',active=true}={}){
+  const calls={sql:0,mirrorSQL:0};
+  const env={MIGRATION_SECRET,EDGE_SESSION_SECRET:SECRET,TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1:'true',
+    DB:{prepare(sql) {
+      calls.sql++;
+      if (/FROM sheet_catalog|FROM sheet_rows|FROM sqlite_master/.test(sql)) calls.mirrorSQL++;
+      return {
+        bind(...args){this.args=args;return this;},
+        async all(){return {results:[]};},
+        async run(){return {success:true};},
+        async first(){
+          if(sql.includes('FROM employee_auth_sessions_v1 s')){
+            const fp=await cloudAuthTokenFingerprint('fixture-user',TOKEN,env);
+            if(!active||this.args[1]!==fp)return null;
+            return {canonicalUsername:'fixture-user',role,department:role,screensJson:'[]',
+              sessionVersion:1,currentSessionVersion:1,active:1,expiresAtMs:Date.now()+10000};
+          }
+          return {sheetCount:0,rowCount:0,readySheets:0,pendingSheets:0};
+        }
+      };
+    }}
+  };
   return {env,calls};
 }
 async function mirror(path,headers={},env){
@@ -58,6 +72,34 @@ test('BOOK26: authorized migration operator can inspect stats/capabilities/sheet
     assert.equal(x.body.success,true);
     assert.ok(calls.sql>0);
   }
+});
+
+test('BOOK26: verified admin employee can read allowed mirror metadata',async()=>{
+  const {env,calls}=fakeMirrorEnv({role:'admin'});
+  const x=await mirror('/v1/mirror/stats',{
+    Authorization:'Bearer '+TOKEN,'X-Employee-Username':'fixture-user'
+  },env);
+  assert.equal(x.status,200);
+  assert.equal(x.body.success,true);
+  assert.ok(calls.mirrorSQL>0);
+});
+test('BOOK26: laser/service employee cannot read mirror even with valid session',async()=>{
+  for(const role of ['laser','print','service']){
+    const {env,calls}=fakeMirrorEnv({role});
+    const x=await mirror('/v1/mirror/sheet?name=private',{
+      Authorization:'Bearer '+TOKEN,'X-Employee-Username':'fixture-user'
+    },env);
+    assert.equal(x.status,401,role);
+    assert.equal(calls.mirrorSQL,0,'no private mirror SELECT');
+  }
+});
+test('BOOK26: expired admin session rejected before mirror SQL',async()=>{
+  const {env,calls}=fakeMirrorEnv({role:'admin',active:false});
+  const x=await mirror('/v1/mirror/sheets',{
+    Authorization:'Bearer '+TOKEN,'X-Employee-Username':'fixture-user'
+  },env);
+  assert.equal(x.status,401);
+  assert.equal(calls.mirrorSQL,0);
 });
 
 async function fakeCoreEnv({role='print',username='fixture-user',active=true,expired=false}={}){
