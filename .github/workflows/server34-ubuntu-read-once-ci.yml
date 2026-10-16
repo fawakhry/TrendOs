@@ -1,0 +1,25 @@
+name: SERVER-34 Ubuntu One-Shot HTTPS Client (Offline)
+on:
+  pull_request:
+    paths:
+      - autonomous-printshop/print-server/src/trendosshop_read_once.py
+      - autonomous-printshop/print-server/tests/test_server34_trendosshop_read_once.py
+      - .github/workflows/server34-ubuntu-read-once-ci.yml
+  push:
+    branches:
+      - feature/server33-readonly-service-endpoint-20261016
+permissions:
+  contents: read
+jobs:
+  fake-transport-no-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Run one-shot simulated transport
+        env:
+          PYTHONPATH: autonomous-printshop/print-server
+        run: python -m unittest discover -s autonomous-printshop/print-server/tests -p 'test_server34_trendosshop_read_once.py' -v

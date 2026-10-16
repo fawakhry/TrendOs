@@ -10680,3 +10680,47 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 **المراجعات مكدسة للتنظيم فقط:** `#151 → #153 → #154 → #155`، جميعها Draft وممنوع الدمج التلقائي. لا يعني نجاح CI للبيانات الوهمية أن سيرفر Ubuntu متصل بالمنصة.
 
 `SERVER_BOOK_UPDATED=SOURCE_ONLY`; `CLOUDFLARE_DEPLOY=NO`; `UBUNTU_DEPLOY=NO`; `CUSTOMER_RECORDS_ACCESSED=NO`; `PRINT_LASER_ACTIVE=NO`; `PRODUCTION_GO=NO`.
+
+
+## SERVER-20261016-33–35 — ربط قراءة الطباعة والليزر: مصدر مُنفذ لكن غير منشور (2026-10-16)
+
+**مرجع التنفيذ التفصيلي:** [كتاب السيرفر، المراحل SERVER-20261016-33 إلى 35](print-server/UBUNTU_SERVER_BOOK.md). **المراجعة:** [Draft PR #160](https://github.com/fawakhry/TrendOs/pull/160) فوق PR #155. هذا استكمال لسياسة AP-301/AP-302، **وليس** إنشاء خدمة Cloudflare إضافية.
+
+- **SERVER-33 — كود Backend:** مسار مستقل داخل `cloudflare-d1/src/index_v2.js`، معالج `src/trendosshop-service-orders-read-v1.mjs`، مغلق افتراضيًا. مراجعة `wrangler.toml` أكدت أن مدخل المصدر الفعلي هو `production-shadow/index.js` الذي يستدعي `src/index_v2.js`. لا إذن لقراءة `service/press` ولا لأي كتابة؛ يتحقق من هوية خدمة مستقلة ذات صلاحية قصيرة (≤15 دقيقة) و`print/laser` قبل D1. يقرأ بنود الأوردرات المؤهلة فقط ويُخرج الحقول الستة `orderId,lineId,screen,serviceCode,status,quantity` مع حد 20 بندًا لكل شاشة.
+- **SERVER-34 — كود عميل Ubuntu:** `print-server/src/trendosshop_read_once.py` منفصل عن `run.py`، لا يعمل تلقائيًا، يتطلب تفعيلًا وقرارًا صريحين، HTTPS ثابت/TLS صحيح/رفض redirects/بدون retries، قراءة صفحة واحدة لكل قسم. المخرجات أعداد مجمّعة فقط بلا ملفات أو بيانات عملاء أو تشغيل أجهزة.
+- **نتائج الاختبارات الفعلية:** [Backend SERVER-33 #38925618302](https://github.com/fawakhry/TrendOs/actions/runs/38925618302) **SUCCESS**؛ [Ubuntu FakeTransport SERVER-34 #38925618259](https://github.com/fawakhry/TrendOs/actions/runs/38925618259) **SUCCESS**؛ [TrendOS Integrity #38925618231](https://github.com/fawakhry/TrendOs/actions/runs/38925618231) **SUCCESS**، على commit `0d982418bb487c547ca31f1e51f6a97c7f9818fb`. **نجاح اختبارات وهمية فقط**؛ لا طلب مباشر على Production.
+- **SERVER-35 — البوابات الباقية:** مطابقة إصدار Cloudflare المنشور مع الكود؛ معالجة توافق المستهلكين لمسارات SEC-AP303-02؛ تدقيق فروق حالات الأوردرات ومصدر T12/الميرور؛ موافقة جديدة على إنشاء حساب الخدمة وضبط Cloudflare Production؛ موافقة منفصلة على تحديث Ubuntu وعلى اختبار HTTPS حقيقي واحد ببيانات غير حساسة في السجلات. تفاصيل العقد والقيود: [SERVER33_34_READINESS_GATE.md](print-server/SERVER33_34_READINESS_GATE.md).
+- **الحالة:** `GITHUB_SOURCE_READY_FOR_REVIEW`، `REAL_ACCOUNT=NO`، `CLOUDFLARE_DEPLOY=NO`، `UBUNTU_CODE_UPDATED=NO`، `LIVE_ORDERS=NO`، `AUTO_PRINT=OFF`، `PR_MERGE=NO`، `GO_LIVE=NO`.
+
+
+
+## SERVER-20261016-52 — تدقيق أمان كود Cloudflare النشط قبل تشغيل استقبال الأوردرات (2026-10-16)
+
+**نتيجة المصدر الفعلي المعروض:** صاحب المشروع فتح محرر `trendos-d1-api` مع نسخة `2b40f622 (Active)` وأرفق النص المجمّع. مراجعة الشيفرة المعروضة وجدت أن مسارات legacy لقراءة الأوردرات والعملاء والرسائل لا تحتوي تفويضًا صريحًا داخل معالجاتها، ويمكن للـrouter استدعاء معالج legacy؛ كما أن التحقق من نطاق القسم في 02CR لا يغلق حالة قائمة `screens` الفارغة رغم اشتراط توقيع التوكن. **ليس دليلًا على اختراق أو وصول خارجي فعلي، لأن Access/WAF/Routes ما زالت غير متحققة.** كود قارئ `SERVER-33` الجديد غير ظاهر في الحزمة المعروضة.
+
+**العمل المنجز، دون نشر:** تم اعتماد نتيجة المقارنة في [SERVER-52 bundle review](print-server/SERVER52_CF_PRODUCTION_BUNDLE_READ_REVIEW.md) و[كتاب السيرفر المرحلة 52](print-server/UBUNTU_SERVER_BOOK.md). لا تكرار لإصلاحات [PR #151](https://github.com/fawakhry/TrendOs/pull/151) و[PR #154](https://github.com/fawakhry/TrendOs/pull/154) و[PR #160](https://github.com/fawakhry/TrendOs/pull/160)، وكلها ما زالت Draft. تجارب Ubuntu المحلية `43/43 PASS` باستخدام بيانات وهمية لا تثبت صلاحيات أو اتصال Production.
+
+**بوابة التشغيل الحقيقية:** `SEC-AP303-02=OPEN_HIGH_PRIORITY`؛ مطلوب تأكيد Access/WAF للمضيف الفعلي، وجرد مستهلكي المسارات القديمة وإعداد ترحيل متوافق قبل نشر حل الأمان، وموافقة منفصلة لإنشاء حساب الخدمة وDeploy Cloudflare وأول قراءة حية. **ممنوع تفعيل الحساب أو استدعاء أوردرات العملاء أو تشغيل الماكينات تلقائيًا.**
+
+
+## SERVER-20261016-53 — مراجعة Cloudflare Access: حماية Worker غير مفعّلة (2026-10-16)
+
+**الدليل:** صورة Cloudflare Production → `trendos-d1-api` → Access تؤكد `This Worker is not protected by Access` ولا توجد سياسة Worker-specific Access. مع ذلك، تعترف الواجهة بإمكانية وجود حماية على مستوى المضيف أو الحساب، ولم تُراجع WAF/Hostname. مع مسارات legacy التي راجعناها في SERVER-52، تبقى `SEC-AP303-02=OPEN_HIGH_PRIORITY` و**احتمال التعرض قائم غير مثبت**؛ لا يوجد دليل اختراق.
+
+**الحالة والإجراءات:** توثيق فقط، دون إنشاء سياسة Access أو تغيير إعدادات Cloudflare أو تشغيل قارئ الأوردرات الحقيقي، لحماية التوافق مع الواجهة والموظفين والعملاء. الخطوة التالية جرد النطاقات من تبويب Domains، ثم حماية مسارات متوافقة بعد الموافقة على نطاق التغيير وخطة الرجوع. [مرجع التفاصيل والقيود](print-server/UBUNTU_SERVER_BOOK.md) و[تقرير Cloudflare](print-server/SERVER52_CF_PRODUCTION_BUNDLE_READ_REVIEW.md). `PROD_CHANGED=NO`, `GO_LIVE=BLOCKED`.
+
+
+## SERVER-20261016-54 — جرد نطاقات Cloudflare: Production وPreview قابلان للزيارة (2026-10-16)
+
+توضح لقطة `trendos-d1-api → Production → Domains` أن رابط `workers.dev` الإنتاجي ورابط Preview مُفعّلان، ومعهما رسالة `Anyone with this URL can visit`، ولا تظهر Custom Domains أو Routes إضافية في القائمة. مع غياب سياسة Worker-specific Access الظاهر في SERVER-53، وملاحظة مسارات legacy القديمة في SERVER-52، يجب اعتبار `SEC-AP303-02=HIGH_PRIORITY_OPEN`. **لا يجوز استنتاج تسريب أو نجاح دخول غير مصرح به من هذه الواجهة وحدها**، إذ لم تكتمل مراجعة WAF أو سياسات الحساب أو مصادقة جميع المسارات.
+
+تم التوثيق في [كتاب السيرفر — SERVER-54](print-server/UBUNTU_SERVER_BOOK.md) و[تقرير أمان Cloudflare](print-server/SERVER52_CF_PRODUCTION_BUNDLE_READ_REVIEW.md). لا إيقاف Production/Preview، ولا تفعيل Access شامل، ولا دمج/Deploy، لأن المستهلكين الحاليين يحتاجون إلى جرد وتوافق وخطة رجوع قبل أي تغيير. `LIVE_ORDER_READ=NO` و`UBUNTU_SERVICE_ACCOUNT=NO`.
+
+
+## SERVER-20261016-55 — ظهور ربط D1 الإنتاجي من إعدادات Cloudflare (2026-10-16)
+
+أظهرت الصور الثلاث لواجهة `trendos-d1-api → Production → Settings` أن قاعدة البيانات `trendos-main` مرتبطة بالـWorker باسم Binding `DB`. تظهر الأسرار في الواجهة بصيغة `Value encrypted`، وتوجد إعدادات متفرقة للمصادقة والتكامل وأقسام الموظفين، لكن أسماء بعض المتغيرات مقصوصة، ولا يثبت العرض أن جميع الصلاحيات أو عمليات الكتابة محكومة بشكل كافٍ. **لم تُنسخ قيم المتغيرات أو روابط التكامل إلى المستودع**.
+
+بسبب وجود عنوان workers.dev عام وغياب Worker-specific Access (SERVER-53/54)، ووجود مسارات legacy غير محمية صراحةً داخل معالجاتها بالكود المعروض (SERVER-52)، تبقى `SEC-AP303-02=HIGH_PRIORITY_OPEN` إلى أن تُراجع سياسات الحماية الأخرى ومستهلكو المسارات، دون ادعاء وقوع اختراق أو قراءة بيانات غير مصرح بها. تقارير الأدلة: [كتاب السيرفر SERVER-55](print-server/UBUNTU_SERVER_BOOK.md) و[تقرير أمن Cloudflare](print-server/SERVER52_CF_PRODUCTION_BUNDLE_READ_REVIEW.md).
+
+**لا اعتماد إنتاجي بعد:** لا نفعّل `trendosshop_order_reader` أو ننشر إصلاحًا يكسر عمل المستهلكين، ولا نُصدر Secrets، ولا نشغل طابعات أو ليزر؛ يلزم تقييم مسار الاحتواء وخطة رجوع ثم موافقة صريحة من المالك. `CLOUDFLARE_CHANGED=NO`, `UBUNTU_LIVE_READ=NO`.

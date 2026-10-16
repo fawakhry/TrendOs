@@ -1,0 +1,23 @@
+name: SERVER-33 Dedicated Order Reader Endpoint (OFF by default)
+on:
+  pull_request:
+    paths:
+      - cloudflare-d1/src/trendosshop-service-orders-read-v1.mjs
+      - cloudflare-d1/src/index_v2.js
+      - tests/server33_trendosshop_service_orders_read.test.mjs
+      - .github/workflows/server33-service-orders-read-ci.yml
+  push:
+    branches:
+      - feature/server33-readonly-service-endpoint-20261016
+permissions:
+  contents: read
+jobs:
+  synthetic-no-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: node --test tests/server33_trendosshop_service_orders_read.test.mjs
