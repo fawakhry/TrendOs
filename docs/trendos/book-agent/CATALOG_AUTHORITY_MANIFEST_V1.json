@@ -1,0 +1,91 @@
+{
+  "schema": "TRENDOS_BOOK_AUTHORITY_MANIFEST_V1",
+  "owner_approved_at": "2026-10-16",
+  "repository": "fawakhry/TrendOs",
+  "work_branch": "agent/trendos-book-audit-v1-20261014",
+  "source_of_truth_notice": "Canonical means where to consult and maintain documentation; it is not a proof of deployed/runtime status or completeness.",
+  "reading_order": [
+    {
+      "priority": 1,
+      "role": "CURRENT_PLATFORM_CATALOG",
+      "path": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+      "scope": "Current platform modules, routes, UI, data authority, permissions, tests and evidence per chapter",
+      "authority": "CANONICAL_DOCUMENTATION",
+      "verification": "PARTIALLY_VERIFIED",
+      "deployment_certified": false,
+      "chapter_count": 31
+    },
+    {
+      "priority": 2,
+      "role": "CHANGELOG_AND_ARCHITECTURE_JOURNAL",
+      "path": "TrendOS_MASTER_BOOK.md",
+      "scope": "Engineering changes, decisions, entry history, cutover stages, observed checkpoints",
+      "authority": "CANONICAL_HISTORY",
+      "verification": "MIXED_HISTORICAL_AND_RECENT"
+    },
+    {
+      "priority": 3,
+      "role": "LEGACY_PRE_SPLIT_ARCHIVE",
+      "path": "docs/trendos/book-agent/TRENDOS_LEGACY_PRE_SPLIT_BOOK.md",
+      "scope": "Original TrendOS before projects separated, original source identity, migration and archiving",
+      "authority": "CANONICAL_LEGACY_ARCHIVE",
+      "verification": "IN_PROGRESS"
+    }
+  ],
+  "preservation": [
+    {
+      "role": "FROZEN_DRAFT_REFERENCE",
+      "path": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md",
+      "source_blob_at_promotion": "acded3ba6729eb7f0a5fd8de560ae5091d630b88",
+      "status": "PRESERVED_DO_NOT_DELETE"
+    },
+    {
+      "role": "SOURCE_RECOVERY",
+      "path": "docs/trendos/book-agent/LEGACY_SOURCE_RECOVERY_REGISTER.md"
+    },
+    {
+      "role": "CLEANUP_GATE",
+      "path": "docs/trendos/book-agent/GITHUB_LEGACY_CLEANUP_PLAN.md"
+    }
+  ],
+  "current_catalog_evidence": [
+    "docs/trendos/book-agent/CURRENT_TREE_BASELINE.md",
+    "docs/trendos/book-agent/CURRENT_UI_ELEMENT_INDEX.md",
+    "docs/trendos/book-agent/CURRENT_UI_HANDLER_LINKS.md",
+    "docs/trendos/book-agent/CURRENT_TEST_EVIDENCE_LEDGER.md",
+    "docs/trendos/book-agent/TEST_EVIDENCE_QUEUE.md",
+    "docs/trendos/book-agent/ISSUE_REGISTER.md",
+    "docs/trendos/book-agent/AGENT_LOG.md"
+  ],
+  "independent_project_books": "Remain authoritative within their own projects. Current TrendOS catalog references interfaces, not complete copies or assumed live deployment.",
+  "evidence_order": [
+    "PRODUCTION_VERIFIED",
+    "DEPLOYED_VERSION_VERIFIED",
+    "TESTED_EXACT_SHA",
+    "SOURCE_ONLY",
+    "HISTORICAL",
+    "UNKNOWN_OR_BLOCKED"
+  ],
+  "publication_and_safety": {
+    "docs_only": true,
+    "no_delete": true,
+    "no_force_push": true,
+    "no_merge": true,
+    "no_deploy": true,
+    "no_production_mutation": true,
+    "no_secrets_or_customer_data_in_public_books": true
+  },
+  "quality_gates": {
+    "chapters_contiguous_from_one_to_31": true,
+    "relative_markdown_links_broken_at_promotion": 0,
+    "relative_markdown_links_count_at_promotion": 17,
+    "full_source_file_coverage": false,
+    "runtime_parity_verified": false,
+    "all_live_writers_attributed": false,
+    "all_tests_reconciled": false,
+    "all_issues_resolved": false,
+    "final_completeness_owner_acceptance": false
+  },
+  "writer_contract": "Read latest GitHub HEAD and the three authoritative books; update current catalog for evidenced present behavior; append decisions to master book when properly authorized and independently reviewed; update legacy book only for history; record SOURCE_ONLY/TESTED/BLOCKED/PRODUCTION_VERIFIED distinctly; append audit log, cross-check latest branches and competing PRs before declaring issues.",
+  "adoption_status": "DOCUMENTATION_CANONICAL_APPROVED; FULL_CATALOG_CERTIFICATION_PENDING"
+}
