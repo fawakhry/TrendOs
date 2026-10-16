@@ -26,3 +26,18 @@
 **Next owner UI step:** leave the Cloudflare code editor without deploying. Return to `trendos-d1-api` dashboard, open the `Access` tab, and share a screenshot showing only application/policy **names and protection status**, with sensitive identifiers, users, secrets and tokens concealed. That tab may not represent all WAF and Workers route protections; it is a starting inventory, **not confirmation of coverage**.
 
 `SEC_AP303_02=OPEN_HIGH_PRIORITY`; `AP303_SCREEN_FIX_SOURCE_ONLY=YES`; `PROD_EXTERNAL_AUTH=UNKNOWN`; `PROD_WORKER_VERSION=2b40f622_AS_SHOWN`; `PROD_BUNDLE_SHA256_CLOUDFLARE_VERIFIED=NO`; `PR_MERGED=NO`; `PRODUCTION_DEPLOY=NO`; `UBUNTU_LIVE_ORDER_READ=NO`.
+
+
+## SERVER-53 Access dashboard evidence — 2026-10-16
+
+Owner screenshot of **`Workers & Pages → trendos-d1-api → Production → Access`** displays explicitly:
+
+> This Worker is not protected by Access
+
+and states no Worker-specific policy is configured and traffic remains public **unless a hostname or account policy applies**. The Worker card also says "Not protected yet" and offers "Protect this Worker behind Access".
+
+**Conclusion limited by the screenshot:** `WORKER_SPECIFIC_ACCESS_POLICY=ABSENT_AS_SHOWN`. The screenshot does **not** establish whether a hostname-level Access application, Cloudflare WAF/rule, account policy, or another gateway controls every `workers.dev` route. Coupled with static review of unauthenticated-looking legacy D1 GET handlers and v2 fallback, the potential exposure deserves urgent owner attention; it remains **unconfirmed reachability**, not a proven breach. No probing of Production routes is authorized.
+
+**Do NOT press "Protect this Worker behind Access" or change DNS/WAF now**. This API is shared with UI, employee/customer logins, Apps Script bridge and other integration workflows; a blanket change risks an outage. Proceed with (1) route/domain inventory from the Worker `Domains` tab (screenshot only), (2) external-access enforcement inventory including account/hostname rules, (3) legacy consumer dependency audit, (4) compatibility-tested containment fix/rollback plan, (5) distinct owner authorization for production changes. Preserve current Cloudflare Worker and Ubuntu status in the meantime.
+
+`WORKER_ACCESS_POLICY=NO`; `HOSTNAME_ACCOUNT_CONTROLS=NOT_AUDITED`; `SEC_AP303_02=HIGH_PRIORITY_OPEN`; `NO_DEPLOY_NO_ACCESS_CHANGE=TRUE`.
