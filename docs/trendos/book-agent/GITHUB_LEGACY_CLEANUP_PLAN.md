@@ -77,3 +77,11 @@ Read-only Git tree audit of book branch starting at `2fc7c187247b7b0cbd2e95c58cf
 ### 7.1 Nine mirrored paths provenance enriched
 
 Source bodies inspected for nine root App Script modules and 192 named function declarations counted; last path-affecting Git commit and date, Git blob SHA, module purpose and presence of external API names recorded in [provenance report](LEGACY_FIRST_MIRROR_PAIR_PROVENANCE_20261016.md). No proof of first use, last actual use, deployment project membership or absence of consumers. The corresponding nine autonomous-printshop mirror paths remain **audit-only** and **0** deletions approved; do not equate folder placement with separate-repository migration.
+
+## 8. Disposition of nine mirror audit candidates (2026-10-16)
+
+After validating [SOURCE_REGISTRY plus BUILD_MATRIX references](LEGACY_MIRROR_DEPENDENCY_AUDIT_20261016.md), all nine mirrored `.gs` pairs have **intentional source-to-project reference ownership** and full Git blob parity. They must **not** be placed on a deletion PR: `AUDIT_CANDIDATES_REVIEWED=9`, `REFERENCES_REGISTERED=9`, `BUILD_MATRIX_COVERED=8`, `QUALIFIED_DELETION_CANDIDATES=0`. Root: `SHARED_DEPENDENCY_KEEP` pending proof; central mirror: `SEPARATE_PROJECT_REFERENCE`. The nine historical audit paths remain recorded for traceability; no removal proposed.
+
+Specific missing proof: newest live Apps Script editor file list and deployment version, trigger binding/caller graph, autonomous-printshop build/copy consumption, D1 authority parity, independent encrypted backup with restored source SHA and explicit owner deletion approval. The operator-task module lacks a BUILD_MATRIX path but is explicitly registered and has a non-deployed 2026-09-10 rollout candidate: do not infer stale/non-live today.
+
+Previous textual scan updated from 600 equal/12 different/2 inconclusive to **602 equal/12 different/0 inconclusive** by TypeScript AST-bounded old text ranges + exact current text windows; this is not an approval to refactor changed behavior. `FILES_MOVED=0`, `FILES_DELETED=0`, `MERGED=0`, `DEPLOYED=0`.
