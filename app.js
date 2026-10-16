@@ -5349,8 +5349,8 @@ Trend Mall`;
     const user = state.user || {};
     const username = text(user.username || user.name);
     const token = text(user.token);
-    const base = text(window.MATBAGY_EMPLOYEE_API_URL || window.MATBAGY_EDGE_ORDERS_API_URL).replace(/\\/+$/, '');
-    if (!username || !token || !/^https?:\\/\\//i.test(base)) return;
+    const base = text(window.MATBAGY_EMPLOYEE_API_URL || window.MATBAGY_EDGE_ORDERS_API_URL).replace(/\/+$/, '');
+    if (!username || !token || !/^https?:\/\//i.test(base)) return;
     await Promise.all(items.map(async function (element) {
       let objectUrl = '';
       try {
