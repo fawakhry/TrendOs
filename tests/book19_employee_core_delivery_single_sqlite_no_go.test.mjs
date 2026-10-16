@@ -63,6 +63,10 @@ try {
   insCloud('FAKE_T12_CLEAR','FAKE_T12_O_CLEAR','Native Clear','FAKE_PHONE_002',0);
   insCloud('FAKE_T12_RACE_BAN','FAKE_T12_O_RACE_BAN','Native Race Ban','FAKE_PHONE_003',40);
   insCloud('FAKE_T12_RACE_DEBT','FAKE_T12_O_RACE_DEBT','Native Race Debt','FAKE_PHONE_004',0);
+  insCloud('FAKE_T12_RACE_BULK','FAKE_T12_O_RACE_BULK','Native Race Bulk','FAKE_PHONE_005',35);
+  insCloud('FAKE_T12_BULK_OK','FAKE_T12_O_BULK_OK','Native Bulk Allowed','FAKE_PHONE_006',0);
+  db.prepare("UPDATE t12_prod_lines SET status='تحت التنفيذ' WHERE line_id IN (?,?)")
+    .run('FAKE_T12_RACE_BULK','FAKE_T12_BULK_OK');
   for(const [key,name,until] of [
     ['debt blocked','Debt Blocked',''],['debt expired','Debt Expired','2001-01-01'],
     ['other department','Other Department',''],['native blocked','Native Blocked',''],
@@ -285,6 +289,43 @@ try {
     assert.equal(injected,true,'the fake restriction must arrive before transactional batch');
     assert.equal(result.success,false,JSON.stringify(result));
     assert.deepEqual(one("SELECT status,version FROM employee_core_lines_v1 WHERE line_id='FAKE_L_RACE_BULK'"),before);
+  });
+
+  await test('15 BOOK19 T12 bulk update with late debt restriction rolls back every candidate and its event',async()=>{
+    const before=effects();
+    role='print';department='طباعة';
+    let injected=false;
+    beforeBulkBatch=()=>{
+      injected=true;
+      db.prepare("INSERT INTO employee_core_delivery_restrictions_v1(customer_key,customer_name,active) VALUES(?,?,1)")
+        .run('native race bulk','Native Race Bulk');
+    };
+    let r;
+    try{r=await send('bulkUpdateDepartmentStatusV1926',{
+      screen:'print',fromStatus:'تحت التنفيذ',toStatus:'تم التسليم',
+      requestId:'FAKE_T12_BULK_RACE_20261016_001'
+    });}finally{beforeBulkBatch=null;role='service';department='خدمة العملاء';}
+    assert.equal(injected,true,'fake restriction must arrive after projection before batch');
+    assert.equal(r.success,false,JSON.stringify(r));
+    assert.deepEqual(effects(),before,'native T12 and imported status/events must all roll back');
+    assert.equal(one("SELECT status FROM employee_core_request_ledger_v1 WHERE request_key=?", 'FAKE_T12_BULK_RACE_20261016_001')?.status,'PREPARED',
+      'uncertain bulk command is held for review, never replayed automatically');
+  });
+  await test('16 BOOK19 rerun only eligible T12 bulk candidates, keep restricted clients excluded',async()=>{
+    const before=effects();
+    role='print';department='طباعة';
+    let r;
+    try{r=await send('bulkUpdateDepartmentStatusV1926',{
+      screen:'print',fromStatus:'تحت التنفيذ',toStatus:'تم التسليم',
+      requestId:'FAKE_T12_BULK_ALLOWED_20261016_002'
+    });}finally{role='service';department='خدمة العملاء';}
+    assert.equal(r.success,true,JSON.stringify(r));
+    assert.equal(r.changed>=1,true,JSON.stringify(r));
+    assert.equal(r.skippedDebt>=2,true,JSON.stringify(r));
+    assert.equal(one("SELECT status FROM t12_prod_line_runtime WHERE line_id='FAKE_T12_BULK_OK'")?.status,'تم التسليم');
+    assert.equal(one("SELECT status FROM t12_prod_line_runtime WHERE line_id='FAKE_T12_RACE_BULK'"),undefined);
+    assert.equal(one("SELECT COUNT(*) AS n FROM t12_prod_runtime_events WHERE line_id='FAKE_T12_BULK_OK' AND new_status='تم التسليم'").n,1);
+    assert.notDeepEqual(effects(),before,'allowed T12 order should transition exactly once');
   });
   console.log('BOOK19_NATIVE_SINGLE_DELIVERY=FAKE_SQLITE_SOURCE_ONLY');
   console.log('BOOK19_CORE_FINANCE_RELEASE=NO_GO');
