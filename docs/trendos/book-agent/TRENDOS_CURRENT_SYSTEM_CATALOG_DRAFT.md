@@ -430,3 +430,49 @@
 | Runtime production | BLOCKED | worker/asset SHA + نتيجة اختبار مصرح به؛ **لم يُنفذ هنا** |
 
 **النتيجة:** writer لحالات الأوردرات موثق داخل مصدر Edge/D1 وبشكل منفصل للـNative والـLegacy، مع فجوة حرجة تستلزم التحقق في بوابة تسليم المديونية. الحالة `SOURCE_ONLY` مع اختبارات `BLOCKED`، ولم نحقق `TESTED` أو `PRODUCTION_VERIFIED`.
+
+
+---
+
+# 16. بوابة العميل ومسودات الأوردرات والملفات — مسار السلطة الحالي (16 أكتوبر 2026)
+
+**وظيفة الوحدة:** دخول العميل بكود الشات وكلمة المرور، استعراض أوردراته، تكوين مسودة متعددة البنود، رفع مرفقاتها، ثم إرسالها لإنشاء رقم أوردر. **الحالة الإجمالية: `SOURCE_ONLY`؛ العميل Native Portal `BLOCKED / NO_GO`.** المرجع: المصدر عند HEAD `88a45e3f63f2498fd58d933d954313bba8d2ee1e` (أول الجولة)، دون اختبار دخول أو تحميل ملف أو كتابة طلب حقيقي.
+
+## 16.1 واجهة العميل
+- [`index.html` س66–84](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/index.html#L66-L84) يوفر `customerLoginView` بكود الشات وكلمة المرور، و[`app.js` س1867–1974](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/app.js#L1867-L1974) يوضح `doCustomerLogin`: يستدعي `api("customerLogin", {customerCode,password})`، ثم يحتفظ بـ`res.customer` وtoken في `sessionStorage` باسم `matbagy_platform_customer_session`. `loadCustomerSession` يفحص وجود الرمز محليًا؛ **ليس بديلًا عن التحقق على الخادم**. دوال الخروج وتغيير كلمة المرور: [`app.js` س4060–4111](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/app.js#L4060-L4111).
+- [`app.js` س3459–3523](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/app.js#L3459-L3523): `loadCustomerOrders` يرسل `getCustomerOrders` مع `customerCode/token`؛ `renderCustomerOrders` يعرض رقم الأوردر، القسم، الحالة، نوع الشغل، الموعد والملاحظات (مع `escapeHtml`). عرض القائمة لا يثبت تحقق ملكية الطلب خارج الخادم.
+- [`index.html` س880–939](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/index.html#L880-L939) يوفر واجهة دردشة المسودة، اختيار `طباعة/ليزر`، الكمّية، خيارات المكبس/الطاير، المرفقات، بند ووصف الطلب، وأزرار إضافة بند وبدء التنفيذ. العرض الشبيه بالشات **ليس دليل تبادل رسائل واتساب أو تسعير/إجابة AI آلي فعلي**.
+- [`index.html` س940–954](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/index.html#L940-L954) يعلن مصمم العميل الذكي باعتباره **وظيفة مستقبلية** داخل الواجهة، فلا يُدرج ضمن وظائف الإنتاج المثبتة.
+
+## 16.2 سلسلة المسودة ورفع الملفات
+- [`app.js` س3592–3595](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/app.js#L3592-L3595) ينشئ object للمسودة بالمتصفح عند الحاجة؛ [`app.js` س3902–3912](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/app.js#L3902-L3912) يرسل `createCustomerDraft` ويحفظ `draftId`.
+- [`app.js` س3935–3994](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/app.js#L3935-L3994): `addCustomerDraftItem` يتحقق محليًا من بند/ملاحظة/ملف واحد على الأقل، ويبعث `addCustomerDraftItem` مع القسم والكمية والملاحظات وعلمي المكبس/الطاير؛ ثم يبدأ رفع المرفقات المتاحة للبند. بعض ملاحظات الفرع/البائع تُضاف كسلسلة نصية؛ **لا يثبت هذا routing أو حجز تنفيذ حقيقي بالبائع**.
+- [`app.js` س3913–3933](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/app.js#L3913-L3933): لكل مرفق ≤25MB يتم تحويله إلى Base64 وإرساله عبر `apiPost("uploadCustomerDraftFile")` مع `draftId/itemId`. لا يوجد في هذه القراءة إثبات خادم لسياسة نوع/امتداد الملف أو منع cross-customer file access أو حدود الحمولة بعد Base64؛ **متطلبات اختبار أمني**، وليس حكمًا بوجود ثغرة.
+- [`app.js` س3997–4025](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/app.js#L3997-L4025): `submitCustomerDraft` يشترط مسودة برقم ووجود بند، ويطلب تأكيدًا، ثم يبعث `submitCustomerDraft` مع `draftId`؛ على `success` يحفظ `orderId` ويستدعي تحميل أوردرات العميل. لا نعتبر هذا نجاح إنشاء رسمي ما لم يوجد دليل خادم موثق أو اختبار تجربة معزولة. إعادة الإرسال وقت انقطاع ACK تحتاج فحص idempotency على authority الحقيقي.
+
+## 16.3 سلسلة API والسلطة الفعلية
+- [`employee-api-dispatcher-v1.js` س108–118](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/employee-api-dispatcher-v1.js#L108-L118) يصنف `customerLogin/customerLogout/changeCustomerPassword/getCustomerOrders/getCustomerPortalAccountsV1859/createCustomerDraft/addCustomerDraftItem/submitCustomerDraft/uploadCustomerDraftFile` كـ`CUSTOMER_SESSION_ACTIONS` **منفصلة** عن موظفي Native Auth.
+- [`employee-api-dispatcher-v1.js` س746–771](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/employee-api-dispatcher-v1.js#L746-L771) يحيل تلك الـactions إلى downstream/transport الموجود، ولا يحوّلها ضمن هذا المسار إلى كاتب Customer Native مستقل.
+- [`browser-api-transport-v1.js` س1–45](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/browser-api-transport-v1.js#L1-L45) يبقي طلب المتصفح داخل Cloud عبر `POST /v1/legacy-api` ويمنع اتصال browser مباشرًا بـGoogle.
+- [`cloudflare-d1/src/index_v2.js` س1–55](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/cloudflare-d1/src/index_v2.js#L1-L55) يربط `/v1/legacy-api` مباشرة بـ`handleLegacyBrowserTransport`؛ [`cloudflare-d1/src/legacy-browser-transport-v1.mjs` س8–35](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/cloudflare-d1/src/legacy-browser-transport-v1.mjs#L8-L35) يصنّف نفس تسعة customer actions، و[`cloudflare-d1/src/legacy-browser-transport-v1.mjs` س55–108](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/cloudflare-d1/src/legacy-browser-transport-v1.mjs#L55-L108) يستثنيها من حظر الموظفين Native-only ثم يعيد تمريرها server-to-server إلى `APPS_SCRIPT_API_URL` بعد فحص قائمة actions وOrigin. **إذًا العميل هنا Cloud transport + Apps Script authority؛ مش Cloud Native مستقل بعد**. عدم وصول المتصفح مباشرةً إلى Google لا يعني `ZERO_GOOGLE_COMPLETE`.
+- لم تُراجع في هذا الفصل شفرة handlers لـApps Script المنفَّذة على الخادم المنشور، لذا **لا نثبت** ضوابط ربط `customerCode/token` بـ`draftId`، ولا صلاحية قراءة أوردرات غيره أو التحكم في ملفاته.
+
+## 16.4 تجهيز Native Portal المستقبلي: الأدلة الموجودة وحدودها
+- [`cloudflare-d1/src/customer-portal-native-readiness-v0.mjs` س1–37](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/cloudflare-d1/src/customer-portal-native-readiness-v0.mjs#L1-L37) صريح إن الملف `source-only` وغير مستورد من الـProduction Worker، ويرجع `productionRelease: 'NO_GO'` مهما اكتملت العدادات؛ كمان customer-auth/orders/drafts/files/finance flags `false`.
+- [`cloudflare-d1/src/customer-portal-order-ownership-audit-v0.mjs` س1–16](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/cloudflare-d1/src/customer-portal-order-ownership-audit-v0.mjs#L1-L16) يوضح أن فحص ملكية الطلبات diagnostic read-only غير موصول بواجهة العميل. [`cloudflare-d1/src/customer-portal-order-ownership-audit-v0.mjs` س17–70](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/cloudflare-d1/src/customer-portal-order-ownership-audit-v0.mjs#L17-L70) لا يحول مطابقة الأرقام أو أكواد الشات إلى تصريح ملكية مستقل.
+- [`cloudflare-d1/src/customer-portal-password-enrollment-ticket-v0.mjs` س1–21](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/cloudflare-d1/src/customer-portal-password-enrollment-ticket-v0.mjs#L1-L21) يقدم primitives مصدرية لتذكرة تعيين كلمة المرور بعد OTP موثَّق من الخادم؛ **لا يوجد route حي / SMS / activation مثبت من وجود الملف**، والإصدار `SOURCE_ONLY`.
+- [`config.js` س60–69](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/config.js#L60-L69) يحتوي flags وURL لخدمات العميل، مثل `MATBAGY_CUSTOMER_ACCOUNTS_PORTAL`؛ العلم في المتصفح لا يمنح صلاحية مالية أو يثبت أن بيانات الحساب معتمدة.
+
+## 16.5 الفجوات والاختبارات
+| النقطة | الحالة | دليل الإغلاق المطلوب |
+|---|---|---|
+| UI → Cloud transport → Apps Script | SOURCE_ONLY | رصد مسار deployed ونسخة authority + mock customer session، بلا عملاء حقيقيين |
+| دخول/خروج وتغيير كلمة المرور | BLOCKED | اختبار expired/revoked token وrate limiting، واختبار عدم استرجاع جلسة غير صالحة |
+| وصول العميل لأوردراته فقط | BLOCKED / SECURITY | اختبار ownership بعميلين وهميين وقيد `customerCode/token` على الخادم |
+| إنشاء مسودة والبنود وتحويلها لأوردر | SOURCE_ONLY / BLOCKED | اختبار create/add/submit/replay في isolated datastore مع ضمان منع التكرار |
+| المرفقات | BLOCKED / SECURITY | اختبار امتداد ونوع وحجم الملفات وتجاوز حدود Base64 وownership للملف وعدم التسريب |
+| الحسابات وكشف العميل | BLOCKED | مراجعة مصدر المديونية والفواتير وصلاحية عرضها عبر EasyStore بدون كشف حساب عميل آخر |
+| Customer Native V0 | SOURCE_ONLY، `NO_GO` | يمنع وصفه Live قبل source + ownership + session + deployed parity |
+| TESTED | **لم يُختبر في هذه الجولة** | راجع [`tests/entry654_customer_portal_native_readiness_v0.test.mjs`](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/tests/entry654_customer_portal_native_readiness_v0.test.mjs)، [`tests/entry655_customer_order_ownership_audit.test.mjs`](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/tests/entry655_customer_order_ownership_audit.test.mjs)، [`tests/entry659_customer_enrollment_ticket_source.test.mjs`](https://github.com/fawakhry/TrendOs/blob/88a45e3f63f2498fd58d933d954313bba8d2ee1e/tests/entry659_customer_enrollment_ticket_source.test.mjs) مع نتيجة CI exact SHA |
+
+**الخلاصة:** واجهة العملاء ومسارات الـlegacy Cloud مُحددة بالمصدر، لكن ليس عندنا دليل end-to-end على صلاحيات العميل وملكية الأوردر والمرفقات أو تشغيل Customer Native في الإنتاج. `TESTED=NO` و`PRODUCTION_VERIFIED=NO`. لم يُعدّل كود ولا بيانات حقيقية.
