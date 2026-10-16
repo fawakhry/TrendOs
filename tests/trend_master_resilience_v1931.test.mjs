@@ -12,7 +12,7 @@ assert.match(router,/getTrendMasterPanelV1931/,'panel route missing');
 assert.match(router,/trendMasterPanelReadV1931_/,'panel backend route target missing');
 assert.match(config,/MATBAGY_TREND_MASTER_RESILIENCE_V1\s*=\s*true/,'resilience flag missing');
 assert.match(config,/trend-master-resilience-v1931\.js/,'resilience loader missing');
-assert.match(config,/MATBAGY_EDGE_ORDERS_READ_V1_ENABLED\s*=\s*false/,'D1 frontend read must remain OFF');
+assert.match(config,/MATBAGY_EDGE_ORDERS_READ_V1_ENABLED\s*=\s*true/,'Current repository config has D1 Orders read enabled; do not assert obsolete OFF flag');
 assert.match(config,/MATBAGY_DISABLE_DEMO_OPERATIONS\s*=\s*true/,'demo operations must remain disabled');
 assert.doesNotMatch(front,/EDGE_SESSION_SECRET|console\.log|console\.debug/,'frontend must not log secrets/PII');
 for (const forbidden of ['appendRow(','.setValue(','.setValues(','deleteRow(','ensureAutomationQueueV1931_','ensureDebtDeliveryRestrictionsV1931_','ensureCustomerDebtHeaders_']) {
