@@ -10740,3 +10740,10 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 وفق لقطة المالك من `Workers & Pages → trendos → Production → Access` تظهر رسالة `This Worker is not protected by Access`. هذا Worker مختلف عن `trendos-d1-api` الذي فُحص في SERVER-51–55، ويستخدمه جسر إدارة العملاء V1934 في المصدر. **غياب Worker-specific Access لا يثبت وجود كشف للبيانات**، ولا يؤكد وجود/غياب قواعد حماية Hostname/Account/WAF أو ربط D1 لدى هذه الخدمة الثانية.
 
 تم تحديث [كتاب السيرفر المرحلة 57](print-server/UBUNTU_SERVER_BOOK.md) و[مصفوفة المستهلكين](print-server/SERVER56_LEGACY_CONSUMERS_COMPATIBILITY_MATRIX.md). لا تغيير إنتاجي ولا دمج. الخطوة القادمة عرض `Domains` للخدمة `trendos` للتحقق من تفعيل Production/Preview، مع إبقاء `SEC-AP303-02=OPEN_HIGH_PRIORITY` و`LIVE_ORDER_READER=OFF`.
+
+
+## SERVER-20261016-58 — جرد Production/Preview للخدمة القديمة `trendos` (2026-10-16)
+
+أثبتت صورة Cloudflare داخل `trendos → Production → Domains` أن عنوان `trendos.trendmall-contact.workers.dev` وعناوين `*.trendos.trendmall-contact.workers.dev` الخاصة بالـPreview **مفعّلة**، مع عبارة `Anyone with this URL can visit`، ولا توجد Custom Domains أو Routes مدرجة. يضاف هذا إلى نتيجة SERVER-57 التي تثبت غياب Access policy خاصة بالـWorker. تُستخدم هذه الخدمة القديمة في **كود** جسر إدارة العملاء V1934، وهي مختلفة عن `trendos-d1-api`.
+
+**ملاحظة أمان:** لم نثبت اتصال `trendos` بقاعدة D1 أو السماح بقراءة بيانات العملاء من دون تصريح؛ ولا نعرف كل ضوابط الحساب أو WAF. `SEC-AP303-02` لا تزال مفتوحة. أُضيف الجرد إلى [كتاب السيرفر](print-server/UBUNTU_SERVER_BOOK.md) و[مصفوفة التوافق](print-server/SERVER56_LEGACY_CONSUMERS_COMPATIBILITY_MATRIX.md). الخطوة التالية قراءة نوع الـBindings للخدمة `trendos` فقط دون عرض Secrets، ثم استكمال التأهيل الأمني قبل موافقة إنتاجية مستقلة. `NO_DEPLOY=YES` و`UBUNTU_LIVE_ORDER_READ=NO`.
