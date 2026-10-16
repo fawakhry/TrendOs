@@ -407,3 +407,10 @@
 - WRITE: canonical book now **32** chapters, README and machine manifest updated, old DRAFT remains preserved; issue and test evidence queue updated with `B32-*` regression plans and no invented CI PASS.
 - STATUS: `CANONICAL_DOCUMENTATION=YES`, `SOURCE_ONLY=YES`, `DEPLOYED_PARITY=UNKNOWN`, `APP_TESTED_THIS_PASS=NO`, `PRODUCTION_VERIFIED=NO`, `FULLY_VERIFIED=NO`; `FILES_DELETED=0`, `MERGED=0`, `DEPLOYED=0`, `PRODUCT_CODE_CHANGED=NO`.
 - NEXT: Chapter 33 mapping dynamic assets and real ownership authorization to exact HEAD tests, after checking any new PR branches and no outdated issue fixes. Avoid treating draft CI or host screenshots as deployed evidence.
+
+## 2026-10-16 — BOOK24-READINESS-PARITY expired READY resurrection fix
+
+- Refreshed GitHub official Book HEAD `5fd822498f93df5a1d1ee5f2359c00d45de462e2`, compared predecessor; new canonical book documents only, task writer sources unchanged. Existing #171/#173/#175/#177 Drafts remain open; actual deployed Google project/lock/D1 authority unknown, so no activation or mistaken global single-writer claim. No duplicate expired-readiness PR found.
+- Source inspected `readiness-evidence-v1.mjs` and `machine-readiness-v1.mjs`; latest projection skipped expired evidence during event selection, potentially resurfacing older still-unexpired READY; machine READY candidate accepted future observation or mapping timestamps.
+- Opened independent [Draft #179](https://github.com/fawakhry/TrendOs/pull/179) on official Book branch. Runtime commits `1339de8b835bd4d250fd7a085d6e21ef320101ff`, `5e4d324ae22831569b9a6e90bb819cddc87c79b7`, `56b088e4f2749cf79050778b81b341fd5b46f306`; new synthetic 16-test commit `6d3eaf8eda87612901035c9cccc3eaa6cb98a9fb`; dedicated CI `dfe9e0c674ea01a3d758bdb2150bdbaa811eaeed`.
+- [Dedicated CI #38944074026](https://github.com/fawakhry/TrendOs/actions/runs/38944074026) 16/16 synthetic PASS; inherited readiness/machine/writer/collector and production shadow/canary qualification PASS. No Google/D1/customer/task writes, real machinery, finance, merge or deploy. `BOOK24-READINESS-PARITY` remains partially open for deployed/source parity; global writer P0 remains open.
