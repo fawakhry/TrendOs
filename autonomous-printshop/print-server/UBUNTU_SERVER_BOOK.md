@@ -380,3 +380,13 @@
 - **الأخطاء/القيود:** لا توجد رسالة خطأ لهذا الأمر. فشل `fokha-coordinator-user-mock.service` السابق مستقل وحالته بعد أمر `stop` لم تُختبر. لا يُعرف بعد ما إذا كانت staging تحتوي تعديلات محلية أو ملفات متجاهلة.
 - **حالة التنفيذ:** `WORKTREES_FOUND=2`; `MAIN_UNCHANGED=YES_AS_OBSERVED`; `AP281_STAGING_DETACHED=YES`; `AP281_STAGING_CLEAN=UNKNOWN`; `NEW_WORKTREE_CREATED=NO`; `UBUNTU_DEPLOY=NO`; `CLOUDFLARE_DEPLOY=NO`; `REAL_ORDERS_READ=NO`.
 - **الخطوة التالية، أمر واحد فقط على Ubuntu ثم صورة:** `git -C "$HOME/TrendOs-AP281-staging-66b64ab" status --porcelain=v1 --branch` (قراءة فقط). بعدها نفحص المساحة قبل تقرير إنشاء نسخة اختبار مستقلة؛ لا نغيّر نسخة AP281 الحالية.
+
+
+### SERVER-20261016-40 — AP-281 staging worktree clean as shown (2026-10-16)
+- **الهدف:** التأكد من حالة ملفات نسخة AP-281 المنفصلة قبل تجهيز مساحة عمل جديدة على Ubuntu، مع عدم لمس النسخة الأساسية أو القديمة.
+- **الدليل:** صورة مباشرة من `trend-main@TrendosShop` للأمر `git -C "$HOME/TrendOs-AP281-staging-66b64ab" status --porcelain=v1 --branch`. النتيجة الوحيدة `## HEAD (no branch)` ثم عودة الـprompt دون ظهور مسارات متغيرة أو غير متتبعة.
+- **الاستنتاج المقيد بالدليل:** نسخة `/home/trend-main/TrendOs-AP281-staging-66b64ab` في `Detached HEAD`، ولا توجد تعديلات tracked أو ملفات untracked ظاهرة في `git status --porcelain`. لا يثبت هذا عدم وجود ملفات ignored أو حالة الخدمات أو قابلية حذف هذه النسخة. من مرحلة 39: commit `66b64ab920e0bff4821d18d5301c8df78694a03a`، ونسخة `/home/trend-main/TrendOs` لا تزال معزولة عند `a238ce5a830bc5a7968dc020cd8168c85fa8c446` وفق آخر لقطة لها.
+- **ما تمت مراجعته:** لقطة Git/Ubuntu، سجل worktrees في SERVER-39، كتاب السيرفر نفسه؛ PR #160 لا يزال Draft وغير منشور. لم يتم تحرير ملفات Ubuntu أو عمل `git pull` أو `git checkout` أو تشغيل ماكينات.
+- **الاختبار الفعلي:** `git status --porcelain=v1 --branch` نجح بصريًا فقط. لا يوجد اختبار اتصال أوردرات/إعدادات Cloudflare أو تقييم لمساحة الأقراص بعد.
+- **الحالة:** `AP281_WORKTREE_CLEAN_AS_REPORTED=YES`; `AP281_DETACHED_HEAD=YES`; `IGNORED_FILES_CHECKED=NO`; `UBUNTU_UPDATED=NO`; `NEW_WORKTREE_CREATED=NO`; `SERVICE_ACCOUNT_CREATED=NO`; `LIVE_READ=NO`; `PRODUCTION_GO=NO`.
+- **الخطوة التالية (أمر واحد للمالك وصورة):** `df -h "$HOME"` لفحص السعة المتاحة على القسم الذي يحتوي مجلدات المستخدم. لا تغيير على القرص أو Git؛ بعد ظهور النتيجة تقرر مكان نسخة التطوير المستقلة دون إعادة استخدام أو حذف AP-281.
