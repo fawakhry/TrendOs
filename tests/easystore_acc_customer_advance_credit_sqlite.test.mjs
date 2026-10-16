@@ -321,6 +321,57 @@ try{
     assert.equal(cash('FAKE_CUST_B').reduce((n,x)=>n+x.amount,0),151);
     assert.equal(creditEvents('FAKE_CUST_B').reduce((n,x)=>n+x.delta,0),3350);
   });
+  let winningInvoice=null,staleInvoice=null;
+  await test('22 two parallel invoices cannot spend the same prepaid customer credit twice',async()=>{
+    const customerId='FAKE_CUST_B',before=credit(customerId);
+    assert.equal(before,3350);
+    const beforeCash=cash(customerId).length;
+    const beforeInvoiceCount=count('employee_accounting_final_invoices_v1');
+    const beforeStock=Number(one("SELECT SUM(stock_qty) AS n FROM employee_accounting_materials_v1").n);
+    const beforeEvents=creditEvents(customerId).length;
+    const a=sale('CREDIT_RACE_A',20,0,customerId);
+    const b=sale('CREDIT_RACE_B',20,0,customerId);
+    const gate={waiters:[],snapshots:[]};
+    creditRaceGate=gate;
+    let pair;
+    try{
+      pair=await Promise.all([
+        send('saveEasyStoreSaleV2',a),
+        send('saveEasyStoreSaleV2',b)
+      ]);
+    }finally{creditRaceGate=null}
+    assert.equal(gate.snapshots.length,2,'both invoice handlers read the same credit-version snapshot');
+    assert.deepEqual(gate.snapshots.map(x=>x.cents),[3350,3350]);
+    assert.equal(gate.snapshots[0].version,gate.snapshots[1].version);
+    const posted=pair.filter(x=>x.success===true),denied=pair.filter(x=>x.success===false);
+    assert.equal(posted.length,1,JSON.stringify(pair));
+    assert.equal(denied.length,1,JSON.stringify(pair));
+    assert.equal(posted[0].creditApplied,20);
+    assert.equal(posted[0].cashReceived,0);
+    assert.equal(posted[0].remaining,0);
+    assert.equal(credit(customerId),1350,'only 2000 piastres of advance were spent');
+    assert.equal(count('employee_accounting_final_invoices_v1'),beforeInvoiceCount+1);
+    assert.equal(creditEvents(customerId).length,beforeEvents+1);
+    assert.equal(cash(customerId).length,beforeCash,'using advance never creates a new cash collection');
+    assert.equal(Number(one("SELECT SUM(stock_qty) AS n FROM employee_accounting_materials_v1").n),beforeStock-1);
+    winningInvoice=pair[0].success?a:b;
+    staleInvoice=pair[0].success?b:a;
+  });
+  await test('23 credit-backed invoice replay cannot consume the same advance again',async()=>{
+    const previousCredit=credit('FAKE_CUST_B'),previousInvoices=count('employee_accounting_final_invoices_v1');
+    const previousCash=cash('FAKE_CUST_B').length,previousEvents=creditEvents('FAKE_CUST_B').length;
+    const ok=await send('saveEasyStoreSaleV2',winningInvoice);
+    assert.equal(ok.success,true,JSON.stringify(ok));
+    assert.equal(ok.duplicatePrevented,true);
+    assert.equal(credit('FAKE_CUST_B'),previousCredit);
+    assert.equal(count('employee_accounting_final_invoices_v1'),previousInvoices);
+    assert.equal(cash('FAKE_CUST_B').length,previousCash);
+    assert.equal(creditEvents('FAKE_CUST_B').length,previousEvents);
+    const rejected=await send('saveEasyStoreSaleV2',staleInvoice);
+    assert.equal(rejected.success,false,'stale PREPARED credit-spend must not silently retry');
+    assert.equal(credit('FAKE_CUST_B'),previousCredit);
+    assert.equal(count('employee_accounting_final_invoices_v1'),previousInvoices);
+  });
   await test('21 preserve integrity: cash equals actual funds received; credit events reconcile liability',()=>{
     assert.equal(network,0);
     for(const id of ['FAKE_CUST_A','FAKE_CUST_B']){
