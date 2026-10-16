@@ -380,13 +380,18 @@ function customerViewV1(r){
   return {
     customerId:text(r.customer_id),id:text(r.customer_id),name:text(r.customer_name),customerName:text(r.customer_name),
     manager:text(r.manager),phone:text(r.phone||r.extra_phone),mobile:text(r.phone||r.extra_phone),extraPhone:text(r.extra_phone),
-    type:text(r.customer_type),active:text(r.active),debt:balance,debtAmount:balance,currentBalance:balance,remainingBalance:balance
+    type:text(r.customer_type),active:text(r.active),debt:balance,debtAmount:balance,currentBalance:balance,remainingBalance:balance,
+    creditBalance:num(r.credit_cents)/100,customerCredit:num(r.credit_cents)/100,
+    displayBalance:num(r.credit_cents)/100-balance
   };
 }
 async function getEasyStoreCustomersV1(env,b){
-  const limit=Math.max(1,Math.min(Math.trunc(num(b.limit,500)),1000));
+  const limit=Math.max(1,Math.min(Math.trunc((b.limit==null||b.limit==='')?500:num(b.limit,500)),1000));
+  const creditColumn=customerCreditEnabledV1(env)
+    ? "COALESCE((SELECT cc.credit_cents FROM employee_accounting_customer_credits_v1 cc WHERE cc.customer_id=c.customer_id),0)" : "0";
   const list=await rows(env,`
     SELECT c.customer_id,c.customer_name,c.manager,c.phone,c.extra_phone,c.customer_type,c.active,
+      ${creditColumn} AS credit_cents,
       COALESCE((SELECT pb.balance FROM employee_accounting_party_balances_v1 pb
         WHERE pb.party_type='customer' AND pb.party_id=c.customer_id LIMIT 1),0) AS current_balance
     FROM t12_customers c
@@ -400,8 +405,11 @@ async function searchCustomersV1(env,b){
   const q=key(b.q);
   if(!q)return {success:true,customers:[],version:'A1_D1_READ_MODEL_V1'};
   const like='%'+q+'%';
+  const creditColumn=customerCreditEnabledV1(env)
+    ? "COALESCE((SELECT cc.credit_cents FROM employee_accounting_customer_credits_v1 cc WHERE cc.customer_id=c.customer_id),0)" : "0";
   const list=await rows(env,`
     SELECT c.customer_id,c.customer_name,c.manager,c.phone,c.extra_phone,c.customer_type,c.active,
+      ${creditColumn} AS credit_cents,
       COALESCE((SELECT pb.balance FROM employee_accounting_party_balances_v1 pb
         WHERE pb.party_type='customer' AND pb.party_id=c.customer_id LIMIT 1),0) AS current_balance
     FROM t12_customers c
@@ -421,7 +429,7 @@ function supplierViewV1(r){
   };
 }
 async function getEasyStoreSuppliersV1(env,b){
-  const limit=Math.max(1,Math.min(Math.trunc(num(b.limit,500)),1000));
+  const limit=Math.max(1,Math.min(Math.trunc((b.limit==null||b.limit==='')?500:num(b.limit,500)),1000));
   const list=await rows(env,`
     SELECT p.party_id,p.display_name,p.phone,p.address,p.notes,p.active,
       COALESCE(
@@ -465,9 +473,12 @@ async function getCustomerAccountV1915V1(env,auth,b){
     LIMIT 200
   `,[customer.customer_id]);
   const balance=await partyBalanceV1(env,'customer',text(customer.customer_id));
-  const view=customerViewV1({...customer,current_balance:balance});
+  const creditCents=customerCreditEnabledV1(env)?await customerCreditReadV1(env,text(customer.customer_id)):0;
+  const view=customerViewV1({...customer,current_balance:balance,credit_cents:creditCents});
   return {
-    success:true,customer:view,partyName:view.name,balance,transactions:tx,
+    success:true,customer:view,partyName:view.name,balance,creditBalance:creditCents/100,
+    outstandingDebt:balance,displayBalance:creditCents/100-balance,
+    creditFeatureEnabled:customerCreditEnabledV1(env),transactions:tx,
     permissions:{canCollect:true,canAdjust:auth.mode==='full'},
     version:'A1_D1_READ_MODEL_V1'
   };
@@ -1072,6 +1083,99 @@ async function partyBalanceV1(env,type,partyId){
   const r=await env.DB.prepare("SELECT balance FROM employee_accounting_party_balances_v1 WHERE party_type=? AND party_id=?").bind(type,partyId).first();
   return r?num(r.balance):0;
 }
+// Owner-approved 2026-10-16 CUSTOMER ADVANCES. Default OFF: no production
+// behavior change without dedicated migration, staging qualification and release.
+// Values in the new LIABILITY ledger are integer PIASTRES, not floating EGP.
+function customerCreditEnabledV1(env){
+  return text(env&&env.EASYSTORE_CUSTOMER_CREDIT_V1).toUpperCase()==='ON';
+}
+function customerCreditCentsV1(value){
+  if(typeof value!=='string'&&typeof value!=='number')return null;
+  const s=String(value);
+  if(!/^\d+(?:\.\d{1,2})?$/.test(s))return null;
+  const [units,fraction='']=s.split('.');
+  const result=Number(units)*100+Number((fraction+'00').slice(0,2));
+  return Number.isSafeInteger(result)&&result>=0?result:null;
+}
+function customerCreditMoneyV1(cents){return cents/100;}
+async function customerCreditRowV1(env,customerId){
+  await env.DB.prepare("INSERT OR IGNORE INTO employee_accounting_customer_credits_v1(customer_id,credit_cents,version,last_request_key,updated_at_ms) VALUES(?,0,1,'',?)")
+    .bind(customerId,Date.now()).run();
+  const row=await env.DB.prepare("SELECT credit_cents AS creditCents,version FROM employee_accounting_customer_credits_v1 WHERE customer_id=?")
+    .bind(customerId).first();
+  if(!row||!Number.isSafeInteger(Number(row.creditCents))||Number(row.creditCents)<0)
+    throw commandErrorV1('customer-credit-invalid-liability','الرصيد الدائن غير موثق أو تالف.');
+  return {creditCents:Number(row.creditCents),version:Math.max(1,Math.trunc(num(row.version,1)))};
+}
+async function customerCreditReadV1(env,customerId){
+  const row=await env.DB.prepare("SELECT credit_cents AS creditCents FROM employee_accounting_customer_credits_v1 WHERE customer_id=?")
+    .bind(customerId).first();
+  const credit=Number(row&&row.creditCents||0);
+  if(!Number.isSafeInteger(credit)||credit<0)
+    throw commandErrorV1('customer-credit-invalid-liability','الرصيد الدائن غير سليم.');
+  return credit;
+}
+// All SQL mutations below run in ONE D1 batch and an optimistic dual-version
+// guard; if one request wins a concurrent race the other transaction rolls back.
+async function customerReceiptWithCreditV1(env,auth,b,party,normalizedCommand,before,version){
+  const amountCents=customerCreditCentsV1(b.amount),debtBeforeCents=customerCreditCentsV1(before);
+  if(amountCents===null||amountCents===0||debtBeforeCents===null)
+    throw commandErrorV1('customer-credit-invalid-cents','المبلغ يجب أن يكون موجبًا وبحد أقصى قرشين عشريين.');
+  const credit=await customerCreditRowV1(env,party.partyId);
+  if(credit.creditCents>0&&debtBeforeCents>0)
+    throw commandErrorV1('customer-credit-debt-reconciliation-required','العميل له رصيد دائن ومديونية معًا، يلزم مراجعة الرصيد أولًا.');
+  const debtPaidCents=Math.min(amountCents,debtBeforeCents);
+  const creditCreatedCents=amountCents-debtPaidCents;
+  if(creditCreatedCents>Number.MAX_SAFE_INTEGER-credit.creditCents)
+    throw commandErrorV1('customer-credit-overflow','مبلغ الرصيد الدائن يتجاوز الحد الآمن.');
+  const newCredit=credit.creditCents+creditCreatedCents;
+  const request=await beginCommandV1(env,auth,'party-ledger:customer:payment_received',normalizedCommand);
+  if(request.replay)return {...request.response,success:true,duplicatePrevented:true};
+  const now=Date.now(),workDate=workDateKeyV1(b.workDate||b.date),
+    debtPaid=customerCreditMoneyV1(debtPaidCents),cash=customerCreditMoneyV1(amountCents);
+  const ledgerKey=request.requestKey,statements=[];
+  statements.push(env.DB.prepare("UPDATE employee_accounting_party_balances_v1 SET balance=balance-?,version=version+1,last_request_key=?,party_name=?,updated_at_ms=?,updated_at=CURRENT_TIMESTAMP WHERE party_type='customer' AND party_id=? AND version=? AND balance>=?")
+    .bind(debtPaid,ledgerKey,party.partyName,now,party.partyId,version,debtPaid));
+  statements.push(env.DB.prepare("UPDATE employee_accounting_customer_credits_v1 SET credit_cents=credit_cents+?,version=version+1,last_request_key=?,updated_at_ms=?,updated_at=CURRENT_TIMESTAMP WHERE customer_id=? AND version=? AND EXISTS(SELECT 1 FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=? AND version=?)")
+    .bind(creditCreatedCents,ledgerKey,now,party.partyId,credit.version,party.partyId,ledgerKey,version+1));
+  if(debtPaidCents>0){
+    statements.push(env.DB.prepare("INSERT INTO employee_accounting_party_ledger_v1(transaction_id,request_key,party_id,party_type,party_name,operation,operation_label,amount,effect,payment_method,ref_no,balance_before,balance_after,created_by,notes,source,created_at_ms) SELECT ?,?,?,'customer',?,'payment_received','سداد مديونية العميل',?,-1,?,?,?,?,?,?,?,? FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?")
+      .bind(uid('LED'),ledgerKey,party.partyId,party.partyName,debtPaid,text(b.paymentMethod||b.method),text(b.refNo||b.reference),before,customerCreditMoneyV1(debtBeforeCents-debtPaidCents),auth.user.username,text(b.notes),sourceSystemV1(b),now,party.partyId,ledgerKey,credit.version+1));
+  }
+  if(creditCreatedCents>0){
+    statements.push(env.DB.prepare("INSERT INTO employee_accounting_customer_credit_events_v1(event_id,request_key,customer_id,kind,amount_cents,delta_cents,credit_before_cents,credit_after_cents,actor,source,created_at_ms) SELECT ?,?,?,'RECEIPT_EXCESS',?,?,?,?,?,?,? FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?")
+      .bind(uid('CRD'),ledgerKey+'-CREDIT',party.partyId,creditCreatedCents,creditCreatedCents,credit.creditCents,newCredit,auth.user.username,sourceSystemV1(b),now,party.partyId,ledgerKey,credit.version+1));
+  }
+  // Physical cash includes the WHOLE payment (not only the debt portion).
+  // Customer-credit application on a future invoice creates no cashbox row.
+  statements.push(env.DB.prepare("INSERT INTO employee_accounting_cashbox_v1(cashbox_tx_id,request_key,work_date,movement_type,party_id,party_name,department,amount,payment_method,ref_no,source,notes,actor,created_at_ms) SELECT ?,?,?,'CUSTOMER_RECEIPT',?,?,?,?,?,?,?,?,?,? FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?")
+    .bind(uid('CSH'),ledgerKey+'-CASH',workDate,party.partyId,party.partyName,text(b.department),cash,text(b.paymentMethod||b.method),text(b.refNo||b.reference),sourceSystemV1(b),text(b.notes),auth.user.username,now,party.partyId,ledgerKey,credit.version+1));
+  const guardSql="(SELECT COUNT(*) FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=? AND version=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_party_ledger_v1 WHERE request_key=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_customer_credit_events_v1 WHERE request_key=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_cashbox_v1 WHERE request_key=?)";
+  const expected=3+(debtPaidCents>0?1:0)+(creditCreatedCents>0?1:0);
+  statements.push(...txGuardPairV1(env,ledgerKey+'-CREDIT-GUARD',expected,guardSql,
+    [party.partyId,ledgerKey,version+1,party.partyId,ledgerKey,credit.version+1,
+     ledgerKey,ledgerKey+'-CREDIT',ledgerKey+'-CASH']));
+  await env.DB.batch(statements);
+  const check=await env.DB.prepare("SELECT balance FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=?")
+    .bind(party.partyId,ledgerKey).first();
+  if(!check)throw commandErrorV1('customer-credit-guard-rejected','تعارض تحصيل متزامن؛ الطلب محفوظ للمراجعة.');
+  const response={success:true,partyId:party.partyId,partyType:'customer',partyName:party.partyName,
+    balanceBefore:before,balance:customerCreditMoneyV1(debtBeforeCents-debtPaidCents),
+    outstandingDebt:customerCreditMoneyV1(debtBeforeCents-debtPaidCents),
+    customerCredit:customerCreditMoneyV1(newCredit),customerCreditCents:newCredit,
+    customerDisplayBalance:customerCreditMoneyV1(newCredit-(debtBeforeCents-debtPaidCents)),
+    cashboxPosted:true,receiptCashAmount:cash,creditCreated:customerCreditMoneyV1(creditCreatedCents),
+    version:'A2_D1_CUSTOMER_CREDIT_OFF_BY_DEFAULT_V1'};
+  await commitCommandV1(env,request,response);
+  await auditEventV1(env,request,'customer-credit-receipt',party.partyId,'post',auth.user.username,
+    {cash,oldDebtPaid:debtPaid,customerCreditCreatedCents:creditCreatedCents,before,after:response.balance});
+  return response;
+}
+
 async function partyLedger(env,auth,b){
   if(!['full','final'].includes(auth.mode))return {success:false,message:'حسابات العملاء والموردين عند ضياء / رحمه / ريفان فقط.'};
   let type=key(b.partyType||b.type||'customer');type=type.includes('supplier')||type.includes('مورد')?'supplier':'customer';
@@ -1106,6 +1210,8 @@ async function partyLedger(env,auth,b){
       if(priorCtx.replay)return {...priorCtx.response,success:true,duplicatePrevented:true};
     }
   }
+  if(type==='customer'&&op==='payment_received'&&customerCreditEnabledV1(env))
+    return customerReceiptWithCreditV1(env,auth,b,party,normalizedCommand,before,version);
   if(delta<0&&amount>before+0.000001)return {success:false,message:'المبلغ أكبر من الرصيد المستحق الحالي: '+before+' ج.'};
 
   const ctx=await beginCommandV1(env,auth,'party-ledger:'+type+':'+op,normalizedCommand);
@@ -1553,7 +1659,152 @@ async function directSaleStockRequirementsV1(env,itemName,department,qty){
   return req;
 }
 
+// Opt-in ONLY: actual native D1 direct-sale path for previously received
+// customer advances. Uses the existing source stock, party debt, command audit
+// and cashbox; adds the separately-versioned customer CREDIT liability ledger.
+// No cashbox entry is made for spending an advance on a later invoice.
+async function saveCustomerCreditDirectSaleV1(env,auth,b){
+  if(!['full','final'].includes(auth.mode))return {success:false,message:'صلاحية الفاتورة غير متاحة.'};
+  const qty=num(b.qty),unit=num(b.unit||b.unitPrice),discount=Math.max(0,num(b.discount));
+  const calculated=Math.max(0,qty*unit-discount),total=num(b.total,calculated);
+  const totalCents=customerCreditCentsV1(total),cashCents=customerCreditCentsV1(b.paid==null?0:b.paid);
+  if(!(qty>0)||totalCents===null||totalCents===0||cashCents===null)
+    return {success:false,code:'customer-credit-invalid-invoice-cents',message:'الفاتورة والمدفوع يلزم أن يكونا بقروش صحيحة.'};
+  const customer=await resolvePartyV1(env,'customer',{customerId:b.customerId,customerName:b.customer||b.customerName});
+  const department=accountingDepartmentV1(b.department)||text(b.department)||'كل الأقسام';
+  const item=text(b.item||b.itemName)||'بند مطبعجي',workDate=workDateKeyV1(b.workDate||b.date);
+  const invoiceNo=text(b.no||b.invoiceNo)||await nextInvoiceNo(env);
+  const priorRequestKey=text(b.requestId||b.idempotencyKey||b.clientRequestId);
+  if(priorRequestKey){
+    const prior=await env.DB.prepare("SELECT request_key FROM employee_accounting_request_ledger_v1 WHERE request_key=?")
+      .bind(priorRequestKey).first();
+    if(prior){
+      // This command fingerprint has the exact same normalized fields as the
+      // command below. Duplicate invoices replay only COMMITTED identical keys.
+      const replay=await beginCommandV1(env,auth,'credit-direct-sale',
+        {...b,invoiceNo,customerId:customer.partyId,customerName:customer.partyName,department,item,workDate,total,paid:customerCreditMoneyV1(cashCents)});
+      if(replay.replay)return {...replay.response,success:true,duplicatePrevented:true};
+    }
+  }
+  const duplicate=await env.DB.prepare("SELECT invoice_no FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? LIMIT 1")
+    .bind(invoiceNo).first();
+  if(duplicate)return {success:false,duplicatePrevented:true,message:'رقم فاتورة المبيعات مستخدم بالفعل: '+invoiceNo};
+  const req=await directSaleStockRequirementsV1(env,item,department==='كل الأقسام'?'':department,qty);
+  let manualCost=0;
+  for(const {material,qty:need} of req.values()){
+    if(num(material.stock_qty)+0.000001<need)return {success:false,message:'المخزون غير كافٍ: '+text(material.material_name)};
+    manualCost+=need*num(material.computed_unit_cost||material.unit_cost);
+  }
+  manualCost=Number(manualCost.toFixed(6));
+  await env.DB.prepare("INSERT OR IGNORE INTO employee_accounting_party_balances_v1(party_type,party_id,party_name,balance,version,last_request_key,updated_at_ms) VALUES('customer',?,?,0,1,'',?)")
+    .bind(customer.partyId,customer.partyName,Date.now()).run();
+  const debt=await env.DB.prepare("SELECT balance,version FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=?")
+    .bind(customer.partyId).first();
+  const debtCents=customerCreditCentsV1(debt&&debt.balance||0);
+  if(debtCents===null)throw commandErrorV1('customer-credit-invalid-debt','رصيد المديونية غير صالح.');
+  const debtVersion=Math.max(1,Math.trunc(num(debt&&debt.version,1)));
+  const credit=await customerCreditRowV1(env,customer.partyId);
+  if(debtCents>0&&credit.creditCents>0)
+    throw commandErrorV1('customer-credit-debt-reconciliation-required','مديونية ورصيد عميل دائن معًا تحتاج مراجعة قبل الفاتورة.');
+  const appliedCents=Math.min(credit.creditCents,totalCents);
+  const afterCreditCents=totalCents-appliedCents;
+  const cashForNewCents=Math.min(cashCents,afterCreditCents);
+  const extraCashCents=cashCents-cashForNewCents;
+  const cashForOldCents=Math.min(debtCents,extraCashCents);
+  const newAdvanceCents=extraCashCents-cashForOldCents;
+  const newDebtCents=debtCents+afterCreditCents-cashForNewCents-cashForOldCents;
+  const newCreditCents=credit.creditCents-appliedCents+newAdvanceCents;
+  if(!Number.isSafeInteger(newDebtCents)||!Number.isSafeInteger(newCreditCents)||
+     (newDebtCents>0&&newCreditCents>0))
+    throw commandErrorV1('customer-credit-overflow','الرصيد الإجمالي بعد الفاتورة غير متسق.');
+  const balanceBefore=customerCreditMoneyV1(debtCents),invoicePaid=customerCreditMoneyV1(appliedCents+cashForNewCents);
+  const remaining=customerCreditMoneyV1(afterCreditCents-cashForNewCents);
+  const cash=customerCreditMoneyV1(cashCents),now=Date.now();
+  const normalized={...b,invoiceNo,customerId:customer.partyId,customerName:customer.partyName,
+    department,item,workDate,total,paid:cash};
+  const ctx=await beginCommandV1(env,auth,'credit-direct-sale',normalized);
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const statements=[],stockCount=req.size;
+  for(const {material,qty:need} of req.values()){
+    const before=num(material.stock_qty),version=Math.max(1,Math.trunc(num(material.version,1)));
+    statements.push(env.DB.prepare("UPDATE employee_accounting_materials_v1 SET stock_qty=stock_qty-?,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE material_id=? AND version=? AND stock_qty>=?")
+      .bind(need,auth.user.username,material.material_id,version,need));
+    statements.push(env.DB.prepare("INSERT INTO employee_accounting_stock_moves_v1(stock_move_id,material_id,move_type,department,item_name,qty_in,qty_out,balance_before,balance_after,actor,notes,request_key,created_at_ms) SELECT ?,?,'بيع مباشر',?,?,0,?,?,?,?,?,?,? FROM employee_accounting_materials_v1 WHERE material_id=? AND version=?")
+      .bind(uid('STK'),material.material_id,department,item,need,before,before-need,auth.user.username,text(b.notes),ctx.requestKey,now,material.material_id,version+1));
+  }
+  const invoiceCols=['invoice_no','request_key','order_id','customer_name','customer_party_id','accounting_line_ids_json','manual_item','manual_amount','manual_cost','subtotal','discount','final_total','paid','remaining','payment_method','finance_department','status','closed_by','notes','created_at_ms','work_date','version','credit_applied','cash_received','credit_created'];
+  const invoiceValues=[invoiceNo,ctx.requestKey,text(b.orderId),customer.partyName,customer.partyId,'[]',item,total,manualCost,total+discount,discount,total,invoicePaid,remaining,text(b.paymentType||b.paymentMethod||'نقدي'),department,'CLOSED',auth.user.username,text(b.notes),now,workDate,1,
+    customerCreditMoneyV1(appliedCents),cash,customerCreditMoneyV1(newAdvanceCents)];
+  statements.push(env.DB.prepare("INSERT INTO employee_accounting_final_invoices_v1("+invoiceCols.join(',')+") SELECT "+invoiceCols.map(()=>'?').join(',')+" WHERE (SELECT COUNT(*) FROM employee_accounting_stock_moves_v1 WHERE request_key=?)=?")
+    .bind(...invoiceValues,ctx.requestKey,stockCount));
+  statements.push(env.DB.prepare("UPDATE employee_accounting_party_balances_v1 SET balance=balance+?,version=version+1,last_request_key=?,party_name=?,updated_at_ms=?,updated_at=CURRENT_TIMESTAMP WHERE party_type='customer' AND party_id=? AND version=? AND EXISTS(SELECT 1 FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND request_key=?)")
+    .bind(customerCreditMoneyV1(newDebtCents-debtCents),ctx.requestKey,customer.partyName,now,customer.partyId,debtVersion,invoiceNo,ctx.requestKey));
+  statements.push(env.DB.prepare("UPDATE employee_accounting_customer_credits_v1 SET credit_cents=credit_cents+?,version=version+1,last_request_key=?,updated_at_ms=?,updated_at=CURRENT_TIMESTAMP WHERE customer_id=? AND version=? AND EXISTS(SELECT 1 FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=? AND version=?)")
+    .bind(newCreditCents-credit.creditCents,ctx.requestKey,now,customer.partyId,credit.version,customer.partyId,ctx.requestKey,debtVersion+1));
+  const ledgerCols=['transaction_id','request_key','party_id','party_type','party_name','operation','operation_label','amount','effect','payment_method','ref_no','balance_before','balance_after','created_by','notes','source','created_at_ms'];
+  const ledgerKeys=[],creditKeys=[];
+  const ledger=(suffix,operation,label,amount,effect,before,after)=>{
+    if(!(amount>0))return;
+    const key=ctx.requestKey+suffix;ledgerKeys.push(key);
+    const values=[uid('LED'),key,customer.partyId,'customer',customer.partyName,operation,label,amount,effect,
+      text(b.paymentType||b.paymentMethod),invoiceNo,before,after,auth.user.username,text(b.notes),sourceSystemV1(b),now];
+    statements.push(env.DB.prepare("INSERT INTO employee_accounting_party_ledger_v1("+ledgerCols.join(',')+") SELECT "+ledgerCols.map(()=>'?').join(',')+" FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?")
+      .bind(...values,customer.partyId,ctx.requestKey,credit.version+1));
+  };
+  const eventCols=['event_id','request_key','customer_id','kind','amount_cents','delta_cents','credit_before_cents','credit_after_cents','related_invoice_no','actor','source','created_at_ms'];
+  const creditEvent=(suffix,kind,cents,delta,old,newAmount)=>{
+    if(!(cents>0))return;
+    const key=ctx.requestKey+suffix;creditKeys.push(key);
+    const vals=[uid('CRD'),key,customer.partyId,kind,cents,delta,old,newAmount,invoiceNo,auth.user.username,sourceSystemV1(b),now];
+    statements.push(env.DB.prepare("INSERT INTO employee_accounting_customer_credit_events_v1("+eventCols.join(',')+") SELECT "+eventCols.map(()=>'?').join(',')+" FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?")
+      .bind(...vals,customer.partyId,ctx.requestKey,credit.version+1));
+  };
+  const m=customerCreditMoneyV1;
+  ledger('-LEDGER-INVOICE','invoice','فاتورة عميل',total,1,balanceBefore,balanceBefore+total);
+  ledger('-LEDGER-CREDIT','customer_credit_applied','استخدام رصيد دائن سابق',m(appliedCents),-1,balanceBefore+total,balanceBefore+total-m(appliedCents));
+  ledger('-LEDGER-PAYMENT','payment_received','مدفوع نقدي للفواتير',m(cashForNewCents),-1,
+    balanceBefore+total-m(appliedCents),balanceBefore+total-m(appliedCents+cashForNewCents));
+  ledger('-LEDGER-OLD-DEBT','payment_received','مدفوع على مديونية سابقة',m(cashForOldCents),-1,
+    balanceBefore+total-m(appliedCents+cashForNewCents),balanceBefore+total-m(appliedCents+cashForNewCents+cashForOldCents));
+  creditEvent('-CREDIT-APPLIED','INVOICE_CREDIT_APPLIED',appliedCents,-appliedCents,credit.creditCents,credit.creditCents-appliedCents);
+  creditEvent('-CREDIT-CREATED','INVOICE_EXCESS',newAdvanceCents,newAdvanceCents,credit.creditCents-appliedCents,newCreditCents);
+  if(cashCents>0){
+    const cashCols=['cashbox_tx_id','request_key','work_date','movement_type','party_id','party_name','department','amount','payment_method','ref_no','source','notes','actor','created_at_ms'];
+    const vals=[uid('CSH'),ctx.requestKey+'-CASH',workDate,'CUSTOMER_RECEIPT',customer.partyId,customer.partyName,department,cash,text(b.paymentType||b.paymentMethod),invoiceNo,sourceSystemV1(b),text(b.notes),auth.user.username,now];
+    statements.push(env.DB.prepare("INSERT INTO employee_accounting_cashbox_v1("+cashCols.join(',')+") SELECT "+cashCols.map(()=>'?').join(',')+" FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?")
+      .bind(...vals,customer.partyId,ctx.requestKey,credit.version+1));
+  }
+  const quotedKeys=arr=>arr.map(()=>'?').join(',');
+  let guardSql="(SELECT COUNT(*) FROM employee_accounting_stock_moves_v1 WHERE request_key=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND request_key=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id=? AND last_request_key=? AND version=?)"+
+    "+(SELECT COUNT(*) FROM employee_accounting_customer_credits_v1 WHERE customer_id=? AND last_request_key=? AND version=?)";
+  const guardBind=[ctx.requestKey,invoiceNo,ctx.requestKey,customer.partyId,ctx.requestKey,debtVersion+1,
+    customer.partyId,ctx.requestKey,credit.version+1];
+  if(ledgerKeys.length){guardSql+="+(SELECT COUNT(*) FROM employee_accounting_party_ledger_v1 WHERE request_key IN ("+quotedKeys(ledgerKeys)+"))";guardBind.push(...ledgerKeys);}
+  if(creditKeys.length){guardSql+="+(SELECT COUNT(*) FROM employee_accounting_customer_credit_events_v1 WHERE request_key IN ("+quotedKeys(creditKeys)+"))";guardBind.push(...creditKeys);}
+  if(cashCents>0){guardSql+="+(SELECT COUNT(*) FROM employee_accounting_cashbox_v1 WHERE request_key=?)";guardBind.push(ctx.requestKey+'-CASH');}
+  const expected=stockCount+3+ledgerKeys.length+creditKeys.length+(cashCents>0?1:0);
+  statements.push(...txGuardPairV1(env,ctx.requestKey+'-GUARD',expected,guardSql,guardBind));
+  await env.DB.batch(statements);
+  const written=await env.DB.prepare("SELECT invoice_no AS invoiceNo,final_total AS finalTotal,paid,remaining,manual_cost AS manualCost,credit_applied AS creditApplied,cash_received AS cashReceived,credit_created AS creditCreated FROM employee_accounting_final_invoices_v1 WHERE request_key=?")
+    .bind(ctx.requestKey).first();
+  if(!written)throw commandErrorV1('customer-credit-invoice-guard-rejected','تعارض عند حفظ الفاتورة أو استخدام الرصيد الدائن. الطلب محفوظ للمراجعة.');
+  const response={success:true,invoiceNo:text(written.invoiceNo),department,finalTotal:num(written.finalTotal),
+    paid:num(written.paid),remaining:num(written.remaining),manualCost:num(written.manualCost),
+    creditApplied:num(written.creditApplied),cashReceived:num(written.cashReceived),
+    customerCreditCreated:num(written.creditCreated),customerCreditRemaining:m(newCreditCents),
+    customerDebtRemaining:m(newDebtCents),customerDisplayBalance:m(newCreditCents-newDebtCents),
+    stockMaterialCount:stockCount,version:'A2_D1_CUSTOMER_CREDIT_OFF_BY_DEFAULT_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'direct-sale',invoiceNo,'post',auth.user.username,
+    {customerId:customer.partyId,total,creditApplied:response.creditApplied,cashReceived:cash,remaining,
+      oldDebtPaid:m(cashForOldCents),newCreditCreated:response.customerCreditCreated,stockMaterialCount:stockCount});
+  return response;
+}
+
 async function saveEasyStoreSaleV2A2(env,auth,b){
+  if(customerCreditEnabledV1(env))return saveCustomerCreditDirectSaleV1(env,auth,b);
   if(!['full','final'].includes(auth.mode))return {success:false,message:'حفظ فاتورة المبيعات الرسمية عند ضياء أو رحمه أو ريفان فقط.'};
   const qty=num(b.qty),unit=num(b.unit||b.unitPrice),discount=Math.max(0,num(b.discount)),computedTotal=Math.max(0,qty*unit-discount),total=num(b.total,computedTotal),paid=Math.max(0,num(b.paid));
   if(!(qty>0)||!(total>0))return {success:false,message:'الكمية والإجمالي يجب أن يكونا أكبر من صفر.'};
@@ -1621,6 +1872,8 @@ async function finalInvoiceA2V1(env,auth,b){
   if(!(finalTotal>0))return {success:false,message:'إجمالي الفاتورة يجب أن يكون أكبر من صفر.'};
   if(paid>finalTotal+0.000001)return {success:false,message:'المدفوع لا يمكن أن يزيد عن إجمالي الفاتورة.'};
   const remaining=Math.max(0,finalTotal-paid),customer=await resolvePartyV1(env,'customer',{customerId:b.customerId,customerName:b.customerName||b.customer});
+  if(customerCreditEnabledV1(env)&&await customerCreditReadV1(env,customer.partyId)>0)
+    return {success:false,code:'customer-credit-final-invoice-needs-verified-adapter',message:'لا يمكن تجاهل رصيد العميل الدائن عند تقفيل فاتورة أقسام. يلزم المسار المعتمد أولًا.'};
   const workDate=workDateKeyV1(b.workDate||b.date),department=accountingDepartmentV1(b.department)||text(b.department)||'كل الأقسام';
   const heldPayment=Math.max(0,num(b.heldPayment)),heldFrom=text(b.heldPaymentFromInvoiceNo||b.replacesInvoiceNo);
   if(heldPayment>paid+0.000001)return {success:false,message:'المدفوع المحفوظ لا يمكن أن يزيد عن المدفوع في الفاتورة الجديدة.'};
@@ -1672,6 +1925,8 @@ async function reopenAccountingFinalInvoiceV1(env,auth,b){
   if(!reason)return {success:false,message:'سبب إرجاع الفاتورة للمراجعة مطلوب.'};
   const inv=await env.DB.prepare("SELECT * FROM employee_accounting_final_invoices_v1 WHERE invoice_no=?").bind(invoiceNo).first();
   if(!inv)return {success:false,message:'لم يتم العثور على الفاتورة '+invoiceNo};
+  if(customerCreditEnabledV1(env)&&(num(inv.credit_applied)>0||num(inv.credit_created)>0))
+    return {success:false,code:'customer-credit-invoice-reversal-not-implemented',message:'عكس فاتورة استخدمت أو أنشأت رصيدًا دائنًا يحتاج قيد تعويضي معتمدًا.'};
   if(text(inv.status)==='UNDER_REVIEW')return {success:true,duplicatePrevented:true,invoiceNo,heldPayment:num(inv.held_paid),message:'الفاتورة تحت المراجعة بالفعل.',version:'A2_D1_ACCOUNTING_V1'};
   if(text(inv.replacement_invoice_no))return {success:false,message:'لا يمكن إرجاع فاتورة مرتبطة بالفعل بفاتورة بديلة.'};
   const customer=await resolvePartyV1(env,'customer',{customerId:inv.customer_party_id,customerName:inv.customer_name});
