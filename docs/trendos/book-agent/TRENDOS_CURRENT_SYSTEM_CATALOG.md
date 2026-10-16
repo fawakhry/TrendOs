@@ -2397,3 +2397,207 @@ LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
 
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY610 -->
+
+---
+
+## الملحق التاريخي ق — Entry611 / إعداد Native Auth Canary بوضع Default-OFF
+
+> **تصنيف النص المنقول:** `HISTORICAL` / `REPO_ONLY_CI_RECORDED` / `NOT_NEW_PRODUCTION_PROOF`. ما يلي سجل تنفيذ واختبارات تاريخية، وليس إثباتًا أن إعدادات Production الحالية كما كانت وقت الاختبار.
+> **المصدر وقت النقل:** [`TrendOS_MASTER_BOOK.md`](https://github.com/fawakhry/TrendOs/blob/e7c0965807f0b7578fdc7084cd1393c6582421e3/TrendOS_MASTER_BOOK.md) — Git blob `c7dd30d2ea094e65b70e19b07c8398018f6b3383`.
+> **الأرشيف غير القابل للتعديل:** [`b2788ecb4c187717e020321954a1ea449c1aa0d5`](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md) — Git blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`.
+> **نطاق النقل:** Entry611 كاملًا فقط، بلا خلط مع Entry612 أو سجلات SERVER الحديثة.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY611 -->
+### Entry611 — Native Auth canary routing default-OFF
+- الاسم العربي للبحث: **Canary Native Login لموظف واحد بدون Big Bang / Fail-closed / Repository-only**.
+- يبدأ بعد Entry610 repo-only qualification PASS.
+- الهدف: تجهيز frontend dispatcher لاختيار مستخدم canary واحد أو أكثر لاحقًا، مع بقاء كل الموظفين الآخرين على Legacy login حتى صدور موافقة Production صريحة.
+- التصميم:
+  - global Native Auth flag يظل `false`.
+  - canary mode له flag مستقل default `false` وقائمة مستخدمين فارغة.
+  - عند تشغيل canary مستقبلًا، المستخدم غير الموجود بالقائمة يبقى Legacy بدون تغيير.
+  - المستخدم canary لا يُسمح له بالـNative login إلا بعد read-only preflight على Cloud Auth + Bridge health والسياسات؛ أي نقص = fail closed، لا fallback صامت.
+  - لا Secret values في frontend/repo.
+  - لا password logging/storage.
+  - أول canary native login يمكنه الاعتماد على TRANSITIONAL legacy bootstrap بعد تأهيله؛ subsequent login يصبح D1-native.
+- هذه المرحلة Repository-only فقط؛ **لا Frontend deploy ولا API deploy ولا Auth ON ولا D1 mutation ولا Apps Script change ولا Secret change**.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY611_STARTED_REPO_ONLY
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=PENDING
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=ADD_DEFAULT_OFF_CANARY_CONFIG_AND_DISPATCHER_FAIL_CLOSED_ROUTING_WITH_TESTS
+  ```
+- Default-OFF canary frontend config added Repository-only:
+  ```ini
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1=false
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS=[]
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES=69
+  ```
+- Global `MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=false` and bridge flag remain unchanged.
+- Commit: `9ecb6c3a94e235a5857950f322aa33385e74d4be`.
+- This commit is **not deployed**.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY611_DEFAULT_OFF_CANARY_CONFIG_ADDED
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=9ecb6c3a94e235a5857950f322aa33385e74d4be
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=IMPLEMENT_CANARY_DISPATCHER_PREFLIGHT_AND_TESTS_REPO_ONLY
+  ```
+- Canary-aware employee dispatcher implemented Repository-only:
+  - non-canary employees preserve exact Legacy route while global Native Auth is OFF;
+  - canary selection is case-insensitive from the configured allowlist;
+  - canary login/session/business routing performs read-only health preflight;
+  - preflight requires TRANSITIONAL D1 auth readiness, bridge enabled/configured, shared-secret presence reported by Cloud runtime, assertion hygiene, and at least the configured policy minimum;
+  - any missing canary prerequisite fails closed with `EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED`; there is no silent fallback to Legacy login for a selected canary;
+  - logout and password-change recovery remain available for an already-native canary even if the bridge later becomes unhealthy;
+  - successful canary native session is remembered only in memory for routing; no password/secret is stored.
+- Dispatcher commit: `af5b2b7f915c05b4cc426e92047e678206b50c83`.
+- This source is **not deployed**.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY611_CANARY_DISPATCHER_IMPLEMENTED_REPO_ONLY
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=af5b2b7f915c05b4cc426e92047e678206b50c83
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=ADD_CANARY_REGRESSION_TESTS_AND_RUN_REPO_ONLY_CI
+  ```
+- Fail-closed behavior tightened before qualification:
+  - missing frontend bridge/policy readiness fails before any Native login POST;
+  - Cloud health network/HTTP failures are normalized to `EMPLOYEE_NATIVE_CANARY_PREFLIGHT_FAILED`;
+  - selected canary never silently falls back to Legacy login when preflight cannot be proven.
+- Commit: `172fce835284b06d59d99aa325c5ba0a7f18728e`.
+- Repository-only / not deployed.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY611_CANARY_FAIL_CLOSED_HARDENED
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=172fce835284b06d59d99aa325c5ba0a7f18728e
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=ADD_ENTRY611_CANARY_TESTS
+  ```
+- Canary session identity handling hardened for business bridge calls:
+  - after successful canary native login/session verification, the selected username is remembered in-memory only;
+  - bridged calls can recover that username if a module omits it while still requiring the native bearer token;
+  - logout/password force-relogin clears the remembered canary identity.
+- Commit: `6d6d15767b0764410f91594a21abd54e52483555`.
+- Repository-only / not deployed.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY611_CANARY_SESSION_IDENTITY_HARDENED
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=6d6d15767b0764410f91594a21abd54e52483555
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=ADD_ENTRY611_CANARY_REGRESSION_TEST
+  ```
+- Entry611 canary regression test added:
+  - file: `tests/frontend_employee_native_canary_entry611.test.mjs`
+  - covers default-OFF exact legacy behavior, non-canary legacy preservation, local preflight fail-closed, Runtime health fail-closed, case-insensitive canary selection, D1 Native login route, bridge bearer-only forwarding, password/token stripping, exact bridge policy denial, and logout recovery.
+- Commit: `6044411bab9d571949b5f5783399876e10ca9d31`.
+- No Production mutation.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY611_CANARY_REGRESSION_TEST_ADDED
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=6044411bab9d571949b5f5783399876e10ca9d31
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=ADD_AND_RUN_ENTRY611_REPO_ONLY_CI
+  ```
+- Dedicated Entry611 repository-only CI added:
+  - file: `.github/workflows/trendos-entry611-native-auth-canary-repo-ci.yml`
+  - runs canary regression + existing A61 dispatcher/module/no-direct-Google/native-auth/bridge/inventory suites;
+  - verifies repo flags remain default-OFF;
+  - verifies Production Auth/Bridge are still OFF and the Entry611 canary source has **not** been deployed.
+- Workflow commit: `d1cbf415aa5d3576a36b4e626e7ab9fa391aef5b`.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY611_REPO_ONLY_CI_CREATED
+  RUN_ID=PENDING
+  JOB_ID=PENDING
+  COMMIT=d1cbf415aa5d3576a36b4e626e7ab9fa391aef5b
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=READ_ENTRY611_CI_AND_FIX_REPO_ONLY_IF_NEEDED
+  ```
+- Entry611 repo-only qualification:
+  - Run `37122396731`
+  - Job `111200937020`
+  - conclusion: **SUCCESS**
+- Verified:
+  ```ini
+  ENTRY611_SYNTAX=PASS
+  ENTRY611_NATIVE_AUTH_CANARY=PASS
+  ENTRY611_DEFAULT_OFF_PRESERVES_LEGACY=YES
+  ENTRY611_NON_CANARY_PRESERVES_LEGACY=YES
+  ENTRY611_CANARY_PREFLIGHT_FAIL_CLOSED=YES
+  ENTRY611_CANARY_LOGIN_TO_D1=YES
+  ENTRY611_CANARY_BRIDGE_BEARER_ONLY=YES
+  ENTRY611_PLAINTEXT_TO_BRIDGE=NO
+  A61_FRONTEND_EMPLOYEE_DISPATCHER=PASS
+  A61_LEGACY_MODULE_DISPATCH=PASS
+  A61_NO_BROWSER_GOOGLE_TRANSPORT=PASS
+  ENTRY609_FULL_ACTIVE_PARITY_POLICY_COUNT=69
+  ENTRY609_READONLY_PILOT_POLICY_COUNT=27
+  A61_NATIVE_AUTH_FOUNDATION=PASS
+  A61_LEGACY_AUTH_BRIDGE_CONTRACT=PASS
+  ENTRY611_REPO_DEFAULT_OFF=YES
+  ENTRY611_PRODUCTION_AUTH_OFF=YES
+  ENTRY611_PRODUCTION_BRIDGE_OFF=YES
+  ENTRY611_CANARY_NOT_DEPLOYED=YES
+  ```
+- Production boundary from the same run:
+  ```ini
+  Production_touched=NO
+  D1_touched=NO
+  API_DEPLOY=NO
+  FRONTEND_DEPLOY=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  AUTH_MODE_CHANGED=NO
+  ORDER_CUSTOMER_DATA_CHANGED=NO
+  ```
+- Entry611 source is qualified **repo-only** and remains not deployed.
+- Production activation prerequisites are still missing by design: shared bridge secret, Apps Script bridge enablement, Cloudflare bridge enablement/policies, TRANSITIONAL auth/bootstrap, canary identity, and frontend canary deployment.
+- التسجيل النهائي:
+  ```ini
+  STATUS=ENTRY611_REPO_ONLY_QUALIFICATION_PASS
+  RUN_ID=37122396731
+  JOB_ID=111200937020
+  COMMIT=d1cbf415aa5d3576a36b4e626e7ab9fa391aef5b
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=ENTRY612_PRODUCTION_MUTATION_PREFLIGHT_ONLY; DO_NOT_ENABLE_OR_DEPLOY_WITHOUT_EXPLICIT_APPROVAL
+  ```
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY611 -->
