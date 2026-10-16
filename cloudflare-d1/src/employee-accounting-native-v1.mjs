@@ -7,7 +7,7 @@ const DEFAULT_ORIGINS=[
   'https://trendos-ui.trendmall-contact.workers.dev',
   'http://localhost:8000','http://127.0.0.1:8000','http://localhost:5500','http://127.0.0.1:5500'
 ];
-const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth','calculateAccountingLaserQuoteV1913','getDailyDepartmentReportV1920','previewAccountingAutomationV1921','previewCustomerCreditInvoiceReviewV1']);
+const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth','calculateAccountingLaserQuoteV1913','getDailyDepartmentReportV1920','previewAccountingAutomationV1921','previewCustomerCreditInvoiceReviewV1','previewCustomerCreditPreparedCommandV1']);
 
 function text(v){return String(v==null?'':v).trim();}
 function key(v){return text(v).toLowerCase();}
@@ -1918,6 +1918,62 @@ async function finalInvoiceA2V1(env,auth,b){
   return response;
 }
 
+// PREPARED credit-command forensics: bounded read-only evidence inventory.
+// A PREPARED row is NEVER proof of no posting, nor permission for automatic retry.
+// This endpoint makes no balance, cash, stock, audit, request-ledger or D1 writes.
+async function previewCustomerCreditPreparedCommandV1(env,auth,b){
+  const deny=(code,message)=>({success:false,code,message,postingAllowed:false,
+    automaticRetryAuthorized:false,refundAuthorized:false,creditRestorationAuthorized:false,
+    financeRelease:'NO_GO'});
+  if(auth.mode!=='full')return deny('customer-credit-prepared-full-role-required',
+    'مراجعة أوامر التحصيل والفواتير العالقة للمسؤول المخوّل فقط.');
+  const requestKey=text(b.requestKey);
+  if(!/^[\p{L}\p{N}_:.\-]{12,180}$/u.test(requestKey))
+    return deny('customer-credit-prepared-key-required','معرف طلب محاسبي صالح مطلوب.');
+  const request=await env.DB.prepare("SELECT operation,status,request_hash AS requestHash FROM employee_accounting_request_ledger_v1 WHERE request_key=?")
+    .bind(requestKey).first();
+  if(!request)return deny('customer-credit-prepared-not-found','أمر المحاسبة غير موجود.');
+  const operation=text(request.operation),status=text(request.status);
+  if(!['credit-direct-sale','party-ledger:customer:payment_received'].includes(operation))
+    return deny('customer-credit-prepared-out-of-scope','الأمر ليس تحصيل عميل أو فاتورة تستخدم الرصيد الدائن.');
+  if(!['PREPARED','COMMITTED'].includes(status))
+    return deny('customer-credit-prepared-unknown-status','حالة الأمر غير معروفة وتحتاج مراجعة مستقلة.');
+  // Count ONLY the exact native command/suffix keys, never a LIKE prefix,
+  // so similarly named requests cannot be mistaken for this command's effects.
+  const scalar=async(sql,...args)=>{
+    const row=await env.DB.prepare(sql).bind(...args).first();
+    return Number(row&&row.n||0);
+  };
+  const cashCount=await scalar("SELECT COUNT(*) AS n FROM employee_accounting_cashbox_v1 WHERE request_key=?",requestKey+'-CASH');
+  const invoiceCount=await scalar("SELECT COUNT(*) AS n FROM employee_accounting_final_invoices_v1 WHERE request_key=?",requestKey);
+  const stockMovementCount=await scalar("SELECT COUNT(*) AS n FROM employee_accounting_stock_moves_v1 WHERE request_key=?",requestKey);
+  const partyLedgerCount=await scalar("SELECT COUNT(*) AS n FROM employee_accounting_party_ledger_v1 WHERE request_key IN (?,?,?,?,?,?)",
+    requestKey,requestKey+'-LEDGER-INVOICE',requestKey+'-LEDGER-CREDIT',
+    requestKey+'-LEDGER-PAYMENT',requestKey+'-LEDGER-OLD-DEBT',requestKey+'-CASH');
+  const creditEventCount=await scalar("SELECT COUNT(*) AS n FROM employee_accounting_customer_credit_events_v1 WHERE request_key IN (?,?,?)",
+    requestKey+'-CREDIT',requestKey+'-CREDIT-APPLIED',requestKey+'-CREDIT-CREATED');
+  const debtStateTouchCount=await scalar("SELECT COUNT(*) AS n FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND last_request_key=?",requestKey);
+  const creditStateTouchCount=await scalar("SELECT COUNT(*) AS n FROM employee_accounting_customer_credits_v1 WHERE last_request_key=?",requestKey);
+  const auditEventCount=await scalar("SELECT COUNT(*) AS n FROM employee_accounting_events_v1 WHERE request_key=?",requestKey);
+  const observedEffectCount=cashCount+invoiceCount+stockMovementCount+partyLedgerCount+
+    creditEventCount+debtStateTouchCount+creditStateTouchCount+auditEventCount;
+  if(!Number.isSafeInteger(observedEffectCount))
+    return deny('customer-credit-prepared-count-invalid','أعداد الأدلة غير صالحة.');
+  return {success:true,code:'customer-credit-prepared-evidence-review-only',
+    requestKey,operation,commandStatus:status,creditFeatureEnabled:customerCreditEnabledV1(env),
+    requestFingerprintPresent:!!text(request.requestHash),
+    evidence:{cashCount,invoiceCount,stockMovementCount,partyLedgerCount,creditEventCount,
+      debtStateTouchCount,creditStateTouchCount,auditEventCount},
+    observedEffectCount,
+    reviewState:status==='PREPARED'
+      ?(observedEffectCount?'PREPARED_WITH_EFFECTS_MANUAL_RECONCILIATION':'PREPARED_WITHOUT_VISIBLE_EFFECTS_STILL_UNRESOLVED')
+      :'COMMITTED_EVIDENCE_CHECK_ONLY',
+    evidenceCoverage:'BOUNDED_NATIVE_REQUEST_KEYS_NOT_COMPLETE_LEDGER_PROOF',
+    manualReconciliationRequired:true,automaticRetryAuthorized:false,
+    postingAllowed:false,refundAuthorized:false,creditRestorationAuthorized:false,
+    financeRelease:'NO_GO'};
+}
+
 // OWNER POLICY 2026-10-16: READ-ONLY assessment of a credit-backed invoice.
 // No refund, accounting adjustment, credit restoration, inventory reversal,
 // request-ledger mutation or approval occurs. Only verified full-role session
@@ -2127,6 +2183,7 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='getEasyStoreSuppliers')out=await getEasyStoreSuppliersV1(env,b);
     else if(action==='getCustomerAccountV1915')out=await getCustomerAccountV1915V1(env,auth,b);
     else if(action==='previewCustomerCreditInvoiceReviewV1')out=await previewCustomerCreditInvoiceReviewV1(env,auth,b);
+    else if(action==='previewCustomerCreditPreparedCommandV1')out=await previewCustomerCreditPreparedCommandV1(env,auth,b);
     else if(action==='easyStoreSystemHealth')out=await easyStoreSystemHealthV1(env,auth);
     else if(action==='calculateAccountingLaserQuoteV1913')out=await calculateAccountingLaserQuoteV1913V1(env,auth,b);
     else if(action==='getDailyDepartmentReportV1920')out=await dailyDepartmentReportV1(env,auth,b);
