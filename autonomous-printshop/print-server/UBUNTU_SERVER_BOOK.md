@@ -248,3 +248,11 @@
 - **تجربة السيرفر الفعلية:** `MATBAGY_SMOKE_ON_TRENDOSSHOP=NOT_YET_RUN` (ننتظر تنفيذ المالك محليًا). التعليمات في `runtime/ubuntu/LOCAL_MEDIA_VAULT_GUIDE_AR.md`. فحص فرع `main` ونظافة Working Tree قبل `git pull --ff-only` داخل مستودع Matbagy فقط.
 - **بوابة النسخ الاحتياطي:** `EXTERNAL_DISK=DEFERRED_BY_OWNER`، `OFFHOST_BACKUP=NOT_VERIFIED`، `RESTORE_FROM_BACKUP=NOT_VERIFIED`، `SAFE_TO_DELETE_CHAT=FALSE`. أي ملفات صور يمكن نسخها لاحقًا إلى Ubuntu كنسخ إضافية **فقط**، ويجب الإبقاء على الأصل وعدم اعتبار عملية النقل نسخًا احتياطيًا مستقلًا.
 - **نطاق التغيير:** لا استخدام API مدفوع؛ لا تغيير SSH/UFW/DNS أو مشروع TrendOs؛ لم يتصل المساعد بمضيف Ubuntu مباشرة.
+
+### SERVER-20261016-26 — Real Ubuntu Matbagy synthetic smoke test PASS (owner Terminal evidence)
+- **الدليل:** صورة Terminal من المالك `trend-main@TrendosShop` بتاريخ 2026-10-16؛ الأمر السابق الخاص بتحديث مستودع Matbagy-OS `main` أظهر `Updating e304a81..655e621` و`Fast-forward` ثم إنشاء `runtime/ubuntu/matbagy_media_smoke.py` وملف اختباراته.
+- **نتيجة الأداة المثبتة على المضيف:** JSON صريح: `"status": "MATBAGY_SMOKE_PASS"`، `"template_id": "TPL-2026-000001"`، `"synthetic_assets_verified": 2`، `"dedup_verified": true`، `"source_template_read_only": true`، `"real_vault_unchanged": true`، `"customer_media_imported": false`، `"independent_backup_verified": false`، `"safe_to_delete_chat": false`.
+- **ما ثبت:** قراءة النموذج الحقيقي، مسار اختبار آمن بصور اصطناعية، إدخال أصل ونسخة V1 تجريبيتين، التحقق من الاسترجاع ومنع التكرار، ثم عدم تعديل محتويات المخزن الحقيقي وفق تقرير الأداة. `MATBAGY_SMOKE_ON_TRENDOSSHOP=PASS_OWNER_SCREENSHOT`، `REAL_VAULT_UNCHANGED=YES_REPORTED_BY_TOOL`.
+- **ما لم يثبت:** لم يتم حفظ أو فحص أصل صورة العميل أو نتيجة تصميم المج الحقيقية؛ ليس هناك وصل لالتقاط ملفات ChatGPT تلقائيًا؛ لا يوجد قرص نسخ احتياطي مستقل أو اختبار استعادة. لا يتحول `SAFE_TO_DELETE_CHAT` إلى true.
+- **الخطوة التالية المسموح بها:** تنزيل **ملفي التصميم الحقيقيين** يدويًا من الشات الأصلي إلى الجهاز ثم إدخالهما عبر `matbagy_media_vault.py add` كنسخ محلية إضافية مع المحافظة على الأصل، وتشغيل `verify` بعد النقل. تأكد أولًا من اسم الملف وامتداده ومحتواه. التأجيل المقرر للهارد الخارجي ما زال قائمًا، فلا تدعِ تأمين الأرشيف من تعطل قرص النظام.
+- **نطاق التشغيل:** لم يستخدم المساعد وصولًا مباشرًا إلى Ubuntu ولم يغيّر شبكته أو `TrendOs`؛ التقرير كله مستند إلى صورة Terminal أرسلها المالك.
