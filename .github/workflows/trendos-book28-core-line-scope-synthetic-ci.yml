@@ -1,0 +1,42 @@
+name: TrendOS Book28 Core Line Scope — Fake D1 CI
+on:
+  push:
+    branches:
+      - fix/book28-core-line-write-scope-20261016
+    paths:
+      - 'cloudflare-d1/src/employee-core-native-v1.mjs'
+      - 'tests/book28_core_line_write_scope_synthetic.test.mjs'
+      - '.github/workflows/trendos-book28-core-line-scope-synthetic-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/employee-core-native-v1.mjs'
+      - 'tests/book28_core_line_write_scope_synthetic.test.mjs'
+      - '.github/workflows/trendos-book28-core-line-scope-synthetic-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deny-cross-department:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Source syntax
+        run: node --check cloudflare-d1/src/employee-core-native-v1.mjs
+      - name: Fake employee/department scope checks
+        run: node --test tests/book28_core_line_write_scope_synthetic.test.mjs
+      - name: Existing P0 auth/mirror suite (stack base #137)
+        run: node --test tests/book25_26_p0_auth_synthetic.test.mjs
+      - name: Existing core dispatch regression
+        run: node tests/entry644_employee_core_general_dispatch.test.mjs
+      - name: Existing native paging read regression
+        run: node tests/entry650_employee_core_order_page_read.test.mjs
+      - name: No production / no accounting changes
+        run: |
+          echo "D1_ACCOUNTING_WRITE=NO"
+          echo "CLOUD_DEPLOY=NO"
+          echo "REAL_CUSTOMER_ACCESS=NO"
+          echo "PR_MERGE=NO"
