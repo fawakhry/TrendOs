@@ -76,7 +76,7 @@ async function checkAuth(request, env, url, kind) {
   const bytes = Uint8Array.from(sig.match(/../g), x => parseInt(x, 16));
   const payload = mirrorReadSignaturePayload(request.method, url, stamp, nonce, principal);
   const verified = await crypto.subtle.verify('HMAC', key, bytes, new TextEncoder().encode(payload));
-  return verified ? {principal, nonce, validUntil:requestTime + WINDOW_MS} : null;
+  return verified ? {scope:principal, nonce, validUntil:requestTime + WINDOW_MS} : null;
 }
 export async function handleMirrorServiceRead(request, env = {}) {
   const url = new URL(request.url);
