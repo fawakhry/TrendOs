@@ -1,5 +1,23 @@
 # TrendOS — الكتاب الرئيسي القابل للتحديث
 
+> **OWNER_TRANSITION_TWO_BOOKS_WRITE_GATE_20261016 — أمر المالك الملزم / Transitional Authority**
+>
+> **فرع التعايش الحالي:** `agent/trendos-book-audit-v1-20261014` — [الكتاب القديم النشط هنا](https://github.com/fawakhry/TrendOs/blob/agent/trendos-book-audit-v1-20261014/TrendOS_MASTER_BOOK.md) وبجانبه [الكتاب الموحد الجديد هنا](https://github.com/fawakhry/TrendOs/blob/agent/trendos-book-audit-v1-20261014/docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md). الكتابان على **نفس فرع العمل**.
+>
+> **القديم هو سجل الكتابة الوحيد حاليًا — ACTIVE_WRITE.** كل ما يُنفَّذ الآن (كود، أخطاء، اختبارات، PR، إصلاحات، قطع Google، دروس، تسليمات) يُوثَّق **هنا فقط** بتاريخ وأدلة SHA؛ لا تحول التسجيل المباشر إلى الكتاب الجديد أثناء الترحيل.
+>
+> **الجديد = FROZEN_READ_ONLY_FOR_NORMAL_AGENTS.** ممنوع أي إيجنت أو workflow أو دورية تكتب تلقائيًا للكتاب الجديد أو تعامل فصوله كحالة إنتاجية حديثة. **استثناء وحيد:** منفذ الترحيل المعيّن، عند نقل جزء مثبت من القديم على commit منفصل مع مطابقة كاملة بين أصل النص والأرشيف والوجهة. لا تغيير محتوى جديد في الموحد دون عملية ترحيل صريحة موثقة.
+>
+> **نقل كل جزء = COPY→VERIFY→REMOVE:** كل وحدة تنتقل إلى الجديد، ثم تُقرأ مقارنة كاملة (سطر/بصمة/حدود) ثم تُزال من القديم فقط بعد إثبات وجودها في الجديد، مع الاحتفاظ بفرع الاسترجاع `archive/trendos-books-before-single-book-20261016` وGit history. أي جزء لم يثبت نقله يظل في القديم ولا تُسقطه أي عملية تنظيف.
+>
+> **التحول النهائي CUTOVER:** فقط بعد `ALL_OLD_SECTIONS_MIGRATED=YES` و`NO_LOSS_CHECK=PASS` و`OWNER_APPROVAL=YES` يُحذف الكتاب القديم من فرع العمل ويُرفع حظر الكتابة عن الجديد ويصير هو المرجع الوحيد. حتى ذلك الحين: القديم للكتابة والجديد للقراءة والترحيل المراجع فقط.
+>
+> **حدود النطاق:** لا تمس كتب المشاريع المستقلة (بما فيها المطبعة الذاتية `autonomous-printshop/MASTER_BOOK.md`)، ولا تحذف ملفات تشغيل/اختبارات. ملف الفهرس/مسودات الكتب الوسيطة الخاصة بـTrendOS تُنقل إن كان فيها محتوى فريد ثم تُزال بعد التحقق؛ ملفات السجل التقني والاختبارات ليست كتبًا مستقلة.
+>
+> **مستوى القفل:** هذا عقد إلزامي للإيجنتات داخل Git، لكنه **ليس** GitHub branch-protection rule؛ منع GitHub التقني للـpush يحتاج إعداد صلاحيات/Ruleset منفصل. لا ندعي قفلًا على مستوى GitHub.
+>
+
+
 > **MASTER BOOK / Active Zero-Google Core**  
 > إصدار الكتاب: **4.22-ZERO-GOOGLE-COMPACT — Entry642 deploy-resilient Auth hardening PASS** · تاريخ التحديث: 2026-10-07 · المستودع: `fawakhry/TrendOs` · فرع العمل: `candidate/t12-full-cloud-cutover-a56-20260929`.
 
