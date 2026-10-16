@@ -611,6 +611,44 @@ try{
     assert.deepEqual(forensicSnapshot(),before);
     assert.equal(network,0);
   });
+
+  await test('39 BOOK18 P0 same-name customers cannot be mixed in account read, receipt or invoice',async()=>{
+    const before=forensicSnapshot(),duplicateName='FAKE_AMBIGUOUS_CUSTOMER_NAME';
+    for(const id of ['FAKE_DUPLICATE_001','FAKE_DUPLICATE_002']){
+      db.prepare('INSERT INTO t12_customers(customer_id,customer_name) VALUES(?,?)').run(id,duplicateName);
+    }
+    const account=await send('getCustomerAccountV1915',{customerName:duplicateName});
+    assert.equal(account.success,false,JSON.stringify(account));
+    assert.equal(account.code,'accounting-customer-name-ambiguous');
+    const receipt=await send('saveCustomerAccountMovementV1915',{
+      ...receive('DUPLICATE_NAME',1),customerId:'',customerName:duplicateName
+    });
+    assert.equal(receipt.success,false,JSON.stringify(receipt));
+    assert.equal(receipt.code,'accounting-customer-name-ambiguous');
+    const invoice=await send('saveEasyStoreSaleV2',{
+      ...sale('DUPLICATE_NAME',20,0),customerId:'',customerName:duplicateName
+    });
+    assert.equal(invoice.success,false,JSON.stringify(invoice));
+    assert.equal(invoice.code,'accounting-customer-name-ambiguous');
+    assert.deepEqual(forensicSnapshot(),before,'ambiguous name must not move any finances');
+  });
+  await test('40 BOOK18 P0 explicit stable IDs isolate same-name accounts and never degrade into name fallback',async()=>{
+    const before=forensicSnapshot();
+    const a=await send('getCustomerAccountV1915',{customerId:'FAKE_DUPLICATE_001'});
+    const b=await send('getCustomerAccountV1915',{customerId:'FAKE_DUPLICATE_002'});
+    assert.equal(a.success,true,JSON.stringify(a));
+    assert.equal(b.success,true,JSON.stringify(b));
+    assert.equal(a.customer.customerId,'FAKE_DUPLICATE_001');
+    assert.equal(b.customer.customerId,'FAKE_DUPLICATE_002');
+    assert.equal(a.balance,0);assert.equal(b.balance,0);
+    const missingId=await send('getCustomerAccountV1915',{customerId:'FAKE_AMBIGUOUS_CUSTOMER_NAME'});
+    assert.equal(missingId.success,false,'an unknown ID that happens to equal a real name must NOT silently match that name');
+    const uniqueName=await send('getCustomerAccountV1915',{customerName:'FAKE_ONLY_FAKE_CUST_A'});
+    assert.equal(uniqueName.success,true,JSON.stringify(uniqueName));
+    assert.equal(uniqueName.customer.customerId,'FAKE_CUST_A');
+    assert.deepEqual(forensicSnapshot(),before);
+    assert.equal(network,0);
+  });
   await test('21 preserve integrity: cash equals actual funds received; credit events reconcile liability',()=>{
     assert.equal(network,0);
     for(const id of ['FAKE_CUST_A','FAKE_CUST_B']){
