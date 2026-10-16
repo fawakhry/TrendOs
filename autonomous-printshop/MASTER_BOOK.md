@@ -10715,3 +10715,12 @@ AP143_PRODUCTION_D1_WIN7_CHANGES=NONE
 توضح لقطة `trendos-d1-api → Production → Domains` أن رابط `workers.dev` الإنتاجي ورابط Preview مُفعّلان، ومعهما رسالة `Anyone with this URL can visit`، ولا تظهر Custom Domains أو Routes إضافية في القائمة. مع غياب سياسة Worker-specific Access الظاهر في SERVER-53، وملاحظة مسارات legacy القديمة في SERVER-52، يجب اعتبار `SEC-AP303-02=HIGH_PRIORITY_OPEN`. **لا يجوز استنتاج تسريب أو نجاح دخول غير مصرح به من هذه الواجهة وحدها**، إذ لم تكتمل مراجعة WAF أو سياسات الحساب أو مصادقة جميع المسارات.
 
 تم التوثيق في [كتاب السيرفر — SERVER-54](print-server/UBUNTU_SERVER_BOOK.md) و[تقرير أمان Cloudflare](print-server/SERVER52_CF_PRODUCTION_BUNDLE_READ_REVIEW.md). لا إيقاف Production/Preview، ولا تفعيل Access شامل، ولا دمج/Deploy، لأن المستهلكين الحاليين يحتاجون إلى جرد وتوافق وخطة رجوع قبل أي تغيير. `LIVE_ORDER_READ=NO` و`UBUNTU_SERVICE_ACCOUNT=NO`.
+
+
+## SERVER-20261016-55 — ظهور ربط D1 الإنتاجي من إعدادات Cloudflare (2026-10-16)
+
+أظهرت الصور الثلاث لواجهة `trendos-d1-api → Production → Settings` أن قاعدة البيانات `trendos-main` مرتبطة بالـWorker باسم Binding `DB`. تظهر الأسرار في الواجهة بصيغة `Value encrypted`، وتوجد إعدادات متفرقة للمصادقة والتكامل وأقسام الموظفين، لكن أسماء بعض المتغيرات مقصوصة، ولا يثبت العرض أن جميع الصلاحيات أو عمليات الكتابة محكومة بشكل كافٍ. **لم تُنسخ قيم المتغيرات أو روابط التكامل إلى المستودع**.
+
+بسبب وجود عنوان workers.dev عام وغياب Worker-specific Access (SERVER-53/54)، ووجود مسارات legacy غير محمية صراحةً داخل معالجاتها بالكود المعروض (SERVER-52)، تبقى `SEC-AP303-02=HIGH_PRIORITY_OPEN` إلى أن تُراجع سياسات الحماية الأخرى ومستهلكو المسارات، دون ادعاء وقوع اختراق أو قراءة بيانات غير مصرح بها. تقارير الأدلة: [كتاب السيرفر SERVER-55](print-server/UBUNTU_SERVER_BOOK.md) و[تقرير أمن Cloudflare](print-server/SERVER52_CF_PRODUCTION_BUNDLE_READ_REVIEW.md).
+
+**لا اعتماد إنتاجي بعد:** لا نفعّل `trendosshop_order_reader` أو ننشر إصلاحًا يكسر عمل المستهلكين، ولا نُصدر Secrets، ولا نشغل طابعات أو ليزر؛ يلزم تقييم مسار الاحتواء وخطة رجوع ثم موافقة صريحة من المالك. `CLOUDFLARE_CHANGED=NO`, `UBUNTU_LIVE_READ=NO`.
