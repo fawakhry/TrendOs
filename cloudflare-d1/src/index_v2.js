@@ -1,6 +1,7 @@
 import { LEGACY_BROWSER_PATH, handleLegacyBrowserTransport } from './legacy-browser-transport-v1.mjs';
 import base from './index.js';
 import { handleMirrorRequest, isMirrorPath } from './mirror-gate.mjs';
+import { handleMirrorServiceRead, isMirrorServiceReadPath } from './mirror-service-read-v1.mjs';
 import { handleMirrorDeltaRequest, isMirrorDeltaPath } from './mirror-delta-gate.mjs';
 import { handleEdgeGatewayRequest, isEdgeGatewayPath } from './edge-gateway.mjs';
 import { handleEdgeCustomerSearchRequest, isEdgeCustomerSearchPath } from './edge-customer-search-v1.mjs';
@@ -189,6 +190,12 @@ export default {
     // across all sheets included in the request.
     if (isMirrorDeltaPath(path)) {
       return handleMirrorDeltaRequest(request, env, ctx);
+    }
+
+    // SERVER-67: independent backend service route, default-OFF; no legacy
+    // browser/session/migration-secret bypass. Validate before reading D1.
+    if (isMirrorServiceReadPath(path)) {
+      return handleMirrorServiceRead(request, env);
     }
 
     // Mirror GETs are SELECT-only; unauthorized imports are rejected before
