@@ -1807,3 +1807,35 @@ APPS_SCRIPT_TOUCHED=NO
 ```
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY603_605 -->
+
+---
+
+## الملحق التاريخي م — Entry606 / بوابة Native Employee Auth قبل التفعيل
+
+> **الحالة:** `HISTORICAL` / `PRE_CUTOVER_BLOCKER_AT_EVENT_TIME`، وليس وصفًا لأحدث Employee Login Runtime. أسماء متغيرات Bridge المذكورة أدناه ليست قيم أسرار، ويحظر تفعيل أي إعداد من هذا السجل التاريخي دون preflight جديد وتصريح منفصل.
+> **المصدر:** [الكتاب القديم عند SHA d3ae3a06817c](https://github.com/fawakhry/TrendOs/blob/d3ae3a06817c5733adc542f0bf8423a684b00653/TrendOS_MASTER_BOOK.md)، blob `fba70f07e46cc3a200d7b75c1d37241718c0754b`، قسم Entry606.
+> **الأرشيف:** [Snapshot ثابت قبل التوحيد](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md)، blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`؛ **تاريخ الترحيل:** 2026-10-16.
+> **قاعدة عدم الفقد:** النص التالي نُسخ حرفيًا بطول 1444 حرفًا ولا يشير إلى تفعيل Production في دورة النقل.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY606 -->
+### Entry606 — Native Employee Auth cutover gate بعد إصلاح سرعة الواجهة
+- D1 native auth foundation/schema موجود ومؤهل، لكن Production readiness الحالي:
+```ini
+AUTH_CONTROL_MODE=OFF
+AUTH_ENV_ENABLED=NO
+NATIVE_AUTH_USERS=0
+NATIVE_READY_USERS=0
+NATIVE_AUTH_SESSIONS=0
+LEGACY_BRIDGE_ENABLED=NO
+LEGACY_BRIDGE_SECRET_CONFIGURED=NO
+LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
+```
+- الـA61 source يحتوي staged bootstrap/session-enrollment canaries ويستطيع تحويل أول Login إلى D1 ثم إثبات second login native، لكن التفعيل الدائم يحتاج Employee Legacy Bridge لأن أجزاء الموظفين غير المهاجرة بعد يجب أن تعمل بعد إصدار Native token.
+- Apps Script Version159 يحتوي bridge verification code بالفعل، لكنه يعتمد على Script Properties:
+  - `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED`
+  - `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1`
+- لا يوجد في المستودع `clasp` أو Apps Script API credential/deploy path أو authorized maintenance endpoint لضبط هاتين الخاصيتين بأمان. لذلك **لا يتم تفعيل Native Auth/Frontend flag الآن**؛ هذا fail-closed وليس نقصًا في D1.
+- لا يجوز استخدام secret مكشوف في repo أو إعادة استخدام migration secret كبديل.
+- الخطوة التالية الوحيدة لإكمال Zero-Google login: ضبط bridge property/secret في Apps Script بطريقة آمنة ومصرح بها، ثم Cloudflare bridge secret/policies، ثم TRANSITIONAL bootstrap، ثم frontend native flag، ثم postflight/canary. إلى أن يحدث ذلك يظل login الفعلي Google-backed وقد يتأثر بزمن Apps Script، رغم أن واجهة الدخول نفسها أصبحت أخف.
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY606 -->
