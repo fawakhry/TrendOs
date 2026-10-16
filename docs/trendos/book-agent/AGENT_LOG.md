@@ -140,3 +140,11 @@
 - WRITE: chapter 21 commit `1fbe13e69ccf99703bbc084f8ff28a5d3a69ad68`, blob `c5d7d444b01ab26a7d7d4b1989e50b28cff25177`; fetched again and verified.
 - STATUS: `SOURCE_ONLY`, `TESTED=NO`, `PRODUCTION_VERIFIED=NO`; stale/overlay parity `BLOCKED`. No real operational data read, no tests executed, no merges/code changes.
 - NEXT: chapter 22 employee content, Marketplace and branches, then log source→test queue.
+
+
+## 2026-10-16 / EMPLOYEE-CONTENT-018 — الفصل الثاني والعشرون
+- READ: `config.js`, `employee-api-dispatcher-v1.js` Content READONLY, `cloudflare-d1/src/index_v2.js`, `employee-content-native-v1.mjs`, tests `entry614_employee_content_native.test.mjs` and `entry629_employee_content_readonly_dispatch.test.mjs`.
+- FINDINGS: Content Cloud READONLY in browser, server mode control OFF/READONLY/GENERAL; D1 records/events plus file R2 lane; conditional employee-name based canManage. `upsert` increments version without expected-version CAS (lost-update risk); `assignCustomerBranch` uses LIMIT 1 for potentially ambiguous customer-name match. Content `GET /v1/employee/content/file/{id}` is served before employee auth, but public assets may be intended; require per-collection visibility policy and test. No production incident asserted.
+- WRITE: chapter 22 commit `73a5f54c81ec86e6ab34a1a4b0060029ac6cc0ee`, content blob `a82f3c18545f3695cd616638ad117fafaef4b365`; separately fetched and verified.
+- STATUS: `SOURCE_ONLY`; access/race/identity `BLOCKED`; `TESTED=NO`, `PRODUCTION_VERIFIED=NO`; docs only.
+- NEXT: chapter 23 employee attendance, HR, cleaning and press; then evidence queue update.
