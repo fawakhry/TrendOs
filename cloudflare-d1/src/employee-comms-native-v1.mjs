@@ -31,7 +31,7 @@ async function authenticate(request,body,env){
   const v=await verifyEmployeeSessionCloudFirst(username,token,env,'edge');
   if(!v||!v.ok)return {ok:false,status:401,message:text(v&&v.message)||'Employee session rejected'};
   const b=v.body||{},u=b.user||{};
-  return {ok:true,authSource:text(v.authSource),user:{username:text(u.username||u.name||b.username||username),role:key(u.role||b.role||'service')||'service',department:text(u.department||b.department)}};
+  return {ok:true,authSource:text(v.authSource),user:{username:text(u.username||u.name||b.username||username),role:key(u.role||b.role)||'unknown',department:text(u.department||b.department)}};
 }
 async function event(env,domain,id,type,actor,payload={}){
   await env.DB.prepare("INSERT INTO employee_comms_events_v1(domain,entity_id,event_type,actor,payload_json,created_at_ms) VALUES(?,?,?,?,?,?)")
