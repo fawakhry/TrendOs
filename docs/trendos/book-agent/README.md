@@ -4,11 +4,11 @@
 
 > **قرار المالك الأحدث:** اعتمدنا ثلاثة كتب، كل واحد بنطاق مختلف، ومُدخلها الآلي [`CATALOG_AUTHORITY_MANIFEST_V1.json`](CATALOG_AUTHORITY_MANIFEST_V1.json). هذا القرار ينظم المرجع الأحدث، ولا يلغى الأرشيف أو سجلات الأدلة ولا يعطي حق Deploy/Merge/Delete.
 
-1. **الكتالوج الرسمي لوظائف TrendOS الحالية:** [`TRENDOS_CURRENT_SYSTEM_CATALOG.md`](TRENDOS_CURRENT_SYSTEM_CATALOG.md) — **CANONICAL_DOCUMENTATION / PARTIALLY_VERIFIED**، يحوي الفصول 1–31 كاملة. كتاب رسمي في **التوثيق**، وليس شهادة اختبار جميع الوظائف في الإنتاج. قبل تغيير حالة LIVE، تحقق من deployed SHA وبيئة Runtime.
+1. **الكتالوج الرسمي لوظائف TrendOS الحالية:** [`TRENDOS_CURRENT_SYSTEM_CATALOG.md`](TRENDOS_CURRENT_SYSTEM_CATALOG.md) — **CANONICAL_DOCUMENTATION / PARTIALLY_VERIFIED**، يحوي الفصول 1–32 (الفصل 32 مصدر فقط). كتاب رسمي في **التوثيق**، وليس شهادة اختبار جميع الوظائف في الإنتاج. قبل تغيير حالة LIVE، تحقق من deployed SHA وبيئة Runtime.
 2. **تاريخ التطوير والقرارات:** [`TrendOS_MASTER_BOOK.md`](../../../TrendOS_MASTER_BOOK.md) — سجل هندسي تاريخي حي ومصدر قرارات، وليس نسخة متكررة من كتالوج الحالة الحالية. يظل بلا تعديل من هذا الإيجنت ما لم يُفتح نطاق مراجعة منفصل مناسب.
 3. **القديم قبل تقسيم المشاريع:** [`TRENDOS_LEGACY_PRE_SPLIT_BOOK.md`](TRENDOS_LEGACY_PRE_SPLIT_BOOK.md) — الأكواد الأصلية والقديمة والمتوقفة والمنقولة؛ معه [سجل استرداد المصدر](LEGACY_SOURCE_RECOVERY_REGISTER.md) و[خطة GitHub الآمنة](GITHUB_LEGACY_CLEANUP_PLAN.md). لا يُدمج النص الخام السري في GitHub العام.
 
-**المسودة الأصلية:** [`TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md`](TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md) مرجع محفوظ قبل الترويج، لا تُحذف ولا تصبح دفترًا موازيًا للتحديثات الجديدة. **عند استكمال الفصل 32 وما يليه اكتب في الملف الرسمي فقط** بعد قراءة أحدث HEAD/الفهرس وتحديد SOURCE_ONLY/TESTED/BLOCKED والربط بـCommit/PR الصحيح.
+**المسودة الأصلية:** [`TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md`](TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md) مرجع محفوظ قبل الترويج، لا تُحذف ولا تصبح دفترًا موازيًا للتحديثات الجديدة. **عند استكمال الفصل 33 وما يليه اكتب في الملف الرسمي فقط** بعد قراءة أحدث HEAD/الفهرس وتحديد SOURCE_ONLY/TESTED/BLOCKED والربط بـCommit/PR الصحيح.
 
 **إلزام لكل إيجنت:** يبدأ بالكتالوج الحالي، ويتحقق من أحدث المصدر والـPRs قبل إعلان مشكلة أو إصلاح، ويستشير MASTER_BOOK للخلفية والقرار، ويرجع للأرشيف فقط لتحليل أصل الكود أو الهجرة. كتب EasyStore وMatbagy-OS وFokha والمطبعة الذاتية وUbuntu مستقلة؛ اعرض الربط فقط. التوثيق لا يسمح بـMerge/Deploy/Delete/Secrets/Real customer data.
 
