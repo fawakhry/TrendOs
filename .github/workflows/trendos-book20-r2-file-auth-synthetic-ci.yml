@@ -7,12 +7,16 @@ on:
     paths:
       - 'cloudflare-d1/src/employee-comms-native-v1.mjs'
       - 'tests/book20_employee_comms_r2_access.test.mjs'
+      - 'tests/book20_r2_employee_attachment_ui.test.mjs'
+      - 'app.js'
       - 'tests/entry614_employee_comms_native.test.mjs'
       - '.github/workflows/trendos-book20-r2-file-auth-synthetic-ci.yml'
   pull_request:
     paths:
       - 'cloudflare-d1/src/employee-comms-native-v1.mjs'
       - 'tests/book20_employee_comms_r2_access.test.mjs'
+      - 'tests/book20_r2_employee_attachment_ui.test.mjs'
+      - 'app.js'
       - 'tests/entry614_employee_comms_native.test.mjs'
       - '.github/workflows/trendos-book20-r2-file-auth-synthetic-ci.yml'
   workflow_dispatch:
@@ -30,9 +34,13 @@ jobs:
         with:
           node-version: '22'
       - name: Source syntax
-        run: node --check cloudflare-d1/src/employee-comms-native-v1.mjs
+        run: |
+          node --check cloudflare-d1/src/employee-comms-native-v1.mjs
+          node --check app.js
       - name: Fake-only R2 GET and ownership permission matrix (no network)
         run: node --test tests/book20_employee_comms_r2_access.test.mjs
+      - name: UI authorized Blob preview and token-free URL tests (no network)
+        run: node --test tests/book20_r2_employee_attachment_ui.test.mjs
       - name: Existing employee comms source contract regression (no network)
         run: node tests/entry614_employee_comms_native.test.mjs
       - name: Qualified limits
