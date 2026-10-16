@@ -31,7 +31,7 @@ function fakeD1({size=501,status='طلب جديد',native=0}={}){
     status,department:'طباعة',sourceKind:i<native?'t12-prod':'core-import',
     itemName:'FAKE-ITEM',qty:1,notes:'',active:1
   }));
-  const ledger=new Map(),events=[];
+  const ledger=new Map(),events=[],archiveLines=new Map(),archiveOrders=new Map(),ordersActive=new Map([['FAKE-ORDER-1',true]]);
   const calls={batches:[],preparedBusiness:0,ledgerCommits:0,auth:0,reads:0};
   // Controlled fault points emulate atomic SQLite rollback and lost HTTP ACK.
   const fault={once:'',atBatchIndex:-1};
@@ -60,9 +60,9 @@ function fakeD1({size=501,status='طلب جديد',native=0}={}){
             fault.once='';
             throw Error('FAKE_READ_INTERRUPTED');
           }
-          if(sql.includes('FROM t12_prod_lines l'))return {results:lines.filter(r=>r.sourceKind==='t12-prod').map(r=>({...r}))};
+          if(sql.includes('FROM t12_prod_lines l'))return {results:lines.filter(r=>r.sourceKind==='t12-prod'&&!archiveLines.has(r.lineId)).map(r=>({...r}))};
           if(sql.includes('FROM employee_core_lines_v1 l'))
-            return {results:lines.filter(r=>r.active&&r.sourceKind==='core-import').map(r=>({...r}))};
+            return {results:lines.filter(r=>r.active&&r.sourceKind==='core-import'&&!archiveLines.has(r.lineId)&&ordersActive.get(r.orderId)!==false).map(r=>({...r}))};
           if(sql.includes('FROM employee_core_delivery_restrictions_v1'))return {results:[]};
           throw Error('UNEXPECTED_D1_ALL:'+sql.slice(0,65));
         },
@@ -86,7 +86,15 @@ function fakeD1({size=501,status='طلب جديد',native=0}={}){
     },
     async batch(stmts){
       calls.batches.push(stmts.length);
+      // Simulate a competing writer outside the transaction, after source read.
+      if(fault.once==='stale-source')lines[0].status='بدأ التنفيذ';
+      if(fault.once==='new-cross-department')lines.push({
+        orderId:'FAKE-ORDER-1',lineId:'FAKE-CONCURRENT-LINE',status:'طلب جديد',
+        department:'ليزر',sourceKind:'t12-prod',itemName:'FAKE-NEW-WORK',
+        qty:1,notes:'',active:1
+      });
       const before=lines.map(x=>({...x})),prior=new Map(ledger),eventLen=events.length;
+      const archiveBefore=new Map(archiveLines),archiveOrdersBefore=new Map(archiveOrders),ordersActiveBefore=new Map(ordersActive);
       const initialCommits=calls.ledgerCommits;
       const mode=fault.once;fault.once='';
       let committed=false;
@@ -94,6 +102,37 @@ function fakeD1({size=501,status='طلب جديد',native=0}={}){
         for(let idx=0;idx<stmts.length;idx++){
           const stmt=stmts[idx],sql=stmt.sql;
           if(mode==='mid-batch'&&idx>=1)throw Error('FAKE_D1_TRANSACTION_FAILED');
+          if(sql.includes('AS archiveSnapshotValid')){
+            const targets=JSON.parse(stmt.args[0]);
+            if(targets.length!==stmt.args[1]||targets.some(r=>{
+              const row=lines.find(l=>l.lineId===r.lineId&&l.orderId===r.orderId&&l.sourceKind===r.sourceKind);
+              return !row||!row.active||row.status!=='تم التسليم'||archiveLines.has(row.lineId)||
+                (row.sourceKind==='core-import'&&ordersActive.get(row.orderId)===false);
+            }))throw Error('FAKE_ARCHIVE_STALE_SNAPSHOT');
+          }else if(sql.includes('AS archiveOrderClosureValid')){
+            const targets=JSON.parse(stmt.args[0]);
+            if(targets.length!==stmt.args[1]||targets.some(id=>!archiveOrders.has(id)))
+              throw Error('FAKE_ARCHIVE_ORDER_NOT_CLOSED');
+          }else if(sql.includes('INSERT INTO employee_core_archive_lines_v1')){
+            for(const item of JSON.parse(stmt.args[2])){
+              if(archiveLines.has(item.lineId))throw Error('FAKE_DUPLICATE_ARCHIVED_LINE');
+              archiveLines.set(item.lineId,{...item,requestKey:stmt.args[1]});
+            }
+          }else if(sql.includes('UPDATE employee_core_lines_v1')&&sql.includes('line_id IN (SELECT value FROM json_each(?))')){
+            for(const id of JSON.parse(stmt.args[1])){
+              const row=lines.find(l=>l.lineId===id);
+              if(!row||row.sourceKind!=='core-import')throw Error('FAKE_ARCHIVE_WRONG_SOURCE');
+              row.active=0;
+            }
+          }else if(sql.includes('INSERT OR IGNORE INTO employee_core_archive_orders_v1')){
+            for(const id of JSON.parse(stmt.args[2])){
+              if(!lines.some(l=>l.orderId===id))throw Error('FAKE_ORDER_NOT_FOUND');
+              if(!lines.some(l=>l.orderId===id&&l.active&&!archiveLines.has(l.lineId))&&!archiveOrders.has(id))
+                archiveOrders.set(id,{orderId:id,requestKey:stmt.args[1]});
+            }
+          }else if(sql.includes('UPDATE employee_core_orders_v1 SET active=0')){
+            for(const id of JSON.parse(stmt.args[1]))if(archiveOrders.has(id))ordersActive.set(id,false);
+          }else if(sql.includes('INSERT INTO employee_core_request_ledger_v1')){
           if(sql.includes('INSERT INTO employee_core_request_ledger_v1')){
             const [key,action,actor,canonical]=stmt.args;
             if(ledger.has(key))throw Error('FAKE_DUPLICATE_REQUEST_KEY');
@@ -123,7 +162,7 @@ function fakeD1({size=501,status='طلب جديد',native=0}={}){
             const rows=JSON.parse(stmt.args[4]);
             for(const row of rows)events.push({kind:'native-status',lineId:row.lineId,orderId:row.orderId});
           }else if(sql.includes("VALUES(?,?,?,?,?)")&&sql.includes('INTO employee_core_events_v1')){
-            events.push({kind:'bulk',actor:stmt.args[3]});
+            events.push({kind:stmt.args[0]==='archiveDeliveredDepartmentV1926'?'archive':'bulk',actor:stmt.args[3]});
           }
         }
         if(mode==='after-commit-ack'&&committed)throw Error('FAKE_NETWORK_ACK_LOST');
@@ -134,13 +173,16 @@ function fakeD1({size=501,status='طلب جديد',native=0}={}){
         if(!(mode==='after-commit-ack'&&committed)){
           for(let i=0;i<lines.length;i++)Object.assign(lines[i],before[i]);
           ledger.clear();for(const [k,v] of prior)ledger.set(k,v);
+          archiveLines.clear();for(const [k,v] of archiveBefore)archiveLines.set(k,v);
+          archiveOrders.clear();for(const [k,v] of archiveOrdersBefore)archiveOrders.set(k,v);
+          ordersActive.clear();for(const [k,v] of ordersActiveBefore)ordersActive.set(k,v);
           events.length=eventLen;calls.ledgerCommits=initialCommits;
         }
         throw err;
       }
     }
   };
-  return {env,lines,calls,ledger,events,fault};
+  return {env,lines,calls,ledger,events,fault,archiveLines,archiveOrders,ordersActive};
 }
 async function run(f,action,requestId){
   const p={username:'fake-admin',action,screen:'print',requestId};
