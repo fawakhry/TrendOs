@@ -1,4 +1,5 @@
 // BOOK30-LEGACY-VERIFY-QUERY: strictly synthetic Google upstream, no real employee data.
+// CI exact-head check after book reconciliation; no test behavior changed.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { handleEdgeGatewayRequest, verifyEdgeSessionToken } from '../cloudflare-d1/src/edge-gateway.mjs';
