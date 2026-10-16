@@ -263,3 +263,12 @@
 - **DEDUP:** تم فحص HEAD فرع الكتاب `9e36ee4b68f69189479756b65b4701d0bc30c9f9`؛ **كل الـ12 IDs موجودة سابقًا** في `ISSUE_REGISTER.md` و`TEST_EVIDENCE_QUEUE.md`. لا أعطال جديدة مستقلة، ولا قفز من ملاحظة كتاب تاريخية إلى ادعاء ثغرة إنتاجية.
 - **WRITES:** تأكيد المالك وسياسة «الموظف يسجل والمالك يعتمد» وربط CH27/26/29 في كتاب الأخطاء commit `e486fa6d47907ff0fd65f3cdaa6a03787ae7139f`؛ قائمة اختبارات fake-only والتأكيد على CH26 Draft evidence وعدم تكرار اختبارات في commit `60303854203a0ff942ecffeb79a7d05284f5a70d`.
 - **SCOPE:** `DOCUMENTATION_ONLY`; لا تعديل code، لا تشغيل CI جديد، لا Fake D1 جديد، لا عمليات محاسبية أو R2، لا WhatsApp، لا DayClose، لا تشغيل أتمتة أو تغيير flags، لا نشر أو دمج PR. `CURRENT_STATUS=QUEUED_UNVERIFIED_HISTORICAL_FINDING`; CH26 prior synthetic PRs remain source-only evidence and production gates unchanged.
+
+
+## 2026-10-16 / CHAPTER30-SSO-027 — مراجعة وتثبيت الفصل الثلاثين
+- DISCOVERY: another agent completed chapter 30 on the same branch before this continuation began; inspected entire chapter and existing Issue Register and Test Evidence Queue entries. No duplicate chapter or issues written.
+- CURRENT BOOK: chapter 30 present, source baseline e486fa6d47907ff0fd65f3cdaa6a03787ae7139f, book commit df3631c1271a59ea21ccffc278ab01139bde9774. Cross-service SSO employee/session/Edge/EasyStore/files is mapped SOURCE_ONLY.
+- FOUR EXISTING FINDINGS: BOOK30-SSO-LOGOUT-RACE P1, BOOK30-SSO-AUDIENCE P1, BOOK30-LEGACY-VERIFY-QUERY P1, BOOK30-SSO-CROSSSERVICE-REVOKE P1. Previously recorded chapter 20 file SSO URL, chapter 14 edge revocation, chapter 27 EasyStore UI role not duplicated.
+- VERIFICATION: inspected GitHub content on current branch, four issue register entries and four queued fake-only tests exist. TESTED_THIS_PASS=NO; PRODUCTION_VERIFIED=NO; backend EasyStore and Ubuntu server acceptance not verified.
+- ACTION: book agent records this verification only, no code, production access, deployment, CI run, or PR merge.
+- NEXT: chapter 31 private Ubuntu server/files.matbagy.com; inspect present documentation and source, no assumption about server service being deployed.
