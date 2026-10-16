@@ -808,3 +808,43 @@
 | TESTED/PRODUCTION_VERIFIED | لم ننفذ Workflows ولا نتصل بخدمات حية | اختبار وحدات مثل [`autonomous-printshop/tests/autonomous_printshop_shadow_route_v1.test.mjs` 1–30](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/tests/autonomous_printshop_shadow_route_v1.test.mjs#L1-L30) و[`autonomous-printshop/tests/machine_readiness_v1.test.mjs` 1–30](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/autonomous-printshop/tests/machine_readiness_v1.test.mjs#L1-L30) + runtime SHA |
 
 **النتيجة:** تركيب أجزاء المطبعة الذاتية موجود في المستودع، لكن الإيجنت سجل **حدود الصلاحية ودليل الجاهزية**، دون وصف Shadow بأنه تشغيل آلي مكتمل. للاطلاع على تاريخ نشر المطبعة الذاتية وتطور AP-081/AP-082 ارجع للكتاب المستقل، ولا تنقل نتائجه لتصنيف TrendOS ما لم يرتبط بنفس الـruntime والـdeploy.
+
+
+---
+
+# 25. لوحات المدير والتقارير والتقييمات ومصادر الذكاء (16 أكتوبر 2026)
+
+**حد المراجعة:** واجهة مدير TrendOS، تحميل Trend Master panels، Work Queue القديم، طلب تقييم العميل بعد التسليم، وعقود غرفة AI/استخلاص المعرفة. التوثيق هنا `SOURCE_ONLY`، وليس شهادة أن التقرير يعكس الحقيقة اللحظية أو أن رسائل التقييم تُرسل آليًا في Production.
+
+## 25.1 لوحة المدير مقابل صلاحية Backend
+- [`manager-center-v1932.js` س10–23](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/manager-center-v1932.js#L10-L23): الواجهة تعرض «لوحة المدير» فقط حين `isAdmin()` محليًا (admin أو أسماء مستخدمين معينة)، وتحمل `getTrendMasterCenterV1931` من `trendosEmployeeApiV1`. `loadProgressive()` موجودة لكنها لا تظهر مستدعَاة من `load()` أو `open()` في هذا الملف؛ مسار الـmodal الحالي يحمل التجميعة كلها مرة واحدة، لذلك **لا نؤكد أن تقسيم Panels يحمي زمن فتح اللوحة بالفعل**.
+- [`trend-master-resilience-v1931.js` س7–41](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/trend-master-resilience-v1931.js#L7-L41) يوجد Reader منفصل للوحة Trend Master panels (summary/archive/messages/stock/employee/debt/dayclose) مع cache/stale وإعادة المحاولة. وجود renderer متقدم لا يضمن استخدامه من زر Manager Center المذكور.
+- **مراجعة صلاحيات مهمة:** [`cloudflare-d1/src/employee-core-native-v1.mjs` س200–216](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-core-native-v1.mjs#L200-L216) `trendMaster` يجمع `coreRows('service')` وبيانات المديونيات والقيود وسجلات الموظفين، ثم يرجع `permissions` خاصة بالتحكم؛ [`cloudflare-d1/src/employee-core-native-v1.mjs` س353–382](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-core-native-v1.mjs#L353-L382) dispatch `getTrendMasterCenterV1931` بعد المصادقة ولكنه **لا يظهر شرط Admin/Service أو `screenAllowed(service)` قبل إرجاع هذه البيانات**. إخفاء زر المدير ليس حماية API. يجب اختبار رفض طلب موظف أقل صلاحية لبيانات الدين والسجل؛ لا نعلن كشف بيانات حدث في Production دون إثبات مسار منشور.
+- [`cloudflare-d1/src/employee-core-native-v1.mjs` س179–188](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-core-native-v1.mjs#L179-L188) `getActivityLog` يرجع أحداثًا من جداول تشغيل متعددة، ولا يظهر أيضًا شرط screen/role على نفس الـdispatch؛ اختبارات scope لكل مستخدم واجبة لحماية بيانات زملائه وعملائه.
+
+## 25.2 مصدر التقرير ومعنى الصفر
+- [`cloudflare-d1/src/employee-core-native-v1.mjs` س200–216](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/cloudflare-d1/src/employee-core-native-v1.mjs#L200-L216) يكوّن employeePerformance من عدد الأحداث، و`messageQueue:[]`، و`dayClose:null`، و`duplicateHealthy:true`، و`overdue` من صفوف `coreRows`. دي **قيم استجابة مُكوّنة في هذا المصدر** وليست كلها قياسًا متكاملاً لجميع الأنظمة (كاشير/واتساب/الجداول/الماكينات).
+- [`manager-center-v1932.js` س19–21](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/manager-center-v1932.js#L19-L21): عند غياب صفوف أو فشل source قد يعرض «لا توجد بيانات ... أو لم يكتمل تحميلها»؛ المطلوب التمييز في Dashboard بين `zero` الملاحظ فعليًا و`UNKNOWN` و`FAILED` حتى لا يتحول عدم وصول مصدر إلى مؤشر نجاح.
+- [`trend-master-panels-v1931.gs` س1–29](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/trend-master-panels-v1931.gs#L1-L29) Backend قديم قائم على Apps Script/Sheets موصوف `read-only candidate` وغير مثبت النشر، ويكوّن `getTrendMasterPanelV1931`؛ لا تخلط نتائجه مع تقرير D1 الحالي إذا لم يوجد parity/lineage واضح.
+
+## 25.3 Work Queue القديم ومصدر Task authority
+- [`work-queue-v1.js` س1–30](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/work-queue-v1.js#L1-L30) واجهة مشروطة بـ`MATBAGY_WORK_QUEUE_V1===true` وتستدعي action `workQueueV1` من Dispatcher؛ [`work-queue-backend-v1.gs` س1–18](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/work-queue-backend-v1.gs#L1-L18) يوضح أن Work Queue V1 يستخدم الحجز والوقت الحقيقي على Apps Script/Sheets، مع قاعدة مهمة عادية واحدة لكل موظف، والاستثناء العاجل للطاير/المكبس.
+- [`work-queue-backend-v1.gs` س52–71](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/work-queue-backend-v1.gs#L52-L71) يتطلب تفعيل `WORK_QUEUE_ENABLED` في Properties ويحمي عمليات الدور بقفل Script؛ إذًا **اسم Work Queue لا يثبت أنه Task Authority D1 Native أو أن زر الواجهة مفعّل**. للمقارنة مع Operator Task V2 وD1 Authority الجديد راجع الفصلين 19 و24؛ يمنع ازدواج السلطات عند الترحيل.
+
+## 25.4 تقييم العملاء وAI Knowledge
+- [`config.js` س171–179](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/config.js#L171-L179): `MATBAGY_CUSTOMER_FEEDBACK_AUTO_SCAN_V1=false` في المصدر؛ [`customer-feedback-v1.js` س9–26](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/customer-feedback-v1.js#L9-L26) يعتمد على flag منفصل لتشغيل scan على مؤقت/Focus. وجود الإيجنت لا يعني إرسال طلب تقييم تلقائي.
+- [`customer-feedback-backend-v1.gs` س22–43](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/customer-feedback-backend-v1.gs#L22-L43) قد يرسل طلب تقييم بعد `تم التسليم` عبر Meta مع سجل Sheets وWebhook لتلقي 1–5 وتصعيد تقييم ≤3. لا يجوز افتراض أن مسار Backend Legacy ده مستخدم في PROD إذا كانت Comms Native READONLY؛ لازم تحديد سلطة أرقام الأوردر واتساب والتقييم ومنع التكرار end-to-end.
+- [`docs/trendos/MATBAGY_MULTI_AI_ROOM_ARCHITECTURE.md` س58–83](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/docs/trendos/MATBAGY_MULTI_AI_ROOM_ARCHITECTURE.md#L58-L83) يضع `AI_AUTHORITY=ADVISORY_ONLY` في غرفة AI متعددة النماذج؛ [`docs/trendos/MATBAGY_KNOWLEDGE_EXTRACTION_ARCHITECTURE.md` س128–169](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/docs/trendos/MATBAGY_KNOWLEDGE_EXTRACTION_ARCHITECTURE.md#L128-L169) يفرق بين استخراج Candidate معرفي وبين Memory Approved/Deploy، ولا يعتبر تكامل WhatsApp ingestion وKnowledgeDB مفعلًا تلقائيًا. أي رد تصميم أو قرار سعر أو تقييم AI **استشاري حتى ينتقل عبر Evidence/Owner أو Customer Approval موثّق**.
+
+## 25.5 فحوص الإغلاق
+| الملف/الخدمة | الحالة | المطلوب |
+|---|---|---|
+| Manager D1 API role | SOURCE_AUTH_GAP | mock مستخدم `print/laser` يطلب `getTrendMasterCenterV1931/getActivityLog`؛ تأكيد رفض البيانات الحساسة |
+| Manager progressive loading | SOURCE_UI_GAP | فحص زري Open/Refresh والتأخير/failure على مصدر Panel وهمي؛ عدم تمويه الفشل |
+| KPI integrity | BLOCKED | تمييز 0/UNKNOWN/STALE + مقارنة Source of Truth لكل KPI |
+| Work Queue V1 / V2 | BLOCKED | إثبات writer واحد وعدم تكرار claim، وحالة flags المنشورة |
+| Feedback | SOURCE_ONLY / BLOCKED | إثبات auto-scan OFF وطريق send/rating/duplication في Sandbox |
+| AI Knowledge | BLOCKED | Role/PII/Data ownership + Evidence/approval قبل promotion، لا إصدار قرار تلقائي |
+| TESTED/PRODUCTION_VERIFIED | NO/NO | ملفات [`tests/trendos_integrity_dashboard_v1.test.js` س1–25](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/tests/trendos_integrity_dashboard_v1.test.js#L1-L25) و[`tests/operator_task_edge_v2.test.mjs` س1–30](https://github.com/fawakhry/TrendOs/blob/70a839ba79897e55e0d4e49b2b412f2cbaa6ba50/tests/operator_task_edge_v2.test.mjs#L1-L30) وغيرها تحتاج تشغيل exact-head موثَّق |
+
+**الخلاصة:** اللوحات وWork Queue والتقييم والـAI موجودة كمسارات متعددة، لكن **مصادر الحقيقة وسلطة القراءة والكتابة تختلف**. لا تدع اسم الزر أو وجود الملف ينتقل لحالة تشغيل معتمدة دون اختبار. هذه مراجعة توثيقية فقط.
