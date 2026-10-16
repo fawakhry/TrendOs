@@ -924,8 +924,8 @@ try{
         requestKey:'FAKE_FINAL_COMMAND_SUCCESS_0001',role:'admin',ownerVerified:true
       });
       assert.equal(r.success,false,JSON.stringify(r));
-      assert.equal(r.status,400);
-      assert.equal(r.code,'final-invoice-command-full-role-required');
+      assert.equal(r.status,403,'the verified synthetic service session is rejected before privileged command review');
+      assert.equal(r.automaticRetryAuthorized,false);
     }finally{role='admin'}
     for(const requestKey of ['', 'invalid/slash', 'bad key']){
       const r=await send('previewAccountingFinalInvoiceCommandV1',{requestKey});
