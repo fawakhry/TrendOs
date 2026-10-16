@@ -18,6 +18,8 @@ try{
  db.exec("CREATE TABLE t12_prod_orders(order_id TEXT PRIMARY KEY,customer_mode TEXT NOT NULL DEFAULT 'external',customer_name TEXT NOT NULL DEFAULT '',customer_phone TEXT NOT NULL DEFAULT '',external_customer_id TEXT NOT NULL DEFAULT '')");
  db.exec("CREATE TABLE t12_prod_lines(line_id TEXT PRIMARY KEY,order_id TEXT NOT NULL)");
  db.exec("CREATE TABLE employee_accounting_party_balances_v1(party_type TEXT NOT NULL,party_id TEXT NOT NULL,balance REAL NOT NULL DEFAULT 0,PRIMARY KEY(party_type,party_id))");
+ db.exec("CREATE TABLE employee_accounting_request_ledger_v1(request_key TEXT PRIMARY KEY,status TEXT NOT NULL CHECK(status IN ('PREPARED','COMMITTED')))");
+ db.exec("CREATE TABLE employee_accounting_party_ledger_v1(request_key TEXT PRIMARY KEY,party_type TEXT NOT NULL,party_id TEXT NOT NULL,operation TEXT NOT NULL,amount REAL NOT NULL,balance_after REAL NOT NULL,created_at_ms INTEGER NOT NULL)");
  db.exec("UPDATE employee_core_control_v1 SET mode='READONLY' WHERE singleton=1");
  const addImported=(id,order,customer,phone,debt)=>{
    db.prepare('INSERT INTO employee_core_orders_v1(order_id,customer_name,customer_phone,active) VALUES(?,?,?,1)').run(order,customer,phone);
@@ -49,6 +51,18 @@ try{
  addLinked('FAKE_T12_ID_CONFLICT','FAKE_ORDER_ID_CONFLICT','FAKE_CONFLICT_PERSON','FAKE_PHONE_LINK_CONFLICT','FAKE_SOMEONE_ELSE','FAKE_CUSTOMER_LINK_TARGET',48,48);
  addLinked('FAKE_T12_ID_NO_MATCH','FAKE_ORDER_ID_NO_MATCH','FAKE_ABSENT_PERSON','FAKE_PHONE_ABSENT','FAKE_UNVERIFIED_ORDER_ID','FAKE_ABSENT_NOT_A_CUSTOMER',0,null);
  db.prepare("DELETE FROM t12_customers WHERE customer_id='FAKE_ABSENT_NOT_A_CUSTOMER'").run();
+ const fakeReceipt=(customerId,requestKey,commandStatus,amount,balanceAfter,at)=>{
+   db.prepare("INSERT INTO employee_accounting_request_ledger_v1(request_key,status) VALUES(?,?)")
+     .run(requestKey,commandStatus);
+   db.prepare("INSERT INTO employee_accounting_party_ledger_v1(request_key,party_type,party_id,operation,amount,balance_after,created_at_ms) VALUES(?,'customer',?,'payment_received',?,?,?)")
+     .run(requestKey,customerId,amount,balanceAfter,at);
+ };
+ // Fictional receipts reflect the actual accounting-ledger operation and
+ // COMMITTED request state; operational debt snapshots stay intentionally old.
+ fakeReceipt('FAKE_CUSTOMER_STALE','FAKE_COMMITTED_RECEIPT_50','COMMITTED',50,0,1700000001000);
+ fakeReceipt('FAKE_CUSTOMER_T12','FAKE_COMMITTED_RECEIPT_51','COMMITTED',51,19,1700000002000);
+ fakeReceipt('FAKE_CUSTOMER_EQUAL','FAKE_PREPARED_NOT_SETTLED','PREPARED',25,25,1700000003000);
+ fakeReceipt('FAKE_CUSTOMER_LINK_TARGET','FAKE_COMMITTED_WRONG_CANDIDATE','COMMITTED',5,48,1700000004000);
  addLinked('FAKE_T12_EXTERNAL_NUMERIC','FAKE_ORDER_EXTERNAL_NUMERIC','FAKE_EXTERNAL_PERSON','FAKE_PHONE_EXTERNAL_NUMERIC','999002','CUS-C000777',8,25,'external');
  addLinked('FAKE_T12_REGISTERED','FAKE_ORDER_REGISTERED','FAKE_REGISTERED_PERSON','FAKE_PHONE_REGISTERED','', 'CUS-C000888',35,12,'registered');
  const DB={
@@ -236,6 +250,49 @@ try{
    assert.equal(external.identity.mode,'external');
    assert.equal(external.identity.externalCustomerId,'999002');
    assert.equal(external.businessOrderIdAllocated,false);
+ });
+
+ await test('20 BOOK19 imported debt snapshot stays 50 after fake committed receipt 50: candidate-only evidence',async()=>{
+   const n=changes(),r=await send('FAKE_SNAPSHOT_STALE');
+   assert.equal(r.status,'SOURCES_DIFFER');assert.equal(r.operationalDebt,50);
+   assert.equal(r.postedCustomerBalance,0);
+   assert.equal(r.receiptEvidenceStatus,'COMMITTED_RECEIPT_FOR_UNVERIFIED_CANDIDATE');
+   assert.equal(r.candidateCommittedReceiptEvidence?.amount,50);
+   assert.equal(r.candidateCommittedReceiptEvidence?.balanceAfter,0);
+   assert.equal(r.candidateCommittedReceiptEvidence?.requestKey,'FAKE_COMMITTED_RECEIPT_50');
+   assert.equal(r.identityVerified,false);assert.equal(r.deliveryAuthorized,false);
+   assert.equal(r.postingAllowed,false);assert.equal(changes(),n);
+ });
+ await test('21 BOOK19 T12 debt snapshot 70 stays unchanged after fake committed 51 receipt: manual review only',async()=>{
+   const n=changes(),r=await send('FAKE_T12_LINE');
+   assert.equal(r.sourceKind,'t12-prod');assert.equal(r.operationalDebt,70);
+   assert.equal(r.postedCustomerBalance,19);
+   assert.equal(r.receiptEvidenceStatus,'COMMITTED_RECEIPT_FOR_UNVERIFIED_CANDIDATE');
+   assert.equal(r.candidateCommittedReceiptEvidence?.amount,51);
+   assert.equal(r.candidateCommittedReceiptEvidence?.balanceAfter,19);
+   assert.equal(r.manualReconciliationRequired,true);
+   assert.equal(r.automaticRetryAuthorized,false);assert.equal(changes(),n);
+ });
+ await test('22 BOOK19 PREPARED receipt cannot masquerade as committed settlement evidence',async()=>{
+   const r=await send('FAKE_SNAPSHOT_EQUAL');
+   assert.equal(r.receiptEvidenceStatus,'NO_COMMITTED_RECEIPT_OBSERVED');
+   assert.equal(r.candidateCommittedReceiptEvidence,null);
+   assert.equal(r.identityVerified,false);assert.equal(r.deliveryAuthorized,false);
+ });
+ await test('23 BOOK19 order ID conflict never reads or exposes another candidate committed receipt',async()=>{
+   const n=changes(),r=await send('FAKE_T12_ID_CONFLICT');
+   assert.equal(r.status,'ORDER_CUSTOMER_ID_CONFLICT');
+   assert.equal(r.receiptEvidenceStatus,'IDENTITY_CONFLICT_NO_LEDGER_READ');
+   assert.equal(r.candidateCommittedReceiptEvidence,null);
+   assert.equal(r.postedCustomerBalance,null);
+   assert.equal(r.identityVerified,false);assert.equal(changes(),n);
+ });
+ await test('24 BOOK19 absent posted balance is unknown and cannot claim collection proof',async()=>{
+   const r=await send('FAKE_SNAPSHOT_MISSING_LEDGER');
+   assert.equal(r.status,'NO_POSTED_BALANCE');
+   assert.equal(r.receiptEvidenceStatus,'POSTED_BALANCE_MISSING');
+   assert.equal(r.candidateCommittedReceiptEvidence,null);
+   assert.equal(r.postedCustomerBalance,null);
  });
  console.log('BOOK19_DELIVERY_DEBT_RECONCILIATION=SOURCE_ONLY_FAKE_SQLITE');
  console.log('BOOK19_PRODUCTION_WRITE=NO');
