@@ -446,23 +446,27 @@ async function getEasyStoreSuppliersV1(env,b){
 
 async function getCustomerAccountV1915V1(env,auth,b){
   if(!['full','final'].includes(auth.mode))return {success:false,message:'حسابات العملاء عند ضياء / رحمه / ريفان فقط.'};
-  const requested=text(b.customerId||b.customerName||b.partyName||b.name);
-  if(!requested)return {success:false,message:'اختر العميل أولًا.'};
-  let customer=await env.DB.prepare(`
-    SELECT customer_id,customer_name,manager,phone,extra_phone,customer_type,active
-    FROM t12_customers
-    WHERE customer_id=? OR customer_name=?
-    ORDER BY updated_at DESC LIMIT 1
-  `).bind(requested,requested).first();
-  if(!customer){
+  const customerId=text(b.customerId),requestedName=text(b.customerName||b.partyName||b.name);
+  if(!customerId&&!requestedName)return {success:false,message:'اختر العميل أولًا.'};
+  let customer;
+  if(customerId){
+    // Explicit identifiers must NEVER fall back to a matching person's name.
     customer=await env.DB.prepare(`
       SELECT customer_id,customer_name,manager,phone,extra_phone,customer_type,active
-      FROM t12_customers
-      WHERE lower(customer_name)=lower(?)
-      ORDER BY updated_at DESC LIMIT 1
-    `).bind(requested).first();
+      FROM t12_customers WHERE customer_id=? LIMIT 1
+    `).bind(customerId).first();
+  }else{
+    // Two customers with the same displayed name cannot safely share a ledger.
+    const matches=await rows(env,`
+      SELECT customer_id,customer_name,manager,phone,extra_phone,customer_type,active
+      FROM t12_customers WHERE lower(customer_name)=lower(?)
+      ORDER BY updated_at DESC LIMIT 2
+    `,[requestedName]);
+    if(matches.length>1)return {success:false,code:'accounting-customer-name-ambiguous',
+      message:'يوجد أكثر من عميل بنفس الاسم. اختر العميل بمعرفه من القائمة.'};
+    customer=matches[0];
   }
-  if(!customer)return {success:false,message:'العميل غير موجود في سجل العملاء. اختر الاسم من القائمة.'};
+  if(!customer)return {success:false,message:'العميل غير موجود في سجل العملاء. اختر العميل من القائمة.'};
   const tx=await rows(env,`
     SELECT transaction_id AS id,created_at_ms AS createdAtMs,operation,operation_label AS operationLabel,
       amount,payment_method AS paymentMethod,ref_no AS refNo,balance_before AS balanceBefore,
@@ -1069,7 +1073,11 @@ async function resolvePartyV1(env,type,b){
   if(type==='customer'){
     let r;
     if(partyId)r=await env.DB.prepare("SELECT customer_id AS partyId,customer_name AS partyName FROM t12_customers WHERE customer_id=? AND active='نعم' LIMIT 1").bind(partyId).first();
-    else if(requested)r=await env.DB.prepare("SELECT customer_id AS partyId,customer_name AS partyName FROM t12_customers WHERE lower(customer_name)=lower(?) AND active='نعم' ORDER BY updated_at DESC LIMIT 1").bind(requested).first();
+    else if(requested){
+      const matches=await rows(env,"SELECT customer_id AS partyId,customer_name AS partyName FROM t12_customers WHERE lower(customer_name)=lower(?) AND active='نعم' ORDER BY updated_at DESC LIMIT 2",[requested]);
+      if(matches.length>1)throw commandErrorV1('accounting-customer-name-ambiguous','يوجد أكثر من عميل بنفس الاسم. اختر العميل بمعرفه من القائمة.');
+      r=matches[0];
+    }
     if(!r)throw commandErrorV1('accounting-customer-not-found','العميل غير موجود في سجل العملاء. اختر العميل من القائمة.');
     return {partyId:text(r.partyId),partyName:text(r.partyName)};
   }
