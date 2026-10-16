@@ -144,26 +144,6 @@ ORDER_IDS_CHANGED=NO
 BUSINESS_CREATE_TEST_SENT=NO
 ```
 
-### Entry606 — Native Employee Auth cutover gate بعد إصلاح سرعة الواجهة
-- D1 native auth foundation/schema موجود ومؤهل، لكن Production readiness الحالي:
-```ini
-AUTH_CONTROL_MODE=OFF
-AUTH_ENV_ENABLED=NO
-NATIVE_AUTH_USERS=0
-NATIVE_READY_USERS=0
-NATIVE_AUTH_SESSIONS=0
-LEGACY_BRIDGE_ENABLED=NO
-LEGACY_BRIDGE_SECRET_CONFIGURED=NO
-LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
-```
-- الـA61 source يحتوي staged bootstrap/session-enrollment canaries ويستطيع تحويل أول Login إلى D1 ثم إثبات second login native، لكن التفعيل الدائم يحتاج Employee Legacy Bridge لأن أجزاء الموظفين غير المهاجرة بعد يجب أن تعمل بعد إصدار Native token.
-- Apps Script Version159 يحتوي bridge verification code بالفعل، لكنه يعتمد على Script Properties:
-  - `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED`
-  - `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1`
-- لا يوجد في المستودع `clasp` أو Apps Script API credential/deploy path أو authorized maintenance endpoint لضبط هاتين الخاصيتين بأمان. لذلك **لا يتم تفعيل Native Auth/Frontend flag الآن**؛ هذا fail-closed وليس نقصًا في D1.
-- لا يجوز استخدام secret مكشوف في repo أو إعادة استخدام migration secret كبديل.
-- الخطوة التالية الوحيدة لإكمال Zero-Google login: ضبط bridge property/secret في Apps Script بطريقة آمنة ومصرح بها، ثم Cloudflare bridge secret/policies، ثم TRANSITIONAL bootstrap، ثم frontend native flag، ثم postflight/canary. إلى أن يحدث ذلك يظل login الفعلي Google-backed وقد يتأثر بزمن Apps Script، رغم أن واجهة الدخول نفسها أصبحت أخف.
-
 ### Entry607 — نقطة استئناف بعد انقطاع النت — Current truth / لا تخمين
 - سبب الـEntry: المالك طلب مراجعة ما اكتمل وما بقي بعد انقطاع الاتصال أثناء تنفيذ تحسين Login/Auth.
 - Git branch الحالي عند المراجعة: `candidate/t12-full-cloud-cutover-a56-20260929`.
@@ -6731,3 +6711,5 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - **الجذر مُشخّص سابقًا:** نفس خطأ إعداد Build موثق في `autonomous-printshop/MASTER_BOOK.md` بمرحلة AP-100 واختبار Source-only، وAP-101 يسجل إيقاف Preview Builds من واجهة المالك بتاريخ 2026-10-10 دون إثبات إعداد اليوم. `cloudflare-d1/wrangler.toml` يستهدف `trendos-d1-api`، لا `trendos`؛ لا تغيّر Build config أو Retry أو نشر قبل Source parity.
 - **حد الأدلة:** آخر صورة Active deployment للخدمة القديمة = `803aa6a2` / 100% traffic؛ Build الفاشل التاريخي **لا يثبت كود الإصدار النشط** ولا أثرًا عليه. `SEC-AP303-02=OPEN_HIGH`، `ACTIVE_SOURCE_PARITY=NOT_VERIFIED`، `CLOUDFLARE_PRODUCTION_CHANGE=NO`، `UBUNTU_CHANGE=NO`. الخطوة التالية قراءة تفاصيل **الإصدار النشط نفسه** بدل Build فرع حسابات.
 - **مرجع:** `autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md`، SERVER-20261016-63 على [Draft PR #184](https://github.com/fawakhry/TrendOs/pull/184)، commit `f11e4d0b901ab9072aac67254991466de743a34f`. الكتاب القديم ACTIVE_WRITE والموحد FROZEN_MIGRATION_ONLY دون تغيير.
+
+- **MIGRATION UNIT 008 / Entry606 / 2026-10-16:** بوابة Native Auth/Legacy Bridge قبل التفعيل نقلت حرفيًا إلى الملحق التاريخي «م» في الموحد [copy ae76083861a3](https://github.com/fawakhry/TrendOs/commit/ae76083861a3fb3fe8a264fea725e6ba336e2ec5)، `EXACT_VERBATIM_MATCH=PASS (1444/1444)` بمراجعة نص المصدر والأرشيف `b2788ecb4c187717e020321954a1ea449c1aa0d5` blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e` والوجهة بعد Commit النسخ. مصدر النسخ blob `fba70f07e46cc3a200d7b75c1d37241718c0754b`. حذفنا Entry606 فقط من الكتاب القديم، مع الحفاظ على Entry607 وبقية سجل التنفيذ وإضافة SERVER-63 من إيجنت السيرفر concurrent، و`ACTIVE_WRITE`. أسماء Bridge keys ليست قيم أسرار. التصنيف `HISTORICAL` / `NO_PRODUCTION_VERIFICATION`، ولا نشر أو تعديل تشغيل.
