@@ -1598,3 +1598,27 @@
 - الحالة الحالية: `REPO_QUALIFIED=YES`, `PRODUCTION_FIX_DEPLOYED=YES`, `STALE_15_RECONCILED=YES`.
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY597 -->
+
+---
+
+## الملحق التاريخي ح — Entry598 / فحص ما قبل إصلاح Legacy Orders
+
+> **الحالة:** `HISTORICAL` — قراءة وفحص ما قبل النشر في 2026-10-02؛ قيم «Active» وتوصيات النشر أدناه تعود إلى **لحظة إجراء الفحص فقط**، وقد تلتها إصلاحات Entries599/600. لا تُفسَّر كحالة منشورة حاليًا.
+> **إثبات التنفيذ الوارد في المصدر:** `SOURCE_RECORDED_HISTORICAL_RUN`؛ لم نكرر اختبار Cloudflare/D1 هنا.
+> **مصدر النقل:** [الكتاب القديم عند 0bd4a36e3986](https://github.com/fawakhry/TrendOs/blob/0bd4a36e39869ea5b6fa4bf6513e659d70f7c187/TrendOS_MASTER_BOOK.md)، blob `a56766f63eef4f8d1d11aaa708118c2b4a7309a1`؛ **تاريخ النقل:** 2026-10-16.
+> **الاسترجاع:** [Snapshot أرشيف الكتب](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md)، blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`.
+> **المجال:** Entry598 كاملًا بدون Entry596 أو Entry599/600، النص أدناه منقول حرفيًا.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY598 -->
+### Entry598 — Production preflight لإصلاح الأوردرات القديمة = PASS
+- Production preflight Read-only: run `37020759452`, job `110882922276` = **SUCCESS**.
+- Active API لم يتحرك: version `23be0ab2-0a2b-4b81-bf54-e2f05f847989`، deployment `b8497ee0-a487-43c8-bcb3-b3f3ab83d3ff`، live SHA-256 `2b78dea01c7e5892460ead4581915da9982208d60a41a95ce903beb742698f67`.
+- API target المؤهل للإصلاح يُبنى من source `c491d3ed9b7e87c5d5f7d7ee0a57e02c3e530281`، والـCloudflare API delta عن source الحي = **4 ملفات فقط**: migration 0011 + legacy runtime module + operational runtime handler + 02CR read overlay. Target bundle SHA-256 = `7550c3a82b30acf0f34c52565568df8d7e7d6092ca322b36bbac7726256a0bc6`.
+- Active Frontend لم يتحرك: version `a26589a4-e2e0-4ed5-9abf-e1b19b56ce0e`، deployment `21a12f7f-e323-4bc2-bb60-7ef4009d708e` عند 100%؛ Legacy runtime frontend flag **غير منشور** بعد.
+- D1 table `t12_legacy_line_runtime` = absent؛ pending migrations = **0011 فقط**.
+- stale D1 set ما زال **بالضبط 15**، وmirror timestamp ما زال `2026-09-26 18:33:08`.
+- Order Create ما زال `GENERAL` وDuplicate Guard = ready؛ current native runtime health = PASS.
+- preflight لم يغير D1/Cloudflare/Frontend/Apps Script/Order Status.
+- Production scope المطلوب للإغلاق، إذا صرّح به المالك صراحة: **apply 0011 فقط → deploy API target فقط → reconcile exactly the verified 15 rows to `تم التسليم` داخل legacy runtime overlay → deploy qualified frontend only → read-only postflight**. لا تغيير Order IDs، لا Google write، لا Apps Script v159، ولا business CREATE test.
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY598 -->
