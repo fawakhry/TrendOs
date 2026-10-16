@@ -75,7 +75,8 @@ async function checkAuth(request, env, url, kind) {
   );
   const bytes = Uint8Array.from(sig.match(/../g), x => parseInt(x, 16));
   const payload = mirrorReadSignaturePayload(request.method, url, stamp, nonce, principal);
-  return crypto.subtle.verify('HMAC', key, bytes, new TextEncoder().encode(payload));
+  const verified = await crypto.subtle.verify('HMAC', key, bytes, new TextEncoder().encode(payload));
+  return verified ? {principal, nonce, validUntil:requestTime + WINDOW_MS} : null;
 }
 export async function handleMirrorServiceRead(request, env = {}) {
   const url = new URL(request.url);
@@ -93,10 +94,30 @@ export async function handleMirrorServiceRead(request, env = {}) {
   } else if (env.MIRROR_METADATA_READ_ENABLED !== 'true') {
     return answer(404, 'mirror-metadata-read-disabled');
   }
+  let authenticated;
   try {
-    if (!await checkAuth(request, env, url, kind)) return answer(401, 'service-not-authorized');
+    authenticated = await checkAuth(request, env, url, kind);
+    if (!authenticated) return answer(401, 'service-not-authorized');
   } catch (_e) {
     return answer(401, 'service-not-authorized');
+  }
+  // Authentication is not replay protection. A Cloudflare Durable Object must
+  // atomically consume this signed nonce. No DO binding => NO DATA READ.
+  try {
+    const namespace = env.MIRROR_SERVICE_READ_REPLAY_DO;
+    if (!namespace || typeof namespace.idFromName !== 'function' ||
+        typeof namespace.get !== 'function') return answer(503, 'replay-guard-unavailable');
+    const id = namespace.idFromName(authenticated.principal);
+    const stub = namespace.get(id);
+    if (!stub || typeof stub.fetch !== 'function') return answer(503, 'replay-guard-unavailable');
+    const receipt = await stub.fetch(new Request('https://mirror-replay.internal/consume', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body:JSON.stringify(authenticated)
+    }));
+    if (receipt.status === 409) return answer(409, 'request-replay-denied');
+    if (receipt.status !== 200) return answer(503, 'replay-guard-unavailable');
+  } catch (_e) {
+    return answer(503, 'replay-guard-unavailable');
   }
   try {
     if (!env.DB || typeof env.DB.prepare !== 'function') throw Error('DB_UNAVAILABLE');
