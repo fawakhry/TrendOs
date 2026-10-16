@@ -32,7 +32,7 @@ try {
       last_whatsapp_by TEXT DEFAULT '',updated_by TEXT DEFAULT '',version INTEGER DEFAULT 1,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE t12_prod_runtime_events(event_id INTEGER PRIMARY KEY AUTOINCREMENT,order_id TEXT,
-      line_id TEXT,event_type TEXT,old_status TEXT,new_status TEXT,actor TEXT,payload_json TEXT,
+      line_id TEXT,event_type TEXT,old_status TEXT,new_status TEXT,actor TEXT NOT NULL,payload_json TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP);
     UPDATE employee_core_control_v1 SET mode='GENERAL' WHERE singleton=1;
   `);
@@ -47,6 +47,10 @@ try {
   insImport('FAKE_L_EXPIRED','FAKE_O_EXPIRED','Debt Expired','طباعة',35);
   insImport('FAKE_L_NO_DEBT','FAKE_O_NO_DEBT','Debt Clear','طباعة',0);
   insImport('FAKE_L_LASER','FAKE_O_LASER','Other Department','ليزر',25);
+  insImport('FAKE_L_RACE_BAN','FAKE_O_RACE_BAN','Imported Race Ban','طباعة',32);
+  insImport('FAKE_L_RACE_DEBT','FAKE_O_RACE_DEBT','Imported Race Debt','طباعة',0);
+  insImport('FAKE_L_RACE_BULK','FAKE_O_RACE_BULK','Imported Race Bulk','طباعة',28);
+  db.prepare("UPDATE employee_core_lines_v1 SET status='تحت التنفيذ' WHERE line_id='FAKE_L_RACE_BULK'").run();
   const insCloud=(line,order,name,phone,debt)=>{
     db.prepare("INSERT INTO t12_prod_orders(order_id,customer_name,customer_phone,department) VALUES(?,?,?,'طباعة')")
       .run(order,name,phone);
@@ -57,13 +61,21 @@ try {
   };
   insCloud('FAKE_T12_BLOCKED','FAKE_T12_O_BLOCKED','Native Blocked','FAKE_PHONE_001',40);
   insCloud('FAKE_T12_CLEAR','FAKE_T12_O_CLEAR','Native Clear','FAKE_PHONE_002',0);
+  insCloud('FAKE_T12_RACE_BAN','FAKE_T12_O_RACE_BAN','Native Race Ban','FAKE_PHONE_003',40);
+  insCloud('FAKE_T12_RACE_DEBT','FAKE_T12_O_RACE_DEBT','Native Race Debt','FAKE_PHONE_004',0);
+  insCloud('FAKE_T12_RACE_BULK','FAKE_T12_O_RACE_BULK','Native Race Bulk','FAKE_PHONE_005',35);
+  insCloud('FAKE_T12_BULK_OK','FAKE_T12_O_BULK_OK','Native Bulk Allowed','FAKE_PHONE_006',0);
+  db.prepare("UPDATE t12_prod_lines SET status='تحت التنفيذ' WHERE line_id IN (?,?)")
+    .run('FAKE_T12_RACE_BULK','FAKE_T12_BULK_OK');
   for(const [key,name,until] of [
     ['debt blocked','Debt Blocked',''],['debt expired','Debt Expired','2001-01-01'],
     ['other department','Other Department',''],['native blocked','Native Blocked',''],
-    ['native clear','Native Clear','']
+    ['native clear','Native Clear',''],['imported race debt','Imported Race Debt',''],
+    ['native race debt','Native Race Debt','']
   ])db.prepare("INSERT INTO employee_core_delivery_restrictions_v1(customer_key,customer_name,valid_until) VALUES(?,?,?)")
     .run(key,name,until);
 
+  let beforeStatusWrite=null,beforeBulkBatch=null;
   const DB={
     prepare(sql){
       const s={sql:String(sql),args:[]};
@@ -71,10 +83,16 @@ try {
         bind(...args){s.args=args;return w;},
         async first(){return db.prepare(s.sql).get(...s.args)||null;},
         async all(){return {results:db.prepare(s.sql).all(...s.args)};},
-        async run(){return db.prepare(s.sql).run(...s.args);}
+        async run(){
+          if(beforeStatusWrite && /UPDATE employee_core_lines_v1 SET status=CASE|INSERT INTO t12_prod_line_runtime\(line_id,order_id,status,notes,updated_by/.test(s.sql)){
+            const mutation=beforeStatusWrite;beforeStatusWrite=null;mutation();
+          }
+          return db.prepare(s.sql).run(...s.args);
+        }
       };w.__statement=s;return w;
     },
     async batch(stmts){
+      if(beforeBulkBatch){const mutation=beforeBulkBatch;beforeBulkBatch=null;mutation();}
       db.exec('BEGIN IMMEDIATE');
       try{
         const result=stmts.map(x=>db.prepare(x.__statement.sql).run(...x.__statement.args));
@@ -183,6 +201,138 @@ try {
     assert.equal(r.httpStatus,401);
     assert.deepEqual(effects(),before);
     assert.equal(network,0);
+  });
+
+  await test('10 BOOK19 injected restriction after imported-line projection must block at SQL write time',async()=>{
+    const id='FAKE_L_RACE_BAN',prior=one('SELECT status,version FROM employee_core_lines_v1 WHERE line_id=?',id);
+    const ev=one("SELECT COUNT(*) AS n FROM employee_core_events_v1").n;
+    let injected=false;
+    beforeStatusWrite=()=>{
+      injected=true;
+      db.prepare("INSERT INTO employee_core_delivery_restrictions_v1(customer_key,customer_name,active) VALUES(?,?,1)")
+        .run('imported race ban','Imported Race Ban');
+    };
+    let result;
+    try{result=await send('updateLine',{lineId:id,status:'تم التسليم'});}
+    finally{beforeStatusWrite=null;}
+    assert.equal(injected,true,'the fake restriction must arrive after initial eligibility projection');
+    assert.equal(result.success,false,JSON.stringify(result));
+    assert.equal(result.deliveryBlocked,true,JSON.stringify(result));
+    assert.deepEqual(one('SELECT status,version FROM employee_core_lines_v1 WHERE line_id=?',id),prior);
+    assert.equal(one("SELECT COUNT(*) AS n FROM employee_core_events_v1").n,ev);
+  });
+  await test('11 BOOK19 imported line turns indebted during write gap; live debt row must be checked',async()=>{
+    const id='FAKE_L_RACE_DEBT',prior=one('SELECT status,version FROM employee_core_lines_v1 WHERE line_id=?',id);
+    const ev=one("SELECT COUNT(*) AS n FROM employee_core_events_v1").n;
+    let injected=false;
+    beforeStatusWrite=()=>{
+      injected=true;
+      db.prepare('UPDATE employee_core_lines_v1 SET debt_amount=19 WHERE line_id=?').run(id);
+    };
+    let result;
+    try{result=await send('updateLine',{lineId:id,status:'تم التسليم'});}
+    finally{beforeStatusWrite=null;}
+    assert.equal(injected,true);
+    assert.equal(result.success,false,JSON.stringify(result));
+    assert.equal(result.deliveryBlocked,true,JSON.stringify(result));
+    assert.deepEqual(one('SELECT status,version FROM employee_core_lines_v1 WHERE line_id=?',id),prior);
+    assert.equal(one("SELECT debt_amount FROM employee_core_lines_v1 WHERE line_id=?",id).debt_amount,19);
+    assert.equal(one("SELECT COUNT(*) AS n FROM employee_core_events_v1").n,ev);
+  });
+  await test('12 BOOK19 T12 restriction becomes active after projection; runtime delivery denied',async()=>{
+    const id='FAKE_T12_RACE_BAN',before=effects(),mutated=[];
+    beforeStatusWrite=()=>{
+      db.prepare("INSERT INTO employee_core_delivery_restrictions_v1(customer_key,customer_name,active) VALUES(?,?,1)")
+        .run('native race ban','Native Race Ban');
+      mutated.push('yes');
+    };
+    let result;
+    try{result=await send('updateLine',{lineId:id,status:'تم التسليم'});}
+    finally{beforeStatusWrite=null;}
+    assert.deepEqual(mutated,['yes']);
+    assert.equal(result.success,false,JSON.stringify(result));
+    assert.equal(result.deliveryBlocked,true,JSON.stringify(result));
+    assert.deepEqual(effects(),before,'no runtime row or event created');
+  });
+  await test('13 BOOK19 T12 customer debt becomes positive immediately before write; must deny delivery',async()=>{
+    const id='FAKE_T12_RACE_DEBT',before=effects();
+    let injected=false;
+    beforeStatusWrite=()=>{
+      injected=true;
+      db.prepare("UPDATE t12_customers SET debt_amount=29 WHERE customer_id=?").run('FAKE_CUSTOMER_'+id);
+    };
+    let result;
+    try{result=await send('updateLine',{lineId:id,status:'تم التسليم'});}
+    finally{beforeStatusWrite=null;}
+    assert.equal(injected,true);
+    assert.equal(result.success,false,JSON.stringify(result));
+    assert.equal(result.deliveryBlocked,true,JSON.stringify(result));
+    assert.deepEqual(effects(),before);
+  });
+  await test('14 BOOK19 bulk candidate restriction changes after projection; batch cannot deliver disallowed row',async()=>{
+    // Earlier bulk-control test may have delivered this fixture; reset only fake
+    // local state to ensure this scenario really reaches the batch writer.
+    db.prepare("UPDATE employee_core_lines_v1 SET status='تحت التنفيذ' WHERE line_id=?").run('FAKE_L_RACE_BULK');
+    role='print';department='طباعة';
+    const before=one("SELECT status,version FROM employee_core_lines_v1 WHERE line_id='FAKE_L_RACE_BULK'");
+    let injected=false;
+    beforeBulkBatch=()=>{
+      injected=true;
+      db.prepare("INSERT INTO employee_core_delivery_restrictions_v1(customer_key,customer_name,active) VALUES(?,?,1)")
+        .run('imported race bulk','Imported Race Bulk');
+    };
+    let result;
+    try{result=await send('bulkUpdateDepartmentStatusV1926',{
+      screen:'print',fromStatus:'تحت التنفيذ',toStatus:'تم التسليم',
+      requestId:'FAKE_BULK_RACE_GUARD_20261016_01'
+    });}finally{role='service';department='خدمة العملاء';beforeBulkBatch=null;}
+    assert.equal(injected,true,'the fake restriction must arrive before transactional batch');
+    assert.equal(result.success,false,JSON.stringify(result));
+    assert.deepEqual(one("SELECT status,version FROM employee_core_lines_v1 WHERE line_id='FAKE_L_RACE_BULK'"),before);
+  });
+
+  await test('15 BOOK19 T12 bulk update with late debt restriction rolls back every candidate and its event',async()=>{
+    // Earlier test 08 can legitimately deliver these artificial T12 candidates.
+    // Reset only the synthetic runtime fixture so this test definitely reaches
+    // the real bulk SQL path rather than giving a false positive.
+    db.prepare("DELETE FROM t12_prod_line_runtime WHERE line_id IN (?,?)")
+      .run('FAKE_T12_RACE_BULK','FAKE_T12_BULK_OK');
+    db.prepare("DELETE FROM t12_prod_runtime_events WHERE line_id IN (?,?)")
+      .run('FAKE_T12_RACE_BULK','FAKE_T12_BULK_OK');
+    const before=effects();
+    role='print';department='طباعة';
+    let injected=false;
+    beforeBulkBatch=()=>{
+      injected=true;
+      db.prepare("INSERT INTO employee_core_delivery_restrictions_v1(customer_key,customer_name,active) VALUES(?,?,1)")
+        .run('native race bulk','Native Race Bulk');
+    };
+    let r;
+    try{r=await send('bulkUpdateDepartmentStatusV1926',{
+      screen:'print',fromStatus:'تحت التنفيذ',toStatus:'تم التسليم',
+      requestId:'FAKE_T12_BULK_RACE_20261016_001'
+    });}finally{beforeBulkBatch=null;role='service';department='خدمة العملاء';}
+    assert.equal(injected,true,'fake restriction must arrive after projection before batch');
+    assert.equal(r.success,false,JSON.stringify(r));
+    assert.deepEqual(effects(),before,'native T12 and imported status/events must all roll back');
+    assert.equal(one("SELECT status FROM employee_core_request_ledger_v1 WHERE request_key=?", 'FAKE_T12_BULK_RACE_20261016_001')?.status,'PREPARED',
+      'uncertain bulk command is held for review, never replayed automatically');
+  });
+  await test('16 BOOK19 rerun only eligible T12 bulk candidates, keep restricted clients excluded',async()=>{
+    const before=effects();
+    role='print';department='طباعة';
+    let r;
+    try{r=await send('bulkUpdateDepartmentStatusV1926',{
+      screen:'print',fromStatus:'تحت التنفيذ',toStatus:'تم التسليم',
+      requestId:'FAKE_T12_BULK_ALLOWED_20261016_002'
+    });}finally{role='service';department='خدمة العملاء';}
+    assert.equal(r.success,true,JSON.stringify(r));
+    assert.equal(r.changed>=1,true,JSON.stringify(r));
+    assert.equal(r.skippedDebt>=2,true,JSON.stringify(r));
+    assert.equal(one("SELECT status FROM t12_prod_line_runtime WHERE line_id='FAKE_T12_BULK_OK'")?.status,'تم التسليم');
+    assert.equal(one("SELECT status FROM t12_prod_line_runtime WHERE line_id='FAKE_T12_RACE_BULK'"),undefined);
+    assert.equal(one("SELECT COUNT(*) AS n FROM t12_prod_runtime_events WHERE line_id='FAKE_T12_BULK_OK' AND new_status='تم التسليم'").n,1);
+    assert.notDeepEqual(effects(),before,'allowed T12 order should transition exactly once');
   });
   console.log('BOOK19_NATIVE_SINGLE_DELIVERY=FAKE_SQLITE_SOURCE_ONLY');
   console.log('BOOK19_CORE_FINANCE_RELEASE=NO_GO');
