@@ -48,3 +48,6 @@ A. Reconfirm HEAD/base/mergeability, CI and canonical book blob before modifying
 Historical evidence must remain intact: PR #120 CI failures and later branch-base repair; AP-281 PNG fixture initial failure and correction; Workers Preview failures; AP-156 owner screenshot only versus later reported screenshots; AP-297 source/book discrepancy. None is a current runtime PASS.
 
 References: https://github.com/fawakhry/TrendOs/pull/95 ; https://github.com/fawakhry/TrendOs/pull/97 ; https://github.com/fawakhry/TrendOs/pull/121 ; https://github.com/fawakhry/TrendOs/pull/122 ; https://github.com/fawakhry/TrendOs/pull/123 .
+
+## Cross-project intake (2026-10-16)
+- Received 34 TrendOS Book Agent findings, separately numbered TBA-01..TBA-34, in `autonomous-printshop/audits/TRENDOS_BOOK_AGENT_34_ISSUES_INTAKE_20261016.md`. These are **TrendOS-wide** and remain INTAKE_UNVERIFIED; do not conflate with printshop 28 or mark closed without test evidence. Cross-links: permissions #11/#26, reads #10, CI/runtime #24/#25. TrendOS Book Agent/TrendOS development owners should validate and fix TrendOS code in their own approved workflow; this printshop PR is tracking only.
