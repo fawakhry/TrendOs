@@ -311,3 +311,109 @@ test('BOOK28-CORE-RECOVERY: mixed imported/native writes preserve one audit per 
   assert.equal(f.events.filter(x=>x.kind==='line-status').length,2);
   assert.equal(f.events.filter(x=>x.kind==='bulk').length,1);
 });
+
+
+test('BOOK28-ARCHIVE-RECOVERY: 501 lines close order only after second 1-line request',async()=>{
+  const f=fakeD1({size:501,status:'تم التسليم',native:2});
+  const first=await run(f,'archiveDeliveredDepartmentV1926','FAKE-ARCHIVE-CAP-1');
+  assert.equal(first.status,200);
+  assert.equal(first.body.archivedLines,500);
+  assert.equal(first.body.archivedOrders,0);
+  assert.equal(first.body.partialOrders,1);
+  assert.equal(f.archiveLines.size,500);
+  assert.equal(f.archiveOrders.size,0);
+  assert.equal(f.ordersActive.get('FAKE-ORDER-1'),true);
+  const second=await run(f,'archiveDeliveredDepartmentV1926','FAKE-ARCHIVE-CAP-2');
+  assert.equal(second.status,200);
+  assert.equal(second.body.archivedLines,1);
+  assert.equal(second.body.archivedOrders,1);
+  assert.equal(f.archiveLines.size,501);
+  assert.equal(f.archiveOrders.size,1);
+  assert.equal(f.ordersActive.get('FAKE-ORDER-1'),false);
+  assert.equal(f.events.filter(e=>e.kind==='archive').length,2);
+});
+test('BOOK28-ARCHIVE-RECOVERY: a cross-department order stays open until laser line archived',async()=>{
+  const f=fakeD1({size:2,status:'تم التسليم',native:1});
+  f.lines[1].department='ليزر';
+  const first=await run(f,'archiveDeliveredDepartmentV1926','FAKE-ARCHIVE-PRINT');
+  assert.equal(first.status,200);
+  assert.equal(first.body.archivedLines,1);
+  assert.equal(first.body.archivedOrders,0);
+  assert.equal(first.body.partialOrders,1);
+  assert.equal(f.archiveOrders.size,0);
+  const req=new Request('https://fixture.invalid/v1/employee/core',{
+    method:'POST',headers:{'content-type':'application/json',Authorization:'Bearer '+TOKEN},
+    body:JSON.stringify({username:'fake-admin',action:'archiveDeliveredDepartmentV1926',screen:'laser',requestId:'FAKE-ARCHIVE-LASER'})
+  });
+  const response=await handleEmployeeCoreNativeRequest(req,f.env);
+  const laser=await response.json();
+  assert.equal(response.status,200);
+  assert.equal(laser.archivedLines,1);
+  assert.equal(laser.archivedOrders,1);
+  assert.equal(f.archiveOrders.size,1);
+});
+test('BOOK28-ARCHIVE-RECOVERY: D1 mid-batch rollback leaves no PREPARED nor archived rows',async()=>{
+  const f=fakeD1({size:3,status:'تم التسليم',native:1});
+  f.fault.once='mid-batch';
+  const failed=await run(f,'archiveDeliveredDepartmentV1926','FAKE-ARCHIVE-ROLLBACK');
+  assert.equal(failed.status,500);
+  assert.equal(f.archiveLines.size,0);
+  assert.equal(f.archiveOrders.size,0);
+  assert.equal(f.ledger.size,0);
+  assert.equal(f.lines.filter(x=>x.active).length,3);
+  const ok=await run(f,'archiveDeliveredDepartmentV1926','FAKE-ARCHIVE-ROLLBACK');
+  assert.equal(ok.status,200);
+  assert.equal(ok.body.archivedLines,3);
+  assert.equal(f.archiveLines.size,3);
+});
+test('BOOK28-ARCHIVE-RECOVERY: stale status after snapshot rejects entire request',async()=>{
+  const f=fakeD1({size:2,status:'تم التسليم'});
+  f.fault.once='stale-source';
+  const failed=await run(f,'archiveDeliveredDepartmentV1926','FAKE-ARCHIVE-STALE');
+  assert.equal(failed.status,500);
+  assert.equal(f.ledger.size,0);
+  assert.equal(f.archiveLines.size,0);
+  assert.equal(f.lines[0].status,'بدأ التنفيذ','external write survives rollback');
+  const ok=await run(f,'archiveDeliveredDepartmentV1926','FAKE-ARCHIVE-STALE');
+  assert.equal(ok.status,200);
+  assert.equal(ok.body.archivedLines,1);
+  assert.equal(ok.body.archivedOrders,0);
+});
+test('BOOK28-ARCHIVE-RECOVERY: newly added unarchived line blocks closure atomically',async()=>{
+  const f=fakeD1({size:2,status:'تم التسليم'});
+  f.fault.once='new-cross-department';
+  const failed=await run(f,'archiveDeliveredDepartmentV1926','FAKE-ARCHIVE-NEWLINE');
+  assert.equal(failed.status,500);
+  assert.equal(f.archiveLines.size,0);
+  assert.equal(f.archiveOrders.size,0);
+  assert.equal(f.ledger.size,0);
+  assert.ok(f.lines.some(r=>r.lineId==='FAKE-CONCURRENT-LINE'));
+  const ok=await run(f,'archiveDeliveredDepartmentV1926','FAKE-ARCHIVE-NEWLINE');
+  assert.equal(ok.status,200);
+  assert.equal(ok.body.archivedLines,2);
+  assert.equal(ok.body.archivedOrders,0);
+});
+test('BOOK28-ARCHIVE-RECOVERY: lost ACK replays archived result with no repeat writes',async()=>{
+  const f=fakeD1({size:4,status:'تم التسليم',native:2});
+  f.fault.once='after-commit-ack';
+  const failed=await run(f,'archiveDeliveredDepartmentV1926','FAKE-ARCHIVE-LOST-ACK');
+  assert.equal(failed.status,500);
+  assert.equal(f.archiveLines.size,4);
+  assert.equal(f.archiveOrders.size,1);
+  assert.equal(f.ledger.get('FAKE-ARCHIVE-LOST-ACK').status,'COMMITTED');
+  const batches=f.calls.batches.length;
+  const replay=await run(f,'archiveDeliveredDepartmentV1926','FAKE-ARCHIVE-LOST-ACK');
+  assert.equal(replay.status,200);
+  assert.equal(replay.body.archivedLines,4);
+  assert.equal(replay.body.archivedOrders,1);
+  assert.equal(f.calls.batches.length,batches);
+});
+test('BOOK28-ARCHIVE-RECOVERY: 500-row request uses bounded SQL statements',async()=>{
+  const f=fakeD1({size:501,status:'تم التسليم',native:250});
+  const r=await run(f,'archiveDeliveredDepartmentV1926','FAKE-ARCHIVE-LIMIT');
+  assert.equal(r.status,200);
+  assert.equal(r.body.archivedLines,500);
+  assert.equal(r.body.remainingDueToLimit,1);
+  assert.ok(f.calls.batches[0]<12,'500 snapshots archived in bounded set-wise SQL');
+  assert.equal(f.archiveLines.size,500);
+});
