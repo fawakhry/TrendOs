@@ -67,10 +67,13 @@ function otAuthorizeV2_(p){
 function otRequireScriptWriterV2_(){
   let props;
   try{props=PropertiesService.getScriptProperties();}catch(e){throw new Error('BOOK24_SCRIPT_WRITER_GUARD_UNAVAILABLE');}
-  let enabled;
-  try{enabled=otBoolV2_(props.getProperty('TRENDOS_TASK_SCRIPT_SINGLE_WRITER_GUARD_V1_ENABLED'));}
+  let rawGuard;
+  try{rawGuard=otTxtV2_(props.getProperty('TRENDOS_TASK_SCRIPT_SINGLE_WRITER_GUARD_V1_ENABLED')).toLowerCase();}
   catch(e){throw new Error('BOOK24_SCRIPT_WRITER_GUARD_UNAVAILABLE');}
-  if(!enabled)return; // No deployed property modified: historical default OFF.
+  // Only absent/explicit FALSE is legacy mode. An owner typo must NOT silently
+  // turn off a previously intended exclusive-writer safety control.
+  if(!rawGuard||['0','false','no','off'].indexOf(rawGuard)!==-1)return;
+  if(!otBoolV2_(rawGuard))throw new Error('BOOK24_SCRIPT_WRITER_GUARD_VALUE_INVALID'); // No deployed property modified: historical default OFF.
   let selected;
   try{selected=otTxtV2_(props.getProperty('TRENDOS_TASK_SCRIPT_WRITER_V1')).toUpperCase();}
   catch(e){throw new Error('BOOK24_SCRIPT_WRITER_OWNER_UNKNOWN');}
