@@ -44,6 +44,9 @@ export function machineReadinessEvidenceCandidatesV1({
   const out=[];
   for(const [lineId,mappingBox] of latestMapping){
     const mapping=mappingBox.row;
+    // Never qualify READY from a mapping timestamped in the future. A later
+    // mapping (even a future one) must not fall back to an older ACTIVE row.
+    if(!Number.isFinite(mappingBox.time)||mappingBox.time<=0||mappingBox.time>Number(nowMs)) continue;
     if(upper(mapping.mappingState||mapping.mapping_state)!=='ACTIVE') continue;
     const machineId=text(mapping.machineId||mapping.machine_id);
     const machine=machineById.get(machineId);
@@ -51,11 +54,14 @@ export function machineReadinessEvidenceCandidatesV1({
 
     const box=latestObs.get(machineId);
     if(!box) continue;
+    // Future machine observations must never act as proof of physical READY.
+    // A future latest event blocks readiness instead of reviving a prior READY.
+    if(!Number.isFinite(box.time)||box.time<=0||box.time>Number(nowMs)) continue;
     const obs=box.row;
     const state=upper(obs.machineState||obs.machine_state);
     const observedAtMs=num(obs.observedAtMs??obs.observed_at_ms);
     const expiresAtMs=num(obs.expiresAtMs??obs.expires_at_ms);
-    if(!observedAtMs||!expiresAtMs||expiresAtMs<=Number(nowMs)) continue;
+    if(!observedAtMs||!expiresAtMs||expiresAtMs<=Number(nowMs)||expiresAtMs<=observedAtMs) continue;
 
     let readinessState='';
     if(state==='READY'){
