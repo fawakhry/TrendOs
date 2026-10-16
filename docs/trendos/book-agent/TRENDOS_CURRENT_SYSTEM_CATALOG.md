@@ -1538,3 +1538,28 @@
 
 مرجع انطلاق كل إيجنت هو [`TRENDOS_BOOKS_SINGLE_INDEX.md`](TRENDOS_BOOKS_SINGLE_INDEX.md). يحفظ [`BOOKS_NO_LOSS_CROSSWALK_V1.json`](BOOKS_NO_LOSS_CROSSWALK_V1.json) جميع 66 رقم Entry المكتشفة في `TrendOS_MASTER_BOOK.md` و165 عنوان قسم، وتظل جميعها `OPEN` للمطابقة مع 32 فصلًا حاليًا. تمت مقارنة متن الفصول الـ31 القديمة بدقة `EXACT_TEXT_MATCH` للنطاق المشترك بطول 213981 حرفًا، لكن لم تثبت تغطية Master كاملة. لا تسقط أي وظيفة أو قرار دون حسم CURRENT / HISTORICAL / SEPARATE PROJECT بدليل ثابت.
 <!-- END_TRANSFER_VERBATIM:INTERMEDIATE_OUTLINE -->
+
+---
+
+## الملحق التاريخي و — ترحيل نقطة تنظيف الكتاب في 2 أكتوبر 2026
+
+> **التصنيف:** `HISTORICAL` — سجل قرار تنظيف توثيقي قديم، **وليس** إثباتًا لحالة Production الحالية.  
+> **مهمة النقل:** `TRENDOS-TWO-BOOKS-CONTINUATION-AND-SAFE-MIGRATION-20261016`.  
+> **المصدر الأصلي:** [TrendOS_MASTER_BOOK.md عند نقطة البداية](https://github.com/fawakhry/TrendOs/blob/e42a9978fd361284d6887b069449272528d7430d/TrendOS_MASTER_BOOK.md)، Git blob SHA `e7a55dadda6d736ae50bca0fcc4b8013503f8fd5`، قسم `## 10. Cleaning checkpoint — 2026-10-02` (الأسطر 3113–3122 في snapshot البداية).  
+> **الأرشيف المستقل للاسترجاع:** [فرع الأرشيف الثابت](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md)، Git blob SHA `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`.  
+> **قرار التاريخ:** 2026-10-02؛ **تاريخ إجراء الترحيل:** 2026-10-16.  
+> **سلامة النقل:** النص التالي منقول حرفيًا من نطاق القسم في Git؛ عند الإزالة من الكتاب القديم يبقى نصه الكامل هنا وفي الأرشيف، ولا يُستخدم في اتخاذ حكم Runtime آني.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_CLEANING_CHECKPOINT_20261002 -->
+## 10. Cleaning checkpoint — 2026-10-02
+
+تم تنظيف الكتاب بناءً على قرار المالك أثناء مشروع النقل Google → Cloud:
+- أزيلت من الكتاب الحي التفاصيل المطولة الخاصة بمراحل Google التي انتقلت أو أصبحت historical/superseded.
+- لم تُحذف أي dependency Google ما زالت مثبتة كحالة تشغيلية.
+- لم يحدث أي Runtime/Cloudflare/D1/Apps Script mutation بسبب هذا التنظيف.
+- Git history يحتفظ بالنسخة السابقة كاملة عند blob `9f5af80f436effbd3154751d05032608d657462a`.
+- المرجع التفصيلي التاريخي يبقى الصندوق الأسود وتقارير Entries.
+- أي Cutover لاحق يجب أن يحذف من قسم dependencies فقط بعد Runtime verification، لا بعد source/CI وحدهما.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_CLEANING_CHECKPOINT_20261002 -->
