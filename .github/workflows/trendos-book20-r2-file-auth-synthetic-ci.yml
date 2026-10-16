@@ -1,0 +1,44 @@
+name: BOOK20 R2 Employee File Access — Fake-Only Security CI
+
+on:
+  push:
+    branches:
+      - fix/book20-r2-employee-file-auth-20261016
+    paths:
+      - 'cloudflare-d1/src/employee-comms-native-v1.mjs'
+      - 'tests/book20_employee_comms_r2_access.test.mjs'
+      - 'tests/entry614_employee_comms_native.test.mjs'
+      - '.github/workflows/trendos-book20-r2-file-auth-synthetic-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/employee-comms-native-v1.mjs'
+      - 'tests/book20_employee_comms_r2_access.test.mjs'
+      - 'tests/entry614_employee_comms_native.test.mjs'
+      - '.github/workflows/trendos-book20-r2-file-auth-synthetic-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fake-only-r2-access-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Source syntax
+        run: node --check cloudflare-d1/src/employee-comms-native-v1.mjs
+      - name: Fake-only R2 GET and ownership permission matrix (no network)
+        run: node --test tests/book20_employee_comms_r2_access.test.mjs
+      - name: Existing employee comms source contract regression (no network)
+        run: node tests/entry614_employee_comms_native.test.mjs
+      - name: Qualified limits
+        run: |
+          echo "R2_TEST_ENV=FAKE_ONLY"
+          echo "REAL_USER_LOGIN=NO"
+          echo "PRODUCTION_R2_ACCESS=NO"
+          echo "R2_PUBLIC_HOSTNAME_VERIFIED=NO"
+          echo "DEPLOY_AND_MERGE=NO"
