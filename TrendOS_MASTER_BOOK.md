@@ -144,40 +144,6 @@ ORDER_IDS_CHANGED=NO
 BUSINESS_CREATE_TEST_SENT=NO
 ```
 
-### Entry603/604/605 — Login-fast Frontend Production = CLOSED PASS
-- الهدف: تقليل زمن ظهور/تفاعل واجهة الدخول بدون تغيير Employee Auth authority.
-- Entry603 Repo qualification:
-  - `tests/frontend_login_fast_surface_entry603.test.mjs` يثبت أن unauthenticated config ينشئ **0 dynamic employee module requests**.
-  - بعد session: critical modules = 2 (`trendos-edge-orders-read-v1.js` + resume guard).
-  - deferred authenticated modules = 16 بعد 250ms.
-  - `bootMain()` يبدأ authenticated loader قبل تحميل Rows، مع بقاء `loadInitialRowsWhenEdgeReady()` fail-closed.
-  - Entry603 CI final = run `37042691120` SUCCESS.
-  - Duplicate Guard CI = run `37042720774` SUCCESS.
-  - Entry597 legacy runtime CI = run `37042779029` SUCCESS.
-  - A61 full browser transport regression = run `37042884091` SUCCESS.
-- Entry604 Production publish:
-  - أول run `37043068818` وقف قبل إنشاء Version بسبب uploader qualification marker قديم؛ **no Production mutation**.
-  - run `37043168584`: qualification/pre-guard/package PASS، created version `adfb5056-af23-4d7f-8e12-7de6417dfce2` zero-traffic ثم promote accepted إلى 100%.
-  - postflight المدمج وقف بعد promote في static marker phase؛ لم يُعاد deploy.
-- Entry605 independent read-only postflight:
-  - run `37043542864` = **SUCCESS**.
-  - UI version `adfb5056-af23-4d7f-8e12-7de6417dfce2` @100%.
-  - UI deployment `a066abb8-4c33-4050-813b-123df4140450`.
-  - assets ready on attempt 1، root/config/app/edge HTTP 200.
-  - login-fast markers = YES.
-  - Native Auth frontend remains OFF.
-  - Duplicate Guard UI + Browser Refresh fix preserved.
-  - API create/runtime health preserved؛ no API deploy، no D1 mutation، no Apps Script touch.
-- الحالة:
-```ini
-LOGIN_FAST_FRONTEND_LIVE=YES
-UNAUTHENTICATED_DYNAMIC_EMPLOYEE_MODULES=0
-AUTH_CRITICAL_MODULES_AFTER_SESSION=2
-AUTH_DEFERRED_MODULES_AFTER_SESSION=16
-EMPLOYEE_NATIVE_AUTH=OFF
-APPS_SCRIPT_TOUCHED=NO
-```
-
 ### Entry606 — Native Employee Auth cutover gate بعد إصلاح سرعة الواجهة
 - D1 native auth foundation/schema موجود ومؤهل، لكن Production readiness الحالي:
 ```ini
@@ -6756,3 +6722,5 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - **Next gate:** inspect the first Ready Build's read-only details (actual commit/build config/entrypoint/deployment linkage, no secrets), then verify live version source relationship and inventory consumers/authorization/rollback before any change. `SEC-AP303-02=OPEN_HIGH` / `TRENDOS_VERSION_IDENTIFIED=PASS` / `SOURCE_PARITY=NOT_VERIFIED` / `NO_MERGE_NO_DEPLOY_NO_HTTP_SENSITIVE_GET`. Old TrendOS MASTER remains `ACTIVE_WRITE`; frozen unified book remains unchanged.
 
 - **MIGRATION UNIT 006 / Entries601–602 / 2026-10-16:** نقل تاريخ قياسات بطء Employee Login إلى الملحق التاريخي «ك» في الكتاب الموحد [copy e78b6e2cf135](https://github.com/fawakhry/TrendOs/commit/e78b6e2cf13534d12189e24bc03790e878c58b0b). `EXACT_VERBATIM_MATCH=PASS (2281/2281)` أُثبت بإعادة قراءة GitHub المصدر والوجهة وأرشيف `b2788ecb4c187717e020321954a1ea449c1aa0d5` blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`. مصدر `TrendOS_MASTER_BOOK.md` عند النسخ blob `8daeaaeb7d490d1c7df1fc684449a1f616bc05ef`. بعد التحقق فقط أزيلت كتلة `Entry601/602` من القديم؛ Entry603/604/605 وتسجيلات SERVER-61/62 وسجل التطوير النشط باقية. تصنيف `HISTORICAL` لا يثبت وضع Google/Auth الإنتاجي الآن. Commit هذا التحديث هو سجل الحذف، `NO_DEPLOY` / `NO_PRODUCTION_MUTATION`.
+
+- **MIGRATION UNIT 007 / Entries603–605 / 2026-10-16:** سجل نشر واجهة Login-fast واختباراتها التاريخية نُقل كاملًا إلى الملحق «ل» عبر [copy b9a701901511](https://github.com/fawakhry/TrendOs/commit/b9a70190151132d1e1807b7fbf06e9f947a7f905). تم فحص النص الأصلي والوجهة والأرشيف `b2788ecb4c187717e020321954a1ea449c1aa0d5` حرفًا حرفًا: `EXACT_VERBATIM_MATCH=PASS (1885/1885)`، source blob `95471182cac9c6ead230cf44187875dd65feb937`، archive blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`. تم حذف Entry603/604/605 فقط من الكتاب القديم بعد تحقق النسخ، مع الحفاظ على Entry606 وما بعده، وSERVER-61/62، و`ACTIVE_WRITE`. فشل Postflight السابق ونجاح Postflight المستقل باقيان في النص المنقول، ولا توجد إعادة اختبار أو نشر الآن. `HISTORICAL` / `NO_DEPLOY`.
