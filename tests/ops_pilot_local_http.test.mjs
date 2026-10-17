@@ -57,6 +57,13 @@ await test('Ops pilot local real HTTP — synthetic orders + original manager UI
       });req.on('error',fail);req.end();
     });
     assert.equal(badHost,403);
+    const wrongPort=await new Promise((done,fail)=>{
+      const req=rawHttpRequest({hostname:'127.0.0.1',port:p.port,path:'/api/session',
+        headers:{Host:'127.0.0.1:9999'}},res=>{
+        res.resume();res.on('end',()=>done(res.statusCode));
+      });req.on('error',fail);req.end();
+    });
+    assert.equal(wrongPort,403,'Host must match actual bound port, even on loopback');
   });
   await t.test('04 user-provided identity, financial amounts and arbitrary fields rejected',async()=>{
     for(const extra of [
@@ -92,6 +99,16 @@ await test('Ops pilot local real HTTP — synthetic orders + original manager UI
     r=await request('/api/orders/DEMO-0004/status','POST',{status:'تم التسليم'});
     assert.equal(r.code,200);
     assert.equal((await request('/api/manager')).data.system.archivedLines,1);
+    const audit=await request('/api/orders/DEMO-0004/history');
+    assert.equal(audit.code,200);
+    assert.equal(audit.data.financeRelease,'NO_GO');
+    assert.equal(audit.data.history.length,3);
+    assert.deepEqual(audit.data.history.map(x=>[x.previousStatus,x.nextStatus]),[
+      ['طلب جديد','جاري التنفيذ'],
+      ['جاري التنفيذ','جاهز للتسليم'],
+      ['جاهز للتسليم','تم التسليم']
+    ]);
+    assert.equal(audit.data.history.every(x=>typeof x.createdAt==='string'),true);
   });
   await t.test('07 restriction blocks simulated delivery even at ready status',async()=>{
     const r=await request('/api/orders/DEMO-0003/status','POST',{status:'تم التسليم'});
@@ -99,6 +116,9 @@ await test('Ops pilot local real HTTP — synthetic orders + original manager UI
     const mgr=await request('/api/manager');
     assert.equal(mgr.data.debtControl.restrictions.length,1);
     assert.equal((await request('/api/orders')).data.orders[2].status,'جاهز للتسليم');
+    assert.equal((await request('/api/orders/DEMO-0003/history')).data.history.length,0);
+    assert.equal((await request('/api/orders/DEMO-9999/history')).code,404);
+    assert.equal((await request('/api/orders/DEMO-0004/history','GET',undefined,'wrong-token')).code,401);
   });
   await t.test('08 finance, refunds, arbitrary native/legacy routes forbidden even for local admin',async()=>{
     for(const path of ['/api/payment_received','/api/finance','/v1/employee/accounting','/api/customers']){
