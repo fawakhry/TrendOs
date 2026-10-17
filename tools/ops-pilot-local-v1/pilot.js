@@ -2,6 +2,7 @@
   'use strict';
   const flow=['طلب جديد','جاري التنفيذ','جاهز للتسليم','تم التسليم'];
   const box=document.getElementById('orders'),notice=document.getElementById('feedback');
+  const auditLog=document.getElementById('auditLog');
   const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let token='';
   function show(msg,isError=false){notice.className=isError?'error':'success';notice.textContent=msg}
@@ -35,7 +36,8 @@
       const disabled=!next||(next==='تم التسليم'&&blocked);
       const label=blocked?'<span class="flag">منع تجريبي</span>':'<span class="flag ok">لا يوجد</span>';
       const action=next?'<button class="small" data-order="'+esc(o.id)+'" data-status="'+esc(next)+'" '+(disabled?'disabled':'')+'>'+esc(next)+'</button>':'<span class="muted">مؤرشف</span>';
-      return '<tr><td><b>'+esc(o.id)+'</b></td><td>'+esc(o.customer)+'</td><td>'+esc(o.product)+'<br><span class="muted">'+esc(o.department)+'</span></td><td>'+esc(o.status)+'</td><td>'+label+'</td><td>'+action+'</td></tr>';
+      const review='<button class="small secondary" type="button" data-history="'+esc(o.id)+'">السجل</button>';
+      return '<tr><td><b>'+esc(o.id)+'</b></td><td>'+esc(o.customer)+'</td><td>'+esc(o.product)+'<br><span class="muted">'+esc(o.department)+'</span></td><td>'+esc(o.status)+'</td><td>'+label+'</td><td>'+action+' '+review+'</td></tr>';
     }).join('')||'<tr><td colspan="6">لا توجد أوردرات تجريبية</td></tr>';
   }
   document.getElementById('orderForm').addEventListener('submit',async(e)=>{
@@ -49,6 +51,20 @@
     finally{button.disabled=false}
   });
   box.addEventListener('click',async e=>{
+    const historyButton=e.target.closest('button[data-history]');
+    if(historyButton){
+      historyButton.disabled=true;
+      try{
+        const id=historyButton.dataset.history;
+        const output=await request('/api/orders/'+encodeURIComponent(id)+'/history');
+        const rows=output.history||[];
+        auditLog.textContent=id+' — '+(rows.length
+          ?rows.map((x,i)=>(i+1)+'. '+x.previousStatus+' ← '+x.nextStatus+' ('+x.createdAt+' UTC)').join(String.fromCharCode(10))
+          :'لا توجد تغييرات مسجلة');
+      }catch(err){show('تعذر عرض السجل: '+err.message,true)}
+      finally{historyButton.disabled=false}
+      return;
+    }
     const btn=e.target.closest('button[data-order]');if(!btn)return;
     btn.disabled=true;
     try{await request('/api/orders/'+encodeURIComponent(btn.dataset.order)+'/status','POST',{status:btn.dataset.status});
