@@ -4817,3 +4817,104 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY624 -->
+
+---
+
+## الملحق التاريخي و-٧ — Entry625 / Native Auth third canary expansion
+
+> `HISTORICAL / HISTORIC_EMPLOYEE_CANARY_APPROVAL / NOT_CURRENT_AUTHORIZATION`. وثائق إعداد ونقاط تحقق سابقة، دون أي صلاحية حالية لتوسيع أو تفعيل Auth.
+> [Source](https://github.com/fawakhry/TrendOs/blob/34a2c968131e7c6b901d83ca5264f3c92ad5b831/TrendOS_MASTER_BOOK.md) blob `39c607b75014158eafadf0b5732f139a37cd061c`; [Archive](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md) blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY625 -->
+### Entry625 — Jaber third Native Auth canary expansion
+- Selected third canary: `جابر`.
+- Rationale: Jaber shares the same department-operator / READONLY accounting surface as Wael, reducing rollout novelty.
+- Pre-expansion Runtime:
+  ```ini
+  AUTH=TRANSITIONAL / epoch23
+  D1_AUTH_USERS=2
+  D1_NATIVE_READY_USERS=2
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  FRONTEND_CANARY_USERS=['ضياء','وائل']
+  GLOBAL_NATIVE_AUTH=OFF
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  ```
+- Manifest:
+  `docs/trendos/staging/ENTRY625_JABER_THIRD_NATIVE_CANARY_17_POLICY_MANIFEST.json`
+  commit `4a9f3a337ea5d62735b2410f33d280f609391728`.
+- Regression:
+  `tests/entry625_jaber_third_native_canary_17_policy.test.mjs`
+  commit `6761e1295a242de8a2fd675675f155da030f52e8`.
+- Repo CI:
+  `.github/workflows/trendos-entry625-jaber-third-native-canary-repo-ci.yml`
+  commit `c66bc40f53e9df09b7cd04fdc8886944c6ff387a`
+  Run `37448866174`
+  Job `112220220215`
+  conclusion = **SUCCESS**.
+- Proved:
+  - Diya remains Native;
+  - Wael remains Native;
+  - Jaber routes to Native bootstrap;
+  - Rahma remains Legacy;
+  - Dashboard stays on exact 17-policy bridge;
+  - Attendance stays D1 Ops GENERAL;
+  - Accounting stays D1 READONLY;
+  - actions outside the 17-policy bridge fail closed.
+- No Production mutation occurred in this repo gate.
+
+
+#### Entry625 — Jaber frontend canary expansion PASS; waiting real-user smoke
+- Initial generated deploy workflow Run `37448969279` failed safely in source qualification before Production preflight or deploy; Production mutation = NO.
+- Corrected controlled frontend expansion:
+  - workflow `.github/workflows/trendos-entry625-jaber-frontend-canary-expand-controlled.yml`
+  - correction commit `4431ce61ad40f1f76003b80b0c6ebf43695abacf`
+  - Run `37449031453`
+  - Job `112220780513`
+  - conclusion = **SUCCESS**.
+- Exact-live preflight before deploy:
+  ```ini
+  FRONTEND_VERSION=98ad8721-1983-4e86-bede-5fe01c889487
+  AUTH=TRANSITIONAL / epoch23
+  D1_AUTH_USERS=2
+  D1_NATIVE_READY_USERS=2
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  FRONTEND_CANARY_USERS=['ضياء','وائل']
+  GLOBAL_NATIVE_AUTH=OFF
+  ```
+- New frontend version:
+  `58e46dc8-a4df-4f0a-a626-6acbf9a35643`.
+- Live config now:
+  ```ini
+  FRONTEND_CANARY_USERS=['ضياء','وائل','جابر']
+  GLOBAL_NATIVE_AUTH=OFF
+  FRONTEND_BRIDGE=ON
+  FRONTEND_BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  ```
+- Independent post-deploy Runtime proof before Jaber login:
+  ```ini
+  AUTH=TRANSITIONAL / epoch23
+  D1_AUTH_USERS=2
+  D1_NATIVE_READY_USERS=2
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  ```
+- No API deploy, D1 auth-control mutation, Accounting mutation, or EasyStore mutation occurred.
+- Remaining Entry625 gate:
+  1. Jaber performs fresh Production login;
+  2. verify Dashboard/basic Ops;
+  3. perform legitimate attendance/start-day action;
+  4. logout and second login;
+  5. verify Runtime becomes `D1_AUTH_USERS=3`, `D1_NATIVE_READY_USERS=3`;
+  6. do not add a fourth employee before Entry625 real-user smoke passes.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY625 -->
