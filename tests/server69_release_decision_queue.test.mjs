@@ -46,7 +46,7 @@ test('service principal route excludes customers, finance and device execution',
   const reader=file('cloudflare-d1/src/trendosshop-service-orders-read-v1.mjs');
   assert.match(reader,/TRENDOSSHOP_SERVICE_READ_ENABLED/);
   assert.match(reader,/const DEPTS = Object\.freeze\(\{ print:'طباعة', laser:'ليزر' \}\)/);
-  assert.match(reader,/orderId,lineId,screen,serviceCode,status,quantity/);
+  assert.match(reader,/return \{orderId,lineId,screen,serviceCode:screen,status,quantity:qty\}/);
   assert.doesNotMatch(reader,/\b(?:INSERT INTO|DELETE FROM|UPDATE t12_)\b/i);
   const policy=JSON.parse(file(root+'SERVICE_ORDER_READER_POLICY_V1.json'));
   assert.equal(policy.principal.provisioned,false);
