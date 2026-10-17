@@ -3,11 +3,25 @@
 // Queue V1 calls are separate authorities and are NOT protected by this gate.
 // Deployment flag is OFF by default to preserve the existing legacy lane.
 function txt(v){return String(v==null?'':v).trim();}
+const TRUE_VALUES=new Set(['1','true','yes','on']);
+const FALSE_VALUES=new Set(['0','false','no','off','']);
+function writerGuardSettingV1(env){
+  // Absent/explicit OFF preserve the legacy lane while migrating.
+  // A nonempty typo such as "tru" MUST NOT silently disable a safety fence.
+  // Re-read the value on every guarded request: no cached opt-in state.
+  const raw=txt(env&&env.TRENDOS_OPERATOR_TASK_SINGLE_WRITER_GUARD_V1).toLowerCase();
+  if(TRUE_VALUES.has(raw))return 'ENABLED';
+  if(FALSE_VALUES.has(raw))return 'DISABLED';
+  return 'INVALID';
+}
 export function operatorTaskSingleWriterGuardEnabledV1(env){
-  return ['1','true','yes','on'].includes(txt(env&&env.TRENDOS_OPERATOR_TASK_SINGLE_WRITER_GUARD_V1).toLowerCase());
+  return writerGuardSettingV1(env)==='ENABLED';
 }
 export async function checkOperatorEdgeD1WriterConflictV1(env){
-  if(!operatorTaskSingleWriterGuardEnabledV1(env))
+  const setting=writerGuardSettingV1(env);
+  if(setting==='INVALID')
+    return {allowed:false,checked:true,reason:'OPERATOR_TASK_WRITER_GUARD_VALUE_INVALID'};
+  if(setting==='DISABLED')
     return {allowed:true,checked:false,reason:'OPERATOR_TASK_WRITER_GUARD_DISABLED'};
   if(!env||!env.DB||typeof env.DB.prepare!=='function')
     return {allowed:false,checked:true,reason:'OPERATOR_TASK_D1_AUTHORITY_UNKNOWN'};

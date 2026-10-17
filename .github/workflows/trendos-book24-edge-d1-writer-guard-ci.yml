@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - fix/book24-edge-d1-single-writer-guard-20261016
+      - fix/zero-google-edge-writer-toggle-failclosed-20261018
     paths:
       - 'cloudflare-d1/src/operator-task-edge-v2.mjs'
       - 'cloudflare-d1/src/operator-task-single-writer-guard-v1.mjs'
