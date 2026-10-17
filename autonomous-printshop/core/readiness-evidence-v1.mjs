@@ -30,8 +30,9 @@ export function latestReadinessEvidenceV1(events=[],nowMs=Date.now()){
     const expiresAtMs=expiresRaw==null||expiresRaw===''?null:Number(expiresRaw);
     if(!lineId||!READINESS_KINDS.includes(kind)) continue;
     if(!['READY','BLOCKED','UNKNOWN'].includes(state)) continue;
+    // Select the latest event before validating expiry/clock skew; future
+    // timestamps also act as tombstones rather than reviving older READY.
     if(!Number.isFinite(observedAtMs)||observedAtMs<=0) continue;
-    if(expiresAtMs!=null && (!Number.isFinite(expiresAtMs)||expiresAtMs<=Number(nowMs))) continue;
 
     const key=lineId+'::'+kind;
     const current=latest.get(key);
@@ -52,6 +53,17 @@ export function latestReadinessEvidenceV1(events=[],nowMs=Date.now()){
         observedAtMs,
         expiresAtMs
       });
+    }
+  }
+  // Expired/invalid latest observation is a tombstone for this projection:
+  // do not fall back to an older READY (or BLOCKED) event for the same line/kind.
+  for(const [key,entry] of latest){
+    if(entry.observedAtMs>Number(nowMs) ||
+       (entry.expiresAtMs!=null &&
+       (!Number.isFinite(entry.expiresAtMs) ||
+        entry.expiresAtMs<=Number(nowMs) ||
+        entry.expiresAtMs<=entry.observedAtMs))){
+      latest.delete(key);
     }
   }
   return latest;

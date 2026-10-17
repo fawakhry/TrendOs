@@ -1,0 +1,54 @@
+name: TrendOS Book24 Readiness Latest Expiry Fail-Closed — Synthetic
+on:
+  push:
+    branches:
+      - fix/book24-readiness-latest-expiry-failclosed-20261016
+    paths:
+      - 'autonomous-printshop/core/readiness-evidence-v1.mjs'
+      - 'autonomous-printshop/core/machine-readiness-v1.mjs'
+      - 'autonomous-printshop/tests/book24_readiness_expiry_resurrection_guard.test.mjs'
+      - '.github/workflows/trendos-book24-readiness-latest-failclosed-ci.yml'
+  pull_request:
+    paths:
+      - 'autonomous-printshop/core/readiness-evidence-v1.mjs'
+      - 'autonomous-printshop/core/machine-readiness-v1.mjs'
+      - 'autonomous-printshop/tests/book24_readiness_expiry_resurrection_guard.test.mjs'
+      - '.github/workflows/trendos-book24-readiness-latest-failclosed-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fake-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax of pure readiness and test
+        run: |
+          node --check autonomous-printshop/core/readiness-evidence-v1.mjs
+          node --check autonomous-printshop/core/machine-readiness-v1.mjs
+          node --check autonomous-printshop/tests/book24_readiness_expiry_resurrection_guard.test.mjs
+      - name: Latest-expired readiness rollback and future timestamp synthetic tests
+        run: node --test autonomous-printshop/tests/book24_readiness_expiry_resurrection_guard.test.mjs
+      - name: Existing readiness and machine regression tests
+        run: |
+          node autonomous-printshop/tests/readiness_evidence_v1.test.mjs
+          node autonomous-printshop/tests/machine_readiness_v1.test.mjs
+          node autonomous-printshop/tests/readiness_evidence_writer_v1.test.mjs
+          node autonomous-printshop/tests/readiness_collector_v1.test.mjs
+      - name: Shadow worker remains observation only
+        run: |
+          node autonomous-printshop/tests/production_shadow_worker_v1.test.mjs
+          node autonomous-printshop/tests/operator_task_canary_qualification_v1.test.mjs
+      - name: No live actions
+        run: |
+          echo 'REAL_D1=NO'
+          echo 'REAL_MACHINES=NO'
+          echo 'ASSIGN_TASKS=NO'
+          echo 'REAL_GOOGLE=NO'
+          echo 'DEPLOY=NO'
+          echo 'MERGE=NO'
+          echo 'PRODUCTION_VERIFIED=NO'
