@@ -7876,4 +7876,180 @@ APPS_SCRIPT_BRIDGE=STILL_ENABLED_FROM_ENTRY641_AUDIT
 - فتح Project URL المحدد `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo` حوّل المتصفح إلى صفحة Apps Script العامة `https://developers.google.com/apps-script/`؛ لم تظهر إعدادات المشروع.
 - الضغط على Sign in أعاد صفحة Google Accounts بخطأ `502 Bad Gateway / [Errno 111] Connection refused`.
 - إعادة تحميل واحدة منخفضة المخاطر أعادت نفس الخطأ؛ توقفت محاولة الوصول.
-- لم تظهر صفحة Script Properties، لذلك القيمة النصية السابقة للخاصية = NOT_READ؛ لم يُفترض أ
+- لم تظهر صفحة Script Properties، لذلك القيمة النصية السابقة للخاصية = NOT_READ؛ لم يُفترض أنها true من الرد وحده.
+- PROPERTY_MUTATION=NO؛ لا save ولا toggle ولا إعادة كتابة.
+- Secret value لم تُقرأ أو تُطبع؛ لم تُفتح أو تُعدل أي ملفات Apps Script أو Deployment.
+
+##### Independent safe invalid-assertion probe — bridge still enabled
+- استُخدم نفس Production Apps Script URL من `cloudflare-d1/wrangler.toml`.
+- Request: action `cloudEmployeeLegacyBridgeExecuteV1`، targetAction `getDashboard` (قراءة فقط)، username اصطناعي `entry643-probe`، assertion غير صالح فقط `cfv1.invalid.invalid`، بدون password/token/credential حقيقي.
+- HTTP 200؛ message حرفيًا: `اعتماد الموظف السحابي غير صالح.`.
+- لم يرجع الرد المطلوب `مسار اعتماد الموظف السحابي غير مفعل.`.
+- APPS_SCRIPT_BRIDGE_ENABLED=YES؛ الرد يثبت كذلك أن فحص configured-secret مر قبل رفض assertion، دون قراءة قيمة الـsecret.
+- APPS_SCRIPT_BRIDGE_SECRET_RETAINED=YES (موجود بحسب سلوك فحص الـbridge؛ لم يُمس).
+- لا business action فعلي؛ assertion رفض قبل target dispatch.
+
+##### Postflight / rollback / boundaries
+- Post-mutation postflight = NOT_RUN (لم تحدث mutation).
+- ROLLBACK_USED=NO؛ ROLLBACK_STATUS=NOT_NEEDED_PRE_MUTATION_BLOCK.
+- شرط الاستئناف: وصول Google إلى المشروع المحدد + fresh successful Runtime preflight، ثم قراءة الخاصية المحددة وحدها وإغلاقها، والتحقق المستقل؛ إذا فشل post-check بعد true→false، إعادة نفس الخاصية فقط إلى true والتحقق وتسجيل الفشل.
+- لا إصلاحات جانبية ولا إعادة migration.
+```ini
+ENTRY643=FAIL
+ENTRY643_STATUS=BLOCKED_BEFORE_MUTATION
+APPS_SCRIPT_BRIDGE_ENABLED=YES
+APPS_SCRIPT_BRIDGE_SECRET_RETAINED=YES
+SCRIPT_PROPERTY_PRE_VALUE=NOT_READ
+SCRIPT_PROPERTY_CHANGED=NO
+AUTH_MODE=UNVERIFIED_CURRENT
+D1_NATIVE_READY=UNVERIFIED_CURRENT
+BACKEND_BRIDGE=UNVERIFIED_CURRENT
+FRONTEND_GLOBAL_NATIVE_AUTH=UNVERIFIED_CURRENT
+SECRET_VALUE_LOGGED=NO
+CODE_MUTATION=NO
+DEPLOYMENT_MUTATION=NO
+D1_MUTATION=NO
+ACCOUNTING_MUTATION=NO
+EASYSTORE_MUTATION=NO
+SPREADSHEET_MUTATION=NO
+ROLLBACK_USED=NO
+MASTER_BOOK_RECORDED=YES
+```
+- Entry643 غير مكتملة؛ هذه وثيقة المحاولة الفاشلة فقط، وليست PASS.
+
+
+#### Entry643 — Attempt 1 follow-up: independent Runtime re-verification PASS
+- بعد فشل بيئة Work في قراءة Cloudflare بـ HTTP 403، تم تنفيذ قراءة مستقلة لاحقة من بيئة أخرى بدون أي mutation.
+- هذه القراءة تثبت أن 403 السابق كان access-path/environment-specific وليس Runtime drift proof.
+- Current public Runtime after the failed pre-mutation Apps Script attempt:
+  ```ini
+  AUTH_MODE=NATIVE
+  AUTH_ENABLED=true
+  D1_AUTH_USERS=6
+  D1_NATIVE_READY_USERS=6
+  MUST_CHANGE=0
+  PLAINTEXT_STORED=false
+  NATIVE_ONLY=true
+  LEGACY_BOOTSTRAP=false
+  LEGACY_SESSION_ENROLL=false
+  BACKEND_BRIDGE=false
+  BACKEND_BRIDGE_POLICY_COUNT=0
+  FRONTEND_GLOBAL_NATIVE_AUTH=true
+  FRONTEND_NATIVE_CANARY=false
+  FRONTEND_BRIDGE=false
+  FRONTEND_REQUIRED_NATIVE_READY=6
+  ```
+- Apps Script bridge state remains unchanged from Attempt 1 proof:
+  - `APPS_SCRIPT_BRIDGE_ENABLED=YES`
+  - property mutation = NO
+  - secret retained; secret value not read.
+- Entry643 overall remains NOT PASS because Apps Script property closure is still blocked by Google project access.
+  ```ini
+  ENTRY643_INDEPENDENT_RUNTIME_REVERIFY=PASS
+  ENTRY643_RUNTIME_HEALTH=PASS
+  ENTRY643_APPS_SCRIPT_PROPERTY_CHANGED=NO
+  ENTRY643_APPS_SCRIPT_BRIDGE_ENABLED=YES
+  ENTRY643=FAIL_BLOCKED_PRE_MUTATION
+  ```
+
+
+#### Entry643 — Attempt 2: Google access restored; Script Properties UI limit blocks exact closure
+- Date: 2026-10-07 Cairo; execution/probe window 2026-10-06T23:29–23:31Z.
+- User requested retry of cloud-browser access; original exact-property authorization and prohibitions remain in force.
+- First resumed tab was stale (`Unknown CDP tab 3`); a new tab opened the exact authorized Production Project ID successfully, with a positive signed-in Google account signal. No credential value read or entered.
+- Project ID verified from current URL: `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo`.
+- Current Master Book re-read included Entry643 Attempt 1 and its independent Runtime follow-up; no earlier migration/hardening step repeated.
+
+##### Independent current Runtime preflight PASS
+- Direct HTTPS curl from execution environment succeeded after previous urllib access failures; browser health navigation separately reported `net::ERR_BLOCKED_BY_CLIENT`. No environment/security setting changed.
+- Production auth health HTTP 200:
+  - mode=NATIVE; envEnabled=true; userCount=6; nativeReadyCount=6.
+  - legacyBootstrapEnabled=false; legacySessionEnrollEnabled=false; nativeOnly=true.
+  - mustChangeCount=0; plaintextStored=false.
+- Production bridge health:
+  - enabled=false; allowedPolicyCount=0.
+  - upstreamConfigured=true; secretConfigured=true (booleans only).
+  - rawNativeTokenForwarded=false; plaintextPasswordForwarded=false.
+- Fresh frontend config:
+  - MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=true.
+  - MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1=false.
+  - MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=false.
+- Accounting read-only health:
+  - mode=READONLY / policyEpoch10; authoritativeWrites=false; writeAuthorityMode=OFF.
+  - googleBusinessCalls=0; appsScriptBusinessAuthority=false.
+- No Runtime drift found in these authorized boundaries.
+
+##### Script Properties UI inspection — blocker discovered before mutation
+- Opened Project Settings only; did not edit or run Apps Script files.
+- To avoid reading/logging secret values, only property-name inputs and control metadata were inspected; no full settings snapshot or screenshot exposing property values was emitted.
+- `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1` name is present at propertyName39. Its value was not read.
+- Target `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED` was not among the 50 displayed property names; this does NOT prove the property is absent.
+- Google explicitly displays:
+  > Your script has more than 50 properties. The above list shows the first 50 and is read-only. To manage or view all of your properties, do so programmatically using the Properties service.
+- Thus current Script Properties UI cannot expose/edit the requested property. Previous 502 login blocker is resolved; new blocker is the first-50/read-only UI limit.
+- Did not click save/edit, add/delete properties, alter code, run a setter, or create/change a deployment.
+- Exact target pre-value remains NOT_READ; no speculative creation, toggle or rewrite.
+
+##### Independent Apps Script invalid-assertion probe
+- Same Production URL sourced from repository wrangler.toml; invalid assertion only `cfv1.invalid.invalid`, synthetic username `entry643-probe`, read-only target `getDashboard`.
+- Probe completed 2026-10-06T23:31:27.923065Z.
+- Response message: `اعتماد الموظف السحابي غير صالح.`.
+- Bridge remains enabled; assertion rejected before business action. No real credential supplied.
+- Secret presence proved by existing UI key and bridge configured-secret gate behavior; secret retained, value not read/logged.
+
+##### Outcome / rollback / next boundary
+- Entry643 overall remains FAIL/BLOCKED_BEFORE_MUTATION. Google access restoration alone is not closure.
+- No post-mutation check or rollback required because no property mutation occurred.
+- Next step needs a supported exact-property access mechanism that complies with owner prohibitions; do not silently modify Code.gs, add a helper file, run an unknown setter, or redeploy to bypass this UI limit.
+- Project Settings tab retained open for the owner.
+```ini
+ENTRY643=FAIL
+ENTRY643_STATUS=BLOCKED_SCRIPT_PROPERTIES_FIRST_50_READONLY
+ENTRY643_RUNTIME_PREFLIGHT=PASS
+APPS_SCRIPT_BRIDGE_ENABLED=YES
+APPS_SCRIPT_BRIDGE_SECRET_RETAINED=YES
+SCRIPT_PROPERTY_PRE_VALUE=NOT_READ
+SCRIPT_PROPERTY_CHANGED=NO
+AUTH_MODE=NATIVE
+D1_NATIVE_READY=6/6
+NATIVE_ONLY=true
+LEGACY_BOOTSTRAP=false
+LEGACY_SESSION_ENROLL=false
+BACKEND_BRIDGE=false
+BACKEND_BRIDGE_POLICY_COUNT=0
+FRONTEND_GLOBAL_NATIVE_AUTH=true
+FRONTEND_NATIVE_CANARY=false
+SECRET_VALUE_LOGGED=NO
+CODE_MUTATION=NO
+DEPLOYMENT_MUTATION=NO
+D1_MUTATION=NO
+ACCOUNTING_MUTATION=NO
+EASYSTORE_MUTATION=NO
+SPREADSHEET_MUTATION=NO
+ROLLBACK_USED=NO
+MASTER_BOOK_RECORDED=YES
+```
+
+
+#### Entry643 — Attempt 3: authorized temporary helper added then removed; execution blocked
+- Date: 2026-10-07 Cairo. User explicitly authorized a temporary helper in Production Code.gs only, one execution of `entry643DisableEmployeeLegacyBridgeOnce_`, removal, no deployment.
+- Master Book re-read confirmed Attempt 2 recorded in `2ab48942046cfe8ab799d26f42c2e5e0739bcccd`; prior attempts preserved.
+- Fresh branch HEAD inspected: `ba50aab4` (Autonomous Printshop commit; no changes to that project here).
+- Fresh Production preflight PASS: AUTH_MODE=NATIVE, userCount=6, nativeReadyCount=6, nativeOnly=true, legacyBootstrapEnabled=false, legacySessionEnrollEnabled=false; backend enabled=false, allowedPolicyCount=0; frontend global native=true, native canary=false, bridge=false.
+- Exact Apps Script Project ID retained: `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo`.
+
+##### Helper and editor actions
+- A first insertion landed near the file beginning due editor navigation/context timing; immediately undone before save. No execution.
+- Editor Go to Line established original final line count 12556.
+- Appended the exact owner-supplied helper to the end of Code.gs and saved:
+```javascript
+function entry643DisableEmployeeLegacyBridgeOnce_() {
+  PropertiesService
+    .getScriptProperties()
+    .setProperty("TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED", "false");
+}
+```
+- Run dropdown remained `doGet`; the helper was absent from its options, including after reloading the saved editor. No Run/Debug click occurred.
+- Exact helper with trailing underscore was not selectable. No renamed helper, wrapper, other function execution, or hidden/API invocation was substituted.
+- Helper removed without execution. During removal, one trailing helper brace remained and save was rejected with `SyntaxError: Unexpected token '}' line: 12556 file: Code.gs`; removed that leftover helper brace and saved successfully.
+- Final source tail matches the observed original closing sequence; Go to Line reports 12556 lines again, and Save project to Dri
