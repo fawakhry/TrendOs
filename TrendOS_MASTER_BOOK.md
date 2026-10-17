@@ -3495,3 +3495,11 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 
 ## BOOK-MIGRATION-20261018-034 — Entry636
 - `EXACT_VERBATIM_MATCH=PASS` (2787 characters), copy `a45257469b39a15488e9a90fb96de2aa1d477faa`; archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source blob `af61569b0ecef3ed1c6f19ae75fd7e0f35c32b9f`. Remove SHA in Crosswalk.
+
+
+### SERVER-20261018-68K — R5 source-only signed metadata compatibility, CI 172/172
+- Following owner "كمل" authorization restricted to GitHub source preparation, reviewed existing stacked Draft PR #185 (SERVER-66 fail-closed legacy), #187 (SERVER-67 HMAC metadata/row-reader + replay DO), #190 (SERVER-68 Workerd local smoke/pagination). **Avoided duplicating all existing guards.**
+- Remaining R5 blocker: manually triggered `.github/workflows/trendos-r5-periodic-controlled.yml` remains pinned to old SHA `b7e85647...`, deploys `trendos-d1-api` and requires unauthenticated legacy `GET /v1/mirror/sheets`=200; untouched during this work.
+- Created `cloudflare-d1/r5-server68-signed-metadata-preflight.mjs`: **not wired to production**, explicit fetch adapter + pinned HTTPS hostname, HMAC metadata principal, nonce + timestamp and no legacy fallback. Created `tests/server68_r5_signed_metadata_preflight.test.mjs` with synthetic fake D1/DO contract/negative cases; CI now includes test and helper.
+- [Actions 39071054165](https://github.com/fawakhry/TrendOs/actions/runs/39071054165): **172/172 PASS, 0 FAIL** + isolated Wrangler dry-run + real local Workerd/fake D1/DO PASS. NO Cloudflare API token/deploy/real D1/Ubuntu. [Detailed SERVER68_R5_SIGNED_METADATA_CANDIDATE_20261018.md](https://github.com/fawakhry/TrendOs/blob/release/server68-staging-qualification-20261016/autonomous-printshop/print-server/SERVER68_R5_SIGNED_METADATA_CANDIDATE_20261018.md).
+- `SEC-AP303-02=OPEN_HIGH`; `R5_DEPLOY_FLOW=BLOCKED_UNCHANGED`; `STAGE_ACCESS=NOT_SECURED`; `CLOUD_PRODUCTION=UNCHANGED`; `UBUNTU_REAL_LINK=OFF`; next separately authorized remote synthetic Canary and consumer-safe R5 new workflow review.
