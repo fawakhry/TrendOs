@@ -1500,90 +1500,6 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
 
 
 
-### Entry626 — Remaining known employees added to explicit Native Auth canary allowlist
-- Owner approved continuing the remaining employee rollout without waiting for Jaber's real-user smoke; any employee-specific issue will be reported by name and handled in isolation.
-- Known remaining employee names found in the current TrendOS config:
-  - Rahma: `رحمه` / `رحمة`
-  - Revan: `ريفان` / `ريڤان`
-- Important matching behavior:
-  - Native Auth canary selection uses trimmed/lowercased exact strings;
-  - Arabic letter variants are not canonicalized;
-  - both currently used Arabic spellings were therefore included for each employee.
-- Manifest:
-  `docs/trendos/staging/ENTRY626_REMAINING_EMPLOYEES_NATIVE_CANARY_17_POLICY_MANIFEST.json`
-  commit `0e5e6050a509c6a6504de8234e0777ccc735d958`.
-- Regression:
-  `tests/entry626_remaining_employees_native_canary_17_policy.test.mjs`
-  commit `ff7aede96e9b1de93a6340705377e373ad7bbe29`.
-- Repo CI:
-  `.github/workflows/trendos-entry626-remaining-employees-native-canary-repo-ci.yml`
-  commit `ade95b52b5cb955dc860d84bb5fca219ddc9656d`
-  Run `37450023983`
-  Job `112224072121`
-  conclusion = **SUCCESS**.
-- Controlled frontend expansion:
-  `.github/workflows/trendos-entry626-remaining-employees-frontend-canary-expand-controlled.yml`
-  commit `92d65b1bbbfe205ac9b28755c38d8103e32f54d2`
-  Run `37450263381`
-  Job `112224841727`
-  conclusion = **SUCCESS**.
-- Exact-live frontend baseline:
-  - previous frontend version `58e46dc8-a4df-4f0a-a626-6acbf9a35643`;
-  - new frontend version `92a63e14-15df-421a-b9eb-d7b37546a485`.
-- Live explicit canary allowlist:
-  ```ini
-  MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=false
-  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1=true
-  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS=['ضياء','وائل','جابر','رحمه','رحمة','ريفان','ريڤان']
-  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES=17
-  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=true
-  GLOBAL_NATIVE_AUTH=OFF
-  ```
-- Production auth count stayed unchanged during the deploy:
-  ```ini
-  PRE_USER_COUNT=2
-  PRE_NATIVE_READY_COUNT=2
-  POST_USER_COUNT=2
-  POST_NATIVE_READY_COUNT=2
-  ```
-  Therefore the frontend expansion itself created no D1 users.
-- Final independent Runtime proof:
-  ```ini
-  AUTH=TRANSITIONAL / epoch23
-  D1_AUTH_USERS=2
-  D1_NATIVE_READY_USERS=2
-  MUST_CHANGE_COUNT=0
-  PLAINTEXT_STORED=false
-
-  BRIDGE=ON
-  BRIDGE_SECRET_CONFIGURED=YES
-  BRIDGE_POLICY_COUNT=17
-  RAW_NATIVE_TOKEN_FORWARDED=false
-  PLAINTEXT_PASSWORD_FORWARDED=false
-
-  OPS=GENERAL / epoch7
-  ACCOUNTING=READONLY / epoch2
-  ACCOUNTING_AUTHORITATIVE_WRITES=false
-  CONTENT=OFF
-  COMMS=OFF
-  CORE=OFF
-  ACCOUNTING_PROGRAM=DEFERRED_EXTERNAL_REPO
-  ```
-- Boundaries:
-  ```ini
-  GLOBAL_NATIVE_AUTH=OFF
-  API_DEPLOY=NO
-  D1_CONTROL_MUTATION=NO
-  ACCOUNTING_TOUCHED=NO
-  EASYSTORE_TOUCHED=NO
-  BRIDGE_POLICY_EXPANSION=NO
-  ```
-- Operational behavior from this point:
-  - Jaber, Rahma, and Revan will bootstrap into D1 on their first successful login if not already native-ready;
-  - subsequent logins for each bootstrapped employee should use D1 Native Auth;
-  - an unknown employee name remains Legacy because Global Native Auth is still OFF;
-  - report any employee-specific failure by employee name before changing policy/global mode.
-
 
 ### Entry627 — Known employee alias gap closed after Revan legacy-only login
 - Owner reported Revan's Production login worked.
@@ -3977,3 +3893,7 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 
 ## BOOK-MIGRATION-20261017-025 — Entry625
 - `EXACT_VERBATIM_MATCH=PASS` (3123 chars), historical only; COPY `cb0e7f659af6c3b86d04dcb6571ec22a668c5639`, archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; REMOVE SHA in Crosswalk.
+
+
+## BOOK-MIGRATION-20261017-026 — Entry626
+- `EXACT_VERBATIM_MATCH=PASS` (3227 chars), historical only; COPY `fc737d6340bd03863bfa550a338534cfafc1eada`, archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; REMOVE SHA in Crosswalk.
