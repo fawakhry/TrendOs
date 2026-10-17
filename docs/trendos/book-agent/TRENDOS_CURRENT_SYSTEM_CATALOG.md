@@ -4158,4 +4158,229 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   BUSINESS_DATA_MUTATION=NO
   ```
 - Production postflight independently confirmed:
-  - Auth health = `TRANSITIONAL`, env/bootstrap ON, native-only OFF, users/n
+  - Auth health = `TRANSITIONAL`, env/bootstrap ON, native-only OFF, users/native-ready = 0.
+  - Bridge health = ON, secret configured, exactly 17 policies, no raw native token or plaintext password forwarding.
+  - Ops remained GENERAL epoch7.
+  - Accounting remained READONLY epoch2.
+- Rollback step was not invoked.
+- No frontend canary was deployed in this gate.
+- Next gate:
+  `ENTRY623_DIYA_FRONTEND_CANARY_CONTROLLED_DEPLOY`
+
+
+#### Entry623 — Diya frontend canary controlled deploy PASS
+- Controlled workflow:
+  - `.github/workflows/trendos-entry623-diya-frontend-canary-controlled.yml`
+  - workflow commit: `63667553813419ebc63b8f01700686c94895403a`
+  - Run: `37357927682`
+  - Job: `111924967218`
+  - conclusion = **SUCCESS**.
+- Exact-live patch strategy:
+  - live Production bundle was read first and used as the deploy base;
+  - only Entry623 canary config and the qualified canary-capable employee dispatcher were introduced;
+  - automatic rollback to pre-canary frontend version was armed but not invoked.
+- Previous Production frontend version:
+  - `bfcc6f85-a748-4b66-a334-b605c72108f7`
+- New Production frontend version:
+  - `33013d71-2de4-4f1f-924a-131f045a815b`
+- Live canary config independently verified:
+  ```ini
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=false
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1=true
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS=['ضياء']
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES=17
+  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=true
+  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICY_COUNT=17
+  MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE=GENERAL
+  MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE=READONLY
+  GLOBAL_NATIVE_AUTH=OFF
+  ```
+- Live dispatcher independently verified as canary-capable and includes runtime Auth/Bridge preflight before routing selected-canary actions.
+- Production backend postflight remained:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  LEGACY_SESSION_ENROLL_ENABLED=false
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  BRIDGE=ON
+  BRIDGE_SECRET_CONFIGURED=YES
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  ```
+- Boundaries:
+  ```ini
+  API_CODE_DEPLOY=NO
+  D1_MUTATION=NO
+  ACCOUNTING_TOUCHED=NO
+  EASYSTORE_TOUCHED=NO
+  NON_CANARY_SCOPE=UNCHANGED_BY_CONFIG_ALLOWLIST
+  ```
+- Next gate:
+  `ENTRY623_DIYA_FIRST_LOGIN_BOOTSTRAP_RUNTIME_SMOKE`
+
+
+#### Entry623 — First login bootstrap failure investigation; fail-closed
+- Frontend canary remained live for `ضياء` only and Global Native Auth remained OFF.
+- Controlled auth/read smoke source:
+  - workflow `.github/workflows/trendos-entry623-diya-auth-read-smoke-controlled.yml`
+  - commit `225be913085f4f5883a3445e9a17ad506852ccc1`
+  - Run `37358548448`
+  - Job `111927046377`.
+- Preflight passed with exact current runtime:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  NATIVE_ONLY=false
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  ```
+- First login reached `/v1/employee/auth/login` but returned HTTP 500 with no safe code/stage in the response.
+- The workflow stopped at first login; dashboard/accounting/attendance reads, second login and business smoke were not run.
+- Post-failure Production runtime was independently verified:
+  ```ini
+  AUTH=TRANSITIONAL
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  PLAINTEXT_STORED=false
+  ```
+- Therefore no partial employee bootstrap row was created and no manual D1 repair/update was attempted.
+- A safe tail diagnostic was attempted:
+  - workflow `.github/workflows/trendos-entry623-auth-login-tail-diagnostic.yml`
+  - commit `f49348916de6ed34704c3905fc1673acb1bd04f4`
+  - Run `37360332392`.
+  - the repeated login also returned HTTP 500.
+  - D1 users/native-ready remained 0.
+  - Worker tail did not capture the login event, so no exception classification was accepted from that run.
+  - an unrelated cleanup shell syntax error occurred after the failed login; it did not mutate Production.
+- Source investigation found an observability gap:
+  - `upsertBootstrappedUser` already tags failures safely as `password-hash` or `d1-user-upsert`;
+  - the legacy-session enrollment route catches and returns those safe stages;
+  - the direct first-login bootstrap path did not catch them, causing an opaque Worker 500.
+- Repo-only diagnostic fix:
+  - `cloudflare-d1/src/employee-auth-native-v1.mjs` commit `f0b60d3f890ca88511477cb12780e6a7842351f3`
+  - test hardening commit `8e0815fa9b266e3f681cdd524a7725d700b9306a`
+  - safe failure response code: `employee-auth-login-bootstrap-upsert-failed`
+  - safe stage only: `password-hash`, `d1-user-upsert`, or `unknown`.
+  - no password/token/hash/salt/nonce/secret is exposed.
+- Repo qualification:
+  - workflow `.github/workflows/trendos-entry623-auth-bootstrap-stage-ci.yml`
+  - workflow commit `837d968fb51d5fed76659ed6cdfde529914d3f56`
+  - Run `37360776800`
+  - Job `111934535134`
+  - conclusion = **SUCCESS**.
+- Important exact-live deploy rule:
+  - current candidate branch contains other Worker source changes after the last code-only API deployment;
+  - therefore publishing the full current branch API is forbidden for this diagnostic.
+  - last code-only API source baseline is Entry616 workflow commit `a6aaf6390b0572feb5715736ed88cda8c8ade9c2`.
+  - exact-live diagnostic bundle must use that Entry616 base and replace only `employee-auth-native-v1.mjs` with the qualified diagnostic patch.
+- Manual Cloudflare deploy workflow prepared but **not run**:
+  - `.github/workflows/trendos-entry623-auth-stage-api-manual-deploy.yml`
+  - commit `d8b74519bab506b35d064d19c18c517c2a9c62f5`
+  - trigger = `workflow_dispatch` only.
+  - it strips repo `[vars]` from the deployment config and uses `keep_vars=true`, preserving current Cloudflare variables/secrets.
+  - no migration or D1 control mutation is included.
+  - it has runtime preflight + automatic rollback on postflight failure.
+- Registration:
+  ```ini
+  ENTRY623_FIRST_LOGIN_BOOTSTRAP=FAIL_HTTP_500
+  ENTRY623_FIRST_LOGIN_PARTIAL_D1_ROW=NO
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  AUTH=TRANSITIONAL
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  GLOBAL_NATIVE_AUTH=OFF
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  DIAGNOSTIC_SOURCE_QUALIFIED=YES
+  DIAGNOSTIC_API_DEPLOYED=NO
+  MANUAL_DEPLOY_WORKFLOW_READY=YES
+  NEXT_ACTION=OWNER_MANUALLY_DISPATCH_ENTRY623_AUTH_STAGE_API_DEPLOY_THEN_REPEAT_ONE_FIRST_LOGIN_AND_READ_SAFE_STAGE
+  ```
+
+
+#### Entry623 — Login incident containment: frontend canary rollback PASS
+- A real Production login problem was reported while the Entry623 Diya frontend canary was live.
+- Incident policy: restore the last known-good employee login surface before continuing Native Auth diagnostics.
+- Controlled rollback workflow:
+  - `.github/workflows/trendos-entry623-login-incident-frontend-rollback.yml`
+  - initial workflow syntax attempt commit `788d1fa23cd8b10c82f7549d6c41b9aff3f1b383` did not create any job or Production mutation.
+  - syntax correction commit `39a3c8bf2b90346d1d472053a4ab5106499fd1a6`.
+  - successful Run `37444952015`.
+  - Job `112207425784`.
+- Runtime preflight before rollback:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  FRONTEND_NATIVE_AUTH=false
+  FRONTEND_CANARY=ضياء
+  FRONTEND_BRIDGE=true
+  ```
+- Rollback target:
+  - `bfcc6f85-a748-4b66-a334-b605c72108f7`
+  - this is the last known-good Entry620 frontend with real employee start-day/login smoke already proven.
+- Cloudflare rollback output:
+  - target version deployed to **100% of traffic**.
+  - Current Version ID = `bfcc6f85-a748-4b66-a334-b605c72108f7`.
+- Postflight from GitHub runner passed on first propagation attempt:
+  ```ini
+  ENTRY623_LOGIN_INCIDENT_FRONTEND_ROLLBACK=PASS
+  ENTRY623_FRONTEND_CANARY=OFF
+  ENTRY623_GLOBAL_NATIVE_AUTH=OFF
+  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=false
+  MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE=GENERAL
+  MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE=READONLY
+  ATTENDANCE_ENTRY620_FIX_PRESERVED=YES
+  API_DEPLOY=NO
+  D1_MUTATION=NO
+  ACCOUNTING_TOUCHED=NO
+  ```
+- Backend transitional preparation intentionally remains armed but is no longer selected by the frontend login surface:
+  ```ini
+  AUTH=TRANSITIONAL / epoch 23
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  NATIVE_ONLY=false
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  ```
+- Entry623 Native Auth rollout is paused until the first-login HTTP500 root cause is fixed and requalified without impacting Production login.
+- Next safe action:
+  1. verify normal employee login on the restored frontend;
+  2. keep frontend canary OFF;
+  3. continue API diagnostic/fix in isolation;
+  4. do not re-enable Diya canary until first-login bootstrap passes in controlled smoke.
+
+
+#### Entry623 — Isolated Auth diagnostic API deploy PASS after login containment
+- Frontend incident containment remained the priority:
+  - Production frontend rolled back to `bfcc6f85-a748-4b66-a334-b605c72108f7`.
+  - frontend Native Auth canary remains OFF.
+  - global Native Auth remains OFF.
+- The Auth diagnostic API deploy was then requalified with the frontend canary explicitly OFF.
+- Workflow:
+  - `.github/workflows/trendos-entry623-auth-stage-api-manual-deploy.yml`
+  - containment-preflight adjustment commit `6d74d014ea7b6c380d66f9b848d0edc09ec08547`
+  - one-shot trigger commit `aeab90a481f85cdae1d35d757c30c26133bdabc0`
+  - workf
