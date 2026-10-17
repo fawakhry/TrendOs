@@ -12,6 +12,7 @@ const META_SECRET = 'SYNTHETIC_META_1234567890_abcdefghijklmnopqrst';
 const ROW_SECRET = 'SYNTHETIC_PARITY_1234567890_abcdefghijklmnopqr';
 function fixture() {
   const audit = [];
+  const scopes = [];
   const DB = { prepare(sql) {
     audit.push(sql.trim());
     if (/\b(?:INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|REPLACE)\b/i.test(sql)) {
@@ -50,10 +51,14 @@ function fixture() {
   };
   const replayGuard=new MirrorServiceNonceGuardV1({storage});
   const replayNamespace={
-    idFromName:name=>name,
+    idFromName:name=>{
+      if (!['trendos_mirror_metadata','trendos_mirror_parity'].includes(name)) throw Error('UNSCOPED_DO_ID');
+      scopes.push(name);
+      return name;
+    },
     get:() => ({fetch:request=>replayGuard.fetch(request)})
   };
-  return {audit, replayRows, env:{
+  return {audit, scopes, replayRows, env:{
     MIRROR_SERVICE_READ_REPLAY_DO:replayNamespace,
     DB,
     MIRROR_SERVICE_READ_ENABLED:'true',
@@ -94,6 +99,16 @@ test('valid separate PARITY principal reads only approved sheet in bounded page'
   const data=await r.json();
   assert.equal(data.sheet.rows[0].display[0],'SYNTHETIC');
   assert.ok(x.audit.length>=2);
+});
+test('metadata and parity explicitly select distinct authenticated Durable Object namespaces',async()=>{
+  const x=fixture();
+  const metadata=await signed(route('/v1/service/mirror/sheets'),{nonce:'m'.repeat(24)});
+  const parityPath=route('/v1/service/mirror/sheet?name='+encodeURIComponent('الأوردرات')+'&limit=10');
+  const parity=await signed(parityPath,{principal:PARITY,secret:ROW_SECRET,nonce:'p'.repeat(24)});
+  assert.equal((await routed.fetch(metadata,x.env,{})).status,200);
+  assert.equal((await routed.fetch(parity,x.env,{})).status,200);
+  assert.deepEqual(x.scopes,[META,PARITY]);
+  assert.equal(x.audit.length>0,true);
 });
 test('metadata principal cannot read rows, regardless of signature validity',async()=>{
   const x=fixture(),url=route('/v1/service/mirror/sheet?name='+encodeURIComponent('الأوردرات'));
