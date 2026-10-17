@@ -7,7 +7,7 @@ const DEFAULT_ORIGINS=[
   'https://trendos-ui.trendmall-contact.workers.dev',
   'http://localhost:8000','http://127.0.0.1:8000','http://localhost:5500','http://127.0.0.1:5500'
 ];
-const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth','calculateAccountingLaserQuoteV1913','getDailyDepartmentReportV1920','previewAccountingAutomationV1921','previewCustomerCreditInvoiceReviewV1','previewCustomerCreditPreparedCommandV1','previewAccountingFinalInvoiceCommandV1']);
+const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth','calculateAccountingLaserQuoteV1913','getDailyDepartmentReportV1920','previewAccountingAutomationV1921','previewCustomerCreditInvoiceReviewV1', 'previewCustomerCreditPreparedCommandV1','previewAccountingFinalInvoiceCommandV1','previewCustomerCreditLiabilityAuditV1']);
 
 function text(v){return String(v==null?'':v).trim();}
 function key(v){return text(v).toLowerCase();}
@@ -2248,7 +2248,107 @@ async function runAccountingDayAutomationV1(env,auth,b){
 }
 
 export function isEmployeeAccountingNativePath(path){const p=String(path||'').replace(/\/+$/,'')||'/';return p===ROOT||p===HEALTH;}
-export async function handleEmployeeAccountingNativeRequest(request,env){
+export 
+// ACC205 source-only / BOOK18: owner READONLY customer-advance liability
+// forensic review. SQL source rows are real; identity/command/credit balance
+// are NOT promoted to release authority by matching sums. NO writes/retries.
+// Refuse name/phone fallback: only t12_customers.customer_id is accepted.
+async function previewCustomerCreditLiabilityAuditV1(env,auth,b){
+  const deny=(code,message)=>({success:false,code,message,
+    postingAllowed:false,refundAuthorized:false,creditRestorationAuthorized:false,
+    automaticRetryAuthorized:false,financeRelease:'NO_GO'});
+  if(auth.mode!=='full')return deny('credit-liability-full-role-required',
+    'مراجعة التزامات أرصدة العملاء الدائنة للمسؤول الموثق فقط.');
+  if(!customerCreditEnabledV1(env))
+    return deny('credit-liability-feature-off','سجل الرصيد الدائن غير مفعل للفحص.');
+  const customerId=text(b&&b.customerId);
+  if(!/^[\\p{L}\\p{N}_:.\\-]{3,180}$/u.test(customerId))
+    return deny('credit-liability-official-customer-id-required','مطلوب معرف العميل الرسمي؛ لا يتم الربط بالاسم أو التليفون.');
+  try{
+    const person=await env.DB.prepare(
+      "SELECT customer_id FROM t12_customers WHERE customer_id=? LIMIT 1"
+    ).bind(customerId).first();
+    if(!person)return deny('credit-liability-customer-id-not-found',
+      'معرف العميل الرسمي غير موجود في مصدر العملاء.');
+    const credit=await env.DB.prepare(
+      "SELECT credit_cents AS creditCents,version,last_request_key AS lastRequestKey "+
+      "FROM employee_accounting_customer_credits_v1 WHERE customer_id=? LIMIT 1"
+    ).bind(customerId).first();
+    // Read at most 501 events: oversized history is UNKNOWN, never truncate
+    // to an apparently reconciled amount. The COMMITTED parent must be exact.
+    // The suffixes below are the ACTUAL checked-in native credit writer keys.
+    const events=(await env.DB.prepare(
+      "SELECT e.event_id AS eventId,e.request_key AS requestKey,e.kind,"+
+      "e.amount_cents AS amountCents,e.delta_cents AS deltaCents,"+
+      "e.credit_before_cents AS creditBeforeCents,e.credit_after_cents AS creditAfterCents,"+
+      "r.status AS parentStatus,r.operation AS parentOperation "+
+      "FROM employee_accounting_customer_credit_events_v1 e "+
+      "LEFT JOIN employee_accounting_request_ledger_v1 r ON r.request_key=(CASE "+
+      "WHEN e.kind='RECEIPT_EXCESS' AND substr(e.request_key,-7)='-CREDIT' "+
+      "THEN substr(e.request_key,1,length(e.request_key)-7) "+
+      "WHEN e.kind='INVOICE_CREDIT_APPLIED' AND substr(e.request_key,-15)='-CREDIT-APPLIED' "+
+      "THEN substr(e.request_key,1,length(e.request_key)-15) "+
+      "WHEN e.kind='INVOICE_EXCESS' AND substr(e.request_key,-15)='-CREDIT-CREATED' "+
+      "THEN substr(e.request_key,1,length(e.request_key)-15) ELSE '' END) "+
+      "WHERE e.customer_id=? ORDER BY e.created_at_ms,e.event_id LIMIT 501"
+    ).bind(customerId).all()).results||[];
+    if(events.length>500)return {
+      success:true,code:'credit-liability-review-evidence-only',customerId,
+      reviewState:'EVENT_HISTORY_TOO_LARGE_UNVERIFIED',eventCountLowerBound:501,
+      creditCents:null,eventDeltaCents:null,uncommittedEventCount:null,
+      sourceOnly:true,identityVerified:false,ledgerCoverageVerified:false,
+      evidenceCoverage:'BOUNDED_NOT_ATOMIC_MULTI_READ',
+      manualReconciliationRequired:true,postingAllowed:false,
+      refundAuthorized:false,creditRestorationAuthorized:false,
+      automaticRetryAuthorized:false,financeRelease:'NO_GO'
+    };
+    let eventDeltaCents=0,uncommittedEventCount=0,invalidEventCount=0;
+    for(const e of events){
+      const amount=Number(e.amountCents),delta=Number(e.deltaCents),
+        before=Number(e.creditBeforeCents),after=Number(e.creditAfterCents);
+      const expectedOperation=e.kind==='RECEIPT_EXCESS'
+        ?'party-ledger:customer:payment_received':'credit-direct-sale';
+      if(!Number.isSafeInteger(amount)||amount<=0||
+        !Number.isSafeInteger(delta)||delta===0||
+        !Number.isSafeInteger(before)||before<0||
+        !Number.isSafeInteger(after)||after<0||
+        Math.abs(delta)!==amount||before+delta!==after||
+        !Number.isSafeInteger(eventDeltaCents+delta)){
+        invalidEventCount++;continue;
+      }
+      eventDeltaCents+=delta;
+      if(text(e.parentStatus)!=='COMMITTED'||text(e.parentOperation)!==expectedOperation)
+        uncommittedEventCount++;
+    }
+    const creditCents=credit?Number(credit.creditCents):null;
+    const invalidBalance=credit!==null&&credit!==undefined&&
+      (!Number.isSafeInteger(creditCents)||creditCents<0);
+    const reviewState=invalidBalance||invalidEventCount
+      ?'INVALID_FINANCIAL_EVIDENCE_MANUAL_REVIEW':
+      uncommittedEventCount?'UNCOMMITTED_EVENT_REQUIRES_REVIEW':
+      creditCents===null&&!events.length?'NO_BALANCE_OR_EVENTS_NOT_PROVEN':
+      creditCents===null?'BALANCE_ROW_MISSING':
+      creditCents!==eventDeltaCents?'BALANCE_EVENT_MISMATCH':
+      'AGGREGATES_EQUAL_IDENTITY_NOT_VERIFIED';
+    // Equal event deltas to one state row cannot prove historical completeness,
+    // order identity, an atomic snapshot or any customer cash entitlement.
+    return {success:true,code:'credit-liability-review-evidence-only',
+      customerId,creditCents:invalidBalance?null:creditCents,
+      eventDeltaCents:invalidEventCount?null:eventDeltaCents,
+      eventCount:events.length,uncommittedEventCount,invalidEventCount,reviewState,
+      sourceOnly:true,identityVerified:false,ledgerCoverageVerified:false,
+      evidenceCoverage:'BOUNDED_NOT_ATOMIC_MULTI_READ',
+      manualReconciliationRequired:true,postingAllowed:false,
+      refundAuthorized:false,creditRestorationAuthorized:false,
+      automaticRetryAuthorized:false,financeRelease:'NO_GO'};
+  }catch{
+    // No missing-schema = zero balance assumptions or best-effort release.
+    return deny('credit-liability-ledger-schema-unavailable',
+      'دفتر التزامات العميل أو حركاته غير متاح؛ المراجعة غير مكتملة.');
+  }
+}
+
+async function handleEmployeeAccountingNativeRequest(request,env){
   const h=cors(request,env);if(request.method==='OPTIONS')return new Response(null,{status:204,headers:h});
   if(!originAllowed(request,env))return json({success:false,code:'origin-not-allowed'},403,h);
   const path=new URL(request.url).pathname.replace(/\/+$/,'')||'/';
@@ -2276,6 +2376,7 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='getCustomerAccountV1915')out=await getCustomerAccountV1915V1(env,auth,b);
     else if(action==='previewCustomerCreditInvoiceReviewV1')out=await previewCustomerCreditInvoiceReviewV1(env,auth,b);
     else if(action==='previewCustomerCreditPreparedCommandV1')out=await previewCustomerCreditPreparedCommandV1(env,auth,b);
+    else if(action==='previewCustomerCreditLiabilityAuditV1')out=await previewCustomerCreditLiabilityAuditV1(env,auth,b);
     else if(action==='previewAccountingFinalInvoiceCommandV1')out=await previewAccountingFinalInvoiceCommandV1(env,auth,b);
     else if(action==='easyStoreSystemHealth')out=await easyStoreSystemHealthV1(env,auth);
     else if(action==='calculateAccountingLaserQuoteV1913')out=await calculateAccountingLaserQuoteV1913V1(env,auth,b);
