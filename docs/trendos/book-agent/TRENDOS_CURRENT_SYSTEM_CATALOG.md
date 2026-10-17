@@ -7451,4 +7451,234 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
 - Public Runtime: `D1_AUTH_USERS=6`, `D1_NATIVE_READY_USERS=6`, `NATIVE_ONLY=true`, `LEGACY_BOOTSTRAP=false`, `LEGACY_SESSION_ENROLL=false`, `BACKEND_BRIDGE=false`, `PLAINTEXT_STORED=false`.
 - Safe source-side completeness re-audit was performed without exporting password/Token values into repository documentation.
 - Completeness gate result: no unresolved canonical active Native gap remains after the sixth identity migration.
-- Front
+- Frontend remains staged: `FRONTEND_GLOBAL_NATIVE_AUTH=false`, `FRONTEND_NATIVE_CANARY=true`, `FRONTEND_BRIDGE=false`.
+- Pre-cutover drift: deployed frontend canary is ON; branch `config.js` currently shows canary OFF / empty canary list; deployed readiness threshold remains 5 while Runtime proves 6 Native-ready users.
+- Runtime/deployed truth is authoritative. Reconcile this drift only inside the separate controlled Global Native frontend cutover gate.
+- `ENTRY638_RUNTIME_READINESS_6_OF_6=PASS`
+- `ENTRY638_COMPLETENESS_GATE=PASS`
+- `UNRESOLVED_ACTIVE_NATIVE_GAP=NONE`
+- `GLOBAL_NATIVE_FRONTEND_PREP=PASS`
+- `GLOBAL_NATIVE_FRONTEND_CUTOVER=NOT_YET_EXECUTED`
+- `ACCOUNTING=READONLY`
+- `EASYSTORE_MUTATION=NO`
+- Public Runtime evidence: `docs/trendos/staging/ENTRY638_RUNTIME_NATIVE_READINESS_20261006.md`.
+
+
+#### Entry638 — Documentation closure and recording integrity
+- Entry637 final public evidence commit: `e0feeeb4a59bb8d35920be875212d2ffbea1725c`.
+- Entry638 public Runtime readiness evidence commit: `612b9ef911d407faa504c3e291f600291734120a`.
+- First Master Book recorder workflow creation commit: `a249164a247fd9235fba0a7472469b705e38d910`.
+- First recorder Run `37521916964` failed before creating a job because generated YAML block indentation was invalid. No Runtime/Production/D1 mutation occurred from that failed documentation run.
+- Recorder YAML fix commit: `a2d73a462203df12777753b0febf133eb91a9bfe`.
+- Corrected recorder Run `37522117630` = SUCCESS; all job steps passed.
+- Master Book content commit produced by the successful recorder: `e9b2a74b15a8960ecc09f289695899088b3a142c`.
+- First finalize workflow creation commit: `464fc0affa4da3d8db0a1f6b77fa91ce802f6423`.
+- First finalize Run `37522271690` failed before creating a job for the same YAML block-indentation class; no Runtime/Production/D1 mutation occurred.
+- This corrected finalize execution Run: `37522385167`.
+- Corrected finalize workflow source SHA: `a48a6b420bfe4abba98513a70023aae1b6b5897d`.
+- Verification before this finalizer confirmed the book already contained:
+  - strict mandatory recording rule;
+  - Attempt 4 failure record;
+  - `ENTRY637_FINAL=PASS_6_OF_6`;
+  - `ENTRY638_RUNTIME_READINESS_6_OF_6=PASS`;
+  - `ENTRY638_COMPLETENESS_GATE=PASS`.
+- Recording policy explicitly requires logging every success, failure, Runtime drift, rollback/restore, hardening repair, workflow/run/job, deploy, diagnosis, and gate transition.
+- Secrets, passwords, Tokens, password hashes, and session secrets remain prohibited from documentation.
+- `ENTRY638_DOCUMENTATION_CLOSURE=PASS`
+
+
+#### Entry639 — Global Native frontend cutover PASS
+- Scope: Employee frontend Auth cutover only. No D1 business mutation, no Accounting mutation, no EasyStore mutation.
+- Evidence file: `docs/trendos/staging/ENTRY639_GLOBAL_NATIVE_FRONTEND_CUTOVER_20261007.md`.
+- Evidence commit: `79d66bb079359360549d3679977cc17b093699b2`.
+
+##### Attempt 1 — stopped safely before Deploy
+- Workflow source commit: `5164ec36e34c9b9bde6780350dae6e8fea6e5718`.
+- Run: `37542306567`.
+- Job: `112537960050`.
+- Failure occurred in `Exact Runtime and repository preflight`; all deploy/reconcile steps were skipped.
+- Production frontend mutation from Attempt 1: NO.
+- Cause: the guard pinned historical Accounting `policyEpoch=2`, while Runtime truth had advanced to:
+  - `mode=READONLY`
+  - `policyEpoch=8`
+  - `authoritativeWrites=false`
+  - `writeAuthorityMode=OFF`
+  - `googleBusinessCalls=0`
+  - `appsScriptBusinessAuthority=false`
+- This was treated as legitimate Runtime drift. Accounting was not changed or rolled back.
+- Guard-fix commit: `8e356f7c7661ee36d625c08516b2fb5aa9d8dae3`.
+- Corrected rule validates READONLY safety invariants instead of pinning an obsolete epoch.
+
+##### Attempt 2 — PASS
+- Run: `37542439809`.
+- Job: `112538399521`.
+- Workflow conclusion: `SUCCESS`.
+- Preflight:
+  - `ENTRY639_RUNTIME_PREFLIGHT=PASS`
+  - `ENTRY639_NATIVE_READY=6_OF_6`
+  - `ENTRY639_BACKEND_NATIVE_ONLY=true`
+  - `ENTRY639_BACKEND_BOOTSTRAP=false`
+  - `ENTRY639_BACKEND_BRIDGE=false`
+  - `ENTRY639_REPO_DRIFT_BASELINE=PASS`
+  - `ENTRY639_EXACT_LIVE_BASELINE=PASS`
+- Frontend version transition:
+  - previous: `697f2afb-87c2-47cc-9889-3e986e7f0863`
+  - current: `ecba8460-e9c1-4fc7-81a2-1cf5c054943a`
+  - propagation proof: attempt 4.
+- Global frontend Auth state:
+  - `MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=true`
+  - `MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1=false`
+  - `MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS=[]`
+  - `MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_REQUIRED_READY_COUNT=6`
+  - `MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=false`
+  - `MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICIES=[]`
+- Family routing preserved from deployed Runtime truth:
+  - `OPS=GENERAL`
+  - `CORE=READONLY`
+  - `CONTENT=READONLY`
+  - `COMMS=READONLY`
+  - `ACCOUNTING=READONLY / policyEpoch=8`
+- Live production smoke:
+  - `ENTRY639_GLOBAL_NATIVE_LOGIN=PASS`
+  - `ENTRY639_LEGACY_BRIDGE_CALLS=0`
+  - `ENTRY639_GLOBAL_NATIVE_LOGOUT=PASS`
+  - `ENTRY639_RUNTIME_POSTFLIGHT=PASS`
+  - `ENTRY639_GLOBAL_NATIVE_FRONTEND=PASS`
+- Automatic rollback was armed to the previous frontend version and was not invoked because all production checks passed.
+- Repo/deployed config drift was reconciled after successful production proof.
+- Repo config reconciliation commit: `302386136af2a694f7c8447eb741419308a52a82`.
+- `ENTRY639_REPO_CONFIG_RECONCILED=PASS`.
+
+##### Stable final truth
+```ini
+ENTRY639=PASS
+ENTRY639_GLOBAL_NATIVE_FRONTEND_CUTOVER=PASS
+FRONTEND_GLOBAL_NATIVE_AUTH=true
+FRONTEND_NATIVE_CANARY=false
+FRONTEND_BRIDGE=false
+FRONTEND_REQUIRED_NATIVE_READY=6
+BACKEND_NATIVE_ONLY=true
+LEGACY_BOOTSTRAP=false
+LEGACY_SESSION_ENROLL=false
+BACKEND_BRIDGE=false
+D1_AUTH_USERS=6
+D1_NATIVE_READY_USERS=6
+MUST_CHANGE=0
+PLAINTEXT_STORED=false
+OPS=GENERAL
+CORE=READONLY
+CONTENT=READONLY
+COMMS=READONLY
+ACCOUNTING=READONLY / policyEpoch8
+ACCOUNTING_AUTHORITATIVE_WRITES=false
+ACCOUNTING_GOOGLE_BUSINESS_CALLS=0
+EASYSTORE_MUTATION=NO
+```
+- Entry638's earlier `GLOBAL_NATIVE_FRONTEND_CUTOVER=NOT_YET_EXECUTED` remains historical truth for that point in time and must not be rewritten.
+- This Master Book recorder Run: `37542737379`.
+- Recorder workflow source SHA: `355f40991c2cbe0c389032eba2fa52a25db8cb1a`.
+- `ENTRY639_DOCUMENTATION=PASS`
+
+
+#### Entry640 — Employee Auth control TRANSITIONAL → NATIVE; PASS
+- بعد نجاح Entry639 Global Native frontend، تم فحص migration/schema والكود قبل أي mutation.
+- migration `cloudflare-d1/migrations/0009_employee_auth_native_v1.sql` يثبت أن control mode يدعم صراحةً `OFF | TRANSITIONAL | NATIVE`.
+- الكود `cloudflare-d1/src/employee-auth-native-v1.mjs` يثبت:
+  - Native-ready login يعمل عندما control mode ليس OFF؛
+  - legacy-session enrollment يتطلب `mode=TRANSITIONAL`;
+  - first-login bootstrap يتطلب `mode=TRANSITIONAL` وBootstrap enabled؛
+  - لذلك الانتقال إلى `NATIVE` هو إغلاق defense-in-depth للمسارات الانتقالية وليس تغييرًا في بيانات المستخدمين.
+- Workflow: `.github/workflows/trendos-entry640-auth-control-native-controlled.yml`.
+- Workflow source commit: `748f20c9db3bdfe6e92adbad2cb8e0a0f3d46211`.
+- Run: `37543328267`.
+- Job: `112541292439`.
+- Conclusion: `SUCCESS`.
+
+##### Preflight
+- `ENTRY640_RUNTIME_PREFLIGHT=PASS`.
+- `ENTRY640_AUTH_PRE_MODE=TRANSITIONAL`.
+- `ENTRY640_NATIVE_READY=6_OF_6`.
+- `ENTRY640_FRONTEND_GLOBAL_NATIVE_PREFLIGHT=PASS`.
+- Backend pre-state remained hardened:
+  - `LEGACY_BOOTSTRAP=false`
+  - `LEGACY_SESSION_ENROLL=false`
+  - `NATIVE_ONLY=true`
+  - `BACKEND_BRIDGE=false`
+  - `D1_AUTH_USERS=6`
+  - `D1_NATIVE_READY_USERS=6`
+  - `MUST_CHANGE=0`
+  - `PLAINTEXT_STORED=false`
+- Frontend remained:
+  - `FRONTEND_GLOBAL_NATIVE_AUTH=true`
+  - `FRONTEND_NATIVE_CANARY=false`
+  - `FRONTEND_BRIDGE=false`
+  - required ready count = 6.
+
+##### Exact D1 control transition
+- D1 pre-state was read without exposing password hash values:
+  - `mode=TRANSITIONAL`
+  - `policyEpoch=23`
+  - `Native-ready=6/6`
+  - `PASSWORD_HASH_VALUE_LOGGED=NO`.
+- Target epoch was derived dynamically: `24`.
+- Conditional single-row control mutation:
+  - `TRANSITIONAL epoch23 → NATIVE epoch24`.
+- Proof:
+  - `ENTRY640_D1_CONTROL_MUTATION=PASS`
+  - `ENTRY640_AUTH_CONTROL=NATIVE`
+  - `ENTRY640_AUTH_POLICY_EPOCH=24`.
+
+##### Transitional-path closure and Native login proof
+- Public Runtime propagated to `mode=NATIVE` on propagation attempt 1.
+- `ENTRY640_LEGACY_SESSION_ENROLL_CONTROL_CLOSED=PASS`.
+- `ENTRY640_UNKNOWN_USER_BOOTSTRAP_CLOSED=PASS`.
+- Real login/logout smoke used the existing qualification credential stored in GitHub Secrets; no password/token value was logged:
+  - `ENTRY640_NATIVE_LOGIN=PASS`
+  - auth source = `d1-native-employee-v1`
+  - `ENTRY640_LEGACY_BRIDGE_CALLS=0`
+  - `ENTRY640_NATIVE_LOGOUT=PASS`.
+- Final D1 proof:
+  - `ENTRY640_FINAL_D1_CONTROL=NATIVE`
+  - `ENTRY640_FINAL_AUTH_POLICY_EPOCH=24`
+  - `ENTRY640_FINAL_NATIVE_READY=6_OF_6`
+  - `ENTRY640_PASSWORD_HASH_VALUE_LOGGED=NO`.
+- Final Runtime proof:
+  - `ENTRY640_RUNTIME_FINAL=PASS`
+  - `ENTRY640_AUTH_MODE=NATIVE`.
+
+##### Rollback and boundaries
+- Exact rollback was armed for any post-mutation failure:
+  - `NATIVE epoch24 → TRANSITIONAL epoch23`.
+- Rollback step was `SKIPPED` because every post-mutation test passed.
+- No API code deploy.
+- No frontend deploy.
+- No Apps Script touch.
+- No Accounting mutation.
+- No EasyStore mutation.
+- No business-data mutation.
+- Family Runtime after closure:
+  - `CORE=READONLY / epoch1`
+  - `CONTENT=READONLY / epoch2`
+  - `COMMS=READONLY / epoch2`
+  - `OPS=GENERAL / epoch7`
+  - `ACCOUNTING=READONLY / epoch8`
+  - Accounting `authoritativeWrites=false`, `writeAuthorityMode=OFF`, `googleBusinessCalls=0`, `appsScriptBusinessAuthority=false`.
+
+##### Stable final truth
+```ini
+ENTRY640=PASS
+ENTRY640_AUTH_CONTROL_NATIVE=PASS
+AUTH_MODE=NATIVE
+AUTH_POLICY_EPOCH=24
+FRONTEND_GLOBAL_NATIVE_AUTH=true
+FRONTEND_NATIVE_CANARY=false
+FRONTEND_REQUIRED_NATIVE_READY=6
+FRONTEND_BRIDGE=false
+BACKEND_NATIVE_ONLY=true
+LEGACY_BOOTSTRAP=false
+LEGACY_SESSION_ENROLL=false
+BACKEND_BRIDGE=false
+D1_AUTH_USERS=6
+D1_NATIVE_READY_USERS=6
+MUST_CHANGE=0
+PLAIN
