@@ -6655,4 +6655,296 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
   GENERATED_AT=2026-10-04T11:27:51.148814Z
   CURRENT_ORDERS_SOURCE=222
   CURRENT_LINES_SOURCE=250
-  CURREN
+  CURRENT_LINES_CANONICAL=234
+  ARCHIVE_ORDERS_SOURCE=3361
+  ARCHIVE_LINES_SOURCE=4628
+  ARCHIVE_LINES_CANONICAL=3565
+  ATTENDANCE_SOURCE=122
+  ATTENDANCE_CANONICAL=90
+  ATTENDANCE_PULSES=191
+  CLEANING_SOURCE=216
+  CLEANING_CANONICAL=83
+  RETAINED_LEGACY_ROWS=1256
+  ```
+- Drift from the older preview is expected because Google remained live during schema work:
+  - attendance 119→122; canonical 87→90.
+  - pulses 186→191.
+  - cleaning 207→216; canonical 80→83.
+  - retained legacy rows 1250→1256.
+  - orders/core/archive counts remained stable.
+- A D1-import-compatible SQL was regenerated from this fresh snapshot; explicit `PRAGMA foreign_keys`, `BEGIN TRANSACTION`, and `COMMIT` wrappers were removed for Wrangler D1 file import compatibility.
+- Final import SQL:
+  ```ini
+  FILE=ENTRY615_BACKFILL_CURRENT_D1.sql
+  SIZE_BYTES=36414456
+  SQL_SHA256=49b43222c80114066838ad8da32d8b8f6b08e579c93b7697f78b228b892de5c4
+  Production_data_committed_to_GitHub=NO
+  ```
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_FRESH_BACKFILL_PACKAGE_READY
+  MIGRATIONS_0012_TO_0018=APPLIED_PASS
+  ALL_FAMILY_CONTROLS=OFF
+  BACKFILL_APPLIED=NO
+  NEXT_ACTION=CAPTURE_D1_TIME_TRAVEL_BOOKMARK_THEN_WRANGLER_REMOTE_FILE_IMPORT
+  ```
+
+
+- Owner executed the refreshed Entry615 backfill through Wrangler against remote `trendos-main`.
+- Source snapshot:
+  ```ini
+  RUN_ID=ENTRY615-1F9B510723BE29EB
+  SOURCE_SNAPSHOT_SHA256=1f9b510723be29eb97932cc7fc95a562c0340873001b3ffea2108bd1a8903b2f
+  D1_IMPORT_SQL_SHA256=49b43222c80114066838ad8da32d8b8f6b08e579c93b7697f78b228b892de5c4
+  GENERATED_AT=2026-10-04T11:27:51.148814Z
+  ```
+- Time Travel bookmark was captured before import.
+- Wrangler remote import result:
+  ```ini
+  TOTAL_QUERIES_EXECUTED=22307
+  ROWS_READ=116252
+  ROWS_WRITTEN=65596
+  DATABASE_SIZE_MB=86.88
+  RESULT=SUCCESS
+  ```
+- No family control has been enabled yet; cutover remains blocked on parity.
+- Current refreshed canonical expectations:
+  ```ini
+  ATTENDANCE_DAYS=90
+  ATTENDANCE_PULSES=191
+  ATTENDANCE_SETTINGS=25
+  SPECIAL_TIMES=2
+  HR_EMPLOYEES=4
+  HR_SKILLS=9
+  CLEANING_ROWS=83
+  PRESS_SETTINGS=10
+  PRESS_SESSIONS=2
+  CONTENT_RECORDS=284
+  CONVERSATIONS=1
+  MESSAGES=6
+  FEEDBACK_REQUESTS=166
+  GO_LIVE_DRAFTS=39
+  ACCOUNTING_MATERIALS=2
+  ACCOUNTING_TEMPLATES=1
+  ACCOUNTING_DEPT_LINES=18
+  ACCOUNTING_FINAL_INVOICES=3
+  ACCOUNTING_PARTY_LEDGER=7
+  CORE_ORDERS=222
+  CORE_LINES=234
+  CORE_ARCHIVE_ORDERS=3361
+  CORE_ARCHIVE_LINES=3565
+  CORE_EVENTS=12724
+  RETAINED_LEGACY_ROWS=1256
+  ```
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_BACKFILL_APPLY_SUCCESS_WAITING_PARITY
+  MIGRATIONS_0012_TO_0018=APPLIED_PASS
+  BACKFILL_APPLIED=YES
+  FAMILY_CONTROLS=OFF
+  Production_cutover=NO
+  NEXT_ACTION=RUN_D1_PARITY_COUNTS_AND_CONTROL_OFF_CHECK
+  ```
+
+
+- Immediate public Production postflight after Entry615 backfill:
+  ```ini
+  EMPLOYEE_AUTH_MODE=OFF
+  EMPLOYEE_AUTH_ENV_ENABLED=NO
+  NATIVE_AUTH_USERS=0
+  NATIVE_READY_USERS=0
+  LEGACY_BRIDGE_ENABLED=NO
+  LEGACY_BRIDGE_SECRET_CONFIGURED=NO
+  ORDER_CREATE_MODE=GENERAL
+  DUPLICATE_GUARD_READY=YES
+  NEXT_ORDER_NUMBER=4523
+  CUSTOMER_WRITE_MODE=GENERAL
+  CUSTOMER_COUNT_RUNTIME=251
+  LINE_RUNTIME_SCHEMA=READY
+  LINE_RUNTIME_WRITE_MODE=cloud-native+legacy-overlay
+  ```
+- D1 returned to normal service after the import window. No employee family control was enabled by the backfill.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_BACKFILL_POSTFLIGHT_PASS_WAITING_PARITY_COUNTS
+  BACKFILL_RUN=ENTRY615-1F9B510723BE29EB
+  FAMILY_CONTROLS=OFF
+  NEXT_ACTION=PARITY_COUNTS_AND_INTEGRITY_CHECK
+  ```
+
+
+- Entry615 parity Run1 (read-only) in Cloudflare D1 Console returned:
+  ```text
+  too many terms in compound SELECT: SQLITE_ERROR
+  ```
+- This was a **read-only/no-op query failure** caused by the long compound `UNION ALL` form in the Console. No data/control mutation occurred.
+- Recovery: split parity counts into smaller read-only query groups.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_PARITY_RUN1_FAIL_CONSOLE_COMPOUND_SELECT_LIMIT
+  D1_MUTATION=NO
+  FAMILY_CONTROLS=OFF
+  NEXT_ACTION=RUN_SPLIT_PARITY_QUERIES
+  ```
+
+
+- Entry615 split parity — Ops/Content/Comms:
+  ```ini
+  attendance_days=90 PASS
+  attendance_pulses=191 PASS
+  attendance_settings=25 PASS
+  special_times=2 PASS
+  hr_employees=4 PASS
+  hr_skills=9 PASS
+  cleaning=83 PASS
+  press_settings=10 PASS
+  press_sessions=2 PASS
+  content_records=284 PASS
+  conversations=1 PASS
+  messages=6 PASS
+  feedback_requests=166 PASS
+  go_live_drafts=39 PASS
+  ```
+- All values exactly match refreshed Entry615 snapshot expectations.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_PARITY_OPS_CONTENT_COMMS_PASS
+  FAMILY_CONTROLS=OFF
+  NEXT_ACTION=RUN_ACCOUNTING_CORE_AND_INTEGRITY_PARITY
+  ```
+
+
+- Entry615 split parity — Accounting/Core:
+  ```ini
+  accounting_materials=2 PASS
+  accounting_templates=1 PASS
+  accounting_dept_lines=18 PASS
+  accounting_final_invoices=3 PASS
+  accounting_party_ledger=7 PASS
+  core_orders=222 PASS
+  core_lines=234 PASS
+  core_archive_orders=3361 PASS
+  core_archive_lines=3565 PASS
+  core_events=12724 PASS
+  retained_legacy_rows=1256 PASS
+  ```
+- All values exactly match refreshed Entry615 snapshot expectations.
+- Combined parity status so far:
+  ```ini
+  OPS=PASS
+  CONTENT=PASS
+  COMMS=PASS
+  ACCOUNTING=PASS
+  CORE=PASS
+  ```
+- No family control has been enabled yet.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_ALL_DOMAIN_COUNT_PARITY_PASS_WAITING_INTEGRITY_AND_OFF_CONTROL_CHECK
+  FAMILY_CONTROLS=OFF
+  NEXT_ACTION=RUN_INTEGRITY_AND_CONTROL_OFF_CHECK
+  ```
+
+
+- Entry615 final integrity/control checks:
+  - D1 screenshots confirmed:
+    ```ini
+    orphan_attendance_pulses=0
+    orphan_core_lines=0
+    orphan_archive_lines_vs_archive_orders_only=60
+    backfill_run_id=ENTRY615-1F9B510723BE29EB
+    backfill_mode=APPLY
+    backfill_status=COMMITTED
+    OPS=OFF
+    CONTENT=OFF
+    COMMS=OFF
+    ACCOUNTING=OFF
+    CORE=OFF
+    ```
+- The 60 archive-line rows are **not true missing-parent data loss**. Read-only audit of the refreshed Google source proved:
+  ```ini
+  CANONICAL_ARCHIVE_LINES=3565
+  ARCHIVE_LINES_WITHOUT_ARCHIVE_ORDER=60
+  DISTINCT_PARENT_ORDERS=58
+  PARENTS_PRESENT_IN_CURRENT_ORDERS=58
+  ARCHIVE_LINES_PARENT_PRESENT_IN_CURRENT_ORDERS=60
+  ARCHIVE_LINES_MISSING_FROM_BOTH_CURRENT_AND_ARCHIVE=0
+  ```
+- Interpretation: these are historical/partial archive-line snapshots whose order still exists in the current-order authority. The first integrity query was intentionally strict but semantically too narrow because it required every archive line parent to already be in `employee_core_archive_orders_v1`.
+- Correct integrity rule for Zero-Google Core: every archive line must have its parent in **either** `employee_core_archive_orders_v1` **or** `employee_core_orders_v1`.
+- No repair/mutation is required for these 60 rows; inserting synthetic archive parents would create false historical state.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_COUNTS_PASS_BACKFILL_COMMITTED_CONTROLS_OFF_WAITING_CORRECTED_ARCHIVE_PARENT_D1_PROOF
+  TRUE_ARCHIVE_PARENT_ORPHANS_FROM_SOURCE=0
+  NEXT_ACTION=RUN_D1_CORRECTED_ARCHIVE_PARENT_INTEGRITY_QUERY
+  ```
+
+
+### Entry615 — Final parity integrity correction and resume gate
+- بعد اكتمال Backfill `ENTRY615-1F9B510723BE29EB` تم التحقق من integrity النهائي.
+- نتيجة الفحص الأول المباشر على archive lines كانت:
+  ```ini
+  orphan_attendance_pulses=0
+  orphan_core_lines=0
+  orphan_archive_lines_vs_archive_orders_only=60
+  ```
+- تم فحص الـ60 صف بدل اعتبارها Orphans:
+  - `archive_lines_missing_any_parent=0`
+  - `archive_lines_parent_is_current=60`
+- التفسير الصحيح:
+  - الـ60 archive line ليسوا orphan rows.
+  - parent order الخاص بهم موجود في `employee_core_orders_v1` (current orders) وليس في `employee_core_archive_orders_v1`.
+  - لذلك integrity rule الصحيح أثناء مرحلة الانتقال هو: archive line يجب أن يجد parent في **archive orders OR current orders**.
+- Backfill ledger:
+  ```ini
+  run_id=ENTRY615-1F9B510723BE29EB
+  mode=APPLY
+  status=COMMITTED
+  source_snapshot_sha256=1f9b510723be29eb97932cc7fc95a562c0340873001b3ffea2108bd1a8903b2f
+  ```
+- Family controls final pre-cutover state:
+  ```ini
+  ops=OFF
+  content=OFF
+  comms=OFF
+  accounting=OFF
+  core=OFF
+  ```
+- Domain count parity already PASS:
+  ```ini
+  OPS=PASS
+  CONTENT=PASS
+  COMMS=PASS
+  ACCOUNTING=PASS
+  CORE=PASS
+  retained_legacy_rows=1256 PASS
+  ```
+- Final integrity:
+  ```ini
+  ATTENDANCE_PULSE_ORPHANS=0
+  CURRENT_CORE_LINE_ORPHANS=0
+  ARCHIVE_LINES_MISSING_ANY_PARENT=0
+  ARCHIVE_LINES_PARENT_IS_CURRENT=60
+  INTEGRITY=PASS
+  ```
+- Important deployment boundary:
+  - Production API currently runs the isolated Entry615A session hotfix version `62cad7e7-6c4d-4f56-9b37-849f2e7256c7`.
+  - Zero-Google backend family handlers from the candidate branch are **not yet deployed to Production**.
+  - therefore do **not** switch any family control to READONLY/GENERAL before deploying the Zero-Google backend source with all controls still OFF and completing a Production health/regression pass.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_BACKFILL_PARITY_INTEGRITY_PASS_READY_FOR_ZERO_GOOGLE_BACKEND_OFF_DEPLOY
+  MIGRATIONS_0012_TO_0018=APPLIED_PASS
+  BACKFILL=APPLIED_COMMITTED
+  DOMAIN_PARITY=PASS
+  INTEGRITY=PASS
+  FAMILY_CONTROLS=OFF
+  AUTH=OFF
+  BRIDGE=OFF
+  PRODUCTION_API_SESSION_HOTFIX=62cad7e7-6c4d-4f56-9b37-849f2e7256c7
+  ZERO_GOOGLE_BACKEND_HANDLERS_DEPLOYED=NO
+  NEXT_ACTION=QUALIFY_AND_DEPLOY_ZERO_GOOGLE_BACKEND_WITH_ALL_FAMILY_CONTROLS_OFF_THEN_HEALTH_REGRESSION_BEFORE_READONLY_CUTOVER
+  ```
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY615 -->
