@@ -41,7 +41,8 @@ export function projectDesignProductionReadinessV1({
   approvals=[],
   preflights=[],
   assetBindings=[],
-  tenantId='TENANT_001'
+  tenantId='TENANT_001',
+  nowMs=Date.now()
 }={}){
   const latestArtifact=latestBy(
     artifacts,
@@ -69,14 +70,34 @@ export function projectDesignProductionReadinessV1({
     const preflightBox=latestPreflight.get(artifactId);
     const approval=approvalBox&&approvalBox.row||null;
     const preflight=preflightBox&&preflightBox.row||null;
-    const binding=productionAssetBindingStateV1(latestBinding.get(artifactId));
+    const bindingEvent=latestBinding.get(artifactId)||null;
+    const binding=productionAssetBindingStateV1(bindingEvent);
+    // The projected state depends on every component's latest event, not only
+    // the preflight. A later rejection/removal must be newer than legacy READY.
+    const sourceTimes=[
+      artifact.createdAtMs??artifact.created_at_ms,
+      approval&&(approval.observedAtMs??approval.observed_at_ms),
+      preflight&&(preflight.observedAtMs??preflight.observed_at_ms),
+      bindingEvent&&bindingEvent.observedAtMs
+    ].filter(x=>x!==null&&x!==undefined);
+    const sourceClockInvalid=sourceTimes.some(x=>
+      !Number.isFinite(Number(x))||Number(x)<=0||Number(x)>Number(nowMs)
+    );
+    const observedAtMs=sourceClockInvalid
+      ? Number(nowMs)
+      : Math.max(0,...sourceTimes.map(Number));
     const preflightResult=upper(preflight&&(preflight.result));
     const approvalState=upper(approval&&(approval.approvalState||approval.approval_state));
 
     let state='UNKNOWN';
     let reason='DESIGN_EVIDENCE_INCOMPLETE';
 
-    if(binding.state==='BLOCKED'){
+    if(sourceClockInvalid){
+      // A future-dated latest approval/binding/preflight is a blocker, never
+      // READY; stamp the synthetic rejection at collector time, not the future.
+      state='BLOCKED';
+      reason='DESIGN_SOURCE_TIMESTAMP_INVALID';
+    }else if(binding.state==='BLOCKED'){
       state='BLOCKED';
       reason=binding.reason;
     }else if(preflightResult==='FAIL'){
@@ -122,7 +143,9 @@ export function projectDesignProductionReadinessV1({
       preflightResult,
       preflightRunId:text(preflight&&(preflight.preflightRunId||preflight.preflight_run_id)),
       recipeId:text(preflight&&(preflight.recipeId||preflight.recipe_id)),
-      sourceVersion:hash
+      sourceVersion:hash,
+      observedAtMs,
+      sourceClockInvalid
     });
   }
   return out;
@@ -134,8 +157,10 @@ export function designReadinessEvidenceCandidatesV1(input={}){
     const preflight=(input.preflights||[]).find(r=>
       text(r.preflightRunId||r.preflight_run_id)===x.preflightRunId
     );
-    const observedAtMs=num(preflight&&(preflight.observedAtMs??preflight.observed_at_ms));
-    if(!observedAtMs) return [];
+    // Keep the preflight identity, but use the most recent contributing
+    // event's timestamp. Otherwise later rejection/removal looks stale.
+    const observedAtMs=num(x.observedAtMs);
+    if(!preflight||!observedAtMs) return [];
     return [{
       lineId:x.lineId,
       kind:'DESIGN',
@@ -150,6 +175,7 @@ export function designReadinessEvidenceCandidatesV1(input={}){
         caseId:x.caseId,
         versionId:x.versionId,
         reason:x.reason,
+        sourceClockInvalid:x.sourceClockInvalid,
         approvalGate:x.approvalGate,
         approvalState:x.approvalState,
         approvalEvidenceRef:x.approvalEvidenceRef,

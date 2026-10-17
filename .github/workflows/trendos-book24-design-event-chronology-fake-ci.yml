@@ -1,0 +1,64 @@
+name: TrendOS Book24 Design Event Chronology Guard — Fake CI
+on:
+  push:
+    branches:
+      - fix/book24-design-evidence-chronology-failclosed-20261016
+    paths:
+      - 'autonomous-printshop/core/design-production-evidence-v1.mjs'
+      - 'autonomous-printshop/tests/book24_design_readiness_event_chronology_guard.test.mjs'
+      - 'docs/trendos/book-agent/ISSUE_REGISTER.md'
+      - 'docs/trendos/book-agent/TEST_EVIDENCE_QUEUE.md'
+      - 'docs/trendos/book-agent/AGENT_LOG.md'
+      - 'docs/trendos/book-agent/ACTIVE_NON_ACCOUNTING_ISSUES_20261016.md'
+      - '.github/workflows/trendos-book24-design-event-chronology-fake-ci.yml'
+  pull_request:
+    paths:
+      - 'autonomous-printshop/core/design-production-evidence-v1.mjs'
+      - 'autonomous-printshop/tests/book24_design_readiness_event_chronology_guard.test.mjs'
+      - 'docs/trendos/book-agent/ISSUE_REGISTER.md'
+      - 'docs/trendos/book-agent/TEST_EVIDENCE_QUEUE.md'
+      - 'docs/trendos/book-agent/AGENT_LOG.md'
+      - 'docs/trendos/book-agent/ACTIVE_NON_ACCOUNTING_ISSUES_20261016.md'
+      - '.github/workflows/trendos-book24-design-event-chronology-fake-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  design-chronology-no-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax safety
+        run: |
+          node --check autonomous-printshop/core/design-production-evidence-v1.mjs
+          node --check autonomous-printshop/tests/book24_design_readiness_event_chronology_guard.test.mjs
+      - name: New synthetic chronology and future clock regressions
+        run: node --test autonomous-printshop/tests/book24_design_readiness_event_chronology_guard.test.mjs
+      - name: Inherited design, readiness, machine and shadow guards
+        run: |
+          node autonomous-printshop/tests/design_production_evidence_v1.test.mjs
+          node autonomous-printshop/tests/design_readiness_collector_v1.test.mjs
+          node autonomous-printshop/tests/design_asset_linking_v1.test.mjs
+          node autonomous-printshop/tests/readiness_source_adapters_v1.test.mjs
+          node autonomous-printshop/tests/readiness_evidence_v1.test.mjs
+          node autonomous-printshop/tests/readiness_evidence_writer_v1.test.mjs
+          node autonomous-printshop/tests/machine_readiness_v1.test.mjs
+          node autonomous-printshop/tests/readiness_collector_v1.test.mjs
+          node autonomous-printshop/tests/production_shadow_worker_v1.test.mjs
+          node --test autonomous-printshop/tests/book24_readiness_expiry_resurrection_guard.test.mjs
+          node --test autonomous-printshop/tests/book24_readiness_source_latest_sql_guard.test.mjs
+          python3 autonomous-printshop/tests/book24_readiness_source_latest_sqlite.py
+      - name: Explicit safety boundary
+        run: |
+          echo 'FAKE_FIXTURE_ONLY=YES'
+          echo 'GOOGLE_CALLS=NO'
+          echo 'REAL_D1=NO'
+          echo 'REAL_MACHINES=NO'
+          echo 'ACCOUNTING_WRITES=NO'
+          echo 'DEPLOY=NO'
+          echo 'MERGE=NO'
+          echo 'PRODUCTION_VERIFIED=NO'
