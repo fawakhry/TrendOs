@@ -5783,4 +5783,214 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   - no secret/token value is displayed.
   - EasyStore retry source commit: `139cbf3bb682b0abf303f162d9fe08366e3bcda3`.
   - SSO2 cache-tag/test hardening culminated at `41c522d0d63b1897394bedfe836b975d5119bca2`.
-  - EasyStore qualification Run `37210978298` = **SUCCESS*
+  - EasyStore qualification Run `37210978298` = **SUCCESS**.
+  - EasyStore `main` fast-forwarded to `41c522d0d63b1897394bedfe836b975d5119bca2`.
+  - GitHub Pages deployment Run `37211003672` = **SUCCESS**.
+  - live EasyStore cache tag:
+    - `entry619-d1-readonly-sso2-20261004`.
+- TrendOS SSO2 cache-tag rollout:
+  - source commits `5f89fc9c8f4249acfb5e0b8389f931ea0297bfc4` and `6d8bdbabc4e2bf60605ddfd99ea6fa2669783eb8`.
+  - source qualification and browser Cloud transport regressions remained PASS.
+  - controlled frontend workflow commit `87d77bcc05461781782b1d5aca0d2fe16ee5d577`.
+  - Run `37211142855`.
+  - Job `111462424161`.
+  - conclusion = **SUCCESS**.
+  - tag-only exact-live patch; API deploy = NO; D1 mutation = NO; Apps Script touched = NO.
+  - new Production frontend version:
+    - `1f4a4faa-b532-45d5-8ea7-f5f79c8d2ac7`.
+  - Accounting remains READONLY / epoch 2.
+  - Ops remains GENERAL / epoch 7.
+  - Auth/Bridge remain OFF.
+- Independent SSO2 reconciliation:
+  - workflow commit `0013798e0b043b4daeaa9e0a522493a72d86f6ca`.
+  - Run `37211240358`.
+  - Job `111462711527`.
+  - conclusion = **SUCCESS**.
+  - confirmed exact API/frontend versions, EasyStore SSO2 Pages live, runtime badge ready, and post-SSO read retry ready.
+- SSO2 registration:
+  ```ini
+  ENTRY619_EASYSTORE_SSO2_RACE_REMEDIATION=PASS
+  EASYSTORE_MAIN=41c522d0d63b1897394bedfe836b975d5119bca2
+  EASYSTORE_PAGES_RUN=37211003672
+  EASYSTORE_CACHE_TAG=entry619-d1-readonly-sso2-20261004
+  TRENDOS_SSO2_DEPLOY_RUN=37211142855
+  TRENDOS_SSO2_RECONCILE_RUN=37211240358
+  PRODUCTION_FRONTEND_VERSION=1f4a4faa-b532-45d5-8ea7-f5f79c8d2ac7
+  ACCOUNTING=READONLY
+  ACCOUNTING_POLICY_EPOCH=2
+  OPS=GENERAL
+  OPS_POLICY_EPOCH=7
+  AUTH=OFF
+  BRIDGE=OFF
+  NEXT_GATE=REOPEN_ACCOUNTING_FROM_TRENDOS_AND_OBSERVE_D1_READ_200_WITH_SSO2
+  ```
+- Important gate before Accounting GENERAL:
+  - source + READONLY policy semantics + Production health are PASS.
+  - still required: real authenticated Production Accounting read smoke through the current employee session path.
+  - do not enable Native Auth or Bridge for this smoke.
+  - do not promote Accounting to GENERAL unless authenticated READONLY reads pass and no write/regression is observed.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY619_ACCOUNTING_READONLY_CUTOVER_PASS_PENDING_AUTHENTICATED_LIVE_READ_SMOKE_BEFORE_GENERAL
+  CUTOVER_RUN_ID=37207346113
+  CUTOVER_JOB_ID=111451192422
+  CUTOVER_WORKFLOW_COMMIT=00843659d5857dc4e023d4ed75f9dc59c4d02f1d
+  RECONCILE_RUN_ID=37207652630
+  RECONCILE_JOB_ID=111452119541
+  RECONCILE_WORKFLOW_COMMIT=a5c001def8c79f6130e0f41d1587b09560a79cf5
+  PRODUCTION_API_VERSION=de2c825d-ef63-407d-90dc-8059a9d4f192
+  PRODUCTION_FRONTEND_VERSION=1f4a4faa-b532-45d5-8ea7-f5f79c8d2ac7
+  OPS=GENERAL
+  OPS_POLICY_EPOCH=7
+  ACCOUNTING=READONLY
+  ACCOUNTING_POLICY_EPOCH=2
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  AUTH=OFF
+  BRIDGE=OFF
+  API_DEPLOY=NO
+  APPS_SCRIPT_TOUCHED=NO
+  ENTRY611_CANARY_DEPLOYED=NO
+  NEXT_ACTION=AUTHENTICATED_ACCOUNTING_READONLY_LIVE_READ_SMOKE_THEN_PROMOTE_ACCOUNTING_GENERAL_ONLY_IF_PASS
+  ```
+
+### Customers
+- Customer master = 251 rows في D1 (live health after Entry616).
+- Customer search/write authority = D1-native / GENERAL.
+- `CUSTOMER_GOOGLE_FALLBACK=NO`.
+- سياسة identity المعتمدة: exact phone أولًا، ثم exact normalized name عند مشاركة الرقم، وأي ambiguity متبقٍ fail-closed.
+- لا auto-merge أعمى.
+
+## 2. Google — ما تم قطعه وما يجب حذفه من الذاكرة الحية
+
+المسارات التالية **لا تحتاج شرح Google التاريخي داخل هذا الكتاب** بعد الآن:
+- Customer search/write authority القديمة على Apps Script/Sheets.
+- Browser direct-to-Google transport للأوردرات؛ الواجهة الحالية تستخدم Cloud transport/Edge.
+- Google idle-heartbeat كشرط لعرض Orders بعد إصلاح Entry498 وما تلاه.
+- مراحل staging/rehearsal القديمة لـCloud Write V150/V1/V2 التي لا تمثل Production الحالي.
+- T11 و02xx وPERF-CF historical qualification/canary workflows بعد إغلاقها أو supersede.
+- تجارب TEST mirror وpacked-CAS وfresh-start/canary القديمة بعد أن أصبحت Cloud-native GENERAL هي الحالة الفعلية.
+- تفاصيل محاولات deploy/promotion الفاشلة التي superseded بنتيجة Production لاحقة ناجحة.
+- وصف GitHub Pages كواجهة تشغيل حالية.
+- أي نص قديم يقول إن Customer write authority ما زالت Apps Script.
+
+هذه التفاصيل محفوظة تاريخيًا في Git commits والصندوق الأسود ولا تُستخدم كـcurrent authority.
+
+## 3. Google — dependencies ما زالت حية ولا يجوز حذفها الآن
+
+### Employee Login / Auth
+الحالة الأخيرة المؤكدة في الكتاب قبل هذا التنظيف ما زالت:
+```ini
+EMPLOYEE_LOGIN=GOOGLE_BACKED
+ZERO_GOOGLE_COMPLETE=NO
+APPS_SCRIPT_VERSION=159
+```
+
+لذلك **لا تحذف Apps Script/Auth من الخطة أو من Runtime قبل Cutover متحقق**.
+
+A61 بنى وجرّب foundation لـD1-native auth، migration `0009_employee_auth_native_v1.sql`، native session، dispatcher، وcompatibility bridge، لكن الحالة الحية المسجلة لا تسمح باعتبار Employee Login D1-native مكتملًا.
+
+قواعد Auth:
+- لا plaintext passwords.
+- لا تخزين pepper أو raw session tokens في Repo/docs.
+- لا تدوير `AUTH_PASSWORD_PEPPER` عشوائيًا طالما legacy hashes قد تعتمد عليه.
+- أي bridge انتقالي يكون محدودًا ومثبتًا ويُغلق بعد نقل الـactions.
+- لا تعتبر D1 auth tables الموجودة دليلًا على أن سلطة Login انتقلت.
+
+الهدف:
+```ini
+EMPLOYEE_LOGIN=D1_NATIVE
+EMPLOYEE_SESSION=D1_NATIVE
+APPS_SCRIPT_AUTH_FALLBACK=NO
+```
+
+### Legacy business actions
+Zero-Google audit السابق أثبت بقايا Google/Apps Script في عائلات تشمل:
+- Auth / Session.
+- Legacy Orders actions غير المنقولة.
+- Attendance / Cleaning / HR / Press.
+- Accounting / Party ledger.
+- Customer portal / conversations / files / proofs حيث لم يثبت cutover النهائي.
+- Trend Master / notes / customer-manager / feedback / automation حيث لم يثبت cutover النهائي.
+- Marketplace / platform / franchise / white-label.
+
+**لا تقلب generic API base عالميًا قبل نقل العائلات المطلوبة وإثباتها Runtime.**
+
+## 4. ترتيب Zero-Google من الحالة الحالية
+
+1. Employee Login/Auth/Session → D1-native مع إغلاق Apps Script auth fallback.
+2. Legacy Orders actions المتبقية → Cloud/D1، مع الحفاظ على Order IDs/Status وعدم عمل CREATE تجريبي بلا حاجة مثبتة.
+3. Attendance / Cleaning / HR / Press.
+4. Accounting / Party ledger.
+5. Customer portal / conversations / files / proofs.
+6. Trend Master / notes / customer-manager / feedback / automation.
+7. Platform content / marketplace / franchise / white-label.
+8. Flip generic API base فقط بعد إغلاق dependencies المطلوبة.
+9. Final Runtime audit لإثبات Zero-Google.
+
+## 5. معيار الإغلاق النهائي
+
+لا يعلن Zero-Google مكتملًا إلا إذا أثبت Runtime:
+```ini
+RUNTIME_SCRIPT_GOOGLE_COM=0
+RUNTIME_DOCS_GOOGLE_COM=0
+APPS_SCRIPT_RUNTIME_FALLBACK=0
+GOOGLE_SHEET_RUNTIME_AUTHORITY=0
+GOOGLE_RUNTIME_DEPENDENCY=0
+ZERO_GOOGLE_COMPLETE=YES
+```
+
+وجود historical source أو docs أو Git commits تخص Google لا يعني Runtime dependency؛ المطلوب صفر اعتماد تشغيلي حي.
+
+## 6. قواعد التنفيذ أثناء النقل
+
+- افحص Production read-only قبل أي mutation.
+- لا تنشر Apps Script/Worker/Frontend من مجرد وجود source مؤهل.
+- كل Production mutation تحتاج scope واضح وpreconditions وpostflight.
+- لا تعيد migration تاريخية اعتمادًا على migration list وحده؛ افحص schema/runtime truth.
+- حافظ على Secrets/Variables/Bindings/Routes ما لم تكن داخل scope مصرح به.
+- افصل create-version عن promote عندما يكون ذلك أكثر أمانًا.
+- عند failure بعد mutation محتملة: read-only reconcile أولًا، ولا تكرر العملية عميانيًا.
+- لا تستخدم historical workflows كاختصار لإصلاح حالي بدون إعادة تأهيلها.
+- لا تغير Order IDs أو Order Status أثناء أعمال Auth migration.
+- لا ترسل business CREATE test إلا عند ضرورة مثبتة وتصريح واضح.
+- GitHub source لا يساوي live runtime؛ Runtime Evidence هو الحكم.
+
+## 7. خريطة السلطة الحالية
+
+| المجال | السلطة الحالية الموثقة | Google dependency |
+|---|---|---|
+| Frontend hosting | Cloudflare Worker Assets | لا كاستضافة canonical |
+| Customer master/search/write | D1 / Cloudflare GENERAL | لا |
+| New Order CREATE | D1 / Cloudflare GENERAL | لا للمسار الجديد |
+| Duplicate-order guard | D1 + Cloudflare API/UI | لا |
+| Orders refresh/read recovery | Cloudflare Edge/D1 path verified | لا direct browser Google fallback |
+| Employee Login/Auth | Google/Apps Script-backed حسب آخر evidence | **نعم** |
+| Legacy employee/business actions | Mixed أثناء Zero-Google | **نعم، حتى يثبت نقل كل عائلة** |
+| Apps Script | Version 159 موجود في Production حسب Entry595 | **لا يُحذف بعد** |
+
+## 11. خارطة الطريق بعد Zero-Google — TrendOS V1 المستهدف 01/03/2027
+
+> **قاعدة الاستئناف:** لا تبدأ هذه الخارطة كبرنامج التنفيذ الرئيسي قبل إغلاق §5 وإثبات `ZERO_GOOGLE_COMPLETE=YES`. بعد Zero-Google تُعاد baseline/GO-NO-GO للحالة الفعلية ثم تُستكمل المراحل من أول بوابة غير مغلقة. الهدف 01/03/2027 هدف Product وليس ضمان موعد إذا لم تجتز البوابات.
+
+### Phase 0 — Canonical Memory and Control Plane
+**الهدف:** ذاكرة مشروع دائمة، Roadmap، Decision Register، provenance، وhandoff يستطيع أي شات جديد استئناف العمل منه دون المحادثات القديمة.
+
+**Exit gate:** فهم scope/current state/next step من GitHub وحده.
+
+### Phase 1 — Core + Cloud
+**الهدف:** Core صحيح، idempotent، observable، recoverable وسريع بما يكفي قبل الطبقات الأعلى.
+
+**Work order الأصلي:** inventory للإنتاج والـroutes/triggers/sheets؛ integrity baseline؛ event/lock/idempotency/write/retry map؛ integrity foundation؛ Order/Line integrity؛ Business Calendar؛ Attendance/Cleaning؛ Press؛ Invoice/pricing/drafts؛ WhatsApp idempotency؛ OPS alerts؛ observability؛ D1 atomic sync/read/auth performance؛ regression؛ E2E؛ Core GO/NO-GO.
+
+**Core exit gates:** zero active duplicate Line IDs؛ لا duplicate invoice drafts؛ pricing integrity؛ closed/delivered لا يعودان للطوابير؛ Press parity/sessions؛ Attendance/Cleaning idempotency؛ Line IDs literal text؛ WhatsApp idempotency؛ concurrency/rollback/checkpoint PASS؛ لا CORE-P0 blockers.
+
+**بعد Zero-Google:** لا تعيد تنفيذ البنود التي أصبحت مثبتة Runtime في §1؛ اعمل gap review مقابل البوابات فقط، ثم اقفل Phase 1 رسميًا.
+
+**مسار الأولوية التاريخي داخل Core:** Operator Tasks → Department Invoice + Material Shadow/Parity (Gaber LASER + Wael PRINT) → Laser + Print Accounting Control → RP-08. يعاد تقييمه بعد Zero-Google ولا يُنفذ تلقائيًا من حالته التاريخية.
+
+### Phase 2 — Customer 360 + Unified Communication — Oct 2026 plan
+**الهدف:** هوية ورحلة عميل واحدة عبر Orders, Payments, Designs, Messages, Feedback, Loyalty.
+
+**Deliverables:** Customer 360؛ Customer Portal integration؛ Unified Inbox؛ WhatsApp production-safe integration؛ Feedback؛ Points/Loyalty؛ role-based communication permissions؛ customer/order/me
