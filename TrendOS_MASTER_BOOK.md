@@ -1501,43 +1501,6 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
 
 
 
-### Entry633 — Native username canonicalization PASS
-- Before retiring legacy Auth bootstrap, D1 identity rows were audited read-only.
-- D1 contains exactly five Native-ready identity groups:
-  ```ini
-  DIAA=ضياء
-  WAEL=وائل
-  JABER=جابر
-  RAHMA=رحمه
-  REVAN=ريفان
-  ```
-- Read-only identity audit:
-  - `.github/workflows/trendos-entry633-auth-alias-readonly-audit.yml`
-  - Run `37489148664` = SUCCESS.
-- Exact D1 key classification:
-  - `.github/workflows/trendos-entry633-auth-native-key-classification.yml`
-  - Run `37489375899` = SUCCESS.
-- Dispatcher canonicalization maps known aliases to those exact five keys before all Native employee routes.
-- Repo CI:
-  - `.github/workflows/trendos-entry633-native-username-canonicalization-ci.yml`
-  - Run `37489882275` = SUCCESS.
-- Controlled frontend deployment:
-  - `.github/workflows/trendos-entry633-native-alias-frontend-controlled.yml`
-  - Run `37490159993`;
-  - Job `112360466601`;
-  - conclusion = SUCCESS;
-  - frontend version `9f1ea548-ff16-4360-a16e-fd225e5e112b`.
-- Live proof used the known alias `diaa` with the qualification credential and verified:
-  ```ini
-  diaa -> ضياء
-  AUTH_SOURCE=d1-native-employee-v1
-  BRIDGE_CALLS=0
-  LOGOUT=PASS
-  ```
-- No API deploy or Auth flag change occurred in Entry633.
-- Entry634 target: disable `TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED` only, while keeping `NATIVE_ONLY=false` for a separate later gate.
-
-
 ### Entry634 — Legacy employee login bootstrap disabled; PASS
 - Entry633 first canonicalized every known login alias to the exact D1 key.
 - Repo qualification:
@@ -3716,3 +3679,7 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 
 ## BOOK-MIGRATION-20261018-030 — Entry632
 - `EXACT_VERBATIM_MATCH=PASS` for 1,911 characters from old book and archive into appendix. COPY `17e1bc528b57212bf333139afa0cba5e22e38a69`, source blob `df8e12d19f34ea99e0ed7c8704b43330f205140f`, archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; REMOVE SHA in Crosswalk.
+
+
+## BOOK-MIGRATION-20261018-031 — Entry633
+- `EXACT_VERBATIM_MATCH=PASS` (1415 characters) old/archive/destination, copy `2e60cc1857c6a5c3fb2aed23b0090d0f60fc1243`; archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source blob `e654f66f6c13b6093ef28ccb13496c0a77d3a036`. Remove SHA in Crosswalk.
