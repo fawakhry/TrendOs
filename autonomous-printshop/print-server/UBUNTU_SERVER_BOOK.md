@@ -714,3 +714,11 @@
 - Existing stage Worker binding `DB → trendos-staging`; owner D1 Overview shows UUID `bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6`, 11 tables/184KB, distinct from prod `trendos-main`. Existing variable for Cloud Write = true as shown; no data deletion, SQL, deployment, or binding update approved. Source bundle/provenance and triggers/consumers not verified.
 - **Next read-only inspection:** Worker `trendos-d1-staging` Settings → Trigger events (and if necessary Metrics) to identify any active callers/cron before contemplating reuse. No change to 11-table DB or Worker; existing stage should be considered potentially in use, not disposable. Local SERVER-68 synthetic workerd/D1/DO 147/147 PASS does not establish remote stage readiness.
 - `STAGING_ROLLOUT_HISTORY=OBSERVED`; `LATEST_ROLLOUT=99e823b2_WRANGLER`; `CURRENT_TRAFFIC_ALLOCATION=INCONSISTENT_UI`; `STAGE_CONSUMERS=UNKNOWN`; `REMOTE_STAGE_TEST=NOT_STARTED`; `PRODUCTION_CHANGE=NO`.
+
+
+### SERVER-20261017-68E — Existing Cloudflare stage: Trigger events inventory (OWNER SCREENSHOT, READ ONLY)
+- **Source:** owner Cloudflare UI screenshot `Workers & Pages → trendos-d1-staging → Production → Settings → Trigger events` (2026-10-17).
+- **Direct observations:** Cron triggers says `No cron triggers configured`; Queues says `No queue consumers configured`; Email triggers says `No routing rules send email to this Worker`. Worker name shown as `trendos-d1-staging`. No settings modified.
+- **Interpretation:** no scheduled Cron, inbound queue consumer or email routing configured for this Worker **as shown**. HTTP requests through workers.dev/custom routes, other Worker bindings, or external Apps Script callers are **not ruled out**, and existing 11-table `trendos-staging` D1 with its own UUID must not be treated as disposable.
+- **Next readonly step:** `trendos-d1-staging → Metrics`, request traffic for a useful historical range (ideally last 30 days), then Domains/Routes and binding consumers as needed; no deployment, D1 SQL, secret edits, or stage takeover.
+- **Status:** `CRON=NONE_AS_SHOWN`; `QUEUE_CONSUMERS=NONE_AS_SHOWN`; `EMAIL_ROUTING=NONE_AS_SHOWN`; `HTTP_CONSUMERS=NOT_VERIFIED`; `STAGING_REUSE=BLOCKED_PENDING_USAGE_CHECK`; `CLOUDFLARE_CHANGES=NO`.
