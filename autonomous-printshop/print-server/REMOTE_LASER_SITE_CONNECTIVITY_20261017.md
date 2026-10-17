@@ -61,6 +61,19 @@ Windows 7 shop server                Windows 7 laser PC
 
 **مراجع:** [Radmin Help — VPN + full control](https://www.radmin-vpn.com/help/index.html)، [Radmin Server / Viewer installation](https://helpdesk.radmin.com/kb/faq.php?id=289)، [Radmin licenses](https://www.radmin.com/ordering/)، [Microsoft Windows 7 Remote Desktop host limitations](https://learn.microsoft.com/en-us/answers/questions/2435852/does-windows-7-home-version-have-remote-desktop-fu)، [Microsoft remote desktop security](https://learn.microsoft.com/en-us/windows-server/remote/remote-desktop-services/remotepc/remote-desktop-allow-access).
 
+## 2B. إشغال جهاز المطبعة — وائل يعمل عليه طوال اليوم (مالك 2026-10-17)
+
+**إفادة تشغيلية جديدة:** كمبيوتر Windows 7 الموجود بالمطبعة هو جهاز عمل وائل اليومي، وليس خادمًا شاغرًا للتحكم بسطح مكتبه. **قرار التشغيل: استخدام الجهازين بالتزامن من دون إيقاف جلسة وائل أو السيطرة على شاشة/فأرة عمله.**
+
+- **المسار المعتمد للتجربة:** عامل الليزر يستخدم Explorer/Computer من جهاز Windows7 المنفصل. بعد تأمين Radmin VPN، يفتح مشاركة شغل الليزر المعزولة من جهاز وائل بمسار `\\<SHOP_VPN_IP>\LaserJobs` ويثبتها بحرف `Z:`. لا يحتاج العامل إلى جلسة Remote Desktop على جهاز وائل. يمكن لوائل الاستمرار في البرامج والعمل على ملفات غير مفتوحة للتحرير المشترك.
+- **RDP ليس مناسبًا كاختيار افتراضي:** جلسات Windows 7 المكتبي قد تؤدي إلى قفل/فصل الجلسة المحلية، ما يعطّل وائل. لا نحاول ترقيع تعدد جلسات Windows7 أو تجاوز قيد التراخيص/الأمان.
+- **Radmin full control ليس استقلالًا:** إذا كان مطلوبًا مشاهدة نفس الشاشة بموافقة وائل، يمكن بحث Radmin Server/Viewer لاحقًا؛ هو عرض وتحكم في نفس سطح المكتب، وسيشاهد الطرفان نفس المؤشر وقد يتعارضان. ليس حلًا لشخصين يريدان استعمال برنامجين مستقلين على جهاز واحد.
+- **ملفات متزامنة:** لا يحرر وائل والعامل ملف التصميم نفسه في الوقت ذاته؛ ملفات `Working` منفصلة وإرجاع إلى `Returns` بعد الحفظ ومراجعة النسخة. فتح ملفات كبيرة مباشرة من الشبكة عبر هوتسبوت قد يكون بطيئًا أو معرضًا لفشل الحفظ؛ يفضّل نسخ الملف محليًا ثم رفع الناتج وربطه برقم الأوردر.
+- **برامج الويب المحلية:** إن كان العامل سابقًا يفتح واجهة بمتصفح `http://<shop-host>:<port>`، فهذا **خدمة شبكة مستقلة** عن Remote Desktop. الوصول عبر VPN يتطلب فحص عنوان الاستماع، firewall، صلاحيات التطبيق، وسماح اتصال من peer، وقد يسمح باستعمال متزامن إذا كانت الواجهة تدعم عدة مستخدمين. لا تغيير لخدمات وائل أو منافذ البرنامج قبل معرفة البرنامج ومكان تشغيله.
+- **ما يلزم لإثبات القبول:** شبكة VPN نقطية = PASS، مشاركة مقيدة بحرف `Z:` قابلة للقراءة/الكتابة وفق الصلاحيات، اختبار ملفين وهميين واتساق SHA256، اختبار أن وائل يواصل جلسة شغله أثناء فتح المجلد عند الليزر، فصل الهوتسبوت وإعادة وصله، وعدم تغيير جلسة/إعدادات برامج وائل.
+
+**Status:** `WAEL_SHOP_PC_ACTIVE_USER=OWNER_VERIFIED`, `DESKTOP_TAKEOVER=NOT_PERMITTED_AS_DEFAULT`, `INDEPENDENT_LASER_EXPLORER_WORKFLOW=DESIGN_ONLY`, `LIVE_VPN_AND_SHARE=NOT_VERIFIED`; **no installation, deployment, Win7 setting, or customer file mutation done by assistant**.
+
 ## 3. أمان Windows 7 — حد أساسي
 
 - Microsoft أوقفت دعم Windows 7 يوم **14 يناير 2020**؛ ماكينات الإنتاج العاملة به لا ينبغي تعريضها للإنترنت أو توسيع صلاحياتها بشكل دائم. Radmin VPN *يضيف شبكة خاصة مشفرة* ولكنه **لا يعالج ثغرات نظام التشغيل، SMB، أو سرقة بيانات الاعتماد**. اجعل الاتصال نطاقًا ضيقًا ومؤقتًا، وخطط لجهاز gateway حديث منفصل أو تحديث منصة غير مرتبطة ببرنامج الليزر إذا استحال ترقية الجهاز نفسه.
