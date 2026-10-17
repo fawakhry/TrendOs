@@ -1,0 +1,36 @@
+name: ACC205 Customer Credit Liability Real Native Receipt SQLite NO_GO
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  owner-liability-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exercise actual finance handler and read-only liability forensics in fake SQLite
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          OPENAI_API_KEY: ''
+          WHATSAPP_TOKEN: ''
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test -z "$GOOGLE_APPLICATION_CREDENTIALS"
+          test -z "$OPENAI_API_KEY"
+          test -z "$WHATSAPP_TOKEN"
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --test tests/easystore_acc205_credit_liability_readonly_sqlite_no_go.test.mjs
+          echo 'ACC205_REAL_CREDIT_HANDLER_EPHEMERAL_SQLITE_ONLY=YES'
+          echo 'ACC205_OWNER_PREVIEW_CANNOT_REFUND=YES'
+          echo 'ACC205_FINANCE_RELEASE=NO_GO'
+          echo 'ACC205_REMOTE_PRODUCTION_WRITES=NONE'
