@@ -11,6 +11,12 @@ on:
       - tests/server68_r5_signed_metadata_preflight.test.mjs
       - cloudflare-d1/r5-server68-signed-metadata-preflight.mjs
       - tests/server68_wrangle_local_runtime_smoke.mjs
+      - tests/server69_ubuntu_python_to_local_workerd.py
+      - autonomous-printshop/print-server/src/trendosshop_read_once.py
+      - autonomous-printshop/print-server/tests/test_server34_trendosshop_read_once.py
+      - tests/server33_trendosshop_service_orders_read.test.mjs
+      - cloudflare-d1/src/trendosshop-service-orders-read-v1.mjs
+      - tests/server67_purpose_scoped_mirror_service_read.test.mjs
       - tests/fixtures/server68_local_mirror_fixture.sql
       - cloudflare-d1/wrangler.server68-local-runtime.toml
       - cloudflare-d1/D1_Orders_Read_Cutover.gs
@@ -38,12 +44,20 @@ jobs:
         run: |
           node --test tests/server68_isolated_stage_preflight.test.mjs \
             tests/server68_r5_signed_metadata_preflight.test.mjs \
+            tests/server33_trendosshop_service_orders_read.test.mjs \
             tests/server68_secure_mirror_pagination_compat.test.mjs \
             tests/server67_purpose_scoped_mirror_service_read.test.mjs \
             tests/server67_apps_script_signed_mirror_client_offline.test.mjs \
             tests/server66_legacy_mirror_read_gate.test.mjs \
             tests/server56_legacy_customer_bridge_compat.test.mjs \
             tests/server30_legacy_sensitive_read_gate.test.mjs
+      - name: Verify existing Python Ubuntu one-shot client (FakeOpener, no network)
+        run: |
+          PYTHONPATH=autonomous-printshop/print-server \
+            PYTHONDONTWRITEBYTECODE=1 \
+            python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server34_trendosshop_read_once.py' -v
       - name: Validate isolated Worker bundle with Wrangler offline dry-run
         run: |
           set -euo pipefail
