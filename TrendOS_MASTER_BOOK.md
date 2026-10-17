@@ -3765,3 +3765,9 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 
 ## BOOK-MIGRATION-20261018-029 — Entry631
 - `EXACT_VERBATIM_MATCH=PASS` (1,983 chars) verified current source + archival snapshot + copied appendix; COPY `0af73bf95cf494d2ff0259880357205b48a4d0d4`, archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`, removal recorded in Crosswalk.
+
+
+### SERVER-20261018-68J — user-supplied existing staging code exposes unauthenticated legacy read paths (offline proof)
+- Owner provided ~240KB compiled `trendos-d1-staging` code, containing unguarded legacy order, customer, message, inbox, and mirror GET handlers reachable via index dispatcher; newer edge/customer-manager/orders paths validate bearer session. A Node VM with fake D1 (zero remote calls) verified anonymous `/v1/orders`, `/v1/inbox`, `/v1/mirror/sheets` -> HTTP 200 synthetic arrays, while unauthenticated `/v1/edge/orders/page` -> HTTP 401. **No real Cloudflare data was queried, no real breach proven**. Deployed version `99e823b2` binary/source identity not cryptographically established.
+- `trendos-d1-staging` workers.dev enabled and no Worker-specific Access app (as evidenced by owner UI); account/hostname Access and WAF remain unverified. Stage D1 `trendos-staging` is non-production but has existing tables; source-only remediation in Draft PRs #185/#187/#190 still requires consumer compatibility (R5 expects legacy Mirror HTTP 200), synthetic remote stage, explicit approval and rollback. **DO NOT overwrite existing stage or turn off routes without consumer review.**
+- Detailed audit on draft PR #190 at `autonomous-printshop/print-server/SERVER68_EXISTING_STAGE_BUNDLE_AUTH_AUDIT_20261018.md`. `SEC-AP303-02=OPEN_HIGH`; `STAGE_AUTH_REVIEW=HIGH_RISK`; `REMOTE_STAGE=NOT_DEPLOYED`; `PRODUCTION_CHANGE=NO`; `UBUNTU_LIVE=OFF`.
