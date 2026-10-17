@@ -3806,3 +3806,132 @@ NEXT_GATE_REQUIRES_EXPLICIT_MUTATION_APPROVAL=YES
 ```
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY621 -->
+
+---
+
+## الملحق التاريخي و-٤ — Entry622 / Compatibility Bridge preparation checkpoint
+
+> `HISTORICAL / BRIDGE_GATE_RECORDED / NOT_CURRENT_AUTHORIZATION`. بوابات تاريخية لا تعيد تفويض تفعيل Bridge؛ أي قرار تشغيل لاحق يتطلب موافقة مستقلة.
+> [Source](https://github.com/fawakhry/TrendOs/blob/85d07fae9eabb7242902d402c5af3e6d50dd03e0/TrendOS_MASTER_BOOK.md) blob `345190869a880c130bab95d4330bb46ff92044d4`; [Archive](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md) blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY622 -->
+### Entry622 — Compatibility Bridge Gate 1 preparation (partial, fail-closed)
+- الهدف: تجهيز Compatibility Bridge الخاص بـTrendOS فقط بينما يظل:
+  - Employee Auth = OFF.
+  - Employee Bridge = OFF.
+  - Accounting = READONLY ومؤجل إلى Repo `fawakhry/EasyStore`.
+- تم تصحيح الـread-only pilot من الخطة التاريخية لأن Runtime تغيّر:
+  - Ops أصبح `GENERAL` على D1، لذلك لا نعيد Ops read policies إلى legacy bridge.
+  - Accounting مؤجل، لذلك لا نضيف Accounting policies للـbridge.
+  - manifest الحالي = **17 TrendOS-only read policies**.
+- Policy manifest:
+  - `docs/trendos/staging/ENTRY622_TRENDOS_BRIDGE_READONLY_POLICIES.json`
+  - commit `82c4db5ecb54d6ae1b96ed68af81c63b10f44baa`
+- Qualification test:
+  - `tests/entry622_trendos_bridge_readonly_policies.test.mjs`
+  - commit `c5fe320ef28d06f202a01e87fc7dc0fc4326680b`
+  - proves exactly 17 policies, Accounting excluded, already-native Ops policies excluded.
+- Controlled workflow:
+  - `.github/workflows/trendos-entry622-bridge-policies-off-controlled.yml`
+- Attempt 1:
+  - Run `37218676765` failed before Production mutation بسبب خطأ count في أداة الفحص فقط.
+  - Production mutation = NO.
+- Count fix:
+  - commit `d80e99ff988a5ecb540a70a4eac390a4ebf9fb99`.
+- Attempt 2:
+  - Run `37218709830`, Job `111484461273`.
+  - manifest qualification = PASS.
+  - exact Production preflight = PASS:
+    ```ini
+    API_VERSION=de2c825d-ef63-407d-90dc-8059a9d4f192
+    UI_VERSION=bfcc6f85-a748-4b66-a334-b605c72108f7
+    AUTH=OFF
+    BRIDGE=OFF
+    BRIDGE_SECRET_CONFIGURED=false
+    BRIDGE_POLICY_COUNT=0
+    OPS=GENERAL / epoch 7
+    ACCOUNTING=READONLY / epoch 2
+    CONTENT=OFF
+    COMMS=OFF
+    CORE=OFF
+    ```
+  - policy install stopped fail-closed before mutation:
+    - Cloudflare error `10053`: binding `EMPLOYEE_LEGACY_BRIDGE_ACTIONS` already exists as a non-secret binding, so `wrangler secret put` cannot replace it.
+  - no policy value changed.
+  - no secret was installed.
+  - no API/frontend deploy.
+  - no D1 mutation.
+  - no Apps Script mutation.
+- Current blocker:
+  - Gate 1 needs the same new shared bridge secret on:
+    1. Cloudflare Worker secret `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1`.
+    2. Apps Script Script Property `EMPLOYEE_LEGACY_BRIDGE_SECRET_V1`.
+  - Cloudflare `EMPLOYEE_LEGACY_BRIDGE_ACTIONS` must be edited as its existing plain binding to the exact 17-policy value, not converted to a secret.
+  - Apps Script project ID / property-write API is not available from repo/connected Drive; safest continuation is authenticated control-plane browser access.
+  - browser profiles exist, but no Google/Cloudflare sign-in is recorded for them, so control-plane mutation is paused until the owner opens an authenticated setup session.
+- Fail-closed state:
+  ```ini
+  STATUS=ENTRY622_GATE1_PARTIAL_BLOCKED_ON_AUTHENTICATED_CONTROL_PLANE_SESSION
+  AUTH=OFF
+  BRIDGE=OFF
+  BRIDGE_SECRET_CONFIGURED=false
+  BRIDGE_POLICY_COUNT=0
+  ACCOUNTING=READONLY
+  PRODUCTION_BEHAVIOR_CHANGED=NO
+  NEXT_ACTION=OWNER_AUTHENTICATES_GOOGLE_APPS_SCRIPT_AND_CLOUDFLARE_BROWSER_PROFILE; THEN_INSTALL_SHARED_SECRET_AND_17_POLICIES_WITH_BRIDGE_STILL_OFF
+  ```
+
+#### Entry622 Gate 1 — manual control-plane completion and cleanup correction
+- Owner completed the private temporary-bootstrap path manually against the confirmed Production Apps Script project.
+- Production Apps Script deployment remained on **Version 159** and was not repointed.
+- Reported verified state:
+  ```ini
+  APPS_SCRIPT_PROJECT_MATCH=YES
+  PRODUCTION_DEPLOYMENT_VERSION=159
+  PRODUCTION_DEPLOYMENT_CHANGED=NO
+  TEMP_BOOTSTRAP_ACCESS=ONLY_MYSELF
+  SECRET_GENERATED_WITH_WEB_CRYPTO=YES
+  SECRET_IN_SOURCE=NO
+  SECRET_IN_URL=NO
+  SECRET_IN_LOGS=NO
+  APPS_SCRIPT_BRIDGE_SECRET_CONFIGURED=YES
+  APPS_SCRIPT_BRIDGE_ENABLED=NO
+  CLOUDFLARE_BRIDGE_SECRET_CONFIGURED=YES
+  CLOUDFLARE_BRIDGE_POLICY_COUNT=17
+  CLOUDFLARE_BRIDGE_ENABLED=NO
+  AUTH=OFF
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  TEMP_BOOTSTRAP_SOURCE_REMOVED=YES
+  D1_MUTATION=NO
+  ```
+- Cleanup evidence from Apps Script **Manage deployments**:
+  - Production deployment remains active on Version 159.
+  - the temporary Entry622 deployment is shown under **Archived**, not Active.
+- Apps Script UI semantics correction:
+  - versioned deployments are archived rather than permanently deleted from the deployment record;
+  - therefore `TEMP_BOOTSTRAP_DEPLOYMENT_DELETED=NO` by itself is **not a Gate failure** when the temporary deployment is archived and inactive.
+- Effective cleanup registration:
+  ```ini
+  TEMP_BOOTSTRAP_DEPLOYMENT_ARCHIVED=YES
+  TEMP_BOOTSTRAP_DEPLOYMENT_ACTIVE=NO
+  TEMP_BOOTSTRAP_SOURCE_REMOVED=YES
+  PRODUCTION_DEPLOYMENT_VERSION=159
+  ```
+- Gate result:
+  ```ini
+  STATUS=ENTRY622_COMPATIBILITY_BRIDGE_GATE1_PASS
+  AUTH=OFF
+  BRIDGE=OFF
+  BRIDGE_SECRET_CONFIGURED=YES
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL
+  OPS_POLICY_EPOCH=7
+  ACCOUNTING=READONLY
+  ACCOUNTING_POLICY_EPOCH=2
+  D1_MUTATION=NO
+  PRODUCTION_APPS_SCRIPT_VERSION=159
+  NEXT_GATE=NATIVE_AUTH_TRANSITIONAL_BOOTSTRAP_CANARY_WITH_BRIDGE_STILL_FAIL_CLOSED_UNTIL_EXPLICIT_ENABLE
+  ```
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY622 -->
