@@ -5350,3 +5350,67 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY633 -->
+
+---
+
+## الملحق التاريخي و-١٤ — Entry634 / Legacy employee bootstrap retirement
+
+> **HISTORICAL; NOT CURRENT PRODUCTION PROOF.** هذا توثيق لقرار وإجراء قديم وليس تحققًا جديدًا من حالة الدخول أو نشرًا.
+> [Source](https://github.com/fawakhry/TrendOs/blob/64dcbd4397aa008af97115cd6ec3d6400248c9e4/TrendOS_MASTER_BOOK.md) blob `fcd7a2ddc238ab7cb27360f52f4c043474f57d63`; [Archive](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md) blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY634 -->
+### Entry634 — Legacy employee login bootstrap disabled; PASS
+- Entry633 first canonicalized every known login alias to the exact D1 key.
+- Repo qualification:
+  - manifest `docs/trendos/staging/ENTRY634_DISABLE_LEGACY_AUTH_BOOTSTRAP_MANIFEST.json`;
+  - regression `tests/entry634_disable_legacy_auth_bootstrap.test.mjs`;
+  - CI Run `37490697061` = SUCCESS.
+- Controlled Cloudflare settings workflow:
+  - `.github/workflows/trendos-entry634-disable-legacy-bootstrap-controlled.yml`;
+  - Run `37491028261`.
+- The settings PATCH succeeded and auto-activated a settings-only version before the workflow later hit a shell syntax error.
+- Evidence recorded before the syntax error:
+  ```ini
+  SETTINGS_PATCH_HTTP=200
+  NON_TARGET_BINDINGS_UNCHANGED=PASS
+  BOOTSTRAP_BINDING=false
+  SECRET_BINDINGS_PRESERVED=PASS
+  SETTINGS_PATCH_AUTO_ACTIVATED=YES
+  WORKER_CODE_ETAG_UNCHANGED=PASS
+  WORKER_CODE_CHANGE=NO
+  ```
+- Runtime truth after the run:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=false
+  LEGACY_SESSION_ENROLL_ENABLED=false
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=5
+  D1_NATIVE_READY_USERS=5
+  BACKEND_BRIDGE=false
+  CORE=READONLY
+  CONTENT=READONLY
+  COMMS=READONLY
+  OPS=GENERAL
+  ACCOUNTING=READONLY
+  ```
+- Post-activation proof:
+  - `.github/workflows/trendos-entry634-post-activation-smoke.yml`;
+  - Run `37491279083`;
+  - Job `112364351717`;
+  - conclusion = SUCCESS.
+- Proof:
+  ```ini
+  MISSING_NATIVE_LOGIN=FAIL_CLOSED
+  APPS_SCRIPT_BOOTSTRAP_UNREACHABLE=PASS
+  LIVE_ALIAS_LOGIN_WITH_BOOTSTRAP_OFF=PASS
+  LIVE_BRIDGE_CALLS=0
+  LIVE_LOGOUT=PASS
+  ```
+- Business data mutation = NO; qualification Auth session was created and revoked only.
+- Entry635 target: set Backend Native-only as defense-in-depth while keeping frontend Global Native Auth OFF.
+
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY634 -->
