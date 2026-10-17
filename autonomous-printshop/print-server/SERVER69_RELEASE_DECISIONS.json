@@ -1,0 +1,107 @@
+{
+  "schema": "trendos.server69.review-decision-queue.v1",
+  "recordedAt": "2026-10-18",
+  "scope": "TrendOS Cloudflare security / D1 / R5 / Ubuntu service reader only",
+  "ownerInstruction": "Continue every independently safe GitHub task; batch owner-approval gates instead of interrupting.",
+  "strictNoChange": [
+    "Cloudflare Production Workers trendos / trendos-d1-api",
+    "Existing trendos-d1-staging Worker and its 11-table D1",
+    "Cloudflare Access/WAF, secrets and Durable Object remote migration",
+    "R5 production workflow .github/workflows/trendos-r5-periodic-controlled.yml",
+    "Apps Script live triggers",
+    "Real Ubuntu and any printing/laser equipment",
+    "Manager UI PR195",
+    "EasyStore finance"
+  ],
+  "evidence": {
+    "syntheticCI": "https://github.com/fawakhry/TrendOs/actions/runs/39072530740",
+    "sourceOnlyPR": "https://github.com/fawakhry/TrendOs/pull/190",
+    "managerWorkSeparate": "https://github.com/fawakhry/TrendOs/pull/195",
+    "deployedCloudflareAuditedFromOwnerUI": "no version-to-Git-SHA provenance verified",
+    "stageD1": "trendos-staging distinct from trendos-main, existing 11 tables; not disposable",
+    "stageWorkerAccess": "no Worker-specific Cloudflare Access application per owner screen; application code guards vary",
+    "ubuntuClient": "autonomous-printshop/print-server/src/trendosshop_read_once.py ; synthetic local-only proof"
+  },
+  "decisions": [
+    {
+      "id": "D01",
+      "title": "Isolated remote-stage resources",
+      "status": "owner_approval_pending",
+      "defaultSafe": "NO_REMOTE_PROVISIONING",
+      "choices": [
+        "Create a distinct non-public stage Worker + synthetic D1 + private DO",
+        "Audited remediation of existing staging Worker; cannot overwrite its code/D1 until consumer review"
+      ],
+      "requiredBefore": "Remote Cloudflare stage canary",
+      "rationale": "Existing staging Worker is historically configured, missing dedicated Access and has 11 preexisting tables."
+    },
+    {
+      "id": "D02",
+      "title": "Service identities and key material",
+      "status": "owner_approval_pending",
+      "defaultSafe": "NO_KEYS_OR_REMOTE_BINDINGS",
+      "choices": [
+        "Approve separate stage-only HMAC metadata/parity secrets, machine-reader service identity and DO migration using Cloudflare secret store",
+        "Leave all server readers disabled"
+      ],
+      "requiredBefore": "Authorized positive remote stage GET",
+      "rationale": "Never store secrets in GitHub or share them in conversation."
+    },
+    {
+      "id": "D03",
+      "title": "R5 / Apps Script / external consumer cutover",
+      "status": "evidence_pending",
+      "defaultSafe": "PRESERVE_CURRENT_WORKFLOWS",
+      "choices": [
+        "Collect and approve client inventory, feature-flag rollout, signed metadata replacement and rollback",
+        "Keep legacy consumer deployment contract unchanged"
+      ],
+      "requiredBefore": "Deny old mirror read endpoints on production",
+      "rationale": "Existing R5 workflow is pinned to older commit and expects legacy mirror GET HTTP 200; opt-in Apps Script behavior not verified live."
+    },
+    {
+      "id": "D04",
+      "title": "Production Worker source provenance and security change window",
+      "status": "evidence_and_owner_approval_pending",
+      "defaultSafe": "NO_PRODUCTION_DEPLOY",
+      "choices": [
+        "Review exact active Worker artifacts and approve targeted containment/deploy/rollback window",
+        "Continue source-only qualification"
+      ],
+      "requiredBefore": "Any live SEC-AP303-02 remediation",
+      "rationale": "trendos and trendos-d1-api are distinct Workers; compiled owner screenshot does not prove Git SHA parity."
+    },
+    {
+      "id": "D05",
+      "title": "Ubuntu read-only canary and credential rotation",
+      "status": "owner_approval_pending",
+      "defaultSafe": "UBUNTU_CLIENT_OFF",
+      "choices": [
+        "Approve read-only machine reader with short-lived token, outbound-only network, device command disabled, operator present",
+        "Keep existing Python one-shot client disabled"
+      ],
+      "requiredBefore": "Remote Ubuntu read of an order",
+      "rationale": "Source tests do not prove a live Ubuntu network or credential."
+    },
+    {
+      "id": "D06",
+      "title": "First live-order acceptance",
+      "status": "owner_approval_pending",
+      "defaultSafe": "NO_CUSTOMER_DATA_NO_DEVICES",
+      "choices": [
+        "Approve one selected live order read-only at a named window and compare expected department/order counts with devices off",
+        "Continue synthetic tests"
+      ],
+      "requiredBefore": "Production order confirmation",
+      "rationale": "Must explicitly separate reading a real order from machine execution."
+    }
+  ],
+  "sourceDone": [
+    "SERVER-66 legacy route fail-closed patch source-only",
+    "SERVER-67 HMAC plus Durable Object replay guard source-only",
+    "SERVER-68 R5 signed metadata helper source-only and Apps Script page-size adapter",
+    "SERVER-69 local Workerd + synthetic D1 + Python Ubuntu one-shot end-to-end",
+    "PR195 manager UI remains separate and unmodified"
+  ],
+  "operatorSummary": "NO_GO for remote stage until D01-D02; NO_GO for production until D03-D04; NO_GO for Ubuntu live until D05; NO_GO for order acceptance until D06"
+}
