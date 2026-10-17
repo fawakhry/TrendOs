@@ -42,6 +42,41 @@ function authorized(req,token){
   const a=Buffer.from(s),b=Buffer.from(token);return a.length===b.length&&timingSafeEqual(a,b);
 }
 function originOK(req){return ['http://127.0.0.1:'+req.socket.localPort,'http://localhost:'+req.socket.localPort].includes(req.headers.origin)}
+// The status and its audit event are a single SQLite transaction.
+// This remains a disposable local demo, not the production Core API.
+export function transitionOrderAtomic(db,id,nextStatus){
+  db.exec('SAVEPOINT pilot_order_transition');
+  try{
+    const old=db.prepare('SELECT status,blocked FROM orders WHERE id=?').get(id);
+    let problem='';
+    let httpStatus=0;
+    if(!old){problem='NOT_FOUND';httpStatus=404;}
+    else if(flow[flow.indexOf(old.status)+1]!==nextStatus){
+      problem='NO_STATUS_SKIP_OR_REPLAY';httpStatus=409;
+    }else if(old.blocked&&nextStatus==='تم التسليم'){
+      problem='DEMO_DELIVERY_RESTRICTION';httpStatus=409;
+    }
+    if(problem){
+      db.exec('RELEASE SAVEPOINT pilot_order_transition');
+      return {success:false,httpStatus,code:problem};
+    }
+    const updated=db.prepare('UPDATE orders SET status=? WHERE id=? AND status=?')
+      .run(nextStatus,id,old.status);
+    if(updated.changes!==1){
+      db.exec('ROLLBACK TO SAVEPOINT pilot_order_transition');
+      db.exec('RELEASE SAVEPOINT pilot_order_transition');
+      return {success:false,httpStatus:409,code:'STALE_STATUS'};
+    }
+    db.prepare('INSERT INTO history(order_id,previous_status,next_status) VALUES(?,?,?)')
+      .run(id,old.status,nextStatus);
+    db.exec('RELEASE SAVEPOINT pilot_order_transition');
+    return {success:true,id,status:nextStatus};
+  }catch(err){
+    try{db.exec('ROLLBACK TO SAVEPOINT pilot_order_transition')}catch{}
+    try{db.exec('RELEASE SAVEPOINT pilot_order_transition')}catch{}
+    throw err;
+  }
+}
 async function bodyJSON(req){
   const buffers=[];let n=0;
   for await(const b of req){n+=b.length;if(n>2048)throw Error('OVER_LIMIT');buffers.push(b)}
@@ -58,7 +93,9 @@ export async function startPilot({port=4178}={}){
   const token=randomBytes(32).toString('hex');
   const server=http.createServer(async(req,res)=>{
     try{
-      if(!/^(127\.0\.0\.1|localhost):\d{1,5}$/.test(req.headers.host||''))return deny(res,403,'LOCAL_HOST_ONLY');
+      // Host must match the *actual* bound loopback port, not any localhost port.
+      if(!['127.0.0.1:'+req.socket.localPort,'localhost:'+req.socket.localPort]
+        .includes(req.headers.host))return deny(res,403,'LOCAL_HOST_ONLY');
       const u=new URL(req.url,'http://127.0.0.1'),name=u.pathname;
       if(req.method==='GET'&&staticFiles.has(name)){
         const [f,type]=staticFiles.get(name);
@@ -69,6 +106,13 @@ export async function startPilot({port=4178}={}){
       if(req.method==='GET'&&name==='/api/session')return reply(res,200,{success:true,token,mode:'SYNTHETIC_LOCAL_ONLY',financeRelease:'NO_GO'});
       if(!authorized(req,token))return deny(res,401,'PILOT_TOKEN_REQUIRED');
       if(req.method==='GET'&&name==='/api/orders')return reply(res,200,{success:true,orders:rows(db),financeRelease:'NO_GO'});
+      const auditMatch=/^\\/api\\/orders\\/(DEMO-\\d{4,})\\/history$/.exec(name);
+      if(req.method==='GET'&&auditMatch){
+        if(!db.prepare('SELECT 1 FROM orders WHERE id=?').get(auditMatch[1]))
+          return deny(res,404,'NOT_FOUND');
+        const history=db.prepare('SELECT previous_status AS previousStatus,next_status AS nextStatus,created_at AS createdAt FROM history WHERE order_id=? ORDER BY id ASC').all(auditMatch[1]);
+        return reply(res,200,{success:true,id:auditMatch[1],history,financeRelease:'NO_GO'});
+      }
       if(req.method==='GET'&&name==='/api/manager')return reply(res,200,manager(db));
       if(req.method==='POST'){
         if(!originOK(req))return deny(res,403,'PILOT_LOCAL_ORIGIN_REQUIRED');
@@ -89,14 +133,9 @@ export async function startPilot({port=4178}={}){
         const m=/^\/api\/orders\/(DEMO-\d{4,})\/status$/.exec(name);
         if(m){
           if(Object.keys(p).length!==1||typeof p.status!=='string')return deny(res,400,'STATUS_ONLY');
-          const old=db.prepare('SELECT status,blocked FROM orders WHERE id=?').get(m[1]);
-          if(!old)return deny(res,404,'NOT_FOUND');
-          if(flow[flow.indexOf(old.status)+1]!==p.status)return deny(res,409,'NO_STATUS_SKIP_OR_REPLAY');
-          if(old.blocked&&p.status==='تم التسليم')return deny(res,409,'DEMO_DELIVERY_RESTRICTION');
-          const written=db.prepare('UPDATE orders SET status=? WHERE id=? AND status=?').run(p.status,m[1],old.status);
-          if(written.changes!==1)return deny(res,409,'STALE_STATUS');
-          db.prepare('INSERT INTO history(order_id,previous_status,next_status) VALUES(?,?,?)').run(m[1],old.status,p.status);
-          return reply(res,200,{success:true,id:m[1],status:p.status});
+          const result=transitionOrderAtomic(db,m[1],p.status);
+          if(!result.success)return deny(res,result.httpStatus,result.code);
+          return reply(res,200,result);
         }
         return deny(res,403,'FINANCE_AND_OTHER_WRITES_OFF');
       }
