@@ -38,16 +38,16 @@
     "entry_number_count": 66,
     "entry_heading_count": 58,
     "mention_only_count": 8,
-    "explicitly_mentioned_in_current_catalog": 34,
-    "unmentioned_by_exact_entry_label_in_current_catalog": 32,
+    "explicitly_mentioned_in_current_catalog": 35,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 31,
     "reconciled_entry_count": 0,
     "unreconciled_entry_count": 66,
     "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation.",
-    "historical_entry_heading_sections_migrated_exact_count": 30,
+    "historical_entry_heading_sections_migrated_exact_count": 31,
     "initial_entry_heading_count": 58,
     "original_snapshot_reconciled_count": 0,
-    "migration_progress_note": "33 exact historical migration units through Entry635; Entry615 privacy and Entry619 archive-scope held, 66 IDs not fully reconciled.",
-    "total_migration_units_exact_verified": 33,
+    "migration_progress_note": "34 exact historical migration units through Entry636; Entry615 privacy and Entry619 archive-scope held, 66 IDs not fully reconciled.",
+    "total_migration_units_exact_verified": 34,
     "non_entry_historical_migration_units_exact_verified": 3
   },
   "book_policy": {
@@ -2265,12 +2265,34 @@
       "source_first_line": 5050,
       "source_heading_line": 5053,
       "mention_count_in_master": 4,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_GLOBAL_NATIVE_AUTH_COMPLETENESS_GATE_BLOCKED",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "034",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          636
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "af61569b0ecef3ed1c6f19ae75fd7e0f35c32b9f",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-١٦",
+        "copy_commit": "a45257469b39a15488e9a90fb96de2aa1d477faa",
+        "remove_commit": "0f87abcf4b68a3530811a03dd9749a2d2944d721",
+        "text_characters": 2787,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-18",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Past Global Auth gate blocked; subsequent records may supersede; no current live claims."
+      }
     },
     {
       "entry_id": 637,
@@ -2556,12 +2578,12 @@
   ],
   "latest_review": {
     "date": "2026-10-18",
-    "head_before_crosswalk_commit": "953104abc3ea7cf3f15fd7273341372acb1f51bd",
-    "active_master_blob_sha": "af61569b0ecef3ed1c6f19ae75fd7e0f35c32b9f",
-    "new_catalog_blob_sha": "eb3a8242bc7287c7cdc76a7cf74957fdee6b59f0",
+    "head_before_crosswalk_commit": "0f87abcf4b68a3530811a03dd9749a2d2944d721",
+    "active_master_blob_sha": "7473534daf43b96eaa610b0dabf59f070eb7154e",
+    "new_catalog_blob_sha": "fdfd1bdb71f0b10273543b75de8088da654bb427",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "33 exact units, Entry635 copied/verified/removed; old master and SERVER-68I preserved; no production actions."
+    "notes": "34 exact units, Entry636 copied/verified/removed; old master and SERVER-68I preserved; no production actions."
   },
   "non_entry_section_migrations": [
     {
