@@ -8180,4 +8180,170 @@ DEPLOYMENT_MUTATION=NO
 D1_MUTATION=NO
 ACCOUNTING_MUTATION=NO
 EASYSTORE_MUTATION=NO
-SPRE
+SPREADSHEET_MUTATION=NO
+SECRET_VALUE_LOGGED=NO_THIS_ATTEMPT
+AUTH_MODE=NATIVE
+D1_AUTH_USERS=6
+D1_NATIVE_READY_USERS=6
+D1_NATIVE_READY=6/6
+NATIVE_ONLY=true
+LEGACY_BOOTSTRAP=false
+LEGACY_SESSION_ENROLL=false
+BACKEND_BRIDGE=false
+BACKEND_BRIDGE_POLICY_COUNT=0
+FRONTEND_GLOBAL_NATIVE_AUTH=true
+FRONTEND_NATIVE_CANARY=false
+FRONTEND_BRIDGE=false
+ROLLBACK_USED=NO
+ROLLBACK_STATUS=NOT_NEEDED_ALL_POSTCHECKS_PASS
+MASTER_BOOK_RECORDED=YES
+NEXT_SECURITY_GATE=SEPARATE_SECRET_ROTATION_AFTER_ATTEMPT3_EXPOSURE
+```
+
+
+#### Entry644 — Employee Core READONLY → GENERAL — PASS
+- الاسم العربي للبحث: **نقل Core الموظفين للكتابة السحابية / Core GENERAL / Entry644**.
+- التاريخ: 2026-10-07 Cairo.
+- البداية كانت من Runtime مثبت: Auth=NATIVE 6/6، Backend Bridge=false/0 policies، Core=READONLY epoch1، Content=READONLY، Comms=READONLY، Ops=GENERAL، Accounting=READONLY/writeAuthorityMode=OFF.
+- تم تأهيل Dispatcher بحيث READONLY يظل يوجه 4 Core reads فقط، بينما GENERAL يوجه نفس 4 reads + 4 D1-native writes: `bulkUpdateDepartmentStatusV1926`, `archiveDeliveredDepartmentV1926`, `updateLine`, `markCustomerNotified`.
+- Repo Attempt 1: Run `37550415394` / Job `112564269742` = FAIL بسبب test-harness Edge call خاطئ بعد نجاح Core 8/8؛ لا Production mutation. الإصلاح commit `d0f12b07d122690b56bda8208ab2fe3efca271fc`.
+- Repo Attempt 2: Run `37550477764` / Job `112564471855` = FAIL بسبب Entry628 historical assertion قديم يتوقع Core=OFF؛ لم يتم تغيير الاختبار التاريخي. Gate fix commit `4237107e27f8b8b94f149eb052ef5698e53576af`.
+- Repo Attempt 3: Run `37550529017` = SUCCESS؛ `ENTRY644_REPO_GATE=PASS`.
+- Runtime arm workflow commit `53d8348d84f5fad968b917e535035bf0a1f66050`; Run `37550634418` / Job `112564985475` = SUCCESS.
+- D1 Core control تغير بشرط exact من `READONLY/epoch1` إلى `GENERAL/epoch2` فقط. Safe unauthenticated write-shaped probe وصل auth وأوقف قبل business mutation. Rollback كان armed ولم يُستخدم.
+- independent between-stage proof أثبت Backend Core=GENERAL/2 بينما Frontend ظل Core=READONLY قبل deploy؛ Auth/Bridge/Content/Comms/Ops/Accounting ظلت ضمن الحدود.
+- Frontend controlled workflow commit `d56e9fc14cd40c1ca96fc9c9dd76d187d36044da`; Run `37551016683` / Job `112566231841` = SUCCESS.
+- Frontend version: `ecba8460-e9c1-4fc7-81a2-1cf5c054943a` → `9c84a8ca-49f9-458a-9714-8a0dc03cfcd6`; propagation attempt 4.
+- Authenticated smoke: Native login PASS؛ Core write-shaped `updateLine` على synthetic nonexistent line وصل D1 Core ورفض `line-not-found` بدون business mutation؛ Legacy Bridge calls=0؛ logout PASS.
+- Root repo config reconciled to Core GENERAL in commit `db217eea8a83c58c05fe16325d6bd09a9c5511e3`.
+- config reconciliation شغّل historical workflows قديمة وفشل 9 منها بسبب assertions محفوظة لحالات superseded مثل Native=false / Core=OFF / Content=OFF / Comms=OFF. Runs: `37551156457`, `37551156482`, `37551156578`, `37551156455`, `37551156528`, `37551156541`, `37551156506`, `37551156450`, `37551156516`. هذه ليست Runtime regression ولم يتم تزوير التاريخ بتعديل assertions القديمة.
+- Evidence: `docs/trendos/staging/ENTRY644_CORE_GENERAL_CUTOVER_20261007.md`.
+```ini
+ENTRY644=PASS
+AUTH_MODE=NATIVE
+D1_NATIVE_READY=6/6
+BACKEND_BRIDGE=false
+BACKEND_BRIDGE_POLICY_COUNT=0
+CORE=GENERAL
+CORE_POLICY_EPOCH=2
+FRONTEND_CORE=GENERAL
+CORE_GOOGLE_BUSINESS_CALLS=0
+CORE_APPS_SCRIPT_BUSINESS_AUTHORITY=false
+OPS=GENERAL
+CONTENT=READONLY
+COMMS=READONLY
+ACCOUNTING=READONLY
+ACCOUNTING_AUTHORITATIVE_WRITES=false
+ACCOUNTING_WRITE_AUTHORITY_MODE=OFF
+BUSINESS_DATA_MUTATION_FROM_ENTRY644=NO
+ACCOUNTING_MUTATION=NO
+EASYSTORE_MUTATION=NO
+ROLLBACK_USED=NO
+MASTER_BOOK_RECORDED=YES
+```
+- Next gate: qualify Content beyond READONLY without touching Accounting/EasyStore.
+
+
+#### Entry645 — Content R2 foundation — Attempt 1 BLOCKED_SAFE
+- التاريخ: 2026-10-07 Cairo.
+- الهدف: تجهيز R2 لـEmployee Content مع إبقاء Content `READONLY / epoch2`؛ لا GENERAL cutover في هذه المحاولة.
+- Workflow source commit: `d919b3b94c0ac7dc9a7ca9dfc6d9e80a96781d73`.
+- Run `37551605425` / Job `112568154452`.
+- Exact Runtime preflight = PASS: Auth=NATIVE 6/6، Bridge=false، Core=GENERAL/2، Content=READONLY/2 و`r2Ready=false`، Comms=READONLY، Ops=GENERAL، Accounting=READONLY/writeAuthorityMode=OFF.
+- R2 bucket step فشل قبل أي mutation: Cloudflare R2 API رجع HTTP 403 / code 10000 Authentication error. الـCI token الحالي لا يملك صلاحية list/create R2 buckets.
+- Worker settings patch/activation/postflight كلها SKIPPED؛ rollback غير مطلوب لأن الفشل قبل patch.
+- لا API code deploy، لا D1/business mutation، لا Accounting/EasyStore mutation.
+- Evidence: `docs/trendos/staging/ENTRY645_CONTENT_R2_FOUNDATION_ATTEMPT1_20261007.md`.
+- Safe next prerequisite: إنشاء bucket واحد فقط باسم `trendos-employee-content-files` من Cloudflare Dashboard، ثم استكمال binding qualification آليًا.
+```ini
+ENTRY645_ATTEMPT1=BLOCKED_SAFE
+CONTENT_MODE=READONLY
+CONTENT_POLICY_EPOCH=2
+CONTENT_R2_READY=false
+R2_API_AUTH=403
+WORKER_SETTINGS_MUTATION=NO
+D1_MUTATION=NO
+BUSINESS_DATA_MUTATION=NO
+ACCOUNTING_MUTATION=NO
+EASYSTORE_MUTATION=NO
+ROLLBACK_USED=NO
+```
+
+#### Entry646 — Manager Center Core-direct stabilization — PASS
+- الاسم العربي للبحث: **المركز / مركز الإدارة / لوحة المدير / Manager Center / Trend Master Center**.
+- التاريخ: 2026-10-07 Cairo.
+- التشخيص الحي: `config.js` يحمل `trend-master-resilience-v1931.js` قبل `manager-center-v1932.js`. الـResilience يطلب `getTrendMasterPanelV1931`، لكن الـDispatcher والـD1 Core الحاليين لا يؤهلان هذا action، بينما `getTrendMasterCenterV1931` مؤهل Native على `/v1/employee/core`.
+- لذلك كان Manager Center يفضّل مسار Progressive غير مؤهل لمجرد وجود `trendMasterPanelResilienceV1` بدل fallback السحابي الصحيح.
+- Entry646 غيّر **المركز فقط** ليستخدم Snapshot واحد مباشر من `getTrendMasterCenterV1931`. لم يتم تغيير D1 أو Backend API أو Content أو Comms أو Accounting/EasyStore.
+- Workflow source commit: `eda1828f0c6b6b17617b7649a048d414635ef293`.
+- Run `37554583893` / Job `112577762263` = SUCCESS.
+- Repo patch commit: `463a2523a9ddf1457f113112254f7bc5176d082a`.
+- Frontend version: `9c84a8ca-49f9-458a-9714-8a0dc03cfcd6` → `cfff20f6-5a9d-46cb-8dfb-6c378c4f0eb5`; propagation attempt 4.
+- Authenticated Production smoke: Native login PASS؛ Manager Center snapshot من Core PASS؛ Legacy Bridge calls=0؛ Business write=NO؛ Native logout PASS.
+- Runtime postflight: Auth=NATIVE 6/6، Core=GENERAL/2، Ops=GENERAL، Content=READONLY، Comms=READONLY، Accounting=READONLY/writeAuthorityMode=OFF؛ rollback لم يُستخدم.
+- Evidence: `docs/trendos/staging/ENTRY646_MANAGER_CENTER_CORE_DIRECT_20261007.md`.
+```ini
+ENTRY646=PASS
+MANAGER_CENTER_ROUTE=CORE_DIRECT
+MANAGER_CENTER_ACTION=getTrendMasterCenterV1931
+AUTH_MODE=NATIVE
+D1_NATIVE_READY=6/6
+BACKEND_BRIDGE=false
+CORE=GENERAL
+CORE_POLICY_EPOCH=2
+CONTENT=READONLY
+COMMS=READONLY
+OPS=GENERAL
+ACCOUNTING=READONLY
+D1_MUTATION=NO
+BUSINESS_WRITE=NO
+CONTENT_MUTATION=NO
+COMMS_MUTATION=NO
+ACCOUNTING_MUTATION=NO
+EASYSTORE_MUTATION=NO
+ROLLBACK_USED=NO
+MASTER_BOOK_RECORDED=YES
+```
+
+
+#### Entry647 — Employee Auth + Attendance Runtime Repair — PASS
+- الاسم العربي للبحث: **تسجيل دخول الموظفين / الحضور بيظهر تاني / Canary Native Auth غير جاهز / إصلاح Attendance Runtime**.
+- التاريخ: 2026-10-07 Cairo.
+- بلاغ التشغيل: بعد دخول الموظف والضغط على تسجيل الحضور/بداية اليوم كانت شاشة البداية تظهر مرة أخرى. ضياء ظهر له أيضًا `Canary Native Auth غير جاهز على Cloud.`.
+- Read-only diagnostic Run `37614146869` / Job `112768316417` أثبت:
+  - Auth Runtime = NATIVE / nativeOnly=true / 6 users / 6 native-ready.
+  - Ops=GENERAL/epoch7.
+  - Frontend global Native=true، Canary=false.
+  - live `app.js`, dispatcher و`attendance-clockin-ui-v1.js` مطابقون للـrepo.
+  - live `attendance-v1.js` كان stale hash `4472b66306a31c365a5a3e2b98e73dece85e93f1` بينما qualified repo hash `d7f2625aa03c18486069ee274d960adbf8cdcee4`.
+  - الملف الحي القديم كان يفتقد `normalizeAttendanceBackendResponse`؛ لذلك كانت كتابة D1 تنجح لكن UI لا يفهم الرد ويعيد Start overlay.
+  - D1 قراءة فقط وقت التشخيص: 2 attendance days + 2 clockins + 2 start pulses، فلا يوجد فقد كتابة.
+- Repair source commit `0ee185b18d4a855c3572acc26296674333e451cc`: Restore attendance normalization + cache-bust للملفات الحرجة + stale-Canary compatibility guard بحيث Runtime NATIVE authoritative لا يُحجب بواسطة Canary frontend state قديم.
+- Repo CI Run `37614885337` = SUCCESS.
+- Controlled deploy history:
+  - Attempt1 Run `37615132869` = BLOCKED_SAFE قبل deploy بسبب frontend version drift؛ لا Production mutation.
+  - drift كان بسبب Secure EasyStore SSO repair مستقل غيّر app.js فقط وأنتج version `e2717f15-5166-43ac-b1df-702d0e76642a`; Entry647 أُعيد base عليه للحفاظ على إصلاح SSO.
+  - Attempt2 Run `37615380360` نشر مؤقتًا ثم rollback آلي إلى `e2717f15...` بسبب Cache-Control verification غير صالح للنمط الحالي؛ repair asset checks نفسها PASS.
+  - Attempt3 Run `37615605269` نشر مؤقتًا ثم rollback آلي مرة ثانية بعد إثبات أن Static Assets لا تمر بمسار header rewrite المقترح؛ لم يُفتح تغيير معماري أوسع.
+  - Attempt4 Run `37615852582` نشر مؤقتًا ونجح Runtime/asset postflight ثم rollback آلي لأن مقارنة D1 قارنت Wrangler execution metadata المتغيرة بدل business counts؛ business counts لم تتغير.
+  - Attempt5 Run `37616027251` / Job `112774437142` = SUCCESS.
+- Final frontend version: `e2717f15-5166-43ac-b1df-702d0e76642a` → `3950c36b-c3ee-4fd4-87b6-f6c2e2eabf03`.
+- Final propagation attempt=4.
+- Final proof:
+  - live attendance normalizer restored PASS.
+  - dispatcher hardened PASS.
+  - pre-existing secure SSO app.js preserved exactly.
+  - attendance-clockin-ui preserved exactly.
+  - Auth postflight=NATIVE 6/6.
+  - frontend global Native=true / Canary=false.
+  - D1 attendance counts before/after Entry647 deploy exactly unchanged: `attendanceDays=2, clockins=2, startPulses=2`.
+  - Accounting mutation=NO; EasyStore mutation=NO; final rollback used=NO.
+- Evidence: `docs/trendos/staging/ENTRY647_ENTRY648_EMPLOYEE_LOGIN_ATTENDANCE_REPAIR_20261007.md`.
+
+```ini
+ENTRY647=PASS
+FRONTEND_VERSION=3950c36b-c3ee-4fd4-87b6-f6c2e2eabf03
+AUTH_MODE=NATIVE
+D1_NATIVE_READY=6/6
+FRONTEND_GLOBAL_NATIVE_AUTH=true
+FRONTEND_NATIVE_CA
