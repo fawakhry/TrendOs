@@ -106,7 +106,7 @@ export async function startPilot({port=4178}={}){
       if(req.method==='GET'&&name==='/api/session')return reply(res,200,{success:true,token,mode:'SYNTHETIC_LOCAL_ONLY',financeRelease:'NO_GO'});
       if(!authorized(req,token))return deny(res,401,'PILOT_TOKEN_REQUIRED');
       if(req.method==='GET'&&name==='/api/orders')return reply(res,200,{success:true,orders:rows(db),financeRelease:'NO_GO'});
-      const auditMatch=/^\\/api\\/orders\\/(DEMO-\\d{4,})\\/history$/.exec(name);
+      const auditMatch=/^\/api\/orders\/(DEMO-\d{4,})\/history$/.exec(name);
       if(req.method==='GET'&&auditMatch){
         if(!db.prepare('SELECT 1 FROM orders WHERE id=?').get(auditMatch[1]))
           return deny(res,404,'NOT_FOUND');
