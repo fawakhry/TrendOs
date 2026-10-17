@@ -38,16 +38,16 @@
     "entry_number_count": 66,
     "entry_heading_count": 58,
     "mention_only_count": 8,
-    "explicitly_mentioned_in_current_catalog": 27,
-    "unmentioned_by_exact_entry_label_in_current_catalog": 39,
+    "explicitly_mentioned_in_current_catalog": 28,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 38,
     "reconciled_entry_count": 0,
     "unreconciled_entry_count": 66,
     "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation.",
-    "historical_entry_heading_sections_migrated_exact_count": 23,
+    "historical_entry_heading_sections_migrated_exact_count": 24,
     "initial_entry_heading_count": 58,
     "original_snapshot_reconciled_count": 0,
-    "migration_progress_note": "26 exact historical transfers through Entry626, while Entry615 remains for privacy review and Entry619 for archive reconciliation; 66 original entries require complete cross-references.",
-    "total_migration_units_exact_verified": 26,
+    "migration_progress_note": "27 exact historical migration units. Entry615 BLOCKED_PRIVACY_REVIEW and Entry619 BLOCKED_ARCHIVE_SCOPE_RECONCILIATION preserved. 66 original IDs unreconciled.",
+    "total_migration_units_exact_verified": 27,
     "non_entry_historical_migration_units_exact_verified": 3
   },
   "book_policy": {
@@ -2015,12 +2015,34 @@
       "source_first_line": 4640,
       "source_heading_line": 4640,
       "mention_count_in_master": 5,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_KNOWN_EMPLOYEE_ALIAS_GAP_NATIVE_AUTH",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "027",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          627
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "41b998412878262c1cae9c1c257f34a9ff2f8370",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٩",
+        "copy_commit": "f2ecdf599e87ff9af5485d00fb79c0c44f624cc5",
+        "remove_commit": "6431811b5e239be918700ce6350451a4c4d5de82",
+        "text_characters": 4197,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-18",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Preserved concurrent SERVER-68I; historical employee login proof not today's Production."
+      }
     },
     {
       "entry_id": 628,
@@ -2401,13 +2423,13 @@
     "Reconcile former Draft and current catalog via full text equality after every editorial promotion; never delete historical source without backup and owner approval."
   ],
   "latest_review": {
-    "date": "2026-10-17",
-    "head_before_crosswalk_commit": "39824cf6b6d0968f1f5ec6c4faddf696fae5cedf",
-    "active_master_blob_sha": "1d901fea8279442957f1c4eb0330358417fac1d0",
-    "new_catalog_blob_sha": "70bed11132f3bb5130fe4e1cc10daf5e82efdd38",
+    "date": "2026-10-18",
+    "head_before_crosswalk_commit": "6431811b5e239be918700ce6350451a4c4d5de82",
+    "active_master_blob_sha": "de592540c253d4435a8175c699d408750801e336",
+    "new_catalog_blob_sha": "d9f487e472e683e463255e80fc849ed20a45edae",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "26 exact migrated units; last Entry626; preserved all SERVER-64–68; Entry615 and Entry619 unchanged, no production operations. Entry615 BLOCKED_PRIVACY_REVIEW and Entry619 BLOCKED_ARCHIVE_SCOPE_RECONCILIATION explicitly recorded with preserved active master."
+    "notes": "27 units. Entry627 copied verified, SERVER-68I protected; 615 and 619 held; latest Runtime unverified."
   },
   "non_entry_section_migrations": [
     {
