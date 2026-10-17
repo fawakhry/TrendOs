@@ -1,0 +1,65 @@
+name: TrendOS BOOK24 x Printshop AP Cross-Agent Readiness — Isolated CI
+on:
+  push:
+    branches:
+      - fix/book24-ap-cross-agent-readiness-integration-20261017
+  pull_request:
+    paths:
+      - 'autonomous-printshop/core/**'
+      - 'autonomous-printshop/production-shadow/worker.mjs'
+      - 'autonomous-printshop/tests/**'
+      - '.github/workflows/trendos-book24-ap-cross-agent-integration-fake-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  merged-source-fake-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify source syntax and integrated fake regression
+        run: |
+          node --check autonomous-printshop/core/readiness-evidence-v1.mjs
+          node --check autonomous-printshop/core/design-production-evidence-v1.mjs
+          node --check autonomous-printshop/core/readiness-source-adapters-v1.mjs
+          node --check autonomous-printshop/production-shadow/worker.mjs
+          node --test autonomous-printshop/tests/book24_ap_cross_agent_integration_guard.test.mjs
+      - name: Printshop AP094 AP095 AP110 AP115 AP118 AP121 AP122 tests
+        run: |
+          node autonomous-printshop/tests/readiness_evidence_v1.test.mjs
+          node autonomous-printshop/tests/ap118_readiness_equal_time_conflict_failclosed.test.mjs
+          node autonomous-printshop/tests/private_line_provenance_review_v1.test.mjs
+          node autonomous-printshop/tests/design_production_evidence_v1.test.mjs
+          python3 autonomous-printshop/tests/readiness_latest_evidence_sql_v1.py
+      - name: BOOK24 179 181 183 source and SQLite regressions
+        run: |
+          node --test autonomous-printshop/tests/book24_readiness_expiry_resurrection_guard.test.mjs
+          node --test autonomous-printshop/tests/book24_readiness_source_latest_sql_guard.test.mjs
+          node --test autonomous-printshop/tests/book24_design_readiness_event_chronology_guard.test.mjs
+          python3 autonomous-printshop/tests/book24_readiness_source_latest_sqlite.py
+      - name: Inherited adapters design machine and Shadow worker regressions
+        run: |
+          node autonomous-printshop/tests/design_asset_linking_v1.test.mjs
+          node autonomous-printshop/tests/design_readiness_collector_v1.test.mjs
+          node autonomous-printshop/tests/machine_readiness_v1.test.mjs
+          node autonomous-printshop/tests/readiness_source_adapters_v1.test.mjs
+          node autonomous-printshop/tests/readiness_evidence_writer_v1.test.mjs
+          node autonomous-printshop/tests/readiness_collector_v1.test.mjs
+          node autonomous-printshop/tests/production_shadow_worker_v1.test.mjs
+      - name: No production effects
+        run: |
+          echo 'FAKE_FIXTURES=ONLY'
+          echo 'REAL_D1=NO'
+          echo 'GOOGLE=NO'
+          echo 'PRINTING=OFF'
+          echo 'PRODUCTION_MACHINE=NO'
+          echo 'DEPLOY=NO'
+          echo 'MERGE=NO'
+          echo 'TASK_AUTHORITY=NOT_PROVEN'
+          echo 'PRODUCTION_VERIFIED=NO'
