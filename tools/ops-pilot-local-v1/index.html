@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrendOS | تجربة تشغيل الأوردرات المحلية</title>
+<style>
+:root{font-family:Tahoma,Arial,sans-serif;color:#10273e;background:#f2f5f8}
+*{box-sizing:border-box}body{margin:0}header{background:#08294b;color:white;padding:25px 5%}
+header h1{margin:0;font-size:25px}header p{color:#d9e8f6;line-height:1.7}
+main{max-width:1200px;margin:24px auto;padding:0 18px}
+.notice{border:1px solid #edcf85;background:#fff7dd;padding:12px 16px;border-radius:12px;font-size:15px;line-height:1.8}
+h2{font-size:20px}.cols{display:grid;grid-template-columns:1fr 2fr;gap:16px}
+.panel{background:white;border:1px solid #e0e7ec;padding:19px;border-radius:14px;box-shadow:0 6px 20px #0f243309}
+label{display:block;font-weight:bold;margin:12px 0 6px}select,button{font:inherit}
+select{width:100%;padding:12px;border:1px solid #a8b9c6;border-radius:8px;background:white}
+button{cursor:pointer;border:0;background:#0759a2;color:white;padding:11px 17px;border-radius:10px;font-weight:bold}
+button:hover{background:#003b73}button:disabled{background:#93a4b6;cursor:not-allowed}
+button.small{font-size:12px;padding:8px 10px}table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{padding:11px 8px;border-bottom:1px solid #e7ecf2;text-align:right}
+th{white-space:nowrap;color:#35536c}td:last-child{min-width:125px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 23px}
+.stat{background:white;border-radius:11px;padding:15px;border:1px solid #e1e7ed}
+.stat b{display:block;font-size:27px;color:#0759a2;margin-top:6px}
+.flag{display:inline-block;background:#fef2f2;color:#a42a25;border-radius:7px;padding:3px 7px;font-weight:bold}
+.ok{background:#eff9f3;color:#267547}.muted{color:#5d7082;font-size:12px}
+#feedback{min-height:28px;margin-top:12px;font-weight:bold}.error{color:#b42318}.success{color:#157b42}
+footer{text-align:center;padding:20px;color:#576a80}
+@media(max-width:850px){.cols{grid-template-columns:1fr}table{display:block;overflow:auto}.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header><h1>TrendOS — تجربة تشغيل المطبعة</h1>
+<p>أوردرات تجريبية + حالات تنفيذ فعلية عبر HTTP محلي + لوحة المدير الأصلية V1932.</p></header>
+<main>
+<div class="notice"><strong>🔒 تجربة معزولة محلية — وليست نظام الإنتاج.</strong>
+كل الأسماء والأوردرات وهمية، وتختفي عند إغلاق الخادم. لا اتصال بجوجل أو Cloudflare أو واتساب أو الخزنة. الحسابات المالية مقفولة تمامًا (<b>NO_GO</b>).
+لن يستقبل الخادم طلبات من أجهزة أخرى؛ يعمل فقط على نفس الكمبيوتر <code>127.0.0.1</code>.</div>
+<div class="stats">
+<div class="stat">الأوردرات النشطة<b id="active">—</b></div>
+<div class="stat">تم التسليم<b id="delivered">—</b></div>
+<div class="stat">طلبات ممنوعة من التسليم<b id="blocked">—</b></div>
+</div>
+<div class="cols">
+<section class="panel"><h2>➕ إضافة أوردر تجريبي</h2>
+<p class="muted">تُنشأ هوية العميل الوهمية آليًا. لا تدخل أسماء أو أرقام عملاء حقيقية.</p>
+<form id="orderForm">
+<label for="product">المنتج</label>
+<select name="product" id="product"><option value="تابلوه">تابلوه 30×40</option><option value="مج">مج 20×9</option><option value="استيكر">استيكر 7×10</option></select>
+<label for="department">القسم</label>
+<select name="department" id="department"><option value="التصميم">التصميم</option><option value="الطباعة">الطباعة</option><option value="الليزر">الليزر</option></select>
+<p><button type="submit" id="add">إنشاء أوردر</button></p>
+</form>
+<p id="feedback" role="status" aria-live="polite"></p>
+<p class="muted">لوحة المدير الأصلية تظهر بزر مستقل بعد التحميل بأسفل الشاشة، وبها الأداء والتنبيهات وسياسة التسليم.</p>
+</section>
+<section class="panel"><h2>📦 متابعة الأوردرات</h2>
+<p class="muted">التسلسل المسموح: طلب جديد ← جاري التنفيذ ← جاهز للتسليم ← تم التسليم. ممنوع القفز بين الحالات أو تسليم أوردر عليه منع.</p>
+<div style="overflow-x:auto"><table><thead><tr><th>الأوردر</th><th>العميل</th><th>المنتج/القسم</th><th>الحالة</th><th>التسليم</th><th>الإجراء</th></tr></thead><tbody id="orders"><tr><td colspan="6">جار تحميل بيانات التجربة...</td></tr></tbody></table></div>
+<p><button id="refresh" type="button">تحديث</button></p>
+</section>
+</div>
+</main>
+<footer>TrendOS operational pilot — SYNTHETIC LOCAL ONLY — FINANCE RELEASE NO_GO</footer>
+<script src="/pilot.js" defer></script>
+<script src="/manager-center-v1932.js" defer></script>
+</body>
+</html>
