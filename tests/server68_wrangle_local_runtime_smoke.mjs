@@ -127,6 +127,16 @@ async function test(){
   await response(printUrl,{method:'POST',headers:{Authorization:'Bearer '+MACHINE_TOKEN}},405);
   process.stdout.write('SERVER69_LOCAL_MACHINE_READER=PASS; PRINT_LASER_SCOPES=PASS; NO_CUSTOMER_FIELDS=TRUE; NO_EQUIPMENT=TRUE\\n');
 
+  // SERVER-69B: exercise the *existing* Ubuntu Python one-shot client
+  // against the real local Worker with an explicitly injected loopback opener.
+  // Python still validates the pinned production HTTPS authority itself.
+  const python=spawnSync('python3',['tests/server69_ubuntu_python_to_local_workerd.py'],{
+    encoding:'utf8', timeout:12000,
+    env:{...process.env,PYTHONPATH:'autonomous-printshop/print-server',PYTHONDONTWRITEBYTECODE:'1'}
+  });
+  assert(python.status===0,'SERVER69_PYTHON_CLIENT_CONTRACT_FAILED '+String(python.stderr||python.stdout).slice(-900));
+  process.stdout.write(python.stdout);
+
   process.stdout.write('SERVER68_LOCAL_REAL_WORKER=PASS; SQLITE_D1_SYNTHETIC=PASS; DO_NONCE_REPLAY=PASS; AUTH_DENY=PASS; NO_REMOTE_DEPLOY=TRUE\n');
   finished=true;
 }
