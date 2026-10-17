@@ -1636,11 +1636,17 @@
       "source_heading_line": 1526,
       "mention_count_in_master": 18,
       "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "lifecycle_classification": "HISTORICAL_CURRENT_DATA_BACKFILL_PRIVACY_REVIEW_REQUIRED",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "BLOCKED_PRIVACY_REVIEW",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "migration_blocker": {
+        "type": "PRIVACY_REVIEW",
+        "detail": "Historical Cloudflare deploy metadata contains a contact email. Verbatim transfer paused until privacy handling and owner-visible audit decision, source preserved unmodified.",
+        "archived_source": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "source_preserved": true
+      }
     },
     {
       "entry_id": 616,
@@ -1750,11 +1756,17 @@
       "source_heading_line": 2657,
       "mention_count_in_master": 7,
       "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "lifecycle_classification": "HISTORICAL_ACCOUNTING_READONLY_WITH_ARCHIVE_SCOPE_DELTA",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "BLOCKED_ARCHIVE_SCOPE_RECONCILIATION",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "migration_blocker": {
+        "type": "ARCHIVE_SCOPE_DELTA",
+        "detail": "Current Entry619 30976 chars vs archive 34720; archive included prior 001/004/005 non-entry historical blocks. Need line-accurate provenance reconciliation, no deletion.",
+        "archived_source": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "source_preserved": true
+      }
     },
     {
       "entry_id": 620,
@@ -2395,7 +2407,7 @@
     "new_catalog_blob_sha": "70bed11132f3bb5130fe4e1cc10daf5e82efdd38",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "26 exact migrated units; last Entry626; preserved all SERVER-64–68; Entry615 and Entry619 unchanged, no production operations."
+    "notes": "26 exact migrated units; last Entry626; preserved all SERVER-64–68; Entry615 and Entry619 unchanged, no production operations. Entry615 BLOCKED_PRIVACY_REVIEW and Entry619 BLOCKED_ARCHIVE_SCOPE_RECONCILIATION explicitly recorded with preserved active master."
   },
   "non_entry_section_migrations": [
     {
