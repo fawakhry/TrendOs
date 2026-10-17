@@ -1,0 +1,43 @@
+name: TrendOS Local Operations Pilot - HTTP SQLite NO_GO
+on:
+  pull_request:
+    paths:
+      - 'tools/ops-pilot-local-v1/**'
+      - 'tests/ops_pilot_local_http.test.mjs'
+      - 'manager-center-v1932.js'
+      - '.github/workflows/ops-pilot-local-http-fake-sqlite-no-go.yml'
+permissions:
+  contents: read
+jobs:
+  localhost-http-demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test actual local HTTP and deny live finance
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          OPENAI_API_KEY: ''
+          WHATSAPP_TOKEN: ''
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test -z "$GOOGLE_APPLICATION_CREDENTIALS"
+          test -z "$OPENAI_API_KEY"
+          test -z "$WHATSAPP_TOKEN"
+          node --check tools/ops-pilot-local-v1/server.mjs
+          node --check tools/ops-pilot-local-v1/pilot.js
+          node --check manager-center-v1932.js
+          node --test tests/ops_pilot_local_http.test.mjs
+          echo 'TRENDOS_OPS_PILOT_REAL_LOOPBACK_HTTP=TESTED'
+          echo 'TRENDOS_OPS_PILOT_ALL_DATA_SYNTHETIC=YES'
+          echo 'TRENDOS_OPS_PILOT_FINANCE_RELEASE=NO_GO'
+          echo 'TRENDOS_OPS_PILOT_REMOTE_DEPLOY=NONE'
