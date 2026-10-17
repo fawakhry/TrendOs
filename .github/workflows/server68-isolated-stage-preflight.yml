@@ -8,6 +8,8 @@ on:
       - cloudflare-d1/production-shadow/index.js
       - tests/server68_isolated_stage_preflight.test.mjs
       - tests/server68_secure_mirror_pagination_compat.test.mjs
+      - tests/server68_r5_signed_metadata_preflight.test.mjs
+      - cloudflare-d1/r5-server68-signed-metadata-preflight.mjs
       - tests/server68_wrangle_local_runtime_smoke.mjs
       - tests/fixtures/server68_local_mirror_fixture.sql
       - cloudflare-d1/wrangler.server68-local-runtime.toml
@@ -35,6 +37,7 @@ jobs:
       - name: Check staging target isolation, source auth and role-limited clients
         run: |
           node --test tests/server68_isolated_stage_preflight.test.mjs \
+            tests/server68_r5_signed_metadata_preflight.test.mjs \
             tests/server68_secure_mirror_pagination_compat.test.mjs \
             tests/server67_purpose_scoped_mirror_service_read.test.mjs \
             tests/server67_apps_script_signed_mirror_client_offline.test.mjs \
