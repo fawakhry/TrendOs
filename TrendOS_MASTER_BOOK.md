@@ -1501,48 +1501,6 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
 
 
 
-### Entry630 — Comms READONLY cutover PASS; business Bridge dependency = 0
-- Entry630 completed the final business read family migration.
-- Repo gate:
-  - `.github/workflows/trendos-entry630-comms-readonly-repo-ci.yml`
-  - Run `37476624460` = SUCCESS.
-- Runtime arm:
-  - `.github/workflows/trendos-entry630-comms-readonly-runtime-arm-controlled.yml`
-  - Run `37476785742` = SUCCESS.
-  - Comms moved from `OFF / epoch1` to `READONLY / epoch2`.
-  - no business-data mutation, WhatsApp send, OpenAI call, R2 write, Accounting mutation, or EasyStore mutation.
-- Backend read smoke:
-  - workflow `.github/workflows/trendos-entry630-comms-readonly-backend-smoke.yml`
-  - initial Run `37482871509` safely exposed that `getOrderConversation` requires an existing order;
-  - corrected Run `37483062449` = SUCCESS;
-  - `customerManagerV1:inbox`, `customerManagerV1:thread`, `getOrderConversation`, and `goLiveAutopilotV1:listDrafts` all PASS;
-  - Business writes = NO.
-- Controlled frontend cutover:
-  - workflow `.github/workflows/trendos-entry630-comms-readonly-frontend-controlled.yml`
-  - preflight-only failures `37483588074`, `37483800216`, `37484025206` made no Production mutation;
-  - corrected Run `37484322594` = SUCCESS;
-  - new Production frontend version `1d31014e-4e47-4414-933a-3e60a8e80ece`.
-- Live frontend now:
-  ```ini
-  GLOBAL_NATIVE_AUTH=false
-  CANARY_NATIVE_USERS=all five known employee identities/aliases
-  CORE=READONLY
-  CONTENT=READONLY
-  COMMS=READONLY
-  OPS=GENERAL
-  ACCOUNTING=READONLY
-  FRONTEND_BRIDGE_POLICY_COUNT=4
-  ```
-- The four frontend Bridge policy names remain in config only for the old canary preflight contract; the dispatcher now routes all four to D1 Comms before Bridge evaluation.
-- Therefore:
-  ```ini
-  ENTRY630_BUSINESS_BRIDGE_ACTIONS=0
-  BACKEND_BRIDGE_ENABLED=true
-  BACKEND_BRIDGE_POLICY_COUNT=17
-  ```
-- The Backend Bridge remains only as a temporary auth-canary preflight dependency. Entry631 must remove that preflight dependency before the Bridge can be disabled safely.
-
-
 ### Entry631 — Frontend bridge-free Native canary PASS
 - Goal: remove the compatibility Bridge from known-employee login preflight without enabling Global Native Auth.
 - Repo gate:
@@ -3847,3 +3805,7 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 
 ## BOOK-MIGRATION-20261018-027 — Entry627
 - `EXACT_VERBATIM_MATCH=PASS` for 4197 chars, COPY `f2ecdf599e87ff9af5485d00fb79c0c44f624cc5`, archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source SHA `41b998412878262c1cae9c1c257f34a9ff2f8370` and REMOVE commit captured by Crosswalk. All SERVER-68I and prior changes preserved.
+
+
+## BOOK-MIGRATION-20261018-028 — Entry630
+- `EXACT_VERBATIM_MATCH=PASS` (2024 chars), source/archive/appendix identical, COPY `dfd9eb4d8deae0a953b551baf6d8580c5e94db7e`, archived master `b2788ecb4c187717e020321954a1ea449c1aa0d5`, remove SHA logged in Crosswalk.
