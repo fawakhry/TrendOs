@@ -3897,3 +3897,8 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 
 ## BOOK-MIGRATION-20261017-026 — Entry626
 - `EXACT_VERBATIM_MATCH=PASS` (3227 chars), historical only; COPY `fc737d6340bd03863bfa550a338534cfafc1eada`, archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; REMOVE SHA in Crosswalk.
+
+
+### SERVER-20261017-68C — existing staging D1 ID confirmed separate (READ-ONLY)
+- Owner screenshots show `trendos-d1-staging` bound to `DB→trendos-staging`, UUID `bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6`; distinct from `trendos-main` UUID `5c4b92bf-e043-4f6e-bd6d-d514a92cd825`. D1 overview 11 tables/184 KB; dashboard 0 reads/writes in the displayed last 24h only; does not prove empty or unused. Worker `TRENDOS_CLOUD_WRITE` setting visually `true`; no mutation performed.
+- **Security/compatibility gate:** Existing staging DB cannot be treated as disposable. Review deployment/version, triggers, consumers and existing test content before changing bindings or seeding. SERVER-68 actual local Worker + fake D1/DO already PASS 147/147 in [run 39065882866](https://github.com/fawakhry/TrendOs/actions/runs/39065882866); Cloudflare hosted stage, DO migration, production protection and Ubuntu live link remain NOT DONE. Preserve separate `trendos` production and no production changes. Detailed reference `autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md` SERVER-20261017-68C on PR #190 branch.
