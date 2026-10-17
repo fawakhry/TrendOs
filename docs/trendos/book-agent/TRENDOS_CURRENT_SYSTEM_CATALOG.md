@@ -7681,4 +7681,199 @@ BACKEND_BRIDGE=false
 D1_AUTH_USERS=6
 D1_NATIVE_READY_USERS=6
 MUST_CHANGE=0
-PLAIN
+PLAINTEXT_STORED=false
+ACCOUNTING=READONLY / policyEpoch8
+EASYSTORE_MUTATION=NO
+```
+- Evidence file: `docs/trendos/staging/ENTRY640_AUTH_CONTROL_NATIVE_20261007.md`.
+- Evidence commit: `5d2c84089c96e9fb5ef6494abf5a3c2d4338bfa3`.
+- This Master Book recorder Run: `37543529947`.
+- Recorder workflow source SHA: `dfcde40bd66a65c2a2d67cf31c9b34685a51c7f5`.
+- `ENTRY640_DOCUMENTATION=PASS`.
+
+
+#### Entry641 — Legacy Auth retirement read-only audit; Cloudflare hardening drift found
+- Scope: read-only audit only. No Cloudflare/D1/Apps Script/frontend/Accounting/EasyStore/business mutation.
+- Attempt 1:
+  - source commit `7c459c47e4f53ed343c1b95ca2678c8cf9509eb2`
+  - Run `37543761337`, Job `112542724821`
+  - FAILURE in first read-only Runtime proof.
+  - السبب: الـaudit توقع hardening الذي تم إثباته بعد Entry640، لكن Runtime كشف drift: `mode=NATIVE`, `6/6`, `legacyBootstrapEnabled=true`, `nativeOnly=false`.
+  - Mutation from Attempt 1: NO.
+- Attempt 2:
+  - diagnostic source commit `6c2da88c152f98c17a55ae88c652376cb016c8fb`
+  - Run `37544005767`, Job `112543538509`
+  - Conclusion `SUCCESS`.
+- D1/Runtime authority remained:
+  - `AUTH_MODE=NATIVE`
+  - `NATIVE_READY=6/6`
+  - bootstrap remains closed by the NATIVE control mode itself.
+- Cloudflare env residue/drift:
+  - auth env enabled = YES
+  - bootstrap env enabled = YES
+  - session enroll env enabled = NO
+  - nativeOnly env = NO
+  - backend bridge enabled = NO
+  - bridge upstream configured = YES
+  - bridge secret configured = YES
+  - bridge policy count = 17
+  - secret value exposed = NO.
+- Cloudflare deployment history:
+  - current active at 2026-10-06T22:56:20.972111Z = `b1eb1e51-d713-4e30-8da5-a127fd53284b`
+  - previous hardened deployment at 2026-10-06T19:39:41.106173Z = `24202d32-cd6f-41bb-9ce3-0565877ef8be`
+  - bounded-window deployment at 2026-10-06T19:38:41.535377Z = `59f7c6b3-64f3-4dac-a51f-7d730cb90bbb`.
+- Current latest settings:
+  - `NATIVE_ONLY=false`
+  - `LEGACY_BOOTSTRAP=true`
+  - `LEGACY_SESSION_ENROLL=false`
+  - `LEGACY_BRIDGE_ENABLED=false`
+  - bridge actions still configured
+  - bridge secret binding still present.
+- No GitHub employee-auth deploy workflow was observed between Entry640 success and the new 22:56:20Z API deployment. Source is recorded as `UNATTRIBUTED`; do not guess attribution.
+- Apps Script Version159 bridge read-only probe:
+  - invalid assertion probe HTTP 200;
+  - rejection happened after bridge-enabled and secret-configured checks;
+  - `APPS_SCRIPT_BRIDGE_ENABLED=YES`
+  - `APPS_SCRIPT_BRIDGE_SECRET_CONFIGURED=YES`
+  - secret value exposed = NO.
+- Repo residue:
+  - default Cloudflare bridge flag OFF;
+  - bridge source code still present;
+  - Apps Script bridge route/code still present.
+- Decision:
+```ini
+ENTRY641=READONLY_AUDIT_PASS
+ENTRY641_RUNTIME_DRIFT=CF_AUTH_ENV_HARDENING_REGRESSED
+ENTRY641_D1_AUTH_CONTROL=NATIVE
+ENTRY641_NATIVE_READY=6_OF_6
+ENTRY641_NEXT_GATE=DEPLOY_RESILIENT_CF_AUTH_HARDENING
+ENTRY641_AFTER_CF_GATE=DISABLE_APPS_SCRIPT_BRIDGE_PROPERTY
+```
+- Evidence: `docs/trendos/staging/ENTRY641_LEGACY_AUTH_RETIREMENT_READONLY_20261007.md`.
+- Evidence commit: `6ef6ac204209ef1927a93fa501364ad9d3c97af5`.
+- This recorder Run: `37544239094`.
+- Recorder source SHA: `bc161757c8102b86c2d3a659ec80a2612fd7275c`.
+- `ENTRY641_DOCUMENTATION=PASS`.
+
+
+#### Entry642 — Deploy-resilient employee Auth hardening; PASS
+- الهدف: إصلاح Cloudflare Auth env drift المكتشف في Entry641 وجعل repo defaults نفسها hardened لأي deploy مستقبلي.
+- لا D1 mutation، لا Apps Script mutation، لا frontend deploy، لا Accounting mutation، لا EasyStore mutation، ولا business-data mutation.
+- Evidence: `docs/trendos/staging/ENTRY642_DEPLOY_RESILIENT_AUTH_HARDENING_20261007.md`.
+- Evidence commit: `6fbd1cf4b0f4e05fb6ea90f66995a3ed21a84195`.
+
+##### Entry641 follow-up rerun before Entry642
+- تم rerun لنفس Entry641 read-only job بدون أي Push جديد:
+  - Run `37544005767`, run_attempt = 2
+  - Job `112544607661`
+  - Conclusion `SUCCESS`.
+- النتيجة: لم يظهر أي API deployment جديد؛ active version ظل `b1eb1e51-d713-4e30-8da5-a127fd53284b` بنفس timestamp `2026-10-06T22:56:20.972111Z`.
+- بالتالي commits العادية التي حدثت أثناء نافذة المراقبة لم تثبت أنها تسبب API auto-deploy.
+
+##### Attempt 1 — failure before mutation
+- Workflow source: `d1aec76dec9fd9098ed9dd51dbe0cc1b86c9d2ed`.
+- Run `37544706079`, Job `112545806855`, conclusion `FAILURE`.
+- Preflight PASS:
+  - Auth authority `NATIVE`, Native-ready `6/6`
+  - pre env: `BOOTSTRAP=true`, `NATIVE_ONLY=false`, session enroll false
+  - Bridge OFF, policies 17, secret configured
+  - frontend Global Native PASS
+  - repo drift precondition PASS.
+- Cloudflare pre active version: `b1eb1e51-d713-4e30-8da5-a127fd53284b`.
+- binding count = 33.
+- failure code: Cloudflare `10057`; Settings API `inherit.version_id` accepts only literal `latest`, not a version UUID.
+- PATCH did not occur; rollback reported `ENTRY642_ROLLBACK_NOT_NEEDED=PRE_PATCH_FAILURE`.
+- Production mutation from Attempt 1: NO.
+
+##### Attempt 2 — PASS
+- Fix commit: `af82f152377ec56f052eca6a08541e4519616e69`.
+- Run `37544785002`, Job `112546068390`, conclusion `SUCCESS`.
+- Workflow first proved `latest == active`, then safely used literal `latest` inheritance.
+- Cloudflare:
+  - pre version: `b1eb1e51-d713-4e30-8da5-a127fd53284b`
+  - `ENTRY642_CF_SETTINGS_PATCH=PASS`
+  - new version: `e4322cbd-ac74-4f7c-b1ff-5833ea524e5a`
+  - `ENTRY642_CF_EXPLICIT_DEPLOY=NO` (Cloudflare activated settings version automatically)
+  - `ENTRY642_CF_CODE_ETAG_UNCHANGED=PASS`.
+- Production target:
+  - Auth enabled = true
+  - Bootstrap = false
+  - Native-only = true
+  - Legacy-session-enroll = false
+  - Backend Bridge = false
+  - Bridge actions/policies = empty/0.
+- Bridge secret binding intentionally retained for rollback safety; secret value was never read or logged.
+- Production proof:
+  - propagation attempt = 2
+  - family postflight PASS
+  - `ENTRY642_NATIVE_LOGIN=PASS`
+  - `ENTRY642_LEGACY_BRIDGE_CALLS=0`
+  - `ENTRY642_NATIVE_LOGOUT=PASS`
+  - `ENTRY642_UNKNOWN_USER_FAIL_CLOSED=PASS`
+  - `ENTRY642_PRODUCTION_HARDENING=PASS`
+  - `ENTRY642_CF_BRIDGE_POLICY_COUNT=0`.
+- Exact pre-version rollback was armed but not invoked because all production checks passed.
+
+##### Repo deploy-resilience
+- Only `cloudflare-d1/wrangler.toml` was reconciled after production proof.
+- Commit: `db0e850ff096c12b3f663c3df20edc7e0b506999`.
+- `ENTRY642_WRANGLER_RECONCILED=PASS`.
+- Repo defaults now:
+  - `TRENDOS_EMPLOYEE_AUTH_V1_ENABLED="true"`
+  - `TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED="false"`
+  - `TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1="true"`
+  - `TRENDOS_EMPLOYEE_AUTH_LEGACY_SESSION_ENROLL_V1_ENABLED="false"`
+  - `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED="false"`
+  - `EMPLOYEE_LEGACY_BRIDGE_ACTIONS=""`.
+
+##### Final stable truth
+```ini
+ENTRY642=PASS
+ENTRY642_DEPLOY_RESILIENT_AUTH_HARDENING=PASS
+AUTH_MODE=NATIVE
+D1_AUTH_USERS=6
+D1_NATIVE_READY_USERS=6
+LEGACY_BOOTSTRAP=false
+LEGACY_SESSION_ENROLL=false
+NATIVE_ONLY=true
+BACKEND_BRIDGE=false
+BACKEND_BRIDGE_POLICY_COUNT=0
+BACKEND_BRIDGE_SECRET_RETAINED=true
+FRONTEND_GLOBAL_NATIVE_AUTH=true
+FRONTEND_NATIVE_CANARY=false
+FRONTEND_BRIDGE=false
+WRANGLER_AUTH_DEFAULTS=HARDENED
+APPS_SCRIPT_BRIDGE=STILL_ENABLED_FROM_ENTRY641_AUDIT
+```
+- Accounting كان read-only observation فقط؛ في final stability read وصل مستقلًا إلى `READONLY / epoch10` مع `authoritativeWrites=false`, `writeAuthorityMode=OFF`, `googleBusinessCalls=0`, `appsScriptBusinessAuthority=false`. Entry642 لم يعدله.
+- Next gate: disable Apps Script bridge enabled property while retaining secret/deployment for rollback.
+- This recorder Run: `37545009058`.
+- Recorder source SHA: `f785b22f204103eaa29fc7bd9e670a6565e4589c`.
+- `ENTRY642_DOCUMENTATION=PASS`.
+
+
+#### Entry643 — إغلاق جسر اعتماد الموظفين في Apps Script؛ Attempt 1 BLOCKED / FAIL before mutation
+- الاسم العربي للبحث: **إغلاق جسر دخول الموظفين القديم / تعطيل Apps Script Employee Auth Bridge / Entry643**.
+- وقت الأدلة: 2026-10-06T23:20–23:23Z (2026-10-07 بتوقيت القاهرة).
+- النطاق المصرح: تعديل خاصية `TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED` فقط من true إلى false إذا كانت true؛ الاحتفاظ بالـsecret والـdeployment للـrollback. لا تعديل كود أو deployment أو بيانات.
+- البداية: بعد Entry642 PASS؛ لم تُعد أي خطوة migration أو hardening.
+- Repo preflight HEAD: `26a10953eac5a3683430166065c831b8b672f45a`.
+- آخر Auth Actions التي تمت قراءتها من GitHub:
+  - Entry642 hardening Run `37544785002` = completed / success، source `af82f152377ec56f052eca6a08541e4519616e69`.
+  - Entry642 recorder Run `37545009058` = completed / success، source `f785b22f204103eaa29fc7bd9e670a6565e4589c`.
+  - Latest branch Run `37545387310` = completed / success (Autonomous Printshop CI؛ قراءة metadata فقط، ليس دليل Employee Auth runtime).
+- قراءة الكتاب الحالي أكدت أن الخطوة التالية هي إغلاق خاصية Apps Script وأن Entry642 هي آخر Auth PASS.
+
+##### Current runtime preflight — unavailable, not drift proof
+- GET read-only إلى Production `/v1/employee/auth/health` = HTTP 403.
+- GET read-only إلى `/v1/employee/legacy-action/health` = HTTP 403.
+- GET read-only إلى `/v1/employee/accounting/health` = HTTP 403؛ لا Accounting mutation.
+- GET frontend `config.js` = HTTP 403.
+- هذه أخطاء وصول من بيئة التنفيذ، وليست دليلًا أن قيم Runtime تغيرت؛ current AUTH_MODE / D1_NATIVE_READY / BACKEND_BRIDGE / FRONTEND_GLOBAL_NATIVE_AUTH = UNVERIFIED في هذه المحاولة.
+- Entry642 historical last verified baseline يبقى NATIVE / 6/6 / backend bridge false / frontend global native true؛ لا يُرفع إلى current runtime truth بدون قراءة مستقلة ناجحة.
+
+##### Apps Script access attempt
+- فتح Project URL المحدد `1aGQ5jJ4yYFI5QwMNSM6s1er4LlPbril3kD5nRApScEN-SsNDMXBWm_Eo` حوّل المتصفح إلى صفحة Apps Script العامة `https://developers.google.com/apps-script/`؛ لم تظهر إعدادات المشروع.
+- الضغط على Sign in أعاد صفحة Google Accounts بخطأ `502 Bad Gateway / [Errno 111] Connection refused`.
+- إعادة تحميل واحدة منخفضة المخاطر أعادت نفس الخطأ؛ توقفت محاولة الوصول.
+- لم تظهر صفحة Script Properties، لذلك القيمة النصية السابقة للخاصية = NOT_READ؛ لم يُفترض أ
