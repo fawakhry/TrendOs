@@ -1,76 +1,75 @@
-# تشغيل الليزر في مبنى منفصل عن المطبعة — ربط الشبكة / Laser Remote Site (2026-10-17)
+# ربط جهاز الليزر بالمطبعة عبر الإنترنت — تصحيح التوزيع الفعلي (17 أكتوبر 2026)
 
-> **Trend Mall / TrendOS / Autonomous Printshop — network integration runbook, DOCS-ONLY.**  
-> المصدر: بلاغ المالك يوم 2026-10-17 بنقل ماكينة الليزر إلى مبنى مجاور يبعد نحو 100 متر؛ جهاز العمل Ubuntu، والمتاح مؤقتًا هاتف Hotspot. المطلوب استقبال وإرجاع الملفات مع شبكة/سيرفر المطبعة.  
-> **الحالة:** `SITE_CONNECTIVITY=DESIGN_ONLY`، `HARDWARE_LINE_OF_SIGHT=UNKNOWN`، `LASER_UBUNTU_HOST_ID=UNVERIFIED`، `SHOP_SERVER_OS_IP_AND_LIVE_READINESS=UNKNOWN`، `CUSTOMER_MEDIA_TRANSFER=NOT_TESTED`، `PRODUCTION_LINK=OFF`، `PRINT_SERVER_RUNTIME=OFF`. هذا ليس دليل نشر أو اتصال فعلي.
+> **Trend Mall / Autonomous Printshop — README / Runbook؛ توثيق ومراجعة فقط.**
+>
+> **تصحيح صريح من المالك 2026-10-17 (يلغي أي افتراض مخالف في النسخة السابقة):**
+> - **LASER_PC:** Windows 7، في مبنى الليزر الجديد على بعد نحو 100 متر من المطبعة. الإنترنت المؤقت المقترح: هوتسبوت الموبايل.
+> - **SHOP_SERVER_PC:** Windows 7، داخل المطبعة وعلى شبكتها؛ ليس Ubuntu.
+> - **UBUNTU_HOST = TrendosShop:** عند المالك في **البيت حاليًا**، غير موجود عند الليزر أو في المطبعة، وليس مسار الشبكة اللازم لتشغيل الليزر غدًا.
+> - وصلة كابل بين المبنيين غير مناسبة وفق إفادة المالك؛ لا تطرح توصيلًا سلكيًا كحل للصباح.
+> - الـWindows7 أجهزة قديمة غير مدعومة أمنيًا؛ مرفوض فتح بورت SMB (445) أو RDP (3389) أو SSH (22) على الإنترنت.
 
-## 1. القرار التشغيلي
+## 1. قرار الربط الفوري: Windows 7 ↔ Windows 7، بلا Ubuntu
 
-لا حاجة **تلقائية** لخط أرضي/اشتراك إنترنت ثانٍ لأن المسافة ~100 م:
-1. **الحل الدائم الأول إن وجدت رؤية مباشرة آمنة:** جسر لاسلكي خارجي Point-to-Point بين المبنيين بجهازين موجّهين لبعض، مع تركيب احترافي، LAN مُقيد الصلاحيات، وسويتش/راوتر محلي عند الليزر عند الحاجة. لا يستهلك بيانات الموبايل لنقل الملفات المحلي. إن انعدمت الرؤية المباشرة، قيّم فايبر ضوئي خارجي عبر مسار مصرح به ومقاول مؤهل. **لا تستخدم وصلة نحاس Ethernet مكشوفة بين المبنيين**؛ خطر اختلاف الجهود والصواعق، وحد Ethernet النحاس القياسي 100 م يتضمن مسار القناة وليس مسافة الهواء.
-2. **حل الإنترنت المؤقت/الاحتياطي:** Ubuntu الليزر على Hotspot والـhost الموجود داخل شبكة المطبعة على اتصاله المعتاد. سجّل **الجهازين فقط** في `Cloudflare Zero Trust → Networking → Mesh → Add participant → Add device` ضمن نفس المؤسسة، وأنشئ مسار SSH/SFTP محدودًا بين عناوين Mesh الخاصة. Cloudflare Mesh متاح بخطة Free لكنه Beta بتاريخ الفحص؛ تُراجع شروط الخطة وتوافر الواجهة قبل التفعيل. الاتصال عبر الإنترنت يستهلك باقة هاتف الليزر.
-3. لا تعتمد خطة Tailscale Personal مجانية للعمل التجاري؛ Tailscale يصنفها للاستخدام غير التجاري. يجوز تقييم خطة مناسبة مدفوعة إذا لزم، لا تعد Tailscale المجاني حلًا تجاريًا دائمًا.
+**التجربة الأبسط**: Radmin VPN على **جهازَي Windows 7 فقط**، يربطهما عبر الإنترنت دون الحاجة إلى إعداد Port Forwarding، بينما يصل جهاز الليزر بالهوتسبوت، ويظل جهاز المطبعة على الإنترنت المعتاد. وثائق المنتج الرسمية تؤكد توافق Windows 7، التشفير، مجانية البرنامج، وخيار Create network / Join network. راجع EULA قبل التثبيت.
 
-**الأولوية للأمان:** وصلة Mesh لجهازين محددين لا تعني فتح شبكة المطبعة كلها، ولا إضافة Subnet route أو Exit node أو LAN bridge افتراضي بدون جرد وعزل وموافقة مستقلة.
-
-## 2. واقع مشروعنا المثبت من GitHub — لا تفترض جاهزية Runtime
-
-- `UBUNTU_SERVER_BOOK.md` / Draft PR #135 يذكر iMac12,1 Ubuntu Desktop 24.04.5 `TrendosShop`, user `trend-main`, كان في **البيت** حسب دليل 2026-10-16، وليس مثبتًا في المطبعة ولا موصولًا بآلاتها. **لا نفترض أن جهاز Ubuntu المنقول مع الليزر هو نفس هذا الجهاز.**
-- OpenSSH `ssh.socket` listening محليًا، UFW incoming default DENY، `passwordauthentication yes` ومفاتيح `authorized_keys` لحساب `trend-main` غير مُجهزة آنذاك؛ لا تفتح 22 للإنترنت، ولا تلغِ كلمة المرور قبل اختبار تسجيل الدخول بالمفتاح. مراجعة firewall استثنائية ضيقة من Mesh source IP لوجهة SFTP فقط بعد اختبار المصادقة.
-- `autonomous-printshop/print-server/src/config.py` يضم مسار قسم `laser` و`paths.ordersRoot`, `readyRoot`؛ هذا **source** وليس خدمة إنتاج مثبتة، والمسارات الافتراضية محلية. `src/server.py` يحمل واجهة محلية مقيدة، فلا تفتحها على `0.0.0.0` ولا تعتبرها نظام توزيع ملفات بين مبانٍ.
-- Matbagy media vault على Ubuntu جُرب محليًا، لكن سياسة النسخ الاحتياطي المستقل لا تزال غير مثبتة بحسب سجل 2026-10-16. **لا تخزّن أصول العملاء أو المخرجات في GitHub أو سجلات CI**. لا تحذف مصدرًا اعتمادًا على مجرد النقل.
-
-## 3. تفعيل Cloudflare Mesh للأجهزة فقط — مراحل يتحقق منها المالك محليًا
-
-**بوابة قبل أي تغيير:** حدد هل جهاز الليزر هو `TrendosShop` أم جهاز Ubuntu مختلف، ونظام تشغيل الجهاز القائم فعلًا في المطبعة (Linux/Windows 10+). Windows 7 القديم غير مؤهل لافتراض عمل عميل Cloudflare One الحديث؛ استخدم host مدعومًا داخل LAN بدلاً منه. لا تنقل token أو أسرار إلى الدردشة أو GitHub.
-
-1. افتح لوحة Zero Trust في حساب Cloudflare المصرح، تأكد أن `Mesh` متاح لخطة Free؛ اختر Organization مخصصًا أو سياسات منفصلة عن إنتاج TrendOS. **لا تغيّر Workers/D1/DNS/Tunnels الحالية.**
-2. ثبّت `Cloudflare One Client` من تعليمات `Add participant → Add device` الرسمية على **Ubuntu الليزر** و**جهاز المطبعة المدعوم**. سجّل الطرفين في نفس المنظمة بصلاحيات محصورة. في حال جهاز Ubuntu headless يحتاج إلى Mesh node، تختلف خطواته وتحتاج مراجعة مستقلة قبل استخدام token.
-3. تحقّق أن حالة الطرفين `Connected`، واستخرج عنوان `Mesh IP` لكل جهاز من صفحة Mesh (العنوان لا يُحفظ في GitHub). تحقق بـ`ping` متبادل، ثم اتصال SSH بمفتاح مخصص من حساب محدود؛ استخدام Mesh IP لا ينشئ خدمة SSH ولا يجاوز UFW تلقائيًا.
-4. اجعل الملفات تمر فقط بمجلدين على مخزن المطبعة المعتمد: `laser/inbox/<ORDER_ID>/` للاستقبال، و`laser/returns/<ORDER_ID>/` للإرجاع. ممنوع `chmod 777` أو مشاركة جذر القرص أو بيانات الحسابات أو البيانات الشخصية غير المطلوبة. إنشاء المجلدات وتعيين الحسابات والصلاحيات يُعمل على الـhost بعد إثبات تكوينه، لا عبر GitHub.
-5. **التجربة الأولى وهمية فقط:** أرسل `TEST-LASER-001.txt` من المطبعة إلى الليزر، أعد ملف رد وهمي إلى `returns`؛ افحص البصمتين `sha256sum`، ثم إعادة اتصال بعد فصل وإعادة تشغيل Hotspot. تحقق من أحجام الملفات والسرعة والتصرف عند انقطاع الاتصال. لا تصلح نتيجة `ping` وحدها إثبات نقل ملفات.
-6. بعدها، وبعد إثبات هوية الجهاز/المستخدم ومجلدات العمل ووجود نسخ احتياطية، اعتمد تدفق أوردر حقيقي بصلاحيات منفصلة. وظيفة **تشغيل ماكينة الليزر نفسها** تظل يدوية ومحلية؛ لا ترسل أوامر تشغيل ماكينة من الإنترنت.
-
-**اختبار Linux قراءة فقط، مثال عنوان افتراضي وليس العنوان الحقيقي:**
-```bash
-# على جهاز Ubuntu بعد التسجيل بالواجهة الرسمية
-warp-cli status
-ping -c 4 <SHOP_MESH_IP>
-# اختبار نقل SFTP فقط إذا كانت SSH key / UFW / role مؤهلة مسبقًا
-sftp <APPROVED_SHOP_USER>@<SHOP_MESH_IP>
+مخطط:
+```
+المطبعة                              مبنى الليزر
+Windows 7 shop server                Windows 7 laser PC
+إنترنت المطبعة                       هاتف hotspot
+         |                                   |
+         +----- Radmin VPN encrypted -------+
+               network / two peers only
 ```
 
-إذا كان Ubuntu سطح مكتب، يمكن فتح File Manager → Other Locations → Connect to Server وكتابة `sftp://<APPROVED_SHOP_USER>@<SHOP_MESH_IP>` بعد إعداد مفتاح SSH على خادم المطبعة، دون فتح شبكة SMB عامة. `sftp` يسمح تنزيل/رفع ملف باستخدام `get`/`put`، لكنه لا يخلق أو يزامن مجلدات تلقائيًا. أي أتمتة لاحقة تحتاج سياسة منع التكرار، صلاحيات أقل، وعزل أوردرات الموظفين.
+**ليس تدفقًا آليًا من TrendOS بعد**: سيتم اختبار ملفات وهمية أولًا، ثم — إذا نجح الربط وتأهلت صلاحيات الملفات والنسخ الاحتياطية — ينقل المشغل ملفات الشغل يدويًا، ولا يوجد أي تغيير في آلة الليزر نفسها أو أوامر الحفر.
 
-## 4. الربط الدائم بين المبنيين
+## 2. خطوات إثبات صغير ومحدود (owner-operated; لا تنفيذ من GitHub)
 
-- افحص رؤية مباشرة بين نقطة تركيب مرتفعة في المطبعة ونقطة الليزر. القياس الحقيقي لمسار الهواء والتشويش والكابلات الداخلية والتأريض مطلوب قبل شراء الأجهزة.
-- إن توافرت، يثبت متخصص زوج معدات Outdoor PtP في وضع bridge/point-to-point، مع PoE، تأريض ومانع صواعق حسب المعيار وتعليمات المصنع، وأمن لاسلكي مناسب وكلمة مرور قوية؛ ثم VLAN أو Firewall لإتاحة مخزن الليزر فقط.
-- إن فشلت الرؤية المباشرة، جرّب مسار فايبر آمن قانونيًا، لا شدّ نحاس بين المبنيين. لا تتصل بكابلات كهرباء أو أعمدة/واجهات بدون أذونات.
-- بعد الربط المحلي، تستطيع المطبعة نقل الملفات دون إنترنت، بينما يظل Hotspot/Mesh مسارًا احتياطيًا فقط. DNS وDHCP وحماية الوصول تُراجع قبل وصل LAN بالمبنيين.
+1. افحص وجود اتصال إنترنت فعلي على الجهازين، مع عدم مشاركة hotspot مع أطراف غير معروفة. على جهاز الليزر افحص Wi-Fi والتوافق مع 2.4 GHz hotspot أو استخدم USB tethering إن كان تعريفه مدعومًا. لا تُوصل أي ماكينة قبل إتمام اختبار الملفات.
+2. نزّل Radmin VPN **من الموقع الرسمي فقط** على الجهازين، وافحص التوقيع الرقمي وثبّتهما بعد نقطة استعادة/نسخة احتياطية مناسبة للـWindows7، خصوصًا على سيرفر المطبعة. قد يتغير مسار الشبكة مع ظهور كارت VPN جديد؛ لا تغيّر إعدادات الراوتر/الـIP المحلي.
+3. في المطبعة: Radmin VPN → **Create network**؛ اختر اسم شبكة فريدًا وسرًا قويًا **لا تضعه في دردشة/GitHub**. في جهاز الليزر: **Join network** بالاسم والسر. تأكد أن جهازين فقط يظهران في الشبكة الخاصة.
+4. استخرج عنوان **Radmin VPN IP** لكل جهاز من التطبيق (غالبًا `26.x.x.x` ولكن استخدم العنوان الفعلي). جرّب `ping` من قائمة التطبيق للطرف الآخر. نجاح ping لا يكفي لنجاح مشاركة الملفات.
+5. لتجربة تبادل الملفات، أنشئ على **جهاز المطبعة** مجلد تجربة خاليًا من بيانات عملاء وليكن `C:\\LaserTransferTest`، واجعله مشاركة محدودة **اسمها `LaserTest`**. استخدم حساب Windows محليًا غير إداري وكلمة مرور قوية، مع Share + NTFS permissions محدودة. راجع Windows Firewall: اسمح فقط من عنوان VPN الطرف الآخر إلى SMB TCP 445 على واجهة VPN بعد فحص سياسة النظام؛ **لا تعطّل الجدار الناري ولا تفتح مشاركة `Everyone` بلا كلمة مرور، ولا تسمح بتعرّض SMB للراوتر العام أو شبكة الضيوف**.
+6. من جهاز الليزر جرّب فتح `\\\\<SHOP_RADMIN_IP>\\LaserTest` في File Explorer، بالمستخدم المحدود؛ أنشئ `TEST-LASER-001.txt` ثم انسخه للمطبعة، وأرجع `TEST-LASER-REPLY.txt`. تحقق من الأحجام والمحتوى أو SHA-256. **أي فشل أو ضرورة استخدام SMBv1 قديم وغير مؤمن = توقف عن مشاركة الملفات، ولا تُضعف الإعدادات لمجرد نجاح الاتصال**.
+7. اختبر انقطاع الهوتسبوت والعودة وتأكد من عدم ضياع أو تكرار الملفات؛ قس الاستهلاك والسرعة مع ملفات تجريبية وأحجام قريبة من DXF/PNG الحقيقي.
+8. بعد التجربة فقط، أنشئ `Laser Inbox` و`Laser Returns` لكل أوردر وصلاحيات خاصة ودورة تسمية واضحة؛ **لا تحذف الأصل**. احتفظ بنسخ احتياطية مستقلة وتحقق من الاستعادة.
 
-## 5. شروط القبول (لا تُعلِم التشغيل PASS بغير دليل حي)
+### استرجاع سريع
+إذا تسبب عميل VPN أو تغيير sharing بمشكلة إنتاج: افصل VPN على الجهازين، أزل مشاركة `LaserTest` المؤقتة/قواعدها المحددة بعد توثيقها، واعد الإعدادات السابقة. لا تغيّر D1 أو Cloudflare أو TrendOS Workers أو المخزن المحلي. لا تفتح Remote Desktop/Radmin Server لأن الحاجة نقل ملفات فقط.
 
-| Check | مطلوب | الحالة الآن |
-|---|---|---|
-| Host identity | تحديد جهاز Ubuntu الجديد، جهاز المطبعة، وOS/IP محليًا | UNKNOWN |
-| Cloudflare Mesh | Connected على الطرفين مع عنوانين وصلاحيات محدودة | NOT_CONFIGURED |
-| Authentication | حساب SFTP محدود + SSH key tested + UFW scope | NOT_VERIFIED |
-| Transfer both directions | ملفان fake، SHA256 identical، بدون صور عملاء | NOT_TESTED |
-| Recovery | قطع Hotspot وإعادته بدون ضياع أو تكرار | NOT_TESTED |
-| Wireless/fiber | تركيب وموافقة ومسح رؤية واختبار throughput | NOT_INSTALLED |
-| TrendOS/Matbagy automatic job flow | مراجعة مستقلة وخدمة فعلية مقاسة | OFF / NOT_VERIFIED |
+## 3. أمان Windows 7 — حد أساسي
 
-## 6. استرجاع آمن / Rollback
+- Microsoft أوقفت دعم Windows 7 يوم **14 يناير 2020**؛ ماكينات الإنتاج العاملة به لا ينبغي تعريضها للإنترنت أو توسيع صلاحياتها بشكل دائم. Radmin VPN *يضيف شبكة خاصة مشفرة* ولكنه **لا يعالج ثغرات نظام التشغيل، SMB، أو سرقة بيانات الاعتماد**. اجعل الاتصال نطاقًا ضيقًا ومؤقتًا، وخطط لجهاز gateway حديث منفصل أو تحديث منصة غير مرتبطة ببرنامج الليزر إذا استحال ترقية الجهاز نفسه.
+- لا تعطل Firewall أو antivirus، ولا تستخدم share بكلمة مرور فارغة، ولا تعرض كامل القرص، ولا توصل كل أجهزة LAN خلف VPN. **SMBv1 ممنوع في المسار الجديد**؛ حتى لو كان مطلوبًا تاريخيًا لجهاز/برنامج آخر، لا تفعله لإصلاح اختبارنا. يمكن استخدام اتصال ملفات عبر بوابة Linux حديثة ذات SFTP لاحقًا إن أردنا عزل الـWindows7؛ لكن Ubuntu الموجود في البيت لا يحل محل بوابة قائمة بالمطبعة دون تركيب/تخطيط منفصل.
+- بعض شبكات الموبايل تعمل NAT/CGNAT، وقد تصبح وصلة Radmin VPN Relay/TCP؛ اختبر عمليًا ولا تفترض سرعات عالية أو اتصالًا مباشرًا. نقل الملفات عبر الإنترنت يستهلك من باقة الهاتف.
 
-إذا ظهر أثر على شبكة الإنتاج، افصل `Cloudflare One Client` من الجهاز التجريبي أو ألغِ Enrollment من لوحة Zero Trust، وأوقف قاعدة SFTP الضيقة المنشأة للتجربة إن وجدت. لا تُمسّ Workers/D1/TrendOS، لا يُمسّ مخزن `MatbagyData`، لا تُلغَ DHCP/DNS المحلية. وصلة PtP تُعزل بفصل كابلها بعد أخذ نسخة من إعداداتها. أبقِ نسخة أصلية من كل ملف حتى اجتياز فحص سلامة النسخ واستعادة النسخ الاحتياطية.
+## 4. الأنظمة الأخرى وملاحظات على الوثيقة السابقة
 
-## 7. مراجع المصدر
+- **Cloudflare Mesh ليس حلًا مباشرًا لجهازي Windows 7:** عميل Cloudflare One الحديث لا يدعم Windows 7، ولا يوجد Ubuntu في المطبعة أو مبنى الليزر حاليًا. لا تعمل Installation على Windows7 لعميل غير مدعوم، ولا تستخدم Workers/D1 أو أدوات TrendOS السحابية كجسر لنقل صور العملاء.
+- **Ubuntu TrendosShop في البيت:** السجل السابق لكتابي Ubuntu والمطبعة الذاتية يظل صحيحًا بالنسبة لاختبار هذا المضيف مستقلًا؛ لا يدّعي ارتباطه بمبنى الليزر. ملف `src/config.py` يتضمن مسار `laser` على مستوى **source only**؛ لا توجد خدمة توزيع أوردرات مثبتة Production.
+- **PtP wireless bridge** قد يكون بديلًا مستقبليًا إذا المالك سمح بحل لاسلكي وتركيب أجهزة واتضحت الرؤية بين المبنيين؛ ليس جزءًا من تجربة الهوتسبوت الحالية، ولا نحتاج تمديد أسلاك بين المبنيين.
 
-- Ubuntu host verified record: [UBUNTU_SERVER_BOOK.md](./UBUNTU_SERVER_BOOK.md), [Draft #135](https://github.com/fawakhry/TrendOs/pull/135).
-- Print Server local code: [config.py](./src/config.py), [server.py](./src/server.py).
-- Cloudflare Mesh [device-to-device](https://developers.cloudflare.com/cloudflare-one/setup/replace-vpn/device-to-device/), [getting started](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-mesh/get-started/), [platform Free Beta](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-mesh/platform/).
-- Physical PtP example by manufacturer: [TP-Link CPE510](https://www.tp-link.com/us/service-provider/business-wireless/cpe510/) — **not a purchase order**.
-- Tailscale [pricing and commercial plan rule](https://tailscale.com/pricing).
+## 5. بوابات الاختبار والهوية — لا مزاعم تشغيل
 
-**CHANGE LOG 2026-10-17:** New offsite laser networking architecture; documented only via GitHub. No server access, package install, port opening, automatic printing, cloud changes, customer transfer, purchases, or live test.
+| التحقق | الوضع |
+|---|---|
+| ثلاث أجهزة ومواقعها | VERIFIED_BY_OWNER_2026-10-17 |
+| Radmin VPN installed on both Win7 hosts | NOT_VERIFIED |
+| Correct Windows7 compatibility | OFFICIAL_VENDOR_DOCUMENTED; SITE_INSTALL_NOT_TESTED |
+| Shop VPN IP / laser VPN IP | UNKNOWN / NEVER_RECORD_REAL_ADDRESSES_IN_PUBLIC_REPO |
+| Interdevice ping | NOT_TESTED |
+| Limited SMB share / auth / firewall | NOT_CONFIGURED |
+| Bidirectional fake file test / integrity | NOT_TESTED |
+| Hotspot reconnection / measured throughput | NOT_TESTED |
+| TrendOS / Matbagy automatic laser order sync | NOT_IMPLEMENTED_OR_NOT_VERIFIED |
+| Actual customer file transfer or laser control | OFF |
+| Ubuntu home host involvement | NONE |
+
+## مصادر رسمية
+- Radmin VPN — [الرئيسية](https://www.radmin-vpn.com/)، [طريقة إنشاء الشبكة والانضمام ومتطلبات Windows7](https://www.radmin-vpn.com/help/)، [EULA](https://www.radmin-vpn.com/eula/).
+- Microsoft [Windows 7 end of support](https://learn.microsoft.com/en-us/lifecycle/products/windows-7)؛ Microsoft [SMBv1 risks and Windows7 SMB configuration](https://learn.microsoft.com/en-us/windows-server/storage/file-server/troubleshoot/detect-enable-and-disable-smbv1-v2-v3).
+- Cloudflare One [client support lifecycle](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/download/support-lifecycle/).
+
+**التغيير 2026-10-17:** استبدال خطة سابقة كانت تفترض Ubuntu في مبنى الليزر بمخطط مطابق لتصحيح المالك: Win7↔Win7 فقط؛ Ubuntu في البيت. **GITHUB_DOCS_ONLY=YES**، **NO_INSTALL_NO_DEPLOY_NO_MERGE_NO_CUSTOMER_DATA=YES**.
