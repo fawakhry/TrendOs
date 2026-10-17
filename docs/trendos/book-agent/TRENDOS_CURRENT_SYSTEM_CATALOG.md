@@ -4383,4 +4383,273 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
   - `.github/workflows/trendos-entry623-auth-stage-api-manual-deploy.yml`
   - containment-preflight adjustment commit `6d74d014ea7b6c380d66f9b848d0edc09ec08547`
   - one-shot trigger commit `aeab90a481f85cdae1d35d757c30c26133bdabc0`
-  - workf
+  - workflow restored manual-only in commit `cb85d9298aedf7fab32d1e81d155c6f65e61f669`
+  - Run `37445204417`
+  - Job `112208242382`
+  - conclusion = **SUCCESS**.
+- Exact-live deployment rule was preserved:
+  - API bundle based on Entry616 live source baseline;
+  - only `employee-auth-native-v1.mjs` was replaced by the qualified safe-stage diagnostic patch;
+  - no current-branch unrelated Worker changes were published.
+- Pre-API version observed by workflow:
+  - `6bb548d8-1e2a-4069-8964-8988a6d100e5`.
+- New API version:
+  - `90151f54-f64a-4dfd-a69e-e6c0ab6bbccb`.
+- Postflight:
+  ```ini
+  ENTRY623_AUTH_STAGE_API_DEPLOY=PASS
+  AUTH=TRANSITIONAL
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  FRONTEND_CANARY=OFF
+  GLOBAL_NATIVE_AUTH=OFF
+  D1_MUTATION=NO
+  VARIABLES_CHANGED=NO
+  SECRETS_CHANGED=NO
+  FRONTEND_DEPLOY=NO
+  ACCOUNTING_TOUCHED=NO
+  EASYSTORE_TOUCHED=NO
+  ```
+- The deployed Auth patch changes observability only:
+  - first-login bootstrap upsert failures now return safe code `employee-auth-login-bootstrap-upsert-failed`;
+  - safe stage is limited to `password-hash`, `d1-user-upsert`, or `unknown`;
+  - no credential, token, secret, nonce, hash or salt is returned/logged by this change.
+- Next gate:
+  - verify restored normal employee login in Production UI;
+  - then run a backend-only Diya bootstrap probe while frontend canary remains OFF;
+  - do not re-enable the frontend canary before the backend bootstrap/second-login path passes.
+
+
+#### Entry623 — Native Auth root cause fixed; backend Diya canary PASS
+- Root cause of the opaque first-login HTTP500 was isolated to `password-hash`.
+- Production probe evidence before the fix:
+  ```ini
+  ENTRY623_FIRST_LOGIN_HTTP=503
+  ENTRY623_FIRST_LOGIN_CODE=employee-auth-login-bootstrap-upsert-failed
+  ENTRY623_FIRST_LOGIN_STAGE=password-hash
+  D1_AUTH_USERS=0
+  D1_NATIVE_READY_USERS=0
+  ```
+- Root cause:
+  - TrendOS v1 used PBKDF2-SHA256 with a configured/default iteration count of 180000.
+  - Cloudflare workerd Production enforces a 100000-iteration ceiling for WebCrypto PBKDF2.
+  - The failure occurred before any D1 user write.
+- Fix:
+  - `cloudflare-d1/src/employee-auth-native-v1.mjs` clamps PBKDF2 v1 to exactly 100000 iterations.
+  - canonical repo `cloudflare-d1/wrangler.toml` was aligned to `EMPLOYEE_AUTH_PBKDF2_ITERATIONS = "100000"`.
+  - a regression test proves an input of 180000 is clamped to 100000.
+  - Auth fix commit `c3fc6a754bdb57100737a6f2053efa1abd8c3577`.
+  - Wrangler alignment commit `6ece5d55c1eac21713c37b2819e3a9a6df17a04a`.
+  - Test commit `98d8be84748b5c00039ab412e02dffa04a058d97`.
+  - Repo CI Run `37446297316` = **SUCCESS**.
+- Exact-live API deploy:
+  - workflow `.github/workflows/trendos-entry623-auth-stage-api-manual-deploy.yml`
+  - one-shot deploy commit `8062e00bc810524c5e32b87fe826a5df80339ea3`
+  - workflow restored manual-only in commit `437e557d08bef15f86e86c202db597503dc4cf5e`
+  - Run `37446389645`
+  - Job `112212141632`
+  - previous API version `90151f54-f64a-4dfd-a69e-e6c0ab6bbccb`
+  - new API version `c46f5639-41c4-4c39-b7cc-983922bda3fc`
+  - postflight = **PASS**.
+  - no D1 control mutation, migrations, variable mutation, secret mutation, frontend deploy, Accounting mutation, or EasyStore mutation.
+- Backend-only first-login retry after the fix:
+  - workflow `.github/workflows/trendos-entry623-backend-first-login-stage-probe.yml`
+  - cleanup fix commit `771bcad929ee84fc585bd54c11dce6320a5ab892`
+  - Run `37446548386`
+  - Job `112212662989`
+  - result:
+  ```ini
+  FIRST_LOGIN_BOOTSTRAP=PASS
+  FIRST_LOGIN_AUTH_SOURCE=d1-native-bootstrap-v1
+  D1_AUTH_USERS=1
+  D1_NATIVE_READY_USERS=1
+  BOOTSTRAP_SESSION_REVOKED=YES
+  PLAINTEXT_STORED=NO
+  FRONTEND_CANARY=OFF
+  ```
+- Backend-only second-login/read smoke:
+  - workflow `.github/workflows/trendos-entry623-backend-native-read-smoke.yml`
+  - commit `d06aa499a988b8d5ae186cee64142d4f12647f28`
+  - Run `37446715796`
+  - Job `112213221756`
+  - result:
+  ```ini
+  SECOND_LOGIN_NATIVE=PASS
+  SECOND_LOGIN_AUTH_SOURCE=d1-native-employee-v1
+  D1_SESSION_SMOKE=PASS
+  DASHBOARD_SMOKE=PASS
+  ATTENDANCE_STATE_SMOKE=PASS
+  ATTENDANCE_MUTATION=NO
+  ACCOUNTING_READONLY_SMOKE=PASS
+  OUTSIDE_17_POLICY_FAIL_CLOSED=PASS
+  NATIVE_LOGOUT=PASS
+  D1_NATIVE_READY_USERS=1
+  FRONTEND_CANARY=OFF
+  GLOBAL_NATIVE_AUTH=OFF
+  ```
+- Runtime remains:
+  ```ini
+  AUTH=TRANSITIONAL / epoch 23
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  ```
+- Next gate:
+  `ENTRY623_DIYA_FRONTEND_CANARY_REENABLE_AFTER_BACKEND_PASS`
+  - exact Diya-only frontend canary;
+  - Global Native Auth must remain OFF;
+  - non-canary employees must remain Legacy;
+  - then perform real UI login and real attendance/start-day smoke for Diya only.
+
+
+#### Entry623 — Diya frontend canary re-enabled after backend Native Auth PASS
+- Preconditions before re-enabling the frontend canary:
+  ```ini
+  FIRST_LOGIN_BOOTSTRAP=PASS
+  FIRST_LOGIN_AUTH_SOURCE=d1-native-bootstrap-v1
+  SECOND_LOGIN_NATIVE=PASS
+  SECOND_LOGIN_AUTH_SOURCE=d1-native-employee-v1
+  D1_SESSION_SMOKE=PASS
+  DASHBOARD_SMOKE=PASS
+  ATTENDANCE_STATE_SMOKE=PASS
+  ACCOUNTING_READONLY_SMOKE=PASS
+  OUTSIDE_17_POLICY_FAIL_CLOSED=PASS
+  D1_AUTH_USERS=1
+  D1_NATIVE_READY_USERS=1
+  FRONTEND_CANARY=OFF
+  GLOBAL_NATIVE_AUTH=OFF
+  ```
+- Frontend controlled redeploy:
+  - workflow `.github/workflows/trendos-entry623-diya-frontend-canary-controlled.yml`
+  - workflow update commit `95babd3b235e38af3b6369434e463385e3ef569b`
+  - Run `37446974627`
+  - Job `112214052155`
+  - conclusion = **SUCCESS**.
+- Exact-live baseline remained the known-good frontend:
+  - pre-canary version `bfcc6f85-a748-4b66-a334-b605c72108f7`
+  - new canary frontend version `a29db5d5-ea3b-4bdc-9eb0-594a501571b3`
+  - cache tag `20261006-entry623-diya-canary-backend-pass`.
+- Live config independently verified:
+  ```ini
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_V1=false
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1=true
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_USERS=['ضياء']
+  MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_MIN_BRIDGE_POLICIES=17
+  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1=true
+  MATBAGY_EMPLOYEE_LEGACY_BRIDGE_POLICY_COUNT=17
+  MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE=GENERAL
+  MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE=READONLY
+  GLOBAL_NATIVE_AUTH=OFF
+  ```
+- Backend runtime independently verified after frontend redeploy:
+  ```ini
+  AUTH=TRANSITIONAL / epoch 23
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  LEGACY_SESSION_ENROLL_ENABLED=false
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=1
+  D1_NATIVE_READY_USERS=1
+  PLAINTEXT_STORED=false
+  BRIDGE=ON
+  BRIDGE_SECRET_CONFIGURED=YES
+  BRIDGE_POLICY_COUNT=17
+  RAW_NATIVE_TOKEN_FORWARDED=false
+  PLAINTEXT_PASSWORD_FORWARDED=false
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  ```
+- No API code deploy, D1 mutation, Accounting mutation, or EasyStore mutation was performed by this frontend gate.
+- Remaining real-user canary gate:
+  1. logout any existing Diya legacy session;
+  2. hard refresh/reopen the Production frontend;
+  3. login as Diya with the same current credentials;
+  4. confirm the platform opens without `Failed to fetch`;
+  5. confirm Dashboard/basic Ops;
+  6. perform the legitimate real attendance/start-day action for Diya;
+  7. report the result before any rollout to another employee.
+
+
+#### Entry623 — Diya real UI canary final PASS
+- Owner confirmed the real Production UI canary for `ضياء` is working end-to-end after the PBKDF2 fix.
+- Real-user confirmation:
+  - login succeeded from the Production frontend;
+  - login is noticeably faster than before;
+  - Dashboard opened successfully;
+  - real attendance/start-day flow worked successfully.
+- Final independent Runtime proof after the real UI smoke:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_POLICY_EPOCH=23
+  AUTH_ENV_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=true
+  LEGACY_SESSION_ENROLL_ENABLED=false
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=1
+  D1_NATIVE_READY_USERS=1
+  MUST_CHANGE_COUNT=0
+  PLAINTEXT_STORED=false
+
+  BRIDGE=ON
+  BRIDGE_SECRET_CONFIGURED=YES
+  BRIDGE_POLICY_COUNT=17
+  RAW_NATIVE_TOKEN_FORWARDED=false
+  PLAINTEXT_PASSWORD_FORWARDED=false
+
+  FRONTEND_CANARY=ON
+  CANARY_USER=ضياء
+  GLOBAL_NATIVE_AUTH=OFF
+  FRONTEND_BRIDGE=ON
+  FRONTEND_BRIDGE_POLICY_COUNT=17
+
+  OPS=GENERAL / epoch 7
+  ACCOUNTING=READONLY / epoch 2
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  ACCOUNTING_PROGRAM=DEFERRED_EXTERNAL_REPO
+  ```
+- Final Entry623 qualification:
+  ```ini
+  ENTRY623_RUNTIME_PREP=PASS
+  AUTH=TRANSITIONAL
+  AUTH_POLICY_EPOCH=23
+  BRIDGE=ON
+  BRIDGE_POLICY_COUNT=17
+  CANARY_USER=ضياء
+  GLOBAL_NATIVE_AUTH=OFF
+  FIRST_LOGIN_BOOTSTRAP=PASS
+  SECOND_LOGIN_NATIVE=PASS
+  D1_NATIVE_READY_USERS=1
+  D1_SESSION_SMOKE=PASS
+  ATTENDANCE_SMOKE=PASS
+  DASHBOARD_SMOKE=PASS
+  ACCOUNTING_READONLY_SMOKE=PASS
+  OUTSIDE_17_POLICY_FAIL_CLOSED=PASS
+  NON_CANARY_LEGACY_PRESERVED=PASS
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  ACCOUNTING_PROGRAM=DEFERRED_EXTERNAL_REPO
+  ENTRY623_DIYA_CANARY=PASS
+  ```
+- Safety boundary remains:
+  - no additional employee is enrolled or routed to Native Auth by this entry;
+  - Global Native Auth remains OFF;
+  - Native-only global remains OFF;
+  - Accounting remains READONLY and EasyStore is untouched.
+- Entry623 is now considered **complete for the Diya-only canary scope**.
+- Any expansion to another employee or broader rollout must be a separate controlled gate and must reuse the same runtime-truth-first, fail-closed procedure.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY623 -->
