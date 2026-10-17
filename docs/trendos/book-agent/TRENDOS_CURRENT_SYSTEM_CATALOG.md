@@ -8346,4 +8346,192 @@ FRONTEND_VERSION=3950c36b-c3ee-4fd4-87b6-f6c2e2eabf03
 AUTH_MODE=NATIVE
 D1_NATIVE_READY=6/6
 FRONTEND_GLOBAL_NATIVE_AUTH=true
-FRONTEND_NATIVE_CA
+FRONTEND_NATIVE_CANARY=false
+ATTENDANCE_UI_CONTRACT=RESTORED
+ATTENDANCE_WRITE_LOSS=NO
+ACCOUNTING_MUTATION=NO
+EASYSTORE_MUTATION=NO
+ROLLBACK_USED_FINAL_ATTEMPT=NO
+```
+
+#### Entry648 — Employee Login Matrix Diagnostic — PASS READONLY
+- الاسم العربي للبحث: **كل الموظفين مش بيدخلوا / ضياء دخل والباقي لأ / فحص حسابات الموظفين بدون كلمات مرور**.
+- التاريخ: 2026-10-07 Cairo.
+- Workflow commit `d1f26ad5bf7a6befed9eafdfc2872beb1b32918f`; Run `37617351984` / Job `112778800227` = SUCCESS.
+- Runtime locks: frontend `3950c36b-c3ee-4fd4-87b6-f6c2e2eabf03`; Auth NATIVE 6/6؛ Global Native=true؛ attendance runtime PASS.
+- Read-only matrix فقط؛ لم تُقرأ أي password value أو password hash أو token value أو secret.
+- كل الستة: active=1، lockedNow=0، mustChange=0، failedAttempts=0.
+- ضياء: activeSessions=2؛ last login 2026-10-07 14:30 Cairo.
+- وائل: activeSessions=1؛ last login 2026-10-07 14:00 Cairo؛ attendanceStartedToday=1؛ clockinToday=1؛ attendanceOpenToday=1.
+- رحمه: activeSessions=14؛ last login 2026-10-07 14:34 Cairo؛ attendanceStartedToday=1؛ clockinToday=1؛ attendanceOpenToday=1.
+- جابر: activeSessions=0؛ last login 2026-10-06 14:13 Cairo.
+- ريفان: activeSessions=0؛ last login 2026-10-06 19:29 Cairo.
+- شريف: activeSessions=0؛ last login 2026-10-06 22:39 Cairo.
+- الاستنتاج التشغيلي:
+  - لا يوجد D1 readiness gap، disabled account، lockout أو must-change blocker لأي موظف.
+  - وائل ورحمه لديهم Native sessions وحضور اليوم مثبت، وبالتالي Cloud login + attendance path يعملان فعليًا.
+  - جابر/ريفان/شريف لا توجد لهم جلسة حالية ومع ذلك failedAttempts بقي 0؛ هذا يتوافق مع أن المحاولة الحالية من أجهزتهم لا تصل إلى Native login handler، وليس رفضًا من الحساب.
+  - Immediate recovery للعميل stale: إغلاق كل تبويبات TrendOS على جهاز الموظف وفتح root URL cache-busted جديد ثم تسجيل الدخول الطبيعي. لا يوجد دليل يبرر password reset.
+- Accounting/EasyStore untouched.
+
+```ini
+ENTRY648=PASS_READONLY_DIAGNOSTIC
+ALL_6_ACTIVE=YES
+ALL_6_LOCKED_NOW=NO
+ALL_6_MUST_CHANGE=NO
+ALL_6_FAILED_ATTEMPTS=0
+WAEL_NATIVE_SESSION=YES
+WAEL_ATTENDANCE_TODAY=YES
+RAHMA_NATIVE_SESSION=YES
+RAHMA_ATTENDANCE_TODAY=YES
+JABER_CURRENT_NATIVE_SESSION=NO
+REVAN_CURRENT_NATIVE_SESSION=NO
+SHERIF_CURRENT_NATIVE_SESSION=NO
+PASSWORD_VALUE_READ=NO
+PASSWORD_HASH_READ=NO
+TOKEN_VALUE_READ=NO
+ACCOUNTING_MUTATION=NO
+EASYSTORE_MUTATION=NO
+MASTER_BOOK_RECORDED=YES
+```
+
+
+##### Entry648 — Owner production confirmation
+- 2026-10-07 Cairo: بعد فتح النسخة الجديدة من TrendOS، أكد المالك أن باقي الموظفين دخلوا بنجاح.
+- هذا يؤكد تشغيليًا أن مشكلة الدخول المتبقية كانت Client/frontend stale state وليست عطلًا في حسابات D1 Native.
+- لا يوجد أي password reset أو account mutation مطلوب.
+- لا يوجد Runtime mutation إضافي في هذه الخطوة.
+```ini
+ENTRY648_ALL_EMPLOYEES_LOGIN_CONFIRMED_BY_OWNER=YES
+EMPLOYEE_LOGIN_INCIDENT=CLOSED
+ADDITIONAL_RUNTIME_MUTATION=NO
+```
+
+
+##### Entry649 — Structured Employee Andon frontend cutover to Autonomous Printshop
+- Date: 2026-10-07 Cairo.
+- This entry records only the direct TrendOS Production runtime change required by the Autonomous Printshop Manager Center migration. Architectural details are recorded in `autonomous-printshop/MASTER_BOOK.md` AP-076.
+- Production `employee-andon-v1.js` was cut from legacy `saveMatbagyNote / OPS_REPLY` to the isolated Autonomous Printshop Employee Supervisor structured blocker service.
+- The deployment rebuilt from the exact live frontend snapshot and preserved unrelated frontend assets.
+- No Auth policy, employee account, password, Accounting control, EasyStore, Content/R2, Operator Task, employee assignment, Order, or Line authority was changed.
+- No synthetic Production blocker event was created.
+
+```ini
+ENTRY649=PASS
+ENTRY649_DEPLOY_RUN=37646897563
+ENTRY649_PRE_FRONTEND_VERSION=3950c36b-c3ee-4fd4-87b6-f6c2e2eabf03
+ENTRY649_POST_FRONTEND_VERSION=f96fc299-f98c-470a-9869-0e49a9752e73
+ENTRY649_EMPLOYEE_ANDON=STRUCTURED_SHADOW_SERVICE
+ENTRY649_LEGACY_OPS_REPLY_FRONTEND=OFF
+ENTRY649_SYNTHETIC_BLOCKER_CREATED=NO
+EMPLOYEE_SUPERVISOR_CONTROL=SHADOW
+EMPLOYEE_SUPERVISOR_EPOCH=2
+EMPLOYEE_SUPERVISOR_EVENT_ROWS=0
+OPERATOR_TASK=OFF
+AUTH_MODE=NATIVE
+D1_NATIVE_READY=6/6
+BACKEND_LEGACY_BRIDGE=false
+ACCOUNTING_FINAL_MODE=READONLY
+ACCOUNTING_FINAL_POLICY_EPOCH=33
+ACCOUNTING_MUTATION_BY_ENTRY649=NO
+EASYSTORE_MUTATION=NO
+CONTENT_R2_MUTATION=NO
+ROLLBACK_USED=NO
+```
+
+
+##### Entry650 — Pending Comms aggregate projected to Autonomous Printshop Owner Console
+- Date: 2026-10-07 Cairo.
+- This entry records the Manager Center responsibility migration only. No TrendOS application worker, frontend, Comms control, customer record, message, or business row was mutated by this step.
+- Autonomous Printshop now reads the already-qualified D1-native Comms source as an aggregate-only signal and projects it into Control Tower + Owner Exception Console.
+- The first aggregate exposed 166 historical Feedback pending rows. Because `feedbackEnabledAtMs=0`, those rows were corrected to dormant diagnostic-only before Owner Console activation.
+- Live operational pending count is currently one conversation whose latest direction is inbound.
+- Open WhatsApp / copy/send actions remain outside Autonomous Printshop.
+
+```ini
+ENTRY650=PASS
+CONTROL_TOWER_COMMS_SOURCE_COMMIT=6d8ab01024ccb2d3ec0e4ad0aa9fd7e27b344e44
+CONTROL_TOWER_COMMS_CORRECTION_COMMIT=0385e75924fbe6777c7a044160bb2bc5d16c1ba0
+OWNER_CONSOLE_COMMS_COMMIT=e4aa59000b59ed8ab064f6c1070857d0946fbd9d
+CONTROL_TOWER_COMMS_RUN=37655984075
+OWNER_CONSOLE_DEPLOY_RUN=37656472999
+PRODUCTION_SHADOW_VERSION=a6c29a6c-f416-4aae-a142-55a5f6c4bab7
+OWNER_CONSOLE_VERSION=d46c4582-60f8-4058-950b-f82eb754a496
+COMMS_MODE=READONLY
+COMMS_POLICY_EPOCH=2
+FEEDBACK_ENABLED_AT_MS=0
+OPERATIONAL_PENDING_SIGNALS=1
+FEEDBACK_DORMANT_BACKLOG=166
+COMMS_SEND_AUTHORITY=NO
+CUSTOMER_PII_EXPOSED=NO
+MESSAGE_TEXT_EXPOSED=NO
+TRENDOS_MAIN_WORKER_CHANGED=NO
+D1_MUTATION=NO
+MC_15=LIVE
+MC_16=NOT_MIGRATED
+```
+
+
+##### Entry651 — Restored employee sessions verified before frontend boot
+- Date: 2026-10-08 Cairo.
+- Incident observed on Wael/print workstation: TrendOS restored the employee name and opened the main UI from browser session storage, while Cloud services rejected the stored token with `Employee session rejected`.
+- Root cause: `loadSession()` only checked for a stored token and the startup path called `bootMain()` immediately, without qualifying the restored employee session against the Native Cloud auth endpoint.
+- Backend/account status was healthy before the repair: Employee Auth `NATIVE`, `nativeOnly=true`, `6/6` native-ready users, `mustChangeCount=0`.
+- Frontend repair:
+  - restored employee sessions call `verifyEmployeeSession` before `bootMain()`;
+  - valid sessions preserve the existing token and refresh canonical user metadata;
+  - rejected/expired restored sessions are cleared by the dedicated startup-only `clearRejectedRestoredEmployeeSessionV1()` helper and returned to the employee login screen;
+  - the username is retained in the login form and the password field is cleared;
+  - transient verification/network failure does not boot the main UI.
+- Session-isolation boundary preserved: the original `clearSession()` remains explicit-logout-only; Entry533 session-isolation contract passes.
+- Controlled production deploy used exact-live frontend snapshot, replaced `app.js` only, preserved live config/dispatcher, and retained automatic rollback.
+- Production proof:
+```ini
+ENTRY651=PASS
+SOURCE_COMMIT=f8f188403d5c8b729d69159e6218773a155bbbaa
+DEPLOY_GATE_COMMIT=961b8d37cb73124fe0d8135066d0f5f2faa3fd79
+WORKFLOW_RUN=37767635255
+PRE_FRONTEND_VERSION=a24bff04-f0ea-484e-90c7-38be02ab57a1
+POST_FRONTEND_VERSION=42872c38-c1c9-4cae-9b93-de562dc9c477
+SESSION_RESTORE_VERIFY_GUARD=PASS
+ENTRY533_EMPLOYEE_SESSION_ISOLATION=PASS
+STALE_EMPLOYEE_SESSION_AUTO_BOOT=NO
+REJECTED_SESSION_FORCES_RELOGIN=YES
+AUTH_MODE=NATIVE
+NATIVE_READY=6/6
+MUST_CHANGE_COUNT=0
+AUTH_BACKEND_CHANGED=NO
+BUSINESS_D1_MUTATION=NO
+ROLLBACK_USED=NO
+```
+- Operator recovery: reload the affected workstation once; a stale token is now rejected before main UI boot and the employee is sent to the login form to enter the existing current password. No password reset is required solely for this incident.
+
+
+##### Entry652 — Permanent Employee Session Lifecycle Guard
+- Date: 2026-10-08 Cairo.
+- This entry closes the class of stale employee-session failures that produced a half-open TrendOS UI such as `Employee session rejected` after a previously stored browser token became invalid.
+- Entry651 already prevented stale sessions from booting without Cloud verification. Entry652 hardens the full employee-session lifecycle after boot as well.
+
+Implemented layers:
+1. Boot verification remains mandatory before `bootMain()`.
+2. Session Epoch contract added through `MATBAGY_EMPLOYEE_AUTH_SESSION_EPOCH=1`; future major Auth migrations can invalidate stored browser sessions centrally by incrementing the epoch.
+3. Runtime 401/session-rejected guard added so employee API rejection dispatches one central `trendos:employee-session-invalid` event.
+4. The central runtime guard stops refresh/timers, clears only the rejected restored employee session, and returns the employee to the login screen instead of leaving a half-working UI.
+5. Periodic Cloud session re-verification runs every 5 minutes while active.
+6. Session re-verification is also triggered when the browser regains focus / visibility.
+7. Structured Andon and Edge order/session exchange paths participate in the same invalid-session event contract.
+8. Entry533 isolation remains preserved: the original `clearSession()` stays explicit-logout-only.
+9. No password reset, account reset, Auth-backend mutation, or business D1 mutation was required.
+
+Primary implementation commit:
+`e3a41512297c88f448bea0c773e75f3edc6c21b7`
+
+Follow-up regression-contract alignment:
+- `6ef0129bab6c914fbca53b742dab748315bccbbb`
+- `7176d6135ee36457c696a36932928472e47c02ca`
+- `e7e4213284eb49dc6da80ccaaee77ef7d85a694f`
+
+Controlled Production deploy:
+```ini
+WORKFLOW=TrendOS Entry652 Employee Session Lifecycle Guard Controlled
+RUN=37770
