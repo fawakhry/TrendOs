@@ -1501,75 +1501,6 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
 
 
 
-### Entry636 — Global Native Auth completeness audit; BLOCKED on one active account
-- Purpose: prove the authoritative active employee-login population is completely represented in D1 before any global frontend Native Auth switch.
-- Authoritative Google source inspected read-only:
-  - Spreadsheet: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
-  - Spreadsheet ID: `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`
-  - login authority tab: `المستخدمين`
-  - secondary HR tab: `HR - الموظفين`
-- Sensitive columns were deliberately not read:
-  - no password column;
-  - no token column.
-- Safe login-authority columns showed active rows for:
-  ```text
-  ضياء
-  وائل
-  رحمه
-  ريفان
-  شريف
-  جابر
-  wael
-  Rahma
-  ```
-- Classification:
-  - `wael` is covered by the existing canonical mapping to `وائل` and had qualification-note history.
-  - `Rahma` is explicitly marked TEST ONLY and is covered by the canonical mapping to `رحمه`.
-  - `شريف` is marked active (`مفعل؟ = نعم`), has a recorded last login on 2026-08-27, has no TEST ONLY note, and is not represented by the five Native-ready D1 identities.
-- Current D1 Native keys remain exactly:
-  ```text
-  ضياء
-  وائل
-  جابر
-  رحمه
-  ريفان
-  ```
-- Therefore the unresolved active Native gap is:
-  ```ini
-  UNRESOLVED_ACTIVE_NATIVE_GAP=شريف
-  ```
-- Repo evidence:
-  - manifest `docs/trendos/staging/ENTRY636_GLOBAL_NATIVE_COMPLETENESS_AUDIT.json`;
-  - guard `tests/entry636_global_native_completeness_guard.test.mjs`;
-  - CI `.github/workflows/trendos-entry636-global-native-completeness-guard.yml`;
-  - initial guard Run `37494142551` failed only because the test incorrectly compared repo-default Canary state with Production live Canary state; no runtime mutation occurred.
-  - corrected commit `e7f1b3d9753f635797275d5f06f931623fabff85`;
-  - corrected guard Run `37494241269`, Job `112374539777` = SUCCESS;
-  - browser transport regression Run `37494241574` = SUCCESS.
-- Guard result:
-  ```ini
-  ENTRY636_GLOBAL_NATIVE_GUARD=PASS
-  ENTRY636_UNRESOLVED_ACTIVE_NATIVE_GAP=شريف
-  ENTRY636_GLOBAL_NATIVE_FRONTEND=OFF
-  PRODUCTION_MUTATION=NO
-  D1_MUTATION=NO
-  GOOGLE_MUTATION=NO
-  ```
-- Runtime remains:
-  ```ini
-  BACKEND_NATIVE_ONLY=true
-  LEGACY_BOOTSTRAP=false
-  BACKEND_BRIDGE=false
-  FRONTEND_GLOBAL_NATIVE_AUTH=false
-  FRONTEND_NATIVE_CANARY=true
-  D1_NATIVE_READY=5/5
-  ```
-- **Decision gate:** do not enable Global Native Auth until the owner confirms whether the active `شريف` login must remain usable.
-  - If yes: migrate that account to D1 through a bounded, credential-safe enrollment/bootstrap procedure, then re-run completeness.
-  - If no: deactivate/remove that authoritative login row through the Google-side owner workflow, then re-run completeness.
-- Do not read or copy the password/token columns to resolve this gate.
-
-
 ### Entry637 — Sherif Native migration handoff checkpoint — IN PROGRESS
 - Owner explicitly changed the Entry636 decision and requested: **migrate Sherif and continue**.
 - Important: this Entry637 section is a **handoff checkpoint**, not a completion claim. At the moment of this record, the bounded Sherif migration workflow is still running.
@@ -3560,3 +3491,7 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 
 ## BOOK-MIGRATION-20261018-033 — Entry635
 - `EXACT_VERBATIM_MATCH=PASS` (2734 characters), copy `f6f5dd042313b153176e26350d9c7bbe658ac1b2`; archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source blob `662140476b3f3bc3fe0c8ae4364c0a135cd7133f`. Remove SHA in Crosswalk.
+
+
+## BOOK-MIGRATION-20261018-034 — Entry636
+- `EXACT_VERBATIM_MATCH=PASS` (2787 characters), copy `a45257469b39a15488e9a90fb96de2aa1d477faa`; archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source blob `af61569b0ecef3ed1c6f19ae75fd7e0f35c32b9f`. Remove SHA in Crosswalk.
