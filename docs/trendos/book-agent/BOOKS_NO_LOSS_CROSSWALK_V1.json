@@ -38,16 +38,16 @@
     "entry_number_count": 66,
     "entry_heading_count": 58,
     "mention_only_count": 8,
-    "explicitly_mentioned_in_current_catalog": 22,
-    "unmentioned_by_exact_entry_label_in_current_catalog": 44,
+    "explicitly_mentioned_in_current_catalog": 23,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 43,
     "reconciled_entry_count": 0,
     "unreconciled_entry_count": 66,
     "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation.",
-    "historical_entry_heading_sections_migrated_exact_count": 18,
+    "historical_entry_heading_sections_migrated_exact_count": 19,
     "initial_entry_heading_count": 58,
     "original_snapshot_reconciled_count": 0,
-    "migration_progress_note": "21 exact historical transfers through Entry621; Entry615 privacy and Entry619 archive-block review pending; all 66 IDs unreconciled.",
-    "total_migration_units_exact_verified": 21,
+    "migration_progress_note": "22 exact historical transfers through Entry622, with Entry615 held privacy and Entry619 archive-block reconciliation pending. 66 original Entry IDs unreconciled.",
+    "total_migration_units_exact_verified": 22,
     "non_entry_historical_migration_units_exact_verified": 3
   },
   "book_policy": {
@@ -1829,12 +1829,34 @@
       "source_first_line": 3484,
       "source_heading_line": 3484,
       "mention_count_in_master": 7,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_COMPATIBILITY_BRIDGE_GATE1_PREPARATION",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "022",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          622
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "345190869a880c130bab95d4330bb46ff92044d4",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٤",
+        "copy_commit": "cd7454cb8e3b7bc60608933d9114e826604e18ee",
+        "remove_commit": "e7152a7bcf72370022a7aeb255bcd17c41248be6",
+        "text_characters": 5051,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-17",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Historical bridge preparation no current approval; source replay not performed."
+      }
     },
     {
       "entry_id": 623,
@@ -2276,12 +2298,12 @@
   ],
   "latest_review": {
     "date": "2026-10-17",
-    "head_before_crosswalk_commit": "41ab8933371501f5f177429a1df1b9c792573284",
-    "active_master_blob_sha": "345190869a880c130bab95d4330bb46ff92044d4",
-    "new_catalog_blob_sha": "fe4ef09d8336ba2e5b30addff010811af4d9c798",
+    "head_before_crosswalk_commit": "e7152a7bcf72370022a7aeb255bcd17c41248be6",
+    "active_master_blob_sha": "83d8c743a6ad1173890a53dfb53dd447d514fb58",
+    "new_catalog_blob_sha": "df31dd0a586fe25d705a167264b42bdfc4a0ba00",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "21 exact migrations; 615 and 619 untouched; all SERVER logs intact."
+    "notes": "22 verified historical transfers; SERVER-61–68 preserved, no Production mutation, entries 615 & 619 still in active old master."
   },
   "non_entry_section_migrations": [
     {
