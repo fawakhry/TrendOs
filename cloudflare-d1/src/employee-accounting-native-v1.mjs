@@ -7,7 +7,7 @@ const DEFAULT_ORIGINS=[
   'https://trendos-ui.trendmall-contact.workers.dev',
   'http://localhost:8000','http://127.0.0.1:8000','http://localhost:5500','http://127.0.0.1:5500'
 ];
-const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth','calculateAccountingLaserQuoteV1913','getDailyDepartmentReportV1920','previewAccountingAutomationV1921','previewCustomerCreditInvoiceReviewV1', 'previewCustomerCreditPreparedCommandV1','previewAccountingFinalInvoiceCommandV1','previewCustomerCreditLiabilityAuditV1']);
+const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth','calculateAccountingLaserQuoteV1913','getDailyDepartmentReportV1920','previewAccountingAutomationV1921','previewCustomerCreditInvoiceReviewV1', 'previewCustomerCreditPreparedCommandV1','previewAccountingFinalInvoiceCommandV1','previewCustomerCreditLiabilityAuditV1','previewNativeInvoiceReturnExposureV1']);
 
 function text(v){return String(v==null?'':v).trim();}
 function key(v){return text(v).toLowerCase();}
@@ -2348,6 +2348,98 @@ async function previewCustomerCreditLiabilityAuditV1(env,auth,b){
   }
 }
 
+
+// ACC206 / ACC187 G4: READONLY native invoice-cash exposure preflight.
+// The only owner-approved return method choices remain CASH / CREDIT / BOTH
+// on a verified per-case approval. This action NEVER settles or approves one.
+// Persistent native invoice + COMMITTED request + physical cashbox evidence
+// are bounded but NOT independent historical refund, entitlement or consent.
+async function previewNativeInvoiceReturnExposureV1(env,auth,b){
+  const denied=(code,message)=>({success:false,code,message,
+    postingAllowed:false,cashRefundAuthorized:false,customerCreditAuthorized:false,
+    stockOrWasteWriteAuthorized:false,automaticRetryAuthorized:false,
+    refundableAmountCents:null,financeRelease:'NO_GO'});
+  if(auth.mode!=='full')return denied('acc206-owner-finance-role-required',
+    'مراجعة مدفوعات الفاتورة الخاصة بالمرتجع للمسؤول المحاسبي الموثق فقط.');
+  const invoiceNo=text(b&&b.invoiceNo);
+  if(!invoiceNo||invoiceNo.length>180||/[\\u0000-\\u001f]/u.test(invoiceNo))
+    return denied('acc206-exact-invoice-reference-required','رقم الفاتورة الرسمي مطلوب.');
+  try{
+    const invoice=await env.DB.prepare(
+      "SELECT invoice_no AS invoiceNo,request_key AS requestKey,"+
+      "customer_party_id AS customerId,status,final_total AS total,paid,"+
+      "remaining,held_paid AS heldPaid,cash_received AS cashReceived,"+
+      "credit_applied AS creditApplied,credit_created AS creditCreated "+
+      "FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? LIMIT 1"
+    ).bind(invoiceNo).first();
+    if(!invoice||!text(invoice.customerId)||!text(invoice.requestKey))
+      return denied('acc206-invoice-missing-or-unbound','الفاتورة غير موجودة أو لا تحتوي معرف العميل الرسمي.');
+    const parent=await env.DB.prepare(
+      "SELECT operation,status FROM employee_accounting_request_ledger_v1 WHERE request_key=? LIMIT 1"
+    ).bind(text(invoice.requestKey)).first();
+    const cashRows=(await env.DB.prepare(
+      "SELECT amount,movement_type AS movementType,party_id AS partyId,ref_no AS refNo "+
+      "FROM employee_accounting_cashbox_v1 WHERE request_key=? LIMIT 2"
+    ).bind(text(invoice.requestKey)+'-CASH').all()).results||[];
+    const totalCents=customerCreditCentsV1(invoice.total),
+      paidCents=customerCreditCentsV1(invoice.paid),
+      remainingCents=customerCreditCentsV1(invoice.remaining),
+      heldCents=customerCreditCentsV1(invoice.heldPaid),
+      appliedCents=customerCreditCentsV1(invoice.creditApplied),
+      createdCents=customerCreditCentsV1(invoice.creditCreated),
+      declaredCashCents=customerCreditCentsV1(invoice.cashReceived);
+    const validAmounts=[totalCents,paidCents,remainingCents,heldCents,appliedCents,createdCents,declaredCashCents]
+      .every(n=>Number.isSafeInteger(n)&&n>=0);
+    let receiptCents=0,cashEvidenceValid=cashRows.length<=1;
+    for(const row of cashRows){
+      const cents=customerCreditCentsV1(row.amount);
+      if(cents===null||cents<=0||!Number.isSafeInteger(receiptCents+cents)||
+        text(row.movementType)!=='CUSTOMER_RECEIPT'||
+        text(row.partyId)!==text(invoice.customerId)||
+        text(row.refNo)!==invoiceNo){cashEvidenceValid=false;continue}
+      receiptCents+=cents;
+    }
+    const parentCommitted=!!parent&&text(parent.status)==='COMMITTED'&&
+      ['direct-sale','credit-direct-sale','final-invoice'].includes(text(parent.operation));
+    // Original checked-in sale can be a cash sale (legacy) or carry credit.
+    // Credit invoices require separate ACC203/204 approval and compensation
+    // lineage. Never compute an allowed payout from nominal gross/paid.
+    let reviewState;
+    if(!parentCommitted)reviewState='INVOICE_COMMAND_NOT_COMMITTED';
+    else if(!validAmounts||!cashEvidenceValid)reviewState='INVALID_INVOICE_OR_CASH_EVIDENCE';
+    else if(cashRows.length>1)reviewState='DUPLICATE_CASH_RECEIPT_REFERENCE';
+    else if(appliedCents>0||createdCents>0)reviewState='CREDIT_BACKED_REQUIRES_COMPENSATION_POLICY';
+    else if((paidCents>0&&cashRows.length!==1)||(paidCents===0&&cashRows.length!==0)||
+      receiptCents!==paidCents)reviewState='CASH_RECEIPT_MISMATCH';
+    else if(text(invoice.status)==='UNDER_REVIEW')reviewState='INVOICE_UNDER_REVIEW_NO_REFUND_AUTHORITY';
+    else if(!['CLOSED','مغلق'].includes(text(invoice.status)))reviewState='INVOICE_STATUS_NEEDS_MANUAL_REVIEW';
+    else reviewState='CASH_EVIDENCE_MATCHES_NOT_REFUND_AUTHORITY';
+    return {
+      success:true,code:'acc206-readonly-real-invoice-cash-exposure',
+      invoiceNo:text(invoice.invoiceNo),customerId:text(invoice.customerId),
+      invoiceStatus:text(invoice.status),invoiceCommandStatus:text(parent&&parent.status),
+      invoiceTotalCents:validAmounts?totalCents:null,
+      invoicePaidCents:validAmounts?paidCents:null,
+      invoiceRemainingCents:validAmounts?remainingCents:null,
+      heldPaymentCents:validAmounts?heldCents:null,
+      invoiceCashDeclaredCents:validAmounts?declaredCashCents:null,
+      invoiceCreditAppliedCents:validAmounts?appliedCents:null,
+      invoiceCreditCreatedCents:validAmounts?createdCents:null,
+      cashReceiptRows:cashRows.length,cashReceiptCents:cashEvidenceValid?receiptCents:null,
+      reviewState,sourceCoverage:'EXACT_INVOICE_ORIGINAL_REQUEST_CASHBOX_ONLY',
+      customerIdentityVerified:false,returnedItemsVerified:false,
+      priorRefundCoverageVerified:false,managementApprovalAuthenticated:false,
+      manualReconciliationRequired:true,refundableAmountCents:null,
+      postingAllowed:false,cashRefundAuthorized:false,customerCreditAuthorized:false,
+      stockOrWasteWriteAuthorized:false,automaticRetryAuthorized:false,
+      financeRelease:'NO_GO'
+    };
+  }catch{
+    return denied('acc206-invoice-cash-ledger-unavailable',
+      'بيانات الفاتورة أو الخزنة غير متاحة، ولا يمكن اعتبارها تصريحًا برد المبلغ.');
+  }
+}
+
 async function handleEmployeeAccountingNativeRequest(request,env){
   const h=cors(request,env);if(request.method==='OPTIONS')return new Response(null,{status:204,headers:h});
   if(!originAllowed(request,env))return json({success:false,code:'origin-not-allowed'},403,h);
@@ -2377,6 +2469,7 @@ async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='previewCustomerCreditInvoiceReviewV1')out=await previewCustomerCreditInvoiceReviewV1(env,auth,b);
     else if(action==='previewCustomerCreditPreparedCommandV1')out=await previewCustomerCreditPreparedCommandV1(env,auth,b);
     else if(action==='previewCustomerCreditLiabilityAuditV1')out=await previewCustomerCreditLiabilityAuditV1(env,auth,b);
+    else if(action==='previewNativeInvoiceReturnExposureV1')out=await previewNativeInvoiceReturnExposureV1(env,auth,b);
     else if(action==='previewAccountingFinalInvoiceCommandV1')out=await previewAccountingFinalInvoiceCommandV1(env,auth,b);
     else if(action==='easyStoreSystemHealth')out=await easyStoreSystemHealthV1(env,auth);
     else if(action==='calculateAccountingLaserQuoteV1913')out=await calculateAccountingLaserQuoteV1913V1(env,auth,b);
