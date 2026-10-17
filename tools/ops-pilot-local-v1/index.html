@@ -14,7 +14,7 @@ label{display:block;font-weight:bold;margin:12px 0 6px}select,button{font:inheri
 select{width:100%;padding:12px;border:1px solid #a8b9c6;border-radius:8px;background:white}
 button{cursor:pointer;border:0;background:#0759a2;color:white;padding:11px 17px;border-radius:10px;font-weight:bold}
 button:hover{background:#003b73}button:disabled{background:#93a4b6;cursor:not-allowed}
-button.small{font-size:12px;padding:8px 10px}table{width:100%;border-collapse:collapse;font-size:14px}
+button.small{font-size:12px;padding:8px 10px}.secondary{background:#51687c}.secondary:hover{background:#334e64}table{width:100%;border-collapse:collapse;font-size:14px}
 td,th{padding:11px 8px;border-bottom:1px solid #e7ecf2;text-align:right}
 th{white-space:nowrap;color:#35536c}td:last-child{min-width:125px}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 23px}
@@ -22,7 +22,7 @@ th{white-space:nowrap;color:#35536c}td:last-child{min-width:125px}
 .stat b{display:block;font-size:27px;color:#0759a2;margin-top:6px}
 .flag{display:inline-block;background:#fef2f2;color:#a42a25;border-radius:7px;padding:3px 7px;font-weight:bold}
 .ok{background:#eff9f3;color:#267547}.muted{color:#5d7082;font-size:12px}
-#feedback{min-height:28px;margin-top:12px;font-weight:bold}.error{color:#b42318}.success{color:#157b42}
+#feedback{min-height:28px;margin-top:12px;font-weight:bold}#auditLog{white-space:pre-wrap;line-height:1.9;color:#26394b;min-height:54px;overflow-wrap:anywhere}.error{color:#b42318}.success{color:#157b42}
 footer{text-align:center;padding:20px;color:#576a80}
 @media(max-width:850px){.cols{grid-template-columns:1fr}table{display:block;overflow:auto}.stats{grid-template-columns:repeat(2,1fr)}}
 </style>
@@ -56,6 +56,9 @@ footer{text-align:center;padding:20px;color:#576a80}
 <p class="muted">التسلسل المسموح: طلب جديد ← جاري التنفيذ ← جاهز للتسليم ← تم التسليم. ممنوع القفز بين الحالات أو تسليم أوردر عليه منع.</p>
 <div style="overflow-x:auto"><table><thead><tr><th>الأوردر</th><th>العميل</th><th>المنتج/القسم</th><th>الحالة</th><th>التسليم</th><th>الإجراء</th></tr></thead><tbody id="orders"><tr><td colspan="6">جار تحميل بيانات التجربة...</td></tr></tbody></table></div>
 <p><button id="refresh" type="button">تحديث</button></p>
+<div class="panel" aria-live="polite"><h2>📋 سجل حالة الأوردر (تجريبي فقط)</h2>
+<p class="muted">اضغط «السجل» أمام أي أوردر لعرض تغييرات حالته المُسجّلة. رفض العملية لا يضيف أي حدث. السجل مؤقت ولا يرتبط بالإنتاج.</p>
+<div id="auditLog" role="status">اختر «السجل» لأحد الأوردرات.</div></div>
 </section>
 </div>
 </main>
