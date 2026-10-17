@@ -1501,84 +1501,6 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
 
 
 
-### Entry635 — Backend Native-only hardening; PASS
-- Entry635 first updated the live employee dispatcher so Bridge-free canary preflight accepts `nativeOnly=true` only when the frontend is already Bridge-free and the required Native-ready count is satisfied.
-- Repo qualification:
-  - manifest `docs/trendos/staging/ENTRY635_NATIVE_ONLY_BRIDGE_FREE_MANIFEST.json`;
-  - regression `tests/entry635_native_only_bridge_free_preflight.test.mjs`;
-  - CI Run `37491779456` = SUCCESS.
-- Controlled frontend compatibility deployment:
-  - `.github/workflows/trendos-entry635-native-only-preflight-frontend-controlled.yml`;
-  - Run `37491967675`;
-  - Job `112366733247`;
-  - conclusion = SUCCESS;
-  - frontend version `31e2c68d-6bb0-49bb-8535-7b8fecdb7458`.
-- Frontend compatibility proof before the backend hardening:
-  ```ini
-  FRONTEND_COMPAT_NATIVE_LOGIN=PASS
-  FRONTEND_COMPAT_BRIDGE_CALLS=0
-  FRONTEND_COMPAT_LOGOUT=PASS
-  BACKEND_NATIVE_ONLY=false
-  BACKEND_BOOTSTRAP=false
-  BACKEND_BRIDGE=false
-  ```
-- Controlled settings-only Backend hardening:
-  - `.github/workflows/trendos-entry635-native-only-binding-controlled.yml`;
-  - commit `3e487b0b22b5a77f122c05d974323fccb7a7b0f3`;
-  - Run `37492693215`;
-  - Job `112369217889`;
-  - conclusion = SUCCESS.
-- Cloudflare settings proof:
-  ```ini
-  TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1=true
-  TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED=false
-  TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false
-  NON_TARGET_BINDINGS_UNCHANGED=PASS
-  SECRET_BINDINGS_PRESERVED=PASS
-  WORKER_CODE_ETAG_UNCHANGED=PASS
-  D1_CONTROL_MUTATION=NO
-  ```
-- Final live proof:
-  - `.github/workflows/trendos-entry635-native-only-live-proof.yml`;
-  - commit `783f0564a46c2fcdf796b3c9bb89c9fe8238b06d`;
-  - Run `37493577765`;
-  - Job `112372274162`;
-  - conclusion = SUCCESS.
-- Final runtime truth:
-  ```ini
-  AUTH=TRANSITIONAL
-  AUTH_ENABLED=true
-  LEGACY_BOOTSTRAP_ENABLED=false
-  LEGACY_SESSION_ENROLL_ENABLED=false
-  NATIVE_ONLY=true
-  D1_AUTH_USERS=5
-  D1_NATIVE_READY_USERS=5
-  MUST_CHANGE=0
-
-  FRONTEND_GLOBAL_NATIVE_AUTH=false
-  FRONTEND_NATIVE_CANARY=true
-  FRONTEND_BRIDGE=false
-  BACKEND_BRIDGE=false
-
-  CORE=READONLY / epoch1
-  CONTENT=READONLY / epoch2
-  COMMS=READONLY / epoch2
-  OPS=GENERAL / epoch7
-  ACCOUNTING=READONLY / epoch2
-  ```
-- Final live alias proof:
-  ```ini
-  diaa -> ضياء
-  AUTH_SOURCE=d1-native-employee-v1
-  BRIDGE_CALLS=0
-  BRIDGE_HEALTH_CALLS=0
-  APPS_SCRIPT_CALLS=0
-  LOGOUT=PASS
-  ```
-- Business data mutation = NO; the qualification Auth session was revoked.
-- Entry636 must be a read-only completeness audit before any global frontend Native Auth switch. Do not assume the five D1 identities are the entire active employee roster until runtime/authoritative evidence proves it.
-
-
 ### Entry636 — Global Native Auth completeness audit; BLOCKED on one active account
 - Purpose: prove the authoritative active employee-login population is completely represented in D1 before any global frontend Native Auth switch.
 - Authoritative Google source inspected read-only:
@@ -3634,3 +3556,7 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 
 ## BOOK-MIGRATION-20261018-032 — Entry634
 - `EXACT_VERBATIM_MATCH=PASS` (1790 characters), copy `a3a7ad9d0120b3c18ce7684c9a39504a1c5cc832`; archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source blob `fcd7a2ddc238ab7cb27360f52f4c043474f57d63`. Remove SHA in Crosswalk.
+
+
+## BOOK-MIGRATION-20261018-033 — Entry635
+- `EXACT_VERBATIM_MATCH=PASS` (2734 characters), copy `f6f5dd042313b153176e26350d9c7bbe658ac1b2`; archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source blob `662140476b3f3bc3fe0c8ae4364c0a135cd7133f`. Remove SHA in Crosswalk.
