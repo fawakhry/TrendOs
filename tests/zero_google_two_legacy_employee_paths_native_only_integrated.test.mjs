@@ -8,6 +8,8 @@ import {handleEdgeGatewayRequest} from '../cloudflare-d1/src/edge-gateway.mjs';
 
 // Source-level, fully fabricated integration. No customer/employee credentials,
 // real Apps Script, D1 or Cloudflare service is used.
+import {employeeLegacyGoogleUpstreamDisabled} from '../cloudflare-d1/src/employee-legacy-google-cutover-guard-v1.mjs';
+
 const origin='https://fawakhry.github.io';
 const google='https://script.google.com/macros/s/FAKE-NO-NETWORK/exec';
 const fakeEnv=flag=>({
@@ -35,7 +37,7 @@ test('Native-only true denies BOTH employee Google legacy endpoints before fetch
   let fetches=0;
   globalThis.fetch=async()=>{fetches++;throw Error('UNEXPECTED_EXTERNAL_FETCH');};
   try{
-    for(const flag of ['true','TRUE',true,'1','yes','on',' ON ']){
+    for(const flag of ['true','TRUE',true,'1','yes','on',' ON ','tru','unexpected-nonempty']){
       for(const action of employeeActions){
         const [legacyResult,edgeResult]=await Promise.all([
           handleLegacyBrowserTransport(legacy(action),fakeEnv(flag)),
@@ -70,4 +72,13 @@ test('residual customer-session Apps Script actions are explicitly NOT Zero Goog
     assert.equal(calls[0].url,google,'customer path still depends on legacy Google by design');
     assert.equal(calls[0].method,'POST');
   }finally{globalThis.fetch=original;}
+});
+
+test('shared cutover parser retains explicit OFF and fails closed on malformed nonempty flags',()=>{
+  for(const flag of [undefined,null,'','0','false','FALSE','no','off']){
+    assert.equal(employeeLegacyGoogleUpstreamDisabled(fakeEnv(flag)),false,String(flag));
+  }
+  for(const flag of ['true',true,'1','yes','on','tru','invalid-value']){
+    assert.equal(employeeLegacyGoogleUpstreamDisabled(fakeEnv(flag)),true,String(flag));
+  }
 });
