@@ -35,7 +35,7 @@ test('Native-only true denies BOTH employee Google legacy endpoints before fetch
   let fetches=0;
   globalThis.fetch=async()=>{fetches++;throw Error('UNEXPECTED_EXTERNAL_FETCH');};
   try{
-    for(const flag of ['true','TRUE',true]){
+    for(const flag of ['true','TRUE',true,'1','yes','on',' ON ']){
       for(const action of employeeActions){
         const [legacyResult,edgeResult]=await Promise.all([
           handleLegacyBrowserTransport(legacy(action),fakeEnv(flag)),
