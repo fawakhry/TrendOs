@@ -5503,3 +5503,83 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY635 -->
+
+---
+
+## الملحق التاريخي و-١٦ — Entry636 / Global Native Auth readiness blocker
+
+> **HISTORICAL; BLOCKED_AT_HISTORICAL_CHECKPOINT; NOT CURRENT PRODUCTION PROOF.** المنع في السجل قد يكون حُسم لاحقًا؛ لا تعتمده كحالة تشغيل حالية ولا كتفويض تغيير Auth.
+> [Source](https://github.com/fawakhry/TrendOs/blob/78ae2e2ea8b01e8b5e389964597184a35e06570f/TrendOS_MASTER_BOOK.md) blob `af61569b0ecef3ed1c6f19ae75fd7e0f35c32b9f`; [Archive](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md) blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY636 -->
+### Entry636 — Global Native Auth completeness audit; BLOCKED on one active account
+- Purpose: prove the authoritative active employee-login population is completely represented in D1 before any global frontend Native Auth switch.
+- Authoritative Google source inspected read-only:
+  - Spreadsheet: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
+  - Spreadsheet ID: `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`
+  - login authority tab: `المستخدمين`
+  - secondary HR tab: `HR - الموظفين`
+- Sensitive columns were deliberately not read:
+  - no password column;
+  - no token column.
+- Safe login-authority columns showed active rows for:
+  ```text
+  ضياء
+  وائل
+  رحمه
+  ريفان
+  شريف
+  جابر
+  wael
+  Rahma
+  ```
+- Classification:
+  - `wael` is covered by the existing canonical mapping to `وائل` and had qualification-note history.
+  - `Rahma` is explicitly marked TEST ONLY and is covered by the canonical mapping to `رحمه`.
+  - `شريف` is marked active (`مفعل؟ = نعم`), has a recorded last login on 2026-08-27, has no TEST ONLY note, and is not represented by the five Native-ready D1 identities.
+- Current D1 Native keys remain exactly:
+  ```text
+  ضياء
+  وائل
+  جابر
+  رحمه
+  ريفان
+  ```
+- Therefore the unresolved active Native gap is:
+  ```ini
+  UNRESOLVED_ACTIVE_NATIVE_GAP=شريف
+  ```
+- Repo evidence:
+  - manifest `docs/trendos/staging/ENTRY636_GLOBAL_NATIVE_COMPLETENESS_AUDIT.json`;
+  - guard `tests/entry636_global_native_completeness_guard.test.mjs`;
+  - CI `.github/workflows/trendos-entry636-global-native-completeness-guard.yml`;
+  - initial guard Run `37494142551` failed only because the test incorrectly compared repo-default Canary state with Production live Canary state; no runtime mutation occurred.
+  - corrected commit `e7f1b3d9753f635797275d5f06f931623fabff85`;
+  - corrected guard Run `37494241269`, Job `112374539777` = SUCCESS;
+  - browser transport regression Run `37494241574` = SUCCESS.
+- Guard result:
+  ```ini
+  ENTRY636_GLOBAL_NATIVE_GUARD=PASS
+  ENTRY636_UNRESOLVED_ACTIVE_NATIVE_GAP=شريف
+  ENTRY636_GLOBAL_NATIVE_FRONTEND=OFF
+  PRODUCTION_MUTATION=NO
+  D1_MUTATION=NO
+  GOOGLE_MUTATION=NO
+  ```
+- Runtime remains:
+  ```ini
+  BACKEND_NATIVE_ONLY=true
+  LEGACY_BOOTSTRAP=false
+  BACKEND_BRIDGE=false
+  FRONTEND_GLOBAL_NATIVE_AUTH=false
+  FRONTEND_NATIVE_CANARY=true
+  D1_NATIVE_READY=5/5
+  ```
+- **Decision gate:** do not enable Global Native Auth until the owner confirms whether the active `شريف` login must remain usable.
+  - If yes: migrate that account to D1 through a bounded, credential-safe enrollment/bootstrap procedure, then re-run completeness.
+  - If no: deactivate/remove that authoritative login row through the Google-side owner workflow, then re-run completeness.
+- Do not read or copy the password/token columns to resolve this gate.
+
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY636 -->
