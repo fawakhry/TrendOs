@@ -12,6 +12,9 @@ on:
       - cloudflare-d1/r5-server68-signed-metadata-preflight.mjs
       - tests/server68_wrangle_local_runtime_smoke.mjs
       - tests/server69_ubuntu_python_to_local_workerd.py
+      - tests/server69_release_decision_queue.test.mjs
+      - autonomous-printshop/print-server/SERVER69_RELEASE_DECISIONS.json
+      - autonomous-printshop/print-server/SERVICE_ORDER_READER_POLICY_V1.json
       - autonomous-printshop/print-server/src/trendosshop_read_once.py
       - autonomous-printshop/print-server/tests/test_server34_trendosshop_read_once.py
       - tests/server33_trendosshop_service_orders_read.test.mjs
@@ -45,6 +48,7 @@ jobs:
           node --test tests/server68_isolated_stage_preflight.test.mjs \
             tests/server68_r5_signed_metadata_preflight.test.mjs \
             tests/server33_trendosshop_service_orders_read.test.mjs \
+            tests/server69_release_decision_queue.test.mjs \
             tests/server68_secure_mirror_pagination_compat.test.mjs \
             tests/server67_purpose_scoped_mirror_service_read.test.mjs \
             tests/server67_apps_script_signed_mirror_client_offline.test.mjs \
