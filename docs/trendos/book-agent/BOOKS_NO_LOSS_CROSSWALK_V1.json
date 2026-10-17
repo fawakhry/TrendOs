@@ -38,16 +38,16 @@
     "entry_number_count": 66,
     "entry_heading_count": 58,
     "mention_only_count": 8,
-    "explicitly_mentioned_in_current_catalog": 35,
-    "unmentioned_by_exact_entry_label_in_current_catalog": 31,
+    "explicitly_mentioned_in_current_catalog": 36,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 30,
     "reconciled_entry_count": 0,
     "unreconciled_entry_count": 66,
     "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation.",
-    "historical_entry_heading_sections_migrated_exact_count": 31,
+    "historical_entry_heading_sections_migrated_exact_count": 32,
     "initial_entry_heading_count": 58,
     "original_snapshot_reconciled_count": 0,
-    "migration_progress_note": "34 exact historical migration units through Entry636; Entry615 privacy and Entry619 archive-scope held, 66 IDs not fully reconciled.",
-    "total_migration_units_exact_verified": 34,
+    "migration_progress_note": "35 exact historical transfer units; Entry619 archived extra blocks exactly reconciled to previously migrated 001/004/005. Entry615 held for privacy review, all 66 IDs need full reference reconciliation.",
+    "total_migration_units_exact_verified": 35,
     "non_entry_historical_migration_units_exact_verified": 3
   },
   "book_policy": {
@@ -1755,17 +1755,45 @@
       "source_first_line": 2657,
       "source_heading_line": 2657,
       "mention_count_in_master": 7,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "HISTORICAL_ACCOUNTING_READONLY_WITH_ARCHIVE_SCOPE_DELTA",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_ACCOUNTING_READONLY_WITH_ARCHIVE_SCOPE_DELTA_RECONCILED",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "BLOCKED_ARCHIVE_SCOPE_RECONCILIATION",
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
       "source_scope": "ENTRY_HEADING_IN_MASTER",
-      "migration_blocker": {
-        "type": "ARCHIVE_SCOPE_DELTA",
-        "detail": "Current Entry619 30976 chars vs archive 34720; archive included prior 001/004/005 non-entry historical blocks. Need line-accurate provenance reconciliation, no deletion.",
-        "archived_source": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
-        "source_preserved": true
+      "section_migration": {
+        "unit": "035",
+        "scope": "ENTRY_HEADING_ARCHIVE_SCOPE_RECONCILED",
+        "group_entry_ids": [
+          619
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "dd09a7eb1f93568bd9696341a8eec60afae0cac0",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-١٧",
+        "copy_commits": [
+          "8abe9e419ff90175c1fa0ee5c9b090b1acd8ad2b",
+          "90ef398e112368fdffaed710a7f91402896e1024",
+          "26216d5946964dba4d785cbc6c1d145c65231e0b"
+        ],
+        "remove_commit": "85d63df4b7211ce9f2e9a9e13a72280d6c17b473",
+        "text_characters": 30976,
+        "archive_original_characters": 34720,
+        "already_migrated_archive_characters": 3744,
+        "archive_scope_prior_migration_units": [
+          "004",
+          "005",
+          "001"
+        ],
+        "exact_match": "PASS",
+        "normalized_archive_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-18",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Normalized archive check: original 34720 - exact already migrated 004/005/001 (3744 with boundaries) = live source 30976 = copied appendix 30976. Preserves standalone EasyStore scope."
       }
     },
     {
@@ -2578,12 +2606,12 @@
   ],
   "latest_review": {
     "date": "2026-10-18",
-    "head_before_crosswalk_commit": "0f87abcf4b68a3530811a03dd9749a2d2944d721",
-    "active_master_blob_sha": "7473534daf43b96eaa610b0dabf59f070eb7154e",
-    "new_catalog_blob_sha": "fdfd1bdb71f0b10273543b75de8088da654bb427",
+    "head_before_crosswalk_commit": "85d63df4b7211ce9f2e9a9e13a72280d6c17b473",
+    "active_master_blob_sha": "7c67a8122700de36692a5147fbff91af3562a592",
+    "new_catalog_blob_sha": "28edce4bed5674f17240d88971519b14928359a9",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "34 exact units, Entry636 copied/verified/removed; old master and SERVER-68I preserved; no production actions."
+    "notes": "35 transfer units. Entry619 normalized archive exact + 3-chunk source exact PASS; Entry615 still BLOCKED_PRIVACY_REVIEW; SERVER-68I preserved, no Production mutation."
   },
   "non_entry_section_migrations": [
     {
