@@ -32,7 +32,9 @@ test('SQLite audit insert failure rolls back the already-attempted status update
     const good=transitionOrderAtomic(db,'DEMO-9001','جاري التنفيذ');
     assert.deepEqual(good,{success:true,id:'DEMO-9001',status:'جاري التنفيذ'});
     assert.equal(db.prepare("SELECT status FROM orders WHERE id='DEMO-9001'").get().status,'جاري التنفيذ');
-    assert.deepEqual(db.prepare('SELECT previous_status,next_status FROM history').all(),[
+    const audit=db.prepare('SELECT previous_status,next_status FROM history').all();
+    // node:sqlite produces null-prototype row objects; compare their fields.
+    assert.deepEqual(audit.map(x=>({...x})),[
       {previous_status:'طلب جديد',next_status:'جاري التنفيذ'}
     ]);
   }finally{db.close()}
