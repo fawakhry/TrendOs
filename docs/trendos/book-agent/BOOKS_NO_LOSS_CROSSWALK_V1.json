@@ -1027,8 +1027,25 @@
       "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "MENTION_ONLY_IN_MASTER"
+      "reconciliation_status": "HISTORICAL_REFERENCE_LOCATED_FULL_RECONCILIATION_OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER",
+      "historical_reference_locator": {
+        "archive_book": "TrendOS_MASTER_BOOK.md",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_lines": [
+          2931
+        ],
+        "catalog_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "catalog_lines": [
+          5870
+        ],
+        "catalog_marker_contexts": [
+          "MASTER_ENTRY619"
+        ],
+        "active_master_mention_count": 0,
+        "review_status": "MENTION_ONLY_NO_STANDALONE_SECTION_TO_MIGRATE",
+        "note": "Reference locations mapped only. Not proof of current deployment, coverage completeness, or full Entry reconciliation."
+      }
     },
     {
       "entry_id": 533,
@@ -1039,8 +1056,27 @@
       "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "MENTION_ONLY_IN_MASTER"
+      "reconciliation_status": "HISTORICAL_REFERENCE_LOCATED_FULL_RECONCILIATION_OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER",
+      "historical_reference_locator": {
+        "archive_book": "TrendOS_MASTER_BOOK.md",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_lines": [
+          6647,
+          6684
+        ],
+        "catalog_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "catalog_lines": [
+          8486,
+          8523
+        ],
+        "catalog_marker_contexts": [
+          "MASTER_ENTRY637_TO_652"
+        ],
+        "active_master_mention_count": 0,
+        "review_status": "MENTION_ONLY_NO_STANDALONE_SECTION_TO_MIGRATE",
+        "note": "Reference locations mapped only. Not proof of current deployment, coverage completeness, or full Entry reconciliation."
+      }
     },
     {
       "entry_id": 595,
@@ -1051,8 +1087,26 @@
       "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "MENTION_ONLY_IN_MASTER"
+      "reconciliation_status": "HISTORICAL_REFERENCE_LOCATED_FULL_RECONCILIATION_OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER",
+      "historical_reference_locator": {
+        "archive_book": "TrendOS_MASTER_BOOK.md",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_lines": [
+          3032
+        ],
+        "catalog_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "catalog_lines": [
+          1681,
+          5971
+        ],
+        "catalog_marker_contexts": [
+          "MASTER_ENTRY619"
+        ],
+        "active_master_mention_count": 1,
+        "review_status": "MENTION_ONLY_NO_STANDALONE_SECTION_TO_MIGRATE",
+        "note": "Reference locations mapped only. Not proof of current deployment, coverage completeness, or full Entry reconciliation."
+      }
     },
     {
       "entry_id": 596,
@@ -2131,8 +2185,25 @@
       "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "MENTION_ONLY_IN_MASTER"
+      "reconciliation_status": "HISTORICAL_REFERENCE_LOCATED_FULL_RECONCILIATION_OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER",
+      "historical_reference_locator": {
+        "archive_book": "TrendOS_MASTER_BOOK.md",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_lines": [
+          6371
+        ],
+        "catalog_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "catalog_lines": [
+          8210
+        ],
+        "catalog_marker_contexts": [
+          "MASTER_ENTRY637_TO_652"
+        ],
+        "active_master_mention_count": 0,
+        "review_status": "MENTION_ONLY_NO_STANDALONE_SECTION_TO_MIGRATE",
+        "note": "Reference locations mapped only. Not proof of current deployment, coverage completeness, or full Entry reconciliation."
+      }
     },
     {
       "entry_id": 630,
@@ -3632,12 +3703,12 @@
   ],
   "latest_review": {
     "date": "2026-10-18",
-    "head_before_crosswalk_commit": "fa73f32c8574c61d58e15de14d3b642bc02d4779",
+    "head_before_crosswalk_commit": "58cdf0feee15a1677665018e30589e15f4358060",
     "active_master_blob_sha": "0f49520659b3435f4dc289fa782b91376f250370",
     "new_catalog_blob_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "Units 002/003 restored to 38-unit metadata registry without moving source again; marker balance PASS, legacy order entries 596,599/600 retained under privacy review; old ACTIVE_WRITE and server changes preserved."
+    "notes": "All 38 historical units have numbered metadata. Mention-only Entry498/533/595/628 historical references mapped without claiming full reconciliation or runtime proof; legacy order privacy entries 596/599/600 preserved. Old active and latest SERVER retained."
   },
   "non_entry_section_migrations": [
     {
