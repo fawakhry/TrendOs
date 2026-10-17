@@ -6141,3 +6141,249 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
   ```
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY619 -->
+
+---
+
+## الملحق التاريخي و-١٨ — Entry615 / Zero-Google current-data backfill and Cloud Auth Shadow hotfix
+
+> **HISTORICAL / PRIVACY_REVIEW_SCOPED_PASS / NOT_CURRENT_PRODUCTION_PROOF.** فُحص نص القسم الأصلي والأرشيف: يحتوي بريد الاتصال التشغيلي للمشروع في سطر مؤلف نشر تاريخي واحد، ولا يحتوي في نطاق الفحص قيمة كلمة مرور/مفتاح سرّي أو عنوان عميل. البريد موجود أصلًا في المصدر العام نفسه، وتم إبقاؤه للنقل الحرفي داخل نفس المستودع مع توثيق نسبته؛ هذه ليست موافقة لكشف أي بيانات إضافية.
+> [Source](https://github.com/fawakhry/TrendOs/blob/135bd380e0c32b9fbd0c8001af647a25e321d75d/TrendOS_MASTER_BOOK.md) blob 7c67a8122700de36692a5147fbff91af3562a592; [archive](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md) blob a5eb39309413c2c2b8c5b62cab4ebc581e90f71e.
+> ثلاثة أجزاء، ثم مقارنة حرفية قبل إزالة المصدر. نتائج التشغيل القديمة لا تثبت حالة Production في 2026-10-18.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY615 -->
+### Entry615 — Zero-Google current-data backfill preview
+- الاسم العربي للبحث: **نسخ آخر بيانات Google الحية إلى D1 Native بدون إبقاء Google Runtime**.
+- يبدأ بعد Entry614 الذي أثبت:
+  - Employee business source coverage = **46/46**.
+  - `sheet_rows/sheet_catalog` runtime dependency = **0**.
+  - كل العائلات الجديدة default-OFF.
+  - Production لم تُلمس.
+- بعد انقطاع النت تم الرجوع للحالة الفعلية: آخر HEAD قبل Entry615 كان `f59840978424d40467ac01fbac07a79603ce439e`; لا يوجد Backfill Production منفذ ولا Entry615 مسجل في الكتاب.
+- تم تصدير نسخة XLSX read-only من Google Sheet التشغيل الحالي:
+  - Spreadsheet: `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
+  - Spreadsheet ID: `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`
+  - observed sheets = **91**
+  - snapshot SHA256: `f36ca58ad8ec42901f54e3145c3b313374aaaf950a44d973d8bf4ca8470974db`
+- لا تعديل على Google/Apps Script تم؛ القراءة/export فقط.
+- Backfill mapping مؤهل محليًا من الـXLSX الحالي إلى D1 native families. أهم source counts:
+  ```ini
+  CURRENT_ORDERS=222
+  CURRENT_LINES=250
+  ARCHIVE_ORDERS=3361
+  ARCHIVE_LINES=4628
+  ORDER_EVENTS=12724
+  ATTENDANCE_DAYS_SOURCE=119
+  ATTENDANCE_PULSES=186
+  CLEANING_SOURCE=207
+  FEEDBACK_SOURCE=176
+  GO_LIVE_DRAFT_SOURCE=41
+  NOTES=264
+  KNOWLEDGE=14
+  ACCOUNTING_DEPT_LINES=18
+  ACCOUNTING_FINAL_INVOICES=3
+  PARTY_LEDGER_ROWS=7
+  ```
+- Canonical D1 target counts after deterministic dedupe:
+  ```ini
+  ATTENDANCE_DAYS=87
+  ATTENDANCE_PULSES=186
+  CLEANING_ROWS=80
+  FEEDBACK_REQUESTS=166
+  GO_LIVE_DRAFTS=39
+  CURRENT_ORDERS=222
+  CURRENT_LINES=234
+  ARCHIVE_ORDERS=3361
+  ARCHIVE_LINES=3565
+  ORDER_EVENTS=12724
+  CONTENT_RECORDS=284
+  CONVERSATIONS=1
+  MESSAGES=6
+  RETAINED_LEGACY_ROWS=1250
+  ```
+- Deduplication لا يحذف التاريخ:
+  - attendance extras = 32.
+  - cleaning extras = 127.
+  - feedback extras = 10.
+  - go-live draft extras = 2.
+  - current-line duplicates = 16.
+  - archive-line repeated snapshots = 1063.
+  - كل الـ**1250** row الزائدة تُحفظ في `employee_zero_google_legacy_rows_v1` مع source sheet/row/reason/raw JSON.
+- Parity guards:
+  ```ini
+  ATTENDANCE_PULSE_ORPHANS_AFTER_REMAP=0
+  CURRENT_LINE_MISSING_CURRENT_ORDER_PARENT=0
+  RUNTIME_SHEET_MIRROR_DEPENDENCY=0
+  EMPLOYEE_BUSINESS_TOP_LEVEL_COVERAGE=46/46
+  ```
+- تم إصلاح source قبل Backfill:
+  - stale default Service Route seed أزيل من migration 0013 في commit `5784cbe6f087ff609b2005aa5fe0f8c5f5f6103e`.
+  - retention/parity migration `0018_zero_google_backfill_retention_v1.sql` أضيف في commit `8f87c201663255a69f39d0a9d386344abe1d6f29`.
+  - Entry615 manifest أضيف في commit `bea226e3be0442505346e63f24e24c6892a8b527`.
+  - aggregate preview evidence أضيف في commit `b5f0d12c1f24467aec53f6393d9bdba2bb525405`.
+- Backfill generator/package:
+  - تم بناء generator محلي robust من الـXLSX الحالي.
+  - نتج SQL محلي ≈ 35 MB، وحزمة مضغوطة ≈ 1.2 MB.
+  - **Production data داخل SQL لم تُرفع إلى GitHub عمدًا**.
+  - الحزمة مخصصة للتنفيذ اليدوي على D1 بعد تطبيق migrations 0012→0018 والتحقق من OFF controls.
+- مهم: source snapshot الحالي أظهر 2 attendance pulse session IDs غير موجودة كسطور مستقلة في سجل الدوام، لكن كلاهما لنفس employee/date له canonical attendance session؛ generator يعيد ربطهما بالـcanonical session، لذلك `ATTENDANCE_PULSE_ORPHANS_AFTER_REMAP=0`.
+- الحالة التشغيلية لم تتغير:
+  ```ini
+  Employee_Auth=OFF
+  Employee_Bridge=OFF
+  Employee_Ops_Control=NOT_APPLIED_OR_OFF
+  Employee_Content_Control=NOT_APPLIED_OR_OFF
+  Employee_Comms_Control=NOT_APPLIED_OR_OFF
+  Employee_Accounting_Control=NOT_APPLIED_OR_OFF
+  Employee_Core_Control=NOT_APPLIED_OR_OFF
+  Google_Employee_Runtime=STILL_LIVE
+  ZERO_GOOGLE_COMPLETE=NO
+  ```
+- لا نعتبر Zero-Google مكتملًا قبل:
+  1. تطبيق migrations 0012→0018 مع controls OFF.
+  2. Backfill SQL APPLY.
+  3. D1 parity = PASS.
+  4. family-by-family READONLY ثم GENERAL cutover.
+  5. frontend legacy business fallback = 0.
+  6. Employee Login/Auth → D1 Native كآخر خطوة.
+  7. إيقاف Apps Script employee runtime وGoogle migration/sync.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_BACKFILL_PREVIEW_PASS_WAITING_MANUAL_D1_APPLY
+  COMMIT=b5f0d12c1f24467aec53f6393d9bdba2bb525405
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  API_DEPLOY=NO
+  FRONTEND_DEPLOY=NO
+  NEXT_ACTION=MANUAL_APPLY_MIGRATIONS_0012_TO_0018_WITH_CONTROLS_OFF_THEN_APPLY_ENTRY615_BACKFILL_SQL_AND_RUN_PARITY
+  ```
+- Final read-only Runtime check after Entry615 preview:
+  ```ini
+  EMPLOYEE_AUTH_MODE=OFF
+  EMPLOYEE_AUTH_ENV_ENABLED=NO
+  NATIVE_AUTH_USERS=0
+  NATIVE_READY_USERS=0
+  LEGACY_BRIDGE_ENABLED=NO
+  LEGACY_BRIDGE_SECRET_CONFIGURED=NO
+  LEGACY_BRIDGE_ALLOWED_POLICY_COUNT=0
+  ORDER_CREATE_MODE=GENERAL
+  DUPLICATE_GUARD_READY=YES
+  CUSTOMER_WRITE_MODE=GENERAL
+  CUSTOMER_COUNT_RUNTIME=251
+  LINE_RUNTIME_SCHEMA=READY
+  LINE_RUNTIME_WRITE_MODE=cloud-native+legacy-overlay
+  ```
+- Runtime supersedes the older historical customer count in §9; current count is **251**.
+- No mutation occurred in this check.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_PREVIEW_AND_RUNTIME_POSTCHECK_PASS
+  Production_touched=NO
+  D1_touched=NO
+  Apps_Script_touched=NO
+  Secrets_touched=NO
+  NEXT_ACTION=OWNER_MANUAL_D1_SCHEMA_AND_BACKFILL_APPLY
+  ```
+- Owner manual D1 migration attempt 0012 Run1:
+  - Cloudflare D1 Console returned: `SQL code did not contain a statement.`
+  - immediate verification query returned: `no such table: employee_ops_control_v1`.
+  - therefore migration **0012 did not apply** and no employee ops schema/control was created.
+  - this is treated as a failed/no-op schema attempt; no cutover or backfill occurred.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_MANUAL_0012_RUN1_FAIL_NO_SCHEMA_CHANGE
+  D1_touched=NO_EFFECT
+  Production_cutover=NO
+  Backfill_applied=NO
+  NEXT_ACTION=RETRY_0012_WITH_D1_CONSOLE_CLEAN_SQL_NO_COMMENTS_NO_PRAGMA
+  ```
+- Owner manual D1 migration 0012 retry with D1-console-clean SQL:
+  - Cloudflare Console: **This query successfully executed.**
+  - verification:
+    ```ini
+    singleton=1
+    marker=ENTRY614_EMPLOYEE_OPS_V1
+    mode=OFF
+    policy_epoch=1
+    ```
+  - therefore 0012 schema is applied and its control remains safely OFF.
+  - no family cutover/backfill/API/frontend/Auth mutation occurred.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_MANUAL_0012_APPLIED_PASS
+  MIGRATION=0012_employee_ops_zero_google_v1
+  D1_touched=YES_SCHEMA_ONLY
+  EMPLOYEE_OPS_MODE=OFF
+  Production_cutover=NO
+  Backfill_applied=NO
+  NEXT_ACTION=APPLY_0013_EMPLOYEE_CONTENT_ZERO_GOOGLE_V1_KEEP_OFF
+  ```
+
+
+### Entry615A — Pause for Cloud Auth Shadow idle-expiry production bug
+- أثناء التنفيذ اليدوي بعد نجاح migration 0012، ظهر في TrendOS Production:
+  ```text
+  طلب موظف قديم أو غير مؤكد تم إيقافه على Cloud؛ الجلسة الحالية لم تُلغَ.
+  ```
+- تم إيقاف أي migration جديدة فورًا؛ **0013 لم يتم تنفيذه**.
+- المصدر الدقيق للرسالة:
+  - `cloudflare-d1/src/legacy-browser-transport-v1.mjs`
+  - code: `EMPLOYEE_SESSION_SHADOW_REQUIRED`
+  - employee business actions تمر عبر `/v1/legacy-api` وتحتاج Cloud Auth Shadow hit.
+- Runtime/source diagnosis:
+  ```ini
+  TRENDOS_CLOUD_AUTH_SHADOW_V1_ENABLED=true
+  CLOUD_AUTH_SHADOW_TTL_SECONDS=300
+  CLOUD_AUTH_SHADOW_MAX_SECONDS_IN_SOURCE=900
+  APPS_SCRIPT_EMPLOYEE_SESSION_TTL_DEFAULT_HOURS=12
+  ```
+- Root cause: Cloud Shadow expires after **5 minutes idle**, while the real employee session remains valid up to **12 hours**. After idle >5m, the next employee business action fails before reaching Apps Script.
+- This bug is independent from migration 0012:
+  - 0012 only created new D1 tables.
+  - `employee_ops_control_v1.mode=OFF`.
+  - no frontend/API routing was changed by 0012.
+- Immediate safe recovery for an affected browser is a fresh employee login, which creates a new Cloud shadow; however that is only a temporary workaround because the 5-minute idle-expiry remains.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615A_PAUSED_FOR_CLOUD_AUTH_SHADOW_IDLE_EXPIRY_BUG
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=NOT_APPLIED
+  EMPLOYEE_OPS_MODE=OFF
+  ROOT_CAUSE=CLOUD_AUTH_SHADOW_5_MIN_IDLE_EXPIRY
+  Production_cutover=NO
+  Backfill_applied=NO
+  NEXT_ACTION=QUALIFY_REPO_ONLY_SHADOW_TTL_FIX_BEFORE_RESUMING_0013
+  ```
+- Repo-only permanent fix prepared:
+  - `cloudflare-d1/src/cloud-auth-shadow-v1.mjs`
+    - default/max shadow TTL changed from 300/900 seconds to **43200 seconds (12h)**.
+    - commit `4feca2a9ccb917f3005b607b231a215d53928828`.
+  - `cloudflare-d1/wrangler.toml`
+    - `CLOUD_AUTH_SHADOW_TTL_SECONDS="43200"`.
+    - Native Auth remains OFF.
+    - Legacy Bridge remains OFF.
+    - commit `370abd188e76384fa0388bbdfaffeaf23b09bfa6`.
+  - dedicated regression test `tests/cloud_auth_shadow_idle_ttl_entry615a.test.mjs`
+    - commit `0523ef3d34b8de7c044e086fcc77ac62374d9615`.
+- Dedicated CI:
+  - Workflow commit `891ab6b06f80b5d451cc84758c2a8aafae602f60`.
+  - Run `37195215253`.
+  - Job `111415550894`.
+  - conclusion = **SUCCESS**.
+  - proved:
+    ```ini
+    ENTRY615A_SOURCE_TTL_12H=YES
+    ENTRY615A_IDLE_OVER_5_MINUTES=PASS
+    ENTRY615A_EXACT_FINGERPRINT_REVOKE=PASS
+    ENTRY504_STALE_EMPLOYEE_TOKEN_RACE_GUARD=PASS
+    A61_SERVER_SIDE_LEGACY_TRANSPORT=PASS
+    ENTRY533_EMPLOYEE_SESSION_ISOLATION=PASS
+    ENTRY615A_PRODUCTION_NATIVE_AUTH_OFF=YES
+    ENTRY615A_PRODUCTION_BRIDGE_OFF=YES
+    PRODUCTION_DEPLOY=NO
+    D1_MUTATION=NO
+    FRONTEND_DEPLOY=NO
+    APPS_SCRIPT_TOUCHED=NO
+    ```
+- Immediate workaround before the Worker fix is deployed: a fresh employee logout/login creates a new 5-minute shadow 
