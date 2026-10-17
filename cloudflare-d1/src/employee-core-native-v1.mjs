@@ -448,20 +448,67 @@ async function previewDeliveryDebtReconciliationV1(env,user,body){
       orderCustomerReviewStatus='REVIEW_SCHEMA_UNAVAILABLE';
     }
   }
-  const reviewCandidateConflict=orderCustomerReviewStatus==='REVIEW_CANDIDATE_CONFLICT';
+  // BOOK19 immutable revision evidence is optional. A correction/withdrawal
+  // never upgrades an unverified candidate to verified identity. Any previous
+  // different candidate in the chain is a hard diagnostic read-deny until
+  // independently attested through an owner-approved authority (not here).
+  let orderRevisionCandidateCustomerId='';
+  let orderCustomerRevisionStatus=imported?'NOT_APPLICABLE_IMPORTED':'REVISION_SCHEMA_UNAVAILABLE';
+  let revisionConflict=false;
+  if(native){
+    try{
+      const revision=await env.DB.prepare(
+        "SELECT revision_id AS revisionId,candidate_customer_id AS customerId,event_kind AS eventKind "+
+        "FROM t12_order_customer_binding_revision_v1 WHERE order_id=? ORDER BY revision_id DESC LIMIT 1"
+      ).bind(text(native.orderId)).first();
+      if(!revision){
+        orderCustomerRevisionStatus='NO_REVISIONS';
+      }else{
+        const kind=key(revision.eventKind).toUpperCase();
+        orderRevisionCandidateCustomerId=text(revision.customerId);
+        if(kind==='WITHDRAW'){
+          orderCustomerRevisionStatus='WITHDRAWN_NO_ACTIVE_REVIEW';
+          revisionConflict=true;
+        }else{
+          const history=await env.DB.prepare(
+            "SELECT COUNT(*) AS n FROM t12_order_customer_binding_revision_v1 "+
+            "WHERE order_id=? AND candidate_customer_id<>?"
+          ).bind(text(native.orderId),orderRevisionCandidateCustomerId).first();
+          const conflictedHistory=Number(history&&history.n||0)>0;
+          const conflictedLegacy=!!orderReviewedCustomerId&&
+            orderReviewedCustomerId!==orderRevisionCandidateCustomerId;
+          if(conflictedHistory||conflictedLegacy){
+            orderCustomerRevisionStatus='REVISION_HISTORY_CONFLICT';
+            revisionConflict=true;
+          }else if(matches===1&&orderRevisionCandidateCustomerId!==candidateId){
+            orderCustomerRevisionStatus='REVISION_CANDIDATE_CONFLICT';
+            revisionConflict=true;
+          }else{
+            orderCustomerRevisionStatus=kind==='PROPOSE'?
+              'PROPOSED_UNATTESTED':'CORRECTED_UNATTESTED';
+          }
+        }
+      }
+    }catch{
+      orderCustomerRevisionStatus='REVISION_SCHEMA_UNAVAILABLE';
+    }
+  }
+  const reviewCandidateConflict=orderCustomerReviewStatus==='REVIEW_CANDIDATE_CONFLICT'||revisionConflict;
   const customerBindingStatus=!orderExternalCustomerId?'UNBOUND':
     matches!==1?'ORDER_ID_UNVERIFIED_NO_UNIQUE_CANDIDATE':
     orderExternalCustomerId===candidateId?'ORDER_ID_MATCHES_CANDIDATE_UNVERIFIED':
     'ORDER_ID_CONFLICTS_WITH_CANDIDATE';
   let operationalDebt=imported?num(imported.operationalDebt):null;
-  let postedBalance=null,status=reviewCandidateConflict
-    ?'ORDER_REVIEW_CANDIDATE_CONFLICT':
+  let postedBalance=null,status=revisionConflict
+    ?'REVIEW_REVISION_UNATTESTED_CONFLICT':
+    reviewCandidateConflict?'ORDER_REVIEW_CANDIDATE_CONFLICT':
     customerBindingStatus==='ORDER_ID_CONFLICTS_WITH_CANDIDATE'
       ?'ORDER_CUSTOMER_ID_CONFLICT':'NO_UNIQUE_CUSTOMER_MATCH';
   let matchedCustomerId='';
   let candidateCommittedReceiptEvidence=null;
-  let receiptEvidenceStatus=reviewCandidateConflict
-    ?'REVIEW_CANDIDATE_CONFLICT_NO_LEDGER_READ':
+  let receiptEvidenceStatus=revisionConflict
+    ?'REVISION_CONFLICT_NO_LEDGER_READ':
+    reviewCandidateConflict?'REVIEW_CANDIDATE_CONFLICT_NO_LEDGER_READ':
     customerBindingStatus==='ORDER_ID_CONFLICTS_WITH_CANDIDATE'
       ?'IDENTITY_CONFLICT_NO_LEDGER_READ':'UNVERIFIED_OR_NONUNIQUE_IDENTITY';
   // A present order-linked ID that disagrees with the phone/name candidate
@@ -509,6 +556,7 @@ async function previewDeliveryDebtReconciliationV1(env,user,body){
     customerMatchCount:matches,matchedCustomerId:matchedCustomerId,
     orderExternalCustomerId,orderCustomerMode,orderCustomerIdProvenance,customerBindingStatus,
     orderReviewedCustomerId,orderCustomerReviewStatus,
+    orderRevisionCandidateCustomerId,orderCustomerRevisionStatus,
     receiptEvidenceStatus,candidateCommittedReceiptEvidence,
     identityMatchBasis:phone?'PHONE_UNVERIFIED':'NAME_UNVERIFIED',
     identityVerified:false,sourceOnly:true,
