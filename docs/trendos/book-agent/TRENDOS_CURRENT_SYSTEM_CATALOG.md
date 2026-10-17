@@ -5120,3 +5120,56 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY627 -->
+
+---
+
+## الملحق التاريخي و-١٠ — Entry630 / Zero-Google Auth/Bridge checkpoint
+
+> **HISTORICAL — NOT CURRENT PRODUCTION PROOF / NO ACTIVATION AUTHORIZATION**. النتائج أدناه تخص زمن التوثيق الأصلي؛ أي تغيير للنشر أو الصلاحيات يحتاج تحققًا وموافقة حديثة.
+> [Source](https://github.com/fawakhry/TrendOs/blob/f0f05a897fdb3d5b5898e081cb193d1077af2f64/TrendOS_MASTER_BOOK.md), source blob `de592540c253d4435a8175c699d408750801e336`; [archive](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md), archive blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY630 -->
+### Entry630 — Comms READONLY cutover PASS; business Bridge dependency = 0
+- Entry630 completed the final business read family migration.
+- Repo gate:
+  - `.github/workflows/trendos-entry630-comms-readonly-repo-ci.yml`
+  - Run `37476624460` = SUCCESS.
+- Runtime arm:
+  - `.github/workflows/trendos-entry630-comms-readonly-runtime-arm-controlled.yml`
+  - Run `37476785742` = SUCCESS.
+  - Comms moved from `OFF / epoch1` to `READONLY / epoch2`.
+  - no business-data mutation, WhatsApp send, OpenAI call, R2 write, Accounting mutation, or EasyStore mutation.
+- Backend read smoke:
+  - workflow `.github/workflows/trendos-entry630-comms-readonly-backend-smoke.yml`
+  - initial Run `37482871509` safely exposed that `getOrderConversation` requires an existing order;
+  - corrected Run `37483062449` = SUCCESS;
+  - `customerManagerV1:inbox`, `customerManagerV1:thread`, `getOrderConversation`, and `goLiveAutopilotV1:listDrafts` all PASS;
+  - Business writes = NO.
+- Controlled frontend cutover:
+  - workflow `.github/workflows/trendos-entry630-comms-readonly-frontend-controlled.yml`
+  - preflight-only failures `37483588074`, `37483800216`, `37484025206` made no Production mutation;
+  - corrected Run `37484322594` = SUCCESS;
+  - new Production frontend version `1d31014e-4e47-4414-933a-3e60a8e80ece`.
+- Live frontend now:
+  ```ini
+  GLOBAL_NATIVE_AUTH=false
+  CANARY_NATIVE_USERS=all five known employee identities/aliases
+  CORE=READONLY
+  CONTENT=READONLY
+  COMMS=READONLY
+  OPS=GENERAL
+  ACCOUNTING=READONLY
+  FRONTEND_BRIDGE_POLICY_COUNT=4
+  ```
+- The four frontend Bridge policy names remain in config only for the old canary preflight contract; the dispatcher now routes all four to D1 Comms before Bridge evaluation.
+- Therefore:
+  ```ini
+  ENTRY630_BUSINESS_BRIDGE_ACTIONS=0
+  BACKEND_BRIDGE_ENABLED=true
+  BACKEND_BRIDGE_POLICY_COUNT=17
+  ```
+- The Backend Bridge remains only as a temporary auth-canary preflight dependency. Entry631 must remove that preflight dependency before the Bridge can be disabled safely.
+
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY630 -->
