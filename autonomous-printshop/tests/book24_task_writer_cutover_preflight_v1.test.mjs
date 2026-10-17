@@ -117,3 +117,32 @@ test('BOOK24 cutover: malformed/non-object input produces BLOCKED, never throws 
     assert.equal(out.activationCertified,false);
   }
 });
+
+test('BOOK24 cutover: two distinct UNKNOWN lane names are NOT an exact inventory',()=>{
+  for(const scripts of [
+    [script('UNRECOGNIZED_ALPHA'),script('UNRECOGNIZED_BETA')],
+    [script('WORK_QUEUE_V1'),script('ROGUE_WRITER')],
+    [script('OPERATOR_TASK_V2'),script('ROGUE_WRITER')],
+    [script(''),script('WORK_QUEUE_V1')],
+    [script('WORK_QUEUE_V1'),null],
+    [{...script('WORK_QUEUE_V1'),lane:'UNRECOGNIZED_ALPHA'},script('OPERATOR_TASK_V2')]
+  ]){
+    const result=qualify({...make(),scriptLanes:scripts});
+    has(result,'SCRIPT_LANE_INVENTORY_NOT_EXACT');
+    assert.equal(result.configurationConsistent,false);
+    assert.equal(result.activationCertified,false);
+    assert.equal(result.productionVerified,false);
+  }
+});
+
+test('BOOK24 cutover: only one of each known lane passes exact-name validation',()=>{
+  const reversed=make();
+  reversed.scriptLanes.reverse();
+  assert.equal(qualify(reversed).configurationConsistent,true);
+  const duplicated=make();
+  duplicated.scriptLanes=[script('WORK_QUEUE_V1'),script('WORK_QUEUE_V1')];
+  has(qualify(duplicated),'SCRIPT_LANE_INVENTORY_NOT_EXACT');
+  const extras=make();
+  extras.scriptLanes.push(script('UNRECOGNIZED_BETA'));
+  has(qualify(extras),'SCRIPT_LANE_INVENTORY_NOT_EXACT');
+});
