@@ -5583,3 +5583,204 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY636 -->
+
+---
+
+## الملحق التاريخي و-١٧ — Entry619 / Accounting family READONLY and historical Zero-Google sections
+
+> **HISTORICAL / ARCHIVE_SCOPE_DELTA_RECONCILED / NOT_CURRENT_PRODUCTION_PROOF.** هذا النص هو بالضبط القسم الباقي في المصدر، وقد تطابق مع أرشيف Git بعد طرح ثلاثة مقاطع تاريخية نُقلت مسبقًا (الوحدات 001/004/005) وبإجمالي 3,744 حرفًا شامل فواصل النص. لا يجوز الخلط بين هذا الإنجاز ونقل حسابات EasyStore أو فحص Runtime حديث.
+> [Source](https://github.com/fawakhry/TrendOs/blob/0c4b544797dac7d2a1bcedffdfe0ef9ae0f2353e/TrendOS_MASTER_BOOK.md), blob dd09a7eb1f93568bd9696341a8eec60afae0cac0. [Archive](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md), blob a5eb39309413c2c2b8c5b62cab4ebc581e90f71e.
+> **نطاق المطابقة:** Archived Entry619 (34,720) minus already-migrated 3 blocks (3,744) = source historical remainder (30,976); NORMALIZED_ARCHIVE_EXACT_MATCH=PASS.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY619 -->
+### Entry619 — Accounting family READONLY cutover
+- الهدف: بدء نقل عائلة Accounting بعد إغلاق Ops على GENERAL، مع إبقاء:
+  - Employee Auth = OFF.
+  - Employee Bridge = OFF.
+  - Content/Comms/Core = OFF.
+  - Ops = GENERAL.
+  - Apps Script بدون deploy أو تعديل.
+- Source qualification:
+  - router source commit: `56c760cc1ad585b254f5f663d72f140179271bd9`.
+  - default-OFF config commit: `5066b58cdc2765343a793ba5c1c9b7e1091b7b66`.
+  - router test commit: `f7fc1c5c9032f891ef25c071dde6f52b3656f2d2`.
+  - workflow qualification was corrected for heredoc formatting in `6765f5788caf15a84c89085492356631964d62a0`.
+  - generated-live-patch qualification support commit: `62a4d71d11bc3db018112693ac9bd765e6730b82`.
+  - source qualification Runs `37207137593` and `37207232366` = **SUCCESS**.
+  - A61 browser Cloud transport regression Run `37207232418` = **SUCCESS**.
+- READONLY policy في الواجهة يوجّه فقط القراءات المؤهلة إلى D1:
+  - `getAccounting`
+  - `getDeptInvoiceDraftV1887`
+  - `getPartyAccountV1858`
+  - Accounting writes تظل على المسار السابق في READONLY.
+  - GENERAL source path غير معتمد في Entry619.
+- Controlled Production cutover:
+  - workflow commit `00843659d5857dc4e023d4ed75f9dc59c4d02f1d`.
+  - Run `37207346113`.
+  - Job `111451192422`.
+  - conclusion = **SUCCESS**.
+- Pre-cutover:
+  ```ini
+  API_VERSION=de2c825d-ef63-407d-90dc-8059a9d4f192
+  FRONTEND_VERSION=f1aa4dbf-4bba-40f9-87e2-3e98f3f781b6
+  OPS=GENERAL / policyEpoch=7
+  ACCOUNTING=OFF / policyEpoch=1
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  AUTH=OFF
+  BRIDGE=OFF
+  ORDERS_CUSTOMERS_LINE=PASS
+  ```
+- Mutation boundary:
+  - only `employee_accounting_control_v1` changed OFF → READONLY.
+  - Accounting policy epoch 1 → 2.
+  - API deploy = NO.
+  - Apps Script deploy/mutation = NO.
+  - Auth enable = NO.
+  - Bridge enable = NO.
+  - business write probe executed = NO.
+- READONLY runtime semantics:
+  - qualified read-shaped probe without credentials reached the local session gate and returned `401 employee-session-rejected`.
+  - write-shaped Accounting probe was blocked with `503 employee-accounting-readonly`.
+  - external auth call in these probes = NO.
+  - therefore the READONLY gate is proven fail-closed without a business write.
+- Frontend was deployed from exact live Entry618 baseline with Accounting READONLY added only:
+  - `MATBAGY_EMPLOYEE_OPS_CUTOVER_MODE='GENERAL'`.
+  - `MATBAGY_EMPLOYEE_ACCOUNTING_CUTOVER_MODE='READONLY'`.
+  - Native Auth remains false.
+  - Legacy Bridge remains false.
+  - Entry611 Native Auth Canary remains absent.
+  - frontend propagation passed on attempt 2.
+  - new Production frontend version:
+    - `494d279f-5f5a-4271-b1c0-be5997615501`.
+- Post-cutover health:
+  ```ini
+  OPS=GENERAL / policyEpoch=7
+  ACCOUNTING=READONLY / policyEpoch=2
+  ACCOUNTING_SCHEMA_READY=true
+  ACCOUNTING_AUTHORITATIVE_WRITES=false
+  ACCOUNTING_GOOGLE_BUSINESS_CALLS=0
+  ACCOUNTING_APPS_SCRIPT_BUSINESS_AUTHORITY=false
+  AUTH=OFF
+  BRIDGE=OFF
+  CONTENT=OFF
+  COMMS=OFF
+  CORE=OFF
+  ORDERS=GENERAL_DUPLICATE_GUARD_PASS
+  CUSTOMERS=GENERAL
+  LINE_RUNTIME=PASS
+  REFRESH_FIX=PASS
+  ENTRY611_CANARY_DEPLOYED=NO
+  ```
+- Independent post-success reconciliation:
+  - workflow commit `a5c001def8c79f6130e0f41d1587b09560a79cf5`.
+  - Run `37207652630`.
+  - Job `111452119541`.
+  - conclusion = **SUCCESS**.
+  - reconfirmed exact API/frontend versions and all controls above with no Production mutation.
+- Passive authenticated-smoke observation attempt:
+  - workflow commit `43a21ddb9ccab1e0d63ba908cd1fd5ecb4912934`.
+  - Run `37207805369`.
+  - preflight confirmed Accounting READONLY / epoch 2, Ops GENERAL / epoch 7, Auth/Bridge OFF.
+  - Cloudflare live tail observed 22 Worker events but **0** requests to `/v1/employee/accounting` during the 70-second window.
+  - therefore the run ended fail-closed with no authenticated Accounting evidence; this is not a runtime failure and does not downgrade Entry619.
+  - credentials read = NO; Production mutation = NO; employee session disruption = NO.
+- Production UI root-cause follow-up after the owner opened EasyStore Accounting:
+  - second live-tail Run `37208172774` confirmed the same preflight, then observed **0** requests to `/v1/employee/accounting` while the Accounting screen was visibly open.
+  - the EasyStore screen showed the banner: session expired / login again.
+  - root cause was before the D1 API:
+    - canonical TrendOS is hosted on `trendos-ui.trendmall-contact.workers.dev`.
+    - EasyStore Accounting is hosted on `fawakhry.github.io/EasyStore/`.
+    - the historical handoff stored the employee token in TrendOS `localStorage`, but browser storage is origin-scoped, so EasyStore could not read that token.
+    - token was intentionally not placed in the URL, which remains the security requirement.
+    - additionally, EasyStore Production `config.js` still pointed its generic API directly at Apps Script; therefore the independent EasyStore screen bypassed the Entry619 TrendOS dispatcher.
+- Secure cross-origin remediation:
+  - design: TrendOS opener → exact-origin `postMessage` with one-time nonce/fresh timestamp → EasyStore validates origin + `window.opener` source + nonce + freshness → EasyStore stores the session only in its own `sessionStorage`.
+  - raw employee token in URL = **NO**.
+  - EasyStore routes only the three Entry619 READONLY actions to D1:
+    - `getAccounting`
+    - `getDeptInvoiceDraftV1887`
+    - `getPartyAccountV1858`
+  - all non-qualified/write actions remain on the existing path while Accounting is READONLY.
+- EasyStore repository remediation:
+  - repo: `fawakhry/EasyStore`.
+  - candidate branch: `candidate/entry619-d1-readonly-sso-20261004`.
+  - secure receiver + D1 READONLY router commit: `5d0533a0ed8e53f6a53bcdfffb29b9e0d0142289`.
+  - D1 READONLY config commit: `d001839772e68a27b85c0b29bb10580181259048`.
+  - cache-bust commit: `0161bb0fc26f0d28af8e406acae1b84ee4f44113`.
+  - qualification tests/workflow commits: `d665e617b98d6ea84346331b858e000ad24b701e`, `81826554799b5fa0e9a4325b6ffa1936d37aab89`.
+  - two initial CI failures were stale historical cache-tag assertions only; they were corrected in `bf3aa943b5a2819b59216e0fc87770efb63ae6ad` and `e17d447b183f2bb33b8f99254fe77dfe519052ed`.
+  - final EasyStore qualification Run `37208981388` = **SUCCESS**; all existing suites + Entry619 secure SSO/D1 test PASS.
+  - EasyStore `main` was fast-forwarded from `79d5fa1965d42996de49f949a4c34121a4231157` to `e17d447b183f2bb33b8f99254fe77dfe519052ed`.
+  - GitHub Pages deployment Run `37209034589` = **SUCCESS**.
+- TrendOS sender remediation:
+  - source commits `251110c70dfbc23998c031a347a25b960049f561` and `d6b5b5c8f241488d78f056c89315e47cd8dd4224`.
+  - dedicated source qualification Run `37208772063` = **SUCCESS**.
+  - independent standard regressions including browser Cloud transport, duplicate guard, customer cloud-only, legacy line runtime, and login surface also remained PASS.
+  - controlled exact-live frontend workflow commit `b55af26a89e472a5fe25e6cdbfc954ae058f0b7d`.
+  - Run `37209211366` = **SUCCESS**.
+  - no API deploy, no D1 mutation, no Apps Script touch.
+  - new Production frontend version:
+    - `011a01ee-b51b-44d2-84ff-b08d88712d85`.
+  - Ops GENERAL / epoch 7 preserved.
+  - Accounting READONLY / epoch 2 preserved.
+  - Auth and Bridge remained OFF.
+  - Entry611 Canary remained NOT DEPLOYED.
+  - refresh recovery preserved.
+- Independent SSO post-success reconciliation:
+  - workflow commit `170863f14274a5a3520d5c777b10991b9b5a6b26`.
+  - Run `37209322493`.
+  - Job `111457081225`.
+  - conclusion = **SUCCESS**.
+  - confirmed EasyStore Pages live with D1 READONLY receiver/router, TrendOS sender live, token-in-URL = NO, and all family/runtime controls unchanged.
+- remediation registration:
+  ```ini
+  ENTRY619_EASYSTORE_CROSS_ORIGIN_SSO_REMEDIATION=PASS
+  EASYSTORE_MAIN=e17d447b183f2bb33b8f99254fe77dfe519052ed
+  EASYSTORE_PAGES_RUN=37209034589
+  TRENDOS_SSO_DEPLOY_RUN=37209211366
+  TRENDOS_SSO_RECONCILE_RUN=37209322493
+  PRODUCTION_FRONTEND_VERSION=1f4a4faa-b532-45d5-8ea7-f5f79c8d2ac7
+  TOKEN_IN_URL=NO
+  ACCOUNTING=READONLY
+  ACCOUNTING_POLICY_EPOCH=2
+  OPS=GENERAL
+  OPS_POLICY_EPOCH=7
+  AUTH=OFF
+  BRIDGE=OFF
+  APPS_SCRIPT_TOUCHED=NO
+  NEXT_GATE=REAL_AUTHENTICATED_EASYSTORE_ACCOUNTING_D1_READ_SMOKE
+  ```
+- Post-remediation live observation attempts:
+  - Run `37209757544`, Job `111458355016`: preflight PASS; 43 Worker events observed; 0 requests to `/v1/employee/accounting`.
+  - Run `37210035507`, Job `111459174028`: preflight PASS; 22 Worker events observed; 0 requests to `/v1/employee/accounting`.
+  - both runs were non-mutating and read no credentials.
+  - interpretation: no Accounting request was observed inside either live-tail window; this is **not** evidence of a failed authenticated read and must not be promoted to PASS or FAIL for the business read itself.
+  - Accounting remains READONLY / epoch 2 and GENERAL promotion remains blocked until a synchronized authenticated read is observed as HTTP 200 from EasyStore.
+- CORS diagnostic after synchronized smoke:
+  - workflow commit `d7a661f13b28707efc4d624006a9bdc0af460b9f`.
+  - Run `37210738593`.
+  - Job `111461230214`.
+  - conclusion = **SUCCESS**.
+  - browser preflight from `https://fawakhry.github.io` returned:
+    - HTTP 204.
+    - `Access-Control-Allow-Origin: https://fawakhry.github.io`.
+    - methods include POST.
+    - headers include Authorization + Content-Type.
+  - therefore the missing live request was not a Cloudflare CORS block.
+- Synchronized live-tail attempt after owner pressed `تحديث البيانات`:
+  - Run `37210279478`.
+  - Job `111459882979`.
+  - 45 Worker events observed, but 0 requests to `/v1/employee/accounting`.
+  - no mutation and no credential read.
+  - this isolated the remaining issue to EasyStore client timing/runtime, not API reachability.
+- SSO2 race remediation:
+  - EasyStore now schedules one read-only `getAccounting` refresh after secure SSO acceptance once any in-flight load clears.
+  - visible non-sensitive runtime badge added:
+    - `D1 READONLY` or `LEGACY READ`.
+    - `SSO OK` or `SSO WAIT`.
+  - no secret/token value is displayed.
+  - EasyStore retry source commit: `139cbf3bb682b0abf303f162d9fe08366e3bcda3`.
+  - SSO2 cache-tag/test hardening culminated at `41c522d0d63b1897394bedfe836b975d5119bca2`.
+  - EasyStore qualification Run `37210978298` = **SUCCESS*
