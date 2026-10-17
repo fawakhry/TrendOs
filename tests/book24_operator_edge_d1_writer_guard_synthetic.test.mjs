@@ -186,3 +186,58 @@ test('BOOK24: two concurrent Edge claims are both rejected when D1 is a writer',
   assert.equal(f.calls.mutate,0);
   assert.equal(state.post,before,'neither concurrent claim reaches Google');
 });
+
+test('Zero Google handoff: malformed nonempty Edge writer guard cannot open Apps Script mutation lane',async()=>{
+  for(const flag of ['tru','yesish','enabld','1x','maybe','nope','GENERAL',' D1 ','0x']){
+    for(const op of ['claim','complete']){
+      // Even if D1 mode appears OFF, an ambiguous owner flag is a NO-GO,
+      // and the guard must not fetch Google or query D1.
+      const f=fixture({mode:'OFF',flag}),before=state.post;
+      const r=await invoke(f,{op});
+      assert.equal(r.status,503,'flag='+flag+', operation='+op);
+      assert.equal(r.body.code,'OPERATOR_TASK_WRITER_GUARD_VALUE_INVALID');
+      assert.equal(state.post,before,'malformed toggle may not reach Google');
+      assert.equal(f.calls.select,0,'no D1 access needed for bad property');
+      assert.equal(f.calls.mutate,0);
+      assert.equal(r.body.success,false);
+    }
+  }
+});
+test('Zero Google handoff: valid whitespace-trimmed opt-in still fences D1 writer',async()=>{
+  for(const flag of ['1 ',' TRUE ',' yes ','ON']){
+    const f=fixture({mode:'GENERAL',flag}),before=state.post;
+    assert.equal(operatorTaskSingleWriterGuardEnabledV1(f.env),true);
+    const r=await invoke(f);
+    assert.equal(r.status,409);
+    assert.equal(r.body.code,'OPERATOR_TASK_D1_WRITER_CONFLICT');
+    assert.equal(state.post,before);
+    assert.equal(f.calls.select,1);
+  }
+});
+test('Zero Google handoff: explicitly disabled and absent values retain legacy behavior',async()=>{
+  for(const flag of ['', '0','false','off','NO',' false ']){
+    const f=fixture({mode:'GENERAL',flag}),before=state.post;
+    assert.equal(operatorTaskSingleWriterGuardEnabledV1(f.env),false);
+    const r=await invoke(f);
+    assert.equal(r.status,200);
+    assert.equal(f.calls.select,0);
+    assert.equal(state.post,before+1);
+  }
+});
+test('Zero Google handoff: malformed toggle does not change read-only API behavior',async()=>{
+  const f=fixture({flag:'tru'}),before=state.post;
+  const r=await invoke(f,{op:'status'});
+  assert.equal(r.status,200);
+  assert.equal(f.calls.select,0);
+  assert.equal(state.post,before+1);
+});
+test('Zero Google handoff: two competing claims cannot escape invalid guard concurrently',async()=>{
+  const f=fixture({flag:'tru',mode:'OFF'}),before=state.post;
+  const res=await Promise.all([
+    invoke(f,{key:'SYN-CLAIM-1'}),invoke(f,{key:'SYN-CLAIM-2'})
+  ]);
+  assert.equal(res.every(x=>x.status===503 && x.body.code==='OPERATOR_TASK_WRITER_GUARD_VALUE_INVALID'),true);
+  assert.equal(f.calls.select,0);
+  assert.equal(f.calls.mutate,0);
+  assert.equal(state.post,before);
+});
