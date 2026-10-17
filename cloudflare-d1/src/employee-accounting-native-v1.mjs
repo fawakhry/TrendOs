@@ -2262,7 +2262,7 @@ async function previewCustomerCreditLiabilityAuditV1(env,auth,b){
   if(!customerCreditEnabledV1(env))
     return deny('credit-liability-feature-off','سجل الرصيد الدائن غير مفعل للفحص.');
   const customerId=text(b&&b.customerId);
-  if(!/^[\\p{L}\\p{N}_:.\\-]{3,180}$/u.test(customerId))
+  if(!/^[\p{L}\p{N}_:.\-]{3,180}$/u.test(customerId))
     return deny('credit-liability-official-customer-id-required','مطلوب معرف العميل الرسمي؛ لا يتم الربط بالاسم أو التليفون.');
   try{
     const person=await env.DB.prepare(
