@@ -2362,7 +2362,7 @@ async function previewNativeInvoiceReturnExposureV1(env,auth,b){
   if(auth.mode!=='full')return denied('acc206-owner-finance-role-required',
     'مراجعة مدفوعات الفاتورة الخاصة بالمرتجع للمسؤول المحاسبي الموثق فقط.');
   const invoiceNo=text(b&&b.invoiceNo);
-  if(!invoiceNo||invoiceNo.length>180||/[\\u0000-\\u001f]/u.test(invoiceNo))
+  if(!invoiceNo||invoiceNo.length>180||/[\u0000-\u001f]/u.test(invoiceNo))
     return denied('acc206-exact-invoice-reference-required','رقم الفاتورة الرسمي مطلوب.');
   try{
     const invoice=await env.DB.prepare(
