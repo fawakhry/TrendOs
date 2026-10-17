@@ -5414,3 +5414,92 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY634 -->
+
+---
+
+## الملحق التاريخي و-١٥ — Entry635 / Native-only backend hardening
+
+> **HISTORICAL; NOT CURRENT PRODUCTION PROOF.** سجل تقوية أمان سابق؛ هذا الترحيل لا يغير Auth ولا يعمل نشرًا.
+> [Source](https://github.com/fawakhry/TrendOs/blob/235c45be38008f155742b797bb47bef1a0a8cb9d/TrendOS_MASTER_BOOK.md) blob `662140476b3f3bc3fe0c8ae4364c0a135cd7133f`; [Archive](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md) blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY635 -->
+### Entry635 — Backend Native-only hardening; PASS
+- Entry635 first updated the live employee dispatcher so Bridge-free canary preflight accepts `nativeOnly=true` only when the frontend is already Bridge-free and the required Native-ready count is satisfied.
+- Repo qualification:
+  - manifest `docs/trendos/staging/ENTRY635_NATIVE_ONLY_BRIDGE_FREE_MANIFEST.json`;
+  - regression `tests/entry635_native_only_bridge_free_preflight.test.mjs`;
+  - CI Run `37491779456` = SUCCESS.
+- Controlled frontend compatibility deployment:
+  - `.github/workflows/trendos-entry635-native-only-preflight-frontend-controlled.yml`;
+  - Run `37491967675`;
+  - Job `112366733247`;
+  - conclusion = SUCCESS;
+  - frontend version `31e2c68d-6bb0-49bb-8535-7b8fecdb7458`.
+- Frontend compatibility proof before the backend hardening:
+  ```ini
+  FRONTEND_COMPAT_NATIVE_LOGIN=PASS
+  FRONTEND_COMPAT_BRIDGE_CALLS=0
+  FRONTEND_COMPAT_LOGOUT=PASS
+  BACKEND_NATIVE_ONLY=false
+  BACKEND_BOOTSTRAP=false
+  BACKEND_BRIDGE=false
+  ```
+- Controlled settings-only Backend hardening:
+  - `.github/workflows/trendos-entry635-native-only-binding-controlled.yml`;
+  - commit `3e487b0b22b5a77f122c05d974323fccb7a7b0f3`;
+  - Run `37492693215`;
+  - Job `112369217889`;
+  - conclusion = SUCCESS.
+- Cloudflare settings proof:
+  ```ini
+  TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1=true
+  TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED=false
+  TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false
+  NON_TARGET_BINDINGS_UNCHANGED=PASS
+  SECRET_BINDINGS_PRESERVED=PASS
+  WORKER_CODE_ETAG_UNCHANGED=PASS
+  D1_CONTROL_MUTATION=NO
+  ```
+- Final live proof:
+  - `.github/workflows/trendos-entry635-native-only-live-proof.yml`;
+  - commit `783f0564a46c2fcdf796b3c9bb89c9fe8238b06d`;
+  - Run `37493577765`;
+  - Job `112372274162`;
+  - conclusion = SUCCESS.
+- Final runtime truth:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_ENABLED=true
+  LEGACY_BOOTSTRAP_ENABLED=false
+  LEGACY_SESSION_ENROLL_ENABLED=false
+  NATIVE_ONLY=true
+  D1_AUTH_USERS=5
+  D1_NATIVE_READY_USERS=5
+  MUST_CHANGE=0
+
+  FRONTEND_GLOBAL_NATIVE_AUTH=false
+  FRONTEND_NATIVE_CANARY=true
+  FRONTEND_BRIDGE=false
+  BACKEND_BRIDGE=false
+
+  CORE=READONLY / epoch1
+  CONTENT=READONLY / epoch2
+  COMMS=READONLY / epoch2
+  OPS=GENERAL / epoch7
+  ACCOUNTING=READONLY / epoch2
+  ```
+- Final live alias proof:
+  ```ini
+  diaa -> ضياء
+  AUTH_SOURCE=d1-native-employee-v1
+  BRIDGE_CALLS=0
+  BRIDGE_HEALTH_CALLS=0
+  APPS_SCRIPT_CALLS=0
+  LOGOUT=PASS
+  ```
+- Business data mutation = NO; the qualification Auth session was revoked.
+- Entry636 must be a read-only completeness audit before any global frontend Native Auth switch. Do not assume the five D1 identities are the entire active employee roster until runtime/authoritative evidence proves it.
+
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY635 -->
