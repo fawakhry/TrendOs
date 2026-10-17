@@ -10,6 +10,14 @@ const D1_ORDERS_PRIMARY_READ_LAST_ERROR_KEY_V1 = 'D1_ORDERS_PRIMARY_READ_LAST_ER
 const D1_ORDERS_READ_MAX_STALENESS_MS_V1 = 3 * 60 * 1000;
 const D1_ORDERS_READ_PAGE_SIZE_V1 = 500;
 
+function d1OrdersReadPageSizeV1_() {
+  // SERVER-68: secure purpose-scoped service permits at most 100 mirror rows
+  // per request. Keep 500 ONLY while legacy source remains explicitly OFF.
+  return String(PropertiesService.getScriptProperties()
+    .getProperty('D1_MIRROR_SERVICE_READ_V1_ENABLED') || '') === 'true'
+    ? 100 : D1_ORDERS_READ_PAGE_SIZE_V1;
+}
+
 function d1OrdersReadApiUrl_() {
   const props = PropertiesService.getScriptProperties();
   const apiUrl = String(props.getProperty('D1_API_URL') || '').trim().replace(/\/+$/, '');
@@ -59,7 +67,7 @@ function d1OrdersReadFetchSheet_(sheetName) {
 
   while (true) {
     const path = '/v1/mirror/sheet?name=' + encodeURIComponent(sheetName) +
-      '&limit=' + D1_ORDERS_READ_PAGE_SIZE_V1 + '&offset=' + offset;
+      '&limit=' + d1OrdersReadPageSizeV1_() + '&offset=' + offset;
     const payload = d1OrdersReadGetJson_(path);
     const sheet = payload.sheet;
     if (!sheet) throw new Error('D1 لم يرجّع الشيت: ' + sheetName);
