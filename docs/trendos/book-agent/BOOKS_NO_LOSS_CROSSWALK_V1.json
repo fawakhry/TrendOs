@@ -38,16 +38,16 @@
     "entry_number_count": 66,
     "entry_heading_count": 58,
     "mention_only_count": 8,
-    "explicitly_mentioned_in_current_catalog": 28,
-    "unmentioned_by_exact_entry_label_in_current_catalog": 38,
+    "explicitly_mentioned_in_current_catalog": 29,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 37,
     "reconciled_entry_count": 0,
     "unreconciled_entry_count": 66,
     "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation.",
-    "historical_entry_heading_sections_migrated_exact_count": 24,
+    "historical_entry_heading_sections_migrated_exact_count": 25,
     "initial_entry_heading_count": 58,
     "original_snapshot_reconciled_count": 0,
-    "migration_progress_note": "27 exact historical migration units. Entry615 BLOCKED_PRIVACY_REVIEW and Entry619 BLOCKED_ARCHIVE_SCOPE_RECONCILIATION preserved. 66 original IDs unreconciled.",
-    "total_migration_units_exact_verified": 27,
+    "migration_progress_note": "28 exact migrations through Entry630 with Entry615 privacy and Entry619 archive-scope held. 66 IDs still need reconciliation.",
+    "total_migration_units_exact_verified": 28,
     "non_entry_historical_migration_units_exact_verified": 3
   },
   "book_policy": {
@@ -2061,12 +2061,34 @@
       "source_first_line": 4736,
       "source_heading_line": 4736,
       "mention_count_in_master": 2,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_AUTH_BRIDGE_TRANSITION_CHECKPOINT",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "028",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          630
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "de592540c253d4435a8175c699d408750801e336",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-١٠",
+        "copy_commit": "dfd9eb4d8deae0a953b551baf6d8580c5e94db7e",
+        "remove_commit": "8c464b3028167f4028c2c4da503551bce757a509",
+        "text_characters": 2024,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-18",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Verbatim migrated; recorded historical auth/bridge state does not prove current production."
+      }
     },
     {
       "entry_id": 631,
@@ -2424,12 +2446,12 @@
   ],
   "latest_review": {
     "date": "2026-10-18",
-    "head_before_crosswalk_commit": "6431811b5e239be918700ce6350451a4c4d5de82",
-    "active_master_blob_sha": "de592540c253d4435a8175c699d408750801e336",
-    "new_catalog_blob_sha": "d9f487e472e683e463255e80fc849ed20a45edae",
+    "head_before_crosswalk_commit": "8c464b3028167f4028c2c4da503551bce757a509",
+    "active_master_blob_sha": "ad5265798e7223d5925737a7e15fe5a7c0221409",
+    "new_catalog_blob_sha": "372d3b6ccc665fed37f0c76977ebbd0dbcaf6272",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "27 units. Entry627 copied verified, SERVER-68I protected; 615 and 619 held; latest Runtime unverified."
+    "notes": "28 verified; old master ACTIVE_WRITE; SERVER-68I retained, 615/619 held, no Production changes."
   },
   "non_entry_section_migrations": [
     {
