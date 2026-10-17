@@ -38,16 +38,16 @@
     "entry_number_count": 66,
     "entry_heading_count": 58,
     "mention_only_count": 8,
-    "explicitly_mentioned_in_current_catalog": 26,
-    "unmentioned_by_exact_entry_label_in_current_catalog": 40,
+    "explicitly_mentioned_in_current_catalog": 27,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 39,
     "reconciled_entry_count": 0,
     "unreconciled_entry_count": 66,
     "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation.",
-    "historical_entry_heading_sections_migrated_exact_count": 22,
+    "historical_entry_heading_sections_migrated_exact_count": 23,
     "initial_entry_heading_count": 58,
     "original_snapshot_reconciled_count": 0,
-    "migration_progress_note": "25 exact historical migration units through Entry625, Entry615 and Entry619 remain in old. 66 Entry IDs unreconciled.",
-    "total_migration_units_exact_verified": 25,
+    "migration_progress_note": "26 exact historical transfers through Entry626, while Entry615 remains for privacy review and Entry619 for archive reconciliation; 66 original entries require complete cross-references.",
+    "total_migration_units_exact_verified": 26,
     "non_entry_historical_migration_units_exact_verified": 3
   },
   "book_policy": {
@@ -1969,12 +1969,34 @@
       "source_first_line": 4555,
       "source_heading_line": 4555,
       "mention_count_in_master": 1,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_NATIVE_AUTH_EMPLOYEE_CANARY_ALLOWLIST_EXPANSION",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "026",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          626
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "3cd9dca99c018ce8e761795643441c3623e5c53d",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٨",
+        "copy_commit": "fc737d6340bd03863bfa550a338534cfafc1eada",
+        "remove_commit": "39824cf6b6d0968f1f5ec6c4faddf696fae5cedf",
+        "text_characters": 3227,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-17",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Past canary allowlist expansion is not proof of present user count, global mode or production."
+      }
     },
     {
       "entry_id": 627,
@@ -2368,12 +2390,12 @@
   ],
   "latest_review": {
     "date": "2026-10-17",
-    "head_before_crosswalk_commit": "260f020e79e81d30b34adbdf61a094df6bbb268e",
-    "active_master_blob_sha": "3cd9dca99c018ce8e761795643441c3623e5c53d",
-    "new_catalog_blob_sha": "aed6658a3b0d9ccb894aeb2bd8397bf0b3e7afa4",
+    "head_before_crosswalk_commit": "39824cf6b6d0968f1f5ec6c4faddf696fae5cedf",
+    "active_master_blob_sha": "1d901fea8279442957f1c4eb0330358417fac1d0",
+    "new_catalog_blob_sha": "70bed11132f3bb5130fe4e1cc10daf5e82efdd38",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "25 verified migrations, 615/619 pending, SERVER-68 preserved."
+    "notes": "26 exact migrated units; last Entry626; preserved all SERVER-64–68; Entry615 and Entry619 unchanged, no production operations."
   },
   "non_entry_section_migrations": [
     {
