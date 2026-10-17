@@ -41,3 +41,9 @@ The isolated stage TOML intentionally does not contain any D1 binding or secrets
 - **SERVER-70 one live order:** NOT TESTED; no printing/laser launch.
 
 **Persisted status:** `WRANGLER_DRY_RUN=PASS`; `TESTS=142_OF_142_PASS`; `STAGE_DO_CONFIG=SOURCE_ONLY`; `STAGE_CLOUDFLARE=NOT_DEPLOYED`; `PRODUCTION_CHANGE=NO`; `SEC-AP303-02=OPEN_HIGH`; `R5_COMPATIBILITY=BLOCKED`; `ORDERS_CUTOVER_PAGE_SIZE=PATCHED_SOURCE_ONLY`; `UBUNTU_LIVE=NO`; `PRINT_LASER=OFF`.
+
+
+## Follow-up SERVER-68B — local real workerd/D1/DO (2026-10-17)
+- [GitHub Actions run 39065882866](https://github.com/fawakhry/TrendOs/actions/runs/39065882866) **SUCCESS** with 147/147 offline regressions plus actual loopback Wrangler Worker, synthetic sqlite D1, Durable Object nonce consumption and HMAC read/deny/replay: `SERVER68_LOCAL_REAL_WORKER=PASS; SQLITE_D1_SYNTHETIC=PASS; DO_NONCE_REPLAY=PASS; AUTH_DENY=PASS; NO_REMOTE_DEPLOY=TRUE`.
+- Source paths: `wrangler.server68-local-runtime.toml` (unique Worker, fake D1 UUID, no Cloudflare Production), `tests/fixtures/server68_local_mirror_fixture.sql`, `tests/server68_wrangle_local_runtime_smoke.mjs`. First local run failed only because local workerd binary accepted compatibility dates through 2026-10-13; **fixture-only** date reduced from 2026-10-16. Stage/Production manifests are unchanged.
+- [Full local runtime proof & limits](SERVER68_LOCAL_RUNTIME_20261017.md). Actual **Cloudflare-hosted Stage remains NOT DEPLOYED**; Durable Object remote storage, service secrets and customer/R5 contracts remain unverified. Distinguish real local workerd from real remote Cloudflare Production.
