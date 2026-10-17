@@ -1063,8 +1063,13 @@
       "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "BLOCKED_PRIVACY_REVIEW",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "migration_blocker": {
+        "type": "LEGACY_ORDER_PRIVACY_REVIEW",
+        "detail": "Contains historic identifiers for legacy customer order repair. Preserve full source in active master until privacy classification/no-loss transfer is explicitly proven.",
+        "old_source_preserved": true
+      }
     },
     {
       "entry_id": 597,
@@ -1091,7 +1096,14 @@
         "exact_match": "PASS",
         "classification": "HISTORICAL",
         "date": "2026-10-16",
-        "remaining_cross_references": "NOT_AUDITED"
+        "remaining_cross_references": "NOT_AUDITED",
+        "unit": "002",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          597
+        ],
+        "verification_body_characters": 1937,
+        "source_scope_note": "Historically recorded text_characters counts 1 extra boundary newline beyond exact marker body; marker body compared byte-for-byte to archived Entry section. Historical count preserved, no text changed."
       }
     },
     {
@@ -1119,7 +1131,14 @@
         "exact_match": "PASS",
         "classification": "HISTORICAL",
         "date": "2026-10-16",
-        "remaining_cross_references": "NOT_AUDITED"
+        "remaining_cross_references": "NOT_AUDITED",
+        "unit": "003",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          598
+        ],
+        "verification_body_characters": 1534,
+        "source_scope_note": "Historically recorded text_characters counts 1 extra boundary newline beyond exact marker body; marker body compared byte-for-byte to archived Entry section. Historical count preserved, no text changed."
       }
     },
     {
@@ -1131,8 +1150,13 @@
       "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "BLOCKED_PRIVACY_REVIEW",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "migration_blocker": {
+        "type": "LEGACY_ORDERS_COMBINED_ENTRY_599_600",
+        "detail": "Combined heading has operational production baseline plus a customer-associated handle/order note. Source must remain in old book pending safe historical text transfer/authoritative active baseline split.",
+        "old_source_preserved": true
+      }
     },
     {
       "entry_id": 600,
@@ -1143,8 +1167,13 @@
       "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "MENTION_ONLY_IN_MASTER"
+      "reconciliation_status": "BLOCKED_PRIVACY_REVIEW",
+      "source_scope": "MENTION_ONLY_IN_MASTER",
+      "migration_blocker": {
+        "type": "SHARED_599_600_HEADING_MENTION_ONLY",
+        "detail": "Entry600 appears within combined Entry599/600 heading, not a standalone historical heading; do not separately remove or falsely count as migrated.",
+        "old_source_preserved": true
+      }
     },
     {
       "entry_id": 601,
@@ -3603,12 +3632,12 @@
   ],
   "latest_review": {
     "date": "2026-10-18",
-    "head_before_crosswalk_commit": "9dc77fc217560daa3afe8e3a02c5686e32804df8",
+    "head_before_crosswalk_commit": "fa73f32c8574c61d58e15de14d3b642bc02d4779",
     "active_master_blob_sha": "0f49520659b3435f4dc289fa782b91376f250370",
     "new_catalog_blob_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "Group038 verified and removed; old master still active, all SERVER updates including 69A retained, original 596 not touched. Cross references open."
+    "notes": "Units 002/003 restored to 38-unit metadata registry without moving source again; marker balance PASS, legacy order entries 596,599/600 retained under privacy review; old ACTIVE_WRITE and server changes preserved."
   },
   "non_entry_section_migrations": [
     {
@@ -3650,5 +3679,40 @@
       "classification": "HISTORICAL",
       "date": "2026-10-16"
     }
-  ]
+  ],
+  "migration_integrity_audit_20261018": {
+    "status": "METADATA_AND_MARKER_AUDIT_PASS_NOT_FULL_CROSS_REFERENCE_RECONCILIATION",
+    "verified_unit_ids": "001..038",
+    "unique_unit_count": 38,
+    "migrated_entry_ids": 59,
+    "non_entry_unit_count": 3,
+    "catalog_begin_markers": 40,
+    "catalog_end_markers": 40,
+    "unpaired_or_duplicate_markers": 0,
+    "ledger_repairs": [
+      {
+        "id": 597,
+        "unit": "002",
+        "bodyChars": 1937,
+        "archChars": 1937
+      },
+      {
+        "id": 598,
+        "unit": "003",
+        "bodyChars": 1534,
+        "archChars": 1534
+      }
+    ],
+    "source_book_still_active": true,
+    "new_book_still_frozen": true,
+    "privacy_held_entries": [
+      596,
+      599,
+      600
+    ],
+    "remaining_current_runtime_cross_reference_reconciliation": "OPEN_FOR_ALL_66_ORIGINAL_ENTRY_IDS",
+    "source_old_blob_sha": "0f49520659b3435f4dc289fa782b91376f250370",
+    "catalog_blob_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde",
+    "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e"
+  }
 }
