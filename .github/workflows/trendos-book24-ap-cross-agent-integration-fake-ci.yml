@@ -35,6 +35,7 @@ jobs:
           node autonomous-printshop/tests/readiness_evidence_v1.test.mjs
           node autonomous-printshop/tests/ap118_readiness_equal_time_conflict_failclosed.test.mjs
           node autonomous-printshop/tests/private_line_provenance_review_v1.test.mjs
+          node autonomous-printshop/tests/evidence_acquisition_packet_v1.test.mjs
           node autonomous-printshop/tests/design_production_evidence_v1.test.mjs
           python3 autonomous-printshop/tests/readiness_latest_evidence_sql_v1.py
       - name: BOOK24 179 181 183 source and SQLite regressions
