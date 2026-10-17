@@ -1,0 +1,2453 @@
+{
+  "schema": "TRENDOS_BOOKS_NO_LOSS_CROSSWALK_V1",
+  "audited_at": "2026-10-16",
+  "repo": "fawakhry/TrendOs",
+  "working_branch": "agent/trendos-book-audit-v1-20261014",
+  "snapshot_commit": "fe38103e1fe667f02ae20226d8113272112a1802",
+  "authoritative_docs": {
+    "current": {
+      "path": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+      "blob_sha": "53ae4194011e8c28b12d468d0ed02754a1d03448",
+      "chapters_count": 32,
+      "status": "CANONICAL_DOCUMENTATION_PARTIALLY_VERIFIED"
+    },
+    "engineering": {
+      "path": "TrendOS_MASTER_BOOK.md",
+      "blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+      "section_headings": 165,
+      "distinct_entry_numbers": 66,
+      "status": "PRESERVED_HISTORY_RECONCILIATION_OPEN"
+    },
+    "legacy": {
+      "path": "docs/trendos/book-agent/TRENDOS_LEGACY_PRE_SPLIT_BOOK.md",
+      "blob_sha": "04500f9503f25d49aada9f90b432cd6a6700adb7",
+      "section_headings": 14,
+      "status": "PRESERVED_ARCHIVE_SEPARATE_FROM_RUNTIME"
+    }
+  },
+  "frozen_draft": {
+    "path": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md",
+    "blob_sha": "acded3ba6729eb7f0a5fd8de560ae5091d630b88",
+    "chapter_count": 31,
+    "preservation": "UNCHANGED",
+    "original_frozen_body_preserved_in_canonical": true,
+    "exact_text_scope": "All content from '# فهرس الأبواب' through end of chapter 31, excluding the new chapter-32 separator",
+    "matched_js_string_characters": 213981
+  },
+  "master_crosswalk": {
+    "entry_number_count": 66,
+    "entry_heading_count": 58,
+    "mention_only_count": 8,
+    "explicitly_mentioned_in_current_catalog": 27,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 39,
+    "reconciled_entry_count": 0,
+    "unreconciled_entry_count": 66,
+    "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation.",
+    "historical_entry_heading_sections_migrated_exact_count": 23,
+    "initial_entry_heading_count": 58,
+    "original_snapshot_reconciled_count": 0,
+    "migration_progress_note": "26 exact historical transfers through Entry626, while Entry615 remains for privacy review and Entry619 for archive reconciliation; 66 original entries require complete cross-references.",
+    "total_migration_units_exact_verified": 26,
+    "non_entry_historical_migration_units_exact_verified": 3
+  },
+  "book_policy": {
+    "only_current_catalog_receives_present_system_descriptions": true,
+    "engineering_master_preserved_as_change_decision_record": true,
+    "legacy_book_preserved_as_historical_provenance": true,
+    "crosswalk_before_deletion_or_archival_required": true,
+    "forbid_silent_reclassification": true,
+    "versioned_source_sha_required": true,
+    "no_runtime_deploy_claims_without_evidence": true,
+    "no_merge_or_deploy_or_deletion": true
+  },
+  "current_chapters": [
+    {
+      "chapter_id": 1,
+      "title": "ما يُعد «حاليًا» في هذا الكتاب"
+    },
+    {
+      "chapter_id": 2,
+      "title": "شاشات الواجهة والأدوار: أول فحص مباشر"
+    },
+    {
+      "chapter_id": 3,
+      "title": "تكوين واتصال أجزاء النظام: مصادر فقط"
+    },
+    {
+      "chapter_id": 4,
+      "title": "دليل الأكواد والتغطية — خط الأساس"
+    },
+    {
+      "chapter_id": 5,
+      "title": "الاختبارات بما فيها الفاشل — أول سجل مراجعته"
+    },
+    {
+      "chapter_id": 6,
+      "title": "طريقة قراءة الكتالوج والتعامل مع العطل"
+    },
+    {
+      "chapter_id": 7,
+      "title": "ما لم يُنجز بعد — شروط عدم إعلان الاكتمال"
+    },
+    {
+      "chapter_id": 8,
+      "title": "تدقيق محدد: قواعد عرض الأقسام والحالات في واجهة الموظف (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 9,
+      "title": "تدقيق محدد: حالة الجلسة والصلاحيات المحلية وإدخال الأوردرات (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 10,
+      "title": "تتبع إنشاء الأوردر اليدوي: UI → API → Authorization → D1 (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 11,
+      "title": "تتبع تكويد العملاء: شاشة الإدارة → API → صلاحية الخادم → D1 (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 12,
+      "title": "قاعدة «طباعة على الطاير»: أولوية التنفيذ وموعد التسليم (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 13,
+      "title": "مسار Pagination: من شاشة الأوردرات إلى D1 ونتيجة الصفحة (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 14,
+      "title": "جلسات الموظفين وصلاحياتهم: Native Auth وEdge tokens وواجهة العرض (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 15,
+      "title": "تحديث حالة بند الأوردر والملاحظات: UI → Edge runtime → D1 (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 16,
+      "title": "بوابة العميل ومسودات الأوردرات والملفات — مسار السلطة الحالي (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 17,
+      "title": "الإشعارات وواتساب ومحادثات الأوردرات — النسخ والتسجيل والإرسال الحقيقي (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 18,
+      "title": "تكامل الحسابات والذمم: TrendOS ↔ EasyStore ↔ D1 (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 19,
+      "title": "تشغيل الموظفين والمهام والمطبعة الذاتية — صلاحية القرار والتنفيذ (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 20,
+      "title": "ملفات المطبعة والمرفقات وبروفات الأوردرات: الوصول والتخزين (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 21,
+      "title": "مراقبة النظام وسلامة المرايا والاختبارات — الفرق بين صحة البيانات وتشغيلها (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 22,
+      "title": "إدارة محتوى المنصة والفروع والسوق والإعلانات — صلاحيات Content D1 (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 23,
+      "title": "شؤون الموظفين والحضور والنظافة والمكبس — Employee Ops D1 (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 24,
+      "title": "المطبعة الذاتية كمشروع مرتبط: التحكم والمشرف والأدلة — دون خلط سلطات (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 25,
+      "title": "لوحات المدير والتقارير والتقييمات ومصادر الذكاء (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 26,
+      "title": "سلامة مسارات الاستيراد والمرايا وإثبات نسخة النشر الحالية (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 27,
+      "title": "تتبع شاشات TrendOS وأزرار التشغيل والعقود من UI إلى API (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 28,
+      "title": "شاشة الأوردرات: البحث والفلاتر والتغيير الجماعي والأرشفة — ربط الواجهة بالسلطة (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 29,
+      "title": "شاشة الحسابات ومصروفات التشغيل والموافقات والتقارير — حدود TrendOS / EasyStore (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 30,
+      "title": "الجلسات وصلاحيات الدخول الموحد: TrendOS وEasyStore وخادم الملفات (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 31,
+      "title": "سيرفر TrendosShop المنزلي وخدمات Ubuntu والطباعة/الليزر — حالة الربط الحقيقية (16 أكتوبر 2026)"
+    },
+    {
+      "chapter_id": 32,
+      "title": "أمان دورة حياة الملفات والبروفات بين العميل والموظف وPrint/Laser — تدقيق المصدر (16 أكتوبر 2026)"
+    }
+  ],
+  "master_section_heading_inventory": [
+    {
+      "line": 1,
+      "level": 1,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 31,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 33,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 46,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 61,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 71,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 85,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 107,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 118,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 162,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 204,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 238,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 258,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 312,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 568,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 604,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 760,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 952,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 1092,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 1173,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 1526,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 1696,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 2256,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 2322,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 2410,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 2536,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 2657,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 2919,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 2926,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 2941,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 2943,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 2969,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 2981,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 2993,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3007,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3021,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3034,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3047,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3068,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3075,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3095,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3106,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3110,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3115,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3126,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3135,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3142,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3151,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3160,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3167,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3172,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3175,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3182,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3185,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3189,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3193,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3211,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3220,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3227,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3236,
+      "level": 2,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3276,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3353,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3355,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3375,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3453,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3468,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 3484,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3550,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3603,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3720,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3767,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3826,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3881,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 3968,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4031,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4085,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4171,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4239,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4310,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4374,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4436,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4464,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4503,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4555,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4640,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4706,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4730,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4736,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4778,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4826,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4885,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4922,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 4975,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5053,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5122,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5126,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5142,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5162,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5197,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5253,
+      "level": 4,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5263,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5317,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5406,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5527,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5568,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5585,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5610,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5628,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5651,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5656,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5673,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5713,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5744,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5758,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5778,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5792,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5810,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5828,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5856,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5920,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5926,
+      "level": 5,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 5934,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5949,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5978,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 5990,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6016,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6028,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6036,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6044,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6053,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6082,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6117,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6124,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6143,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6154,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6161,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6195,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6202,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6220,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6226,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6261,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6267,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6285,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6300,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6309,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6325,
+      "level": 5,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6365,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6408,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6433,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6470,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6518,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6560,
+      "level": 5,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6572,
+      "level": 5,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6604,
+      "level": 5,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6636,
+      "level": 5,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6671,
+      "level": 5,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6752,
+      "level": 3,
+      "kind": "OTHER_HEADING"
+    },
+    {
+      "line": 6760,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6771,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6782,
+      "level": 4,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6788,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6799,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6808,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6819,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    },
+    {
+      "line": 6833,
+      "level": 3,
+      "kind": "ENTRY_HEADING"
+    }
+  ],
+  "master_entries": [
+    {
+      "entry_id": 498,
+      "source_first_line": 2931,
+      "source_heading_line": null,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER"
+    },
+    {
+      "entry_id": 533,
+      "source_first_line": 6647,
+      "source_heading_line": null,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER"
+    },
+    {
+      "entry_id": 595,
+      "source_first_line": 3032,
+      "source_heading_line": null,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER"
+    },
+    {
+      "entry_id": 596,
+      "source_first_line": 71,
+      "source_heading_line": 71,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 597,
+      "source_first_line": 85,
+      "source_heading_line": 85,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_REPO_QUALIFICATION",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ز",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "986761be5262e39961ebe0ed64df0fe70641319e",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "copy_commit": "b12e99b5acb1f9ca232f2c7ebe4f5e91b521b85f",
+        "remove_commit": "0bd4a36e39869ea5b6fa4bf6513e659d70f7c187",
+        "text_characters": 1938,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED"
+      }
+    },
+    {
+      "entry_id": 598,
+      "source_first_line": 107,
+      "source_heading_line": 107,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_PRODUCTION_PREFLIGHT",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ح",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "a56766f63eef4f8d1d11aaa708118c2b4a7309a1",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "copy_commit": "ceccf9114c1ef3b8992953ad010a115a41dbc9f0",
+        "remove_commit": "168b0bec04da6910fa9f27860a7348d377ada79d",
+        "text_characters": 1535,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED"
+      }
+    },
+    {
+      "entry_id": 599,
+      "source_first_line": 104,
+      "source_heading_line": 118,
+      "mention_count_in_master": 6,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 600,
+      "source_first_line": 31,
+      "source_heading_line": null,
+      "mention_count_in_master": 5,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER"
+    },
+    {
+      "entry_id": 601,
+      "source_first_line": 162,
+      "source_heading_line": 162,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_LOGIN_LATENCY_DIAGNOSIS",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_GROUP_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "006",
+        "scope": "GROUPED_ENTRY_HEADING",
+        "group_entry_ids": [
+          601,
+          602
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "8daeaaeb7d490d1c7df1fc684449a1f616bc05ef",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ك",
+        "copy_commit": "e78b6e2cf13534d12189e24bc03790e878c58b0b",
+        "remove_commit": "5aa548e86edef2c7a88b18bc1c7de4b11da2f2c7",
+        "text_characters": 2281,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED"
+      }
+    },
+    {
+      "entry_id": 602,
+      "source_first_line": 185,
+      "source_heading_line": null,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_LOGIN_LATENCY_DIAGNOSIS",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_GROUP_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER",
+      "section_migration": {
+        "unit": "006",
+        "scope": "GROUPED_ENTRY_HEADING",
+        "group_entry_ids": [
+          601,
+          602
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "8daeaaeb7d490d1c7df1fc684449a1f616bc05ef",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ك",
+        "copy_commit": "e78b6e2cf13534d12189e24bc03790e878c58b0b",
+        "remove_commit": "5aa548e86edef2c7a88b18bc1c7de4b11da2f2c7",
+        "text_characters": 2281,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED"
+      }
+    },
+    {
+      "entry_id": 603,
+      "source_first_line": 204,
+      "source_heading_line": 204,
+      "mention_count_in_master": 5,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_LOGIN_FAST_DEPLOYMENT",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_GROUP_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "007",
+        "scope": "GROUPED_ENTRY_HEADING",
+        "group_entry_ids": [
+          603,
+          604,
+          605
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "95471182cac9c6ead230cf44187875dd65feb937",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ل",
+        "copy_commit": "b9a70190151132d1e1807b7fbf06e9f947a7f905",
+        "remove_commit": "4e1cb90cbe71d4f102927bbac8eefdb33401e9a0",
+        "text_characters": 1885,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED"
+      }
+    },
+    {
+      "entry_id": 604,
+      "source_first_line": 215,
+      "source_heading_line": null,
+      "mention_count_in_master": 5,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_LOGIN_FAST_DEPLOYMENT",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_GROUP_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER",
+      "section_migration": {
+        "unit": "007",
+        "scope": "GROUPED_ENTRY_HEADING",
+        "group_entry_ids": [
+          603,
+          604,
+          605
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "95471182cac9c6ead230cf44187875dd65feb937",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ل",
+        "copy_commit": "b9a70190151132d1e1807b7fbf06e9f947a7f905",
+        "remove_commit": "4e1cb90cbe71d4f102927bbac8eefdb33401e9a0",
+        "text_characters": 1885,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED"
+      }
+    },
+    {
+      "entry_id": 605,
+      "source_first_line": 219,
+      "source_heading_line": null,
+      "mention_count_in_master": 8,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_LOGIN_FAST_DEPLOYMENT",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_GROUP_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER",
+      "section_migration": {
+        "unit": "007",
+        "scope": "GROUPED_ENTRY_HEADING",
+        "group_entry_ids": [
+          603,
+          604,
+          605
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "95471182cac9c6ead230cf44187875dd65feb937",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ل",
+        "copy_commit": "b9a70190151132d1e1807b7fbf06e9f947a7f905",
+        "remove_commit": "4e1cb90cbe71d4f102927bbac8eefdb33401e9a0",
+        "text_characters": 1885,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED"
+      }
+    },
+    {
+      "entry_id": 606,
+      "source_first_line": 238,
+      "source_heading_line": 238,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_NATIVE_AUTH_CUTOVER_GATE",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_GROUP_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "008",
+        "scope": "GROUPED_ENTRY_HEADING",
+        "group_entry_ids": [
+          606
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "fba70f07e46cc3a200d7b75c1d37241718c0754b",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "م",
+        "copy_commit": "ae76083861a3fb3fe8a264fea725e6ba336e2ec5",
+        "remove_commit": "d9b553ba7db1cd62836e687f5c86a85a840b1454",
+        "text_characters": 1444,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED"
+      }
+    },
+    {
+      "entry_id": 607,
+      "source_first_line": 258,
+      "source_heading_line": 258,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_DISCONNECT_HANDOFF",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "009",
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          607
+        ],
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "defb99946c3a78ba463957e7c2df9973ddac52be",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ن",
+        "copy_commit": "e28842e751bfb6f105eb99deee00e049d571da59",
+        "remove_commit": "0e85c9ead8f0b849ff0d07e41fb19e4abea70d27",
+        "text_characters": 3175,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED"
+      }
+    },
+    {
+      "entry_id": 608,
+      "source_first_line": 312,
+      "source_heading_line": 312,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_NATIVE_AUTH_READONLY_ASSESSMENT",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "010",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          608
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "9314ba36d5e8387b3f1d996b14154f20cdae2c1a",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "س",
+        "copy_commits": [
+          "749610729526eac88d641746e2d3fbc829d1cc0b",
+          "9e8a651f007c8407b8edc5a196ad80525104be48",
+          "7df4d07de1a8f94f4be8d469eab7da969e788a0d"
+        ],
+        "remove_commit": "1bdba339bc869f2be120b7cd49d068b172511390",
+        "text_characters": 12997,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED"
+      }
+    },
+    {
+      "entry_id": 609,
+      "source_first_line": 568,
+      "source_heading_line": 568,
+      "mention_count_in_master": 5,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_NATIVE_AUTH_REPO_ONLY_INVENTORY",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "011",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          609
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "7719c426968b6cc8d5b9403a80ca80223961d3f1",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ع",
+        "copy_commits": [
+          "87a86289a0c2fcc030b61e331bfe22fdc632485a"
+        ],
+        "remove_commit": "e5d359cfa69f5b77b4b4eea0b2d6b09463616271",
+        "text_characters": 1713,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED"
+      }
+    },
+    {
+      "entry_id": 610,
+      "source_first_line": 604,
+      "source_heading_line": 604,
+      "mention_count_in_master": 8,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_NATIVE_AUTH_REPO_ONLY_QUALIFICATION",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "012",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          610
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "2594e6a3d14e20cf2170de4bb4bf87cc2a42ebb2",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ف",
+        "copy_commit": "d90b0de7f3639d4c90caa9cb2eb642d222a56024",
+        "remove_commit": "bb411482de4da569ceadeefb57e5b513047b3367",
+        "text_characters": 7011,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Snapshot Entry609 26 read-only pilot policies superseded by historical Entry610 27; current production not reverified."
+      }
+    },
+    {
+      "entry_id": 611,
+      "source_first_line": 760,
+      "source_heading_line": 760,
+      "mention_count_in_master": 15,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_NATIVE_AUTH_DEFAULT_OFF_CANARY_REPO_ONLY_QUALIFICATION",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "013",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          611
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "c7dd30d2ea094e65b70e19b07c8398018f6b3383",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ق",
+        "copy_commit": "b25d1dffa893123f0583e461afd5dd26b09e2faa",
+        "remove_commit": "44d164c6475ac59941e16b9839556f355e184d82",
+        "text_characters": 8136,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Entry611 repo-only CI is historical, does not certify current deployed Native Auth/Bridge or current Production."
+      }
+    },
+    {
+      "entry_id": 612,
+      "source_first_line": 952,
+      "source_heading_line": 952,
+      "mention_count_in_master": 5,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_NATIVE_AUTH_PRODUCTION_PREFLIGHT_ONLY",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "014",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          612
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "dbe5c9bdcc298a7a97dcd7d6466832d02aa03382",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ر",
+        "copy_commit": "71288432bb7f344f6c28b236ed403bc0ef2b92e0",
+        "remove_commit": "a601500f87acedf0237f7d0e143bbfa50cd766db",
+        "text_characters": 5200,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Historical Production preflight records only; no present-day authorization inferred."
+      }
+    },
+    {
+      "entry_id": 613,
+      "source_first_line": 1092,
+      "source_heading_line": 1092,
+      "mention_count_in_master": 5,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_SUPERSEDED_PRODUCTION_CANARY_APPROVAL",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "015",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          613
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "5664d6013c26a56dde5aba23af55cfa26e2b0ffb",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ش",
+        "copy_commit": "6254784f1ecd2762f6b2f4d9b31a65d576820d45",
+        "remove_commit": "de68fae17ebe91467d978e90833b5becbdb4f2aa",
+        "text_characters": 3856,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Superseded by Zero-Google functions first. Historical permission for one named employee is not a current authorization."
+      }
+    },
+    {
+      "entry_id": 614,
+      "source_first_line": 1173,
+      "source_heading_line": 1173,
+      "mention_count_in_master": 7,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_ZERO_GOOGLE_EMPLOYEE_FUNCTIONS_REPO_ONLY",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "016",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          614
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "891df6327d4e4daae46bed6c0cd6dc1249f0474c",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ت",
+        "copy_commits": [
+          "fca2d6544e84f115e54b643faa98dec61fffdd5b",
+          "11f02351f195411e7c0c231a5ad1ea6f814f1a24"
+        ],
+        "remove_commit": "20fe433c0392513dd2d151a0490556ec10f4d05a",
+        "text_characters": 16708,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-16",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "2 copied pieces reassembled and compared exactly to archive/current source. Source-only migration does NOT prove current D1 backfill or live API cutover. SERVER-67 retained."
+      }
+    },
+    {
+      "entry_id": 615,
+      "source_first_line": 1526,
+      "source_heading_line": 1526,
+      "mention_count_in_master": 18,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "HISTORICAL_CURRENT_DATA_BACKFILL_PRIVACY_REVIEW_REQUIRED",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "BLOCKED_PRIVACY_REVIEW",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "migration_blocker": {
+        "type": "PRIVACY_REVIEW",
+        "detail": "Historical Cloudflare deploy metadata contains a contact email. Verbatim transfer paused until privacy handling and owner-visible audit decision, source preserved unmodified.",
+        "archived_source": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "source_preserved": true
+      }
+    },
+    {
+      "entry_id": 616,
+      "source_first_line": 2322,
+      "source_heading_line": 2322,
+      "mention_count_in_master": 7,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_ZERO_GOOGLE_BACKEND_DEFAULT_OFF_DEPLOYMENT",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "017",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          616
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "0f3b11ecdc57ba115c4b5f78c67b848c22f8cd05",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ث",
+        "copy_commit": "8420e3552e0297c6af4c0b2066ff60944f7ce0ed",
+        "remove_commit": "95af11a399f16c311def19c27cbb2ba05f37a2e7",
+        "text_characters": 3953,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-17",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Historical deployment evidence; no new live check; Entry615 privacy review pending."
+      }
+    },
+    {
+      "entry_id": 617,
+      "source_first_line": 2410,
+      "source_heading_line": 2410,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_OPS_READONLY_CUTOVER",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "018",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          617
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "c6317516e9d5bf37c82c3d11f49adb839acccfcd",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "خ",
+        "copy_commit": "b90286d1e782fc00339fa5fbf6dbd0d63fdbeedb",
+        "remove_commit": "e6155f29abf33ff9a64ae67837a3d403aeed2ef2",
+        "text_characters": 4539,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-17",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Historical Ops readonly deployment checkpoint only; Entry615 remains pending privacy review."
+      }
+    },
+    {
+      "entry_id": 618,
+      "source_first_line": 2536,
+      "source_heading_line": 2536,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_OPS_AUTHENTICATED_GENERAL_CUTOVER",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "019",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          618
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "b921c7509d54e6bf18bbf16e84d9ff5771ef37a3",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "ذ",
+        "copy_commit": "9fd45ab8fe7b19e000c6fc7dbbd484c891475f95",
+        "remove_commit": "df9e1e3c978d67b7be77041fa304a617076a82a9",
+        "text_characters": 5532,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-17",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Historical Ops GENERAL qualification; no current live claims; 615 privacy review pending."
+      }
+    },
+    {
+      "entry_id": 619,
+      "source_first_line": 2657,
+      "source_heading_line": 2657,
+      "mention_count_in_master": 7,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "HISTORICAL_ACCOUNTING_READONLY_WITH_ARCHIVE_SCOPE_DELTA",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "BLOCKED_ARCHIVE_SCOPE_RECONCILIATION",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "migration_blocker": {
+        "type": "ARCHIVE_SCOPE_DELTA",
+        "detail": "Current Entry619 30976 chars vs archive 34720; archive included prior 001/004/005 non-entry historical blocks. Need line-accurate provenance reconciliation, no deletion.",
+        "archived_source": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "source_preserved": true
+      }
+    },
+    {
+      "entry_id": 620,
+      "source_first_line": 3276,
+      "source_heading_line": 3276,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_ATTENDANCE_D1_UI_HOTFIX",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "020",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          620
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "6e4fe055faea4d7e2624fb63771b7ac59fbbb33b",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٢",
+        "copy_commit": "201211f0af52b3adf70f252abbc132bd8367eb8d",
+        "remove_commit": "dc5ed3895ea243f334c8538e6e183432f5618077",
+        "text_characters": 3367,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-17",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Attendance UI hotfix previously verified historically; no new production smoke."
+      }
+    },
+    {
+      "entry_id": 621,
+      "source_first_line": 3353,
+      "source_heading_line": 3353,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_TRENDOS_FIRST_ZERO_GOOGLE_SCOPE_AND_AUTH_AUDIT",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "021",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          621
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "b0bf3f685e54cbd366b3a6ca60d1979883e8a1bc",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٣",
+        "copy_commit": "1da9e10fda02c0e3f11b716e80b8fd94c301246b",
+        "remove_commit": "41ab8933371501f5f177429a1df1b9c792573284",
+        "text_characters": 3948,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-17",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Zero-Google/auth review history only, separate EasyStore repo not changed."
+      }
+    },
+    {
+      "entry_id": 622,
+      "source_first_line": 3484,
+      "source_heading_line": 3484,
+      "mention_count_in_master": 7,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_COMPATIBILITY_BRIDGE_GATE1_PREPARATION",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "022",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          622
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "345190869a880c130bab95d4330bb46ff92044d4",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٤",
+        "copy_commit": "cd7454cb8e3b7bc60608933d9114e826604e18ee",
+        "remove_commit": "e7152a7bcf72370022a7aeb255bcd17c41248be6",
+        "text_characters": 5051,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-17",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Historical bridge preparation no current approval; source replay not performed."
+      }
+    },
+    {
+      "entry_id": 623,
+      "source_first_line": 3603,
+      "source_heading_line": 3603,
+      "mention_count_in_master": 18,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_NATIVE_AUTH_ONE_EMPLOYEE_CANARY_REQUALIFICATION",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "023",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          623
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "83d8c743a6ad1173890a53dfb53dd447d514fb58",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٥",
+        "copy_commits": [
+          "48388199cb7ef9532307981fd15a4006a440780b",
+          "e2568963c4c0b4815a5ec2406c99c61932ca26f6",
+          "5c0b0698db086aa5303601d625449f62edddc7bf"
+        ],
+        "remove_commit": "79160f9ba1f74fe89ed56fea92190fb6683606f6",
+        "text_characters": 28807,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-17",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Three-part exact historical staged Native Auth canary record. Past approvals and production observations not current."
+      }
+    },
+    {
+      "entry_id": 624,
+      "source_first_line": 4310,
+      "source_heading_line": 4310,
+      "mention_count_in_master": 6,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_NATIVE_AUTH_WAEL_SECOND_CANARY_EXPANSION",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "024",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          624
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "61a21c3c1cac439143d1a548f6193bb12b844136",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٦",
+        "copy_commit": "974e860a7f7349a136383635c8f91744842f0d9d",
+        "remove_commit": "02f29aafb17c234c17ac1eead8c3bf94f8d15de2",
+        "text_characters": 5145,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-17",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Historical employee-specific canary only; no current Auth runtime evidence."
+      }
+    },
+    {
+      "entry_id": 625,
+      "source_first_line": 4464,
+      "source_heading_line": 4464,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_NATIVE_AUTH_THIRD_EMPLOYEE_CANARY_EXPANSION",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "025",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          625
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "39c607b75014158eafadf0b5732f139a37cd061c",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٧",
+        "copy_commit": "cb0e7f659af6c3b86d04dcb6571ec22a668c5639",
+        "remove_commit": "260f020e79e81d30b34adbdf61a094df6bbb268e",
+        "text_characters": 3123,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-17",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Historical Native Auth third Canary plans; no current production proof."
+      }
+    },
+    {
+      "entry_id": 626,
+      "source_first_line": 4555,
+      "source_heading_line": 4555,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_NATIVE_AUTH_EMPLOYEE_CANARY_ALLOWLIST_EXPANSION",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "026",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          626
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "3cd9dca99c018ce8e761795643441c3623e5c53d",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٨",
+        "copy_commit": "fc737d6340bd03863bfa550a338534cfafc1eada",
+        "remove_commit": "39824cf6b6d0968f1f5ec6c4faddf696fae5cedf",
+        "text_characters": 3227,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-17",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Past canary allowlist expansion is not proof of present user count, global mode or production."
+      }
+    },
+    {
+      "entry_id": 627,
+      "source_first_line": 4640,
+      "source_heading_line": 4640,
+      "mention_count_in_master": 5,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 628,
+      "source_first_line": 6371,
+      "source_heading_line": null,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "MENTION_ONLY_IN_MASTER"
+    },
+    {
+      "entry_id": 630,
+      "source_first_line": 4736,
+      "source_heading_line": 4736,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 631,
+      "source_first_line": 4775,
+      "source_heading_line": 4778,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 632,
+      "source_first_line": 4823,
+      "source_heading_line": 4826,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 633,
+      "source_first_line": 4885,
+      "source_heading_line": 4885,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 634,
+      "source_first_line": 4919,
+      "source_heading_line": 4922,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 635,
+      "source_first_line": 4972,
+      "source_heading_line": 4975,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 636,
+      "source_first_line": 5050,
+      "source_heading_line": 5053,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 637,
+      "source_first_line": 5122,
+      "source_heading_line": 5122,
+      "mention_count_in_master": 15,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 638,
+      "source_first_line": 5610,
+      "source_heading_line": 5610,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 639,
+      "source_first_line": 5651,
+      "source_heading_line": 5651,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 640,
+      "source_first_line": 5744,
+      "source_heading_line": 5744,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 641,
+      "source_first_line": 5856,
+      "source_heading_line": 5856,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 642,
+      "source_first_line": 4,
+      "source_heading_line": 5920,
+      "mention_count_in_master": 11,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 643,
+      "source_first_line": 6016,
+      "source_heading_line": 6016,
+      "mention_count_in_master": 14,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 644,
+      "source_first_line": 6365,
+      "source_heading_line": 6365,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 645,
+      "source_first_line": 6408,
+      "source_heading_line": 6408,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 646,
+      "source_first_line": 6433,
+      "source_heading_line": 6433,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 647,
+      "source_first_line": 6470,
+      "source_heading_line": 6470,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 648,
+      "source_first_line": 6518,
+      "source_heading_line": 6518,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 649,
+      "source_first_line": 6572,
+      "source_heading_line": 6572,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 650,
+      "source_first_line": 6604,
+      "source_heading_line": 6604,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 651,
+      "source_first_line": 6636,
+      "source_heading_line": 6636,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 652,
+      "source_first_line": 6671,
+      "source_heading_line": 6671,
+      "mention_count_in_master": 4,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 653,
+      "source_first_line": 6760,
+      "source_heading_line": 6760,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 654,
+      "source_first_line": 6771,
+      "source_heading_line": 6771,
+      "mention_count_in_master": 6,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 655,
+      "source_first_line": 6788,
+      "source_heading_line": 6788,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 656,
+      "source_first_line": 6799,
+      "source_heading_line": 6799,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 657,
+      "source_first_line": 6808,
+      "source_heading_line": 6808,
+      "mention_count_in_master": 2,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 658,
+      "source_first_line": 6819,
+      "source_heading_line": 6819,
+      "mention_count_in_master": 3,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    },
+    {
+      "entry_id": 659,
+      "source_first_line": 6833,
+      "source_heading_line": 6833,
+      "mention_count_in_master": 1,
+      "explicit_catalog_mention": false,
+      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "mapping_to_canonical_catalog_chapter": null,
+      "destination_project": null,
+      "reconciliation_status": "OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER"
+    }
+  ],
+  "unresolved_gates": [
+    "Review all 165 engineering section headings and 66 distinct Entry IDs for whether current behavior, historical-only or separately owned; map verified current functions to chapters and exact source paths.",
+    "Independently enumerate repo tree vs function ownership, UI actions/handlers/writers/tests and runtime deployed SHA.",
+    "Reconcile former Draft and current catalog via full text equality after every editorial promotion; never delete historical source without backup and owner approval."
+  ],
+  "latest_review": {
+    "date": "2026-10-17",
+    "head_before_crosswalk_commit": "39824cf6b6d0968f1f5ec6c4faddf696fae5cedf",
+    "active_master_blob_sha": "1d901fea8279442957f1c4eb0330358417fac1d0",
+    "new_catalog_blob_sha": "70bed11132f3bb5130fe4e1cc10daf5e82efdd38",
+    "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+    "notes": "26 exact migrated units; last Entry626; preserved all SERVER-64–68; Entry615 and Entry619 unchanged, no production operations. Entry615 BLOCKED_PRIVACY_REVIEW and Entry619 BLOCKED_ARCHIVE_SCOPE_RECONCILIATION explicitly recorded with preserved active master."
+  },
+  "non_entry_section_migrations": [
+    {
+      "unit": "001",
+      "scope": "OLD_MASTER_CLEANING_CHECKPOINT",
+      "appendix": "و",
+      "text_characters": 619,
+      "copy_commit": "c1b9290d89a8004805bf0d78efd042987c2c0a59",
+      "source_removed_commit": "0d24173b5c7abe6b8a281ac11b534cf3d4aad616",
+      "source_archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+      "source_archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+      "verification": "EXACT_VERBATIM_MATCH_PASS",
+      "classification": "HISTORICAL",
+      "date": "2026-10-16"
+    },
+    {
+      "unit": "004",
+      "scope": "OLD_MASTER_ARCHIVE_INDEX",
+      "appendix": "ط",
+      "text_characters": 2617,
+      "copy_commit": "506b74bf3d4e48427458e30e0827153283175775",
+      "source_removed_commit": "98c2d3bce400c2cce62aa8693152d1bff57f85fd",
+      "source_archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+      "source_archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+      "verification": "EXACT_VERBATIM_MATCH_PASS",
+      "classification": "HISTORICAL",
+      "date": "2026-10-16"
+    },
+    {
+      "unit": "005",
+      "scope": "OLD_MASTER_ENTRY595_HANDOFF",
+      "appendix": "ي",
+      "text_characters": 508,
+      "copy_commit": "f19d127c00701b813ec96e8546204fe2312ef7d0",
+      "source_removed_commit": "37738e73b503b4986d6fe7ae63a4008c3639349e",
+      "source_archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+      "source_archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+      "verification": "EXACT_VERBATIM_MATCH_PASS",
+      "classification": "HISTORICAL",
+      "date": "2026-10-16"
+    }
+  ]
+}

@@ -1,0 +1,169 @@
+{
+  "schema": "TRENDOS_TWO_BOOK_TRANSITION_AUTHORITY_V3",
+  "owner_approved_at": "2026-10-16",
+  "repository": "fawakhry/TrendOs",
+  "work_branch": "agent/trendos-book-audit-v1-20261014",
+  "source_of_truth_notice": "During transition, TrendOS_MASTER_BOOK.md is the exclusive operational journal/editorial write target. The unified current catalog is frozen for normal agents; only a designated migration operator may move verified historical text. Both on one work branch.",
+  "reading_order": [
+    {
+      "priority": 1,
+      "role": "ACTIVE_WRITE_OLD_BOOK",
+      "path": "TrendOS_MASTER_BOOK.md",
+      "branch": "agent/trendos-book-audit-v1-20261014",
+      "writing": "REQUIRED_FOR_ALL_CURRENT_WORK",
+      "status": "ACTIVE_UNTIL_VERIFIED_CUTOVER"
+    },
+    {
+      "priority": 2,
+      "role": "FROZEN_UNIFIED_BOOK",
+      "path": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+      "branch": "agent/trendos-book-audit-v1-20261014",
+      "writing": "FORBIDDEN_FOR_AUTONOMOUS_AGENTS; MIGRATION_OPERATOR_ONLY_WITH_SOURCE_ARCHIVE_AND_EXACT_VERIFICATION",
+      "status": "PRE_CUTOVER_READ_ONLY"
+    }
+  ],
+  "preservation": [
+    {
+      "role": "PRE_SINGLE_BOOK_ARCHIVE",
+      "ref": "archive/trendos-books-before-single-book-20261016",
+      "commit_sha": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+      "status": "DO_NOT_DELETE"
+    },
+    {
+      "role": "FULL_SINGLE_BOOK_SOURCE",
+      "path": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md"
+    }
+  ],
+  "current_catalog_evidence": [
+    "docs/trendos/book-agent/CURRENT_TREE_BASELINE.md",
+    "docs/trendos/book-agent/CURRENT_UI_ELEMENT_INDEX.md",
+    "docs/trendos/book-agent/CURRENT_UI_HANDLER_LINKS.md",
+    "docs/trendos/book-agent/CURRENT_TEST_EVIDENCE_LEDGER.md",
+    "docs/trendos/book-agent/TEST_EVIDENCE_QUEUE.md",
+    "docs/trendos/book-agent/ISSUE_REGISTER.md",
+    "docs/trendos/book-agent/AGENT_LOG.md"
+  ],
+  "independent_project_books": "Remain authoritative within their own projects. Current TrendOS catalog references interfaces, not complete copies or assumed live deployment.",
+  "evidence_order": [
+    "PRODUCTION_VERIFIED",
+    "DEPLOYED_VERSION_VERIFIED",
+    "TESTED_EXACT_SHA",
+    "SOURCE_ONLY",
+    "HISTORICAL",
+    "UNKNOWN_OR_BLOCKED"
+  ],
+  "publication_and_safety": {
+    "docs_only": true,
+    "no_delete": true,
+    "no_force_push": true,
+    "no_merge": true,
+    "no_deploy": true,
+    "no_production_mutation": true,
+    "no_secrets_or_customer_data_in_public_books": true
+  },
+  "quality_gates": {
+    "chapters_contiguous_from_one_to_31": true,
+    "relative_markdown_links_broken_at_promotion": 0,
+    "relative_markdown_links_count_at_promotion": 17,
+    "full_source_file_coverage": false,
+    "runtime_parity_verified": false,
+    "all_live_writers_attributed": false,
+    "all_tests_reconciled": false,
+    "all_issues_resolved": false,
+    "final_completeness_owner_acceptance": false,
+    "chapters_contiguous_from_one_to_32": true,
+    "chapter_32_file_print_scope": "SOURCE_ONLY_NOT_RUNTIME_TESTED"
+  },
+  "writer_contract": "ALL current work MUST be written to old TrendOS_MASTER_BOOK.md on the book work branch; NEVER auto-write to new unified book. Exception: explicit migration operator can copy old/third-book section into new, verify exact text against Git archived snapshot, then remove exact transferred section from old. Final CUTOVER: only owner-approved after 100% reconciled, old deleted then exclusive writes move to new. Project-independent books are excluded.",
+  "adoption_status": "TWO_BOOK_COEXISTENCE_ACTIVE; OLD_WRITABLE_NEW_FROZEN; INTERMEDIATES_MIGRATED_AND_REMOVED; NO_FINAL_CUTOVER",
+  "no_loss_reconciliation": {
+    "entrypoint_path": "docs/trendos/book-agent/TRENDOS_BOOKS_SINGLE_INDEX.md",
+    "crosswalk_path": "docs/trendos/book-agent/BOOKS_NO_LOSS_CROSSWALK_V1.json",
+    "crosswalk_blob_sha_at_creation": "74ec2ae34111bca604af41ebfdcc483e41eddc89",
+    "source_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+    "frozen_draft_original_core_exact_match": true,
+    "frozen_draft_original_core_characters": 213981,
+    "original_chapters_preserved": 31,
+    "current_chapter_count": 32,
+    "master_heading_count": 165,
+    "master_entry_ids": 66,
+    "master_entries_explicitly_mentioned_in_catalog": 1,
+    "master_entry_reconciliations_complete": 0,
+    "classification_gate": "EVERY_ENTRY_MUST_BE_MAPPED_OR_EXPLICITLY_CLASSIFIED_WITH_EVIDENCE; NEVER DELETE_UNMAPPED_SOURCE",
+    "status": "OPEN_66_PENDING_REVIEW",
+    "not_production_certification": true,
+    "source_master_remains_until_verified": true,
+    "old_multiple_books_policy_superseded": true,
+    "canonical_book_count_goal": 1,
+    "files_migrated_and_removed": 2,
+    "files_remaining_to_merge": 1,
+    "archive_checkpoint": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "no_delete_without_exact_transfer": true,
+    "old_only_active_write": true,
+    "unified_frozen_except_explicit_migration": true,
+    "intermediate_book_files_removed_after_exact_transfer": [
+      "TRENDOS_LEGACY_PRE_SPLIT_BOOK.md",
+      "TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md",
+      "TRENDOS_BOOKS_SINGLE_INDEX.md",
+      "BOOK_VNEXT_OUTLINE.md"
+    ],
+    "master_migration_complete": false
+  },
+  "latest_owner_directive": "TWO_COLOCATED_BOOKS; OLD_ONLY_ACTIVE_WRITE; NEW_READ_ONLY_MIGRATION; INTERMEDIATE_BOOKS_REMOVE_AFTER_EXACT_TRANSFER",
+  "historical_sources_archived": [
+    {
+      "previous_path": "docs/trendos/book-agent/TRENDOS_LEGACY_PRE_SPLIT_BOOK.md",
+      "original_blob_sha": "04500f9503f25d49aada9f90b432cd6a6700adb7",
+      "source_branch": "archive/trendos-books-before-single-book-20261016",
+      "consolidated_in_canonical": "Historical appendix A",
+      "transfer_verified": "EXACT_TEXT_TRIM_END",
+      "old_path_status": "DELETED_FROM_WORK_BRANCH"
+    },
+    {
+      "previous_path": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md",
+      "original_blob_sha": "acded3ba6729eb7f0a5fd8de560ae5091d630b88",
+      "source_branch": "archive/trendos-books-before-single-book-20261016",
+      "consolidated_in_canonical": "Exact common 31 chapters plus original prologue in historical appendix C",
+      "transfer_verified": "EXACT_TEXT_TWO_SEGMENTS",
+      "old_path_status": "DELETED_FROM_WORK_BRANCH"
+    },
+    {
+      "previous_path": "TrendOS_MASTER_BOOK.md",
+      "original_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+      "source_branch": "archive/trendos-books-before-single-book-20261016",
+      "consolidated_in_canonical": null,
+      "transfer_verified": "NOT_COMPLETED",
+      "old_path_status": "RETAINED_PENDING_SAFE_TRANSFER"
+    },
+    {
+      "previous_path": "docs/trendos/book-agent/TRENDOS_BOOKS_SINGLE_INDEX.md",
+      "original_blob_sha": "478a58583d0d27c96448199cfe42f765baf76c1d",
+      "source_branch": "archive/trendos-books-before-single-book-20261016",
+      "consolidated_in_canonical": "Historical appendix D",
+      "transfer_verified": "EXACT_TEXT_TRIM_END",
+      "old_path_status": "DELETED_FROM_WORK_BRANCH"
+    },
+    {
+      "previous_path": "docs/trendos/book-agent/BOOK_VNEXT_OUTLINE.md",
+      "original_blob_sha": "63cc0ea3622f1bd2a6c0ca5f5fe559b988693023",
+      "source_branch": "archive/trendos-books-before-single-book-20261016",
+      "consolidated_in_canonical": "Historical appendix E",
+      "transfer_verified": "EXACT_TEXT_TRIM_END",
+      "old_path_status": "DELETED_FROM_WORK_BRANCH"
+    }
+  ],
+  "owner_cutover_gates": {
+    "all_master_sections_transferred_with_evidence": false,
+    "master_entries_reconciled_66_of_66": false,
+    "verified_git_archive": true,
+    "public_secret_and_pii_screen_complete": false,
+    "owner_final_cutover_approval": false,
+    "old_book_currently_delete_approved": false,
+    "unified_new_book_editable_for_current_work": false
+  },
+  "excluded_independent_project_book_paths": [
+    "autonomous-printshop/MASTER_BOOK.md",
+    "autonomous-printshop/sources/matbagy-os/books/PROJECT_BOOK.md",
+    "WHATS_AGENT_BOOK.md (ownership requires separate decision; do not delete by this directive)"
+  ]
+}
