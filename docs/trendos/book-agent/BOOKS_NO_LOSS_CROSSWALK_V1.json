@@ -38,16 +38,16 @@
     "entry_number_count": 66,
     "entry_heading_count": 58,
     "mention_only_count": 8,
-    "explicitly_mentioned_in_current_catalog": 53,
-    "unmentioned_by_exact_entry_label_in_current_catalog": 13,
+    "explicitly_mentioned_in_current_catalog": 60,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 6,
     "reconciled_entry_count": 0,
     "unreconciled_entry_count": 66,
     "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation.",
-    "historical_entry_heading_sections_migrated_exact_count": 49,
+    "historical_entry_heading_sections_migrated_exact_count": 56,
     "initial_entry_heading_count": 58,
     "original_snapshot_reconciled_count": 0,
-    "migration_progress_note": "37 exact migration units; unit037 groups 16 distinct Entry637–652 headings in one 82654-character block verified via 9 chunks. All 66 Entry IDs still require full cross-reference/runtime reconciliation.",
-    "total_migration_units_exact_verified": 37,
+    "migration_progress_note": "38 verified historical transfer units. Group037 Entry637–652 (82,654 chars), group038 Entry653–659 (23,502 chars) exactly preserved in new catalog; only original Entry headings left require privacy/source review. 66 original Entry IDs still OPEN for complete cross-reference/latest runtime reconciliation.",
+    "total_migration_units_exact_verified": 38,
     "non_entry_historical_migration_units_exact_verified": 3
   },
   "book_policy": {
@@ -3292,36 +3292,132 @@
       "source_first_line": 6760,
       "source_heading_line": 6760,
       "mention_count_in_master": 3,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_ZERO_GOOGLE_CUSTOMER_IDENTITY_OTP_SOURCE",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "038",
+        "scope": "CONTIGUOUS_ENTRY_653_TO_659",
+        "group_entry_ids": [
+          653,
+          654,
+          655,
+          656,
+          657,
+          658,
+          659
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "b99ccbbc2f2749c1030c7d445397b3458a55bcbe",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٢٠",
+        "copy_commits": [
+          "05d3801c99298de5156e98ccbfc3a3b456d83c5b",
+          "df80b91b27db1fe093ad3aff1992103cbd2e7b51",
+          "6f4e5b831db4544682329c3e714cba0a7361d8ef"
+        ],
+        "remove_commit": "9dc77fc217560daa3afe8e3a02c5686e32804df8",
+        "text_characters": 23502,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-18",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Archive has precisely one extra trailing newline separator beyond old live Entry653..659 block; actual 23,502-character text matched exactly. SOURCE_ONLY/READONLY historical markers not current production."
+      }
     },
     {
       "entry_id": 654,
       "source_first_line": 6771,
       "source_heading_line": 6771,
       "mention_count_in_master": 6,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_ZERO_GOOGLE_CUSTOMER_IDENTITY_OTP_SOURCE",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "038",
+        "scope": "CONTIGUOUS_ENTRY_653_TO_659",
+        "group_entry_ids": [
+          653,
+          654,
+          655,
+          656,
+          657,
+          658,
+          659
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "b99ccbbc2f2749c1030c7d445397b3458a55bcbe",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٢٠",
+        "copy_commits": [
+          "05d3801c99298de5156e98ccbfc3a3b456d83c5b",
+          "df80b91b27db1fe093ad3aff1992103cbd2e7b51",
+          "6f4e5b831db4544682329c3e714cba0a7361d8ef"
+        ],
+        "remove_commit": "9dc77fc217560daa3afe8e3a02c5686e32804df8",
+        "text_characters": 23502,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-18",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Archive has precisely one extra trailing newline separator beyond old live Entry653..659 block; actual 23,502-character text matched exactly. SOURCE_ONLY/READONLY historical markers not current production."
+      }
     },
     {
       "entry_id": 655,
       "source_first_line": 6788,
       "source_heading_line": 6788,
       "mention_count_in_master": 2,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_ZERO_GOOGLE_CUSTOMER_IDENTITY_OTP_SOURCE",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "038",
+        "scope": "CONTIGUOUS_ENTRY_653_TO_659",
+        "group_entry_ids": [
+          653,
+          654,
+          655,
+          656,
+          657,
+          658,
+          659
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "b99ccbbc2f2749c1030c7d445397b3458a55bcbe",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٢٠",
+        "copy_commits": [
+          "05d3801c99298de5156e98ccbfc3a3b456d83c5b",
+          "df80b91b27db1fe093ad3aff1992103cbd2e7b51",
+          "6f4e5b831db4544682329c3e714cba0a7361d8ef"
+        ],
+        "remove_commit": "9dc77fc217560daa3afe8e3a02c5686e32804df8",
+        "text_characters": 23502,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-18",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Archive has precisely one extra trailing newline separator beyond old live Entry653..659 block; actual 23,502-character text matched exactly. SOURCE_ONLY/READONLY historical markers not current production."
+      }
     },
     {
       "entry_id": 656,
@@ -3329,47 +3425,175 @@
       "source_heading_line": 6799,
       "mention_count_in_master": 3,
       "explicit_catalog_mention": true,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "lifecycle_classification": "HISTORICAL_ZERO_GOOGLE_CUSTOMER_IDENTITY_OTP_SOURCE",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "038",
+        "scope": "CONTIGUOUS_ENTRY_653_TO_659",
+        "group_entry_ids": [
+          653,
+          654,
+          655,
+          656,
+          657,
+          658,
+          659
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "b99ccbbc2f2749c1030c7d445397b3458a55bcbe",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٢٠",
+        "copy_commits": [
+          "05d3801c99298de5156e98ccbfc3a3b456d83c5b",
+          "df80b91b27db1fe093ad3aff1992103cbd2e7b51",
+          "6f4e5b831db4544682329c3e714cba0a7361d8ef"
+        ],
+        "remove_commit": "9dc77fc217560daa3afe8e3a02c5686e32804df8",
+        "text_characters": 23502,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-18",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Archive has precisely one extra trailing newline separator beyond old live Entry653..659 block; actual 23,502-character text matched exactly. SOURCE_ONLY/READONLY historical markers not current production."
+      }
     },
     {
       "entry_id": 657,
       "source_first_line": 6808,
       "source_heading_line": 6808,
       "mention_count_in_master": 2,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_ZERO_GOOGLE_CUSTOMER_IDENTITY_OTP_SOURCE",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "038",
+        "scope": "CONTIGUOUS_ENTRY_653_TO_659",
+        "group_entry_ids": [
+          653,
+          654,
+          655,
+          656,
+          657,
+          658,
+          659
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "b99ccbbc2f2749c1030c7d445397b3458a55bcbe",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٢٠",
+        "copy_commits": [
+          "05d3801c99298de5156e98ccbfc3a3b456d83c5b",
+          "df80b91b27db1fe093ad3aff1992103cbd2e7b51",
+          "6f4e5b831db4544682329c3e714cba0a7361d8ef"
+        ],
+        "remove_commit": "9dc77fc217560daa3afe8e3a02c5686e32804df8",
+        "text_characters": 23502,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-18",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Archive has precisely one extra trailing newline separator beyond old live Entry653..659 block; actual 23,502-character text matched exactly. SOURCE_ONLY/READONLY historical markers not current production."
+      }
     },
     {
       "entry_id": 658,
       "source_first_line": 6819,
       "source_heading_line": 6819,
       "mention_count_in_master": 3,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_ZERO_GOOGLE_CUSTOMER_IDENTITY_OTP_SOURCE",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "038",
+        "scope": "CONTIGUOUS_ENTRY_653_TO_659",
+        "group_entry_ids": [
+          653,
+          654,
+          655,
+          656,
+          657,
+          658,
+          659
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "b99ccbbc2f2749c1030c7d445397b3458a55bcbe",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٢٠",
+        "copy_commits": [
+          "05d3801c99298de5156e98ccbfc3a3b456d83c5b",
+          "df80b91b27db1fe093ad3aff1992103cbd2e7b51",
+          "6f4e5b831db4544682329c3e714cba0a7361d8ef"
+        ],
+        "remove_commit": "9dc77fc217560daa3afe8e3a02c5686e32804df8",
+        "text_characters": 23502,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-18",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Archive has precisely one extra trailing newline separator beyond old live Entry653..659 block; actual 23,502-character text matched exactly. SOURCE_ONLY/READONLY historical markers not current production."
+      }
     },
     {
       "entry_id": 659,
       "source_first_line": 6833,
       "source_heading_line": 6833,
       "mention_count_in_master": 1,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_ZERO_GOOGLE_CUSTOMER_IDENTITY_OTP_SOURCE",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "038",
+        "scope": "CONTIGUOUS_ENTRY_653_TO_659",
+        "group_entry_ids": [
+          653,
+          654,
+          655,
+          656,
+          657,
+          658,
+          659
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "b99ccbbc2f2749c1030c7d445397b3458a55bcbe",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٢٠",
+        "copy_commits": [
+          "05d3801c99298de5156e98ccbfc3a3b456d83c5b",
+          "df80b91b27db1fe093ad3aff1992103cbd2e7b51",
+          "6f4e5b831db4544682329c3e714cba0a7361d8ef"
+        ],
+        "remove_commit": "9dc77fc217560daa3afe8e3a02c5686e32804df8",
+        "text_characters": 23502,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-18",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Archive has precisely one extra trailing newline separator beyond old live Entry653..659 block; actual 23,502-character text matched exactly. SOURCE_ONLY/READONLY historical markers not current production."
+      }
     }
   ],
   "unresolved_gates": [
@@ -3379,12 +3603,12 @@
   ],
   "latest_review": {
     "date": "2026-10-18",
-    "head_before_crosswalk_commit": "11a76eef3178fac44aa451245e191273a112f3eb",
-    "active_master_blob_sha": "b99ccbbc2f2749c1030c7d445397b3458a55bcbe",
-    "new_catalog_blob_sha": "067ff9c3ea9cc18cc5cc426ddb0930d818b3f362",
+    "head_before_crosswalk_commit": "9dc77fc217560daa3afe8e3a02c5686e32804df8",
+    "active_master_blob_sha": "0f49520659b3435f4dc289fa782b91376f250370",
+    "new_catalog_blob_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "unit037 82,654 chars exact match, preserved concurrent SERVER-69A and old MASTER active; next Entry653."
+    "notes": "Group038 verified and removed; old master still active, all SERVER updates including 69A retained, original 596 not touched. Cross references open."
   },
   "non_entry_section_migrations": [
     {
