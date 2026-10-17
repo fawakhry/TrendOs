@@ -1501,65 +1501,6 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
 
 
 
-### Entry632 — Backend compatibility Bridge disabled; PASS
-- Entry631 had already removed the Bridge from the live frontend:
-  - frontend Bridge OFF;
-  - frontend Bridge policies = 0;
-  - canary preflight = Auth-only;
-  - five known employees Native-ready.
-- A settings candidate created during the Entry632 investigation was activated automatically by Cloudflare when `PATCH /settings` succeeded. The following controlled workflow correctly stopped because its old precondition expected Bridge=ON.
-- Runtime truth after the activation:
-  ```ini
-  AUTH=TRANSITIONAL
-  D1_AUTH_USERS=5
-  D1_NATIVE_READY_USERS=5
-  NATIVE_ONLY=false
-
-  BACKEND_BRIDGE_ENABLED=false
-  BACKEND_BRIDGE_POLICY_COUNT=17
-  BRIDGE_SECRET_CONFIGURED=true
-
-  CORE=READONLY / epoch1
-  CONTENT=READONLY / epoch2
-  COMMS=READONLY / epoch2
-  OPS=GENERAL / epoch7
-  ACCOUNTING=READONLY / epoch2
-  GLOBAL_NATIVE_AUTH=false
-  ```
-- Read-only post-activation proof:
-  - workflow `.github/workflows/trendos-entry632-post-activation-proof.yml`;
-  - commit `7c03d30417c18a8770eb91bfdeb7fd0ea6444c67`;
-  - Run `37488533064`;
-  - Job `112354849701`;
-  - conclusion = **SUCCESS**.
-- Cloudflare proof:
-  ```ini
-  ACTIVE_VERSION_CHANGED=YES
-  BINDING_COUNT=33
-  PLAIN_TEXT_BINDING_COUNT=27
-  SECRET_BINDING_COUNT=5
-  D1_BINDING_PRESENT=YES
-  TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED=false
-  WORKER_CODE_ETAG_UNCHANGED=PASS
-  WORKER_CODE_CHANGE=NO
-  ```
-- Disabled-route proof:
-  ```ini
-  ENTRY632_DISABLED_ROUTE_FAIL_CLOSED=PASS
-  ENTRY632_UPSTREAM_FORWARD_FROM_DISABLED_PROOF=NO
-  ```
-- No new mutation was performed by the proof workflow.
-- Entry632 result:
-  ```ini
-  FRONTEND_BRIDGE=OFF
-  FRONTEND_BRIDGE_POLICY_COUNT=0
-  BACKEND_BRIDGE=OFF
-  BUSINESS_BRIDGE_ACTIONS=0
-  WORKER_CODE_CHANGE=NO
-  ```
-- Remaining legacy dependency to assess next is employee Auth legacy bootstrap itself. Do not change Accounting/EasyStore as part of that assessment.
-
-
 ### Entry633 — Native username canonicalization PASS
 - Before retiring legacy Auth bootstrap, D1 identity rows were audited read-only.
 - D1 contains exactly five Native-ready identity groups:
@@ -3771,3 +3712,7 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - Owner provided ~240KB compiled `trendos-d1-staging` code, containing unguarded legacy order, customer, message, inbox, and mirror GET handlers reachable via index dispatcher; newer edge/customer-manager/orders paths validate bearer session. A Node VM with fake D1 (zero remote calls) verified anonymous `/v1/orders`, `/v1/inbox`, `/v1/mirror/sheets` -> HTTP 200 synthetic arrays, while unauthenticated `/v1/edge/orders/page` -> HTTP 401. **No real Cloudflare data was queried, no real breach proven**. Deployed version `99e823b2` binary/source identity not cryptographically established.
 - `trendos-d1-staging` workers.dev enabled and no Worker-specific Access app (as evidenced by owner UI); account/hostname Access and WAF remain unverified. Stage D1 `trendos-staging` is non-production but has existing tables; source-only remediation in Draft PRs #185/#187/#190 still requires consumer compatibility (R5 expects legacy Mirror HTTP 200), synthetic remote stage, explicit approval and rollback. **DO NOT overwrite existing stage or turn off routes without consumer review.**
 - Detailed audit on draft PR #190 at `autonomous-printshop/print-server/SERVER68_EXISTING_STAGE_BUNDLE_AUTH_AUDIT_20261018.md`. `SEC-AP303-02=OPEN_HIGH`; `STAGE_AUTH_REVIEW=HIGH_RISK`; `REMOTE_STAGE=NOT_DEPLOYED`; `PRODUCTION_CHANGE=NO`; `UBUNTU_LIVE=OFF`.
+
+
+## BOOK-MIGRATION-20261018-030 — Entry632
+- `EXACT_VERBATIM_MATCH=PASS` for 1,911 characters from old book and archive into appendix. COPY `17e1bc528b57212bf333139afa0cba5e22e38a69`, source blob `df8e12d19f34ea99e0ed7c8704b43330f205140f`, archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; REMOVE SHA in Crosswalk.
