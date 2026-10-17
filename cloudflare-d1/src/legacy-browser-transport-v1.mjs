@@ -58,7 +58,13 @@ export async function handleLegacyBrowserTransport(request, env) {
   // actions cannot recover Apps Script authority through the old browser proxy.
   // Customer-account sessions remain a distinct, explicitly scoped migration.
   // Deny BEFORE shadow verification or upstream creation, with no credentials echoed.
-  if (employeeAuthNativeOnlyEnabled(env) && !LEGACY_CUSTOMER_SESSION_ACTIONS.has(body.action)) {
+  // Edge's legacy session path also blocks 1/yes/on. Match that
+  // fail-closed Google-upstream guard without changing Native auth issuance
+  // or the separate customer-session migration.
+  const nativeOnlyRaw = String(env.TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 ?? '').trim().toLowerCase();
+  const legacyEmployeeBlocked = employeeAuthNativeOnlyEnabled(env) ||
+    ['1','yes','on'].includes(nativeOnlyRaw);
+  if (legacyEmployeeBlocked && !LEGACY_CUSTOMER_SESSION_ACTIONS.has(body.action)) {
     return reply({
       success: false,
       code: 'LEGACY_EMPLOYEE_UPSTREAM_RETIRED',
