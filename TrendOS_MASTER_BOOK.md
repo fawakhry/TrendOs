@@ -944,93 +944,6 @@ BUSINESS_CREATE_TEST_SENT=NO
   NEXT_ACTION=QUALIFY_AND_DEPLOY_ZERO_GOOGLE_BACKEND_WITH_ALL_FAMILY_CONTROLS_OFF_THEN_HEALTH_REGRESSION_BEFORE_READONLY_CUTOVER
   ```
 
-### Entry616 — Zero-Google backend deployed safely with all family controls OFF
-- بدأ التنفيذ من Entry615 بدون إعادة 614/615 أو Backfill.
-- Branch head قبل خطوة التنفيذ كان `0f646ae4aa68de84fdf85045af572b43a9dcc876`.
-- تم تثبيت qualification على source الحالي:
-  - all five Zero-Google family handlers wired through `cloudflare-d1/src/index_v2.js`.
-  - Entry614 46/46 business coverage preserved.
-  - Session Shadow TTL = **43200 seconds / 12h** preserved.
-  - Native Employee Auth = OFF.
-  - Employee Legacy Bridge = OFF.
-  - Orders GENERAL + Duplicate Guard preserved.
-  - Customers GENERAL preserved.
-  - Line Runtime preserved.
-- Qualification Run #1 `37201212337` stopped **before deploy** because the old Entry614 content regression still expected the historical `service_provider_routes` seed in migration 0013. Runtime/source capability itself was still present.
-- Regression-only correction commit:
-  - `76c600a447a903189d047939a22e207494ef9a8a`
-  - changed the stale assertion to verify the live D1 handler capability instead of the removed historical seed.
-- Qualification Run #2 `37201348711` passed full source qualification then stopped **before deploy** on an exact-version lock mismatch.
-- Runtime truth from `wrangler deployments list` proved the actual predeploy Production version was:
-  - `62cad7e7-6c4d-4f56-9b37-849f2e7256c7`
-  - the older book text `62cad27e-76c4d-...` was a transcription typo and has been corrected.
-- Final controlled workflow commit:
-  - `a6aaf6390b0572feb5715736ed88cda8c8ade9c2`
-- Final workflow:
-  - Run `37201395905`
-  - Job `111433654098`
-  - conclusion = **SUCCESS**
-- Predeploy gate proved:
-  ```ini
-  PRE_VERSION=62cad7e7-6c4d-4f56-9b37-849f2e7256c7
-  OPS=OFF
-  CONTENT=OFF
-  COMMS=OFF
-  ACCOUNTING=OFF
-  CORE=OFF
-  AUTH=OFF
-  BRIDGE=OFF
-  ORDERS=GENERAL
-  DUPLICATE_GUARD=PASS
-  CUSTOMERS=GENERAL
-  LINE_RUNTIME=PASS
-  ZERO_GOOGLE_FAMILY_ROUTES_PREDEPLOY=NOT_LIVE_404
-  ```
-- Deployment was code-only with no migrations, no D1 data mutation, no family-control mutation, no secret write, no frontend deploy and no Apps Script mutation.
-- New Production API version:
-  - `de2c825d-ef63-407d-90dc-8059a9d4f192`
-- Postdeploy workflow + independent public health verification:
-  ```ini
-  EMPLOYEE_AUTH=OFF
-  EMPLOYEE_BRIDGE=OFF
-  OPS=OFF / schemaReady=true / googleBusinessCalls=0
-  CONTENT=OFF / schemaReady=true / googleBusinessCalls=0
-  COMMS=OFF / schemaReady=true / googleBusinessCalls=0
-  ACCOUNTING=OFF / schemaReady=true / googleBusinessCalls=0
-  CORE=OFF / schemaReady=true / googleBusinessCalls=0
-  ORDERS=GENERAL / duplicateGuardReady=true
-  CUSTOMERS=GENERAL / customerCount=251
-  LINE_RUNTIME=PASS / cloud-native+legacy-overlay
-  REFRESH_FIX=PASS
-  SESSION_SHADOW_TTL_12H=PRESERVED
-  ```
-- Frontend refresh recovery remains live:
-  - `postWriteBarrierRecoveries` present.
-  - `recoverPostWriteBarrier` present.
-- External readiness exposed by the newly live OFF-state health routes:
-  - Content: `r2Ready=false`.
-  - Comms: `r2Ready=false`, `whatsappReady=false`, `openAiReady=false`.
-  - these do not invalidate Entry616 because all families remain OFF, but Content/Comms must not be promoted to GENERAL until their required external bindings are qualified.
-- Ops is the safest first family for the next READONLY cutover because its schema is ready and it has no R2/WhatsApp/OpenAI dependency.
-- التسجيل:
-  ```ini
-  STATUS=ENTRY616_ZERO_GOOGLE_BACKEND_OFF_DEPLOY_HEALTH_REGRESSION_PASS
-  RUN_ID=37201395905
-  JOB_ID=111433654098
-  WORKFLOW_COMMIT=a6aaf6390b0572feb5715736ed88cda8c8ade9c2
-  PREVIOUS_PRODUCTION_API_VERSION=62cad7e7-6c4d-4f56-9b37-849f2e7256c7
-  PRODUCTION_API_VERSION=de2c825d-ef63-407d-90dc-8059a9d4f192
-  FAMILY_CONTROLS=ALL_OFF
-  AUTH=OFF
-  BRIDGE=OFF
-  ORDERS_BASELINE=PASS
-  CUSTOMERS_BASELINE=PASS
-  LINE_RUNTIME=PASS
-  REFRESH_FIX=PASS
-  GOOGLE_APPS_SCRIPT_TOUCHED=NO
-  BACKFILL_RERUN=NO
-  NEXT_ACTION=QUALIFY_OPS_READONLY_CUTOVER_WITH_AUTH_AND_BRIDGE_STILL_OFF
-  ```
 
 ### Entry617 — Ops family READONLY cutover on live frontend baseline
 - الهدف: بدء family-by-family cutover بأول عائلة فقط، مع إبقاء:
@@ -5529,3 +5442,9 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - **إصلاح توافق مهم:** `D1_Orders_Read_Cutover.gs` كان `limit=500` بينما خدمة القراءة الآمنة SERVER-67 تقبل <=100، فتم تعديل طلب الصفحة إلى `100` فقط لما Script Property opt-in `D1_MIRROR_SERVICE_READ_V1_ENABLED=true`؛ يظل 500 في حالة OFF. تم اختبار 125 صفًا صناعيًا على دفعتين دون فقد، مع رجوع سليم إلى 500 وفشل آمن عند غياب signer. [Actions 38959147062](https://github.com/fawakhry/TrendOs/actions/runs/38959147062) **147/147 PASS، 0 FAIL** مع Wrangler dry-run PASS. لا تغييرات Apps Script الحية.
 - **حاجز الإطلاق:** R5 workflow مثبت على commit سابق ويتطلب GET legacy mirror/sheets=200؛ مصدر `trendos` الإصدار النشط `803aa6a2` غير مربوط Git SHA بشكل مؤكد؛ لا مراجعة عملاء/Cloudflare WAF/Access مكتملة ولا Stage synthetic D1 ولا أسرار أو نسخة rollback معتمدة. `SEC-AP303-02=OPEN_HIGH`، PR #190 يبقى DRAFT؛ لا Merge/Deploy/D1/Ubuntu أو تجربة أوردر حقيقي. تفاصيل [SERVER68_RELEASE_QUALIFICATION_AND_ROLLBACK.md](https://github.com/fawakhry/TrendOs/blob/release/server68-staging-qualification-20261016/autonomous-printshop/print-server/SERVER68_RELEASE_QUALIFICATION_AND_ROLLBACK.md) و`UBUNTU_SERVER_BOOK.md` SERVER-68 (commit `17ff005a8cf97d5ae8fd800d8c09f0aae0991827`). الكتاب القديم ACTIVE_WRITE والموحد الجديد FROZEN بلا تعديل.
 - **Status:** `STAGE_CODE_COMPILE=PASS`، `SOURCE_TESTS=147_147_PASS`، `STAGING_CLOUDFLARE=NO`، `PRODUCTION=UNCHANGED`، `UBUNTU_LINK=NOT_VERIFIED`، `PR190=DRAFT_OPEN`.
+
+
+## BOOK-MIGRATION-20261017-017 — Entry616 historical copy verified
+- `EXACT_VERBATIM_MATCH=PASS` for 3,953 chars; historical deployed backend (all family controls OFF) not current live proof.
+- COPY `8420e3552e0297c6af4c0b2066ff60944f7ce0ed`; archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source blob `0f3b11ecdc57ba115c4b5f78c67b848c22f8cd05`.
+- REMOVE commit: this commit, actual SHA in Crosswalk; old book remains ACTIVE_WRITE; SERVER history kept.
