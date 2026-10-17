@@ -5993,4 +5993,151 @@ ZERO_GOOGLE_COMPLETE=YES
 ### Phase 2 — Customer 360 + Unified Communication — Oct 2026 plan
 **الهدف:** هوية ورحلة عميل واحدة عبر Orders, Payments, Designs, Messages, Feedback, Loyalty.
 
-**Deliverables:** Customer 360؛ Customer Portal integration؛ Unified Inbox؛ WhatsApp production-safe integration؛ Feedback؛ Points/Loyalty؛ role-based communication permissions؛ customer/order/me
+**Deliverables:** Customer 360؛ Customer Portal integration؛ Unified Inbox؛ WhatsApp production-safe integration؛ Feedback؛ Points/Loyalty؛ role-based communication permissions؛ customer/order/message linkage.
+
+**Target flow:** `Message -> Customer -> Order -> Status/Payment/Design context -> Reply/Follow-up`.
+
+**Exit gate:** رحلة عميل end-to-end بلا duplicate identity أو unsupported AI facts.
+
+### Phase 3 — Matbagy AI Brain — Nov 2026 plan
+**الهدف:** تحويل Matbagy AI إلى طبقة معرفة/مساعد محكومة داخل TrendOS.
+
+**Deliverables:** model health/management؛ exact-memory verification؛ approved-reply + feedback learning؛ tenant-separated memory؛ retrieval/embeddings عند الحاجة؛ TrendOS live connector؛ confidence/escalation policy؛ WhatsApp learning pipeline عند الاعتماد.
+
+**Non-negotiable:** live order status/stock/final price/payment/customer approval تأتي من TrendOS source-of-truth وليس RAG.
+
+### Phase 4 — Smart Designer — Dec 2026 plan
+**الهدف:** Design workflow إنتاجي مرتبط بـOrder/Line.
+
+**Priority products:** Mug 20×9؛ Kids 7×10؛ Collage؛ Invitations؛ Graduation؛ Laser/vector.
+
+**Target architecture:** `Template Engine -> Layer Editor -> Local AI -> Premium AI (optional) -> Proof -> Approval -> Print Ready -> Archive`.
+
+**Exit gate:** طلب تصميم شائع يكتمل من Order Line إلى approved print-ready output مع archive/version lineage.
+
+### Phase 5 — Lead Hunter + CRM + Growth — Jan 2027 plan
+**الهدف:** تحويل اكتشاف الـLead إلى acquisition pipeline قابل للقياس داخل TrendOS.
+
+**Target flow:** `Source -> Lead -> Qualification -> Customer -> Order -> Revenue attribution`.
+
+**Deliverables:** source tracking؛ lead scoring؛ suggested reply؛ follow-up state؛ conversion workflow؛ CRM integration؛ acquisition analytics.
+
+لا يعتمد Launch على Facebook scraping غير معتمد.
+
+### Phase 6 — Full Integration — 01/02/2027 → 15/02/2027
+**الهدف:** لا major new features؛ ربط واختبار دورة المنصة كاملة.
+
+`Lead -> Customer -> Order -> Design -> Approval -> Production -> Invoice -> Payment -> Delivery -> Feedback -> AI Learning`
+
+**Exit gate:** IDs/permissions/audit/state transitions متسقة عبر الوحدات.
+
+### Phase 7 — Launch Hardening — 15/02/2027 → 25/02/2027
+Security؛ permissions؛ backup/restore؛ rollback؛ observability؛ performance؛ mobile UX؛ error handling؛ fallback behavior؛ role tests؛ data integrity؛ customer/employee/manager regression.
+
+**Feature freeze** باستثناء launch blockers.
+
+### Phase 8 — Launch Rehearsal — 25/02/2027 → 28/02/2027
+تشغيل المنظومة كبروفة Launch كاملة لنفس lifecycle؛ لا optional features جديدة؛ كل critical failure يُصلح ويعاد اختباره؛ final backups/checkpoints؛ ثم GO/NO-GO موثق.
+
+### Launch target — 01/03/2027
+تعريف V1: دورة تشغيل كاملة تستطيع:
+
+`Find Customer -> Talk -> Sell -> Design -> Produce -> Collect -> Deliver -> Learn -> Grow`
+
+V1 يشمل: Core Operations؛ Customer 360/Communication؛ Matbagy AI controlled assistant؛ Smart Designer للأولويات؛ Lead Hunter/CRM؛ Accounting/operations linkage؛ team/attendance/press/handover integrity؛ administration/control-tower view.
+
+### Post-V1 — ليست Launch blockers
+Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader white-label network؛ VR/virtual-city concepts. تبدأ بعد إثبات V1 operational stability.
+
+### مصدر الاستعادة
+أعيد هذا القسم من النسخة السابقة للكتاب عند commit `be8df986bc65e4d80e80504e841e50be9301ceb1` ومن `docs/trendos/TRENDOS_ROADMAP_2027-03-01.md`. تم حذف وصف Google التاريخي المتقادم من الشجرة القديمة عمدًا؛ خارطة المنتج نفسها محفوظة هنا لتُستأنف بعد Zero-Google.
+
+
+## 12. الدليل الهندسي للبرنامج — خريطة الكود الحي (المرحلة الأولى)
+
+> **قاعدة الإكمال الجديدة:** أي وظيفة في TrendOS لا تعتبر مكتملة توثيقيًا حتى يكون لها: شرح مالك بسيط + ملفاتها + نقطة الدخول + مسار البيانات + مصدر التخزين + اعتمادها التشغيلي + طريقة التشخيص/الاسترجاع. وجود ملف في GitHub وحده **لا يثبت** أنه مستخدم في Production.
+
+### 12.1 طبقات البرنامج ومداخل الصيانة
+
+| الجزء | ماذا يفعل | أهم ملفات/مجلدات المصدر | الحالة التي يعتمدها هذا الكتاب |
+|---|---|---|---|
+| الواجهة الرئيسية | الشاشات وتجربة الموظف | `app.js`, `config.js` وملفات الواجهة المساعدة مثل `trendos-edge-orders-read-v1.js` | Cloudflare frontend هو canonical حسب §1؛ الملف الموجود في GitHub لا يساوي النسخة المنشورة إلا بدليل Runtime |
+| API السحابي | يستقبل طلبات الواجهة ويقرأ/يكتب D1 | `cloudflare-d1/`, إعداد `cloudflare-d1/wrangler.toml`، ومصادر Worker تحت مجلداته | `trendos-d1-api` هو API canonical للأجزاء المثبت نقلها في §1 |
+| قاعدة البيانات | تخزين Cloud الحالي والجداول وتغييرات البنية | `cloudflare-d1/migrations/` | D1 هو authority للأجزاء المثبتة في §1؛ migration file لا يعني أنه طُبق إلا بدليل Runtime |
+| Apps Script القديم/الانتقالي | ما زال يحمل وظائف لم تُنقل بالكامل | `Code.gs`, `apps-script/`, وملفات `*.gs` المتخصصة | dependency حية فقط للعائلات المذكورة في §3 حتى يثبت Cutover |
+| تسجيل الموظفين | Login/Session ومسار النقل إلى D1 | `employee-api-dispatcher-v1.js`, `D1_Fast_Auth_V2_5_Safe.gs`, auth migration تحت `cloudflare-d1/migrations/` | ما زال GOOGLE_BACKED حسب آخر Runtime evidence؛ كود D1 الموجود foundation وليس إثبات Cutover |
+| الأوردرات | إنشاء/قراءة/استرجاع الأوردرات ومنع التكرار | `trendos-edge-orders-read-v1.js`, `cloudflare-d1/`، migrations ومنها duplicate guard | New Order CREATE + read recovery + duplicate guard Cloud/D1 حسب §1؛ أي legacy actions تُراجع منفصلة |
+| العملاء | البحث والكتابة وهوية العميل | `trendos-edge-orders-read-v1.js` ومسارات customer في Cloudflare؛ `customer-manager-backend-v1932.gs` لوظائف manager legacy | Customer master/search/write = D1؛ Customer Manager كعائلة أوسع لا تعتبر منقولة لمجرد وجود backend |
+| الحضور | حضور الموظفين وعمليات clock-in | `attendance-backend-v1.gs`, `attendance-clockin-backend-v1.gs`, `ATTENDANCE_V1_INTEGRATION.md`, router داخل `Code.gs`/مساراته | ما زال ضمن عائلات Zero-Google المفتوحة في §3 |
+| طوابير العمل | توزيع ومتابعة مهام التشغيل | `work-queue-backend-v1.gs`, `work-queue-v1.js`, `WORK_QUEUE_V1_CANDIDATE.md`, `OPERATOR_TASK_WORKFLOW_V2_CANDIDATE.md` | يحتاج Runtime qualification مستقل قبل وصف أي candidate بأنه live |
+| الحسابات | الحسابات والدفاتر والفواتير والرقابة | `accounting/`, `TRENDOS_ACCOUNTING_BLACKBOX_2026-09-04.md`, `docs/trendos/TRENDOS_ACCOUNTING_FULL_REVIEW_2026-09-04.md`, `trendos-invoice-integrity-v1.gs` | Accounting/Party ledger ما زالت عائلة مفتوحة للنقل حسب §3 |
+| واتساب/التواصل | رسائل وربط العميل ومراقبة التكرار | `WHATS_AGENT_BOOK.md`, `trendos-whatsapp-integrity-v1.gs`, ووظائف WhatsApp داخل backends ذات الصلة | لا تُعتبر Cloud-native بالكامل إلا حسب evidence لكل مسار |
+| سلامة البيانات | منع التكرار وحماية Order/Line/Invoice/Press | `trendos-integrity-v1.gs`, `trendos-order-line-integrity-v1.gs`, `trendos-invoice-integrity-v1.gs`, `trendos-press-integrity-v1.gs` | أدوات/مصادر مهمة؛ Runtime هو الحكم على تفعيل كل واحدة |
+| التوثيق والأدلة | يشرح لماذا وكيف تغيّر النظام | `TrendOS_MASTER_BOOK.md`, `docs/trendos/`, `docs/trendos/blackbox/` | الكتاب للحالة الحية؛ §8A هو مدخل الأرشيف |
+
+### 12.2 مسار نموذجي موثق — الأوردر الجديد
+
+بالبلدي: الموظف ينشئ الأوردر من الواجهة → الواجهة تستخدم مسار Cloud المؤهل → API `trendos-d1-api` يتحقق من الطلب ومنع التكرار → البيانات تُكتب في D1 → القراءة/الاسترجاع بعد Refresh تعود من مسار Edge/D1 المثبت.
+
+خريطة الصيانة:
+`واجهة/app.js + config.js -> trendos-edge-orders-read-v1.js -> trendos-d1-api -> D1 -> نتيجة الواجهة`.
+
+عند عطل الأوردر الجديد نراجع بالترتيب: الواجهة/config → transport/edge → API active deployment → D1/migration/schema → read-back/refresh. لا نرجع إلى Google writer تاريخي إلا إذا أثبت Runtime أن action بعينها ما زالت legacy.
+
+### 12.3 مسار نموذجي موثق — تسجيل الموظف
+
+بالبلدي: تسجيل الموظف **ليس مقفول Cloud حتى الآن**. توجد بنية وكود نقل إلى D1، لكن آخر دليل حي في §3 يقول إن السلطة ما زالت Google/Apps Script-backed.
+
+خريطة المصدر الحالية أثناء النقل:
+`واجهة الموظف -> employee-api-dispatcher-v1.js / المسار الحالي -> Auth/Session authority الحالية`، مع foundation في D1 لا يتحول إلى authority إلا بعد Cutover + Runtime verification.
+
+### 12.4 سجل تغطية الدليل
+
+**جرد مسارات GitHub اكتمل كفهرس بحثي** في `docs/trendos/TRENDOS_REPOSITORY_CATALOG.md`: الشجرة المتحققة غير مبتورة (`truncated=false`) وتغطي 1,435 ملفًا و35 مجلدًا بعد إضافة الكتالوج. هذا لا يعني أن توصيف وظيفة ومكان كل سطر كود اكتمل. **المتبقي لإغلاق الدليل الهندسي:** تصنيف Runtime لكل ملف Live / Transitional / Candidate / Historical / Test بالدليل، ثم خريطة كل شاشة وزر/action والدوال التابعة، ثم جداول D1 والعلاقات، ثم Runbook أعطال لكل عائلة، ثم Coverage audit يثبت أن كل كود حي وكل وظيفة حية لها مرجع في الكتاب.
+
+معيار الإغلاق النهائي للدليل:
+`LIVE_FUNCTION_WITHOUT_BOOK_MAP=0`
+`LIVE_CODE_WITH_UNKNOWN_OWNER_OR_PURPOSE=0`
+`LIVE_DATA_WITH_UNKNOWN_SOURCE_OR_DESTINATION=0`
+
+## 13. Accounting / EasyStore pause checkpoint — 2026-10-04
+
+> **قرار المالك:** إيقاف التحقيق في الحسابات مؤقتًا والانتقال إلى المشكلة الحالية الأخرى، مع حفظ نقطة الاستئناف بدون فقد أي سياق.
+
+- برنامج الحسابات ليس جزءًا من Repo TrendOS فقط؛ له Repo مستقل:
+  - `fawakhry/EasyStore`
+- ملفات EasyStore الأساسية المؤكدة:
+  - `app.js`
+  - `config.js`
+  - `index.html`
+  - `Code.gs`
+  - `tests/`
+- `config.js` الحالي في EasyStore يضبط:
+  - `EASYSTORE_ACCOUNTING_D1_READONLY = true`
+  - `EASYSTORE_ACCOUNTING_D1_URL = https://trendos-d1-api.trendmall-contact.workers.dev/v1/employee/accounting`
+  - cache tag: `entry619-d1-readonly-sso2-20261004`
+- Runtime UI observation من المالك:
+  - EasyStore فتح من TrendOS.
+  - الشارة أصبحت `D1 READONLY / SSO OK`.
+  - هذا يثبت نجاح handoff المرئي للجلسة داخل EasyStore، لكنه لا يثبت وحده وصول `getAccounting` إلى D1.
+- Live-tail evidence قبل الإيقاف:
+  - Run `37210279478` استُخدم لمراقبة `/v1/employee/accounting`.
+  - المحاولات المكتملة حتى لحظة الإيقاف لم ترصد طلب Accounting فعليًا أثناء الضغط على «تحديث البيانات».
+  - محاولة لاحقة كانت ما تزال `in_progress` لحظة قرار الإيقاف؛ لا تُعتبر PASS أو FAIL حتى تُراجع نتيجتها عند الاستئناف.
+- مصدر التحقيق الصحيح عند العودة:
+  1. ابدأ من Repo `fawakhry/EasyStore`، لا من تكرار تشخيص TrendOS وحده.
+  2. افحص `ES27.load(true)` -> `api('getAccounting', ...)` -> شرط `EASYSTORE_ACCOUNTING_D1_READONLY` -> `fetch(EASYSTORE_ACCOUNTING_D1_URL)`.
+  3. اربط ذلك بنتيجة Runtime/Network أو Cloudflare tail.
+  4. لا تُدخل فاتورة أو بيانات إنتاج لمجرد إثبات القراءة.
+  5. لا تُرقِّ Accounting من `READONLY` إلى `GENERAL` قبل إثبات authenticated D1 read حقيقي.
+- الحالة عند الإيقاف:
+  ```ini
+  ACCOUNTING=READONLY
+  SSO_UI=OK
+  AUTHENTICATED_D1_READ=NOT_PROVEN
+  EASYSTORE_REPO=fawakhry/EasyStore
+  NEXT_RESUME_POINT=DIAGNOSE_EASYSTORE_GETACCOUNTING_RUNTIME_PATH
+  OWNER_DECISION=PAUSE_AND_SWITCH_TO_CURRENT_ISSUE
+  ```
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY619 -->
