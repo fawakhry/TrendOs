@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - fix/book24-writer-toggle-failclosed-cutover-audit-20261016
+      - fix/book24-handoff-exact-script-lane-inventory-20261018
     paths:
       - 'work-queue-backend-v1.gs'
       - 'operator-task-workflow-v2.gs'
