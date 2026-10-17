@@ -74,6 +74,17 @@ Windows 7 shop server                Windows 7 laser PC
 
 **Status:** `WAEL_SHOP_PC_ACTIVE_USER=OWNER_VERIFIED`, `DESKTOP_TAKEOVER=NOT_PERMITTED_AS_DEFAULT`, `INDEPENDENT_LASER_EXPLORER_WORKFLOW=DESIGN_ONLY`, `LIVE_VPN_AND_SHARE=NOT_VERIFIED`; **no installation, deployment, Win7 setting, or customer file mutation done by assistant**.
 
+## 2C. حسم المتطلب: كان العامل يفتح Network، وليس برنامجًا أو Remote Desktop (تأكيد المالك 2026-10-17)
+
+أكّد المالك أن الطريقة القديمة لعامل الليزر كانت `Computer → Network` للوصول لملفات جهاز المطبعة، **وليس** برنامجًا يتطلب مشاركة شاشة وائل أو تطبيق ويب. المطلوب إعادة استخدام **Windows File Sharing** عبر الاتصال الافتراضي، بأقرب تجربة ممكنة:
+1. داخل Win7 في المطبعة: اترك عمل وائل قائمًا. شارك مجلد عمل الليزر فقط بحساب محدود وكلمة مرور، مع مراجعة Share وNTFS permissions.
+2. على الجهازين: جهّز شبكة **Radmin VPN private network** ذات عضوين فقط، لا **Gaming Network** (وثائق Radmin تذكر أن Gaming Networks تمنع عادة خدمات Windows كالـshared folders). جهاز الليزر يستخدم اتصال الهاتف، والمطبعة اتصالها المعتاد. ثبّت عميل VPN من المصدر الرسمي بعد نسخة إعدادات مناسبة؛ لا تعطل Windows firewall.
+3. في جهاز الليزر: افتح `Computer → Map Network Drive` واجعل `Z:` يشير إلى `\\<SHOP_VPN_IP>\LaserJobs`. هذا هو مدخل الوصول الثابت حتى لو اختفت/لم تظهر أسماء الأجهزة تلقائيًا ضمن `Network` عبر VPN.
+4. اختبار مستخدمين متزامن: وائل يستمر شغله دون خروج من الجلسة، عامل الليزر يتصفح المجلد وينسخ ملف TXT اصطناعي ويرجعه. افحص وقت النقل وسلامة المحتوى، وجرّب فصل/عودة الهوتسبوت.
+5. لا حاجة للتحكم بالسطح `mstsc` أو Radmin Server / Viewer ولا تغيير خدمات TrendOS أو Ubuntu البيت.
+
+**مستوى الإثبات:** `USER_WORKFLOW=CONFIRMED_WINDOWS_NETWORK_EXPLORER`، `VPN=NOT_INSTALLED`، `SHARE=NOT_TESTED`، `WAEL_SESSION=UNCHANGED`، `CUSTOMER_FILES=NOT_MOVED`. هذا النص توثيق فقط وليس إعدادًا مُنفَّذًا.
+
 ## 3. أمان Windows 7 — حد أساسي
 
 - Microsoft أوقفت دعم Windows 7 يوم **14 يناير 2020**؛ ماكينات الإنتاج العاملة به لا ينبغي تعريضها للإنترنت أو توسيع صلاحياتها بشكل دائم. Radmin VPN *يضيف شبكة خاصة مشفرة* ولكنه **لا يعالج ثغرات نظام التشغيل، SMB، أو سرقة بيانات الاعتماد**. اجعل الاتصال نطاقًا ضيقًا ومؤقتًا، وخطط لجهاز gateway حديث منفصل أو تحديث منصة غير مرتبطة ببرنامج الليزر إذا استحال ترقية الجهاز نفسه.
