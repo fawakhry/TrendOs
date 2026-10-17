@@ -7218,4 +7218,237 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
   AUTH=TRANSITIONAL
   AUTH_ENABLED=true
   LEGACY_BOOTSTRAP=false
-  LEGACY_SES
+  LEGACY_SESSION_ENROLL=false
+  NATIVE_ONLY=true
+  D1_AUTH_USERS=5
+  D1_NATIVE_READY_USERS=5
+  MUST_CHANGE=0
+  PLAINTEXT_STORED=false
+  BACKEND_BRIDGE=false
+  ```
+- No Sherif row was manually inserted; no role/screens were guessed; no Google password/token column, password hash, session token, or credential secret was read.
+- No EasyStore mutation occurred. Accounting remained READONLY and was not modified by this employee migration step.
+- Current truth:
+  ```ini
+  ENTRY637_ATTEMPT_1=FAIL_NO_SHERIF_LOGIN
+  ENTRY637_ATTEMPT_2=FAIL_NO_SHERIF_LOGIN
+  ENTRY637_HARDENING_RESTORED=PASS
+  SHERIF_NATIVE_READY=NO
+  D1_NATIVE_READY=5/5
+  GLOBAL_NATIVE_AUTH=OFF
+  BACKEND_BRIDGE=OFF
+  ACCOUNTING=READONLY
+  ```
+- Next action remains credential-safe and event-dependent: do not open a third bounded bootstrap window until Sherif is actually available to perform a real login during that same window. A third blind retry would only repeat the already-proven 600-second failure mode.
+
+
+#### Entry637 — Attempt 3 diagnosis; staged window proved valid but no successful Sherif login reached Backend
+- Owner explicitly approved Attempt 3 while Sherif was reported ready.
+- Initial hardened preflight before Attempt 3:
+  ```ini
+  NATIVE_ONLY=true
+  LEGACY_BOOTSTRAP=false
+  LEGACY_SESSION_ENROLL=false
+  BACKEND_BRIDGE=false
+  D1_AUTH_USERS=5
+  D1_NATIVE_READY_USERS=5
+  PLAINTEXT_STORED=false
+  ACTIVE_AUTH_RUNS=0
+  ```
+- Re-running the original Entry637 job as run_attempt 3:
+  - Run `37497698732`, attempt 3;
+  - Job `112434775593`;
+  - `Exact preflight` = SUCCESS;
+  - the bounded-window step failed before opening a window with:
+    ```text
+    ENTRY637_BOUNDED_MIGRATION_FAIL nativeOnly precondition
+    ```
+- Important diagnosis: public Runtime was hardened, but Cloudflare script `/settings` still represented a later, non-deployed staged window version where `NATIVE_ONLY=false`. This is a control-plane/latest-version drift, not a live-runtime hardening failure.
+- A narrow controlled repair workflow was added:
+  `.github/workflows/trendos-entry637-hardened-settings-baseline-repair.yml`
+  - initial commit `728a650ae8e128c781ff7fcd592075d3cfaf54e2`;
+  - follow-up commit `d577eab916646503db8eba1fbe004433f2800037`;
+  - diagnostic commit `6be07a78cdf592c857a7d5a54f8fecfa62b94c8e`.
+- The repair did not mutate Runtime because Cloudflare rejected `PATCH /settings` with error `10214`:
+  ```text
+  Script edit failed. You attempted to deploy the latest version with modified settings,
+  but the latest version isn't currently deployed.
+  ```
+- Therefore the safe strategy changed from editing stale latest settings to reusing that exact staged version only after proving:
+  - staged latest settings are exactly the intended Sherif window:
+    ```ini
+    NATIVE_ONLY=false
+    LEGACY_BOOTSTRAP=true
+    LEGACY_SESSION_ENROLL=false
+    BACKEND_BRIDGE=false
+    ```
+  - binding count = 33;
+  - secret binding count = 5;
+  - D1 binding exists;
+  - staged worker code ETag exactly matches the currently active hardened worker code ETag.
+- Controlled staged-window workflow:
+  `.github/workflows/trendos-entry637-sherif-bounded-staged-window.yml`
+- Commit:
+  `21759031dfd135f25f071ed765a163ff46973010`
+- Run:
+  `37512561162`
+- Job:
+  `112437181175`
+- Preflight proof:
+  ```ini
+  ENTRY637_STAGED_WINDOW_PREFLIGHT=PASS
+  ENTRY637_STAGED_CODE_ETAG_MATCH=PASS
+  ENTRY637_STAGED_BRIDGE=false
+  ```
+- Live frontend was also re-read during the window and proved:
+  - Global Native Auth remains OFF;
+  - Native Canary remains ON;
+  - Sherif aliases remain present:
+    `شريف, sherif, sheriff, sharif`;
+  - frontend Bridge remains OFF;
+  - dispatcher canonicalizes Sherif aliases to `شريف`.
+- The staged Sherif window opened successfully at 2026-10-06T18:36:15Z:
+  ```ini
+  ENTRY637_WINDOW_OPEN=PASS
+  ENTRY637_WINDOW_NATIVE_ONLY=false
+  ENTRY637_WINDOW_BOOTSTRAP=true
+  ENTRY637_WINDOW_BRIDGE=false
+  ENTRY637_WINDOW_MAX_SECONDS=600
+  ```
+- All 60 ten-second polls remained exactly:
+  ```ini
+  USERS=5
+  READY=5
+  ```
+- No `ENTRY637_SHERIF_BOOTSTRAP_OBSERVED=YES` was emitted.
+- The window closed at 2026-10-06T18:46:37Z:
+  ```ini
+  ENTRY637_WINDOW_CLOSED=PASS
+  ```
+- Final workflow reason:
+  ```text
+  ENTRY637_STAGED_MIGRATION_FAIL Sherif did not login during bounded window
+  ```
+- This means no **successful** Sherif login reached the Backend during the entire bounded window. It does not prove whether a browser-side attempt was made; if the user saw an error, capture that error rather than opening another blind window.
+- D1 Sherif-row verification was skipped because the row was not created.
+- Final cache-busted Runtime verification after closure:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_ENABLED=true
+  LEGACY_BOOTSTRAP=false
+  LEGACY_SESSION_ENROLL=false
+  NATIVE_ONLY=true
+  D1_AUTH_USERS=5
+  D1_NATIVE_READY_USERS=5
+  MUST_CHANGE=0
+  PLAINTEXT_STORED=false
+  BACKEND_BRIDGE=false
+  ```
+- No password, token, password hash, or session secret was read or logged.
+- No guessed Sherif role/screens row was inserted.
+- EasyStore was not touched. Accounting remained READONLY and was not modified by this employee-auth step.
+- Current truth:
+  ```ini
+  ENTRY637_ATTEMPT_1=FAIL_NO_SHERIF_LOGIN
+  ENTRY637_ATTEMPT_2=FAIL_NO_SHERIF_LOGIN
+  ENTRY637_ATTEMPT_3=FAIL_NO_SUCCESSFUL_SHERIF_LOGIN
+  ENTRY637_STAGED_WINDOW_MECHANISM=PROVEN_VALID
+  ENTRY637_HARDENING_RESTORED=PASS
+  SHERIF_NATIVE_READY=NO
+  D1_NATIVE_READY=5/5
+  GLOBAL_NATIVE_AUTH=OFF
+  BACKEND_BRIDGE=OFF
+  ACCOUNTING=READONLY
+  ```
+- Next action is not another blind bounded window. First obtain the exact browser/login result from Sherif (success screen or error text/screenshot). If the browser login failed, diagnose that failure while keeping Runtime hardened; only reopen a bounded window after the specific failure cause is resolved.
+
+
+#### Entry637 — Post-login report verification; Sherif still not Native-ready
+- Owner reported that Sherif had entered the platform after Attempt 3.
+- Runtime was verified immediately after that report:
+  ```ini
+  NATIVE_ONLY=true
+  LEGACY_BOOTSTRAP=false
+  LEGACY_SESSION_ENROLL=false
+  BACKEND_BRIDGE=false
+  D1_AUTH_USERS=5
+  D1_NATIVE_READY_USERS=5
+  PLAINTEXT_STORED=false
+  ```
+- No Auth workflow/window was active at verification time.
+- The existing safe Native-user-shape read-only workflow was re-run:
+  - workflow `.github/workflows/trendos-entry637-native-user-shape-readonly.yml`;
+  - Run `37496559329`, run_attempt = 2;
+  - Job `112455040953`;
+  - conclusion = SUCCESS.
+- The read-only audit returned exactly five Native rows:
+  ```text
+  جابر
+  رحمه
+  ريفان
+  ضياء
+  وائل
+  ```
+- No row for `شريف` exists in D1.
+- No password hash or session token was read.
+- Therefore the reported platform entry was not a successful fresh Bootstrap migration event.
+- Current truth:
+  ```ini
+  ENTRY637_POST_LOGIN_REPORT_NATIVE_ROW=ABSENT
+  SHERIF_NATIVE_READY=NO
+  D1_NATIVE_READY=5/5
+  HARDENING_RESTORED=PASS
+  BACKEND_BRIDGE=OFF
+  GLOBAL_NATIVE_AUTH=OFF
+  ```
+- Next safe action: Sherif must fully log out / close the old authenticated tab first. Only after that should one new bounded window be opened, followed by a fresh login during that live window. Do not count an already-authenticated platform session as migration proof.
+
+
+#### Entry637 — Attempt 4 fresh-login window failed safely
+- بعد إثبات أن الدخول السابق لم ينشئ صفًا Native، تم اشتراط Logout كامل قبل المحاولة التالية.
+- Run: `37512561162`, run_attempt = 2.
+- Job: `112458240473`.
+- Preflight: `ENTRY637_STAGED_WINDOW_PREFLIGHT=PASS`, `ENTRY637_STAGED_CODE_ETAG_MATCH=PASS`, `ENTRY637_WINDOW_OPEN=PASS`.
+- النافذة فتحت عند 2026-10-06T19:24:41Z.
+- كل الـ60 polls بقيت `USERS=5 READY=5`.
+- `ENTRY637_WINDOW_CLOSED=PASS` عند 2026-10-06T19:35:10Z.
+- النهاية: `Sherif did not login during bounded window`.
+- رسالة `الحساب لم يكتمل نقله إلى تسجيل الدخول السحابي.` تم تتبعها إلى fail-closed Native login branch في `cloudflare-d1/src/employee-auth-native-v1.mjs`: تظهر لمستخدم غير migrated عندما Bootstrap غير متاح / Native-only مفعّل، وبالتالي المحاولة وصلت بعد إغلاق النافذة وليست دليل password rejection.
+- Runtime رجع للحالة المقفولة بعد الإغلاق.
+- `ENTRY637_ATTEMPT_4=FAIL_NO_SHERIF_LOGIN`
+- `HARDENING_RESTORED=PASS`
+- `SHERIF_NATIVE_READY=NO`
+- `D1_NATIVE_READY=5/5`
+
+
+#### Entry637 — Attempt 5 PASS; Sherif completed Native migration
+- Run: `37512561162`, run_attempt = 3.
+- Job: `112464374923`.
+- Workflow conclusion: `SUCCESS`.
+- Window opened: 2026-10-06T19:38:48Z.
+- Polls 1–5: `USERS=5 READY=5`.
+- Poll 6: `USERS=6 READY=6`.
+- `ENTRY637_SHERIF_BOOTSTRAP_OBSERVED=YES`
+- `ENTRY637_WINDOW_CLOSED=PASS`
+- `ENTRY637_HARDENING_RESTORED=PASS`
+- `ENTRY637_NATIVE_READY=6_OF_6`
+- `ENTRY637_BOUNDED_MIGRATION=PASS`
+- `ENTRY637_SHERIF_D1_ROW=PASS`
+- Safe row shape: `USERNAME_KEY=شريف`, `ROLE=service`, `DEPARTMENT=فنيل`, `SCREENS=["service",""]`.
+- `ENTRY637_SHERIF_PASSWORD_HASH_LOGGED=NO`.
+- Final Runtime: `NATIVE_ONLY=true`, `LEGACY_BOOTSTRAP=false`, `LEGACY_SESSION_ENROLL=false`, `D1_AUTH_USERS=6`, `D1_NATIVE_READY_USERS=6`, `PLAINTEXT_STORED=false`, `BACKEND_BRIDGE=false`.
+- No manual D1 user insertion was used.
+- No password, raw token, password hash, or session secret was recorded.
+- Accounting remained READONLY; EasyStore was not mutated by this Auth migration.
+- `ENTRY637_FINAL=PASS_6_OF_6`
+- `SHERIF_NATIVE_READY=YES`
+- `GLOBAL_NATIVE_AUTH=OFF`
+- Detailed evidence: `docs/trendos/staging/ENTRY637_FINAL_SUCCESS_20261006.md`.
+
+
+#### Entry638 — Post-Entry637 Native readiness / completeness gate
+- Re-audit performed after Entry637 success; Entry636 remains historical evidence of the previous gap.
+- Public Runtime: `D1_AUTH_USERS=6`, `D1_NATIVE_READY_USERS=6`, `NATIVE_ONLY=true`, `LEGACY_BOOTSTRAP=false`, `LEGACY_SESSION_ENROLL=false`, `BACKEND_BRIDGE=false`, `PLAINTEXT_STORED=false`.
+- Safe source-side completeness re-audit was performed without exporting password/Token values into repository documentation.
+- Completeness gate result: no unresolved canonical active Native gap remains after the sixth identity migration.
+- Front
