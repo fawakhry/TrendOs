@@ -38,16 +38,16 @@
     "entry_number_count": 66,
     "entry_heading_count": 58,
     "mention_only_count": 8,
-    "explicitly_mentioned_in_current_catalog": 23,
-    "unmentioned_by_exact_entry_label_in_current_catalog": 43,
+    "explicitly_mentioned_in_current_catalog": 24,
+    "unmentioned_by_exact_entry_label_in_current_catalog": 42,
     "reconciled_entry_count": 0,
     "unreconciled_entry_count": 66,
     "meaning": "No entry has been conclusively classified or assigned to a verified current catalog chapter in this audit. Explicit mention is NOT reconciliation.",
-    "historical_entry_heading_sections_migrated_exact_count": 19,
+    "historical_entry_heading_sections_migrated_exact_count": 20,
     "initial_entry_heading_count": 58,
     "original_snapshot_reconciled_count": 0,
-    "migration_progress_note": "22 exact historical transfers through Entry622, with Entry615 held privacy and Entry619 archive-block reconciliation pending. 66 original Entry IDs unreconciled.",
-    "total_migration_units_exact_verified": 22,
+    "migration_progress_note": "23 verified historical transfers through Entry623, with Entry615 privacy review and Entry619 archived non-entry block reconciliation pending; 66 IDs remain open.",
+    "total_migration_units_exact_verified": 23,
     "non_entry_historical_migration_units_exact_verified": 3
   },
   "book_policy": {
@@ -1863,12 +1863,38 @@
       "source_first_line": 3603,
       "source_heading_line": 3603,
       "mention_count_in_master": 18,
-      "explicit_catalog_mention": false,
-      "lifecycle_classification": "UNKNOWN_NEEDS_SOURCE_AND_RUNTIME_REVIEW",
+      "explicit_catalog_mention": true,
+      "lifecycle_classification": "HISTORICAL_NATIVE_AUTH_ONE_EMPLOYEE_CANARY_REQUALIFICATION",
       "mapping_to_canonical_catalog_chapter": null,
       "destination_project": null,
-      "reconciliation_status": "OPEN",
-      "source_scope": "ENTRY_HEADING_IN_MASTER"
+      "reconciliation_status": "PARTIAL_VERBATIM_SECTION_MIGRATED_REFERENCES_OPEN",
+      "source_scope": "ENTRY_HEADING_IN_MASTER",
+      "section_migration": {
+        "unit": "023",
+        "scope": "ENTRY_HEADING",
+        "group_entry_ids": [
+          623
+        ],
+        "status": "COPY_VERIFIED_OLD_SECTION_REMOVED",
+        "source_book": "TrendOS_MASTER_BOOK.md",
+        "source_blob_sha": "83d8c743a6ad1173890a53dfb53dd447d514fb58",
+        "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+        "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+        "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "destination_appendix": "و-٥",
+        "copy_commits": [
+          "48388199cb7ef9532307981fd15a4006a440780b",
+          "e2568963c4c0b4815a5ec2406c99c61932ca26f6",
+          "5c0b0698db086aa5303601d625449f62edddc7bf"
+        ],
+        "remove_commit": "79160f9ba1f74fe89ed56fea92190fb6683606f6",
+        "text_characters": 28807,
+        "exact_match": "PASS",
+        "classification": "HISTORICAL",
+        "date": "2026-10-17",
+        "remaining_cross_references": "NOT_AUDITED",
+        "notes": "Three-part exact historical staged Native Auth canary record. Past approvals and production observations not current."
+      }
     },
     {
       "entry_id": 624,
@@ -2298,12 +2324,12 @@
   ],
   "latest_review": {
     "date": "2026-10-17",
-    "head_before_crosswalk_commit": "e7152a7bcf72370022a7aeb255bcd17c41248be6",
-    "active_master_blob_sha": "83d8c743a6ad1173890a53dfb53dd447d514fb58",
-    "new_catalog_blob_sha": "df31dd0a586fe25d705a167264b42bdfc4a0ba00",
+    "head_before_crosswalk_commit": "79160f9ba1f74fe89ed56fea92190fb6683606f6",
+    "active_master_blob_sha": "61a21c3c1cac439143d1a548f6193bb12b844136",
+    "new_catalog_blob_sha": "cada9b0dc9f554036f2fc14d98b8129c4dddcdeb",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "22 verified historical transfers; SERVER-61–68 preserved, no Production mutation, entries 615 & 619 still in active old master."
+    "notes": "23 exact transfers; Entry623 3 chunks verified; 615 and 619 untouched; SERVER-68 retained; zero runtime mutation."
   },
   "non_entry_section_migrations": [
     {
