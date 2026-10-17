@@ -176,6 +176,7 @@ export function designReadinessEvidenceCandidatesV1(input={}){
         versionId:x.versionId,
         reason:x.reason,
         sourceClockInvalid:x.sourceClockInvalid,
+        preflightResult:x.preflightResult,
         approvalGate:x.approvalGate,
         approvalState:x.approvalState,
         approvalEvidenceRef:x.approvalEvidenceRef,

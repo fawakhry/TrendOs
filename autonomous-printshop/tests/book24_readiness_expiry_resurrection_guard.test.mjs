@@ -105,11 +105,17 @@ test('BOOK24: valid most-recent READY still permits shadow-only recommendation',
   assert.equal(x.reality.ordinary.length,1);
   assert.equal(x.recommendation.recommended.lineId,'FAKE-L1');
 });
-test('BOOK24: same-millisecond evidence keeps deterministic larger evidence ID',()=>{
-  const a=event('MACHINE','READY',now-1000,now+10000,'a'),
-    b=event('MACHINE','BLOCKED',now-1000,now+10000,'b');
-  assert.equal(latestReadinessEvidenceV1([b,a],now).get('FAKE-L1::MACHINE').state,'BLOCKED');
-  assert.equal(latestReadinessEvidenceV1([a,b],now).get('FAKE-L1::MACHINE').state,'BLOCKED');
+test('BOOK24+AP118: equal-time conflicting facts fail closed instead of lexical READY tie-break',()=>{
+  const a=event('MACHINE','READY',now-1000,now+10000,'z-ready'),
+    b=event('MACHINE','BLOCKED',now-1000,now+10000,'a-blocked');
+  // Printshop AP-118 establishes stricter ambiguity semantics than this
+  // original BOOK24 test. Preserve the case; strengthen the expected safety.
+  for(const pair of [[b,a],[a,b]]){
+    const last=latestReadinessEvidenceV1(pair,now).get('FAKE-L1::MACHINE');
+    assert.equal(last.state,'UNKNOWN');
+    assert.equal(last.value,null);
+    assert.equal(last.ambiguousSameInstant,true);
+  }
 });
 test('BOOK24: machine READY observation in future is ignored despite otherwise valid TTL',()=>{
   const result=machineCandidates([mapping()],[

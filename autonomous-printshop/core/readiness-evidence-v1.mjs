@@ -20,8 +20,12 @@ function evidenceValue(state){
 }
 
 export function latestReadinessEvidenceV1(events=[],nowMs=Date.now()){
+  const now=Number(nowMs);
+  if(!Number.isFinite(now)||now<=0) return new Map();
   const latest=new Map();
+  const invalidTimelineKeys=new Set();
   for(const raw of Array.isArray(events)?events:[]){
+    if(!raw||typeof raw!=='object') continue;
     const lineId=text(raw.lineId ?? raw.line_id);
     const kind=upper(raw.evidenceKind ?? raw.evidence_kind ?? raw.kind);
     const state=upper(raw.evidenceState ?? raw.evidence_state ?? raw.state);
@@ -29,42 +33,56 @@ export function latestReadinessEvidenceV1(events=[],nowMs=Date.now()){
     const expiresRaw=raw.expiresAtMs ?? raw.expires_at_ms;
     const expiresAtMs=expiresRaw==null||expiresRaw===''?null:Number(expiresRaw);
     if(!lineId||!READINESS_KINDS.includes(kind)) continue;
-    if(!['READY','BLOCKED','UNKNOWN'].includes(state)) continue;
-    // Select the latest event before validating expiry/clock skew; future
-    // timestamps also act as tombstones rather than reviving older READY.
-    if(!Number.isFinite(observedAtMs)||observedAtMs<=0) continue;
-
     const key=lineId+'::'+kind;
+    // Source-only D1 adapter attaches a per-line/kind window flag:
+    // the latest ranked row alone cannot reveal a malformed older timestamp.
+    if(raw.invalidTimeInHistory===true || raw.invalid_time_in_history===true)
+      invalidTimelineKeys.add(key);
+    if(!Number.isSafeInteger(observedAtMs)||observedAtMs<=0){
+      // An undatable event cannot be ordered against existing READY.
+      // Fail closed for the whole line/kind, not by ignoring the event.
+      invalidTimelineKeys.add(key);
+      continue;
+    }
+    // Select by event time FIRST. Never revive an older READY after a newer
+    // expired/invalid BLOCKED or UNKNOWN fact.
     const current=latest.get(key);
-    if(!current || observedAtMs>current.observedAtMs || (
-      observedAtMs===current.observedAtMs &&
-      text(raw.evidenceId ?? raw.evidence_id).localeCompare(current.evidenceId)>0
-    )){
+    const evidenceId=text(raw.evidenceId ?? raw.evidence_id);
+    if(!current || observedAtMs>current.observedAtMs){
+      const knownState=['READY','BLOCKED','UNKNOWN'].includes(state);
       latest.set(key,{
-        evidenceId:text(raw.evidenceId ?? raw.evidence_id),
-        lineId,
-        kind,
-        state,
-        value:evidenceValue(state),
+        evidenceId,lineId,kind,
+        state:knownState?state:'UNKNOWN',
+        value:knownState?evidenceValue(state):null,
         sourceKind:upper(raw.sourceKind ?? raw.source_kind),
         sourceRef:text(raw.sourceRef ?? raw.source_ref),
         sourceVersion:text(raw.sourceVersion ?? raw.source_version),
         confidence:Number(raw.confidence ?? 1),
-        observedAtMs,
-        expiresAtMs
+        observedAtMs,expiresAtMs
+      });
+    }else if(observedAtMs===current.observedAtMs){
+      // Two facts at the same timestamp cannot establish a trustworthy
+      // latest revision ordering. Keep UNKNOWN even if one claims READY,
+      // regardless of evidence IDs or iteration order. A strictly later
+      // event can resolve this ambiguity; an older event cannot.
+      latest.set(key,{
+        ...current,state:'UNKNOWN',value:null,ambiguousSameInstant:true
       });
     }
   }
-  // Expired/invalid latest observation is a tombstone for this projection:
-  // do not fall back to an older READY (or BLOCKED) event for the same line/kind.
-  for(const [key,entry] of latest){
-    if(entry.observedAtMs>Number(nowMs) ||
-       (entry.expiresAtMs!=null &&
-       (!Number.isFinite(entry.expiresAtMs) ||
-        entry.expiresAtMs<=Number(nowMs) ||
-        entry.expiresAtMs<=entry.observedAtMs))){
-      latest.delete(key);
-    }
+  // Invalid timestamps cannot be sorted at all, so no remaining same-line
+  // event may qualify this kind. This is stricter than a newer-valid reset.
+  for(const key of invalidTimelineKeys) latest.delete(key);
+  // A newer future-dated, malformed or expired record blocks older evidence.
+  // Its kind becomes UNKNOWN; this projection cannot authorize dispatch.
+  for(const [key,record] of latest){
+    if(record.observedAtMs>now || (
+      record.expiresAtMs!=null && (
+        !Number.isFinite(record.expiresAtMs) ||
+        record.expiresAtMs<=record.observedAtMs ||
+        record.expiresAtMs<=now
+      )
+    )) latest.delete(key);
   }
   return latest;
 }
