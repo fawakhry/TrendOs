@@ -5302,3 +5302,51 @@ NEXT_ACTION=OWNER_MANUAL_CLOUDFLARE_RUNTIME_PREP
 
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY632 -->
+
+---
+
+## الملحق التاريخي و-١٣ — Entry633 / Native username canonicalization
+
+> **HISTORICAL; NOT CURRENT PRODUCTION VERIFICATION.** تسجيل تاريخي لتوحيد اسم المستخدم، لا تفويض لتعديل هويات Production.
+> [Source](https://github.com/fawakhry/TrendOs/blob/1392a1b2a586d3cb6600b939b632ac86b7fa3437/TrendOS_MASTER_BOOK.md) blob `e654f66f6c13b6093ef28ccb13496c0a77d3a036`; [Archive](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md) blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY633 -->
+### Entry633 — Native username canonicalization PASS
+- Before retiring legacy Auth bootstrap, D1 identity rows were audited read-only.
+- D1 contains exactly five Native-ready identity groups:
+  ```ini
+  DIAA=ضياء
+  WAEL=وائل
+  JABER=جابر
+  RAHMA=رحمه
+  REVAN=ريفان
+  ```
+- Read-only identity audit:
+  - `.github/workflows/trendos-entry633-auth-alias-readonly-audit.yml`
+  - Run `37489148664` = SUCCESS.
+- Exact D1 key classification:
+  - `.github/workflows/trendos-entry633-auth-native-key-classification.yml`
+  - Run `37489375899` = SUCCESS.
+- Dispatcher canonicalization maps known aliases to those exact five keys before all Native employee routes.
+- Repo CI:
+  - `.github/workflows/trendos-entry633-native-username-canonicalization-ci.yml`
+  - Run `37489882275` = SUCCESS.
+- Controlled frontend deployment:
+  - `.github/workflows/trendos-entry633-native-alias-frontend-controlled.yml`
+  - Run `37490159993`;
+  - Job `112360466601`;
+  - conclusion = SUCCESS;
+  - frontend version `9f1ea548-ff16-4360-a16e-fd225e5e112b`.
+- Live proof used the known alias `diaa` with the qualification credential and verified:
+  ```ini
+  diaa -> ضياء
+  AUTH_SOURCE=d1-native-employee-v1
+  BRIDGE_CALLS=0
+  LOGOUT=PASS
+  ```
+- No API deploy or Auth flag change occurred in Entry633.
+- Entry634 target: disable `TRENDOS_EMPLOYEE_AUTH_LEGACY_BOOTSTRAP_V1_ENABLED` only, while keeping `NATIVE_ONLY=false` for a separate later gate.
+
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY633 -->
