@@ -9,7 +9,6 @@ const VALID_OWNERS=['WORK_QUEUE_V1','OPERATOR_TASK_V2','D1','NONE'];
 const safe=(x)=>String(x==null?'':x).trim();
 const up=(x)=>safe(x).toUpperCase();
 const on=(x)=>x===true;
-function unique(xs){return [...new Set(xs)];}
 function nonNegInt(v){return Number.isSafeInteger(v)&&v>=0;}
 function validFingerprint(s){
   // Fingerprint is a non-secret, manually redacted deployment reference.
@@ -30,7 +29,13 @@ export function qualifyBook24TaskWriterHandoffV1(input={}){
   if(snapshot.ownerApprovalForHandoff!==true)add('OWNER_HANDOFF_APPROVAL_MISSING');
   if(!VALID_OWNERS.includes(declaredOwner)||declaredOwner==='NONE')
     add('SELECTED_TASK_WRITER_INVALID_OR_NONE');
-  if(projects.length!==LANES.length||unique(projects.map(x=>up(x&&x.lane))).length!==LANES.length)
+  // A count of two UNIQUE lane names is not proof that the two REQUIRED
+  // writers were inventoried. Unknown names previously skipped both loops
+  // and could incorrectly return configurationConsistent=true.
+  const laneIds=projects.map(x=>up(x&&x.lane));
+  if(projects.length!==LANES.length ||
+     LANES.some(lane=>laneIds.filter(id=>id===lane).length!==1) ||
+     laneIds.some(id=>!LANES.includes(id)))
     add('SCRIPT_LANE_INVENTORY_NOT_EXACT');
   const shared=[];
   for(const lane of LANES){
