@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {readFile} from 'node:fs/promises';
+import {request as rawHttpRequest} from 'node:http';
 import {startPilot} from '../tools/ops-pilot-local-v1/server.mjs';
 
 await test('Ops pilot local real HTTP — synthetic orders + original manager UI, finance OFF',async t=>{
@@ -48,8 +49,14 @@ await test('Ops pilot local real HTTP — synthetic orders + original manager UI
   await t.test('03 unauthorized, forged external Host and remote Origin are denied',async()=>{
     assert.equal((await request('/api/orders','GET',undefined,'bad-token')).code,401);
     assert.equal((await request('/api/orders','POST',{product:'مج',department:'الطباعة'},s.token,'https://production.invalid')).code,403);
-    const bad=await raw('/api/orders',{headers:{host:'evil.example','x-pilot-token':s.token}});
-    assert.equal(bad.status,403);
+    // fetch/undici normalizes the Host header; use real node:http here to
+    // deliberately send an invalid Host over an actual loopback TCP socket.
+    const badHost=await new Promise((done,fail)=>{
+      const req=rawHttpRequest({hostname:'127.0.0.1',port:p.port,path:'/api/orders',headers:{Host:'evil.example','x-pilot-token':s.token}},res=>{
+        res.resume();res.on('end',()=>done(res.statusCode));
+      });req.on('error',fail);req.end();
+    });
+    assert.equal(badHost,403);
   });
   await t.test('04 user-provided identity, financial amounts and arbitrary fields rejected',async()=>{
     for(const extra of [
