@@ -6386,4 +6386,273 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
     FRONTEND_DEPLOY=NO
     APPS_SCRIPT_TOUCHED=NO
     ```
-- Immediate workaround before the Worker fix is deployed: a fresh employee logout/login creates a new 5-minute shadow 
+- Immediate workaround before the Worker fix is deployed: a fresh employee logout/login creates a new 5-minute shadow and restores the current browser temporarily. This is not a permanent fix.
+- 0013 remains paused until the Production API worker carries the qualified 12-hour shadow fix and the affected employee screen is rechecked.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615A_SHADOW_TTL_FIX_QUALIFIED_WAITING_PRODUCTION_API_DEPLOY
+  RUN_ID=37195215253
+  JOB_ID=111415550894
+  COMMIT=891ab6b06f80b5d451cc84758c2a8aafae602f60
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=NOT_APPLIED
+  Production_API_fix_deployed=NO
+  NEXT_ACTION=OWNER_DEPLOY_QUALIFIED_TRENDOS_D1_API_SHADOW_TTL_FIX_THEN_RELOGIN_AND_VERIFY_BEFORE_0013
+  ```
+- Owner completed the isolated Production API hotfix deployment from the exact hotfix package.
+- Cloudflare deployment verification from Wrangler:
+  ```ini
+  PREVIOUS_VERSION=ce156662-a698-47fc-b73c-dfd4657be9f5
+  NEW_VERSION=62cad7e7-6c4d-4f56-9b37-849f2e7256c7
+  TRAFFIC=100%
+  CREATED=2026-10-04T10:46:45.432Z
+  AUTHOR=trendmall.contact@gmail.com
+  ```
+- Immediate public postflight after deployment:
+  ```ini
+  EMPLOYEE_AUTH_MODE=OFF
+  EMPLOYEE_AUTH_ENV_ENABLED=NO
+  NATIVE_AUTH_USERS=0
+  NATIVE_READY_USERS=0
+  LEGACY_BRIDGE_ENABLED=NO
+  LEGACY_BRIDGE_SECRET_CONFIGURED=NO
+  ORDER_CREATE_MODE=GENERAL
+  DUPLICATE_GUARD_READY=YES
+  CUSTOMER_WRITE_MODE=GENERAL
+  CUSTOMER_COUNT_RUNTIME=251
+  LINE_RUNTIME_SCHEMA=READY
+  LINE_RUNTIME_WRITE_MODE=cloud-native+legacy-overlay
+  ```
+- No 0013 migration has been applied yet. Entry615 remains paused until a browser employee session survives >5 minutes and a legacy employee business action succeeds.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615A_HOTFIX_DEPLOYED_WAITING_6_MINUTE_BROWSER_PROOF
+  PRODUCTION_API_VERSION=62cad7e7-6c4d-4f56-9b37-849f2e7256c7
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=NOT_APPLIED
+  Employee_Auth=OFF
+  Employee_Bridge=OFF
+  NEXT_ACTION=EMPLOYEE_LOGOUT_LOGIN_WAIT_OVER_5_MINUTES_THEN_RUN_BUSINESS_ACTION
+  ```
+
+- To prevent accidental publication of unrelated Zero-Google repo work, a minimal Production hotfix branch was created from the exact qualified API source base used for the live Entry599/600 target:
+  ```ini
+  HOTFIX_BRANCH=hotfix/entry615a-cloud-auth-shadow-12h-20261004
+  HOTFIX_BASE=c491d3ed9b7e87c5d5f7d7ee0a57e02c3e530281
+  HOTFIX_HEAD=2bcba927946275c21eb4ad14ec997a96cbcab583
+  AHEAD_BY=2
+  BEHIND_BY=0
+  CHANGED_FILES=2
+  ```
+- Exact hotfix diff:
+  1. `cloudflare-d1/src/cloud-auth-shadow-v1.mjs`: 300/900 sec → 43200/43200 sec.
+  2. `cloudflare-d1/wrangler.toml`: `CLOUD_AUTH_SHADOW_TTL_SECONDS=300` → `43200`.
+- No migrations, Orders code, Customers code, frontend, Apps Script, Native Auth flags, Bridge flags, or Zero-Google family handlers are included in the hotfix diff.
+- Hotfix file content SHAs are identical to the CI-qualified candidate copies:
+  ```ini
+  cloud-auth-shadow-v1.mjs=96d1a8ea0925d8594ead3a282757d7f8da723a63
+  wrangler.toml=7ade68ce256f82f72cb2db14ab8e115f82c1106a
+  ```
+- Production API remains unchanged until owner explicitly deploys this hotfix.
+
+
+
+- Owner elected to continue migration 0013 before completing the >5 minute browser proof in order to save time.
+- The Entry615A session hotfix remains live on Production API version `62cad7e7-6c4d-4f56-9b37-849f2e7256c7`; browser proof is deferred, not waived.
+- If `EMPLOYEE_SESSION_SHADOW_REQUIRED` reappears, pause migrations and return to Entry615A diagnostics immediately.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_RESUMED_WITH_SESSION_BROWSER_PROOF_DEFERRED
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=NEXT
+  SESSION_HOTFIX_VERSION=62cad7e7-6c4d-4f56-9b37-849f2e7256c7
+  SESSION_BROWSER_PROOF=DEFERRED
+  NEXT_ACTION=APPLY_0013_EMPLOYEE_CONTENT_ZERO_GOOGLE_V1_KEEP_OFF
+  ```
+
+
+- Owner manual D1 migration 0013:
+  - Cloudflare Console: **This query successfully executed.**
+  - verification:
+    ```ini
+    singleton=1
+    marker=ENTRY614_EMPLOYEE_CONTENT_V1
+    mode=OFF
+    policy_epoch=1
+    ```
+  - therefore 0013 schema is applied and its control remains safely OFF.
+  - 0012 remains applied/OFF; no family cutover or backfill yet.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_MANUAL_0013_APPLIED_PASS
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=APPLIED_PASS
+  EMPLOYEE_OPS_MODE=OFF
+  EMPLOYEE_CONTENT_MODE=OFF
+  Production_cutover=NO
+  Backfill_applied=NO
+  NEXT_ACTION=APPLY_0014_EMPLOYEE_COMMS_ZERO_GOOGLE_V1_KEEP_OFF
+  ```
+
+
+- Owner manual D1 migration 0014:
+  - Cloudflare Console: **This query successfully executed.**
+  - verification:
+    ```ini
+    singleton=1
+    marker=ENTRY614_EMPLOYEE_COMMS_V1
+    mode=OFF
+    policy_epoch=1
+    ```
+  - therefore 0014 schema is applied and its control remains safely OFF.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_MANUAL_0014_APPLIED_PASS
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=APPLIED_PASS
+  MIGRATION_0014=APPLIED_PASS
+  EMPLOYEE_OPS_MODE=OFF
+  EMPLOYEE_CONTENT_MODE=OFF
+  EMPLOYEE_COMMS_MODE=OFF
+  Production_cutover=NO
+  Backfill_applied=NO
+  NEXT_ACTION=APPLY_0015_EMPLOYEE_ACCOUNTING_ZERO_GOOGLE_V1_KEEP_OFF
+  ```
+
+
+- Owner manual D1 migration 0015 Run1:
+  - Cloudflare D1 Console returned `incomplete input: SQLITE_ERROR`.
+  - visible truncation occurred while parsing `CREATE TABLE employee_accounting_dept_lines_v1`, around the `approved_by` column.
+  - therefore 0015 is **PARTIAL / NOT COMPLETE**. Earlier complete statements may already exist; later statements must not be assumed applied.
+  - no cutover/backfill occurred and Accounting control, if created, remains default-OFF by schema.
+- Recovery rule:
+  - do not DROP any partially created objects.
+  - resume with smaller idempotent chunks using `CREATE ... IF NOT EXISTS` / `INSERT OR IGNORE`.
+  - verify full accounting table set and OFF control only after all chunks execute.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_MANUAL_0015_RUN1_PARTIAL_SQLITE_INCOMPLETE_INPUT
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=APPLIED_PASS
+  MIGRATION_0014=APPLIED_PASS
+  MIGRATION_0015=PARTIAL
+  EMPLOYEE_ACCOUNTING_CUTOVER=NO
+  Backfill_applied=NO
+  NEXT_ACTION=RESUME_0015_IN_SMALL_IDEMPOTENT_D1_CONSOLE_CHUNKS
+  ```
+
+
+- Owner manual D1 migration 0015 completed successfully using idempotent chunks A→E after the first large Console paste truncated.
+- Final verification:
+  ```ini
+  singleton=1
+  marker=ENTRY614_ACCOUNTING_V1
+  mode=OFF
+  next_invoice_number=1
+  policy_epoch=1
+  ```
+- therefore Accounting schema is fully applied and control remains safely OFF.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_MANUAL_0015_APPLIED_PASS
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=APPLIED_PASS
+  MIGRATION_0014=APPLIED_PASS
+  MIGRATION_0015=APPLIED_PASS
+  EMPLOYEE_OPS_MODE=OFF
+  EMPLOYEE_CONTENT_MODE=OFF
+  EMPLOYEE_COMMS_MODE=OFF
+  EMPLOYEE_ACCOUNTING_MODE=OFF
+  Production_cutover=NO
+  Backfill_applied=NO
+  NEXT_ACTION=APPLY_0016_EMPLOYEE_CORE_ZERO_GOOGLE_V1_KEEP_OFF
+  ```
+
+
+- Owner manual D1 migration 0016:
+  - Cloudflare Console: **This query successfully executed.**
+  - verification:
+    ```ini
+    singleton=1
+    marker=ENTRY614_EMPLOYEE_CORE_V1
+    mode=OFF
+    policy_epoch=0
+    data_version=1
+    ```
+  - therefore 0016 core schema is applied and remains safely OFF.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_MANUAL_0016_APPLIED_PASS
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=APPLIED_PASS
+  MIGRATION_0014=APPLIED_PASS
+  MIGRATION_0015=APPLIED_PASS
+  MIGRATION_0016=APPLIED_PASS
+  EMPLOYEE_CORE_MODE=OFF
+  Production_cutover=NO
+  Backfill_applied=NO
+  NEXT_ACTION=APPLY_0017_EMPLOYEE_CORE_CURRENT_ORDERS_V1
+  ```
+
+
+- Owner manual D1 migration 0017:
+  - Cloudflare Console: **This query successfully executed.**
+  - verification before backfill:
+    ```ini
+    employee_core_orders_v1=0
+    employee_core_lines_v1=0
+    ```
+  - therefore current-order authority tables are present and empty as expected before Entry615 backfill.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_MANUAL_0017_APPLIED_PASS
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=APPLIED_PASS
+  MIGRATION_0014=APPLIED_PASS
+  MIGRATION_0015=APPLIED_PASS
+  MIGRATION_0016=APPLIED_PASS
+  MIGRATION_0017=APPLIED_PASS
+  BACKFILL_APPLIED=NO
+  Production_cutover=NO
+  NEXT_ACTION=APPLY_0018_ZERO_GOOGLE_BACKFILL_RETENTION_V1
+  ```
+
+
+- Owner manual D1 migration 0018:
+  - Cloudflare Console: **This query successfully executed.**
+  - verification before backfill:
+    ```ini
+    backfill_runs=0
+    retained_rows=0
+    parity_rows=0
+    ```
+- Schema phase is now complete:
+  ```ini
+  MIGRATION_0012=APPLIED_PASS
+  MIGRATION_0013=APPLIED_PASS
+  MIGRATION_0014=APPLIED_PASS
+  MIGRATION_0015=APPLIED_PASS
+  MIGRATION_0016=APPLIED_PASS
+  MIGRATION_0017=APPLIED_PASS
+  MIGRATION_0018=APPLIED_PASS
+  ALL_FAMILY_CONTROLS=OFF
+  BACKFILL_APPLIED=NO
+  Production_cutover=NO
+  ```
+- Large Entry615 backfill must not be pasted into Cloudflare D1 Console because the generated SQL is ~35 MB and the Console already demonstrated truncation on large migration input. Use Wrangler D1 remote file execution instead.
+- التسجيل:
+  ```ini
+  STATUS=ENTRY615_SCHEMA_0012_TO_0018_COMPLETE_WAITING_BACKFILL_APPLY
+  NEXT_ACTION=RUN_ENTRY615_BACKFILL_SQL_VIA_WRANGLER_REMOTE_FILE_THEN_PARITY
+  ```
+
+
+- Fresh read-only Google Sheet snapshot was taken immediately after schema 0012→0018 completed, before any backfill APPLY.
+- Current snapshot:
+  ```ini
+  SNAPSHOT_SHA256=1f9b510723be29eb97932cc7fc95a562c0340873001b3ffea2108bd1a8903b2f
+  RUN_ID=ENTRY615-1F9B510723BE29EB
+  GENERATED_AT=2026-10-04T11:27:51.148814Z
+  CURRENT_ORDERS_SOURCE=222
+  CURRENT_LINES_SOURCE=250
+  CURREN
