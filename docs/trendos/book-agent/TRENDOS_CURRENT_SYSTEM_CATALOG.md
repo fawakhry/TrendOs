@@ -8534,4 +8534,66 @@ Follow-up regression-contract alignment:
 Controlled Production deploy:
 ```ini
 WORKFLOW=TrendOS Entry652 Employee Session Lifecycle Guard Controlled
-RUN=37770
+RUN=37770495211
+RESULT=SUCCESS
+PRE_FRONTEND_VERSION=42872c38-c1c9-4cae-9b93-de562dc9c477
+POST_FRONTEND_VERSION=9699b0d0-8c21-4b5b-92fe-1983219110f6
+PROPAGATION_ATTEMPT=9
+UNRELATED_ASSETS_PRESERVED=PASS
+ROLLBACK_USED=NO
+```
+
+Qualification:
+```ini
+ENTRY651_SESSION_RESTORE_VERIFY_GUARD=PASS
+ENTRY652_EMPLOYEE_SESSION_LIFECYCLE_GUARD=PASS
+ENTRY652_RUNTIME_401_DISPATCH=PASS
+ENTRY533_EMPLOYEE_SESSION_ISOLATION=PASS
+A61_FRONTEND_EMPLOYEE_DISPATCHER=PASS
+ENTRY603_LOGIN_FAST_SURFACE=PASS
+ENTRY649_EMPLOYEE_ANDON_STRUCTURED_REPO=PASS
+
+BOOT_VERIFY=YES
+RUNTIME_401_FORCE_RELOGIN=YES
+SESSION_EPOCH=1
+PERIODIC_REVERIFY=5_MINUTES
+FOCUS_VISIBILITY_REVERIFY=YES
+WRONG_OLD_PASSWORD_401_INVALIDATES=NO
+NATIVE_TOKEN_TO_APPS_SCRIPT=NO
+```
+
+Auth runtime remained unchanged:
+```ini
+AUTH_MODE=NATIVE
+NATIVE_ONLY=true
+USER_COUNT=6
+NATIVE_READY=6
+MUST_CHANGE_COUNT=0
+LEGACY_BOOTSTRAP=false
+LEGACY_SESSION_ENROLL=false
+PLAINTEXT_STORED=false
+AUTH_BACKEND_CHANGED=NO
+PASSWORD_RESET=NO
+BUSINESS_D1_MUTATION=NO
+```
+
+Operational effect:
+- a stale/expired/revoked employee session can no longer keep the main UI half-open;
+- the employee is returned to login once, using the existing current password;
+- future major Auth migrations can invalidate old browser sessions centrally by incrementing the frontend Auth Session Epoch instead of manual cache/session cleanup per workstation.
+
+Current branch HEAD after regression-contract cleanup:
+`e7e4213284eb49dc6da80ccaaee77ef7d85a694f`.
+
+Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NOW GUARDED END-TO-END; STALE OR REJECTED SESSIONS FAIL CLOSED TO RELOGIN WITHOUT PASSWORD RESET OR BUSINESS-DATA MUTATION.**
+
+
+### Shared-source T12 lane guard restoration — 2026-10-08 Cairo / SOURCE_INTEGRATED
+- نشر Accounting A2.13 run37824155255 من1e349332 أعاد CREATE V1 بعد نشر V2 السابق؛ جرى رصد الرجوع أثناء تأهيل تعديل الوصف الاختياري. لا اعتبار لفحص Accounting وحده كفحص CREATE.
+- مصدر Shared candidate أضيفت إليه ملفات T12 الأربعة و0012 واختبارات backend المطابقة لإصلاح V2 المؤهل، مع lease parent0e3d35f0؛ لا تغييرات Accounting/AP/Auth/Content أو frontend في هذا commit.
+- الغرض: عمليات Accounting التي تدمج هذا shared base لاحقًا تحمل حماية customer+department بدل استبدالها بمصدر V1 قديم. سياسة Accounting READONLY37 محفوظة.
+- الحزمة الحية Accounting072bffff أعيد بناؤها byte-for-byte من merge-tree1e349332+0e3d35f0؛ overlay T12 وحده يعطي1d8fb904d48f2d48f2cfcc5b026dba94edddd094344a78af95e94f099d1ea52a ويحفظ Accounting/Core/Comms/Foundation.
+- سجل النشر والفحص الأخير يُحفظ على audit/t12-customer-lane-runtime-20261008؛ هذا commit هو حماية مصدر من reversion، وليس تنفيذ migration جديدة أو تغيير frontend تلقائيًا.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_ENTRY637_TO_652 -->
