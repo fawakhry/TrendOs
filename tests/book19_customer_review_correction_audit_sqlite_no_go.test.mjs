@@ -118,8 +118,8 @@ try{
       ['finance_authorized',1],['delivery_authorized',1],['review_status','ATTESTED']
     ];
     for(const [column,val] of options){
-      assert.throws(()=>db.prepare('INSERT INTO '+tbl+'(request_key,order_id,candidate_customer_id,event_kind,actor_subject,actor_role,evidence_ref,evidence_sha256,'+column+') VALUES(?,?,?,\'PROPOSE\',\'FAKE\',\'admin\',?,?,?)')
-        .run('BOOK19_FAKE_BIT_'+column,'BOOK19_FAKE_ORDER_B','CUS-C000111','FAKE_TEST_DOCUMENT_REF_001',sha,val),/CHECK/);
+      assert.throws(()=>db.prepare('INSERT INTO '+tbl+'(request_key,order_id,candidate_customer_id,event_kind,actor_subject,actor_role,evidence_ref,evidence_sha256,reason,'+column+') VALUES(?,?,?,\'PROPOSE\',\'FAKE\',\'admin\',?,?,?,?)')
+        .run('BOOK19_FAKE_BIT_'+column,'BOOK19_FAKE_ORDER_B','CUS-C000111','FAKE_TEST_DOCUMENT_REF_001',sha,'FAKE_MANUAL_REVIEW_REASON_ONLY',val),/CHECK/);
     }
     assert.equal(count(),3);
   });
