@@ -346,6 +346,60 @@ try{
    assert.equal(r.identityVerified,false);assert.equal(r.deliveryAuthorized,false);
    assert.equal(changes(),n);
  });
+
+ // New revision table is optional for the existing Core preview; minimal
+ // synthetic rows verify owner-only history can NEVER be a finance ID binding.
+ db.exec("CREATE TABLE t12_order_customer_binding_revision_v1(revision_id INTEGER PRIMARY KEY,order_id TEXT NOT NULL,candidate_customer_id TEXT NOT NULL,event_kind TEXT NOT NULL)");
+ db.prepare("INSERT INTO t12_order_customer_binding_revision_v1(revision_id,order_id,candidate_customer_id,event_kind) VALUES(1,? ,?,'PROPOSE')")
+   .run('FAKE_ORDER_ID_MATCH','FAKE_CUSTOMER_LINK_MATCH');
+ db.prepare("INSERT INTO t12_order_customer_binding_revision_v1(revision_id,order_id,candidate_customer_id,event_kind) VALUES(2,? ,?,'PROPOSE')")
+   .run('FAKE_ORDER_REGISTERED','FAKE_CUSTOMER_LINK_TARGET');
+ db.prepare("INSERT INTO t12_order_customer_binding_revision_v1(revision_id,order_id,candidate_customer_id,event_kind) VALUES(3,? ,?,'CORRECT')")
+   .run('FAKE_ORDER_REGISTERED','CUS-C000888');
+ db.prepare("INSERT INTO t12_order_customer_binding_revision_v1(revision_id,order_id,candidate_customer_id,event_kind) VALUES(4,? ,?,'PROPOSE')")
+   .run('FAKE_T12_ORDER','FAKE_CUSTOMER_T12');
+ db.prepare("INSERT INTO t12_order_customer_binding_revision_v1(revision_id,order_id,candidate_customer_id,event_kind) VALUES(5,? ,?,'WITHDRAW')")
+   .run('FAKE_T12_ORDER','FAKE_CUSTOMER_T12');
+ await test('30 owner preview matched revision still does not attest identity or permit finance',async()=>{
+   const n=changes(),r=await send('FAKE_T12_ID_MATCH');
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.orderRevisionCandidateCustomerId,'FAKE_CUSTOMER_LINK_MATCH');
+   assert.equal(r.orderCustomerRevisionStatus,'PROPOSED_UNATTESTED');
+   assert.equal(r.identityVerified,false);assert.equal(r.deliveryAuthorized,false);
+   assert.equal(r.postingAllowed,false);assert.equal(changes(),n);
+ });
+ await test('31 corrected revision after earlier conflicting candidate remains blocked for finance lookup',async()=>{
+   const n=changes(),r=await send('FAKE_T12_REGISTERED');
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.orderRevisionCandidateCustomerId,'CUS-C000888');
+   assert.equal(r.orderCustomerRevisionStatus,'REVISION_HISTORY_CONFLICT');
+   assert.equal(r.status,'REVIEW_REVISION_UNATTESTED_CONFLICT');
+   assert.equal(r.receiptEvidenceStatus,'REVISION_CONFLICT_NO_LEDGER_READ');
+   assert.equal(r.postedCustomerBalance,null);
+   assert.equal(r.identityVerified,false);assert.equal(changes(),n);
+ });
+ await test('32 withdrawn revision cannot imply binding or authorize other customer account reads',async()=>{
+   const n=changes(),r=await send('FAKE_T12_LINE');
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.orderCustomerRevisionStatus,'WITHDRAWN_NO_ACTIVE_REVIEW');
+   assert.equal(r.status,'REVIEW_REVISION_UNATTESTED_CONFLICT');
+   assert.equal(r.postedCustomerBalance,null);
+   assert.equal(r.receiptEvidenceStatus,'REVISION_CONFLICT_NO_LEDGER_READ');
+   assert.equal(r.deliveryAuthorized,false);assert.equal(changes(),n);
+ });
+ await test('33 no revision record is unbound, even if accounting has 1 phone candidate',async()=>{
+   const r=await send('FAKE_T12_EXTERNAL_NUMERIC');
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.orderCustomerRevisionStatus,'NO_REVISIONS');
+   assert.equal(r.identityVerified,false);assert.equal(r.financeRelease,'NO_GO');
+ });
+ db.exec("DROP TABLE t12_order_customer_binding_revision_v1");
+ await test('34 optional revision schema missing is UNKNOWN and does not enable finance access',async()=>{
+   const r=await send('FAKE_T12_LINE');
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.orderCustomerRevisionStatus,'REVISION_SCHEMA_UNAVAILABLE');
+   assert.equal(r.identityVerified,false);assert.equal(r.deliveryAuthorized,false);
+ });
  console.log('BOOK19_DELIVERY_DEBT_RECONCILIATION=SOURCE_ONLY_FAKE_SQLITE');
  console.log('BOOK19_PRODUCTION_WRITE=NO');
  console.log('FINANCE_RELEASE=NO_GO');
