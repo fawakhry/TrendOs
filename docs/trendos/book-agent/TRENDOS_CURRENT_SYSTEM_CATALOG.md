@@ -6948,3 +6948,274 @@ Marketplace؛ supplier network؛ commercial logistics marketplace؛ broader whit
   ```
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY615 -->
+
+---
+
+## الملحق التاريخي و-١٩ — Entries637–652 / Native Auth cutover and printshop integration handoff
+
+> **HISTORICAL / CONTIGUOUS_VERBATIM_HISTORY / NOT_CURRENT_PRODUCTION_PROOF.** هذه الوثيقة تنقل المقطع المتصل من Entry637 إلى Entry652 بما فيه العناوين الفرعية (#### و#####) كما هو حرفيًا. سجلات النجاح والفشل والنشر كانت تاريخية وليست تصريح تشغيل أو إثبات Production الحالي.
+> [Source](https://github.com/fawakhry/TrendOs/blob/4225be5e5a4a14e5d48b9ab005c59c1d4bcc122b/TrendOS_MASTER_BOOK.md) blob `757b99751919f80b096e0638e08411d2b96801a0`; [Archive](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/TrendOS_MASTER_BOOK.md) blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`.
+> COPY on nine ordered chunks with complete archive/source/destination verification before old source removal. All 16 nested Entry IDs recorded in Crosswalk under shared unit037.
+
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_ENTRY637_TO_652 -->
+### Entry637 — Sherif Native migration handoff checkpoint — IN PROGRESS
+- Owner explicitly changed the Entry636 decision and requested: **migrate Sherif and continue**.
+- Important: this Entry637 section is a **handoff checkpoint**, not a completion claim. At the moment of this record, the bounded Sherif migration workflow is still running.
+
+#### Authoritative Sherif facts proven without sensitive credential reads
+- Google login authority source remains:
+  - Spreadsheet `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY`
+  - Spreadsheet ID `1PtsjF4oHfk__R8XheYjqlo3Rt1269rot6Q0hCU9_6bI`
+  - sheet `المستخدمين`
+- Safe columns only were read. Password and Token columns were not read.
+- Sherif row:
+  ```ini
+  USERNAME=شريف
+  DEPARTMENT=فنيل
+  PERMISSION=تشغيل
+  ACTIVE=true
+  LAST_LOGIN=2026-08-27
+  ```
+- The old `role/department/permissions/active` compatibility columns for Sherif are empty, so no role/screen mapping was guessed from Google.
+
+#### Safe D1 user-shape audit
+- Workflow:
+  `.github/workflows/trendos-entry637-native-user-shape-readonly.yml`
+- Commit:
+  `f57943a03c4547d8ef5c5948bac7234f2cd944ff`
+- Run:
+  `37496559329`
+- Result: SUCCESS.
+- The audit read only safe structural fields:
+  `employee_id, username_key, canonical_username, active, role, department, screens_json, must_change, session_version`.
+- No password hash and no session token were read.
+- Existing five Native user shapes:
+  ```text
+  جابر  -> role=laser,   department=ليزر,        screens=["laser",""]
+  رحمه  -> role=service, department=خدمة عملاء, screens=["service",""]
+  ريفان -> role=print,   department=طباعة,       screens=["print","press",""]
+  ضياء  -> role=admin,   department=الادارة,     screens=["service","print","laser","press",""]
+  وائل  -> role=print,   department=طباعة,       screens=["print","press",""]
+  ```
+
+#### Sherif alias/canary frontend preparation
+- Dispatcher aliases added:
+  ```text
+  شريف  -> شريف
+  sherif -> شريف
+  sheriff -> شريف
+  sharif -> شريف
+  ```
+- Alias commit:
+  `e95f4d59dd6b98b445b4cd468d22d5901f061931`
+- Controlled frontend workflow:
+  `.github/workflows/trendos-entry637-sherif-canary-frontend-controlled.yml`
+- Workflow commit:
+  `8858fa8365f67efea7985dd8d2e1cb82503e119b`
+- Run:
+  `37497341136`
+- Job:
+  `112385160615`
+- Result: SUCCESS.
+- New Production frontend version:
+  `697f2afb-87c2-47cc-9889-3e986e7f0863`
+- Post-deploy proof:
+  ```ini
+  SHERIF_CANARY_FRONTEND=PASS
+  SHERIF_PRE_ENROLL_FAIL_CLOSED=PASS
+  BACKEND_NATIVE_ONLY=true
+  BACKEND_BOOTSTRAP=false
+  BACKEND_BRIDGE=false
+  D1_USER_COUNT=5
+  PRODUCTION_BUSINESS_MUTATION=NO
+  ```
+- Live frontend now includes Sherif aliases in the Native canary list.
+- Frontend Global Native Auth remains OFF.
+- Frontend Bridge remains OFF with zero policies.
+
+#### Bounded Sherif bootstrap window — CURRENTLY RUNNING AT HANDOFF
+- Workflow:
+  `.github/workflows/trendos-entry637-sherif-bounded-bootstrap-window.yml`
+- Workflow commit:
+  `7724a0f698c13199a5af72da5e07ab95787ddb08`
+- Run:
+  `37497698732`
+- Job:
+  `112386380610`
+- At handoff:
+  - workflow status = **in_progress**;
+  - `Exact preflight` = SUCCESS;
+  - step `Open bounded window, wait for Sherif, restore hardening` = IN PROGRESS;
+  - D1 row verification step has not run yet.
+- Window design:
+  - maximum internal wait = 600 seconds;
+  - runner timeout = 15 minutes;
+  - temporary settings during the window:
+    ```ini
+    NATIVE_ONLY=false
+    LEGACY_BOOTSTRAP=true
+    LEGACY_SESSION_ENROLL=false
+    BACKEND_BRIDGE=false
+    ```
+  - it polls Auth health every 10 seconds;
+  - success condition = `userCount=6` AND `nativeReadyCount=6`;
+  - on success it restores the exact pre-window version;
+  - on timeout/failure it also attempts emergency restore of the exact pre-window version;
+  - expected hardened restored state:
+    ```ini
+    NATIVE_ONLY=true
+    LEGACY_BOOTSTRAP=false
+    BACKEND_BRIDGE=false
+    ```
+- Runtime truth captured during this handoff while the window is open:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_ENABLED=true
+  LEGACY_BOOTSTRAP=true
+  LEGACY_SESSION_ENROLL=false
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=5
+  D1_NATIVE_READY_USERS=5
+  MUST_CHANGE=0
+  PLAINTEXT_STORED=false
+  BACKEND_BRIDGE=false
+  ```
+- Therefore **Sherif has not yet been proven migrated at this checkpoint**.
+- Do NOT create another bootstrap window or another Sherif migration run while Run `37497698732` is active.
+- The next chat must first inspect Run `37497698732` and Runtime truth:
+  1. if run succeeds, require restored hardening and `6/6`, then inspect the Sherif D1 row proof and continue;
+  2. if it fails or times out, first prove `NATIVE_ONLY=true`, `LEGACY_BOOTSTRAP=false`, Bridge OFF before any retry;
+  3. never leave the temporary bootstrap window open;
+  4. do not read Google password/token columns;
+  5. do not manually insert a guessed Sherif role/screens row while the bounded bootstrap workflow is the active migration mechanism.
+
+#### Current employee migration baseline at handoff
+- Five previously migrated employees remain Native-ready:
+  `ضياء, وائل, جابر, رحمه, ريفان`.
+- Sherif is now selected by frontend canary but not yet proven Native-ready.
+- Global frontend Native Auth is still OFF.
+- Core/Content/Comms are READONLY, Ops GENERAL, Accounting READONLY.
+- EasyStore/Accounting must remain outside this employee migration step.
+- Runtime truth remains higher priority than this checkpoint if any status changes after this commit.
+
+
+#### Entry637 — Bounded Sherif bootstrap attempt 1 failed safely; hardening restored
+- Handoff Run `37497698732`, Job `112386380610` completed with conclusion **FAILURE** after the full bounded wait.
+- Exact preflight remained PASS.
+- The bounded window opened as designed:
+  ```ini
+  NATIVE_ONLY=false
+  LEGACY_BOOTSTRAP=true
+  LEGACY_SESSION_ENROLL=false
+  BACKEND_BRIDGE=false
+  ```
+- All 60 ten-second polls stayed exactly:
+  ```ini
+  D1_AUTH_USERS=5
+  D1_NATIVE_READY_USERS=5
+  ```
+- Therefore no Sherif bootstrap was observed during the 600-second window; no sixth Native user was created.
+- Workflow log recorded:
+  ```ini
+  ENTRY637_WINDOW_CLOSED=PASS
+  ENTRY637_BOUNDED_MIGRATION_FAIL=Sherif did not login during bounded window
+  ```
+- The D1 Sherif-row verification step was skipped because migration did not occur.
+- Immediate external Runtime verification was repeated after propagation and proved hardening is restored:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_ENABLED=true
+  LEGACY_BOOTSTRAP=false
+  LEGACY_SESSION_ENROLL=false
+  NATIVE_ONLY=true
+  D1_AUTH_USERS=5
+  D1_NATIVE_READY_USERS=5
+  MUST_CHANGE=0
+  PLAINTEXT_STORED=false
+  BACKEND_BRIDGE=false
+  ```
+- The first external read taken immediately after job completion briefly still observed the window settings during deployment propagation; a fresh cache-busted read then confirmed the hardened state above. Runtime truth after propagation is authoritative.
+- No password/token/hash/session secret was read or logged.
+- No Accounting/EasyStore mutation occurred.
+- Retry rule:
+  - do not manually insert Sherif or guess role/screens;
+  - do not open another window unless Sherif can perform a real login during that bounded window;
+  - any retry must begin from the proven hardened state above and must again restore hardening on success/failure.
+- Current Entry637 status:
+  ```ini
+  ENTRY637_ATTEMPT_1=FAIL_NO_SHERIF_LOGIN
+  ENTRY637_HARDENING_RESTORED=PASS
+  SHERIF_NATIVE_READY=NO
+  D1_NATIVE_READY=5/5
+  GLOBAL_NATIVE_AUTH=OFF
+  ACCOUNTING=READONLY
+  NEXT_ACTION=RETRY_SAME_BOUNDED_BOOTSTRAP_ONLY_WHEN_SHERIF_REAL_LOGIN_CAN_OCCUR
+  ```
+
+
+#### Entry637 — Runtime drift repaired; bounded Sherif bootstrap attempt 2 failed safely
+- Resume after client/network interruption began from Runtime truth, not from the older checkpoint.
+- Before Attempt 2, a live cache-busted Auth read unexpectedly showed:
+  ```ini
+  LEGACY_BOOTSTRAP=true
+  NATIVE_ONLY=false
+  D1_AUTH_USERS=5
+  D1_NATIVE_READY_USERS=5
+  BACKEND_BRIDGE=false
+  ```
+  while GitHub showed no active or queued workflow run. This was treated as Runtime drift and repaired before any new Sherif window was started.
+- Family boundaries were rechecked first and remained safe for this employee-auth step:
+  ```ini
+  CORE=READONLY
+  CONTENT=READONLY
+  COMMS=READONLY
+  OPS=GENERAL
+  ACCOUNTING=READONLY
+  BACKEND_BRIDGE=false
+  ```
+- Existing hardening paths were reused; no parallel repair workflow was created.
+- Entry634 repair:
+  - Run `37491028261`, attempt 2;
+  - preflight = PASS;
+  - the existing workflow again ended FAILURE because of its known shell `unexpected end of file` after the Cloudflare settings mutation;
+  - Runtime truth nevertheless proved the intended target was active:
+    ```ini
+    LEGACY_BOOTSTRAP=false
+    NATIVE_ONLY=false
+    D1_NATIVE_READY=5/5
+    BACKEND_BRIDGE=false
+    ```
+- Entry635 repair:
+  - Run `37492693215`, attempt 2;
+  - Job `112426615715`;
+  - conclusion = SUCCESS;
+  - Runtime truth after propagation:
+    ```ini
+    LEGACY_BOOTSTRAP=false
+    LEGACY_SESSION_ENROLL=false
+    NATIVE_ONLY=true
+    D1_AUTH_USERS=5
+    D1_NATIVE_READY_USERS=5
+    PLAINTEXT_STORED=false
+    BACKEND_BRIDGE=false
+    ```
+- Only after that hardened baseline was re-proven, the existing Entry637 failed run was retried; no duplicate workflow/window was created.
+- Entry637 Attempt 2:
+  - Run `37497698732`, run_attempt = 2;
+  - Job `112427001942`;
+  - Exact preflight = SUCCESS;
+  - bounded window opened at 2026-10-06 18:13:21Z;
+  - all 60 ten-second polls remained exactly `USERS=5 READY=5`;
+  - no `ENTRY637_SHERIF_BOOTSTRAP_OBSERVED=YES` was emitted;
+  - window closed at 2026-10-06 18:23:50Z with `ENTRY637_WINDOW_CLOSED=PASS`;
+  - final failure reason at 2026-10-06 18:23:59Z:
+    ```text
+    ENTRY637_BOUNDED_MIGRATION_FAIL Sherif did not login during bounded window
+    ```
+  - D1 Sherif row verification and Boundary steps were skipped because no migration occurred.
+- Post-run live Runtime verification proves hardening restored again:
+  ```ini
+  AUTH=TRANSITIONAL
+  AUTH_ENABLED=true
+  LEGACY_BOOTSTRAP=false
+  LEGACY_SES
