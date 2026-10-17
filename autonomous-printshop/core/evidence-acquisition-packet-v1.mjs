@@ -26,12 +26,105 @@ const REQUIREMENTS={
   ]
 };
 
-export function buildEvidenceAcquisitionPacketV1(pilot={}){
+
+const EVIDENCE_REVIEW_VERSION='EVIDENCE_ACQUISITION_REVIEW_V1';
+const MACHINE_HINTS=new Set(['LASER','PRINT','HEAT_PRESS','VINYL_CUTTER','UNKNOWN']);
+
+// Public Shadow diagnostics cannot echo arbitrary D1 free-text strings.
+// Reject unknown values rather than exposing accidentally misfiled PII.
+const SAFE_DEPARTMENTS=new Set([
+  'طباعة','ليزر','تصميم','مكبس','تشطيب','تجليد',
+  'تصوير','قص','سحب','استيكر','فنيل','فينيل',
+  'طباعة حرارية','طباعة ديجيتال'
+]);
+const SAFE_PRIORITIES=new Set(['عادي','عاجل','عاجل جدا','عاجل جدًا','VIP']);
+function safeDepartment(v){
+  const value=text(v);
+  return SAFE_DEPARTMENTS.has(value)?value:'UNKNOWN';
+}
+function safePriority(v){
+  const value=text(v);
+  const normalized=value.toUpperCase();
+  return SAFE_PRIORITIES.has(normalized)?normalized:'UNKNOWN';
+}
+function safeDueIso(v){
+  const value=text(v);
+  if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value))return '';
+  const date=new Date(value);
+  return Number.isFinite(date.getTime())&&date.toISOString()===value?value:'';
+}
+
+
+// Explain why evidence acquisition is still required, without exposing source
+// identities, order/line IDs, raw event references, customer or employee PII.
+// This is diagnostic only; never upgrade readiness or authorize dispatch.
+function buildEvidenceReviewV1(missingKinds,context={}){
+  const statusByKind={};
+  const lineId=text(context&&context.lineId);
+  const now=Number(context&&context.nowMs===undefined?Date.now():context&&context.nowMs);
+  const validClock=Number.isFinite(now)&&now>0;
+  const events=Array.isArray(context&&context.events)?context.events:[];
+  for(const kind of missingKinds){
+    let status='NO_RECORDED_EVIDENCE';
+    if(!lineId) status='SOURCE_LINE_UNVERIFIED';
+    else if(!validClock) status='SOURCE_CLOCK_UNVERIFIED';
+    else{
+      let newest=null, invalidTime=false, sameTimeAmbiguous=false;
+      for(const raw of events){
+        if(!raw||typeof raw!=='object') continue;
+        if(text(raw.lineId??raw.line_id)!==lineId) continue;
+        if(upper(raw.evidenceKind??raw.evidence_kind??raw.kind)!==kind) continue;
+        const observedAtMs=Number(raw.observedAtMs??raw.observed_at_ms);
+        if(!Number.isFinite(observedAtMs)||observedAtMs<=0){
+          invalidTime=true;
+          continue;
+        }
+        const id=text(raw.evidenceId??raw.evidence_id);
+        if(!newest||observedAtMs>newest.observedAtMs){
+          newest={raw,id,observedAtMs};
+          sameTimeAmbiguous=false;
+        }else if(observedAtMs===newest.observedAtMs){
+          // The display must not prefer READY over BLOCKED just because
+          // of lexical evidence ID. Multiple newest events require review.
+          sameTimeAmbiguous=true;
+        }
+      }
+      if(invalidTime)status='SOURCE_TIME_UNVERIFIED';
+      else if(sameTimeAmbiguous)status='AMBIGUOUS_LATEST_EVIDENCE';
+      else if(newest){
+        const raw=newest.raw;
+        const expiresRaw=raw.expiresAtMs??raw.expires_at_ms;
+        const expires=expiresRaw==null||expiresRaw===''?null:Number(expiresRaw);
+        if(newest.observedAtMs>now)status='FUTURE_OBSERVATION';
+        else if(expires!=null&&(!Number.isFinite(expires)||expires<=newest.observedAtMs))
+          status='INVALID_EXPIRY';
+        else if(expires!=null&&expires<=now)status='EVIDENCE_EXPIRED';
+        else{
+          const state=upper(raw.evidenceState??raw.evidence_state??raw.state);
+          status=state==='BLOCKED'?'EVIDENCE_BLOCKED':
+            state==='READY'?'READY_STATE_MISMATCH_REVIEW':'EVIDENCE_UNKNOWN';
+        }
+      }
+    }
+    statusByKind[kind]=status;
+  }
+  return {
+    version:EVIDENCE_REVIEW_VERSION,
+    statusByKind,
+    provenanceQualified:false,
+    actionableWriteAllowed:false,
+    assignmentAllowed:false,
+    identifiersExposed:false
+  };
+}
+
+export function buildEvidenceAcquisitionPacketV1(pilot={},context={}){
   const exists=pilot&&pilot.exists===true;
   const missingKinds=Array.isArray(pilot&&pilot.missingKinds)
-    ? [...new Set(pilot.missingKinds.map(upper).filter(x=>REQUIREMENTS[x]))]
+    ? [...new Set(pilot.missingKinds.map(upper).filter(x=>Object.hasOwn(REQUIREMENTS,x)))]
     : [];
-  const machineClassHint=upper(pilot&&pilot.machineClassHint)||'UNKNOWN';
+  const proposedHint=upper(pilot&&pilot.machineClassHint);
+  const machineClassHint=MACHINE_HINTS.has(proposedHint)?proposedHint:'UNKNOWN';
 
   if(!exists){
     return {
@@ -40,6 +133,7 @@ export function buildEvidenceAcquisitionPacketV1(pilot={}){
       purpose:'EVIDENCE_ACQUISITION_ONLY',
       externalEvidenceRequired:false,
       requirements:{},
+      review:buildEvidenceReviewV1([],{}),
       machineClassHint:'UNKNOWN',
       assignmentAllowed:false,
       taskClaimAllowed:false,
@@ -58,14 +152,15 @@ export function buildEvidenceAcquisitionPacketV1(pilot={}){
     version:EVIDENCE_ACQUISITION_PACKET_VERSION,
     exists:true,
     purpose:'EVIDENCE_ACQUISITION_ONLY',
-    department:text(pilot.department),
-    priority:text(pilot.priority),
-    dueIso:text(pilot.dueIso),
+    department:safeDepartment(pilot.department),
+    priority:safePriority(pilot.priority),
+    dueIso:safeDueIso(pilot.dueIso),
     urgent:pilot.urgent===true,
     missingKinds,
     machineClassHint,
     requirements,
     externalEvidenceRequired:missingKinds.length>0,
+    review:buildEvidenceReviewV1(missingKinds,context),
     completionRule:'SAME_LINE_REQUIRES_DESIGN_MATERIAL_MACHINE_READY',
     assignmentAllowed:false,
     taskClaimAllowed:false,
