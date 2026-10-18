@@ -19,6 +19,7 @@ function sandbox({optIn=false,hasSigner=true,hasSecret=true,
   const calls=[];let nonceSerial=0;
   const cfg={
     D1_API_URL:BASE,
+    D1_MIGRATION_SECRET:'SYNTHETIC_MIGRATION_SECRET_FOR_LEGACY_CONFIG_ONLY',
     D1_MIRROR_SERVICE_READ_V1_ENABLED:optIn?'true':'false',
     D1_MIRROR_METADATA_HMAC_SECRET:hasSecret?META_KEY:'',
     D1_ORDERS_LIVE_SYNC_ENABLED_V1:'0'
