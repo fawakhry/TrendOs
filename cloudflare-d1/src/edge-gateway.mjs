@@ -1,3 +1,4 @@
+import { employeeLegacyGoogleUpstreamDisabled } from './employee-legacy-google-cutover-guard-v1.mjs';
 const DEFAULT_ORIGINS = [
   'https://fawakhry.github.io',
   'http://localhost:8000',
@@ -280,7 +281,7 @@ async function exchangeSession(request, env) {
   // BOOK30-LEGACY-VERIFY-QUERY / Zero Google: an old Edge exchange puts an
   // employee token in an Apps Script GET URL. Under Native-only it must never
   // reach that upstream. Existing legacy mode is unchanged until cutover.
-  if (['1', 'true', 'yes', 'on'].includes(text(env.TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1).toLowerCase())) {
+  if (employeeLegacyGoogleUpstreamDisabled(env)) {
     return json({ success: false, code: 'LEGACY_EDGE_SESSION_NATIVE_ONLY',
       message: 'مسار جلسة Edge القديم متوقف في وضع Native-only؛ استخدم جلسة الموظف Native.' },
     403, corsHeaders(request, env));

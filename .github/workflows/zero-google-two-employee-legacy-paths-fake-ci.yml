@@ -1,0 +1,49 @@
+name: TrendOS Zero Google Both Employee Legacy Routes - Fake CI
+on:
+  push:
+    branches:
+      - test/zero-google-native-only-two-legacy-paths-20261018
+  pull_request:
+    paths:
+      - 'tests/zero_google_two_legacy_employee_paths_native_only_integrated.test.mjs'
+      - '.github/workflows/zero-google-two-employee-legacy-paths-fake-ci.yml'
+      - 'cloudflare-d1/src/edge-gateway.mjs'
+      - 'cloudflare-d1/src/legacy-browser-transport-v1.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fake-native-only-legacy-boundaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify syntax and dual-endpoint No Google fake contract
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          OPENAI_API_KEY: ''
+        run: |
+          set -euo pipefail
+          node --check tests/zero_google_two_legacy_employee_paths_native_only_integrated.test.mjs
+          node --test tests/zero_google_two_legacy_employee_paths_native_only_integrated.test.mjs
+      - name: Inherited both paths tests
+        run: |
+          node --test tests/book30_edge_session_native_only_google_guard.test.mjs
+          node tests/entry653_zero_google_employee_legacy_proxy_retirement.test.mjs
+          node tests/legacy_browser_transport_a61.test.mjs
+          node --test tests/cloudflare_edge_gateway_v1.test.mjs
+      - name: Source-only release safety
+        run: |
+          echo 'LIVE_GOOGLE_CALLS=0'
+          echo 'REAL_EMPLOYEE_OR_CUSTOMER_DATA=NO'
+          echo 'D1_WRITES=NO'
+          echo 'MERGE=NO'
+          echo 'DEPLOY=NO'
+          echo 'ZERO_GOOGLE_COMPLETE=NO'
+          echo 'PRODUCTION_VERIFIED=NO'
