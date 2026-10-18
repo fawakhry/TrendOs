@@ -1,0 +1,33 @@
+name: ACC210 Immutable Invoice Item Payment Review Evidence (FAKE SQLITE NO_GO)
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  native-receipt-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check real finance worker + dormant SQL candidate review with strictly fake SQLite
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          FINANCE_RELEASE: NO_GO
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test -z "$GOOGLE_APPLICATION_CREDENTIALS"
+          test "$FINANCE_RELEASE" = 'NO_GO'
+          node --check tests/easystore_acc210_immutable_invoice_item_payment_review_sqlite_no_go.test.mjs
+          node --test tests/easystore_acc210_immutable_invoice_item_payment_review_sqlite_no_go.test.mjs
+          echo 'ACC210_ONLY_UNATTESTED_SOURCE_ONLY_REVIEW_CANDIDATES=YES'
+          echo 'ACC210_PRODUCTION_D1_OPERATIONS=ZERO'
+          echo 'ACC210_FINANCE_RELEASE=NO_GO'
