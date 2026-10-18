@@ -24,6 +24,8 @@ assert.doesNotMatch(OTP_ISSUE_TICKET_CAS_SQL_V0,/;|fetch\s*\(|script\.google\.co
 assert.doesNotMatch(OTP_ACTIVATE_NEW_PASSWORD_CAS_SQL_V0,/;|fetch\s*\(|script\.google\.com/);
 assert.match(OTP_ISSUE_TICKET_CAS_SQL_V0,/ch\.status='VERIFIED'/);
 assert.match(OTP_ISSUE_TICKET_CAS_SQL_V0,/enrollment_ticket_mac_hex=''/);
+assert.match(OTP_ISSUE_TICKET_CAS_SQL_V0,/\\?-\\? BETWEEN 1 AND 600000/,
+  'ticket issuance must bound positive lifetime at most ten minutes');
 assert.match(OTP_ACTIVATE_NEW_PASSWORD_CAS_SQL_V0,/enrollment_ticket_mac_hex=\?/);
 assert.match(OTP_ACTIVATE_NEW_PASSWORD_CAS_SQL_V0,/session_version=session_version\+1/);
 assert.match(OTP_ACTIVATE_NEW_PASSWORD_CAS_SQL_V0,/enrollment_ticket_mac_hex=''/);
@@ -31,6 +33,7 @@ const source=fs.readFileSync('cloudflare-d1/src/customer-portal-password-enrollm
 const worker=fs.readFileSync('cloudflare-d1/src/index_v2.js','utf8');
 assert.doesNotMatch(worker,/customer-portal-password-enrollment-ticket-v0/);
 assert.doesNotMatch(source,/\bfetch\s*\(|\.run\s*\(|\.send\s*\(/);
+assert.equal(OTP_ENROLLMENT_TICKET_POLICY_V0.ticketMaxAgeMs,600000);
 assert.equal(OTP_ENROLLMENT_TICKET_POLICY_V0.customerPasswordEndpoint,false);
 assert.equal(OTP_ENROLLMENT_TICKET_POLICY_V0.customerSmsSender,false);
 assert.equal(OTP_ENROLLMENT_TICKET_POLICY_V0.customerSessionIssued,false);
