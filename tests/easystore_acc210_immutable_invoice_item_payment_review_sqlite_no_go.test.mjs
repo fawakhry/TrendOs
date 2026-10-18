@@ -171,6 +171,48 @@ await test('ACC210 audited item/cash source-only candidate — SQLite REVIEW, NO
    assert.equal(network.requests,0);
    assert.equal(inDb('SELECT COUNT(*) AS n FROM employee_accounting_invoice_item_payment_review_v1 WHERE finance_authorized<>0 OR refund_authorized<>0 OR review_status<>\'NOT_ATTESTED\'').n,0);
  });
+
+ // A real native owner READ action must be able to surface the proposal state
+ // without authorizing cash refund, writing cash, or exposing other customer.
+ await t.test('11 actual native READONLY owner preview returns UNATTESTED not payout',async()=>{
+   db.exec("UPDATE employee_accounting_control_v1 SET mode='READONLY' WHERE singleton=1");
+   const r=await send('previewInvoiceItemPaymentReviewV1',{invoiceNo:'ACC210_INV_A'});
+   assert.equal(r.success,true,JSON.stringify(r));
+   assert.equal(r.reviewState,'UNATTESTED_SOURCE_ONLY_CANDIDATES');
+   assert.equal(r.candidateCount,2);
+   assert.equal(r.proposedTotalCents,2000);
+   assert.equal(r.customerId,'ACC210_FAKE_A');
+   assert.equal(r.allocationVerified,false);
+   assert.equal(r.refundableAmountCents,null);
+   assert.equal(r.refundAuthorized,false);
+   assert.equal(r.postingAllowed,false);
+   assert.equal(r.financeRelease,'NO_GO');
+   assert.equal(r.candidateRows?.some(a=>a.invoiceNo==='ACC210_INV_B'),false);
+ });
+ await t.test('12 client role spoof and wrong official invoice never disclose candidate details',async()=>{
+   role='service';
+   const forged=await send('previewInvoiceItemPaymentReviewV1',{invoiceNo:'ACC210_INV_A',role:'admin',approved:true});
+   assert.equal(forged.success,false);assert.equal(forged.refundAuthorized,false);
+   role='admin';
+   const missing=await send('previewInvoiceItemPaymentReviewV1',{invoiceNo:'ACC210_INV_DOES_NOT_EXIST'});
+   assert.equal(missing.success,false);
+ });
+ await t.test('13 staged command mutation AFTER proposal is not silently a trusted allocation',async()=>{
+   db.exec("UPDATE employee_accounting_request_ledger_v1 SET status='PREPARED' WHERE request_key='ACC210_LATER_RECEIPT'");
+   const stale=await send('previewInvoiceItemPaymentReviewV1',{invoiceNo:'ACC210_INV_A'});
+   assert.equal(stale.success,true,JSON.stringify(stale));
+   assert.equal(stale.reviewState,'SOURCE_EVIDENCE_CHANGED_OR_INCOMPLETE');
+   assert.equal(stale.proposedTotalCents,null);
+   assert.equal(stale.refundAuthorized,false);
+   db.exec("UPDATE employee_accounting_request_ledger_v1 SET status='COMMITTED' WHERE request_key='ACC210_LATER_RECEIPT'");
+ });
+ await t.test('14 missing new review schema fails closed, not no candidates',async()=>{
+   db.exec('ALTER TABLE employee_accounting_invoice_item_payment_review_v1 RENAME TO acc210_unavailable_source_rows');
+   const unavailable=await send('previewInvoiceItemPaymentReviewV1',{invoiceNo:'ACC210_INV_A'});
+   assert.equal(unavailable.success,false);
+   assert.equal(unavailable.refundAuthorized,false);
+   db.exec('ALTER TABLE acc210_unavailable_source_rows RENAME TO employee_accounting_invoice_item_payment_review_v1');
+ });
  console.log('ACC210_ACTUAL_NATIVE_SALES_COLLECTION_AND_CASHBOX=TESTED');
  console.log('ACC210_ITEM_PAYMENT_REVIEW_PROPOSALS_ONLY=NOT_ATTESTED');
  console.log('ACC210_CASH_REFUND_AND_DELIVERY_RIGHTS=ZERO');
