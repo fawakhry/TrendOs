@@ -2381,6 +2381,51 @@ async function previewNativeInvoiceReturnExposureV1(env,auth,b){
       "SELECT amount,movement_type AS movementType,party_id AS partyId,ref_no AS refNo "+
       "FROM employee_accounting_cashbox_v1 WHERE request_key=? LIMIT 2"
     ).bind(text(invoice.requestKey)+'-CASH').all()).results||[];
+    // ACC209: A subsequent cash collection can cite this invoice number in a
+    // free-form ref_no even when it pays ANOTHER invoice. NEVER infer payment
+    // allocation or cash refund entitlement from this reference. Only same
+    // customer EXACT invoice text, real native payment ledger and physical
+    // cash evidence are inspected, bounded to 51 rows. Separate statements
+    // are NOT a transaction snapshot and 0 references proves no allocation.
+    const following=(await env.DB.prepare(
+      "SELECT p.transaction_id AS transactionId,p.request_key AS requestKey,"+
+      "p.amount,p.effect,c.amount AS cashAmount,c.movement_type AS cashMovement,"+
+      "c.party_id AS cashParty,c.ref_no AS cashRef,"+
+      "r.status AS commandStatus,r.operation AS commandOperation "+
+      "FROM employee_accounting_party_ledger_v1 p "+
+      "LEFT JOIN employee_accounting_request_ledger_v1 r ON r.request_key=p.request_key "+
+      "LEFT JOIN employee_accounting_cashbox_v1 c ON c.request_key=p.request_key||'-CASH' "+
+      "WHERE p.party_type='customer' AND p.party_id=? "+
+      "AND p.operation='payment_received' AND p.ref_no=? "+
+      "AND p.request_key<>? "+
+      "ORDER BY p.created_at_ms,p.transaction_id LIMIT 51"
+    ).bind(text(invoice.customerId),invoiceNo,text(invoice.requestKey)+'-LEDGER-PAYMENT').all()).results||[];
+    let subsequentInvoiceReferenceState='NO_MATCHING_REFERENCE_NOT_ALLOCATION_PROOF';
+    let subsequentCommittedReferenceCashCents=0;
+    if(following.length>50){
+      subsequentInvoiceReferenceState='REFERENCE_HISTORY_TOO_LARGE_UNKNOWN';
+      subsequentCommittedReferenceCashCents=null;
+    }else if(following.length){
+      for(const p of following){
+        const amount=customerCreditCentsV1(p.amount),
+          cash=customerCreditCentsV1(p.cashAmount);
+        if(amount===null||amount<=0||cash!==amount||
+          Number(p.effect)!==-1||
+          text(p.cashMovement)!=='CUSTOMER_RECEIPT'||
+          text(p.cashParty)!==text(invoice.customerId)||
+          text(p.cashRef)!==invoiceNo||
+          text(p.commandStatus)!=='COMMITTED'||
+          text(p.commandOperation)!=='party-ledger:customer:payment_received'||
+          !Number.isSafeInteger(subsequentCommittedReferenceCashCents+amount)){
+          subsequentInvoiceReferenceState='REFERENCE_PARENT_OR_CASH_INCONSISTENT';
+          subsequentCommittedReferenceCashCents=null;
+          break;
+        }
+        subsequentCommittedReferenceCashCents+=amount;
+      }
+      if(subsequentInvoiceReferenceState==='NO_MATCHING_REFERENCE_NOT_ALLOCATION_PROOF')
+        subsequentInvoiceReferenceState='COMMITTED_RECEIPT_REFERENCE_UNALLOCATED';
+    }
     const totalCents=customerCreditCentsV1(invoice.total),
       paidCents=customerCreditCentsV1(invoice.paid),
       remainingCents=customerCreditCentsV1(invoice.remaining),
@@ -2414,6 +2459,12 @@ async function previewNativeInvoiceReturnExposureV1(env,auth,b){
     else if(text(invoice.status)==='UNDER_REVIEW')reviewState='INVOICE_UNDER_REVIEW_NO_REFUND_AUTHORITY';
     else if(!['CLOSED','مغلق'].includes(text(invoice.status)))reviewState='INVOICE_STATUS_NEEDS_MANUAL_REVIEW';
     else reviewState='CASH_EVIDENCE_MATCHES_NOT_REFUND_AUTHORITY';
+    // Even an actual COMMITTED same-customer receipt with the exact free-form
+    // invoice ref_no is NOT payment allocation or a second refundable amount.
+    // Surface the unresolved reference without overriding stronger failures.
+    if(following.length&&['INVOICE_UNDER_REVIEW_NO_REFUND_AUTHORITY',
+      'CASH_EVIDENCE_MATCHES_NOT_REFUND_AUTHORITY'].includes(reviewState))
+      reviewState='SUBSEQUENT_COLLECTION_REF_REQUIRES_ALLOCATION_REVIEW';
     return {
       success:true,code:'acc206-readonly-real-invoice-cash-exposure',
       invoiceNo:text(invoice.invoiceNo),customerId:text(invoice.customerId),
@@ -2426,6 +2477,12 @@ async function previewNativeInvoiceReturnExposureV1(env,auth,b){
       invoiceCreditAppliedCents:validAmounts?appliedCents:null,
       invoiceCreditCreatedCents:validAmounts?createdCents:null,
       cashReceiptRows:cashRows.length,cashReceiptCents:cashEvidenceValid?receiptCents:null,
+      subsequentInvoiceReferenceCount:Math.min(following.length,51),
+      subsequentCommittedReferenceCashCents,
+      subsequentInvoiceReferenceState,
+      subsequentReferenceIsAllocationProof:false,
+      subsequentReferenceSource:'EXACT_CUSTOMER_FREEFORM_REF_NO_NOT_AN_INVOICE_FK',
+      laterReceiptHistoryFullyVerified:false,
       reviewState,sourceCoverage:'EXACT_INVOICE_ORIGINAL_REQUEST_CASHBOX_ONLY',
       customerIdentityVerified:false,returnedItemsVerified:false,
       priorRefundCoverageVerified:false,managementApprovalAuthenticated:false,
