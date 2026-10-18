@@ -42,10 +42,10 @@ class OtpTicket(unittest.TestCase):
         self.d.commit()
     def ticket(self,token=TICKET,challenge=CH,customer=CID,code=CODE,
                issued=NOW,expires=NOW+600000):
-        # Issue-time SQL: issued>0, expires>issued, then TTL=(expires-issued).
-        # Binder order is intentional: reversing these makes any long TTL pass.
+        # Five SQL conditions: issued>0, expires>issued, expires-issued<=600000.
+        # Original Entry659 positional binds were already correct; retain order.
         args=(token,challenge,issued,expires,customer,code,
-              issued,expires,expires,issued,issued,
+              issued,expires,issued,expires,issued,
               challenge,issued,issued,issued)
         return self.run_sql(ISSUE,args)
     def activate(self,token=TICKET,customer=CID,code=CODE,
