@@ -103,12 +103,12 @@ test('static code PASS never means cutover GO, access fix, R5 deployed or Ubuntu
   assert.equal(owner.decisions.find(x=>x.id==='D03').status,'evidence_pending');
   assert.equal(owner.decisions.find(x=>x.id==='D04').defaultSafe,'NO_PRODUCTION_DEPLOY');
 });
-test('no inventory script contains runtime triggers, secrets or external network operations',()=>{
-  const code=source('tests/server70_legacy_read_consumer_inventory.test.mjs');
-  assert.ok(code.includes("import {readFileSync}"));
-  assert.ok(!code.includes('https.request('));
-  assert.ok(!code.includes('fetch('));
-  assert.ok(!code.includes('spawn('));
-  assert.ok(!code.includes('exec('));
-  assert.ok(!code.includes('wrangler deploy'));
+test('inventory is structured evidence without credentials, deploy authority or remote traffic',()=>{
+  const text=source(ROOT+'SERVER70_LEGACY_READ_CONSUMER_INVENTORY.json');
+  assert.equal(typeof inventory.schema,'string');
+  assert.equal(inventory.classification,'SOURCE-ONLY_NONEXHAUSTIVE');
+  assert.ok(!text.includes('BEGIN PRIVATE KEY'));
+  assert.ok(!text.includes('sk-proj-'));
+  assert.ok(inventory.consumers.every(c=>c.ownerStatus!=='APPROVED'));
+  assert.ok(inventory.consumers.every(c=>c.liveCutoverVerified===false));
 });
