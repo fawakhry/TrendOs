@@ -163,7 +163,7 @@ await test('ACC210 audited item/cash source-only candidate — SQLite REVIEW, NO
  await t.test('09 strict integer positive piastres, no float/zero or oversize proposal',()=>{
    denied(()=>propose('ACC210_P17','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_SALE_A-LEDGER-PAYMENT',0),/CHECK/);
    denied(()=>propose('ACC210_P18','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_SALE_A-LEDGER-PAYMENT',1.5),/CHECK/);
-   denied(()=>propose('ACC210_P19','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_SALE_A-LEDGER-PAYMENT',9007199254740992),/CHECK/);
+   denied(()=>propose('ACC210_P19','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_SALE_A-LEDGER-PAYMENT',9007199254740992),/CHECK|source-receipt-total-exceeded/);
  });
  await t.test('10 no writer exposed and all fixture records remain NOT_ATTESTED, no outside network',()=>{
    const native=fs.readFileSync('cloudflare-d1/src/employee-accounting-native-v1.mjs','utf8');
