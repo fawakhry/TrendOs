@@ -40,7 +40,33 @@ Server always binds 127.0.0.1; never expose 0.0.0.0, the LAN, VPN, a reverse pro
 
     node --test tests/ops_pilot_local_http.test.mjs
 
+Additional regression:
+
+    node --test tests/ops_pilot_atomic_history.test.mjs
+
+The disposable HTTP /api/orders/DEMO-.../history endpoint returns **only** a local
+token-protected synthetic order's status audit (no finance/identities). Both status
+update and audit row now use a SQLite SAVEPOINT; on simulated audit write failure
+the order transition rolls back. Browser "السجل" shows this temporary audit.
+
+Host is checked against the actual listener port; a forged localhost:<other port>
+is rejected before issuing a session token. This is defense-in-depth for a
+loopback-only trial, NOT trusted SSO or cross-device authorization.
+
 Test starts real 127.0.0.1 HTTP server on ephemeral port with real disposable SQLite. Tests include HTTP get/create/update, manager counters, blocking conditions, financial endpoint denials and ephemeral restart. It is NOT simulated frontend-only tests and does NOT verify cloud/production integrations.
+
+## Decisions deliberately deferred (not blockers to isolated development)
+
+- **GO/NO_GO** owner approval for actual deployment, routing, staff SSO, persisted
+  business data, and any machine action. No choice is implicit from fake CI.
+- **Single Writer** and Google/D1/Edge authority inventory require protected
+  deployed evidence and conflict-free migration; current source tests cannot
+  attest live operation.
+- **Accounting, debt, delivery policy and G1-G5** belong to the EasyStore finance
+  authority and remain NO_GO; synthetic delivery restriction is not a financial
+  clearance.
+- **Rollback, backup, network and employee acceptance** are prerequisites for
+  a later isolated stage. Continue independent source/tests without these decisions.
 
 ## Next release gate
 

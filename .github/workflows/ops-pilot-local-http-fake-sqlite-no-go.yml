@@ -4,6 +4,7 @@ on:
     paths:
       - 'tools/ops-pilot-local-v1/**'
       - 'tests/ops_pilot_local_http.test.mjs'
+      - 'tests/ops_pilot_atomic_history.test.mjs'
       - 'manager-center-v1932.js'
       - '.github/workflows/ops-pilot-local-http-fake-sqlite-no-go.yml'
 permissions:
@@ -37,6 +38,7 @@ jobs:
           node --check tools/ops-pilot-local-v1/pilot.js
           node --check manager-center-v1932.js
           node --test tests/ops_pilot_local_http.test.mjs
+          node --test tests/ops_pilot_atomic_history.test.mjs
           echo 'TRENDOS_OPS_PILOT_REAL_LOOPBACK_HTTP=TESTED'
           echo 'TRENDOS_OPS_PILOT_ALL_DATA_SYNTHETIC=YES'
           echo 'TRENDOS_OPS_PILOT_FINANCE_RELEASE=NO_GO'
