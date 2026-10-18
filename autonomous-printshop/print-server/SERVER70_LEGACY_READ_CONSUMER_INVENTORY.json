@@ -1,0 +1,126 @@
+{
+  "schema": "trendos.server70.legacy-read-source-inventory.v1",
+  "recordedAt": "2026-10-18",
+  "classification": "SOURCE-ONLY_NONEXHAUSTIVE",
+  "purpose": "Qualify affected repository consumer contracts before any fail-closed legacy GET deployment; NOT a live caller inventory.",
+  "deployments": {
+    "trendos": "distinct Cloudflare Worker; customer manager bridge literal URL; deployed-bundle Git parity unverified",
+    "trendos-d1-api": "canonical source Wrangler target of R5 manual workflow; exact active deployment/version parity unverified",
+    "trendos-d1-staging": "existing separate Worker with own preexisting 11-table D1 and no dedicated Access app; no reuse authority"
+  },
+  "consumers": [
+    {
+      "id": "R5_PERIODIC_CONTROLLED",
+      "path": ".github/workflows/trendos-r5-periodic-controlled.yml",
+      "sourceKind": "github_actions_workflow",
+      "legacy": [
+        "/v1/mirror/sheets"
+      ],
+      "targetEvidence": "pinned literal trendos-d1-api URL",
+      "currentSourceBehavior": "Pinned historic SHA plus unconditional legacy GET 200 post-deploy assertion and emergency redeploy side effect",
+      "candidate": "cloudflare-d1/r5-server68-signed-metadata-preflight.mjs",
+      "candidateMode": "source-only helper, not wired to workflow",
+      "sourceMigrationPrepared": true,
+      "liveCutoverVerified": false,
+      "automaticLegacyFallback": false,
+      "ownerStatus": "BLOCKED_OWNER_CONSUMER_MIGRATION"
+    },
+    {
+      "id": "FULL_MIGRATION",
+      "path": "cloudflare-d1/D1_Full_Migration.gs",
+      "sourceKind": "apps_script",
+      "legacy": [
+        "/v1/mirror/stats"
+      ],
+      "targetEvidence": "D1_API_URL from Script Properties; live value unverified",
+      "currentSourceBehavior": "d1FullGet_ uses legacy when opt-in OFF; signed d1MirrorServiceReadV1_ when ON",
+      "candidate": "cloudflare-d1/D1_Mirror_Service_Read_V1.gs",
+      "candidateMode": "opt-in OFF by default, backend scoped HMAC, no fallback when ON",
+      "sourceMigrationPrepared": true,
+      "liveCutoverVerified": false,
+      "automaticLegacyFallback": false,
+      "ownerStatus": "PENDING_TRIGGER_AND_URL_INSPECTION"
+    },
+    {
+      "id": "ORDERS_LIVE_SYNC",
+      "path": "cloudflare-d1/D1_Orders_Live_Sync.gs",
+      "sourceKind": "apps_script",
+      "legacy": [
+        "/v1/mirror/capabilities",
+        "/v1/mirror/stats"
+      ],
+      "targetEvidence": "Indirect d1FullGet_ via D1_Full_Migration.gs; Apps Script trigger state unverified",
+      "currentSourceBehavior": "Atomic orders/lines stage/promote checks metadata and stats",
+      "candidate": "cloudflare-d1/D1_Mirror_Service_Read_V1.gs",
+      "candidateMode": "shared d1FullGet_ opt-in, requires provisioned metadata HMAC and DO",
+      "sourceMigrationPrepared": true,
+      "liveCutoverVerified": false,
+      "automaticLegacyFallback": false,
+      "ownerStatus": "PENDING_TRIGGER_AND_PARITY"
+    },
+    {
+      "id": "ORDERS_READ_CUTOVER",
+      "path": "cloudflare-d1/D1_Orders_Read_Cutover.gs",
+      "sourceKind": "apps_script",
+      "legacy": [
+        "/v1/mirror/sheet"
+      ],
+      "targetEvidence": "D1_API_URL from Script Properties; live value unverified",
+      "currentSourceBehavior": "500 rows per page in legacy OFF; 100 rows per page only when signed opt-in ON",
+      "candidate": "cloudflare-d1/D1_Mirror_Service_Read_V1.gs",
+      "candidateMode": "strict HMAC parity principal, two allowed order/line sheets, at most 100 rows per page",
+      "sourceMigrationPrepared": true,
+      "liveCutoverVerified": false,
+      "automaticLegacyFallback": false,
+      "ownerStatus": "PENDING_REAL_PARITY_AND_TRIGGER_CHECK"
+    },
+    {
+      "id": "CUSTOMER_MANAGER_V1934",
+      "path": "customer_manager_d1_bridge_v1934.js",
+      "sourceKind": "browser_ui",
+      "legacy": [
+        "/v1/orders",
+        "/v1/customer",
+        "/v1/messages",
+        "/v1/inbox"
+      ],
+      "targetEvidence": "hardcoded separate trendos Worker URL in source; live browser deployment unverified",
+      "currentSourceBehavior": "D1-first customer/inbox/thread with Apps Script fallback; frontend fallback is not permission",
+      "candidate": "Cloudflare employee-authorized customer manager / approved fallback (not qualified end-to-end)",
+      "candidateMode": "No approved equivalent to legacy browser GET confirmed for production deployment",
+      "sourceMigrationPrepared": false,
+      "liveCutoverVerified": false,
+      "automaticLegacyFallback": true,
+      "ownerStatus": "BLOCKED_EQUIVALENT_SECURE_ROUTE_AND_REAL_ROLE"
+    }
+  ],
+  "outsideRepositoryCallers": {
+    "verifiedExhaustive": false,
+    "status": "UNKNOWN",
+    "examples": [
+      "external Apps Script projects",
+      "other Cloudflare Workers/service bindings",
+      "external integrations",
+      "non-repository HTTP clients"
+    ],
+    "nextEvidence": "owner read-only traffic/trigger/version/source provenance review; do not query customer-bearing GET routes"
+  },
+  "upstreamFixes": {
+    "legacyFailclosed": "Draft PR #185",
+    "hmacServiceReads": "Draft PR #187",
+    "isolatedSyntheticStage": "Draft PR #190",
+    "existingProductionConsumersModified": false,
+    "securedCloudflareStageDeployed": false
+  },
+  "releaseGates": {
+    "consumerInventoryVerified": false,
+    "sourceToDeployedWorkerProvenanceVerified": false,
+    "r5SignedWorkflowVerified": false,
+    "appsScriptPropertiesAndTriggersVerified": false,
+    "customerManagerApprovedFallbackVerified": false,
+    "syntheticRemoteStageVerified": false,
+    "rollbackPlanOwnerApproved": false,
+    "namedOwnerProductionApproval": false
+  },
+  "disposition": "NO_GO; no consumer is confirmed migrated live; do not deploy SERVER-66 fail-closed legacy GET to any existing Worker based on static source inventory alone"
+}
