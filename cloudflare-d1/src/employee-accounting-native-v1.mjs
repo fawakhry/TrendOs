@@ -7,7 +7,7 @@ const DEFAULT_ORIGINS=[
   'https://trendos-ui.trendmall-contact.workers.dev',
   'http://localhost:8000','http://127.0.0.1:8000','http://localhost:5500','http://127.0.0.1:5500'
 ];
-const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth','calculateAccountingLaserQuoteV1913','getDailyDepartmentReportV1920','previewAccountingAutomationV1921','previewCustomerCreditInvoiceReviewV1', 'previewCustomerCreditPreparedCommandV1','previewAccountingFinalInvoiceCommandV1','previewCustomerCreditLiabilityAuditV1','previewNativeInvoiceReturnExposureV1']);
+const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth','calculateAccountingLaserQuoteV1913','getDailyDepartmentReportV1920','previewAccountingAutomationV1921','previewCustomerCreditInvoiceReviewV1', 'previewCustomerCreditPreparedCommandV1','previewAccountingFinalInvoiceCommandV1','previewCustomerCreditLiabilityAuditV1','previewNativeInvoiceReturnExposureV1','previewInvoiceItemPaymentReviewV1']);
 
 function text(v){return String(v==null?'':v).trim();}
 function key(v){return text(v).toLowerCase();}
@@ -2497,6 +2497,104 @@ async function previewNativeInvoiceReturnExposureV1(env,auth,b){
   }
 }
 
+
+// ACC210 owner-only READONLY source audit: these immutably stored entries are
+// UNATTESTED payment-to-item PROPOSALS. They are not bookable tender allocations
+// and their actor_role_label/evidence hash were never verified by auth SSO.
+// No writes, no offsetting stock, no refund entitlement, no auto-retry.
+// Even authentic native COMMITTED ledger and physical cashbox amounts cannot
+// prove payment intention, actual item-level discount or returnable quantity.
+async function previewInvoiceItemPaymentReviewV1(env,auth,b){
+  const denied=(code,message)=>({success:false,code,message,
+    allocationVerified:false,refundAuthorized:false,postingAllowed:false,
+    creditAuthorized:false,deliveryAuthorized:false,automaticRetryAuthorized:false,
+    refundableAmountCents:null,financeRelease:'NO_GO'});
+  if(auth.mode!=='full')return denied('acc210-owner-full-finance-role-required',
+    'مراجعة مقترحات تخصيص التحصيلات للمسؤول المحاسبي الموثق فقط.');
+  const invoiceNo=text(b&&b.invoiceNo);
+  if(!invoiceNo||invoiceNo.length>180||/[\u0000-\u001f]/u.test(invoiceNo))
+    return denied('acc210-exact-native-invoice-required','مطلوب رقم الفاتورة الرسمي بدون ربط بالأسماء.');
+  try{
+    const invoice=await env.DB.prepare(
+      "SELECT invoice_no,customer_party_id AS customerId,request_key AS requestKey "+
+      "FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? LIMIT 1"
+    ).bind(invoiceNo).first();
+    if(!invoice||!text(invoice.customerId)||!text(invoice.requestKey))
+      return denied('acc210-official-invoice-customer-missing',
+        'الفاتورة أو معرف العميل الرسمي غير متاح.');
+    const result=await env.DB.prepare(
+      "SELECT a.proposal_id AS proposalId,a.accounting_line_id AS lineId,"+
+      "a.receipt_ledger_request_key AS receiptKey,a.proposed_cents AS cents,"+
+      "a.customer_id AS customerId,a.review_status AS reviewStatus,"+
+      "a.finance_authorized AS financeFlag,a.refund_authorized AS refundFlag,"+
+      "a.delivery_authorized AS deliveryFlag,a.cash_out_authorized AS cashFlag,"+
+      "d.final_invoice_no AS attachedInvoice,"+
+      "l.party_id AS ledgerCustomer,l.party_type AS ledgerPartyType,"+
+      "l.operation AS ledgerOperation,l.effect AS ledgerEffect,l.amount AS ledgerAmount,"+
+      "parent.status AS parentStatus,parent.operation AS parentOperation,"+
+      "c.party_id AS cashCustomer,c.movement_type AS cashMovement,"+
+      "c.amount AS cashAmount "+
+      "FROM employee_accounting_invoice_item_payment_review_v1 a "+
+      "LEFT JOIN employee_accounting_dept_lines_v1 d ON d.accounting_line_id=a.accounting_line_id "+
+      "LEFT JOIN employee_accounting_party_ledger_v1 l ON l.request_key=a.receipt_ledger_request_key "+
+      "LEFT JOIN employee_accounting_request_ledger_v1 parent ON parent.request_key=(CASE "+
+      "WHEN substr(l.request_key,-15)='-LEDGER-PAYMENT' "+
+      "THEN substr(l.request_key,1,length(l.request_key)-15) ELSE l.request_key END) "+
+      "LEFT JOIN employee_accounting_cashbox_v1 c ON c.request_key=(CASE "+
+      "WHEN substr(l.request_key,-15)='-LEDGER-PAYMENT' "+
+      "THEN substr(l.request_key,1,length(l.request_key)-15) ELSE l.request_key END)||'-CASH' "+
+      "WHERE a.invoice_no=? ORDER BY a.proposed_at_ms,a.proposal_id LIMIT 51"
+    ).bind(invoiceNo).all();
+    const rows=(result&&result.results)||[];
+    let reviewState='NO_PROPOSALS_NOT_PAYMENT_PROOF',totalCents=0;
+    const candidateRows=[];
+    if(rows.length>50){reviewState='PROPOSAL_HISTORY_TOO_LARGE_UNKNOWN';totalCents=null;}
+    else if(rows.length){
+      reviewState='UNATTESTED_SOURCE_ONLY_CANDIDATES';
+      for(const r of rows){
+        const cents=Number(r.cents),ledger=customerCreditCentsV1(r.ledgerAmount),
+          cash=customerCreditCentsV1(r.cashAmount),
+          initial=text(r.receiptKey).endsWith('-LEDGER-PAYMENT');
+        const acceptableParent=initial?
+          ['direct-sale','credit-direct-sale','final-invoice'].includes(text(r.parentOperation)):
+          text(r.parentOperation)==='party-ledger:customer:payment_received';
+        const sound=Number.isSafeInteger(cents)&&cents>0&&
+          Number.isSafeInteger(totalCents+cents)&&
+          text(r.customerId)===text(invoice.customerId)&&
+          text(r.ledgerCustomer)===text(invoice.customerId)&&
+          text(r.cashCustomer)===text(invoice.customerId)&&
+          text(r.attachedInvoice)===invoiceNo&&
+          text(r.reviewStatus)==='NOT_ATTESTED'&&
+          [r.financeFlag,r.refundFlag,r.deliveryFlag,r.cashFlag].every(x=>Number(x)===0)&&
+          text(r.ledgerPartyType)==='customer'&&
+          text(r.ledgerOperation)==='payment_received'&&Number(r.ledgerEffect)===-1&&
+          text(r.parentStatus)==='COMMITTED'&&acceptableParent&&
+          text(r.cashMovement)==='CUSTOMER_RECEIPT'&&
+          ledger!==null&&cash!==null&&ledger>0&&cash>=ledger;
+        if(!sound){reviewState='SOURCE_EVIDENCE_CHANGED_OR_INCOMPLETE';totalCents=null;break;}
+        totalCents+=cents;
+        candidateRows.push({proposalId:text(r.proposalId),lineId:text(r.lineId),
+          proposedCents:cents,reviewStatus:'NOT_ATTESTED'});
+      }
+    }
+    return {success:true,code:'acc210-source-only-invoice-item-proposals',
+      invoiceNo,customerId:text(invoice.customerId),
+      candidateCount:Math.min(rows.length,51),
+      proposedTotalCents:totalCents,
+      candidateRows:reviewState==='UNATTESTED_SOURCE_ONLY_CANDIDATES'?candidateRows:[],
+      reviewState,sourceCoverage:'BOUNDED_NONATOMIC_COMMITTED_LEDGER_AND_CASH_RECHECK',
+      sourceOnly:true,identityVerified:false,returnItemCostVerified:false,
+      actualInvoicePaymentAllocationVerified:false,allocationVerified:false,
+      proposalReviewerAuthenticated:false,financeApprovalVerified:false,
+      refundAuthorized:false,postingAllowed:false,creditAuthorized:false,
+      deliveryAuthorized:false,automaticRetryAuthorized:false,
+      refundableAmountCents:null,financeRelease:'NO_GO'};
+  }catch{
+    return denied('acc210-candidate-review-schema-or-finance-source-unavailable',
+      'سجل المقترحات أو قيود التحصيل غير متاح؛ ممنوع اعتباره تخصيصًا معتمدًا.');
+  }
+}
+
 async function handleEmployeeAccountingNativeRequest(request,env){
   const h=cors(request,env);if(request.method==='OPTIONS')return new Response(null,{status:204,headers:h});
   if(!originAllowed(request,env))return json({success:false,code:'origin-not-allowed'},403,h);
@@ -2527,6 +2625,7 @@ async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='previewCustomerCreditPreparedCommandV1')out=await previewCustomerCreditPreparedCommandV1(env,auth,b);
     else if(action==='previewCustomerCreditLiabilityAuditV1')out=await previewCustomerCreditLiabilityAuditV1(env,auth,b);
     else if(action==='previewNativeInvoiceReturnExposureV1')out=await previewNativeInvoiceReturnExposureV1(env,auth,b);
+    else if(action==='previewInvoiceItemPaymentReviewV1')out=await previewInvoiceItemPaymentReviewV1(env,auth,b);
     else if(action==='previewAccountingFinalInvoiceCommandV1')out=await previewAccountingFinalInvoiceCommandV1(env,auth,b);
     else if(action==='easyStoreSystemHealth')out=await easyStoreSystemHealthV1(env,auth);
     else if(action==='calculateAccountingLaserQuoteV1913')out=await calculateAccountingLaserQuoteV1913V1(env,auth,b);
