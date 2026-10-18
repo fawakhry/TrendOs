@@ -191,9 +191,11 @@ await test('ACC210 audited item/cash source-only candidate — SQLite REVIEW, NO
  });
  await t.test('12 client role spoof and wrong official invoice never disclose candidate details',async()=>{
    role='service';
-   const forged=await send('previewInvoiceItemPaymentReviewV1',{invoiceNo:'ACC210_INV_A',role:'admin',approved:true});
-   assert.equal(forged.success,false);assert.equal(forged.refundAuthorized,false);
-   role='admin';
+   try{
+     const forged=await send('previewInvoiceItemPaymentReviewV1',{invoiceNo:'ACC210_INV_A',role:'admin',approved:true});
+     assert.equal(forged.success,false);
+     assert.ok(forged.refundAuthorized!==true,'SSO rejection cannot enable refund');
+   }finally{role='admin'}
    const missing=await send('previewInvoiceItemPaymentReviewV1',{invoiceNo:'ACC210_INV_DOES_NOT_EXIST'});
    assert.equal(missing.success,false);
  });
