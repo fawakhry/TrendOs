@@ -237,6 +237,33 @@ try{
  assert.equal(withLater.refundableAmountCents,null);
  assert.equal(withLater.cashRefundAuthorized,false);
  assert.equal(withLater.customerCreditAuthorized,false);
+
+ // Two REAL native collections test the exact customer + exact invoice scope.
+ // A different invoice reference by customer A and the SAME old invoice text
+ // supplied by a different customer B must not contaminate this owner's view.
+ const alternateRef=await send('savePartyLedgerTransaction',{
+   requestId:'ACC209-OTHER-REF-RECEIPT-0001',partyType:'customer',
+   customerId:customer,operation:'payment_received',amount:3,
+   paymentMethod:'نقدي',refNo:'ACC209-SECOND-INVOICE-1',workDate:'2099-12-31'
+ });
+ assert.equal(alternateRef.success,true,JSON.stringify(alternateRef));
+ db.prepare("INSERT INTO t12_customers(customer_id,customer_name,active,updated_at) VALUES('ACC209_FAKE_OTHER','ACC209_FAKE_OTHER_PERSON','نعم',CURRENT_TIMESTAMP)").run();
+ const otherOpening=await send('savePartyLedgerTransaction',{
+   requestId:'ACC209-OTHER-OPENING-0001',partyType:'customer',
+   customerId:'ACC209_FAKE_OTHER',operation:'opening_debt',amount:12,
+   workDate:'2099-12-31'
+ });
+ assert.equal(otherOpening.success,true,JSON.stringify(otherOpening));
+ const otherCollected=await send('savePartyLedgerTransaction',{
+   requestId:'ACC209-OTHER-CUSTOMER-RECEIPT-0001',partyType:'customer',
+   customerId:'ACC209_FAKE_OTHER',operation:'payment_received',amount:2,
+   paymentMethod:'نقدي',refNo:'ACC187-SALE-INVOICE-1',workDate:'2099-12-31'
+ });
+ assert.equal(otherCollected.success,true,JSON.stringify(otherCollected));
+ const exactScope=await send('previewNativeInvoiceReturnExposureV1',{invoiceNo:'ACC187-SALE-INVOICE-1'});
+ assert.equal(exactScope.subsequentInvoiceReferenceCount,1);
+ assert.equal(exactScope.subsequentCommittedReferenceCashCents,500);
+ assert.equal(exactScope.subsequentReferenceIsAllocationProof,false);
  // Even a COMMITTED parent is no authority that the free-form reference
  // actually belongs to this particular invoice or returned goods.
  db.exec("UPDATE employee_accounting_request_ledger_v1 SET status='PREPARED' WHERE request_key='ACC209-LATER-RECEIPT-0001'");
