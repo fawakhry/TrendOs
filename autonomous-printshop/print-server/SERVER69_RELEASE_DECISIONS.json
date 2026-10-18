@@ -57,7 +57,8 @@
         "Keep legacy consumer deployment contract unchanged"
       ],
       "requiredBefore": "Deny old mirror read endpoints on production",
-      "rationale": "Existing R5 workflow is pinned to older commit and expects legacy mirror GET HTTP 200; opt-in Apps Script behavior not verified live."
+      "rationale": "Existing R5 workflow is pinned to older commit and expects legacy mirror GET HTTP 200; opt-in Apps Script behavior not verified live.",
+      "sourceEvidence": "SERVER-70: 5 repository-known old consumers verified by static source audit; actual live Apps Script/Cloudflare callers, approved fallback and migrated deployment unknown"
     },
     {
       "id": "D04",
@@ -103,5 +104,14 @@
     "SERVER-69 local Workerd + synthetic D1 + Python Ubuntu one-shot end-to-end",
     "PR195 manager UI remains separate and unmodified"
   ],
-  "operatorSummary": "NO_GO for remote stage until D01-D02; NO_GO for production until D03-D04; NO_GO for Ubuntu live until D05; NO_GO for order acceptance until D06"
+  "operatorSummary": "NO_GO for remote stage until D01-D02; NO_GO for production until D03-D04; NO_GO for Ubuntu live until D05; NO_GO for order acceptance until D06",
+  "sourceConsumerInventory": {
+    "document": "autonomous-printshop/print-server/SERVER70_LEGACY_READ_CONSUMER_INVENTORY.json",
+    "report": "autonomous-printshop/print-server/SERVER70_CONSUMER_MIGRATION_SOURCE_QUALIFICATION_20261018.md",
+    "sourceKnownCount": 5,
+    "sourceReviewStatus": "SOURCE_ONLY_CI_PASS",
+    "liveExhaustive": false,
+    "liveMigratedCountVerified": 0,
+    "githubCiRun": "https://github.com/fawakhry/TrendOs/actions/runs/39158915112"
+  }
 }
