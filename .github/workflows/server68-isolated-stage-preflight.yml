@@ -13,6 +13,13 @@ on:
       - tests/server68_wrangle_local_runtime_smoke.mjs
       - tests/server69_ubuntu_python_to_local_workerd.py
       - tests/server69_release_decision_queue.test.mjs
+      - tests/server70_legacy_read_consumer_inventory.test.mjs
+      - autonomous-printshop/print-server/SERVER70_LEGACY_READ_CONSUMER_INVENTORY.json
+      - cloudflare-d1/D1_Full_Migration.gs
+      - cloudflare-d1/D1_Orders_Live_Sync.gs
+      - cloudflare-d1/D1_Mirror_Service_Read_V1.gs
+      - .github/workflows/trendos-r5-periodic-controlled.yml
+      - customer_manager_d1_bridge_v1934.js
       - autonomous-printshop/print-server/SERVER69_RELEASE_DECISIONS.json
       - autonomous-printshop/print-server/SERVICE_ORDER_READER_POLICY_V1.json
       - autonomous-printshop/print-server/src/trendosshop_read_once.py
@@ -51,6 +58,7 @@ jobs:
             tests/server68_r5_signed_metadata_preflight.test.mjs \
             tests/server33_trendosshop_service_orders_read.test.mjs \
             tests/server69_release_decision_queue.test.mjs \
+            tests/server70_legacy_read_consumer_inventory.test.mjs \
             tests/server68_secure_mirror_pagination_compat.test.mjs \
             tests/server67_purpose_scoped_mirror_service_read.test.mjs \
             tests/server67_apps_script_signed_mirror_client_offline.test.mjs \
