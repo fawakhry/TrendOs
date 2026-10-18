@@ -42,8 +42,10 @@ class OtpTicket(unittest.TestCase):
         self.d.commit()
     def ticket(self,token=TICKET,challenge=CH,customer=CID,code=CODE,
                issued=NOW,expires=NOW+600000):
+        # Issue-time SQL: issued>0, expires>issued, then TTL=(expires-issued).
+        # Binder order is intentional: reversing these makes any long TTL pass.
         args=(token,challenge,issued,expires,customer,code,
-              issued,expires,issued,expires,issued,
+              issued,expires,expires,issued,issued,
               challenge,issued,issued,issued)
         return self.run_sql(ISSUE,args)
     def activate(self,token=TICKET,customer=CID,code=CODE,
@@ -91,6 +93,18 @@ class OtpTicket(unittest.TestCase):
         self.d.execute("UPDATE customer_portal_phone_challenges_v1 SET status='VERIFIED',consumed_at_ms=?",(NOW-100,))
         self.d.commit()
         self.assertEqual(self.ticket(issued=NOW+121000,expires=NOW+721000),0)
+
+    def test_ticket_issue_ttl_must_be_positive_and_at_most_10_minutes(self):
+        self.canary()
+        # Boundary-value tests catch the original reversed subtraction.
+        for ttl in (600001, 900000, 3600000, 86400000):
+            self.assertEqual(self.ticket(expires=NOW+ttl),0,ttl)
+            self.assertEqual(self.account()[2],"",ttl)
+        for ttl in (0, -1):
+            self.assertEqual(self.ticket(expires=NOW+ttl),0,ttl)
+        self.assertEqual(self.ticket(expires=NOW+600000),1)
+        self.assertEqual(self.activate(now=NOW+600000),0,
+                         "token must be expired exactly at its deadline")
 
     def test_ticket_wrong_id_or_expired_grant_denied(self):
         self.canary()
