@@ -14,7 +14,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run eight actual checked-in accounting and owner-approval source gates
+      - name: Run nine actual checked-in accounting and owner-approval source gates
         env:
           CLOUDFLARE_API_TOKEN: ''
           CLOUDFLARE_ACCOUNT_ID: ''
@@ -38,6 +38,7 @@ jobs:
           node --test tests/easystore_acc_customer_advance_credit_sqlite.test.mjs
           node --test tests/easystore_acc205_credit_liability_readonly_sqlite_no_go.test.mjs
           node --test tests/easystore_acc206_native_invoice_return_exposure_sqlite_no_go.test.mjs
+          node --test tests/easystore_acc209_later_collection_reference_lineage_sqlite_no_go.test.mjs
           node --test tests/easystore_acc207_finance_release_batch_no_go.test.mjs
           node scripts/acc207_finance_release_batch.mjs --out /tmp/acc207-local-no-go.json
           node -e "const x=require('/tmp/acc207-local-no-go.json');if(x.financeRelease!=='NO_GO'||x.productionDeployApproved!==false||Object.values(x.gates).some(v=>v!=='OPEN'))process.exit(1)"
