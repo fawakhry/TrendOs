@@ -208,7 +208,19 @@ await test('ACC210 audited item/cash source-only candidate — SQLite REVIEW, NO
    assert.equal(stale.refundAuthorized,false);
    db.exec("UPDATE employee_accounting_request_ledger_v1 SET status='COMMITTED' WHERE request_key='ACC210_LATER_RECEIPT'");
  });
- await t.test('14 missing new review schema fails closed, not no candidates',async()=>{
+ await t.test('14 after INSERT source amount shrinks below global cross-invoice proposals, status goes UNKNOWN',async()=>{
+   // Original later customer receipt was 10 EGP, provisionally split 5+5
+   // across two different invoices. Mutate source ledger down to 4 EGP,
+   // leaving cash at 10 EGP; the live PREVIEW must recheck combined 10 EGP.
+   db.exec("UPDATE employee_accounting_party_ledger_v1 SET amount=4 WHERE request_key='ACC210_LATER_RECEIPT'");
+   const drift=await send('previewInvoiceItemPaymentReviewV1',{invoiceNo:'ACC210_INV_A'});
+   assert.equal(drift.success,true,JSON.stringify(drift));
+   assert.equal(drift.reviewState,'SOURCE_EVIDENCE_CHANGED_OR_INCOMPLETE');
+   assert.equal(drift.proposedTotalCents,null);
+   assert.equal(drift.refundAuthorized,false);
+   db.exec("UPDATE employee_accounting_party_ledger_v1 SET amount=10 WHERE request_key='ACC210_LATER_RECEIPT'");
+ });
+ await t.test('15 missing new review schema fails closed, not no candidates',async()=>{
    db.exec('ALTER TABLE employee_accounting_invoice_item_payment_review_v1 RENAME TO acc210_unavailable_source_rows');
    const unavailable=await send('previewInvoiceItemPaymentReviewV1',{invoiceNo:'ACC210_INV_A'});
    assert.equal(unavailable.success,false);
