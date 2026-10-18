@@ -24,9 +24,13 @@ export async function fingerprintEnrollmentTicketV0({token,customerId,challengeI
 // This UPDATE runs ONLY after the server, not a browser, proved the OTP MAC
 // and won Entry658's single-use VERIFIED CAS for the SAME challenge/customer.
 // Reserves a single ticket; no replacement from old VERIFIED challenges.
+// Strict TTL: expiresMs - issuedMs must be in [1,600000].
+// In Entry659 the subtraction binds were reversed, so every positive TTL
+// accidentally satisfied issuedMs - expiresMs <= 600000. Keep bind order
+// synchronized with caller and SQLite regression tests.
 // Positional binds:
 // mac, challengeId, issuedMs, expiresMs, customerId, portalCode,
-// issuedMs, expiresMs, issuedMs, expiresMs, issuedMs, challengeId, issuedMs, issuedMs, issuedMs.
+// issuedMs, expiresMs, expiresMs, issuedMs, issuedMs, challengeId, issuedMs, issuedMs, issuedMs.
 export const OTP_ISSUE_TICKET_CAS_SQL_V0=`
 UPDATE customer_portal_native_accounts_v1
    SET enrollment_ticket_mac_hex=?,
@@ -35,7 +39,7 @@ UPDATE customer_portal_native_accounts_v1
        enrollment_ticket_expires_at_ms=?
  WHERE customer_id=? AND portal_code=? AND state='PENDING'
    AND enrollment_ticket_mac_hex=''
-   AND ?>0 AND ?>? AND ?-?<=600000
+   AND ?>0 AND ?>? AND ?-? BETWEEN 1 AND 600000
    AND EXISTS(
      SELECT 1 FROM customer_portal_phone_challenges_v1 ch
      JOIN customer_portal_phone_grants_v1 g
