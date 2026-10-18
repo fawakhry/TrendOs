@@ -2525,6 +2525,8 @@ async function previewInvoiceItemPaymentReviewV1(env,auth,b){
     const result=await env.DB.prepare(
       "SELECT a.proposal_id AS proposalId,a.accounting_line_id AS lineId,"+
       "a.receipt_ledger_request_key AS receiptKey,a.proposed_cents AS cents,"+
+      "(SELECT COALESCE(SUM(ax.proposed_cents),0) FROM employee_accounting_invoice_item_payment_review_v1 ax "+
+      "WHERE ax.receipt_ledger_request_key=a.receipt_ledger_request_key) AS allInvoicesSourceProposedCents,"+
       "a.customer_id AS customerId,a.review_status AS reviewStatus,"+
       "a.finance_authorized AS financeFlag,a.refund_authorized AS refundFlag,"+
       "a.delivery_authorized AS deliveryFlag,a.cash_out_authorized AS cashFlag,"+
@@ -2570,7 +2572,9 @@ async function previewInvoiceItemPaymentReviewV1(env,auth,b){
           text(r.ledgerOperation)==='payment_received'&&Number(r.ledgerEffect)===-1&&
           text(r.parentStatus)==='COMMITTED'&&acceptableParent&&
           text(r.cashMovement)==='CUSTOMER_RECEIPT'&&
-          ledger!==null&&cash!==null&&ledger>0&&cash>=ledger;
+          ledger!==null&&cash!==null&&ledger>0&&cash>=ledger&&
+          Number.isSafeInteger(Number(r.allInvoicesSourceProposedCents))&&
+          Number(r.allInvoicesSourceProposedCents)<=ledger;
         if(!sound){reviewState='SOURCE_EVIDENCE_CHANGED_OR_INCOMPLETE';totalCents=null;break;}
         totalCents+=cents;
         candidateRows.push({proposalId:text(r.proposalId),lineId:text(r.lineId),
