@@ -1,0 +1,31 @@
+name: ACC209 Later Invoice Receipt Reference Ambiguity (REAL SQLITE NO_GO)
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  actual-native-invoice-reference-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Actual original native finance Worker with synthetic SQLite only
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test -z "$GOOGLE_APPLICATION_CREDENTIALS"
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --test tests/easystore_acc209_later_collection_reference_lineage_sqlite_no_go.test.mjs
+          echo 'ACC209_ALL_RECEIPTS_FAKE_SQLITE_ONLY=YES'
+          echo 'ACC209_OWNER_RETURN_APPROVAL=NO'
+          echo 'ACC209_FINANCE_RELEASE=NO_GO'
