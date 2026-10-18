@@ -133,10 +133,10 @@ await test('ACC210 audited item/cash source-only candidate — SQLite REVIEW, NO
    denied(()=>propose('ACC210_P08','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_MISSING',1),/receipt-not-committed-with-matching-cash/);
  });
  await t.test('05 forged actor role, invalid hash, missing reason and authority field cannot bypass DB',()=>{
-   denied(()=>propose('ACC210_P09','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_LATER_RECEIPT',1,'ACC210_FAKE_A',{actor_role_label:'service'}),/CHECK/);
-   denied(()=>propose('ACC210_P10','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_LATER_RECEIPT',1,'ACC210_FAKE_A',{evidence_sha256:'deadbeef'}),/CHECK/);
-   denied(()=>propose('ACC210_P11','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_LATER_RECEIPT',1,'ACC210_FAKE_A',{reason:'yes'}),/CHECK/);
-   denied(()=>propose('ACC210_P12','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_LATER_RECEIPT',1,'ACC210_FAKE_A',{cash_out_authorized:1}),/CHECK/);
+   denied(()=>propose('ACC210_P09','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_SALE_A-LEDGER-PAYMENT',1,'ACC210_FAKE_A',{actor_role_label:'service'}),/CHECK/);
+   denied(()=>propose('ACC210_P10','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_SALE_A-LEDGER-PAYMENT',1,'ACC210_FAKE_A',{evidence_sha256:'deadbeef'}),/CHECK/);
+   denied(()=>propose('ACC210_P11','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_SALE_A-LEDGER-PAYMENT',1,'ACC210_FAKE_A',{reason:'yes'}),/CHECK/);
+   denied(()=>propose('ACC210_P12','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_SALE_A-LEDGER-PAYMENT',1,'ACC210_FAKE_A',{cash_out_authorized:1}),/CHECK/);
  });
  await t.test('06 parent PREPARED, mismatch cash movement and missing cash fail closed',()=>{
    db.exec("UPDATE employee_accounting_request_ledger_v1 SET status='PREPARED' WHERE request_key='ACC210_LATER_RECEIPT'");
@@ -152,7 +152,7 @@ await test('ACC210 audited item/cash source-only candidate — SQLite REVIEW, NO
    const r=inDb('SELECT amount FROM employee_accounting_party_ledger_v1 WHERE request_key=?',source);
    assert.equal(r.amount,25);
    propose('ACC210_P15','ACC210_INV_A','ACC210_FIXTURE_LINE_A',source,1500);
-   denied(()=>propose('ACC210_P16','ACC210_INV_A','ACC210_FIXTURE_LINE_A',source,1001),
+   denied(()=>propose('ACC210_P16','ACC210_INV_B','ACC210_FIXTURE_LINE_B',source,1001),
      /source-receipt-total-exceeded/);
  });
  await t.test('08 immutable review cannot be updated, deleted or promoted to authorization',()=>{
@@ -161,9 +161,9 @@ await test('ACC210 audited item/cash source-only candidate — SQLite REVIEW, NO
    assert.equal(inDb("SELECT review_status FROM employee_accounting_invoice_item_payment_review_v1 WHERE proposal_id='ACC210_P02'").review_status,'NOT_ATTESTED');
  });
  await t.test('09 strict integer positive piastres, no float/zero or oversize proposal',()=>{
-   denied(()=>propose('ACC210_P17','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_LATER_RECEIPT',0),/CHECK/);
-   denied(()=>propose('ACC210_P18','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_LATER_RECEIPT',1.5),/CHECK/);
-   denied(()=>propose('ACC210_P19','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_LATER_RECEIPT',9007199254740992),/CHECK/);
+   denied(()=>propose('ACC210_P17','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_SALE_A-LEDGER-PAYMENT',0),/CHECK/);
+   denied(()=>propose('ACC210_P18','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_SALE_A-LEDGER-PAYMENT',1.5),/CHECK/);
+   denied(()=>propose('ACC210_P19','ACC210_INV_A','ACC210_FIXTURE_LINE_A','ACC210_SALE_A-LEDGER-PAYMENT',9007199254740992),/CHECK/);
  });
  await t.test('10 no writer exposed and all fixture records remain NOT_ATTESTED, no outside network',()=>{
    const native=fs.readFileSync('cloudflare-d1/src/employee-accounting-native-v1.mjs','utf8');
