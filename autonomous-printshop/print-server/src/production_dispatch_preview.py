@@ -32,7 +32,9 @@ class DispatchPreviewError(ValueError):
 
 
 def _valid_id(value: object, pattern=_ID) -> bool:
-    return type(value) is str and bool(pattern.fullmatch(value)) and value == value.strip()
+    return (type(value) is str and bool(pattern.fullmatch(value))
+            and value == value.strip()
+            and not any(part in (".", "..") for part in value.split("/")))
 
 
 def _validate_response(screen: str, packet: object) -> list[dict]:
