@@ -60,6 +60,8 @@ node --test tests/zero_google_four_phase_release_gate.test.mjs
 node tools/zero-google-release-v1/run-offline-audit.mjs
 ```
 
+**ملف قرار مستقل قابل للفحص الآلي:** [FOUR_PHASE_DECISION_REGISTER_V1.json](FOUR_PHASE_DECISION_REGISTER_V1.json)، يشمل D01–D04 والأدلة المطلوبة، مع `live_cutover_phases_certified=0`.
+
 ### Decision register — القرارات محفوظة، لا تعطل تنفيذ المصدر
 
 | الرمز | يحتاج دليلًا خارجيًا/موافقة | الحالة |
