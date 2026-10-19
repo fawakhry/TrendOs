@@ -5063,11 +5063,71 @@
         "path": "cloudflare-d1/src/t12-order-create-shadow-intent.mjs",
         "result": "PATH_EXISTS",
         "current_blob_sha": "17e52b3a1d8f346bd465329c258f6cde647d9ac0"
+      },
+      {
+        "path": "cloudflare-d1/src/t12-customer-write-handler.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "3e604ac731a53b3c8e00994ba9fd0f32c9da4a69"
+      },
+      {
+        "path": "cloudflare-d1/src/t12-customer-master.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "ca12f742d32ebab3d59dccc44e165d71435dd57a"
+      },
+      {
+        "path": "tests/t12_customer_master_a53.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "41c02986d4057f74573e74294fc111098263b4fb"
+      },
+      {
+        "path": "tests/t12_customer_master_production_shadow_a53.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "f666915675dfbc034ba97319192d9e45dad7b1fa"
+      },
+      {
+        "path": "tests/frontend_t12_customer_cloud_only_a56.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "c0772c22b51fe6f4cf6e342b0db833100021f38b"
+      },
+      {
+        "path": "tests/t12_general_create.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "b25a0634d5e64b5ba1a376b687bbdf96ed800fba"
+      },
+      {
+        "path": "tests/frontend_flyprint_lane_stability_02cv.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "37f9a92556c66e3ffc1d328686d1751296fe43a4"
+      },
+      {
+        "path": "cloudflare-d1/src/edge-orders-read-02cr-canary.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "fdc8b426569204e0945a87bca6559f13dd503406"
+      },
+      {
+        "path": "tests/cloudflare_edge_orders_02cr_canary.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "e2a67aa35ecc62a2b2a2e1f5739eef2cbc0880ec"
+      },
+      {
+        "path": "tests/cloudflare_edge_orders_read_v1.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "cb72da72dba82e92fe55c5d0b88e64968244a106"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+      },
+      {
+        "path": "tests/entry652_employee_session_lifecycle_guard.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "c6af484e1aa181764e13cd563d4f1ac27b375705"
       }
     ],
     "runtime_verified": false,
-    "checked_count": 12,
-    "present_count": 12,
+    "checked_count": 24,
+    "present_count": 24,
     "unresolved_count": 0
   }
 }
