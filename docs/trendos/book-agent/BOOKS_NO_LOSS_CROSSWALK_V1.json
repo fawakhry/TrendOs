@@ -5543,11 +5543,71 @@
         "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
         "result": "PATH_EXISTS",
         "current_blob_sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+      },
+      {
+        "path": "tests/frontend_easystore_sso_entry619.test.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "4f47fd58cab29317c4a50a3db27c4370329a0e59"
+      },
+      {
+        "path": "tests/employee_auth_native_a61.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "bb2c0c80dc2ec718065a4a8938bbcdb15455ef14"
+      },
+      {
+        "path": "autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md",
+        "result": "FETCH_UNRESOLVED",
+        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation"
+      },
+      {
+        "path": "autonomous-printshop/print-server/README.md",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "296d88ac37930a7cb6e0292300a9b3bca61ce82b"
+      },
+      {
+        "path": "autonomous-printshop/print-server/src/config.py",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "46a526338db882a6e9cdb18ad07850d1728b5d65"
+      },
+      {
+        "path": "autonomous-printshop/print-server/src/server.py",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "e92e6851ad147f5ae2bea9659b032c125e1fe70d"
+      },
+      {
+        "path": "autonomous-printshop/print-server/src/state.py",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "1033e10587b78eb5d75e5debf4d7fd39e32e9542"
+      },
+      {
+        "path": "autonomous-printshop/print-server/src/folders.py",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "cd1424e976a62b6e1478556b0af8040927c7f97d"
+      },
+      {
+        "path": "autonomous-printshop/print-server/src/trendos_shadow_qualifier.py",
+        "result": "FETCH_UNRESOLVED",
+        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation"
+      },
+      {
+        "path": "autonomous-printshop/print-server/src/platform_bridge.py",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "7321393be0299863483eb7479dc28b1917039036"
+      },
+      {
+        "path": "autonomous-printshop/print-server/src/trendos_client.py",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "870c1926217c8cb974d9f805d3446a68a4e58cdf"
+      },
+      {
+        "path": "autonomous-printshop/print-server/tests/test_ap279_bridge_shadow_synthetic.py",
+        "result": "FETCH_UNRESOLVED",
+        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation"
       }
     ],
     "runtime_verified": false,
-    "checked_count": 108,
-    "present_count": 108,
-    "unresolved_count": 0
+    "checked_count": 120,
+    "present_count": 117,
+    "unresolved_count": 3
   }
 }
