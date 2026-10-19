@@ -5,8 +5,13 @@ import sys
 import unittest
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(ROOT/"tests"))
-from entry660_customer_native_orders_sqlite import seeded,NOW,fingerprint,sql as reader_sql
+from importlib.util import spec_from_file_location, module_from_spec
+# The sibling fixture intentionally ends in .test.py, so normal Python
+# package import would silently look for a non-existent module.
+spec=spec_from_file_location("entry660_fixture", ROOT/"tests/entry660_customer_native_orders_sqlite.test.py")
+fixture=module_from_spec(spec)
+spec.loader.exec_module(fixture)
+seeded,NOW,fingerprint,reader_sql=fixture.seeded,fixture.NOW,fixture.fingerprint,fixture.sql
 SOURCE=(ROOT/"cloudflare-d1/src/customer-portal-native-logout-v0.mjs").read_text()
 match=re.search(r"export const CUSTOMER_NATIVE_LOGOUT_CAS_SQL_V0=`(.*?)`;",SOURCE,re.S)
 assert match, "missing logout CAS SQL"
