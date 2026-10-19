@@ -9723,5 +9723,998 @@
     "old_master_active": true,
     "catalog_frozen": true,
     "cutover": "NO_GO"
+  },
+  "source_semantic_resume_batch5_20261020": {
+    "date": "2026-10-20",
+    "observed_head_before_write": "3c1db26def6c2e878a6d246f3cbdebda039da60c",
+    "addition_count": 14,
+    "first_20_individually_reviewed_previous": true,
+    "prior_review_total": 31,
+    "new_review_total": 45,
+    "remaining": 21,
+    "ids": [
+      628,
+      627,
+      626,
+      625,
+      624,
+      623,
+      622,
+      621,
+      620,
+      618,
+      617,
+      616,
+      615,
+      614
+    ],
+    "entries": [
+      {
+        "entry_id": 628,
+        "status": "HISTORICAL_ONLY",
+        "reviewed_source_scope": "Core READONLY source gate and bridge reduction; historical reference-only, no dedicated Entry628 section",
+        "source_owner_family": "Core",
+        "historical_catalog_heading": {
+          "status": "NO_INDEPENDENT_ENTRY_HEADING_REFERENCE_ONLY"
+        },
+        "inspected_artifact": {
+          "path": ".github/workflows/trendos-entry628-core-readonly-repo-ci.yml",
+          "blob_sha": "2f0e7faf5c7183f05d5b1b40c4c7e63bc06933bf",
+          "total_lines": 47,
+          "nonsecret_highlights": [
+            {
+              "line": 1,
+              "excerpt": "name: TrendOS Entry628 Core Readonly Repo CI"
+            },
+            {
+              "line": 10,
+              "excerpt": "- 'docs/trendos/staging/ENTRY628_CORE_READONLY_BRIDGE_REDUCTION_MANIFEST.json'"
+            },
+            {
+              "line": 11,
+              "excerpt": "- 'tests/entry628_employee_core_readonly_dispatch.test.mjs'"
+            },
+            {
+              "line": 12,
+              "excerpt": "- 'cloudflare-d1/src/employee-core-native-v1.mjs'"
+            },
+            {
+              "line": 13,
+              "excerpt": "- '.github/workflows/trendos-entry628-core-readonly-repo-ci.yml'"
+            },
+            {
+              "line": 34,
+              "excerpt": "node --check cloudflare-d1/src/employee-core-native-v1.mjs"
+            }
+          ]
+        },
+        "relevant_current_source": [
+          {
+            "path": "cloudflare-d1/src/employee-core-native-v1.mjs",
+            "sha": "90b8d2d2353b3cbb2d85f8500e54bc64cfc3c82e"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "config.js",
+            "sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          }
+        ],
+        "reviewed_frontend": [
+          "employee-api-dispatcher-v1.js",
+          "config.js"
+        ],
+        "reviewed_backend": [
+          "cloudflare-d1/src/employee-core-native-v1.mjs"
+        ],
+        "api_readiness": "CURRENT_BRANCH_SOURCE_ROUTES_ONLY; no request executed",
+        "d1_r2_operational_readiness": "NOT_VERIFIED_AT_CURRENT_PRODUCTION",
+        "google_legacy_boundary": "Core control currently GENERAL in config.js; an old READONLY workflow must not be replayed. Google fallbacks elsewhere unresolved.",
+        "tests_run_in_this_batch": 0,
+        "production_verified": false,
+        "special_note": "Entry628 is a historical mention-only ID in original 66; workflow exists but does not create a dedicated historical Entry section."
+      },
+      {
+        "entry_id": 627,
+        "status": "SOURCE_PARTIAL",
+        "reviewed_source_scope": "Employee alias / canary historical user-shape bridge",
+        "source_owner_family": "AUTH",
+        "historical_catalog_heading": {
+          "line": 5019,
+          "title": "## الملحق التاريخي و-٩ — Entry627 / توثيق الحالة التاريخية",
+          "book_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde"
+        },
+        "inspected_artifact": {
+          "path": "tests/entry627_employee_native_alias_canary.test.mjs",
+          "blob_sha": "db0805a2bc68b78397e72f4cd3854bbf96cb0803",
+          "total_lines": 73,
+          "nonsecret_highlights": [
+            {
+              "line": 6,
+              "excerpt": "const m=JSON.parse(fs.readFileSync('docs/trendos/staging/ENTRY627_EMPLOYEE_NATIVE_ALIAS_CANARY_MANIFEST.json','utf8'));"
+            },
+            {
+              "line": 7,
+              "excerpt": "const p626=JSON.parse(fs.readFileSync('docs/trendos/staging/ENTRY626_REMAINING_EMPLOYEES_NATIVE_CANARY_17_POLICY_MANIFEST.json','utf8')).policies;"
+            },
+            {
+              "line": 8,
+              "excerpt": "assert.equal(p626.length,17);"
+            },
+            {
+              "line": 9,
+              "excerpt": "assert.equal(new Set(p626).size,17);"
+            },
+            {
+              "line": 11,
+              "excerpt": "assert.equal(m.globalNativeAuth,false);"
+            },
+            {
+              "line": 12,
+              "excerpt": "assert.equal(m.bridgePolicyCount,17);"
+            }
+          ]
+        },
+        "relevant_current_source": [
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "config.js",
+            "sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          }
+        ],
+        "reviewed_frontend": [
+          "employee-api-dispatcher-v1.js",
+          "config.js"
+        ],
+        "reviewed_backend": [
+          "cloudflare-d1/src/employee-auth-native-v1.mjs"
+        ],
+        "api_readiness": "CURRENT_BRANCH_SOURCE_ROUTES_ONLY; no request executed",
+        "d1_r2_operational_readiness": "NOT_VERIFIED_AT_CURRENT_PRODUCTION",
+        "google_legacy_boundary": "Staged per-user canary tests inspect historical manifest not current deployed canonical identities.",
+        "tests_run_in_this_batch": 0,
+        "production_verified": false
+      },
+      {
+        "entry_id": 626,
+        "status": "SOURCE_PARTIAL",
+        "reviewed_source_scope": "Employee Native Auth remaining canary allowlist historical expansion",
+        "source_owner_family": "AUTH",
+        "historical_catalog_heading": {
+          "line": 4924,
+          "title": "## الملحق التاريخي و-٨ — Entry626 / Native Auth employee canary allowlist",
+          "book_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde"
+        },
+        "inspected_artifact": {
+          "path": "tests/entry626_remaining_employees_native_canary_17_policy.test.mjs",
+          "blob_sha": "38f6b6c141dffecc208e0944c84d4e34ae4c659e",
+          "total_lines": 110,
+          "nonsecret_highlights": [
+            {
+              "line": 6,
+              "excerpt": "const manifest=JSON.parse(fs.readFileSync('docs/trendos/staging/ENTRY626_REMAINING_EMPLOYEES_NATIVE_CANARY_17_POLICY_MANIFEST.json','utf8'));"
+            },
+            {
+              "line": 8,
+              "excerpt": "assert.deepEqual(manifest.existingCanaryUsers,['ضياء','وائل','جابر']);"
+            },
+            {
+              "line": 9,
+              "excerpt": "assert.deepEqual(manifest.addedEmployeeAliases,['رحمه','رحمة','ريفان','ريڤان']);"
+            },
+            {
+              "line": 10,
+              "excerpt": "assert.deepEqual(manifest.targetCanaryUsers,['ضياء','وائل','جابر','رحمه','رحمة','ريفان','ريڤان']);"
+            },
+            {
+              "line": 11,
+              "excerpt": "assert.equal(manifest.globalNativeAuth,false);"
+            },
+            {
+              "line": 12,
+              "excerpt": "assert.equal(manifest.bridgePolicyCount,17);"
+            }
+          ]
+        },
+        "relevant_current_source": [
+          {
+            "path": "config.js",
+            "sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          }
+        ],
+        "reviewed_frontend": [
+          "config.js",
+          "employee-api-dispatcher-v1.js"
+        ],
+        "reviewed_backend": [
+          "cloudflare-d1/src/employee-auth-native-v1.mjs"
+        ],
+        "api_readiness": "CURRENT_BRANCH_SOURCE_ROUTES_ONLY; no request executed",
+        "d1_r2_operational_readiness": "NOT_VERIFIED_AT_CURRENT_PRODUCTION",
+        "google_legacy_boundary": "Historical 17-policy canary is superseded by source Global Native true / Canary false.",
+        "tests_run_in_this_batch": 0,
+        "production_verified": false
+      },
+      {
+        "entry_id": 625,
+        "status": "SOURCE_PARTIAL",
+        "reviewed_source_scope": "Employee Native Auth third canary expansion historical",
+        "source_owner_family": "AUTH",
+        "historical_catalog_heading": {
+          "line": 4823,
+          "title": "## الملحق التاريخي و-٧ — Entry625 / Native Auth third canary expansion",
+          "book_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde"
+        },
+        "inspected_artifact": {
+          "path": "tests/entry625_jaber_third_native_canary_17_policy.test.mjs",
+          "blob_sha": "aee729cab698c6f90a3ba99eb6eaa56db165ee8f",
+          "total_lines": 118,
+          "nonsecret_highlights": [
+            {
+              "line": 6,
+              "excerpt": "const manifest=JSON.parse(fs.readFileSync('docs/trendos/staging/ENTRY625_JABER_THIRD_NATIVE_CANARY_17_POLICY_MANIFEST.json','utf8'));"
+            },
+            {
+              "line": 8,
+              "excerpt": "assert.deepEqual(manifest.existingCanaryUsers,['ضياء','وائل']);"
+            },
+            {
+              "line": 9,
+              "excerpt": "assert.equal(manifest.addedCanaryUsername,'جابر');"
+            },
+            {
+              "line": 10,
+              "excerpt": "assert.deepEqual(manifest.targetCanaryUsers,['ضياء','وائل','جابر']);"
+            },
+            {
+              "line": 11,
+              "excerpt": "assert.equal(manifest.bridgePolicyCount,17);"
+            },
+            {
+              "line": 12,
+              "excerpt": "assert.equal(manifest.policies.length,17);"
+            }
+          ]
+        },
+        "relevant_current_source": [
+          {
+            "path": "config.js",
+            "sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          }
+        ],
+        "reviewed_frontend": [
+          "config.js",
+          "employee-api-dispatcher-v1.js"
+        ],
+        "reviewed_backend": [
+          "cloudflare-d1/src/employee-auth-native-v1.mjs"
+        ],
+        "api_readiness": "CURRENT_BRANCH_SOURCE_ROUTES_ONLY; no request executed",
+        "d1_r2_operational_readiness": "NOT_VERIFIED_AT_CURRENT_PRODUCTION",
+        "google_legacy_boundary": "Do not interpret previous per-user canary manifest as current employee authorization.",
+        "tests_run_in_this_batch": 0,
+        "production_verified": false
+      },
+      {
+        "entry_id": 624,
+        "status": "SOURCE_PARTIAL",
+        "reviewed_source_scope": "Employee Native Auth second canary expansion historical",
+        "source_owner_family": "AUTH",
+        "historical_catalog_heading": {
+          "line": 4659,
+          "title": "## الملحق التاريخي و-٦ — Entry624 / staged second-employee Native Auth Canary",
+          "book_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde"
+        },
+        "inspected_artifact": {
+          "path": "tests/entry624_wael_second_native_canary_17_policy.test.mjs",
+          "blob_sha": "6e3504f2331a4af5010d4a47a68e4dda766a159f",
+          "total_lines": 122,
+          "nonsecret_highlights": [
+            {
+              "line": 7,
+              "excerpt": "const manifest=JSON.parse(fs.readFileSync('docs/trendos/staging/ENTRY624_WAEL_SECOND_NATIVE_CANARY_17_POLICY_MANIFEST.json','utf8'));"
+            },
+            {
+              "line": 9,
+              "excerpt": "assert.deepEqual(manifest.existingCanaryUsers,['ضياء']);"
+            },
+            {
+              "line": 10,
+              "excerpt": "assert.equal(manifest.addedCanaryUsername,'وائل');"
+            },
+            {
+              "line": 11,
+              "excerpt": "assert.deepEqual(manifest.targetCanaryUsers,['ضياء','وائل']);"
+            },
+            {
+              "line": 12,
+              "excerpt": "assert.equal(manifest.bridgePolicyCount,17);"
+            },
+            {
+              "line": 13,
+              "excerpt": "assert.equal(manifest.policies.length,17);"
+            }
+          ]
+        },
+        "relevant_current_source": [
+          {
+            "path": "config.js",
+            "sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          }
+        ],
+        "reviewed_frontend": [
+          "config.js",
+          "employee-api-dispatcher-v1.js"
+        ],
+        "reviewed_backend": [
+          "cloudflare-d1/src/employee-auth-native-v1.mjs"
+        ],
+        "api_readiness": "CURRENT_BRANCH_SOURCE_ROUTES_ONLY; no request executed",
+        "d1_r2_operational_readiness": "NOT_VERIFIED_AT_CURRENT_PRODUCTION",
+        "google_legacy_boundary": "Earlier single-user bridge/canary status superseded by current repository default Native flag.",
+        "tests_run_in_this_batch": 0,
+        "production_verified": false
+      },
+      {
+        "entry_id": 623,
+        "status": "SOURCE_PARTIAL",
+        "reviewed_source_scope": "Native Auth one-employee canary and transitional bootstrap",
+        "source_owner_family": "AUTH",
+        "historical_catalog_heading": {
+          "line": 3941,
+          "title": "## الملحق التاريخي و-٥ — Entry623 / Native Auth one-employee canary qualification",
+          "book_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde"
+        },
+        "inspected_artifact": {
+          "path": ".github/workflows/trendos-entry623-auth-bootstrap-stage-ci.yml",
+          "blob_sha": "62dc27955ef1ec9833ed4c68067b33aae26b2c22",
+          "total_lines": 44,
+          "nonsecret_highlights": [
+            {
+              "line": 1,
+              "excerpt": "name: TrendOS Entry623 Auth Bootstrap Stage Repo CI"
+            },
+            {
+              "line": 8,
+              "excerpt": "- 'cloudflare-d1/src/employee-auth-native-v1.mjs'"
+            },
+            {
+              "line": 10,
+              "excerpt": "- 'tests/employee_auth_native_a61.test.mjs'"
+            },
+            {
+              "line": 11,
+              "excerpt": "- '.github/workflows/trendos-entry623-auth-bootstrap-stage-ci.yml'"
+            },
+            {
+              "line": 27,
+              "excerpt": "- name: Syntax and native auth contract"
+            },
+            {
+              "line": 31,
+              "excerpt": "node --check cloudflare-d1/src/employee-auth-native-v1.mjs"
+            }
+          ]
+        },
+        "relevant_current_source": [
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "cloudflare-d1/wrangler.toml",
+            "sha": "579b06e4918a9ed965be183e69742205f03cdc74"
+          },
+          {
+            "path": "config.js",
+            "sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          }
+        ],
+        "reviewed_frontend": [
+          "config.js"
+        ],
+        "reviewed_backend": [
+          "cloudflare-d1/src/employee-auth-native-v1.mjs",
+          "cloudflare-d1/wrangler.toml"
+        ],
+        "api_readiness": "CURRENT_BRANCH_SOURCE_ROUTES_ONLY; no request executed",
+        "d1_r2_operational_readiness": "NOT_VERIFIED_AT_CURRENT_PRODUCTION",
+        "google_legacy_boundary": "Bootstrap source guarded by TRANSITIONAL; current Wrangler bootstrap=false, nativeOnly=true. Historical canary workflow cannot certify current deploy.",
+        "tests_run_in_this_batch": 0,
+        "production_verified": false
+      },
+      {
+        "entry_id": 622,
+        "status": "SOURCE_PARTIAL",
+        "reviewed_source_scope": "Compatibility bridge read-only policy gate preparation",
+        "source_owner_family": "AUTH",
+        "historical_catalog_heading": {
+          "line": 3812,
+          "title": "## الملحق التاريخي و-٤ — Entry622 / Compatibility Bridge preparation checkpoint",
+          "book_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde"
+        },
+        "inspected_artifact": {
+          "path": "tests/entry622_trendos_bridge_readonly_policies.test.mjs",
+          "blob_sha": "3b3f83fd857169c1cbac080880f4cb2149289b22",
+          "total_lines": 35,
+          "nonsecret_highlights": [
+            {
+              "line": 4,
+              "excerpt": "const manifest = JSON.parse(fs.readFileSync('docs/trendos/staging/ENTRY622_TRENDOS_BRIDGE_READONLY_POLICIES.json','utf8'));"
+            },
+            {
+              "line": 5,
+              "excerpt": "assert.equal(manifest.entry,'Entry622');"
+            },
+            {
+              "line": 6,
+              "excerpt": "assert.equal(manifest.bridgeEnabled,false);"
+            },
+            {
+              "line": 7,
+              "excerpt": "assert.equal(manifest.authEnabled,false);"
+            },
+            {
+              "line": 8,
+              "excerpt": "assert.equal(manifest.accountingProgram,'DEFERRED_EXTERNAL_REPO');"
+            },
+            {
+              "line": 9,
+              "excerpt": "assert.equal(manifest.policyCount,17);"
+            }
+          ]
+        },
+        "relevant_current_source": [
+          {
+            "path": "cloudflare-d1/src/employee-legacy-bridge-v1.mjs",
+            "sha": "e317c9692970d8f31b2980fa07b692e882911928"
+          },
+          {
+            "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+            "sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+          },
+          {
+            "path": "cloudflare-d1/wrangler.toml",
+            "sha": "579b06e4918a9ed965be183e69742205f03cdc74"
+          }
+        ],
+        "reviewed_frontend": [],
+        "reviewed_backend": [
+          "cloudflare-d1/src/employee-legacy-bridge-v1.mjs",
+          "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+          "cloudflare-d1/wrangler.toml"
+        ],
+        "api_readiness": "CURRENT_BRANCH_SOURCE_ROUTES_ONLY; no request executed",
+        "d1_r2_operational_readiness": "NOT_VERIFIED_AT_CURRENT_PRODUCTION",
+        "google_legacy_boundary": "Historic manifest required bridge false; Apps Script upstream remains configured and current dependency must be qualified per route.",
+        "tests_run_in_this_batch": 0,
+        "production_verified": false
+      },
+      {
+        "entry_id": 621,
+        "status": "SOURCE_PARTIAL",
+        "reviewed_source_scope": "Zero-Google overall scope and Employee Auth session audit",
+        "source_owner_family": "AUTH/ZERO_GOOGLE",
+        "historical_catalog_heading": {
+          "line": 3671,
+          "title": "## الملحق التاريخي و-٣ — Entry621 / Zero-Google scope and Employee Auth audit",
+          "book_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde"
+        },
+        "inspected_artifact": {
+          "path": ".github/workflows/trendos-entry621-auth-session-readonly-audit.yml",
+          "blob_sha": "582db7a31b3d1850ad916f90fbd8278da2a316b4",
+          "total_lines": 226,
+          "nonsecret_highlights": [
+            {
+              "line": 1,
+              "excerpt": "name: TrendOS Entry621 Employee Auth Session Read-Only Audit"
+            },
+            {
+              "line": 8,
+              "excerpt": "- '.github/workflows/trendos-entry621-auth-session-readonly-audit.yml'"
+            },
+            {
+              "line": 14,
+              "excerpt": "group: trendos-entry621-auth-session-readonly-audit"
+            },
+            {
+              "line": 45,
+              "excerpt": "node tests/employee_auth_native_a61.test.mjs"
+            },
+            {
+              "line": 46,
+              "excerpt": "node tests/employee_legacy_auth_bridge_a61.test.mjs"
+            },
+            {
+              "line": 47,
+              "excerpt": "node tests/entry609_native_auth_cutover_inventory.test.mjs"
+            }
+          ]
+        },
+        "relevant_current_source": [
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+            "sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+          },
+          {
+            "path": "config.js",
+            "sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          }
+        ],
+        "reviewed_frontend": [
+          "config.js"
+        ],
+        "reviewed_backend": [
+          "cloudflare-d1/src/employee-auth-native-v1.mjs",
+          "cloudflare-d1/src/cloud-session-bridge-v3.mjs"
+        ],
+        "api_readiness": "CURRENT_BRANCH_SOURCE_ROUTES_ONLY; no request executed",
+        "d1_r2_operational_readiness": "NOT_VERIFIED_AT_CURRENT_PRODUCTION",
+        "google_legacy_boundary": "Project-only scope; read-only historical audit not broad ZERO_GOOGLE_COMPLETE.",
+        "tests_run_in_this_batch": 0,
+        "production_verified": false
+      },
+      {
+        "entry_id": 620,
+        "status": "SOURCE_PARTIAL",
+        "reviewed_source_scope": "Attendance D1 API/UI response normalization",
+        "source_owner_family": "OPS/ATTENDANCE",
+        "historical_catalog_heading": {
+          "line": 3584,
+          "title": "## الملحق التاريخي و-٢ — Entry620 / Attendance D1 response/UI hotfix",
+          "book_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde"
+        },
+        "inspected_artifact": {
+          "path": "tests/attendance_d1_ui_contract_entry620.test.mjs",
+          "blob_sha": "b0c3145eca4398da782a3fe3e7715fa715e3c11c",
+          "total_lines": 132,
+          "nonsecret_highlights": [
+            {
+              "line": 9,
+              "excerpt": "assert.notEqual(start, -1, name + ' must exist');"
+            },
+            {
+              "line": 11,
+              "excerpt": "assert.notEqual(brace, -1, name + ' body must exist');"
+            },
+            {
+              "line": 36,
+              "excerpt": "const legacy = { success:true, state:{status:'working'}, config:{} };"
+            },
+            {
+              "line": 37,
+              "excerpt": "assert.equal(normalize(legacy), legacy, 'legacy Apps Script contract must remain untouched');"
+            },
+            {
+              "line": 40,
+              "excerpt": "assert.equal(empty.state.status, 'not_started');"
+            },
+            {
+              "line": 41,
+              "excerpt": "assert.equal(empty.state.workMinutes, 0);"
+            }
+          ]
+        },
+        "relevant_current_source": [
+          {
+            "path": "attendance-v1.js",
+            "sha": "d7f2625aa03c18486069ee274d960adbf8cdcee4"
+          },
+          {
+            "path": "attendance-clockin-ui-v1.js",
+            "sha": "05aaa138b4d134d6573dfc810f6c3e2e5685468b"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-ops-native-v1.mjs",
+            "sha": "1a6e8c3a42cf9283cf21e0a23b0dec7f51ff710c"
+          }
+        ],
+        "reviewed_frontend": [
+          "attendance-v1.js",
+          "attendance-clockin-ui-v1.js"
+        ],
+        "reviewed_backend": [
+          "cloudflare-d1/src/employee-ops-native-v1.mjs"
+        ],
+        "api_readiness": "CURRENT_BRANCH_SOURCE_ROUTES_ONLY; no request executed",
+        "d1_r2_operational_readiness": "NOT_VERIFIED_AT_CURRENT_PRODUCTION",
+        "google_legacy_boundary": "Legacy Apps Script attendance contract preserved in test, so existence of D1 normalizer is not zero-Google certification.",
+        "tests_run_in_this_batch": 0,
+        "production_verified": false
+      },
+      {
+        "entry_id": 618,
+        "status": "SOURCE_PARTIAL",
+        "reviewed_source_scope": "Employee Ops GENERAL controlled cutover",
+        "source_owner_family": "OPS",
+        "historical_catalog_heading": {
+          "line": 3452,
+          "title": "## الملحق التاريخي ذ — Entry618 / Ops authenticated proof and GENERAL cutover",
+          "book_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde"
+        },
+        "inspected_artifact": {
+          "path": ".github/workflows/trendos-entry618-ops-general-controlled.yml",
+          "blob_sha": "4a73ff368b5444908e06c76a6994f070a4555106",
+          "total_lines": 363,
+          "nonsecret_highlights": [
+            {
+              "line": 1,
+              "excerpt": "name: TrendOS Entry618 Ops GENERAL Controlled Cutover"
+            },
+            {
+              "line": 8,
+              "excerpt": "- '.github/workflows/trendos-entry618-ops-general-controlled.yml'"
+            },
+            {
+              "line": 14,
+              "excerpt": "group: trendos-entry618-ops-general-controlled"
+            },
+            {
+              "line": 75,
+              "excerpt": "curl --fail --silent --show-error \"$API_URL/v1/employee/auth/health\" -o /tmp/auth-pre.json"
+            },
+            {
+              "line": 76,
+              "excerpt": "curl --fail --silent --show-error \"$API_URL/v1/employee/legacy-action/health\" -o /tmp/bridge-pre.json"
+            },
+            {
+              "line": 88,
+              "excerpt": "const a=read('/tmp/auth-pre.json'), b=read('/tmp/bridge-pre.json');"
+            }
+          ]
+        },
+        "relevant_current_source": [
+          {
+            "path": "cloudflare-d1/src/employee-ops-native-v1.mjs",
+            "sha": "1a6e8c3a42cf9283cf21e0a23b0dec7f51ff710c"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "config.js",
+            "sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          }
+        ],
+        "reviewed_frontend": [
+          "employee-api-dispatcher-v1.js",
+          "config.js"
+        ],
+        "reviewed_backend": [
+          "cloudflare-d1/src/employee-ops-native-v1.mjs"
+        ],
+        "api_readiness": "CURRENT_BRANCH_SOURCE_ROUTES_ONLY; no request executed",
+        "d1_r2_operational_readiness": "NOT_VERIFIED_AT_CURRENT_PRODUCTION",
+        "google_legacy_boundary": "Historical controlled cutover and workflow; current config OPS GENERAL source does not independently prove actual D1 mode or live authorization.",
+        "tests_run_in_this_batch": 0,
+        "production_verified": false
+      },
+      {
+        "entry_id": 617,
+        "status": "SOURCE_PARTIAL",
+        "reviewed_source_scope": "Employee Ops READONLY frontend routing checkpoint",
+        "source_owner_family": "OPS",
+        "historical_catalog_heading": {
+          "line": 3315,
+          "title": "## الملحق التاريخي خ — Entry617 / Ops read-only cutover checkpoint",
+          "book_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde"
+        },
+        "inspected_artifact": {
+          "path": "tests/frontend_employee_ops_family_router_entry617.test.mjs",
+          "blob_sha": "9ca20988a0c7441f2cc2c02004d42089f37207a6",
+          "total_lines": 133,
+          "nonsecret_highlights": [
+            {
+              "line": 8,
+              "excerpt": "const legacyCalls = [];"
+            },
+            {
+              "line": 10,
+              "excerpt": "const baseLegacy = async function(action, params) {"
+            },
+            {
+              "line": 11,
+              "excerpt": "legacyCalls.push({ action, params: { ...(params || {}) } });"
+            },
+            {
+              "line": 12,
+              "excerpt": "return { success: true, source: 'legacy', action, op: params && params.op };"
+            },
+            {
+              "line": 16,
+              "excerpt": "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1: false,"
+            },
+            {
+              "line": 17,
+              "excerpt": "MATBAGY_EMPLOYEE_NATIVE_AUTH_CANARY_V1: false,"
+            }
+          ]
+        },
+        "relevant_current_source": [
+          {
+            "path": "cloudflare-d1/src/employee-ops-native-v1.mjs",
+            "sha": "1a6e8c3a42cf9283cf21e0a23b0dec7f51ff710c"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "config.js",
+            "sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          }
+        ],
+        "reviewed_frontend": [
+          "employee-api-dispatcher-v1.js",
+          "config.js"
+        ],
+        "reviewed_backend": [
+          "cloudflare-d1/src/employee-ops-native-v1.mjs"
+        ],
+        "api_readiness": "CURRENT_BRANCH_SOURCE_ROUTES_ONLY; no request executed",
+        "d1_r2_operational_readiness": "NOT_VERIFIED_AT_CURRENT_PRODUCTION",
+        "google_legacy_boundary": "Older READONLY snapshot superseded by current config OPS GENERAL; synthetic frontend tests are not production proof.",
+        "tests_run_in_this_batch": 0,
+        "production_verified": false
+      },
+      {
+        "entry_id": 616,
+        "status": "SOURCE_PARTIAL",
+        "reviewed_source_scope": "Initial Zero-Google backend deployment with families default OFF",
+        "source_owner_family": "MULTI_FAMILY",
+        "historical_catalog_heading": {
+          "line": 3216,
+          "title": "## الملحق التاريخي ث — Entry616 / إطلاق Backend مع تعطيل جميع العائلات افتراضيًا",
+          "book_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde"
+        },
+        "inspected_artifact": {
+          "path": ".github/workflows/trendos-entry616-zero-google-backend-off-deploy.yml",
+          "blob_sha": "912f96c9d644a136b7d369819bcdca4e9629ab59",
+          "total_lines": 281,
+          "nonsecret_highlights": [
+            {
+              "line": 54,
+              "excerpt": "check_blob cloudflare-d1/src/cloud-auth-shadow-v1.mjs 96d1a8ea0925d8594ead3a282757d7f8da723a63"
+            },
+            {
+              "line": 56,
+              "excerpt": "check_blob cloudflare-d1/src/employee-ops-native-v1.mjs 1a6e8c3a42cf9283cf21e0a23b0dec7f51ff710c"
+            },
+            {
+              "line": 57,
+              "excerpt": "check_blob cloudflare-d1/src/employee-content-native-v1.mjs fab5eeeca0ecc9312380054b32f01a44639f4664"
+            },
+            {
+              "line": 58,
+              "excerpt": "check_blob cloudflare-d1/src/employee-comms-native-v1.mjs 74f46c83282f925b7f8697c11cf657bc4a222efd"
+            },
+            {
+              "line": 59,
+              "excerpt": "check_blob cloudflare-d1/src/employee-accounting-native-v1.mjs cba333ae0363e8179bfb12727757c019fb1746e9"
+            },
+            {
+              "line": 60,
+              "excerpt": "check_blob cloudflare-d1/src/employee-core-native-v1.mjs 56db6f578cb1e96ac8d24cc3bbee414172fc755a"
+            }
+          ]
+        },
+        "relevant_current_source": [
+          {
+            "path": "cloudflare-d1/src/index_v2.js",
+            "sha": "4a555efb4b3f44ba371549d5cec055cc7ce1777f"
+          },
+          {
+            "path": "cloudflare-d1/wrangler.toml",
+            "sha": "579b06e4918a9ed965be183e69742205f03cdc74"
+          },
+          {
+            "path": "config.js",
+            "sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          }
+        ],
+        "reviewed_frontend": [
+          "config.js"
+        ],
+        "reviewed_backend": [
+          "cloudflare-d1/src/index_v2.js",
+          "cloudflare-d1/wrangler.toml"
+        ],
+        "api_readiness": "CURRENT_BRANCH_SOURCE_ROUTES_ONLY; no request executed",
+        "d1_r2_operational_readiness": "NOT_VERIFIED_AT_CURRENT_PRODUCTION",
+        "google_legacy_boundary": "OFF-at-initial-deploy is historical; later Ops/Core mode switches were documented. No live Google completion inference.",
+        "tests_run_in_this_batch": 0,
+        "production_verified": false
+      },
+      {
+        "entry_id": 615,
+        "status": "SOURCE_PARTIAL",
+        "reviewed_source_scope": "Legacy data backfill and Auth shadow TTL adjustment",
+        "source_owner_family": "AUTH/ORDERS_BACKFILL",
+        "historical_catalog_heading": {
+          "line": 6147,
+          "title": "## الملحق التاريخي و-١٨ — Entry615 / Zero-Google current-data backfill and Cloud Auth Shadow hotfix",
+          "book_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde"
+        },
+        "inspected_artifact": {
+          "path": "tests/cloud_auth_shadow_idle_ttl_entry615a.test.mjs",
+          "blob_sha": "4f2f921196b69aa4c74b3448376659309c9cf7e5",
+          "total_lines": 131,
+          "nonsecret_highlights": [
+            {
+              "line": 3,
+              "excerpt": "rememberCloudAuthShadow,"
+            },
+            {
+              "line": 4,
+              "excerpt": "lookupCloudAuthShadow,"
+            },
+            {
+              "line": 5,
+              "excerpt": "revokeCloudAuthShadow"
+            },
+            {
+              "line": 6,
+              "excerpt": "} from '../cloudflare-d1/src/cloud-auth-shadow-v1.mjs';"
+            },
+            {
+              "line": 17,
+              "excerpt": "if (!/FROM\\s+cloud_auth_sessions_v1/i.test(q)) return null;"
+            },
+            {
+              "line": 37,
+              "excerpt": "if (/UPDATE\\s+cloud_auth_sessions_v1[\\s\\S]*token_fingerprint\\s*<>\\s*\\?/i.test(q)) {"
+            }
+          ]
+        },
+        "relevant_current_source": [
+          {
+            "path": "cloudflare-d1/src/cloud-auth-shadow-v1.mjs",
+            "sha": "96d1a8ea0925d8594ead3a282757d7f8da723a63"
+          },
+          {
+            "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+            "sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+          }
+        ],
+        "reviewed_frontend": [],
+        "reviewed_backend": [
+          "cloudflare-d1/src/cloud-auth-shadow-v1.mjs",
+          "cloudflare-d1/src/cloud-session-bridge-v3.mjs"
+        ],
+        "api_readiness": "CURRENT_BRANCH_SOURCE_ROUTES_ONLY; no request executed",
+        "d1_r2_operational_readiness": "NOT_VERIFIED_AT_CURRENT_PRODUCTION",
+        "google_legacy_boundary": "No sensitive customer data reproduced. D1 shadow logic and test loaded; don't infer present customer/backfill integrity or Google retirement from old PASS.",
+        "tests_run_in_this_batch": 0,
+        "production_verified": false,
+        "special_note": "No raw customer identifiers, phone numbers, passwords or record values migrated."
+      },
+      {
+        "entry_id": 614,
+        "status": "SOURCE_PARTIAL",
+        "reviewed_source_scope": "Zero-Google Employee native family scaffolding: Ops, Content, Comms, Accounting",
+        "source_owner_family": "MULTI_FAMILY",
+        "historical_catalog_heading": {
+          "line": 2851,
+          "title": "## الملحق التاريخي ت — Entry614 / Zero-Google Employee Functions First",
+          "book_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde"
+        },
+        "inspected_artifact": {
+          "path": "tests/entry614_employee_ops_native.test.mjs",
+          "blob_sha": "3175ce077af183c4a5a00d6a5decba6c874db376",
+          "total_lines": 42,
+          "nonsecret_highlights": [
+            {
+              "line": 3,
+              "excerpt": "import { isEmployeeOpsNativePath } from '../cloudflare-d1/src/employee-ops-native-v1.mjs';"
+            },
+            {
+              "line": 6,
+              "excerpt": "const mod=fs.readFileSync('cloudflare-d1/src/employee-ops-native-v1.mjs','utf8');"
+            },
+            {
+              "line": 9,
+              "excerpt": "assert.match(sql,/ENTRY614_EMPLOYEE_OPS_V1/);"
+            },
+            {
+              "line": 10,
+              "excerpt": "assert.match(sql,/mode TEXT NOT NULL DEFAULT 'OFF'/);"
+            },
+            {
+              "line": 11,
+              "excerpt": "assert.match(sql,/employee_attendance_days_v1/);"
+            },
+            {
+              "line": 12,
+              "excerpt": "assert.match(sql,/employee_attendance_pulses_v1/);"
+            }
+          ]
+        },
+        "relevant_current_source": [
+          {
+            "path": "cloudflare-d1/src/employee-ops-native-v1.mjs",
+            "sha": "1a6e8c3a42cf9283cf21e0a23b0dec7f51ff710c"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-content-native-v1.mjs",
+            "sha": "fab5eeeca0ecc9312380054b32f01a44639f4664"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-comms-native-v1.mjs",
+            "sha": "f415d06ccd15ba241d679c61b7afeb6ec904e4b8"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+            "sha": "66440daa0c737966221f5b279a210b4211144d2c"
+          },
+          {
+            "path": "cloudflare-d1/src/index_v2.js",
+            "sha": "4a555efb4b3f44ba371549d5cec055cc7ce1777f"
+          }
+        ],
+        "reviewed_frontend": [],
+        "reviewed_backend": [
+          "cloudflare-d1/src/employee-ops-native-v1.mjs",
+          "cloudflare-d1/src/employee-content-native-v1.mjs",
+          "cloudflare-d1/src/employee-comms-native-v1.mjs",
+          "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+          "cloudflare-d1/src/index_v2.js"
+        ],
+        "api_readiness": "CURRENT_BRANCH_SOURCE_ROUTES_ONLY; no request executed",
+        "d1_r2_operational_readiness": "NOT_VERIFIED_AT_CURRENT_PRODUCTION",
+        "google_legacy_boundary": "Family modules may be source present but actual mode varies; Accounting/EasyStore financial ownership stays independent and requires own authorization.",
+        "tests_run_in_this_batch": 0,
+        "production_verified": false
+      }
+    ],
+    "all_runtime_current": 0,
+    "current_tests_executed": 0,
+    "privacy_hold_still_open": [
+      596,
+      599,
+      600
+    ],
+    "archives_untouched": true,
+    "no_prod_changes": true,
+    "no_retroactive_auth_or_workflow_replay": true,
+    "cutover": "NO_GO",
+    "next": "Remaining Entry IDs starting 613 backward and private reference holds"
   }
 }
