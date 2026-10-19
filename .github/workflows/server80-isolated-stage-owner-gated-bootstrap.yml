@@ -1,0 +1,141 @@
+name: SERVER-80 Isolated Private Stage Bootstrap (Owner Gated)
+
+# CAUTION: live Cloudflare resource creation. No push/schedule/PR triggers.
+# This file is DORMANT until explicitly merged and owner-dispatched.
+# D01 owner authorization remains required. Never deploy production.
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Exact owner statement for new stage only; NO customer D1'
+        required: true
+        type: string
+      expected_commit:
+        description: 'Exact reviewed 40-char SHA on protected default branch'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server80-isolated-stage-owner-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  guarded-stage-only:
+    # Repo owner only; never triggered by a push or PR.
+    if: github.event_name == 'workflow_dispatch' && github.actor == 'fawakhry'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SERVER80_APPROVAL: ${{ inputs.approval }}
+      SERVER80_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Deny by default; require exact stage-only acknowledgement
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$SERVER80_APPROVAL" = 'SERVER80_AUTHORIZE_NEW_PRIVATE_STAGE_ONLY'
+          test "$GITHUB_ACTOR" = 'fawakhry'
+          test "$GITHUB_REF" = 'refs/heads/main'
+          [[ "$SERVER80_EXPECTED_COMMIT" =~ ^[a-f0-9]{40}$ ]]
+          test -n "$CLOUDFLARE_API_TOKEN"
+          [[ "$CLOUDFLARE_ACCOUNT_ID" =~ ^[a-f0-9]{32}$ ]]
+          echo 'SERVER80_OWNER_EXPLICIT_STAGE_ONLY=ACKNOWLEDGED'
+      - name: Checkout exactly owner-reviewed source revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_commit }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify source pin + do-not-touch-production manifest guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SERVER80_EXPECTED_COMMIT"
+          node autonomous-printshop/print-server/tools/server80_isolated_stage_deploy_guard.mjs --validate
+          node --test tests/server80_isolated_stage_owner_bootstrap.test.mjs
+          grep -Fx 'preview_urls = false' cloudflare-d1/wrangler.server68-isolated-stage.toml
+          grep -Fx 'workers_dev = false' cloudflare-d1/wrangler.server68-isolated-stage.toml
+          echo 'SERVER80_PROD_NAME_OR_D1_BINDING=FORBIDDEN'
+      - name: Confirm target isolated script NEVER previously existed (GET only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from urllib.error import HTTPError
+          from urllib.request import Request, build_opener, HTTPSHandler, HTTPRedirectHandler, ProxyHandler
+          class NoRedirect(HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+          account = os.environ['CLOUDFLARE_ACCOUNT_ID']
+          token = os.environ['CLOUDFLARE_API_TOKEN']
+          url = 'https://api.cloudflare.com/client/v4/accounts/' + account + '/workers/scripts/trendos-server68-isolated-stage/deployments'
+          req = Request(url, method='GET', headers={'Authorization': 'Bearer '+token, 'Accept': 'application/json'})
+          client = build_opener(ProxyHandler({}), HTTPSHandler(), NoRedirect())
+          try:
+              with client.open(req, timeout=15):
+                  raise SystemExit('SERVER80_TARGET_ALREADY_EXISTS_ABORT_NO_DEPLOY')
+          except HTTPError as exc:
+              code = exc.code
+              exc.close()
+              if code != 404:
+                  raise SystemExit('SERVER80_TARGET_VERIFICATION_FAILED_NO_DEPLOY')
+          print('SERVER80_NEW_STAGE_NAME_CONFIRMED_ABSENT=YES')
+          PY
+      - name: Offline Wrangler dry-run (no Cloudflare mutation)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.149.0 deploy \
+            --config cloudflare-d1/wrangler.server68-isolated-stage.toml \
+            --dry-run --outdir /tmp/server80-review
+          test -n "$(find /tmp/server80-review -maxdepth 1 -type f -name '*.js' -print -quit)"
+      - name: Owner-gated initial NEW STAGE ONLY deployment; no D1/production routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.149.0 deploy \
+            --config cloudflare-d1/wrangler.server68-isolated-stage.toml
+          echo 'SERVER80_INITIAL_STAGE_DEPLOY_ATTEMPTED=YES; PRODUCTION_UNTOUCHED=REQUIRED'
+      - name: Post-deploy check publication is explicitly disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os
+          from urllib.request import Request, build_opener, HTTPSHandler, HTTPRedirectHandler, ProxyHandler
+          class NoRedirect(HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+          base='https://api.cloudflare.com/client/v4/accounts/'+os.environ['CLOUDFLARE_ACCOUNT_ID']+'/workers/scripts/trendos-server68-isolated-stage/subdomain'
+          req=Request(base,method='GET',headers={'Authorization':'Bearer '+os.environ['CLOUDFLARE_API_TOKEN'],'Accept':'application/json'})
+          with build_opener(ProxyHandler({}),HTTPSHandler(),NoRedirect()).open(req,timeout=15) as r:
+              body=r.read(65537)
+              if len(body)>65536 or r.status!=200:
+                  raise SystemExit('SERVER80_PUBLICATION_UNVERIFIED_MANUAL_HOLD')
+              result=json.loads(body).get('result')
+              if type(result) is not dict or result.get('enabled') is not False or result.get('previews_enabled') is not False:
+                  raise SystemExit('SERVER80_STAGE_PUBLICATION_NOT_DISABLED_MANUAL_HOLD')
+          print('SERVER80_STAGE_WORKERS_DEV_AND_PREVIEWS=OFF')
+          PY
+      - name: Record narrow outcome without granting remote access
+        shell: bash
+        run: |
+          {
+            echo '## SERVER-80 owner-gated bootstrap of a NEW unpublished stage ONLY'
+            echo ''
+            echo 'Stage code deployed only after exact owner approval and absence GET.'
+            echo 'No production Worker or existing staging Worker changed.'
+            echo 'No D1, R2, customer data or business route is bound.'
+            echo 'The stage is **not** certified Cloudflare Access-protected.'
+            echo 'D01–D06 still require independent live evidence and owner sign-off.'
+            echo 'No service-token provisioning, Ubuntu execution or real order read.'
+          } >> "$GITHUB_STEP_SUMMARY"
