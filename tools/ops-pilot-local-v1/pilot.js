@@ -24,6 +24,18 @@
     try{return await request('/api/manager')}
     catch(e){return {success:false,message:String(e.message)}}
   };
+  async function inspectCoreReadCompatibility(){
+    const panel=document.getElementById('coreCompatibility');
+    const check=await request('/api/core-read-compatibility');
+    if(check.mode!=='SYNTHETIC_CORE_CONTRACT_ONLY' ||
+       check.liveBackendConnected!==false || check.writeEnabled!==false ||
+       check.financeRelease!=='NO_GO' || check.productionVerified!==false)
+      throw Error('CORE_COMPATIBILITY_SAFETY_NOT_CONFIRMED');
+    panel.textContent='فحص بيانات وهمية فقط: '+(check.compatible?'بنية القراءة متوافقة':'عقد القراءة مرفوض')+
+      ' — '+check.orderCount+' أوردر / '+check.lineCount+' بند.'+
+      ' الحالات الحقيقية تختلف عن حالات التجربة. تغيير الحالات وتسليم الأوردرات على Core ممنوع.'+
+      ' قرارات معلقة: '+check.blockers.length+'.';
+  }
   async function refresh(){
     const r=await request('/api/orders'),items=r.orders;
     const active=items.filter(o=>o.status!=='تم التسليم');
@@ -77,7 +89,7 @@
       const r=await fetch('/api/session',{cache:'no-store'}),s=await r.json();
       if(!r.ok||!s.success||s.mode!=='SYNTHETIC_LOCAL_ONLY'||s.financeRelease!=='NO_GO')throw Error('SAFETY_NOT_CONFIRMED');
       token=s.token;window.trendosState.user.token='synthetic-local-session';
-      await refresh();show('التجربة المحلية جاهزة — الحسابات غير مفعلة.');
+      await refresh();await inspectCoreReadCompatibility();show('التجربة المحلية جاهزة — الحسابات غير مفعلة.');
     }catch(err){show('لا يمكن تشغيل التجربة: '+err.message,true)}
   })();
 })();
