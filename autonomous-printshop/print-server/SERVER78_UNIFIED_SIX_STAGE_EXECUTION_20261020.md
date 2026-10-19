@@ -47,3 +47,19 @@ First verified actual run [GitHub Actions #39336869868](https://github.com/fawak
 ## Strict outcome
 
 `UNIFIED_PIPELINE_IMPLEMENTED=YES`; `CLOUDFLARE_REAL_METADATA_READ=YES`; `PRINT_LASER_READER_PREVIEW_OFFLINE_TESTED=YES`; `SIX_LIVE_RELEASE_STAGES_COMPLETED=NO`; `LIVE_UBUNTU_LINK=NO`; `REAL_CUSTOMER_ORDER_READ=NO`; `CLOUD_DEPLOY=NO`; `FILES_TRANSFERRED=NO`; `PRINTER/LASER_OPERATION=NO`. All decisions stay in the existing six-decision queue (not duplicated).
+
+## SERVER-79 continuation — actual Workers.dev publication posture (2026-10-20)
+
+**Proven Cloudflare GET-only:** [unified SERVER-78 CI #39338324836](https://github.com/fawakhry/TrendOs/actions/runs/39338324836), code SHA `cc7adfc5b164374ee4b40e4161668a25fbb10dc0`, **SUCCESS**: existing 15/15 SERVER-76 preview, 10/10 SERVER-77 integration, and **19/19 SERVER-78/79 posture** regressions. The same run verified current Workers.dev `GET /accounts/{account_id}/workers/scripts/{name}/subdomain` booleans without querying any order/customer/D1 row:
+
+| Worker | Workers.dev published | Preview URLs published | Qualification |
+|---|---|---|---|
+| `trendos` | **true** | **true** | Existing live service; Access/WAF and any row exposure **NOT VERIFIED** |
+| `trendos-d1-api` | **true** | **true** | Existing orders/customer Worker; no private machine route deployed, Access/WAF not verified |
+| `trendos-d1-staging` | **true** | **true** | **DO NOT REPURPOSE** as protected isolated stage: public workers.dev publication and preexisting D1 tables |
+| `trendos-server68-isolated-stage` | **NOT FOUND** | **NOT FOUND** | Dedicated protected stage **NOT PROVISIONED** |
+
+**Interpretation:** `workersDevPublished=true` verifies a Workers.dev deployment URL exists. It **does not prove** any customer/order data are accessible without credentials; no such request has been made. Similarly `workersDevPublished=false` would **not** independently prove Cloudflare Access or private route integrity. The new report explicitly marks `cloudflareAccessVerified=false` and `publicDataExposureProven=false` and annotates D01 and D04 as `DEFERRED_NO_GO`.
+
+**Next independent actions:** Do not enable an unverified production service principal; first qualify a new exact private stage with independent Access, synthetic D1 and DO, then prove deployed source/rollback and old R5/App Script callers with existing endpoint compatibility. The operator's real Ubuntu location/network and one approved real order remain separate from Github-hosted CI. No stage or prod deployment was attempted by this review.
+
