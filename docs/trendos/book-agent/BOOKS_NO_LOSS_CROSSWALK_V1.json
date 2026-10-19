@@ -5603,11 +5603,41 @@
         "path": "autonomous-printshop/print-server/tests/test_ap279_bridge_shadow_synthetic.py",
         "result": "FETCH_UNRESOLVED",
         "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation"
+      },
+      {
+        "path": "autonomous-printshop/print-server/tests/test_ap277_write_guard_synthetic.py",
+        "result": "FETCH_UNRESOLVED",
+        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation"
+      },
+      {
+        "path": "autonomous-printshop/print-server/tests/test_ap296_trendos_shadow_schema_synthetic.py",
+        "result": "FETCH_UNRESOLVED",
+        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation"
+      },
+      {
+        "path": "autonomous-printshop/print-server/tests/test_platform_bridge.py",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "fb4cf92ca7d3e969ce02082f812967409b87c378"
+      },
+      {
+        "path": "TrendOS_MASTER_BOOK.md",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "75cbaaed57257237e5ef52a2e2802e2c1f7c1f42"
+      },
+      {
+        "path": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde"
+      },
+      {
+        "path": "docs/trendos/book-agent/TRENDOS_LEGACY_PRE_SPLIT_BOOK.md",
+        "result": "FETCH_UNRESOLVED",
+        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation"
       }
     ],
     "runtime_verified": false,
-    "checked_count": 120,
-    "present_count": 117,
-    "unresolved_count": 3
+    "checked_count": 126,
+    "present_count": 120,
+    "unresolved_count": 6
   }
 }
