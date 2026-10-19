@@ -1,0 +1,96 @@
+name: SERVER-78 Unified Six-Stage Cloudflare-to-Ubuntu Gate (Read Only)
+
+# Single operational readiness pass. A green CI check is NOT a release.
+# NEVER deploys Workers, touches production D1/customer/order rows, accesses
+# Ubuntu, issues credentials, downloads R2 files or operates printers/laser.
+on:
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+    paths:
+      - .github/workflows/server78-unified-six-stage-cloudflare-ubuntu-handoff.yml
+      - autonomous-printshop/print-server/tools/server78_unified_six_gate_reality.py
+      - autonomous-printshop/print-server/tests/test_server78_unified_six_gate_reality.py
+      - autonomous-printshop/print-server/SERVER69_RELEASE_DECISIONS.json
+      - autonomous-printshop/print-server/src/production_dispatch_preview.py
+      - autonomous-printshop/print-server/src/trendosshop_read_once.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server78-readonly-gate
+  cancel-in-progress: false
+
+jobs:
+  one-safe-pass:
+    name: One read-only pass / six deferred gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify queue safety and source readiness (all six remain NO_GO)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node autonomous-printshop/print-server/tools/server73_six_stage_readiness.mjs --report
+          if node autonomous-printshop/print-server/tools/server73_six_stage_readiness.mjs --gate >/dev/null 2>&1; then
+            echo 'ERROR: release gate unexpectedly claimed GO'
+            exit 1
+          else
+            status="$?"
+            test "$status" -eq 2
+          fi
+          echo 'SERVER78_D01_D06_SOURCE_GATES=NO_GO_EXPECTED'
+      - name: Verify existing integrated print/laser reader-to-review handoff (synthetic)
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=autonomous-printshop/print-server PYTHONDONTWRITEBYTECODE=1 \
+            python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server76_production_dispatch_preview.py' -v
+          PYTHONPATH=autonomous-printshop/print-server PYTHONDONTWRITEBYTECODE=1 \
+            python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server77_real_reader_dispatch_preview.py' -v
+          echo 'SERVER78_EMPLOYEE_PRINT_LASER_READ_QUEUE=OFFLINE_PASS'
+      - name: Test that unified Cloudflare inspector cannot expose business data
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server78_unified_six_gate_reality.py' -v
+      - name: One real Cloudflare read-only Worker metadata and marker audit
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SERVER78_ALLOW_CLOUDFLARE_METADATA_READ: "true"
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 \
+            autonomous-printshop/print-server/tools/server78_unified_six_gate_reality.py \
+            --read-only-cloudflare | tee /tmp/server78-redacted-verdict.log
+          grep -F '"release":"NO_GO"' /tmp/server78-redacted-verdict.log >/dev/null
+          echo 'SERVER78_SIX_STAGE_ONE_PASS=REPORT_ONLY_NO_GO'
+      - name: Make GitHub check semantics explicit
+        shell: bash
+        run: |
+          {
+            echo '## SERVER-78 — one consolidated safe pass'
+            echo ''
+            echo '**Result: Audit executed. Production release = NO_GO.**'
+            echo ''
+            echo '- D01–D06: deferred, no silent owner approvals'
+            echo '- D1 / customer / orders / R2 file data: not accessed'
+            echo '- Existing Print Server: not launched or installed on Ubuntu'
+            echo '- Cloudflare: GET-only code/deployments/settings metadata'
+            echo '- Worker deploy / settings / secret changes: none'
+            echo '- Printer / laser / production files: untouched'
+            echo '- CI success proves only inspection and offline contract tests'
+          } >> "$GITHUB_STEP_SUMMARY"
