@@ -36,9 +36,9 @@ export function validateIsolatedStageSource(read=path=>readFileSync(path,'utf8')
   ok(!/\b(?:account_id|route|routes|zone_id|zone_name|database_id)\s*=|\[\[(?:routes|d1_databases|r2_buckets|kv_namespaces|queues\.producers|services|unsafe\.bindings)\]\]/i.test(conf),'EXTERNAL_PROD_BINDING_OR_ROUTE');
   ok(!/(?:trendos-main|5c4b92bf-e043-4f6e-bd6d-d514a92cd825)/i.test(conf),'PRODUCTION_D1_REFERENCE');
   for(const name of REQUIRED_FLAGS){
-    const exact=new RegExp('^'+name+' = "false"$','gm');
-    const matches=[...conf.matchAll(exact)];
-    const allAssignments=[...conf.matchAll(new RegExp('^'+name+'\\s*=.*
+    const assignments=conf.split("\n").filter(line=>line.startsWith(name+" = "));
+    ok(assignments.length===1 && assignments[0]===name+' = "false"',
+       "FLAG_NOT_EXACTLY_OFF_"+name);
   }
   ok(/^\[\[durable_objects\.bindings\]\]$/m.test(conf)
     && /^name = "MIRROR_SERVICE_READ_REPLAY_DO"$/m.test(conf)
