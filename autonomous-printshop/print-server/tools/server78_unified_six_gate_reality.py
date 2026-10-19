@@ -7,7 +7,6 @@ Requires an explicit CLI flag and an environment runtime interlock.
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
@@ -112,7 +111,9 @@ def _code(data):
     body = data["code"]
     return {
         "verified": True, "bytes": len(body),
-        "digestPrefix": hashlib.sha256(body).hexdigest()[:16],
+        # The Cloudflare content/v2 response may be multipart with a varying
+        # boundary. A digest of its raw bytes does NOT prove deployed code drift,
+        # so deliberately do not publish a misleading "source SHA".
         "markers": {name: (marker in body) for name, marker in _MARKERS.items()},
         "versionParity": "NOT_PROVEN",  # Script-name code != verified pinned active version.
     }
