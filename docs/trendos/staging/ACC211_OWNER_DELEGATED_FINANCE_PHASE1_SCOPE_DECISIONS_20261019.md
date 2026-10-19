@@ -33,3 +33,17 @@ Dedicated source-first `tests/easystore_acc211_delegated_safe_phase1_scope_real_
 ## ACCEPTANCE STOP
 
 Do not infer approvals for real staff identity, day-0 outstanding debt, opening money, taxes/overhead, actual return/refund cases, cash custodian, bank proofs or production deploy from blanket delegation. Save those as one grouped evidence packet, not six separate interruptions. **G1,G2,G3,G4,G5 OPEN; FINANCE_RELEASE=NO_GO; DEPLOYED=NO; LIVE_VERIFIED=NO; ALL NEW PRS DRAFT/UNMERGED.**
+
+
+
+## ACC212 owner-confirmed decisions and guarded acceptance (2026-10-19)
+
+Owner business decisions, now recorded in the original [EasyStore accounting book PR #71](https://github.com/fawakhry/EasyStore/pull/71): 2026-10-20 **target only**, restricted cash sale/collection first phase; cash custody and invoice creation are the responsibility of **رحمه وريفان**, with **ضياء** independent cash reviewer and prospective return approver. Zero opening is **conditional** on independent confirmation of no existing historic balances/liabilities/stock/cash, never assumed from missing source rows or this target date. Returns and customer credit payouts remain OFF; after close any approved correction uses a new immutable entry on an open day. Separate encrypted storage plus isolated Ubuntu restore must be demonstrated; first UI/system trial private and all-synthetic.
+
+**ACC212 native extra guards implemented and offline green:** two separate Ed25519 signature verifications on exact *asserted zero-opening data and source hashes* are required when ACC211 `ENFORCE` is chosen, and exactly 2 separately authenticated cashier login IDs plus a different independent reviewer login ID must be supplied via private server-only configuration. No real account identifiers/public keys/actual proof have been supplied. Signing a FALSE zero claim is still possible in principle; never treat a cryptographically valid claimed hash as proof of real zero accounts without independent verified source reconciliation. The fake CI signer keys and fixture are NOT owner signoff. Legacy D1 finance control OFF/READONLY, private owner grants and FINANCE_RELEASE NO_GO remain independent hard stops.
+
+**ACC212 synthetic G5 rehearsal:** `scripts/acc212_fake_encrypted_backup_restore.mjs` uses AES-256-GCM and a throwaway fake SQLite file; validates restored bytes and fake sums and rejects wrong keys/tamper. It only models two temporary paths on one host, NOT an actual external separate encrypted backup nor the owner's independent Ubuntu restore. Run locally with Node 22+: `node --test tests/easystore_acc212_fake_backup_and_opening_zero_no_go.test.mjs`; no data path argument accepted.
+
+**Checked source:** TrendOS commit `d570e3860b9e937c28c7f1e253fd98eeae5dedb9` verified **15/15 GitHub Actions SUCCESS** including [ACC211/ACC212](https://github.com/fawakhry/TrendOs/actions/runs/39290942825) and [ACC207 release checker](https://github.com/fawakhry/TrendOs/actions/runs/39290942827). Existing tests are fake/synthetic and cannot attest actual books or stage. Public repository contains no real credentials or source keys. No GitHub merge/deploy/D1 finance configuration change or money movement.
+
+**User answer acknowledged, external evidentiary gates not closed:** `G1–G5=OPEN; FINANCE_RELEASE=NO_GO; START_DATE=TARGET_ONLY; PROD_FINANCE=OFF; ALL_NEW_CODE=DRAFT_UNMERGED`.
