@@ -5303,11 +5303,71 @@
         "path": "tests/cloudflare_edge_orders_idle_freshness_integration_v1.test.mjs",
         "result": "PATH_EXISTS",
         "current_blob_sha": "a0f1b5114fc56be359a681a73b3419c20d78f2ed"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-content-native-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "fab5eeeca0ecc9312380054b32f01a44639f4664"
+      },
+      {
+        "path": "tests/entry614_employee_content_native.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "f8bf077f9f03eacdf660a81f5a2e3f2582fac98b"
+      },
+      {
+        "path": "tests/entry629_employee_content_readonly_dispatch.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "47d3f859a7deef98f09d2e029d50b81e72f011c2"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-ops-native-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "1a6e8c3a42cf9283cf21e0a23b0dec7f51ff710c"
+      },
+      {
+        "path": "tests/entry614_employee_ops_native.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "3175ce077af183c4a5a00d6a5decba6c874db376"
+      },
+      {
+        "path": "autonomous-printshop/MASTER_BOOK.md",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "e815831ffe439bf49c934da6a36d2ce66b1401c6"
+      },
+      {
+        "path": "autonomous-printshop/core/autonomy-policy-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "6cccf704fc83121fa6c47cd0baa5cd81c5f3864c"
+      },
+      {
+        "path": "autonomous-printshop/core/operational-reality-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "55fa633edaf86c3234c060b04e3cc0213c80fcc4"
+      },
+      {
+        "path": "autonomous-printshop/core/readiness-evidence-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "b649555bf8939d26212492b90d0781f2ea7a97d5"
+      },
+      {
+        "path": "autonomous-printshop/core/design-preflight-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "2800bfe717fbba53444665a03bc6f88caa95d2b5"
+      },
+      {
+        "path": "autonomous-printshop/core/material-readiness-candidate-v2.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "db5d1379f53503b23de23e429ab36191e15ac420"
+      },
+      {
+        "path": "autonomous-printshop/core/machine-readiness-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "7d55363ae738a9b830762e58ff2fcdbb5388aa2c"
       }
     ],
     "runtime_verified": false,
-    "checked_count": 60,
-    "present_count": 60,
+    "checked_count": 72,
+    "present_count": 72,
     "unresolved_count": 0
   }
 }
