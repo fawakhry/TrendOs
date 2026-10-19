@@ -7775,8 +7775,8 @@
       },
       {
         "id": "G07_E2E_FUNCTION_AND_RUNTIME_SEMANTIC_RECONCILIATION",
-        "state": "OPEN",
-        "evidence": "0 of 66 original Entry IDs independently certified for current runtime; historical status NOT production state"
+        "state": "OPEN_SOURCE_ONLY_8_OF_66",
+        "evidence": "Eight Entry IDs source-contract assessed on branch (619,630,644,650,652,654,655,659); 0/66 certified for current deployed E2E runtime."
       },
       {
         "id": "G08_OWNER_APPROVAL_AND_RELEASE",
@@ -8303,5 +8303,64 @@
     "historical_test_files_read_not_executed": 3,
     "privacy_customer_data_untouched": true,
     "owner_approval_needed_before_book_cutover": true
+  },
+  "source_reconciliation_progress_and_cutover_gates_20261020": {
+    "date": "2026-10-20",
+    "branch": "agent/trendos-book-audit-v1-20261014",
+    "observed_head_before_commit": "08ebf9e55ac9c3c6251b234c4a944a77e86bb54e",
+    "source_semantic_mapping_candidates_verified": [
+      619,
+      630,
+      644,
+      650,
+      652,
+      654,
+      655,
+      659
+    ],
+    "source_contract_review_count": 8,
+    "current_source_contract_review_pass": 8,
+    "original_entry_count": 66,
+    "original_entry_full_runtime_reconciliations_closed": 0,
+    "original_entry_current_runtime_reconciliations_remaining": 66,
+    "source_contract_review_remaining_without_individual_audit": 58,
+    "source_code_guard_checks": 21,
+    "old_book_active_write": true,
+    "unified_book_frozen_migration_only": true,
+    "historical_migration_units_preserved_and_verified": 38,
+    "source_only_gaps": [
+      "Current deployed Worker SHA/route/env not independently available",
+      "Current CI on this source SHA not verified by historical test file reading",
+      "Native registration notification enum conditional mismatch candidate",
+      "Edge token immediate session-revocation enforcement not proved at every endpoint",
+      "Privacy Entry596, 599/600 owner-approved strategy not chosen"
+    ],
+    "git_commit_status_read": {
+      "commit": "08ebf9e55ac9c3c6251b234c4a944a77e86bb54e",
+      "status_entries_seen": 0,
+      "meaning": "NO_CHECK_RESULTS_OBSERVED_DO_NOT_CLAIM_PASS"
+    },
+    "source_evidence": [
+      {
+        "commit": "ec5febc7c263e31d1e9ced5355522318d321fed8",
+        "entries": [
+          630,
+          652,
+          654,
+          655,
+          659
+        ]
+      },
+      {
+        "commit": "08ebf9e55ac9c3c6251b234c4a944a77e86bb54e",
+        "entries": [
+          619,
+          644,
+          650
+        ]
+      }
+    ],
+    "final_go_no_go": "NO_GO",
+    "owner_approval_on_cutover": false
   }
 }
