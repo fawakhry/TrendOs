@@ -8971,5 +8971,757 @@
       639,
       638
     ]
+  },
+  "source_semantic_resume_batch4_20261020": {
+    "date": "2026-10-20",
+    "before_head": "7acf1e61c73b5eb402195c5cef4d8d04ca05c59f",
+    "original_entries": 66,
+    "prior_source_audited": 20,
+    "individually_scoped_source_audited_added": 11,
+    "total_individually_reviewed": 31,
+    "remaining_source_entry_review": 35,
+    "newly_reviewed_ids": [
+      645,
+      640,
+      639,
+      638,
+      637,
+      636,
+      635,
+      634,
+      633,
+      632,
+      631
+    ],
+    "entries": [
+      {
+        "entry_id": 645,
+        "classification": "SOURCE_PARTIAL",
+        "title": "#### Entry645 — Content R2 foundation — Attempt 1 BLOCKED_SAFE",
+        "historical_book_evidence": "FROZEN_CATALOG_SECTION_EXISTS_VERBATIM_VERIFIED_NOT_CURRENT_RUNTIME",
+        "historical_summary": [
+          "#### Entry645 — Content R2 foundation — Attempt 1 BLOCKED_SAFE",
+          "- الهدف: تجهيز R2 لـEmployee Content مع إبقاء Content `READONLY / epoch2`؛ لا GENERAL cutover في هذه المحاولة."
+        ],
+        "current_workflow": {
+          "path": ".github/workflows/trendos-entry645-content-r2-foundation-controlled.yml",
+          "blob_sha": "d075e30894d84fc99f492dec863fded94b55d096",
+          "inspected_line_count": 310,
+          "selected_nonsecret_lines": [
+            {
+              "line": 1,
+              "source_excerpt": "name: TrendOS Entry645 Content R2 Foundation Controlled"
+            },
+            {
+              "line": 26,
+              "source_excerpt": "R2_BUCKET: trendos-employee-content-files"
+            },
+            {
+              "line": 50,
+              "source_excerpt": "if(a.mode!=='NATIVE'||a.nativeOnly!==true||a.legacyBootstrapEnabled!==false||a.legacySessionEnrollEnabled!==false||"
+            },
+            {
+              "line": 53,
+              "source_excerpt": "if(co.mode!=='GENERAL'||Number(co.policyEpoch||0)!==2||Number(co.googleBusinessCalls||0)!==0||co.appsScriptBusinessAuthority!==false) throw "
+            },
+            {
+              "line": 54,
+              "source_excerpt": "if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2||ct.r2Ready!==false||"
+            },
+            {
+              "line": 55,
+              "source_excerpt": "Number(ct.googleBusinessCalls||0)!==0||ct.appsScriptBusinessAuthority!==false) throw new Error('content prestate drift');"
+            },
+            {
+              "line": 56,
+              "source_excerpt": "if(cm.mode!=='READONLY'||Number(cm.googleBusinessCalls||0)!==0||cm.appsScriptBusinessAuthority!==false) throw new Error('comms drift');"
+            },
+            {
+              "line": 57,
+              "source_excerpt": "if(o.mode!=='GENERAL'||Number(o.googleBusinessCalls||0)!==0||o.appsScriptBusinessAuthority!==false) throw new Error('ops drift');"
+            }
+          ]
+        },
+        "related_current_source": [
+          {
+            "path": "cloudflare-d1/src/employee-content-native-v1.mjs",
+            "blob_sha": "fab5eeeca0ecc9312380054b32f01a44639f4664"
+          },
+          {
+            "path": "cloudflare-d1/wrangler.toml",
+            "blob_sha": "579b06e4918a9ed965be183e69742205f03cdc74"
+          },
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          }
+        ],
+        "current_frontend": "config.js employee Content settings",
+        "backend_scope": "Employee Content native module plus R2 FILES binding (not proved active)",
+        "api_scope": [
+          "/v1/employee/content/health",
+          "/v1/employee/content",
+          "/v1/employee/content/file/:id"
+        ],
+        "database_scope": [
+          "employee_content_records_v1",
+          "employee_content_files_v1",
+          "Cloudflare R2 binding not verified"
+        ],
+        "google_dependency_review": "Read-only content code is Cloudflare source; existing Apps Script/Files integrations beyond this specific module not ruled out.",
+        "test_execution": "NOT_EXECUTED",
+        "production_runtime_verified": false,
+        "scope_limit": "Static workflow/source mapping and historical documentation; full end-to-end call/data contracts need separate deployed and test evidence.",
+        "privacy_values_read": false
+      },
+      {
+        "entry_id": 640,
+        "classification": "SOURCE_PARTIAL",
+        "title": "#### Entry640 — Employee Auth control TRANSITIONAL → NATIVE; PASS",
+        "historical_book_evidence": "FROZEN_CATALOG_SECTION_EXISTS_VERBATIM_VERIFIED_NOT_CURRENT_RUNTIME",
+        "historical_summary": [
+          "#### Entry640 — Employee Auth control TRANSITIONAL → NATIVE; PASS",
+          "- `ENTRY640_RUNTIME_PREFLIGHT=PASS`."
+        ],
+        "current_workflow": {
+          "path": ".github/workflows/trendos-entry640-auth-control-native-controlled.yml",
+          "blob_sha": "f9ad029642a528a2feb5f452aeac52f35a017a7a",
+          "inspected_line_count": 374,
+          "selected_nonsecret_lines": [
+            {
+              "line": 61,
+              "source_excerpt": "if(a.success!==true||a.schemaReady!==true||a.mode!=='TRANSITIONAL'||a.envEnabled!==true||"
+            },
+            {
+              "line": 66,
+              "source_excerpt": "if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core drift');"
+            },
+            {
+              "line": 67,
+              "source_excerpt": "if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content drift');"
+            },
+            {
+              "line": 68,
+              "source_excerpt": "if(cm.mode!=='READONLY'||Number(cm.policyEpoch||0)!==2) throw new Error('comms drift');"
+            },
+            {
+              "line": 69,
+              "source_excerpt": "if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');"
+            },
+            {
+              "line": 70,
+              "source_excerpt": "if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF'||"
+            },
+            {
+              "line": 71,
+              "source_excerpt": "Number(ac.googleBusinessCalls||0)!==0||ac.appsScriptBusinessAuthority!==false) throw new Error('accounting safety drift');"
+            },
+            {
+              "line": 73,
+              "source_excerpt": "console.log('ENTRY640_AUTH_PRE_MODE=TRANSITIONAL');"
+            }
+          ]
+        },
+        "related_current_source": [
+          {
+            "path": "cloudflare-d1/migrations/0009_employee_auth_native_v1.sql",
+            "blob_sha": "20739798d691286b47918299c099049cbcf50c46"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "cloudflare-d1/wrangler.toml",
+            "blob_sha": "579b06e4918a9ed965be183e69742205f03cdc74"
+          }
+        ],
+        "current_frontend": "Employee Auth UI and config.js, where applicable",
+        "backend_scope": "Native employee Auth/Session via Cloudflare/D1",
+        "api_scope": [
+          "/v1/employee/auth/health",
+          "/v1/employee/auth/login",
+          "/v1/employee/auth/session"
+        ],
+        "database_scope": [
+          "employee_auth_control_v1",
+          "employee_auth_users_v1",
+          "employee_auth_sessions_v1"
+        ],
+        "google_dependency_review": "Native Auth source does not establish global elimination of Apps Script; any legacy code remains historical or unresolved based on route.",
+        "test_execution": "NOT_EXECUTED",
+        "production_runtime_verified": false,
+        "scope_limit": "Static workflow/source mapping and historical documentation; full end-to-end call/data contracts need separate deployed and test evidence.",
+        "privacy_values_read": false
+      },
+      {
+        "entry_id": 639,
+        "classification": "SOURCE_PARTIAL",
+        "title": "#### Entry639 — Global Native frontend cutover PASS",
+        "historical_book_evidence": "FROZEN_CATALOG_SECTION_EXISTS_VERBATIM_VERIFIED_NOT_CURRENT_RUNTIME",
+        "historical_summary": [
+          "#### Entry639 — Global Native frontend cutover PASS",
+          "  - `mode=READONLY`"
+        ],
+        "current_workflow": {
+          "path": ".github/workflows/trendos-entry639-global-native-frontend-controlled.yml",
+          "blob_sha": "0eb7983a6c6ae71e5c16ee675a0a6b607748c04c",
+          "inspected_line_count": 384,
+          "selected_nonsecret_lines": [
+            {
+              "line": 62,
+              "source_excerpt": "if(a.success!==true||a.schemaReady!==true||a.mode!=='TRANSITIONAL'||a.envEnabled!==true||"
+            },
+            {
+              "line": 67,
+              "source_excerpt": "if(co.mode!=='READONLY'||Number(co.policyEpoch||0)!==1) throw new Error('core drift');"
+            },
+            {
+              "line": 68,
+              "source_excerpt": "if(ct.mode!=='READONLY'||Number(ct.policyEpoch||0)!==2) throw new Error('content drift');"
+            },
+            {
+              "line": 69,
+              "source_excerpt": "if(cm.mode!=='READONLY'||Number(cm.policyEpoch||0)!==2) throw new Error('comms drift');"
+            },
+            {
+              "line": 70,
+              "source_excerpt": "if(o.mode!=='GENERAL'||Number(o.policyEpoch||0)!==7) throw new Error('ops drift');"
+            },
+            {
+              "line": 71,
+              "source_excerpt": "if(ac.mode!=='READONLY'||ac.authoritativeWrites!==false||String(ac.writeAuthorityMode||'')!=='OFF'||Number(ac.googleBusinessCalls||0)!==0||a"
+            },
+            {
+              "line": 73,
+              "source_excerpt": "console.log('ENTRY639_NATIVE_READY=6_OF_6');"
+            },
+            {
+              "line": 74,
+              "source_excerpt": "console.log('ENTRY639_BACKEND_NATIVE_ONLY=true');"
+            }
+          ]
+        },
+        "related_current_source": [
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          }
+        ],
+        "current_frontend": "config.js / employee-api-dispatcher-v1.js",
+        "backend_scope": "Native employee Auth/Session via Cloudflare/D1",
+        "api_scope": [
+          "/v1/employee/auth/health",
+          "/v1/employee/auth/login",
+          "/v1/employee/auth/session"
+        ],
+        "database_scope": [
+          "employee_auth_control_v1",
+          "employee_auth_users_v1",
+          "employee_auth_sessions_v1"
+        ],
+        "google_dependency_review": "Native Auth source does not establish global elimination of Apps Script; any legacy code remains historical or unresolved based on route.",
+        "test_execution": "NOT_EXECUTED",
+        "production_runtime_verified": false,
+        "scope_limit": "Static workflow/source mapping and historical documentation; full end-to-end call/data contracts need separate deployed and test evidence.",
+        "privacy_values_read": false
+      },
+      {
+        "entry_id": 638,
+        "classification": "SOURCE_PARTIAL",
+        "title": "#### Entry638 — Documentation closure and recording integrity",
+        "historical_book_evidence": "FROZEN_CATALOG_SECTION_EXISTS_VERBATIM_VERIFIED_NOT_CURRENT_RUNTIME",
+        "historical_summary": [
+          "  - `ENTRY637_FINAL=PASS_6_OF_6`;",
+          "  - `ENTRY638_RUNTIME_READINESS_6_OF_6=PASS`;"
+        ],
+        "current_workflow": {
+          "path": ".github/workflows/trendos-entry638-master-book-record.yml",
+          "blob_sha": "a52c7789d5bd2d06db16114ee4f776367a3a749f",
+          "inspected_line_count": 137,
+          "selected_nonsecret_lines": [
+            {
+              "line": 68,
+              "source_excerpt": "- `SHERIF_NATIVE_READY=NO`"
+            },
+            {
+              "line": 69,
+              "source_excerpt": "- `D1_NATIVE_READY=5/5`"
+            },
+            {
+              "line": 84,
+              "source_excerpt": "- `ENTRY637_NATIVE_READY=6_OF_6`"
+            },
+            {
+              "line": 89,
+              "source_excerpt": "- Final Runtime: `NATIVE_ONLY=true`, `LEGACY_BOOTSTRAP=false`, `LEGACY_SESSION_ENROLL=false`, `D1_AUTH_USERS=6`, `D1_NATIVE_READY_USERS=6`, "
+            },
+            {
+              "line": 92,
+              "source_excerpt": "- Accounting remained READONLY; EasyStore was not mutated by this Auth migration."
+            },
+            {
+              "line": 94,
+              "source_excerpt": "- `SHERIF_NATIVE_READY=YES`"
+            },
+            {
+              "line": 95,
+              "source_excerpt": "- `GLOBAL_NATIVE_AUTH=OFF`"
+            },
+            {
+              "line": 103,
+              "source_excerpt": "- Public Runtime: `D1_AUTH_USERS=6`, `D1_NATIVE_READY_USERS=6`, `NATIVE_ONLY=true`, `LEGACY_BOOTSTRAP=false`, `LEGACY_SESSION_ENROLL=false`,"
+            }
+          ]
+        },
+        "related_current_source": [
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          }
+        ],
+        "current_frontend": "Employee Auth UI and config.js, where applicable",
+        "backend_scope": "Native employee Auth/Session via Cloudflare/D1",
+        "api_scope": [
+          "/v1/employee/auth/health",
+          "/v1/employee/auth/login",
+          "/v1/employee/auth/session"
+        ],
+        "database_scope": [
+          "employee_auth_control_v1",
+          "employee_auth_users_v1",
+          "employee_auth_sessions_v1"
+        ],
+        "google_dependency_review": "Native Auth source does not establish global elimination of Apps Script; any legacy code remains historical or unresolved based on route.",
+        "test_execution": "NOT_EXECUTED",
+        "production_runtime_verified": false,
+        "scope_limit": "Static workflow/source mapping and historical documentation; full end-to-end call/data contracts need separate deployed and test evidence.",
+        "privacy_values_read": false
+      },
+      {
+        "entry_id": 637,
+        "classification": "SOURCE_PARTIAL",
+        "title": "### Entry637 — Sherif Native migration handoff checkpoint — IN PROGRESS",
+        "historical_book_evidence": "FROZEN_CATALOG_SECTION_EXISTS_VERBATIM_VERIFIED_NOT_CURRENT_RUNTIME",
+        "historical_summary": [
+          "### Entry637 — Sherif Native migration handoff checkpoint — IN PROGRESS"
+        ],
+        "current_workflow": {
+          "path": ".github/workflows/trendos-entry637-native-user-shape-readonly.yml",
+          "blob_sha": "1970a8766f917ae8d778abbcf8f8838cd11df627",
+          "inspected_line_count": 58,
+          "selected_nonsecret_lines": [
+            {
+              "line": 35,
+              "source_excerpt": "npx --yes wrangler@$WRANGLER_VERSION d1 execute \"$DATABASE\" --remote --config \"$CONFIG\" --json             --command \"SELECT employee_id AS "
+            },
+            {
+              "line": 54,
+              "source_excerpt": "console.log('ENTRY637_USER_SHAPE_READONLY=PASS');"
+            }
+          ]
+        },
+        "related_current_source": [
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          }
+        ],
+        "current_frontend": "Employee Auth UI and config.js, where applicable",
+        "backend_scope": "Native employee Auth/Session via Cloudflare/D1",
+        "api_scope": [
+          "/v1/employee/auth/health",
+          "/v1/employee/auth/login",
+          "/v1/employee/auth/session"
+        ],
+        "database_scope": [
+          "employee_auth_control_v1",
+          "employee_auth_users_v1",
+          "employee_auth_sessions_v1"
+        ],
+        "google_dependency_review": "Native Auth source does not establish global elimination of Apps Script; any legacy code remains historical or unresolved based on route.",
+        "test_execution": "NOT_EXECUTED",
+        "production_runtime_verified": false,
+        "scope_limit": "Static workflow/source mapping and historical documentation; full end-to-end call/data contracts need separate deployed and test evidence.",
+        "privacy_values_read": false
+      },
+      {
+        "entry_id": 636,
+        "classification": "SOURCE_PARTIAL",
+        "title": "## الملحق التاريخي و-١٦ — Entry636 / Global Native Auth readiness blocker",
+        "historical_book_evidence": "FROZEN_CATALOG_SECTION_EXISTS_VERBATIM_VERIFIED_NOT_CURRENT_RUNTIME",
+        "historical_summary": [
+          "> **HISTORICAL; BLOCKED_AT_HISTORICAL_CHECKPOINT; NOT CURRENT PRODUCTION PROOF.** المنع في السجل قد يكون حُسم لاحقًا؛ لا تعتمده كحالة تشغيل حالية ولا كتفويض تغيير Auth."
+        ],
+        "current_workflow": {
+          "path": ".github/workflows/trendos-entry636-global-native-completeness-guard.yml",
+          "blob_sha": "9f064348d14134596440909ce7a79b518f4bfe8e",
+          "inspected_line_count": 40,
+          "selected_nonsecret_lines": [
+            {
+              "line": 10,
+              "source_excerpt": "- 'docs/trendos/staging/ENTRY636_GLOBAL_NATIVE_COMPLETENESS_AUDIT.json'"
+            },
+            {
+              "line": 31,
+              "source_excerpt": "node tests/entry636_global_native_completeness_guard.test.mjs"
+            }
+          ]
+        },
+        "related_current_source": [
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          }
+        ],
+        "current_frontend": "Employee Auth UI and config.js, where applicable",
+        "backend_scope": "Native employee Auth/Session via Cloudflare/D1",
+        "api_scope": [
+          "/v1/employee/auth/health",
+          "/v1/employee/auth/login",
+          "/v1/employee/auth/session"
+        ],
+        "database_scope": [
+          "employee_auth_control_v1",
+          "employee_auth_users_v1",
+          "employee_auth_sessions_v1"
+        ],
+        "google_dependency_review": "Native Auth source does not establish global elimination of Apps Script; any legacy code remains historical or unresolved based on route.",
+        "test_execution": "NOT_EXECUTED",
+        "production_runtime_verified": false,
+        "scope_limit": "Static workflow/source mapping and historical documentation; full end-to-end call/data contracts need separate deployed and test evidence.",
+        "privacy_values_read": false
+      },
+      {
+        "entry_id": 635,
+        "classification": "SOURCE_PARTIAL",
+        "title": "## الملحق التاريخي و-١٥ — Entry635 / Native-only backend hardening",
+        "historical_book_evidence": "FROZEN_CATALOG_SECTION_EXISTS_VERBATIM_VERIFIED_NOT_CURRENT_RUNTIME",
+        "historical_summary": [],
+        "current_workflow": {
+          "path": ".github/workflows/trendos-entry635-native-only-bridge-free-repo-ci.yml",
+          "blob_sha": "42b70ca240fa3a6d197b74180d1b1d23efaab228",
+          "inspected_line_count": 42,
+          "selected_nonsecret_lines": [
+            {
+              "line": 9,
+              "source_excerpt": "- 'docs/trendos/staging/ENTRY635_NATIVE_ONLY_BRIDGE_FREE_MANIFEST.json'"
+            },
+            {
+              "line": 10,
+              "source_excerpt": "- 'tests/entry635_native_only_bridge_free_preflight.test.mjs'"
+            },
+            {
+              "line": 31,
+              "source_excerpt": "node tests/entry635_native_only_bridge_free_preflight.test.mjs"
+            },
+            {
+              "line": 32,
+              "source_excerpt": "node tests/entry633_native_username_canonicalization.test.mjs"
+            },
+            {
+              "line": 33,
+              "source_excerpt": "node tests/entry631_bridge_free_canary_preflight.test.mjs"
+            }
+          ]
+        },
+        "related_current_source": [
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+            "blob_sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+          },
+          {
+            "path": "cloudflare-d1/wrangler.toml",
+            "blob_sha": "579b06e4918a9ed965be183e69742205f03cdc74"
+          }
+        ],
+        "current_frontend": "Employee Auth UI and config.js, where applicable",
+        "backend_scope": "Native employee Auth/Session via Cloudflare/D1",
+        "api_scope": [
+          "/v1/employee/auth/health",
+          "/v1/employee/auth/login",
+          "/v1/employee/auth/session"
+        ],
+        "database_scope": [
+          "employee_auth_control_v1",
+          "employee_auth_users_v1",
+          "employee_auth_sessions_v1"
+        ],
+        "google_dependency_review": "Native Auth source does not establish global elimination of Apps Script; any legacy code remains historical or unresolved based on route.",
+        "test_execution": "NOT_EXECUTED",
+        "production_runtime_verified": false,
+        "scope_limit": "Static workflow/source mapping and historical documentation; full end-to-end call/data contracts need separate deployed and test evidence.",
+        "privacy_values_read": false
+      },
+      {
+        "entry_id": 634,
+        "classification": "SOURCE_PARTIAL",
+        "title": "## الملحق التاريخي و-١٤ — Entry634 / Legacy employee bootstrap retirement",
+        "historical_book_evidence": "FROZEN_CATALOG_SECTION_EXISTS_VERBATIM_VERIFIED_NOT_CURRENT_RUNTIME",
+        "historical_summary": [],
+        "current_workflow": {
+          "path": ".github/workflows/trendos-entry634-disable-legacy-bootstrap-repo-ci.yml",
+          "blob_sha": "7a5f9d0790e3a860aca8ea32d7e9e530f951d77f",
+          "inspected_line_count": 40,
+          "selected_nonsecret_lines": [
+            {
+              "line": 8,
+              "source_excerpt": "- 'docs/trendos/staging/ENTRY634_DISABLE_LEGACY_AUTH_BOOTSTRAP_MANIFEST.json'"
+            },
+            {
+              "line": 30,
+              "source_excerpt": "node tests/entry634_disable_legacy_auth_bootstrap.test.mjs"
+            },
+            {
+              "line": 31,
+              "source_excerpt": "node tests/employee_auth_native_a61.test.mjs"
+            }
+          ]
+        },
+        "related_current_source": [
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "cloudflare-d1/wrangler.toml",
+            "blob_sha": "579b06e4918a9ed965be183e69742205f03cdc74"
+          }
+        ],
+        "current_frontend": "Employee Auth UI and config.js, where applicable",
+        "backend_scope": "Native employee Auth/Session via Cloudflare/D1",
+        "api_scope": [
+          "/v1/employee/auth/health",
+          "/v1/employee/auth/login",
+          "/v1/employee/auth/session"
+        ],
+        "database_scope": [
+          "employee_auth_control_v1",
+          "employee_auth_users_v1",
+          "employee_auth_sessions_v1"
+        ],
+        "google_dependency_review": "Native Auth source does not establish global elimination of Apps Script; any legacy code remains historical or unresolved based on route.",
+        "test_execution": "NOT_EXECUTED",
+        "production_runtime_verified": false,
+        "scope_limit": "Static workflow/source mapping and historical documentation; full end-to-end call/data contracts need separate deployed and test evidence.",
+        "privacy_values_read": false
+      },
+      {
+        "entry_id": 633,
+        "classification": "SOURCE_PARTIAL",
+        "title": "## الملحق التاريخي و-١٣ — Entry633 / Native username canonicalization",
+        "historical_book_evidence": "FROZEN_CATALOG_SECTION_EXISTS_VERBATIM_VERIFIED_NOT_CURRENT_RUNTIME",
+        "historical_summary": [],
+        "current_workflow": {
+          "path": ".github/workflows/trendos-entry633-native-username-canonicalization-ci.yml",
+          "blob_sha": "fd2f48e1ad48f61801d9a9ddb72259e28f762004",
+          "inspected_line_count": 42,
+          "selected_nonsecret_lines": [
+            {
+              "line": 9,
+              "source_excerpt": "- 'docs/trendos/staging/ENTRY633_NATIVE_USERNAME_CANONICALIZATION_MANIFEST.json'"
+            },
+            {
+              "line": 32,
+              "source_excerpt": "node tests/entry633_native_username_canonicalization.test.mjs"
+            },
+            {
+              "line": 33,
+              "source_excerpt": "node tests/entry631_bridge_free_canary_preflight.test.mjs"
+            }
+          ]
+        },
+        "related_current_source": [
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          }
+        ],
+        "current_frontend": "config.js / employee-api-dispatcher-v1.js",
+        "backend_scope": "Native employee Auth/Session via Cloudflare/D1",
+        "api_scope": [
+          "/v1/employee/auth/health",
+          "/v1/employee/auth/login",
+          "/v1/employee/auth/session"
+        ],
+        "database_scope": [
+          "employee_auth_control_v1",
+          "employee_auth_users_v1",
+          "employee_auth_sessions_v1"
+        ],
+        "google_dependency_review": "Native Auth source does not establish global elimination of Apps Script; any legacy code remains historical or unresolved based on route.",
+        "test_execution": "NOT_EXECUTED",
+        "production_runtime_verified": false,
+        "scope_limit": "Static workflow/source mapping and historical documentation; full end-to-end call/data contracts need separate deployed and test evidence.",
+        "privacy_values_read": false
+      },
+      {
+        "entry_id": 632,
+        "classification": "SOURCE_PARTIAL",
+        "title": "## الملحق التاريخي و-١٢ — Entry632 / Backend Bridge disabling",
+        "historical_book_evidence": "FROZEN_CATALOG_SECTION_EXISTS_VERBATIM_VERIFIED_NOT_CURRENT_RUNTIME",
+        "historical_summary": [],
+        "current_workflow": {
+          "path": ".github/workflows/trendos-entry632-backend-bridge-off-candidate.yml",
+          "blob_sha": "824332889549ceca7cae92dc598781d22810ed89",
+          "inspected_line_count": 196,
+          "selected_nonsecret_lines": [
+            {
+              "line": 54,
+              "source_excerpt": "const target=bindings.find(b=>b&&b.name==='TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED');"
+            },
+            {
+              "line": 87,
+              "source_excerpt": "if(b.name==='TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED'){"
+            },
+            {
+              "line": 170,
+              "source_excerpt": "const target=cb.find(b=>b&&b.name==='TRENDOS_EMPLOYEE_LEGACY_BRIDGE_V1_ENABLED');"
+            }
+          ]
+        },
+        "related_current_source": [
+          {
+            "path": "cloudflare-d1/src/employee-legacy-bridge-v1.mjs",
+            "blob_sha": "e317c9692970d8f31b2980fa07b692e882911928"
+          },
+          {
+            "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+            "blob_sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+          },
+          {
+            "path": "cloudflare-d1/wrangler.toml",
+            "blob_sha": "579b06e4918a9ed965be183e69742205f03cdc74"
+          }
+        ],
+        "current_frontend": "Employee Auth UI and config.js, where applicable",
+        "backend_scope": "Native/legacy bridge source and Cloud session bridge",
+        "api_scope": [
+          "/v1/employee/auth/health",
+          "/v1/employee/auth/login",
+          "/v1/employee/auth/session"
+        ],
+        "database_scope": [
+          "employee_auth_control_v1",
+          "employee_auth_users_v1",
+          "employee_auth_sessions_v1"
+        ],
+        "google_dependency_review": "Default employee bridge OFF in repo, but Apps Script project property and current deployment unverified.",
+        "test_execution": "NOT_EXECUTED",
+        "production_runtime_verified": false,
+        "scope_limit": "Static workflow/source mapping and historical documentation; full end-to-end call/data contracts need separate deployed and test evidence.",
+        "privacy_values_read": false
+      },
+      {
+        "entry_id": 631,
+        "classification": "SOURCE_PARTIAL",
+        "title": "## الملحق التاريخي و-١١ — Entry631 / Zero-Google Auth/Bridge checkpoint",
+        "historical_book_evidence": "FROZEN_CATALOG_SECTION_EXISTS_VERBATIM_VERIFIED_NOT_CURRENT_RUNTIME",
+        "historical_summary": [],
+        "current_workflow": {
+          "path": ".github/workflows/trendos-entry631-bridge-free-canary-repo-ci.yml",
+          "blob_sha": "52d5b82092fbdb7fc8c0e2ef44472aff3b32625b",
+          "inspected_line_count": 47,
+          "selected_nonsecret_lines": [
+            {
+              "line": 11,
+              "source_excerpt": "- 'tests/entry631_bridge_free_canary_preflight.test.mjs'"
+            },
+            {
+              "line": 12,
+              "source_excerpt": "- '.github/workflows/trendos-entry631-bridge-free-canary-repo-ci.yml'"
+            },
+            {
+              "line": 33,
+              "source_excerpt": "node tests/entry631_bridge_free_canary_preflight.test.mjs"
+            },
+            {
+              "line": 34,
+              "source_excerpt": "node tests/entry630_employee_comms_readonly_dispatch.test.mjs"
+            },
+            {
+              "line": 35,
+              "source_excerpt": "node tests/entry629_employee_content_readonly_dispatch.test.mjs"
+            },
+            {
+              "line": 36,
+              "source_excerpt": "node tests/entry628_employee_core_readonly_dispatch.test.mjs"
+            },
+            {
+              "line": 44,
+              "source_excerpt": "echo ENTRY631_GLOBAL_NATIVE_AUTH=OFF"
+            }
+          ]
+        },
+        "related_current_source": [
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          }
+        ],
+        "current_frontend": "config.js / employee-api-dispatcher-v1.js",
+        "backend_scope": "Native employee Auth/Session via Cloudflare/D1",
+        "api_scope": [
+          "/v1/employee/auth/health",
+          "/v1/employee/auth/login",
+          "/v1/employee/auth/session"
+        ],
+        "database_scope": [
+          "employee_auth_control_v1",
+          "employee_auth_users_v1",
+          "employee_auth_sessions_v1"
+        ],
+        "google_dependency_review": "Native Auth source does not establish global elimination of Apps Script; any legacy code remains historical or unresolved based on route.",
+        "test_execution": "NOT_EXECUTED",
+        "production_runtime_verified": false,
+        "scope_limit": "Static workflow/source mapping and historical documentation; full end-to-end call/data contracts need separate deployed and test evidence.",
+        "privacy_values_read": false
+      }
+    ],
+    "runtime_certified_current": 0,
+    "all_source_verdicts_are_bounded": "SOURCE_PARTIAL",
+    "stale_workflow_caution": "Historic deployment and controlled mutations workflows must NEVER be replayed during documentation audit.",
+    "privacy_gate": "unchanged 596 599/600",
+    "archive": "unaltered",
+    "no_new_book": true,
+    "old_master_active": true,
+    "catalog_frozen": true,
+    "cutover": "NO_GO"
   }
 }
