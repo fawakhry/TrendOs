@@ -18,10 +18,21 @@ export function makeR5SignedMetadataRequest({
   baseUrl, expectedHostname, secret, timestamp, nonce
 } = {}) {
   if (typeof baseUrl !== 'string' || typeof expectedHostname !== 'string' ||
-      !/^[A-Za-z0-9.-]+$/.test(expectedHostname)) fail('TARGET_NOT_PINNED');
+      !/^[a-z0-9][a-z0-9.-]*[a-z0-9]$/i.test(expectedHostname) ||
+      expectedHostname.includes('..') || !/\.[a-z]{2,63}$/i.test(expectedHostname)) {
+    fail('TARGET_NOT_PINNED');
+  }
+  // SERVER-72: check the RAW URL before URL() normalizes explicit default ports,
+  // backslashes, encoded hostname characters or dot segments. No signed
+  // metadata credential should go to a non-canonical destination.
+  const rawTarget = /^https:\/\/([a-z0-9][a-z0-9.-]*[a-z0-9])\/?$/i.exec(baseUrl);
+  if (!rawTarget || rawTarget[1].toLowerCase() !== expectedHostname.toLowerCase()) {
+    fail('TARGET_NOT_APPROVED');
+  }
   let base;
   try { base = new URL(baseUrl); } catch { fail('TARGET_INVALID'); }
-  if (base.protocol !== 'https:' || base.hostname !== expectedHostname ||
+  if (base.protocol !== 'https:' ||
+      base.hostname.toLowerCase() !== expectedHostname.toLowerCase() ||
       base.username || base.password || base.port || base.pathname !== '/' ||
       base.search || base.hash) fail('TARGET_NOT_APPROVED');
 
