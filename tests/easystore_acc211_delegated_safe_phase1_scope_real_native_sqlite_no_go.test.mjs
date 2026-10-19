@@ -242,6 +242,26 @@ try{
  env.ACCOUNTING_FINANCE_GRANTS_V1=JSON.stringify({
    version:1,grants:[{username:'ACC170_SYNTHETIC_OPERATOR',mode:'full'}]
  });
+ // Owner has nominated cashiers and an independent reviewer by name;
+ // actual trusted login identities were NOT supplied. Fake-only roster
+ // proves that no cashier can self-review or impersonate a reviewer.
+ const noCustodianRoster=await send('saveEasyStoreSaleV2',{
+   requestId:'ACC212-UNVERIFIED-CUSTODY-0001',customerId:customer,
+   invoiceNo:'ACC212-NO-CUSTODIAN-INV',total:10,paid:0
+ });
+ assert.equal(noCustodianRoster.status,403);
+ assert.equal(noCustodianRoster.code,'acc212-separate-cashier-reviewer-logins-required');
+ env.ACCOUNTING_FINANCE_PHASE1_CASHIER_LOGINS_V1=JSON.stringify([
+   'ACC170_SYNTHETIC_OPERATOR','ACC212_FAKE_SECOND_CASHIER']);
+ env.ACCOUNTING_FINANCE_PHASE1_REVIEWER_LOGIN_V1='ACC212_FAKE_REVIEWER';
+ env.ACCOUNTING_FINANCE_PHASE1_REVIEWER_LOGIN_V1='ACC170_SYNTHETIC_OPERATOR';
+ const selfReview=await send('saveEasyStoreSaleV2',{
+   requestId:'ACC212-SELF-REVIEW-DENIED',customerId:customer,
+   invoiceNo:'ACC212-SELF-REVIEW-INV',total:10,paid:0
+ });
+ assert.equal(selfReview.status,403);
+ assert.equal(selfReview.code,'acc212-separate-cashier-reviewer-logins-required');
+ env.ACCOUNTING_FINANCE_PHASE1_REVIEWER_LOGIN_V1='ACC212_FAKE_REVIEWER';
  const deniedActions=[
    ['refundEasyStoreSaleV2',{requestId:'ACC211-NO-REFUND-0001',invoiceNo:'ACC187-SALE-INVOICE-1',amount:25}],
    ['returnEasyStoreSaleV2',{requestId:'ACC211-NO-RETURN-0001',invoiceNo:'ACC187-SALE-INVOICE-1'}],
