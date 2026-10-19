@@ -4996,5 +4996,78 @@
     "source_master_remains_active": true,
     "catalog_remains_frozen": true,
     "final_cutover_not_authorized": true
+  },
+  "catalog_editorial_source_links_head_path_audit_20261019": {
+    "date": "2026-10-19",
+    "catalog_blob_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde",
+    "editorial_link_occurrences": 495,
+    "unique_file_targets": 126,
+    "evidence_class": "CURRENT_BRANCH_SOURCE_PATH_ONLY_NOT_RUNTIME",
+    "checks": [
+      {
+        "path": "index.html",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "788074c5fb4c3d4db2af9dc0b4dabffe3c34cfc1"
+      },
+      {
+        "path": "app.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+      },
+      {
+        "path": "config.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+      },
+      {
+        "path": "employee-api-dispatcher-v1.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+      },
+      {
+        "path": "trendos-edge-orders-read-v1.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "8a6f990828e0362a4faccac71a32144a6d9ec3aa"
+      },
+      {
+        "path": "cloudflare-d1/src/edge-orders-read-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "540cca2143e7da940b96d6f990a8951e3b5c87ab"
+      },
+      {
+        "path": "cloudflare-d1/wrangler.toml",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "579b06e4918a9ed965be183e69742205f03cdc74"
+      },
+      {
+        "path": "cloudflare-d1/src/index_v2.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "4a555efb4b3f44ba371549d5cec055cc7ce1777f"
+      },
+      {
+        "path": "cloudflare-d1/src/t12-general-create-handler.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "d8bd8d13f6e69b55839822ddb5e473585e6d8842"
+      },
+      {
+        "path": "cloudflare-d1/src/t12-general-create.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "06ab0dfee6db7c0480f37d3445da564853ed036d"
+      },
+      {
+        "path": "cloudflare-d1/src/cloud-write-order-contract-v2.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "300004fa0d5aa872bf63f09ef643b42b16edd556"
+      },
+      {
+        "path": "cloudflare-d1/src/t12-order-create-shadow-intent.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "17e52b3a1d8f346bd465329c258f6cde647d9ac0"
+      }
+    ],
+    "runtime_verified": false,
+    "checked_count": 12,
+    "present_count": 12,
+    "unresolved_count": 0
   }
 }
