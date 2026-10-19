@@ -104,6 +104,13 @@ await test('14 removing two-signature zero evidence gate is never readiness PASS
   assert.equal(a.codeInspectionPassed,false);
   assert.equal(a.productionDeployApproved,false);
 });
+await test('15 no genuine cashier and independent reviewer identities in source inspection',()=>{
+ const a=inspectRepoAcc207();
+ assert.equal(a.ownerSelectedTwoCashiersOneIndependentReviewer,true);
+ assert.equal(a.realVerifiedCashierAndReviewerLoginsConfigured,false);
+ assert.equal(a.checks.acc212_individual_two_cashiers_separate_reviewer_mandatory,true);
+ assert.equal(a.financeRelease,'NO_GO');
+});
 console.log('ACC207_FINANCE_RELEASE_CONSOLIDATED_DECISION_BATCH=TESTED');
 console.log('ACC207_CLAIMED_SIGNOFF_NEVER_AUTO_AUTHORIZED=PASS');
 console.log('ACC207_FINANCE_RELEASE=NO_GO');
