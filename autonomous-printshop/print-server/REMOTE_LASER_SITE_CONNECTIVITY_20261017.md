@@ -102,16 +102,35 @@ Windows 7 shop server                Windows 7 laser PC
 | التحقق | الوضع |
 |---|---|
 | ثلاث أجهزة ومواقعها | VERIFIED_BY_OWNER_2026-10-17 |
-| Radmin VPN installed on both Win7 hosts | NOT_VERIFIED |
+| نوع عميل VPN المُثبت | UNCONFIRMED; remote shop access OWNER_REPORTED_WORKING |
 | Correct Windows7 compatibility | OFFICIAL_VENDOR_DOCUMENTED; SITE_INSTALL_NOT_TESTED |
 | Shop VPN IP / laser VPN IP | UNKNOWN / NEVER_RECORD_REAL_ADDRESSES_IN_PUBLIC_REPO |
-| Interdevice ping | NOT_TESTED |
-| Limited SMB share / auth / firewall | NOT_CONFIGURED |
+| فتح سيرفر المطبعة عبر الربط | OWNER_REPORTED_SUCCESS; independent ping NOT_TESTED |
+| Limited SMB share / auth / firewall | Access OWNER_REPORTED; actual ACL/firewall configuration UNVERIFIED |
 | Bidirectional fake file test / integrity | NOT_TESTED |
 | Hotspot reconnection / measured throughput | NOT_TESTED |
 | TrendOS / Matbagy automatic laser order sync | NOT_IMPLEMENTED_OR_NOT_VERIFIED |
 | Actual customer file transfer or laser control | OFF |
 | Ubuntu home host involvement | NONE |
+
+## 6. بلاغ التشغيل الفعلي من المالك — سُجّل 2026-10-20
+
+**المصدر:** رسالة المالك في الشات بتاريخ 2026-10-20: «لا انا بعرفك ان ده تم فعلا»، في سياق سؤاله السابق «الربط اشتغل والسيرفر فتح وكله تمام؟». هذه **إفادة مباشرة بأن الربط بين مبنى الليزر وسيرفر المطبعة نُفّذ، وأن فتح السيرفر نجح وأن الأمور تعمل**. لا توجد لقطة شاشة/عناوين IP/Logs أو تحقق شبكي مستقل في هذه الجلسة، كما أن ساعة وتاريخ التنفيذ الفعلي غير محددين. لا تنفذ إعادة تثبيت لأن التوصيل تم بالفعل؛ الخطوة المقبلة هي الحفاظ على التشغيل وإجراء فحوص محدودة من دون تعطيل وائل.
+
+### واقع التشغيل المُبلغ عنه في مقابل الاختبارات غير المثبتة
+| بند | إثبات حديث |
+|---|---|
+| اتصال عامل الليزر بسيرفر المطبعة من المبنى الآخر | `OWNER_REPORTED_WORKING` (بلغ عنه 2026-10-20) |
+| فتح السيرفر من جهاز الليزر | `OWNER_REPORTED_OPENED_SUCCESSFULLY` |
+| إمكانية الوصول العملية للشغل عمومًا | `OWNER_REPORTED_ALL_OK`، التفاصيل الفنية غير مفصّلة |
+| هل استخدم Radmin VPN بالفعل؟ | `PRODUCT_NOT_INDEPENDENTLY_CONFIRMED`؛ كان مقترحًا ولا نفترض أنه اختير |
+| اختبار نقل ملفين بالاتجاهين وتحقيق SHA-256 | `NOT_INDEPENDENTLY_VERIFIED` |
+| اختبارات انقطاع/عودة هوتسبوت، السرعة، التأمين، SMB version | `NOT_INDEPENDENTLY_VERIFIED` |
+| استمرار عمل وائل بالتوازي بلا تعارض | `DESIRED`؛ لم يذكر المالك اختبارًا منفصلًا |
+| تكامل الأوردرات التلقائي مع TrendOS/Matbagy | `NOT_CLAIMED`؛ ربط الملفات لا يعني الأتمتة |
+| خدمة Windows7 أو إعدادات Cloudflare/GitHub تغيرت بواسطة مساعد | `NO_ASSISTANT_REMOTE_ACTION`؛ GitHub updates توثيقية فقط |
+
+**قرار:** `LASER_CROSS_BUILDING_ACCESS=OWNER_CONFIRMED_OPERATIONAL`، `INDEPENDENT_RUNTIME_TEST=NOT_PERFORMED`. الإبقاء على تدفق العمل الحالي، عدم إرسال المالك إلى خطوات التثبيت من الصفر، وإجراء فحوص أمان ونسخ احتياطية لاحقًا عند فرصة مناسبة مع عدم تعريض Win7 القديم للإنترنت مباشرة.
 
 ## مصادر رسمية
 - Radmin VPN — [الرئيسية](https://www.radmin-vpn.com/)، [طريقة إنشاء الشبكة والانضمام ومتطلبات Windows7](https://www.radmin-vpn.com/help/)، [EULA](https://www.radmin-vpn.com/eula/).
