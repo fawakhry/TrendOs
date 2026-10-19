@@ -1,0 +1,53 @@
+name: TrendOS Entry660 Customer Native Orders Read OFF — Fake SQLite
+on:
+  push:
+    branches:
+      - feat/zero-google-native-customer-orders-session-scoped-off-20261020
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/customer-portal-native-orders-v0.mjs'
+      - 'tests/entry660_customer_native_orders_off.test.mjs'
+      - 'tests/entry660_customer_native_orders_sqlite.test.py'
+      - '.github/workflows/trendos-entry660-customer-native-order-read-off-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  customer-native-order-get-source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify syntax and real handler with fake D1 adapter only
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          OPENAI_API_KEY: ''
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/customer-portal-native-orders-v0.mjs
+          node --check tests/entry660_customer_native_orders_off.test.mjs
+          node --test tests/entry660_customer_native_orders_off.test.mjs
+      - name: Run actual SQL against disposable Python SQLite DB and five migrations
+        run: |
+          set -euo pipefail
+          python3 -m unittest tests/entry660_customer_native_orders_sqlite.test.py -v
+      - name: Preserve customer Google forwarding and no-regression for employee transport
+        run: |
+          set -euo pipefail
+          node tests/entry653_zero_google_employee_legacy_proxy_retirement.test.mjs
+      - name: Enforced source-only output
+        run: |
+          echo 'CUSTOMER_ACTION_NATIVE_GET_ORDERS=SOURCE_IMPLEMENTED_OFF'
+          echo 'CUSTOMER_LOGIN_AND_SESSION_ISSUER=NOT_DEPLOYED'
+          echo 'CUSTOMER_GOOGLE_ACTIONS_STILL_LIVE=9'
+          echo 'CUSTOMER_OWNERSHIP=EXACT_REVIEWED_ONLY'
+          echo 'REAL_D1_OR_GOOGLE_CALLS=NO'
+          echo 'PRODUCTION_MUTATION=NO'
+          echo 'MIGRATIONS_APPLIED_TO_PRODUCTION=NO'
+          echo 'ZERO_GOOGLE_COMPLETE=NO'
