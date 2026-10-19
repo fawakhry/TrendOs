@@ -13,6 +13,13 @@ The unified GitHub Actions workflow `.github/workflows/server78-unified-six-stag
 
 First verified actual run [GitHub Actions #39336869868](https://github.com/fawakhry/TrendOs/actions/runs/39336869868), commit `27a7c1c2499192f8ada7748df2312c9cfeb08dd5`: **SUCCESS**; synthetic SERVER-76 15/15, SERVER-77 10/10, unified reality 12/12, source 6-gate NO_GO as expected, Cloudflare live remote metadata GET succeeded. A follow-up fix deliberately **removes raw deployed-content SHA256 from the report**, because Cloudflare `content/v2` may be multipart with a varying boundary; hashing that envelope incorrectly suggests code changed or matches a particular active version. Source/active-version provenance therefore remains **NOT_PROVEN**, intentionally.
 
+## Active-version identity upgrade (no deployment)
+
+[Updated consolidated Actions #39337402609](https://github.com/fawakhry/TrendOs/actions/runs/39337402609), source/test commit `3d82681051c5a8c65fea466ace67c2c5b6e29548`: **SUCCESS**. Python SERVER-76 **15/15**, SERVER-77 **10/10**, SERVER-78 **15/15**. Cloudflare real **GET-only version detail** independently confirms that the deployment's reported 100%-active `version_id` matches the fetched `/versions/{version_id}` response:
+- `trendos` 100% active prefix `803aa6a2-bb4`, version-specific script ETag prefix `8b1ea578cea9` (metadata source `wrangler`).
+- `trendos-d1-api` 100% active prefix `2b40f622-60c`, version-specific script ETag prefix `ab8bcbce0265` (metadata source `api`).
+- **This verifies identity of Cloudflare's active version, NOT which Git SHA compiled it, nor what routes are live with customer authentication.** No Cloudflare updates or remote customer data queries. Failing intermediate CI on the un-updated fake-version fixture was corrected; the cited latest consolidated run is successful.
+
 ## Newly verified live Cloudflare findings
 
 | Object | Concrete live Cloudflare GET evidence | Release implication |
