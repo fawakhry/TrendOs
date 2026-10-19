@@ -49,6 +49,13 @@ class FakeOpener:
             # Fake bearer-looking customer text MUST NOT be reflected.
             source = b"/v1/edge/orders/02cr/page" + b"/v1/edge/customers/search" + b"FAKE_PRIVATE_CUSTOMER_12345"
             return Response(source)
+        if "/versions/" in path:
+            payload = {"success": True, "result": {
+                "id": "01234567-89ab-cdef-0123-456789abcdef",
+                "resources": {"script": {"etag": "f" * 64}},
+                "metadata": {"source": "wrangler", "author_email": "PRIVATE_PERSON@invalid.test"},
+            }}
+            return Response(json.dumps(payload).encode())
         if path.endswith("/settings"):
             payload = {"success": True, "result": {"bindings": [
                 {"name": "DB", "type": "d1", "id": "DO_NOT_REPORT_PRIVATE_D1_ID"},
@@ -83,7 +90,7 @@ class SixGateRealityTest(unittest.TestCase):
         op = FakeOpener()
         out = m.unified_report(QUEUE, op, TOKEN, ACCOUNT, enabled=True)
         self.assertTrue(out["remoteCloudflareApiGetPerformed"])
-        self.assertEqual(len(op.requests), 7)  # 2 prod shell + 3 D1 API + 1 old stage + 1 isolated stage.
+        self.assertEqual(len(op.requests), 9)  # 2 prod +3 API +1+1 stages, plus 2 exact active version GETs.
         self.assertEqual([x["id"] for x in out["steps"]], list(m._GATE_IDS))
         self.assertTrue(all(x["status"] == "DEFERRED_NO_GO" for x in out["steps"]))
         self.assertTrue(all(not x["liveAccepted"] for x in out["steps"]))
@@ -100,6 +107,27 @@ class SixGateRealityTest(unittest.TestCase):
         self.assertEqual(out["workers"]["trendos-d1-api"]["settings"]["bindingTypes"]["DB"], "d1")
         self.assertEqual(out["workers"]["trendos-d1-api"]["settings"]["readerFlagState"]
                          ["TRENDOSSHOP_SERVICE_READ_ENABLED"], "EXACT_FALSE")
+
+    def test_exact_active_version_identity_read_only_and_redacted(self):
+        op = FakeOpener()
+        out = m.unified_report(QUEUE, op, TOKEN, ACCOUNT, enabled=True)
+        for worker in ("trendos", "trendos-d1-api"):
+            item = out["workers"][worker]["activeVersion"]
+            self.assertTrue(item["verified"])
+            self.assertTrue(item["activeVersionIdentityMatched"])
+            self.assertEqual(item["scriptEtagPrefix"], "f" * 12)
+            self.assertEqual(item["source"], "wrangler")
+            self.assertEqual(item["gitShaParity"], "NOT_PROVEN")
+        self.assertEqual(sum("/versions/" in req.full_url for req in op.requests), 2)
+        self.assertNotIn("PRIVATE_PERSON", repr(out))
+
+    def test_deployment_source_mismatch_cannot_count_as_proof(self):
+        bad = {"verified": True, "result": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "resources": {"script": {"etag": "f" * 64}}}}
+        x = m._active_version_detail(bad, "01234567-89ab-cdef-0123-456789abcdef")
+        self.assertFalse(x["verified"])
+        self.assertEqual(x["reason"], "ACTIVE_VERSION_ID_MISMATCH")
 
     def test_marker_presence_is_not_active_source_parity(self):
         out = m.unified_report(QUEUE, FakeOpener(), TOKEN, ACCOUNT, enabled=True)
