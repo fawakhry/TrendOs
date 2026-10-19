@@ -8796,5 +8796,180 @@
       ]
     ],
     "recommended_separate_owner_change": "Any runtime code fix must be separately scoped and authorized outside book-reconciliation; no Worker changes in this audit."
+  },
+  "source_semantic_resumed_batch_20261020_641_642_643_646": {
+    "date": "2026-10-20",
+    "branch": "agent/trendos-book-audit-v1-20261014",
+    "observed_head_before_write": "3289d8448ce8073845e1a1dff8e6bb9c29234135",
+    "evidence_class": "STATIC_WORK_BRANCH_CONTRACT_PLUS_TIME_SCOPED_ARCHIVE",
+    "newly_individually_reviewed_entries": [
+      641,
+      642,
+      643,
+      646
+    ],
+    "source_contract_review_count_before": 16,
+    "source_contract_review_count_after": 20,
+    "source_contract_review_remaining": 46,
+    "independently_current_runtime_verified": 0,
+    "entries": [
+      {
+        "entry_id": 641,
+        "status": "SOURCE_PARTIAL",
+        "topic": "Historical read-only legacy employee auth retirement audit",
+        "source_assessment": "Current source includes NATIVE/legacy flags in wrangler, Native Auth health module, read-only diagnostic workflow; historical drift probe was not run this batch. Cloudflare actual environment and Apps Script property could differ from source.",
+        "frontend": "config.js Native Auth selector and legacy bridge flags",
+        "backend": "cloudflare-d1/src/employee-auth-native-v1.mjs and employee-legacy-bridge-v1.mjs; health via worker",
+        "api": [
+          "/v1/employee/auth/health",
+          "/v1/employee/legacy-action/health"
+        ],
+        "d1": [
+          "employee_auth_users_v1",
+          "employee_auth_sessions_v1 (via Native Auth verifier, not queried here)"
+        ],
+        "google_boundary": "Apps Script bridge project/property status remains UNKNOWN for current runtime.",
+        "test_evidence": "Read-only .github/workflows/trendos-entry641-legacy-auth-retirement-readonly.yml inspected, NOT executed",
+        "source_blobs": [
+          [
+            ".github/workflows/trendos-entry641-legacy-auth-retirement-readonly.yml",
+            "4d9cf2c0c57db7fd928bcf3dc1fdd985c43b5b75",
+            "L24,L38-L51,L112,L169-L170"
+          ],
+          [
+            "cloudflare-d1/wrangler.toml",
+            "579b06e4918a9ed965be183e69742205f03cdc74",
+            "L24-L27,L32-L34"
+          ],
+          [
+            "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "c01156a965e7de60e7a70d44d86b41b59eb83ded",
+            "L479-L531"
+          ]
+        ]
+      },
+      {
+        "entry_id": 642,
+        "status": "SOURCE_PARTIAL",
+        "topic": "Deploy-resilient Employee Auth hardening defaults",
+        "source_assessment": "Current wrangler checked: Auth enabled=true, bootstrap=false, native-only=true, legacy enroll=false, bridge=false. Historical Entry642 controlled workflow still preflight-greps AUTH enabled=false and native-only=false, contradicting current defaults; workflow needs separate owner review/rebase before reuse, not a Production failure assertion.",
+        "frontend": "config.js (Native Auth flags; no frontend deploy in source scope)",
+        "backend": "cloudflare-d1/wrangler.toml + employee-auth-native-v1.mjs",
+        "api": [
+          "/v1/employee/auth/health"
+        ],
+        "d1": [
+          "D1 Auth control used by Native Auth; no direct runtime query"
+        ],
+        "google_boundary": "Worker defaults disable employee bridge but APPS_SCRIPT_API_URL remains configured; source flags not proof that old Apps Script project/consumer removed.",
+        "test_evidence": ".github/workflows/trendos-entry642-deploy-resilient-auth-hardening.yml inspected static (not run); stale preflight guard found",
+        "source_blobs": [
+          [
+            "cloudflare-d1/wrangler.toml",
+            "579b06e4918a9ed965be183e69742205f03cdc74",
+            "L24-L27,L32-L34"
+          ],
+          [
+            ".github/workflows/trendos-entry642-deploy-resilient-auth-hardening.yml",
+            "02b1dffd6d7d7f034d784f22b0e631f3d03e2bb2",
+            "L87-L93"
+          ],
+          [
+            "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "c01156a965e7de60e7a70d44d86b41b59eb83ded",
+            "L150-L155,L479-L531"
+          ]
+        ]
+      },
+      {
+        "entry_id": 643,
+        "status": "HISTORICAL_ONLY",
+        "topic": "Attempted Apps Script employee legacy bridge property retirement",
+        "source_assessment": "Unified historical Entry643 explicitly BLOCKED before mutation, bridge enabled at historical invalid-assertion probe, ScriptProperties not read or changed. Current worker defaults bridge=false do NOT certify Apps Script property, and current Apps Script project settings not fetched. No closure.",
+        "frontend": "No frontend change in recorded attempt",
+        "backend": "Apps Script legacy bridge (independent project settings), Cloudflare native legacy-bridge code remains in repository",
+        "api": [
+          "Apps Script cloudEmployeeLegacyBridgeExecuteV1 (historical only)",
+          "/v1/employee/legacy-action/health"
+        ],
+        "d1": [
+          "None accessed by this review"
+        ],
+        "google_boundary": "Historical bridge property ON; current property is UNKNOWN. Apps Script authority cannot be retired from work-branch source alone.",
+        "test_evidence": "No current project read, no Actions run, no live probe in this batch",
+        "source_blobs": [
+          [
+            "cloudflare-d1/wrangler.toml",
+            "579b06e4918a9ed965be183e69742205f03cdc74",
+            "L8,L32-L34"
+          ],
+          [
+            ".github/workflows/trendos-entry641-legacy-auth-retirement-readonly.yml",
+            "4d9cf2c0c57db7fd928bcf3dc1fdd985c43b5b75",
+            "L38-L51,L169-L170"
+          ],
+          [
+            "cloudflare-d1/src/index_v2.js",
+            "4a555efb4b3f44ba371549d5cec055cc7ce1777f",
+            "L7-L10"
+          ]
+        ]
+      },
+      {
+        "entry_id": 646,
+        "status": "SOURCE_VERIFIED",
+        "topic": "Manager Center uses Core direct server snapshot action",
+        "source_assessment": "manager-center-v1932.js load() calls getTrendMasterCenterV1931 directly rather than progressive panel; dispatcher recognizes action and native Core READ_ACTIONS includes it. Read static Node test has assertions for this route. Prior live smoke history is time-scoped and not current.",
+        "frontend": "manager-center-v1932.js plus employee-api-dispatcher-v1.js",
+        "backend": "cloudflare-d1/src/employee-core-native-v1.mjs",
+        "api": [
+          "getTrendMasterCenterV1931 -> /v1/employee/core"
+        ],
+        "d1": [
+          "Core read queries behind trendMaster() (exact DB tables not traced this audit)"
+        ],
+        "google_boundary": "Direct manager action is Core Cloud native; standalone Progressive legacy script still exists but current load() does not choose it. Other manager workflows not certified Zero Google.",
+        "test_evidence": "tests/entry646_manager_center_core_direct.test.mjs source read, not executed",
+        "source_blobs": [
+          [
+            "manager-center-v1932.js",
+            "3d83a67f23056e2428b184c29e984fea871627b3",
+            "L14,L21-L22"
+          ],
+          [
+            "employee-api-dispatcher-v1.js",
+            "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee",
+            "L72"
+          ],
+          [
+            "cloudflare-d1/src/employee-core-native-v1.mjs",
+            "90b8d2d2353b3cbb2d85f8500e54bc64cfc3c82e",
+            "L5,L381"
+          ],
+          [
+            "tests/entry646_manager_center_core_direct.test.mjs",
+            "d7247b9db9050c194a37ad20c27ff9196492c046",
+            "L1-L13"
+          ]
+        ]
+      }
+    ],
+    "observed_source_drift": [
+      "Entry642 controlled workflow #L87-90 requires AuthEnabled=false and NativeOnly=false, whereas current wrangler.toml #L24-26 has true/false/true respectively. Historical deployment workflow is not safe to replay unreviewed."
+    ],
+    "privacy": "No customer/private employee session values queried, no secret values logged",
+    "google_remains_open": "Apps Script project bridge property and other live Google dependencies require authorized read-only evidence; APPS_SCRIPT_API_URL still configured as an upstream",
+    "archive_preserved": true,
+    "old_book_active": true,
+    "new_catalog_frozen": true,
+    "tests_executed": 0,
+    "production_changed": false,
+    "final_book_cutover": "NO_GO",
+    "next_entry_candidates": [
+      645,
+      640,
+      639,
+      638
+    ]
   }
 }
