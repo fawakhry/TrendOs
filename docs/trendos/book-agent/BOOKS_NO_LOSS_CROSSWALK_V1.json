@@ -4200,5 +4200,801 @@
     },
     "no_production_or_branch_merge": true,
     "hold_privacy_entries_untouched": true
+  },
+  "migration_38unit_and_66entry_provenance_independent_audit_20261019": {
+    "date": "2026-10-19",
+    "branch": "agent/trendos-book-audit-v1-20261014",
+    "observed_head_before_commit": "e993c1aea2de5b4eb5217f0dced853809f45923b",
+    "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+    "unified_catalog_blob_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde",
+    "active_master_blob_sha": "75cbaaed57257237e5ef52a2e2802e2c1f7c1f42",
+    "kind": "STATIC_ARCHIVE_TEXT_PROOF_NOT_RUNTIME_OR_RECONCILED_FUNCTIONAL_COVERAGE",
+    "unit_verification_count": 38,
+    "unit_all_verbatim_pass": true,
+    "unit_evidence": [
+      {
+        "unit": "001",
+        "characters": 619,
+        "archived_match": "PASS",
+        "boundary_method": "ARCHIVED_BOUNDARY_LF"
+      },
+      {
+        "unit": "002",
+        "characters": 1938,
+        "archived_match": "PASS",
+        "boundary_method": "ARCHIVED_BOUNDARY_LF"
+      },
+      {
+        "unit": "003",
+        "characters": 1535,
+        "archived_match": "PASS",
+        "boundary_method": "ARCHIVED_BOUNDARY_LF"
+      },
+      {
+        "unit": "004",
+        "characters": 2617,
+        "archived_match": "PASS",
+        "boundary_method": "ARCHIVED_BOUNDARY_LF"
+      },
+      {
+        "unit": "005",
+        "characters": 508,
+        "archived_match": "PASS",
+        "boundary_method": "ARCHIVED_BOUNDARY_LF"
+      },
+      {
+        "unit": "006",
+        "characters": 2281,
+        "archived_match": "PASS",
+        "boundary_method": "ARCHIVED_BOUNDARY_LF"
+      },
+      {
+        "unit": "007",
+        "characters": 1885,
+        "archived_match": "PASS",
+        "boundary_method": "ARCHIVED_BOUNDARY_LF"
+      },
+      {
+        "unit": "008",
+        "characters": 1444,
+        "archived_match": "PASS",
+        "boundary_method": "ARCHIVED_BOUNDARY_LF"
+      },
+      {
+        "unit": "009",
+        "characters": 3175,
+        "archived_match": "PASS",
+        "boundary_method": "ARCHIVED_BOUNDARY_LF"
+      },
+      {
+        "unit": "010",
+        "characters": 12997,
+        "archived_match": "PASS",
+        "boundary_method": "TWO_INTERNAL_LF_AND_FINAL_LF"
+      },
+      {
+        "unit": "011",
+        "characters": 1713,
+        "archived_match": "PASS",
+        "boundary_method": "ARCHIVED_BOUNDARY_LF"
+      },
+      {
+        "unit": "012",
+        "characters": 7011,
+        "archived_match": "PASS",
+        "boundary_method": "ARCHIVED_BOUNDARY_LF"
+      },
+      {
+        "unit": "013",
+        "characters": 8136,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "014",
+        "characters": 5200,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "015",
+        "characters": 3856,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "016",
+        "characters": 16708,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "017",
+        "characters": 3953,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "018",
+        "characters": 4539,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "019",
+        "characters": 5532,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "020",
+        "characters": 3367,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "021",
+        "characters": 3948,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "022",
+        "characters": 5051,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "023",
+        "characters": 28807,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "024",
+        "characters": 5145,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "025",
+        "characters": 3123,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "026",
+        "characters": 3227,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "027",
+        "characters": 4197,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "028",
+        "characters": 2024,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "029",
+        "characters": 1983,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "030",
+        "characters": 1911,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "031",
+        "characters": 1415,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "032",
+        "characters": 1790,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "033",
+        "characters": 2734,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "034",
+        "characters": 2787,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "035",
+        "characters": 30976,
+        "archived_match": "PASS",
+        "boundary_method": "EXCLUDED_PRIOR_UNITS"
+      },
+      {
+        "unit": "036",
+        "characters": 28210,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "037",
+        "characters": 82654,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      },
+      {
+        "unit": "038",
+        "characters": 23502,
+        "archived_match": "PASS",
+        "boundary_method": "DIRECT"
+      }
+    ],
+    "original_entry_inventory_count": 66,
+    "all_original_entry_ids_present_in_archive": true,
+    "archived_entry_provenance": [
+      {
+        "entry_id": 498,
+        "archived_mentions": 1,
+        "archived_heading_present": false,
+        "migration_unit": null,
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 533,
+        "archived_mentions": 2,
+        "archived_heading_present": false,
+        "migration_unit": null,
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 595,
+        "archived_mentions": 1,
+        "archived_heading_present": false,
+        "migration_unit": null,
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 596,
+        "archived_mentions": 1,
+        "archived_heading_present": true,
+        "migration_unit": null,
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 597,
+        "archived_mentions": 4,
+        "archived_heading_present": true,
+        "migration_unit": "002",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 598,
+        "archived_mentions": 1,
+        "archived_heading_present": true,
+        "migration_unit": "003",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 599,
+        "archived_mentions": 5,
+        "archived_heading_present": true,
+        "migration_unit": null,
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 600,
+        "archived_mentions": 5,
+        "archived_heading_present": false,
+        "migration_unit": null,
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 601,
+        "archived_mentions": 4,
+        "archived_heading_present": true,
+        "migration_unit": "006",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 602,
+        "archived_mentions": 2,
+        "archived_heading_present": false,
+        "migration_unit": "006",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 603,
+        "archived_mentions": 5,
+        "archived_heading_present": true,
+        "migration_unit": "007",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 604,
+        "archived_mentions": 5,
+        "archived_heading_present": false,
+        "migration_unit": "007",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 605,
+        "archived_mentions": 8,
+        "archived_heading_present": false,
+        "migration_unit": "007",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 606,
+        "archived_mentions": 4,
+        "archived_heading_present": true,
+        "migration_unit": "008",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 607,
+        "archived_mentions": 1,
+        "archived_heading_present": true,
+        "migration_unit": "009",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 608,
+        "archived_mentions": 3,
+        "archived_heading_present": true,
+        "migration_unit": "010",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 609,
+        "archived_mentions": 5,
+        "archived_heading_present": true,
+        "migration_unit": "011",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 610,
+        "archived_mentions": 8,
+        "archived_heading_present": true,
+        "migration_unit": "012",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 611,
+        "archived_mentions": 15,
+        "archived_heading_present": true,
+        "migration_unit": "013",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 612,
+        "archived_mentions": 5,
+        "archived_heading_present": true,
+        "migration_unit": "014",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 613,
+        "archived_mentions": 5,
+        "archived_heading_present": true,
+        "migration_unit": "015",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 614,
+        "archived_mentions": 7,
+        "archived_heading_present": true,
+        "migration_unit": "016",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 615,
+        "archived_mentions": 22,
+        "archived_heading_present": true,
+        "migration_unit": "036",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 616,
+        "archived_mentions": 7,
+        "archived_heading_present": true,
+        "migration_unit": "017",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 617,
+        "archived_mentions": 4,
+        "archived_heading_present": true,
+        "migration_unit": "018",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 618,
+        "archived_mentions": 3,
+        "archived_heading_present": true,
+        "migration_unit": "019",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 619,
+        "archived_mentions": 7,
+        "archived_heading_present": true,
+        "migration_unit": "035",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 620,
+        "archived_mentions": 2,
+        "archived_heading_present": true,
+        "migration_unit": "020",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 621,
+        "archived_mentions": 1,
+        "archived_heading_present": true,
+        "migration_unit": "021",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 622,
+        "archived_mentions": 7,
+        "archived_heading_present": true,
+        "migration_unit": "022",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 623,
+        "archived_mentions": 18,
+        "archived_heading_present": true,
+        "migration_unit": "023",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 624,
+        "archived_mentions": 6,
+        "archived_heading_present": true,
+        "migration_unit": "024",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 625,
+        "archived_mentions": 4,
+        "archived_heading_present": true,
+        "migration_unit": "025",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 626,
+        "archived_mentions": 1,
+        "archived_heading_present": true,
+        "migration_unit": "026",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 627,
+        "archived_mentions": 5,
+        "archived_heading_present": true,
+        "migration_unit": "027",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 628,
+        "archived_mentions": 1,
+        "archived_heading_present": false,
+        "migration_unit": null,
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 630,
+        "archived_mentions": 2,
+        "archived_heading_present": true,
+        "migration_unit": "028",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 631,
+        "archived_mentions": 3,
+        "archived_heading_present": true,
+        "migration_unit": "029",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 632,
+        "archived_mentions": 4,
+        "archived_heading_present": true,
+        "migration_unit": "030",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 633,
+        "archived_mentions": 3,
+        "archived_heading_present": true,
+        "migration_unit": "031",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 634,
+        "archived_mentions": 3,
+        "archived_heading_present": true,
+        "migration_unit": "032",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 635,
+        "archived_mentions": 4,
+        "archived_heading_present": true,
+        "migration_unit": "033",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 636,
+        "archived_mentions": 4,
+        "archived_heading_present": true,
+        "migration_unit": "034",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 637,
+        "archived_mentions": 15,
+        "archived_heading_present": true,
+        "migration_unit": "037",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 638,
+        "archived_mentions": 4,
+        "archived_heading_present": true,
+        "migration_unit": "037",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 639,
+        "archived_mentions": 2,
+        "archived_heading_present": true,
+        "migration_unit": "037",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 640,
+        "archived_mentions": 3,
+        "archived_heading_present": true,
+        "migration_unit": "037",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 641,
+        "archived_mentions": 4,
+        "archived_heading_present": true,
+        "migration_unit": "037",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 642,
+        "archived_mentions": 11,
+        "archived_heading_present": true,
+        "migration_unit": "037",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 643,
+        "archived_mentions": 14,
+        "archived_heading_present": true,
+        "migration_unit": "037",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 644,
+        "archived_mentions": 2,
+        "archived_heading_present": true,
+        "migration_unit": "037",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 645,
+        "archived_mentions": 1,
+        "archived_heading_present": true,
+        "migration_unit": "037",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 646,
+        "archived_mentions": 2,
+        "archived_heading_present": true,
+        "migration_unit": "037",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 647,
+        "archived_mentions": 3,
+        "archived_heading_present": true,
+        "migration_unit": "037",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 648,
+        "archived_mentions": 2,
+        "archived_heading_present": true,
+        "migration_unit": "037",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 649,
+        "archived_mentions": 1,
+        "archived_heading_present": true,
+        "migration_unit": "037",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 650,
+        "archived_mentions": 1,
+        "archived_heading_present": true,
+        "migration_unit": "037",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 651,
+        "archived_mentions": 2,
+        "archived_heading_present": true,
+        "migration_unit": "037",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 652,
+        "archived_mentions": 4,
+        "archived_heading_present": true,
+        "migration_unit": "037",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 653,
+        "archived_mentions": 3,
+        "archived_heading_present": true,
+        "migration_unit": "038",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 654,
+        "archived_mentions": 6,
+        "archived_heading_present": true,
+        "migration_unit": "038",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 655,
+        "archived_mentions": 2,
+        "archived_heading_present": true,
+        "migration_unit": "038",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 656,
+        "archived_mentions": 3,
+        "archived_heading_present": true,
+        "migration_unit": "038",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 657,
+        "archived_mentions": 2,
+        "archived_heading_present": true,
+        "migration_unit": "038",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 658,
+        "archived_mentions": 3,
+        "archived_heading_present": true,
+        "migration_unit": "038",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      },
+      {
+        "entry_id": 659,
+        "archived_mentions": 1,
+        "archived_heading_present": true,
+        "migration_unit": "038",
+        "archive_source_provenance": "PASS",
+        "current_runtime_linkage": "NOT_VERIFIED"
+      }
+    ],
+    "migrated_entry_ids_in_ledger": 59,
+    "remaining_without_historical_migration_unit": [
+      498,
+      533,
+      595,
+      596,
+      599,
+      600,
+      628
+    ],
+    "remaining_privacy_holds": [
+      596,
+      599,
+      600
+    ],
+    "active_editorial_chapters_with_explicit_entry_id_reference": [
+      656
+    ],
+    "editorial_mapping_limitation": "Chapter domain/topic similarity or a code link does not fulfill semantic verification of all 66 historical entries. Full function-to-code/runtime map remains OPEN.",
+    "source_master_remains_active": true,
+    "catalog_remains_frozen": true,
+    "final_cutover_not_authorized": true
   }
 }
