@@ -5123,11 +5123,71 @@
         "path": "tests/entry652_employee_session_lifecycle_guard.test.mjs",
         "result": "PATH_EXISTS",
         "current_blob_sha": "c6af484e1aa181764e13cd563d4f1ac27b375705"
+      },
+      {
+        "path": "tests/entry652_employee_session_runtime_401_dispatch.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "cb0ed4b2d56facd8e8d08cea4591e92cf41bb149"
+      },
+      {
+        "path": "cloudflare-d1/src/t12-operational-runtime-handler.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "1bb1ee6e8eca9b85f20d93394aad699908cc8c80"
+      },
+      {
+        "path": "cloudflare-d1/src/t12-legacy-line-runtime.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "828389a5c57b2e91b42ad24a6726261a01e5fe4d"
+      },
+      {
+        "path": "browser-api-transport-v1.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "274d99dc7a96a07aea2e5a2eb8d79e1cd487305d"
+      },
+      {
+        "path": "cloudflare-d1/src/legacy-browser-transport-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "d3f1407c260c4b623352469372265c01d9bd8ad4"
+      },
+      {
+        "path": "cloudflare-d1/src/customer-portal-native-readiness-v0.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "77dd108c5a229822da6d1625337d1d8989feb0cf"
+      },
+      {
+        "path": "cloudflare-d1/src/customer-portal-order-ownership-audit-v0.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "e8748f137851e3b415bbceef094e769f49ed94fd"
+      },
+      {
+        "path": "cloudflare-d1/src/customer-portal-password-enrollment-ticket-v0.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "f4a06fdf0f7ebb82942084e360ee1f7b3617bcd3"
+      },
+      {
+        "path": "tests/entry654_customer_portal_native_readiness_v0.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "293c8ae17aa5b921b76bea1b7857d9afd7fb85e9"
+      },
+      {
+        "path": "tests/entry655_customer_order_ownership_audit.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "4711ca95613e48b74655b8071fa93a327b01d925"
+      },
+      {
+        "path": "tests/entry659_customer_enrollment_ticket_source.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "16d4100260a702b79a57b02595f3159eff8f98ac"
+      },
+      {
+        "path": "customer-manager-v1.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "9627116f22f00eb5d7282638c19dbe95d89332f7"
       }
     ],
     "runtime_verified": false,
-    "checked_count": 24,
-    "present_count": 24,
+    "checked_count": 36,
+    "present_count": 36,
     "unresolved_count": 0
   }
 }
