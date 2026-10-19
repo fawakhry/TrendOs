@@ -30,7 +30,12 @@ export function examineAcc207({accountingSource,existingFinanceGate,ownerClaims,
     supplier_payment_sql_fix_present:accountingSource.includes("'payment_paid',?,?,-1"),
     custody_handoff_sql_fix_present:accountingSource.includes("VALUES(?,?,?,?,?,'HANDOFF',?,?,?,?,?,?)"),
     legacy_deploy_readiness_never_auto_go:existingFinanceGate.includes("release_decision:'NO_GO'"),
-    acc211_restricted_scope_is_optional_and_safe:accountingSource.includes('function acc211Phase1WriteRejectionV1(')&&
+    acc212_conditional_zero_opening_requires_two_signatures:
+      accountingSource.includes('async function acc212VerifyOpeningZeroEvidenceV1(')&&
+      accountingSource.includes("crypto.subtle.verify('Ed25519'")&&
+      accountingSource.includes('ACCOUNTING_FINANCE_OPENING_PREPARER_PUBLIC_JWK_V1')&&
+      accountingSource.includes('ACCOUNTING_FINANCE_OPENING_REVIEWER_PUBLIC_JWK_V1'),
+        acc211_restricted_scope_is_optional_and_safe:accountingSource.includes('function acc211Phase1WriteRejectionV1(')&&
       accountingSource.includes("acc211-owner-grants-required")&&
       accountingSource.includes("acc211-credit-flow-off-required")&&
       accountingSource.includes("acc211-phase1-action-denied"),
@@ -45,6 +50,16 @@ export function examineAcc207({accountingSource,existingFinanceGate,ownerClaims,
   return Object.freeze({
     schema:'ACC207_ONE_BATCH_FINANCE_RELEASE_EVIDENCE_V1',
     delegatedSafePhase1Scope:'CASH_SALES_AND_CUSTOMER_COLLECTIONS_ONLY',
+    ownerTargetCutoverDate:'2026-10-20',
+    zeroOpeningIsConditionalOnIndependentlyVerifiedSources:true,
+    physicalPriorBalancesProvenZero:false,
+    approvedBusinessRolesDocumented:true,
+    authenticatedEmployeeSSORosterMapped:false,
+    encryptedFakeSQLiteRestoreRehearsedSourceOnly:true,
+    realSeparateEncryptedBackupAndUbuntuRestoreVerified:false,
+    closedDayCorrectionPolicy:'NEW_IMMUTABLE_ENTRY_ON_OPEN_DAY_ONLY',
+    restrictedFirstPilot:'PRIVATE_ALL_SYNTHETIC',
+    cashRefundAndStoreCreditWriterApproved:false,
     phase1ScopeIsBusinessSelectionNotFinancialRelease:true,
     refundsStockCreditAndSupplierMutationsPhase1Allowed:false,
     employeeFinanceGrantsAuthenticated:false,
