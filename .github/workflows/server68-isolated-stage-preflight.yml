@@ -16,6 +16,9 @@ on:
       - tests/server70_legacy_read_consumer_inventory.test.mjs
       - tests/server70_apps_script_live_sync_secure_read_contract.test.mjs
       - tests/server71_apps_script_signed_destination_pin.test.mjs
+      - tests/server73_six_stage_source_readiness.test.mjs
+      - autonomous-printshop/print-server/tools/server73_six_stage_readiness.mjs
+      - tests/server69_ubuntu_python_to_local_workerd.py
       - autonomous-printshop/print-server/SERVER70_LEGACY_READ_CONSUMER_INVENTORY.json
       - cloudflare-d1/D1_Full_Migration.gs
       - cloudflare-d1/D1_Orders_Live_Sync.gs
@@ -63,12 +66,16 @@ jobs:
             tests/server70_legacy_read_consumer_inventory.test.mjs \
             tests/server70_apps_script_live_sync_secure_read_contract.test.mjs \
             tests/server71_apps_script_signed_destination_pin.test.mjs \
+            tests/server73_six_stage_source_readiness.test.mjs \
             tests/server68_secure_mirror_pagination_compat.test.mjs \
             tests/server67_purpose_scoped_mirror_service_read.test.mjs \
             tests/server67_apps_script_signed_mirror_client_offline.test.mjs \
             tests/server66_legacy_mirror_read_gate.test.mjs \
             tests/server56_legacy_customer_bridge_compat.test.mjs \
             tests/server30_legacy_sensitive_read_gate.test.mjs
+      - name: Six-stage source readiness report (NO_GO expected; no remote access)
+        run: |
+          node autonomous-printshop/print-server/tools/server73_six_stage_readiness.mjs --report
       - name: Verify existing Python Ubuntu one-shot client (FakeOpener, no network)
         run: |
           PYTHONPATH=autonomous-printshop/print-server \
