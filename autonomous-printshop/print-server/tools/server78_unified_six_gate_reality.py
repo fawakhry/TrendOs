@@ -225,6 +225,18 @@ def _stage_rows(queue, workers):
     flags = workers.get("trendos-d1-api", {}).get("settings", {}).get("readerFlagState", {})
     if flags.get("TRENDOSSHOP_SERVICE_READ_ENABLED") == "EXACT_TRUE":
         evidence["D04"] += "; LIVE READER FLAG TRUE REQUIRES SECURITY INVESTIGATION"
+    old_stage = workers.get("trendos-d1-staging", {}).get("publication", {})
+    if old_stage.get("verified") and old_stage.get("workersDevPublished") is True:
+        evidence["D01"] += "; EXISTING HISTORICAL STAGE WORKERS.DEV PUBLISHED"
+    isolated = workers.get("trendos-server68-isolated-stage", {})
+    if isolated is not None and isolated.get("deployment", {}).get("reason") == "NOT_FOUND":
+        evidence["D01"] += "; REQUIRED ISOLATED WORKER ABSENT"
+    stage_pub = (isolated or {}).get("publication", {})
+    if stage_pub.get("verified") and stage_pub.get("workersDevPublished") is True:
+        evidence["D01"] += "; ISOLATED STAGE WORKERS.DEV PUBLICATION UNSAFE"
+    live_pub = workers.get("trendos-d1-api", {}).get("publication", {})
+    if live_pub.get("verified") and live_pub.get("workersDevPublished") is True:
+        evidence["D04"] += "; LIVE WORKERS.DEV HOST PUBLISHED; ACCESS POLICY UNVERIFIED"
     return [
         {"id": i, "status": "DEFERRED_NO_GO",
          "priorDecisionState": by_id[i]["status"],
