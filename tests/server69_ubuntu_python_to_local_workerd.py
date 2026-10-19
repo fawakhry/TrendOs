@@ -11,7 +11,7 @@ import json
 import os
 from urllib.parse import urlsplit
 from src.trendosshop_read_once import (
-    read_trendosshop_once, TrendosShopReadError,
+    read_trendosshop_once, read_trendosshop_dispatch_preview_once, TrendosShopReadError,
 )
 from src.trendosshop_canary_once_cli import run_canary_once, CanaryDisabled
 
@@ -148,6 +148,35 @@ def main():
     assert cli_opener.calls == ["print", "laser"]
     print("SERVER73_CLI_REAL_LOCAL_WORKER=PASS; TWO_EXPLICIT_GATES=PASS; "
           "COUNTS_ONLY=PASS; NO_REMOTE_CLOUDFLARE=TRUE; NO_PHYSICAL_UBUNTU=TRUE")
+
+    # SERVER-77: existing service reader -> actual local Workerd -> safe in-memory
+    # print/laser employee handoff, with no remote customer or device access.
+    dispatch_transport = VerifiedLoopbackOnlyOpener()
+    try:
+        read_trendosshop_dispatch_preview_once(FAKE_TOKEN, opener=dispatch_transport)
+    except TrendosShopReadError as exc:
+        assert str(exc) == "SERVER34_LIVE_READ_DISABLED"
+    else:
+        raise AssertionError("SERVER77_PREVIEW_DEFAULT_OFF_MISSING")
+    assert dispatch_transport.calls == [], "denied preview must cause zero HTTP"
+    dispatch = read_trendosshop_dispatch_preview_once(
+        FAKE_TOKEN, enabled=True, owner_authorized=True,
+        opener=dispatch_transport
+    )
+    assert dispatch["mode"] == "IN_MEMORY_REVIEW_ONLY"
+    assert dispatch["lineCount"] == 2
+    assert dispatch["byScreen"] == {"print": 1, "laser": 1}
+    assert len(dispatch["tasks"]) == 2
+    assert all(task["readyForMachine"] is False for task in dispatch["tasks"])
+    assert all(task["assetApprovalVerified"] is False for task in dispatch["tasks"])
+    assert dispatch_transport.calls == ["print", "laser"]
+    assert dispatch["folderWrites"] is False
+    assert dispatch["platformBusinessWrites"] is False
+    assert dispatch["assetBytesDownloaded"] is False
+    assert dispatch["printerCommands"] is False
+    assert dispatch["laserCommands"] is False
+    print("SERVER77_REAL_LOCAL_DISPATCH_PREVIEW=PASS; PRINT_LASER_LINE_TASKS=2; "
+          "WORKER_DATA_SYNTHETIC=YES; FILE_AND_DEVICES_OFF=YES")
 
     print("SERVER69_PYTHON_UBUNTU_CONTRACT=PASS; REAL_LOCAL_WORKER=PASS; "
           "RESPONSE_MINIMAL=PASS; ZERO_LOCAL_FILE_WRITES=TRUE; "
