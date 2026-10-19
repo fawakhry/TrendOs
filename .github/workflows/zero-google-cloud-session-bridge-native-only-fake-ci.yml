@@ -1,0 +1,51 @@
+name: TrendOS Zero Google Cloud Session Bridge Native-only Fake CI
+on:
+  push:
+    branches:
+      - fix/zero-google-bridge-native-only-upstream-failclosed-20261020
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/cloud-session-bridge-v3.mjs'
+      - 'cloudflare-d1/src/employee-legacy-google-cutover-guard-v1.mjs'
+      - 'tests/zero_google_cloud_session_bridge_native_only_failclosed.test.mjs'
+      - '.github/workflows/zero-google-cloud-session-bridge-native-only-fake-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fail-closed-cloud-session-fake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Native-only Cloud session bridge regression with network spy
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          OPENAI_API_KEY: ''
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/cloud-session-bridge-v3.mjs
+          node --check tests/zero_google_cloud_session_bridge_native_only_failclosed.test.mjs
+          node tests/zero_google_cloud_session_bridge_native_only_failclosed.test.mjs
+      - name: Preserve existing Cloud session shadow and employee legacy routes
+        run: |
+          set -euo pipefail
+          node tests/cloudflare_orders_session_shadow_handoff_entry497.test.mjs
+          node tests/entry653_zero_google_employee_legacy_proxy_retirement.test.mjs
+          node --test tests/zero_google_two_legacy_employee_paths_native_only_integrated.test.mjs
+          node --test tests/book30_edge_session_native_only_google_guard.test.mjs
+      - name: Offline-only outcome markers
+        run: |
+          echo 'REAL_GOOGLE_REQUESTS=NO'
+          echo 'REAL_EMPLOYEE_SESSIONS=NO'
+          echo 'REAL_D1_OPERATIONS=NO'
+          echo 'LIVE_FLAGS_CHANGED=NO'
+          echo 'CUSTOMER_GOOGLE_ACTIONS=9_STILL_OPEN'
+          echo 'PRODUCTION_VERIFIED=NO'
+          echo 'DEPLOY=NO'
