@@ -5557,7 +5557,16 @@
       {
         "path": "autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md",
         "result": "FETCH_UNRESOLVED",
-        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation"
+        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation",
+        "followup_resolution": {
+          "pinned_commit_path": "FOUND",
+          "pinned_commit": "899481050a690951288f2e0e88917554e1798ad6",
+          "pinned_blob_sha": "6cbe79aa4d548bdce92bf2e129ae75f824fbae0f",
+          "independent_server_branch": "release/server68-staging-qualification-20261016",
+          "independent_server_branch_blob_sha": "04c6efac5a246f10a98c0d5c12ca568897c401c0",
+          "source_branch_presence": "ABSENT",
+          "interpretation": "VALID_HISTORICAL_PINNED_LINK_CURRENT_BRANCH_NONPRESENCE_IS_NOT_LINK_BREAKAGE"
+        }
       },
       {
         "path": "autonomous-printshop/print-server/README.md",
@@ -5587,7 +5596,16 @@
       {
         "path": "autonomous-printshop/print-server/src/trendos_shadow_qualifier.py",
         "result": "FETCH_UNRESOLVED",
-        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation"
+        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation",
+        "followup_resolution": {
+          "pinned_commit_path": "FOUND",
+          "pinned_commit": "ab21183f9444b8ebb49932f1b1e4f3c381888851",
+          "pinned_blob_sha": "956313492fbee909b597a991555ea47db359047d",
+          "independent_server_branch": "release/server68-staging-qualification-20261016",
+          "independent_server_branch_blob_sha": "956313492fbee909b597a991555ea47db359047d",
+          "source_branch_presence": "ABSENT",
+          "interpretation": "VALID_HISTORICAL_PINNED_LINK_CURRENT_BRANCH_NONPRESENCE_IS_NOT_LINK_BREAKAGE"
+        }
       },
       {
         "path": "autonomous-printshop/print-server/src/platform_bridge.py",
@@ -5602,17 +5620,44 @@
       {
         "path": "autonomous-printshop/print-server/tests/test_ap279_bridge_shadow_synthetic.py",
         "result": "FETCH_UNRESOLVED",
-        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation"
+        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation",
+        "followup_resolution": {
+          "pinned_commit_path": "FOUND",
+          "pinned_commit": "ab21183f9444b8ebb49932f1b1e4f3c381888851",
+          "pinned_blob_sha": "be7df804e8fc0dd9e6a2491a6747d1bed012925a",
+          "independent_server_branch": "release/server68-staging-qualification-20261016",
+          "independent_server_branch_blob_sha": "be7df804e8fc0dd9e6a2491a6747d1bed012925a",
+          "source_branch_presence": "ABSENT",
+          "interpretation": "VALID_HISTORICAL_PINNED_LINK_CURRENT_BRANCH_NONPRESENCE_IS_NOT_LINK_BREAKAGE"
+        }
       },
       {
         "path": "autonomous-printshop/print-server/tests/test_ap277_write_guard_synthetic.py",
         "result": "FETCH_UNRESOLVED",
-        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation"
+        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation",
+        "followup_resolution": {
+          "pinned_commit_path": "FOUND",
+          "pinned_commit": "ab21183f9444b8ebb49932f1b1e4f3c381888851",
+          "pinned_blob_sha": "99518975d182280f3274694aafff7c926c9c09a5",
+          "independent_server_branch": "release/server68-staging-qualification-20261016",
+          "independent_server_branch_blob_sha": "99518975d182280f3274694aafff7c926c9c09a5",
+          "source_branch_presence": "ABSENT",
+          "interpretation": "VALID_HISTORICAL_PINNED_LINK_CURRENT_BRANCH_NONPRESENCE_IS_NOT_LINK_BREAKAGE"
+        }
       },
       {
         "path": "autonomous-printshop/print-server/tests/test_ap296_trendos_shadow_schema_synthetic.py",
         "result": "FETCH_UNRESOLVED",
-        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation"
+        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation",
+        "followup_resolution": {
+          "pinned_commit_path": "FOUND",
+          "pinned_commit": "ab21183f9444b8ebb49932f1b1e4f3c381888851",
+          "pinned_blob_sha": "e2fc9d5c394d5bf8c0db09a5b533d23fd1df25ce",
+          "independent_server_branch": "release/server68-staging-qualification-20261016",
+          "independent_server_branch_blob_sha": "e2fc9d5c394d5bf8c0db09a5b533d23fd1df25ce",
+          "source_branch_presence": "ABSENT",
+          "interpretation": "VALID_HISTORICAL_PINNED_LINK_CURRENT_BRANCH_NONPRESENCE_IS_NOT_LINK_BREAKAGE"
+        }
       },
       {
         "path": "autonomous-printshop/print-server/tests/test_platform_bridge.py",
@@ -5632,12 +5677,38 @@
       {
         "path": "docs/trendos/book-agent/TRENDOS_LEGACY_PRE_SPLIT_BOOK.md",
         "result": "FETCH_UNRESOLVED",
-        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation"
+        "diagnostic": "NOT_FOUND: Error code: NOT_FOUND; Error: GitHub API error 404: {\"message\":\"Not Found\",\"documentation",
+        "followup_resolution": {
+          "pinned_commit_path": "FOUND",
+          "pinned_commit": "fe38103e1fe667f02ae20226d8113272112a1802",
+          "pinned_blob_sha": "04500f9503f25d49aada9f90b432cd6a6700adb7",
+          "independent_server_branch": "release/server68-staging-qualification-20261016",
+          "independent_server_branch_blob_sha": null,
+          "source_branch_presence": "ABSENT",
+          "interpretation": "VALID_HISTORICAL_PINNED_LINK_CURRENT_BRANCH_NONPRESENCE_IS_NOT_LINK_BREAKAGE"
+        }
       }
     ],
     "runtime_verified": false,
     "checked_count": 126,
     "present_count": 120,
-    "unresolved_count": 6
+    "unresolved_count": 6,
+    "pinned_historical_rechecks": 6,
+    "historical_ref_rechecks_pass": 6,
+    "independent_server_branch_found": 5,
+    "checked_paths_accounted_for": 126,
+    "open_nonpresence_on_work_branch": 6,
+    "pinned_link_rechecks_only_not_all_pins": true,
+    "note": "All 120 other source paths exist on the work branch. Six work-branch absences resolve to valid pinned historical commits; five are present on the independent server branch. No independent book edited; no source/runtime claim."
+  },
+  "catalog_source_path_audit_historical_reference_resolution_20261019": {
+    "observed_head": "ee8c9ff2810d25afbdffb21012cf5c67644ccafb",
+    "work_branch_valid_paths": 120,
+    "work_branch_absent_paths": 6,
+    "verified_pinned_historical_paths": 6,
+    "server_branch_present_paths": 5,
+    "all_distinct_catalog_paths_accounted_for": true,
+    "qualification": "SOURCE_LINK_PATH/STATIC_GIT_OBJECT_AUDIT_ONLY",
+    "no_runtime_or_branch_merge": true
   }
 }
