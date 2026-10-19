@@ -28,10 +28,10 @@ export function validateIsolatedStageSource(read=path=>readFileSync(path,'utf8')
   ok(/^name = "trendos-server68-isolated-stage"$/m.test(conf),'WRONG_WORKER');
   ok(/^main = "production-shadow\/index\.js"$/m.test(conf),'WRONG_ENTRYPOINT');
   ok((conf.match(/^workers_dev = false$/gm)||[]).length===1 &&
-    !(conf.match(/^workers_dev\s*=/gm)||[]).some(line=>line!=='workers_dev = false'),
+    !(conf.match(/^workers_dev\s*=.*$/gm)||[]).some(line=>line!=='workers_dev = false'),
     'PUBLIC_WORKERS_DEV');
   ok((conf.match(/^preview_urls = false$/gm)||[]).length===1 &&
-    !(conf.match(/^preview_urls\s*=/gm)||[]).some(line=>line!=='preview_urls = false'),
+    !(conf.match(/^preview_urls\s*=.*$/gm)||[]).some(line=>line!=='preview_urls = false'),
     'PUBLIC_PREVIEW_URLS');
   ok(!/\b(?:account_id|route|routes|zone_id|zone_name|database_id)\s*=|\[\[(?:routes|d1_databases|r2_buckets|kv_namespaces|queues\.producers|services|unsafe\.bindings)\]\]/i.test(conf),'EXTERNAL_PROD_BINDING_OR_ROUTE');
   ok(!/(?:trendos-main|5c4b92bf-e043-4f6e-bd6d-d514a92cd825)/i.test(conf),'PRODUCTION_D1_REFERENCE');
