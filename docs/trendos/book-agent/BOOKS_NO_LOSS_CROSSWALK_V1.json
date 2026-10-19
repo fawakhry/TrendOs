@@ -7790,5 +7790,158 @@
     "do_not_delete_old": true,
     "autonomous_printshop_easy_store_separate_authorities_untouched": true,
     "next_safe_task": "Reconcile source-level chapter-to-handler/test/deployed commit evidence without production mutations, then privacy owner decision and final signoff."
+  },
+  "entry_numbered_tests_source_inventory_20261019": {
+    "date": "2026-10-19",
+    "scope": "8_entry_ids_and_12_numbered_tests",
+    "source_only": true,
+    "tests_executed": 0,
+    "tests_passed_not_claimed": true,
+    "results": [
+      {
+        "entry_id": 614,
+        "path": "tests/entry614_employee_comms_native.test.mjs",
+        "blob_sha": "e12c19a4d30f915d421706dbe56140babac5be5b",
+        "expected_sha_matches": true,
+        "node_test_import": false,
+        "test_case_definitions": 0,
+        "assertion_references": 35,
+        "source_code_loaded_by_test": true,
+        "note": "STATIC_TEST_SOURCE_INSPECTED_NOT_EXECUTED"
+      },
+      {
+        "entry_id": 614,
+        "path": "tests/entry614_employee_accounting_native.test.mjs",
+        "blob_sha": "1977dcefe399114c99700bed6e08c19a339f2fd8",
+        "expected_sha_matches": true,
+        "node_test_import": false,
+        "test_case_definitions": 0,
+        "assertion_references": 19,
+        "source_code_loaded_by_test": true,
+        "note": "STATIC_TEST_SOURCE_INSPECTED_NOT_EXECUTED"
+      },
+      {
+        "entry_id": 614,
+        "path": "tests/entry614_employee_content_native.test.mjs",
+        "blob_sha": "f8bf077f9f03eacdf660a81f5a2e3f2582fac98b",
+        "expected_sha_matches": true,
+        "node_test_import": false,
+        "test_case_definitions": 0,
+        "assertion_references": 25,
+        "source_code_loaded_by_test": true,
+        "note": "STATIC_TEST_SOURCE_INSPECTED_NOT_EXECUTED"
+      },
+      {
+        "entry_id": 614,
+        "path": "tests/entry614_employee_ops_native.test.mjs",
+        "blob_sha": "3175ce077af183c4a5a00d6a5decba6c874db376",
+        "expected_sha_matches": true,
+        "node_test_import": false,
+        "test_case_definitions": 0,
+        "assertion_references": 23,
+        "source_code_loaded_by_test": true,
+        "note": "STATIC_TEST_SOURCE_INSPECTED_NOT_EXECUTED"
+      },
+      {
+        "entry_id": 630,
+        "path": "tests/entry630_employee_comms_readonly_dispatch.test.mjs",
+        "blob_sha": "b51df382024579f7a9152eb2400af90dffabce64",
+        "expected_sha_matches": true,
+        "node_test_import": false,
+        "test_case_definitions": 0,
+        "assertion_references": 22,
+        "source_code_loaded_by_test": true,
+        "note": "STATIC_TEST_SOURCE_INSPECTED_NOT_EXECUTED"
+      },
+      {
+        "entry_id": 644,
+        "path": "tests/entry644_employee_core_general_dispatch.test.mjs",
+        "blob_sha": "9bf2ef49f80a14deb8148812873654bdb272e847",
+        "expected_sha_matches": true,
+        "node_test_import": false,
+        "test_case_definitions": 0,
+        "assertion_references": 21,
+        "source_code_loaded_by_test": true,
+        "note": "STATIC_TEST_SOURCE_INSPECTED_NOT_EXECUTED"
+      },
+      {
+        "entry_id": 650,
+        "path": "tests/entry650_employee_core_order_page_read.test.mjs",
+        "blob_sha": "00893ac30dbbb4ee5af8cd0b655d40cb2674f686",
+        "expected_sha_matches": true,
+        "node_test_import": false,
+        "test_case_definitions": 0,
+        "assertion_references": 15,
+        "source_code_loaded_by_test": true,
+        "note": "STATIC_TEST_SOURCE_INSPECTED_NOT_EXECUTED"
+      },
+      {
+        "entry_id": 652,
+        "path": "tests/entry652_employee_session_lifecycle_guard.test.mjs",
+        "blob_sha": "c6af484e1aa181764e13cd563d4f1ac27b375705",
+        "expected_sha_matches": true,
+        "node_test_import": false,
+        "test_case_definitions": 0,
+        "assertion_references": 29,
+        "source_code_loaded_by_test": true,
+        "note": "STATIC_TEST_SOURCE_INSPECTED_NOT_EXECUTED"
+      },
+      {
+        "entry_id": 652,
+        "path": "tests/entry652_employee_session_runtime_401_dispatch.test.mjs",
+        "blob_sha": "cb0ed4b2d56facd8e8d08cea4591e92cf41bb149",
+        "expected_sha_matches": true,
+        "node_test_import": false,
+        "test_case_definitions": 0,
+        "assertion_references": 8,
+        "source_code_loaded_by_test": true,
+        "note": "STATIC_TEST_SOURCE_INSPECTED_NOT_EXECUTED"
+      },
+      {
+        "entry_id": 654,
+        "path": "tests/entry654_customer_portal_native_readiness_v0.test.mjs",
+        "blob_sha": "293c8ae17aa5b921b76bea1b7857d9afd7fb85e9",
+        "expected_sha_matches": true,
+        "node_test_import": false,
+        "test_case_definitions": 0,
+        "assertion_references": 34,
+        "source_code_loaded_by_test": true,
+        "note": "STATIC_TEST_SOURCE_INSPECTED_NOT_EXECUTED"
+      },
+      {
+        "entry_id": 655,
+        "path": "tests/entry655_customer_order_ownership_audit.test.mjs",
+        "blob_sha": "4711ca95613e48b74655b8071fa93a327b01d925",
+        "expected_sha_matches": true,
+        "node_test_import": false,
+        "test_case_definitions": 0,
+        "assertion_references": 27,
+        "source_code_loaded_by_test": true,
+        "note": "STATIC_TEST_SOURCE_INSPECTED_NOT_EXECUTED"
+      },
+      {
+        "entry_id": 659,
+        "path": "tests/entry659_customer_enrollment_ticket_source.test.mjs",
+        "blob_sha": "16d4100260a702b79a57b02595f3159eff8f98ac",
+        "expected_sha_matches": true,
+        "node_test_import": false,
+        "test_case_definitions": 0,
+        "assertion_references": 19,
+        "source_code_loaded_by_test": true,
+        "note": "STATIC_TEST_SOURCE_INSPECTED_NOT_EXECUTED"
+      }
+    ],
+    "entry_ids": [
+      614,
+      630,
+      644,
+      650,
+      652,
+      654,
+      655,
+      659
+    ],
+    "limitations": "Test file SHA, node:test imports, test()/assert references are static source checks only. No execution, HTTP, D1, customer, server runtime, deployed SHA, nor independent product release proof.",
+    "full_entry_runtime_reconciliation_still_open": 66
   }
 }
