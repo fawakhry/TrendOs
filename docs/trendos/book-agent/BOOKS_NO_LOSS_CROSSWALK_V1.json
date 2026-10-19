@@ -4073,5 +4073,132 @@
     "source_retained": true,
     "owner_decision": "Authorize controlled restricted-access migration or precise redaction and private no-loss storage; otherwise maintain hold.",
     "recorded_production_changes": "NONE"
+  },
+  "auth_comms_historical_source_reference_candidates_20261019": {
+    "date": "2026-10-19",
+    "branch": "agent/trendos-book-audit-v1-20261014",
+    "head_at_probe": "ba01a49136ed7a44cf2f222c15831cd8980096e1",
+    "evidence_class": "SOURCE_ONLY_PARTIAL_CROSS_REFERENCE_CANDIDATES_NOT_VERIFIED_RUNTIME",
+    "relevant_historical_entry_ids": [
+      627,
+      630,
+      631,
+      632,
+      633,
+      634,
+      635,
+      636
+    ],
+    "catalog_relevant_chapter_candidates": [
+      14,
+      17,
+      30
+    ],
+    "verified_present_source_files": [
+      {
+        "path": "config.js",
+        "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2",
+        "symbol_presence": [
+          {
+            "symbol": "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1",
+            "present": true
+          },
+          {
+            "symbol": "MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1",
+            "present": true
+          },
+          {
+            "symbol": "MATBAGY_EMPLOYEE_COMMS_CUTOVER_MODE",
+            "present": true
+          }
+        ]
+      },
+      {
+        "path": "employee-api-dispatcher-v1.js",
+        "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee",
+        "symbol_presence": [
+          {
+            "symbol": "verifyEmployeeSession",
+            "present": true
+          },
+          {
+            "symbol": "customerManagerV1",
+            "present": true
+          }
+        ]
+      },
+      {
+        "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+        "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded",
+        "symbol_presence": [
+          {
+            "symbol": "handleLogin",
+            "present": true
+          },
+          {
+            "symbol": "handleVerify",
+            "present": true
+          },
+          {
+            "symbol": "session_version",
+            "present": true
+          }
+        ]
+      },
+      {
+        "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+        "blob_sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c",
+        "symbol_presence": [
+          {
+            "symbol": "verifyEmployeeSession",
+            "present": true
+          },
+          {
+            "symbol": "NativeOnly",
+            "present": true
+          }
+        ]
+      },
+      {
+        "path": "cloudflare-d1/src/legacy-browser-transport-v1.mjs",
+        "blob_sha": "d3f1407c260c4b623352469372265c01d9bd8ad4",
+        "symbol_presence": [
+          {
+            "symbol": "NativeOnly",
+            "present": true
+          },
+          {
+            "symbol": "legacy",
+            "present": true
+          }
+        ]
+      },
+      {
+        "path": "cloudflare-d1/src/employee-comms-native-v1.mjs",
+        "blob_sha": "f415d06ccd15ba241d679c61b7afeb6ec904e4b8",
+        "symbol_presence": [
+          {
+            "symbol": "READONLY",
+            "present": true
+          },
+          {
+            "symbol": "customerManager",
+            "present": true
+          }
+        ]
+      }
+    ],
+    "scope_limitations": [
+      "Presence of a path and selected symbol does not prove its behavior, deployment, reachable handler, or historical-to-current semantic equivalence.",
+      "Do not increment original 66 full Entry reconciliations; those remain OPEN pending endpoint/ownership/deployed commit evidence.",
+      "Catalog chapters contain documentation grounded on earlier SHAs and require fresh independent current-source and runtime reconciliation."
+    ],
+    "provisional_mapping_only": {
+      "entry627": "Employee Native authentication history; chapters 14/30 candidate",
+      "entry630": "Employee communications READONLY history; chapter 17 candidate",
+      "entries631_636": "Browser/Backend Native auth and bridge transition history; chapters 14/30 candidates"
+    },
+    "no_production_or_branch_merge": true,
+    "hold_privacy_entries_untouched": true
   }
 }
