@@ -3702,13 +3702,13 @@
     "Reconcile former Draft and current catalog via full text equality after every editorial promotion; never delete historical source without backup and owner approval."
   ],
   "latest_review": {
-    "date": "2026-10-18",
-    "head_before_crosswalk_commit": "58cdf0feee15a1677665018e30589e15f4358060",
-    "active_master_blob_sha": "0f49520659b3435f4dc289fa782b91376f250370",
+    "date": "2026-10-19",
+    "head_before_crosswalk_commit": "1490ecbe34125a6e74dbd35cf22e2e1a63f8d1d6",
+    "active_master_blob_sha": "52b98a66c04d6b1d05e64289ce96d539db379c72",
     "new_catalog_blob_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "All 38 historical units have numbered metadata. Mention-only Entry498/533/595/628 historical references mapped without claiming full reconciliation or runtime proof; legacy order privacy entries 596/599/600 preserved. Old active and latest SERVER retained."
+    "notes": "2026-10-19 independent scoped historical archive audit: 33 direct Entry slices, Entry608 reconstructed from 3 chunks, Entry619 exact after prior 001/004/005 appendix split. 40 markers paired. Full 66-entry runtime reconciliation and legacy privacy still OPEN; no production modification."
   },
   "non_entry_section_migrations": [
     {
@@ -3785,5 +3785,65 @@
     "source_old_blob_sha": "0f49520659b3435f4dc289fa782b91376f250370",
     "catalog_blob_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde",
     "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e"
+  },
+  "migration_integrity_audit_20261019": {
+    "date": "2026-10-19",
+    "status": "ARCHIVAL_SCOPED_VERBATIM_CHECK_PASS_FULL_RUNTIME_RECONCILIATION_OPEN",
+    "checked_branch_head": "1490ecbe34125a6e74dbd35cf22e2e1a63f8d1d6",
+    "archived_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+    "active_master_blob_sha": "52b98a66c04d6b1d05e64289ce96d539db379c72",
+    "unified_catalog_blob_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde",
+    "crosswalk_units_checked": 38,
+    "independent_archive_scope_proofs": {
+      "entry_units_direct_archived_verbatim_substring": 33,
+      "entry608_split_chunks_rejoined_with_original_three_trailing_newlines": {
+        "unit": "010",
+        "chunk_count": 3,
+        "characters": 12997,
+        "result": "EXACT_VERBATIM_ARCHIVE_MATCH_PASS"
+      },
+      "entry619_archive_excluded_previously_migrated_historical_blocks": {
+        "unit": "035",
+        "current_section_characters": 30976,
+        "archived_section_characters": 34720,
+        "historical_exclusion_characters": 3744,
+        "verified_body_after_exclusion": "EXACT_VERBATIM_MATCH_PASS",
+        "related_nonentry_units": [
+          "001",
+          "004",
+          "005"
+        ],
+        "note": "Reconciliation is scoped to historical engineering text. No customer/order data moved by this audit."
+      },
+      "independent_nonentry_appendices_found_verbatim_in_archive": 3,
+      "note": "Some early migration metadata includes a boundary newline after the captured marker text. This is a delimiter difference, not a demonstrated loss of body text."
+    },
+    "catalog_marker_check": {
+      "begin": 40,
+      "end": 40,
+      "pairs_valid": true,
+      "duplicate_markers": 0
+    },
+    "remaining_old_historical_sections": [
+      "Entry596",
+      "Entry599/600"
+    ],
+    "privacy_status": "PRESERVED_UNTIL_SAFE_PRIVACY_REVIEW",
+    "latest_server_notes_preserved_through": "SERVER-20261018-70A",
+    "book_policy": {
+      "active_old": "ACTIVE_WRITE",
+      "new_unified": "FROZEN_MIGRATION_ONLY",
+      "final_cutover_authorized": false
+    },
+    "original_entry_ids": 66,
+    "fully_reconciled_entry_ids": 0,
+    "limitations": [
+      "Static historical text only, not current Production/Runtime audit.",
+      "No full repo function ownership coverage or end-to-end cutover testing.",
+      "Privacy-held legacy orders remain in active source; no deletion or public excerpt."
+    ],
+    "files_modified_by_this_audit": [
+      "docs/trendos/book-agent/BOOKS_NO_LOSS_CROSSWALK_V1.json"
+    ]
   }
 }
