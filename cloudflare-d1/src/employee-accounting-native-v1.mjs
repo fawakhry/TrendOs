@@ -2599,6 +2599,57 @@ async function previewInvoiceItemPaymentReviewV1(env,auth,b){
   }
 }
 
+
+// ACC211: delegated conservative first-phase finance scope. SERVER-ONLY
+// optional extra restriction; no production mode/roster is activated by this
+// code. Enforce only when trusted server env explicitly requests it.
+// There is NEVER any signed owner roster, opening balance or live approval
+// conveyed by a browser body or by a successful source-only test.
+// READONLY_LOCK: block all financial writes even if legacy D1 mode is GENERAL.
+// ENFORCE: permit ONLY actual new cash sales and customer collections, under
+// an exact verified server-side G2 roster, no customer advance/credit path.
+// Missing/invalid owner roster, refund, supplier, debt adjustment, opening
+// movement, ambiguous customer id and other writes all fail closed.
+// OFF/absent leaves old native behavior unchanged; old control defaults OFF.
+function acc211Phase1WriteRejectionV1(env,auth,action,b){
+  const mode=text(env&&env.EASYSTORE_FINANCE_PHASE1_SCOPE_V1).toUpperCase();
+  if(!mode||mode==='OFF')return '';
+  if(mode==='READONLY_LOCK')return 'acc211-phase1-readonly-lock';
+  if(mode!=='ENFORCE')return 'acc211-phase1-invalid-scope';
+  if(text(env&&env.ACCOUNTING_FINANCE_GRANTS_MODE_V1).toUpperCase()!=='ENFORCE'||
+    auth.mode!=='full')return 'acc211-owner-grants-required';
+  if(customerCreditEnabledV1(env))return 'acc211-credit-flow-off-required';
+  const requestId=text(b&&b.requestId||b&&b.idempotencyKey||b&&b.clientRequestId);
+  const officialCustomerId=text(b&&b.customerId);
+  if(!/^[\p{L}\p{N}_.:-]{3,180}$/u.test(officialCustomerId)||
+     requestId.length<12||requestId.length>180||/[\u0000-\u001f]/u.test(requestId))
+    return 'acc211-phase1-action-denied';
+  if(action==='saveEasyStoreSaleV2'){
+    const invoiceNo=text(b&&b.invoiceNo||b&&b.no);
+    if(!invoiceNo||invoiceNo.length>180||/[\u0000-\u001f]/u.test(invoiceNo))
+      return 'acc211-phase1-action-denied';
+    const paid=Number(b&&b.paid||0);
+    if(!Number.isFinite(paid)||paid<0)
+      return 'acc211-phase1-action-denied';
+    // No unproven bank transfer evidence is accepted in phase-one cash-only.
+    if(paid>0&&!['نقدي','cash'].includes(text(b&&b.paymentMethod||b&&b.paymentType).toLowerCase()))
+      return 'acc211-phase1-action-denied';
+    return '';
+  }
+  if(action==='savePartyLedgerTransaction'){
+    const type=text(b&&b.partyType).toLowerCase();
+    const op=text(b&&b.operation).toLowerCase();
+    if(type!=='customer'||op!=='payment_received')
+      return 'acc211-phase1-action-denied';
+    if(!['نقدي','cash'].includes(text(b&&b.paymentMethod).toLowerCase()))
+      return 'acc211-phase1-action-denied';
+    const cents=customerCreditCentsV1(b&&b.amount);
+    if(cents===null||cents<=0)return 'acc211-phase1-action-denied';
+    return '';
+  }
+  return 'acc211-phase1-action-denied';
+}
+
 async function handleEmployeeAccountingNativeRequest(request,env){
   const h=cors(request,env);if(request.method==='OPTIONS')return new Response(null,{status:204,headers:h});
   if(!originAllowed(request,env))return json({success:false,code:'origin-not-allowed'},403,h);
@@ -2617,6 +2668,8 @@ async function handleEmployeeAccountingNativeRequest(request,env){
   if(!['READONLY','CANARY','GENERAL'].includes(text(c.mode)))return json({success:false,code:'employee-accounting-mode-unsupported'},503,h);
   if(c.mode==='READONLY'&&!READ_ACTIONS.has(action))return json({success:false,code:'employee-accounting-readonly'},503,h);
   const auth=await authenticate(request,b,env);if(!auth.ok)return json({success:false,code:'employee-session-rejected',message:auth.message},auth.status||401,h);
+  const acc211Denied=READ_ACTIONS.has(action)?'':acc211Phase1WriteRejectionV1(env,auth,action,b);
+  if(acc211Denied)return json({success:false,code:acc211Denied,financeRelease:'NO_GO'},403,h);
   try{
     if((c.mode==='CANARY'||c.mode==='GENERAL')&&!READ_ACTIONS.has(action))await enforceWriteCanaryV1(env,auth,action,b,c.mode==='CANARY');
     let out;
