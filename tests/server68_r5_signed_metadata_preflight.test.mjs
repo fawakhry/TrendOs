@@ -108,7 +108,14 @@ for(const [name,patch] of [
   ['URL query',{baseUrl:BASE+'?override=1'}],
   ['URL path',{baseUrl:BASE+'v1/orders'}],
   ['URL fragment',{baseUrl:BASE+'#x'}],
-  ['URL port',{baseUrl:'https://'+HOST+':444/'}]
+  ['URL port',{baseUrl:'https://'+HOST+':444/'}],
+  // SERVER-72 raw authority: URL() alone hides :443, %2e and empty delimiters.
+  ['explicit default HTTPS port',{baseUrl:'https://'+HOST+':443/'}],
+  ['percent-encoded hostname dot',{baseUrl:'https://r5-server68-fixture%2einvalid/'}],
+  ['empty query delimiter',{baseUrl:BASE+'?'}],
+  ['empty fragment delimiter',{baseUrl:BASE+'#'}],
+  ['leading whitespace',{baseUrl:' '+BASE}],
+  ['noncanonical dot-segment',{baseUrl:BASE+'./'}]
 ]){
   test('rejects unsafe target before fetch: '+name,async()=>{
     const x=fakeServer();
