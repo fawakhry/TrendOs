@@ -385,7 +385,14 @@ function customerViewV1(r){
     displayBalance:num(r.credit_cents)/100-balance
   };
 }
-async function getEasyStoreCustomersV1(env,b){
+function scopedCustomerViewV1(r,auth){
+  if(auth.mode==='full'||auth.mode==='final')return customerViewV1(r);
+  // Department employees may select canonical customer ID/name but cannot
+  // read all customers' contacts, receivables, deposits or advances.
+  return {customerId:text(r.customer_id),id:text(r.customer_id),name:text(r.customer_name),
+    customerName:text(r.customer_name),active:text(r.active)};
+}
+async function getEasyStoreCustomersV1(env,auth,b){
   const limit=Math.max(1,Math.min(Math.trunc((b.limit==null||b.limit==='')?500:num(b.limit,500)),1000));
   const creditColumn=customerCreditEnabledV1(env)
     ? "COALESCE((SELECT cc.credit_cents FROM employee_accounting_customer_credits_v1 cc WHERE cc.customer_id=c.customer_id),0)" : "0";
@@ -399,12 +406,16 @@ async function getEasyStoreCustomersV1(env,b){
     ORDER BY c.updated_at DESC,c.customer_name
     LIMIT ?
   `,[limit]);
-  return {success:true,customers:list.map(customerViewV1),version:'A1_D1_READ_MODEL_V1'};
+  return {success:true,customers:list.map(x=>scopedCustomerViewV1(x,auth)),version:'A1_D1_READ_MODEL_V1'};
 }
-async function searchCustomersV1(env,b){
+async function searchCustomersV1(env,auth,b){
   const q=key(b.q);
   if(!q)return {success:true,customers:[],version:'A1_D1_READ_MODEL_V1'};
   const like='%'+q+'%';
+  const financeReader=auth.mode==='full'||auth.mode==='final';
+  const searchableFields=financeReader
+    ? "c.customer_name || ' ' || c.manager || ' ' || c.phone || ' ' || c.extra_phone || ' ' || c.customer_type"
+    : "c.customer_name";
   const creditColumn=customerCreditEnabledV1(env)
     ? "COALESCE((SELECT cc.credit_cents FROM employee_accounting_customer_credits_v1 cc WHERE cc.customer_id=c.customer_id),0)" : "0";
   const list=await rows(env,`
@@ -414,11 +425,11 @@ async function searchCustomersV1(env,b){
         WHERE pb.party_type='customer' AND pb.party_id=c.customer_id LIMIT 1),0) AS current_balance
     FROM t12_customers c
     WHERE c.active='نعم'
-      AND lower(c.customer_name || ' ' || c.manager || ' ' || c.phone || ' ' || c.extra_phone || ' ' || c.customer_type) LIKE ?
+      AND lower(${searchableFields}) LIKE ?
     ORDER BY c.updated_at DESC,c.customer_name
     LIMIT 12
   `,[like]);
-  return {success:true,customers:list.map(customerViewV1),version:'A1_D1_READ_MODEL_V1'};
+  return {success:true,customers:list.map(x=>scopedCustomerViewV1(x,auth)),version:'A1_D1_READ_MODEL_V1'};
 }
 function supplierViewV1(r){
   const balance=num(r.current_balance);
@@ -428,7 +439,8 @@ function supplierViewV1(r){
     currentBalance:balance,balance,debt:balance,notes:text(r.notes)
   };
 }
-async function getEasyStoreSuppliersV1(env,b){
+async function getEasyStoreSuppliersV1(env,auth,b){
+  if(auth.mode!=='full')return {success:false,code:'accounting-supplier-directory-forbidden',message:'دليل الموردين والحسابات متاح لمسؤول الحسابات فقط.'};
   const limit=Math.max(1,Math.min(Math.trunc((b.limit==null||b.limit==='')?500:num(b.limit,500)),1000));
   const list=await rows(env,`
     SELECT p.party_id,p.display_name,p.phone,p.address,p.notes,p.active,
@@ -1024,7 +1036,8 @@ async function draft(env,auth,b){
   const orderId=text(b.orderId);let department=text(b.department)||auth.department;if(auth.mode==='print')department='طباعة';if(auth.mode==='laser')department='ليزر';
   if(!orderId)return {success:false,message:'رقم الأوردر مطلوب.'};
   const bind=[orderId],where=["order_id=?","final_invoice_no=''"];if(department){where.push('department=?');bind.push(department);}
-  const list=(await rows(env,'SELECT * FROM employee_accounting_dept_lines_v1 WHERE '+where.join(' AND ')+' ORDER BY updated_at',bind)).map(deptLineView);
+  const list=hideAccountingCostsV1((await rows(env,'SELECT * FROM employee_accounting_dept_lines_v1 WHERE '+where.join(' AND ')+' ORDER BY updated_at',bind)).map(deptLineView),
+    auth.mode,['materialCost','operatingCost','otherCost','totalCost','systemCost','profit']);
   return {success:true,lines:list,total:list.reduce((a,x)=>a+num(x.salePrice),0),orderId,department,version:'ENTRY614_D1_ACCOUNTING_V1'};
 }
 async function stockRequirements(env,lineRows){
@@ -2787,9 +2800,9 @@ async function handleEmployeeAccountingNativeRequest(request,env){
     if((c.mode==='CANARY'||c.mode==='GENERAL')&&!READ_ACTIONS.has(action))await enforceWriteCanaryV1(env,auth,action,b,c.mode==='CANARY');
     let out;
     if(action==='getAccounting')out=await getAccounting(env,auth);
-    else if(action==='getEasyStoreCustomers')out=await getEasyStoreCustomersV1(env,b);
-    else if(action==='searchCustomers')out=await searchCustomersV1(env,b);
-    else if(action==='getEasyStoreSuppliers')out=await getEasyStoreSuppliersV1(env,b);
+    else if(action==='getEasyStoreCustomers')out=await getEasyStoreCustomersV1(env,auth,b);
+    else if(action==='searchCustomers')out=await searchCustomersV1(env,auth,b);
+    else if(action==='getEasyStoreSuppliers')out=await getEasyStoreSuppliersV1(env,auth,b);
     else if(action==='getCustomerAccountV1915')out=await getCustomerAccountV1915V1(env,auth,b);
     else if(action==='previewCustomerCreditInvoiceReviewV1')out=await previewCustomerCreditInvoiceReviewV1(env,auth,b);
     else if(action==='previewCustomerCreditPreparedCommandV1')out=await previewCustomerCreditPreparedCommandV1(env,auth,b);
