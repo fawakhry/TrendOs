@@ -8362,5 +8362,45 @@
     ],
     "final_go_no_go": "NO_GO",
     "owner_approval_on_cutover": false
+  },
+  "entry653_legacy_employee_proxy_retirement_source_20261020": {
+    "date": "2026-10-20",
+    "head_before_commit": "135ae10dda606f8d0871ef90fdb08b821902d6bf",
+    "entry_id": 653,
+    "result": "VERIFIED_BRANCH_SOURCE_GUARDS_NOT_CURRENT_PRODUCTION",
+    "flags": {
+      "workerRouteExists": true,
+      "nativeOnlyGuardBeforeShadow": true,
+      "nativeOnlyDrivenByEnv": true,
+      "legacyEmployeeReject": true,
+      "customerScopeDistinct": true,
+      "historicalSectionPresent": true
+    },
+    "blobs": [
+      {
+        "path": "cloudflare-d1/src/legacy-browser-transport-v1.mjs",
+        "sha": "d3f1407c260c4b623352469372265c01d9bd8ad4"
+      },
+      {
+        "path": "cloudflare-d1/src/index_v2.js",
+        "sha": "4a555efb4b3f44ba371549d5cec055cc7ce1777f"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+        "sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+      }
+    ],
+    "evidence_ranges": [
+      "cloudflare-d1/src/index_v2.js#L1-L44",
+      "cloudflare-d1/src/legacy-browser-transport-v1.mjs#L29-L35,L45-L67",
+      "cloudflare-d1/src/employee-auth-native-v1.mjs#L138-L152"
+    ],
+    "important_limits": [
+      "Branch code gate only; cannot prove NativeOnly env enabled in current Production.",
+      "Explicit customer-session legacy allowlist is separate; ZERO_GOOGLE_COMPLETE remains unproved.",
+      "No current request, D1, Cloudflare env or production mutation."
+    ],
+    "runtime_certification": "OPEN",
+    "owner_approval_needed": true
   }
 }
