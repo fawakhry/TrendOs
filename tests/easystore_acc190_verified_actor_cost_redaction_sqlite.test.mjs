@@ -184,6 +184,10 @@ try{
    assert.equal(search.success,true,JSON.stringify(search));
    assert.equal(directory.customers.length,1);
    assert.equal(search.customers.length,1);
+   const phoneProbe=await send('searchCustomers',{q:'ACC170_FAKE_PHONE_NOT_REAL',role:'admin'});
+   assert.equal(phoneProbe.success,true);
+   assert.equal(phoneProbe.customers.length,mode==='final'?1:0,
+     'department search must not reveal customers by private phone, even without phone in response');
    for(const response of [directory,search]){
      const record=response.customers[0];
      assert.equal(record.customerId,'ACC170-FAKE-CUSTOMER');
@@ -217,6 +221,9 @@ try{
  const fullDirectory=await send('getEasyStoreCustomers',{});
  assert.equal(fullDirectory.success,true);
  assert.equal(fullDirectory.customers[0].currentBalance,123.45);
+ const fullPhoneSearch=await send('searchCustomers',{q:'ACC170_FAKE_PHONE_NOT_REAL'});
+ assert.equal(fullPhoneSearch.success,true);
+ assert.equal(fullPhoneSearch.customers.length,1,'finance owner can still search by phone');
  const fullSuppliers=await send('getEasyStoreSuppliers',{});
  assert.equal(fullSuppliers.success,true);
  assert.equal(fullSuppliers.suppliers.length,1);
