@@ -15,6 +15,7 @@ on:
       - tests/server69_release_decision_queue.test.mjs
       - tests/server70_legacy_read_consumer_inventory.test.mjs
       - tests/server70_apps_script_live_sync_secure_read_contract.test.mjs
+      - tests/server71_apps_script_signed_destination_pin.test.mjs
       - autonomous-printshop/print-server/SERVER70_LEGACY_READ_CONSUMER_INVENTORY.json
       - cloudflare-d1/D1_Full_Migration.gs
       - cloudflare-d1/D1_Orders_Live_Sync.gs
@@ -61,6 +62,7 @@ jobs:
             tests/server69_release_decision_queue.test.mjs \
             tests/server70_legacy_read_consumer_inventory.test.mjs \
             tests/server70_apps_script_live_sync_secure_read_contract.test.mjs \
+            tests/server71_apps_script_signed_destination_pin.test.mjs \
             tests/server68_secure_mirror_pagination_compat.test.mjs \
             tests/server67_purpose_scoped_mirror_service_read.test.mjs \
             tests/server67_apps_script_signed_mirror_client_offline.test.mjs \
