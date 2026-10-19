@@ -2611,6 +2611,26 @@ async function previewInvoiceItemPaymentReviewV1(env,auth,b){
 // Missing/invalid owner roster, refund, supplier, debt adjustment, opening
 // movement, ambiguous customer id and other writes all fail closed.
 // OFF/absent leaves old native behavior unchanged; old control defaults OFF.
+// ACC212 G1/G2: exact verified login separation. The two *business role*
+// names belong in the master book, not as guessed SSO principals here.
+// Two distinct cashiers must be explicitly configured in trusted server ENV,
+// with a distinct reviewer, else NO ONE can write in restricted Phase 1.
+function acc212CashierAndReviewerRosterValidV1(env,auth){
+  try{
+    const roles=JSON.parse(env&&env.ACCOUNTING_FINANCE_PHASE1_CASHIER_LOGINS_V1||'null');
+    const canonical=value=>{
+      if(typeof value!=='string')return '';
+      const v=value.normalize('NFKC').trim().toLowerCase();
+      return /^[\p{L}\p{N}_.@:-]{3,180}$/u.test(v)?v:'';
+    };
+    const reviewer=canonical(env&&env.ACCOUNTING_FINANCE_PHASE1_REVIEWER_LOGIN_V1);
+    const subject=canonical(auth&&auth.user&&auth.user.username);
+    if(!Array.isArray(roles)||roles.length!==2||!subject||!reviewer)return false;
+    const a=canonical(roles[0]),b=canonical(roles[1]);
+    if(!a||!b||a===b||a===reviewer||b===reviewer)return false;
+    return subject===a||subject===b;
+  }catch{return false}
+}
 function acc211Phase1WriteRejectionV1(env,auth,action,b){
   const mode=text(env&&env.EASYSTORE_FINANCE_PHASE1_SCOPE_V1).toUpperCase();
   if(!mode||mode==='OFF')return '';
@@ -2619,6 +2639,7 @@ function acc211Phase1WriteRejectionV1(env,auth,action,b){
   if(text(env&&env.ACCOUNTING_FINANCE_GRANTS_MODE_V1).toUpperCase()!=='ENFORCE'||
     auth.mode!=='full')return 'acc211-owner-grants-required';
   if(customerCreditEnabledV1(env))return 'acc211-credit-flow-off-required';
+  if(!acc212CashierAndReviewerRosterValidV1(env,auth))return 'acc212-separate-cashier-reviewer-logins-required';
   const requestId=text(b&&b.requestId||b&&b.idempotencyKey||b&&b.clientRequestId);
   const officialCustomerId=text(b&&b.customerId);
   if(!/^[\p{L}\p{N}_.:-]{3,180}$/u.test(officialCustomerId)||
