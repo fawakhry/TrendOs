@@ -28,6 +28,9 @@ jobs:
           test "$FINANCE_RELEASE" = 'NO_GO'
           node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
           node --test tests/easystore_acc211_delegated_safe_phase1_scope_real_native_sqlite_no_go.test.mjs
+          node --test tests/easystore_acc212_fake_backup_and_opening_zero_no_go.test.mjs
+          echo 'ACC212_REAL_OPENING_SIGNED_SOURCE_EVIDENCE=NOT_VERIFIED'
+          echo 'ACC212_G5_ACTUAL_INDEPENDENT_UBUNTU_RESTORE=NOT_DONE'
           echo 'ACC211_REAL_WORKER_SOURCE_ONLY=YES'
           echo 'ACC211_AUTHENTIC_STAFF_GRANTS_NOT_PROVIDED=YES'
           echo 'ACC211_PRODUCTION_MONEY_WRITES=ZERO'
