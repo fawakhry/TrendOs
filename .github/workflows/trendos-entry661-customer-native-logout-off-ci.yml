@@ -1,0 +1,51 @@
+name: TrendOS Entry661 Native Customer Logout OFF — Fake SQLite
+on:
+  push:
+    branches:
+      - feat/zero-google-native-customer-logout-cas-off-20261020
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/customer-portal-native-logout-v0.mjs'
+      - 'tests/entry661_customer_native_logout_off.test.mjs'
+      - 'tests/entry661_customer_native_logout_sqlite.test.py'
+      - '.github/workflows/trendos-entry661-customer-native-logout-off-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-customer-logout-cas-off:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Node session revoke and previous native customer reader
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          OPENAI_API_KEY: ''
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/customer-portal-native-logout-v0.mjs
+          node --test tests/entry661_customer_native_logout_off.test.mjs
+          node --test tests/entry660_customer_native_orders_off.test.mjs
+      - name: Native SQLite revocation and previously verified order isolation
+        run: |
+          set -euo pipefail
+          python3 tests/entry661_customer_native_logout_sqlite.test.py -v
+          python3 tests/entry660_customer_native_orders_sqlite.test.py -v
+      - name: Existing legacy browser safety preserved
+        run: |
+          node tests/entry653_zero_google_employee_legacy_proxy_retirement.test.mjs
+      - name: Source-only scope
+        run: |
+          echo 'NEW_NATIVE_ACTION=CUSTOMER_LOGOUT_ONLY_OFF'
+          echo 'PREVIOUS_NATIVE_ACTION=CUSTOMER_GET_ORDERS_ONLY_OFF'
+          echo 'CUSTOMER_LOGIN_OTP_SESSION_ISSUER=NOT_LIVE'
+          echo 'WORKER_IMPORT=NONE'
+          echo 'CLOUDFLARE_D1_GOOGLE_REQUESTS=NONE'
+          echo 'PRODUCTION_GO=NO'
