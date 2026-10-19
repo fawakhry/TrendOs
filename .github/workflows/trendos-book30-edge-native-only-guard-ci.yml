@@ -1,0 +1,43 @@
+name: TrendOS Book30 Native-only Legacy Edge Session Guard — Mock-Only
+on:
+  push:
+    branches:
+      - fix/book30-edge-session-native-only-google-guard-20261016
+    paths:
+      - 'cloudflare-d1/src/edge-gateway.mjs'
+      - 'tests/book30_edge_session_native_only_google_guard.test.mjs'
+      - '.github/workflows/trendos-book30-edge-native-only-guard-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/edge-gateway.mjs'
+      - 'tests/book30_edge_session_native_only_google_guard.test.mjs'
+      - '.github/workflows/trendos-book30-edge-native-only-guard-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mock-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: |
+          node --check cloudflare-d1/src/edge-gateway.mjs
+          node --check tests/book30_edge_session_native_only_google_guard.test.mjs
+      - name: Native-only fail-closed and legacy compatibility without external network
+        run: node --test tests/book30_edge_session_native_only_google_guard.test.mjs
+      - name: Inherited Edge gateway and Operator Task regression
+        run: |
+          node --test tests/cloudflare_edge_gateway_v1.test.mjs
+          node --test tests/operator_task_edge_v2.test.mjs
+      - name: Explicit release stop
+        run: |
+          echo 'REAL_APPS_SCRIPT_CALLS=NO'
+          echo 'REAL_EMPLOYEE_TOKENS=NO'
+          echo 'DEPLOY=NO'
+          echo 'MERGE=NO'
+          echo 'PRODUCTION_VERIFIED=NO'
