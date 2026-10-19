@@ -30,7 +30,11 @@ export function examineAcc207({accountingSource,existingFinanceGate,ownerClaims,
     supplier_payment_sql_fix_present:accountingSource.includes("'payment_paid',?,?,-1"),
     custody_handoff_sql_fix_present:accountingSource.includes("VALUES(?,?,?,?,?,'HANDOFF',?,?,?,?,?,?)"),
     legacy_deploy_readiness_never_auto_go:existingFinanceGate.includes("release_decision:'NO_GO'"),
-    acc212_conditional_zero_opening_requires_two_signatures:
+    acc212_individual_two_cashiers_separate_reviewer_mandatory:
+      accountingSource.includes('function acc212CashierAndReviewerRosterValidV1(')&&
+      accountingSource.includes('ACCOUNTING_FINANCE_PHASE1_CASHIER_LOGINS_V1')&&
+      accountingSource.includes('ACCOUNTING_FINANCE_PHASE1_REVIEWER_LOGIN_V1'),
+        acc212_conditional_zero_opening_requires_two_signatures:
       accountingSource.includes('async function acc212VerifyOpeningZeroEvidenceV1(')&&
       accountingSource.includes("crypto.subtle.verify('Ed25519'")&&
       accountingSource.includes('ACCOUNTING_FINANCE_OPENING_PREPARER_PUBLIC_JWK_V1')&&
@@ -55,6 +59,8 @@ export function examineAcc207({accountingSource,existingFinanceGate,ownerClaims,
     physicalPriorBalancesProvenZero:false,
     approvedBusinessRolesDocumented:true,
     authenticatedEmployeeSSORosterMapped:false,
+    ownerSelectedTwoCashiersOneIndependentReviewer:true,
+    realVerifiedCashierAndReviewerLoginsConfigured:false,
     encryptedFakeSQLiteRestoreRehearsedSourceOnly:true,
     realSeparateEncryptedBackupAndUbuntuRestoreVerified:false,
     closedDayCorrectionPolicy:'NEW_IMMUTABLE_ENTRY_ON_OPEN_DAY_ONLY',
