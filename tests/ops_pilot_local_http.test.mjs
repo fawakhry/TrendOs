@@ -127,7 +127,28 @@ await test('Ops pilot local real HTTP — synthetic orders + original manager UI
     }
     assert.equal((await request('/api/manager','POST',{})).code,403);
   });
-  await t.test('09 GET manager requires token; no external remote URLs or D1 credentials',async()=>{
+  await t.test('09 offline Core/D1 read contract is scoped and never reveals identity or enables writes',async()=>{
+    const blocked=await raw('/api/core-read-compatibility');
+    assert.equal(blocked.status,401);
+    const checked=await request('/api/core-read-compatibility');
+    assert.equal(checked.code,200);
+    assert.equal(checked.data.mode,'SYNTHETIC_CORE_CONTRACT_ONLY');
+    assert.equal(checked.data.compatible,true);
+    assert.equal(checked.data.orderCount,2);
+    assert.equal(checked.data.lineCount,3);
+    assert.equal(checked.data.writeEnabled,false);
+    assert.equal(checked.data.liveBackendConnected,false);
+    assert.equal(checked.data.financeRelease,'NO_GO');
+    assert.equal(checked.data.deliveryRelease,'NO_GO');
+    assert.equal(checked.data.productionVerified,false);
+    assert.equal(checked.data.statusFlowCompatible,false);
+    assert.deepEqual(checked.data.pilotStatusAliasesUnsupported,['جاري التنفيذ','جاهز للتسليم']);
+    assert.doesNotMatch(JSON.stringify(checked.data),/DEMO-CORE-|customerPhone|customerName|phone|debtAmount/);
+    assert.equal((await request('/api/core-read-compatibility','POST',{})).code,403);
+    assert.equal((await request('/api/orders')).data.orders.length,4,
+      'Core read preflight never changes local test orders');
+  });
+  await t.test('10 GET manager requires token; no external remote URLs or D1 credentials',async()=>{
     assert.equal((await raw('/api/manager')).status,401);
     const list=await request('/api/orders');
     assert.equal(list.data.orders.every(o=>o.id.startsWith('DEMO-')),true);
