@@ -84,6 +84,26 @@ await test('12 a source missing ACC211 extra guard cannot pass delegated phase1 
   assert.equal(result.codeInspectionPassed,false);
   assert.equal(result.financeRelease,'NO_GO');
 });
+await test('13 owner October 20 is TARGET, no signed real zero opening assumed',()=>{
+  const a=inspectRepoAcc207();
+  assert.equal(a.ownerTargetCutoverDate,'2026-10-20');
+  assert.equal(a.zeroOpeningIsConditionalOnIndependentlyVerifiedSources,true);
+  assert.equal(a.physicalPriorBalancesProvenZero,false);
+  assert.equal(a.authenticatedEmployeeSSORosterMapped,false);
+  assert.equal(a.realSeparateEncryptedBackupAndUbuntuRestoreVerified,false);
+  assert.equal(a.restrictedFirstPilot,'PRIVATE_ALL_SYNTHETIC');
+  assert.equal(a.closedDayCorrectionPolicy,'NEW_IMMUTABLE_ENTRY_ON_OPEN_DAY_ONLY');
+  assert.equal(a.gates.G3,'OPEN');assert.equal(a.gates.G5,'OPEN');
+  assert.equal(a.financeRelease,'NO_GO');
+});
+await test('14 removing two-signature zero evidence gate is never readiness PASS',()=>{
+  const mutilated=worker.replace('async function acc212VerifyOpeningZeroEvidenceV1(',
+    'async function disabledOpeningVerifier(');
+  const a=examineAcc207({accountingSource:mutilated,existingFinanceGate:gate});
+  assert.equal(a.checks.acc212_conditional_zero_opening_requires_two_signatures,false);
+  assert.equal(a.codeInspectionPassed,false);
+  assert.equal(a.productionDeployApproved,false);
+});
 console.log('ACC207_FINANCE_RELEASE_CONSOLIDATED_DECISION_BATCH=TESTED');
 console.log('ACC207_CLAIMED_SIGNOFF_NEVER_AUTO_AUTHORIZED=PASS');
 console.log('ACC207_FINANCE_RELEASE=NO_GO');
