@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 from src.trendosshop_read_once import (
     read_trendosshop_once, TrendosShopReadError,
 )
+from src.trendosshop_canary_once_cli import run_canary_once, CanaryDisabled
 
 # A test-only constant matching the local Workerd synthetic bearer.
 # Never share or use this fixture credential in any real Worker/host.
@@ -112,6 +113,41 @@ def main():
         assert str(exc) == "SERVER34_HTTP_DENIED"
     else:
         raise AssertionError("bad bearer should be rejected by local Worker")
+
+    # SERVER-73: exercise the actual dormant CLI's two independent approval
+    # gates against the existing loopback-only opener. This authorizes ZERO
+    # real operations: fixture token, injected transport, synthetic D1 only.
+    cli_opener = VerifiedLoopbackOnlyOpener()
+    def cli_reader(token, *, enabled, owner_authorized):
+        return read_trendosshop_once(
+            token, enabled=enabled, owner_authorized=owner_authorized,
+            opener=cli_opener
+        )
+    cli_fixture = {
+        "TRENDOSSHOP_SERVER69_CANARY_ENABLED": "true",
+        "TRENDOSSHOP_SERVER69_OWNER_APPROVED": "true",
+        "TRENDOSSHOP_READER_BEARER": FAKE_TOKEN,
+    }
+    try:
+        run_canary_once(["--canary-read"], environ=cli_fixture, reader=cli_reader)
+    except CanaryDisabled:
+        pass
+    else:
+        raise AssertionError("single CLI gate unexpectedly permitted reader")
+    assert cli_opener.calls == [], "disabled CLI must never perform HTTP"
+    cli_result = run_canary_once(
+        ["--canary-read", "--owner-authorized"],
+        environ=cli_fixture, reader=cli_reader
+    )
+    assert cli_result["byScreenCounts"] == {"print": 1, "laser": 1}
+    assert cli_result["distinctOrdersInFetchedPages"] == 2
+    assert cli_result["deviceExecution"] is False
+    assert cli_result["filesWritten"] is False
+    assert cli_result["businessWrites"] is False
+    assert "rows" not in cli_result and "customerPhone" not in cli_result
+    assert cli_opener.calls == ["print", "laser"]
+    print("SERVER73_CLI_REAL_LOCAL_WORKER=PASS; TWO_EXPLICIT_GATES=PASS; "
+          "COUNTS_ONLY=PASS; NO_REMOTE_CLOUDFLARE=TRUE; NO_PHYSICAL_UBUNTU=TRUE")
 
     print("SERVER69_PYTHON_UBUNTU_CONTRACT=PASS; REAL_LOCAL_WORKER=PASS; "
           "RESPONSE_MINIMAL=PASS; ZERO_LOCAL_FILE_WRITES=TRUE; "
