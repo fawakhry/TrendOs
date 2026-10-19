@@ -111,6 +111,18 @@ class SixGateRealityTest(unittest.TestCase):
         self.assertEqual(out["workers"]["trendos-d1-api"]["deployment"]
                          ["sourceGitCommitParity"], "NOT_PROVEN")
 
+    def test_raw_multipart_boundary_is_not_a_code_version_fingerprint(self):
+        first = m._code({"verified": True, "code": (
+            b"--random-boundary-1\\r\\n"
+            b"/v1/edge/orders/02cr/page\\r\\n")})
+        second = m._code({"verified": True, "code": (
+            b"--random-boundary-2\\r\\n"
+            b"/v1/edge/orders/02cr/page\\r\\n")})
+        for item in (first, second):
+            self.assertTrue(item["markers"]["ordersPageSource"])
+            self.assertEqual(item["versionParity"], "NOT_PROVEN")
+            self.assertNotIn("digestPrefix", item)
+
     def test_declared_binding_name_is_not_approval(self):
         out = m.unified_report(QUEUE, FakeOpener(), TOKEN, ACCOUNT, enabled=True)
         self.assertEqual(out["workers"]["trendos-d1-api"]["settings"]
