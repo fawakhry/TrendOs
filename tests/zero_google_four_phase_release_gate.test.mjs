@@ -183,3 +183,19 @@ test('four-phase source audit completes the REVIEW, not the production transitio
   assert.equal(report.singleWriterActivated,false);
   assert.equal(report.decisionsDeferred.length,4);
 });
+
+test('decision register is exact D01-D04, blocked and machine-readable without live authority',()=>{
+  const decisions=JSON.parse(load('docs/trendos/zero-google/FOUR_PHASE_DECISION_REGISTER_V1.json'));
+  assert.equal(decisions.source_review_phases_completed,4);
+  assert.equal(decisions.live_cutover_phases_certified,0);
+  assert.equal(decisions.production_release,'NO_GO');
+  assert.equal(decisions.legacy_customer_actions,9);
+  assert.deepEqual(decisions.decisions.map(x=>x.id),['D01','D02','D03','D04']);
+  assert.ok(decisions.decisions.every(x=>x.blocking===true && x.state.startsWith('PENDING_')));
+  assert.ok(decisions.decisions.every(x=>x.must_prove.length>=4));
+  assert.equal(decisions.proof_limits.programmatic_cutover_authority,false);
+  assert.equal(decisions.proof_limits.d1_customer_writes,0);
+  assert.equal(decisions.proof_limits.cloudflare_api_mutations,0);
+  assert.equal(decisions.proof_limits.finance_writes,0);
+  assert.ok(decisions.canonical_systems_keep.includes('trendos-main'));
+});
