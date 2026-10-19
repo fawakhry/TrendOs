@@ -7737,5 +7737,58 @@
       "Missing selected token in OWNERSHIP/T12 is not an asserted production bug; review actual implementation contract before deciding.",
       "Historical tests only enumerated by filenames. No claims of test PASS or deployed applicability."
     ]
+  },
+  "single_book_cutover_gate_matrix_20261019": {
+    "date": "2026-10-19",
+    "observed_head_before_commit": "7ed5964408d864a78dbe2d1c066242705f00f35d",
+    "decision": "NO_GO_FINAL_SINGLE_BOOK_CUTOVER",
+    "gates": [
+      {
+        "id": "G01_ARCHIVE_AND_38_HISTORICAL_UNITS",
+        "state": "PASS",
+        "evidence": "All 38 units exact archived text with documented LF boundaries and normalized Entry619 scope"
+      },
+      {
+        "id": "G02_ORIGINAL_66_ENTRY_ARCHIVE_PROVENANCE",
+        "state": "PASS",
+        "evidence": "Every original Entry identifier independently located in protected archived master"
+      },
+      {
+        "id": "G03_CATALOG_EDITORIAL_ENTRY_IDENTIFIER_COVERAGE",
+        "state": "PARTIAL",
+        "evidence": "65/66 literal EntryNNN identifiers present in unified book; Entry600 held with old active source"
+      },
+      {
+        "id": "G04_CATALOG_REFERENCE_FILE_PATH_INTEGRITY",
+        "state": "SOURCE_ONLY_PASS",
+        "evidence": "120 current branch paths and 6 valid pinned historical references among 126 distinct source targets; five also on separate server branch"
+      },
+      {
+        "id": "G05_PRIVACY_AND_RESTRICTED_HISTORICAL_RECORDS",
+        "state": "BLOCKED_OWNER_STRATEGY",
+        "evidence": "Entry596 and combined Entry599/600 contain historical customer order/contact references; do not duplicate publicly"
+      },
+      {
+        "id": "G06_EDITORIAL_TOPIC_NAVIGATION",
+        "state": "CANDIDATES_ONLY",
+        "evidence": "62 provisional chapter topic candidates, four mention-only identifiers; thematic indexing does not prove current behavior"
+      },
+      {
+        "id": "G07_E2E_FUNCTION_AND_RUNTIME_SEMANTIC_RECONCILIATION",
+        "state": "OPEN",
+        "evidence": "0 of 66 original Entry IDs independently certified for current runtime; historical status NOT production state"
+      },
+      {
+        "id": "G08_OWNER_APPROVAL_AND_RELEASE",
+        "state": "NO_GO",
+        "evidence": "No final owner cutover permission, no Production or PR merge authorized"
+      }
+    ],
+    "old_book": "ACTIVE_WRITE",
+    "unified_book": "FROZEN_MIGRATION_ONLY",
+    "archives": "IMMUTABLE_PRESERVE",
+    "do_not_delete_old": true,
+    "autonomous_printshop_easy_store_separate_authorities_untouched": true,
+    "next_safe_task": "Reconcile source-level chapter-to-handler/test/deployed commit evidence without production mutations, then privacy owner decision and final signoff."
   }
 }
