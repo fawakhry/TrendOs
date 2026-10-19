@@ -1,0 +1,73 @@
+name: TrendOS Zero Google Four-Phase Offline Release Gate
+on:
+  push:
+    branches:
+      - test/zero-google-four-phase-release-evidence-20261020
+  pull_request:
+    paths:
+      - 'tools/zero-google-release-v1/**'
+      - 'tests/zero_google_four_phase_release_gate.test.mjs'
+      - 'cloudflare-d1/src/customer-portal-native-readiness-v0.mjs'
+      - 'cloudflare-d1/src/legacy-browser-transport-v1.mjs'
+      - 'cloudflare-d1/src/operator-task-edge-v2.mjs'
+      - 'cloudflare-d1/wrangler.toml'
+      - '.github/workflows/zero-google-four-phase-offline-release-gate.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  four-phase-source-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and source-pinned cross-project release contracts
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          OPENAI_API_KEY: ''
+          TRENDOS_OPERATOR_TASK_PROXY_SECRET: ''
+        run: |
+          set -euo pipefail
+          node --check tools/zero-google-release-v1/four-phase-gate.mjs
+          node --check tools/zero-google-release-v1/run-offline-audit.mjs
+          node --check tests/zero_google_four_phase_release_gate.test.mjs
+          node --test tests/zero_google_four_phase_release_gate.test.mjs
+      - name: Emit fail-closed report and refuse false release status
+        run: |
+          set -euo pipefail
+          node tools/zero-google-release-v1/run-offline-audit.mjs > /tmp/four-phase-audit.json
+          node --input-type=module -e "
+            import fs from 'node:fs';
+            const report=JSON.parse(fs.readFileSync('/tmp/four-phase-audit.json','utf8'));
+            if(report.productionRelease!=='NO_GO'||report.zeroGoogleComplete!==false
+              ||report.decisionsDeferred.length!==4
+              ||report.phases.length!==4||report.customerActionsDocumented!==9)
+              process.exit(1);
+            console.log('FOUR_PHASE_SOURCE_REVIEW=TESTED_OFFLINE');
+            console.log('CUSTOMER_GOOGLE_ACTIONS=9');
+            console.log('BOOK24_SINGLE_WRITER=UNVERIFIED');
+            console.log('DEPLOYED_SHA_PARITY=UNVERIFIED');
+            console.log('ROLLBACK=PLAN_REHEARSED_NO_MUTATION');
+            console.log('ZERO_GOOGLE_COMPLETE=NO');
+            console.log('PRODUCTION_GO=NO');
+          "
+      - name: Preserve previous employee session behavior and customer boundary
+        run: |
+          set -euo pipefail
+          node tests/entry653_zero_google_employee_legacy_proxy_retirement.test.mjs
+          node tests/cloudflare_orders_session_shadow_handoff_entry497.test.mjs
+          node tests/entry614_zero_google_employee_business_coverage.test.mjs
+      - name: Explicitly no live rollout or secrets
+        run: |
+          echo 'NO_GOOGLE_FETCH=TRUE'
+          echo 'NO_CUSTOMER_DATA=TRUE'
+          echo 'NO_CLOUDFLARE_DEPLOY=TRUE'
+          echo 'NO_D1_OR_APPS_SCRIPT_WRITE=TRUE'
+          echo 'NO_FINANCE_OR_PHYSICAL_PRINTER_OPERATION=TRUE'
+          echo 'OWNER_DECISIONS=DEFERRED'
