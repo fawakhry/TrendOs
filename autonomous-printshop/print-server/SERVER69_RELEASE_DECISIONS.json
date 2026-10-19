@@ -103,7 +103,8 @@
     "SERVER-67 HMAC plus Durable Object replay guard source-only",
     "SERVER-68 R5 signed metadata helper source-only and Apps Script page-size adapter",
     "SERVER-69 local Workerd + synthetic D1 + Python Ubuntu one-shot end-to-end",
-    "PR195 manager UI remains separate and unmodified"
+    "PR195 manager UI remains separate and unmodified",
+    "SERVER-73 six-stage source NO_GO auditor (all D01-D06 held), 10 Node regression tests, real canary CLI through injected localhost Workerd with synthetic D1; zero remote deployment"
   ],
   "operatorSummary": "NO_GO for remote stage until D01-D02; NO_GO for production until D03-D04; NO_GO for Ubuntu live until D05; NO_GO for order acceptance until D06",
   "sourceConsumerInventory": {
@@ -125,5 +126,23 @@
     "secureOptInStillDefaultOff": true,
     "testReport": "autonomous-printshop/print-server/SERVER71_APPS_SCRIPT_SIGNED_TARGET_PIN_20261019.md",
     "status": "SOURCE_ONLY_PIN_REQUIRED_NOT_PROVISIONED"
+  },
+  "server73OfflineSixStageQualification": {
+    "report": "autonomous-printshop/print-server/SERVER73_SIX_STAGE_SOURCE_RELEASE_HANDOFF_20261019.md",
+    "auditor": "autonomous-printshop/print-server/tools/server73_six_stage_readiness.mjs",
+    "tests": "tests/server73_six_stage_source_readiness.test.mjs",
+    "ciEvidenceRun": "https://github.com/fawakhry/TrendOs/actions/runs/39292772509",
+    "ciTestedHead": "5914f8eff9d32104bbad1946eb802b816a8650d6",
+    "sourceOnlyNodePass": 243,
+    "sourceOnlyNodeFail": 0,
+    "offlineUbuntuCliToWorkerd": "PASS_INJECTED_LOOPBACK_SYNTHETIC_D1",
+    "remoteWorkerProvisioned": false,
+    "remoteDurableObjectMigrated": false,
+    "liveAppsScriptMigrated": false,
+    "productionDeployed": false,
+    "physicalUbuntuConnected": false,
+    "realOrderRead": false,
+    "release": "NO_GO",
+    "note": "Evidence is synthetic CI only. D01-D06 decision status and strictNoChange restrictions are unchanged. Do not infer stage/production approval."
   }
 }
