@@ -7943,5 +7943,238 @@
     ],
     "limitations": "Test file SHA, node:test imports, test()/assert references are static source checks only. No execution, HTTP, D1, customer, server runtime, deployed SHA, nor independent product release proof.",
     "full_entry_runtime_reconciliation_still_open": 66
+  },
+  "source_semantic_contract_reconciliation_20261020": {
+    "date": "2026-10-20",
+    "branch": "agent/trendos-book-audit-v1-20261014",
+    "observed_head_before_commit": "a00196250886f06476abbbddc450171549433eed",
+    "source_class": "EXACT_CURRENT_BRANCH_SOURCE_GUARD_EVALUATED_NOT_TEST_EXECUTION_AND_NOT_DEPLOYED_RUNTIME",
+    "checks": [
+      {
+        "id": "cloud_session_route_precedence",
+        "source_guard": "PASS",
+        "blob_refs": [
+          {
+            "path": "cloudflare-d1/src/index_v2.js",
+            "sha": "4a555efb4b3f44ba371549d5cec055cc7ce1777f"
+          },
+          {
+            "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+            "sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+          }
+        ],
+        "source_ranges": "cloudflare-d1/src/index_v2.js#L84-L89; cloudflare-d1/src/cloud-session-bridge-v3.mjs#L97-L101,L247-L276",
+        "scope_warning": "source observation only"
+      },
+      {
+        "id": "native_session_verification_and_fail_closed",
+        "source_guard": "PASS",
+        "blob_refs": [
+          {
+            "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+            "sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          }
+        ],
+        "source_ranges": "cloudflare-d1/src/cloud-session-bridge-v3.mjs#L154-L173; cloudflare-d1/src/employee-auth-native-v1.mjs#L479-L542",
+        "scope_warning": "source observation only"
+      },
+      {
+        "id": "comms_readonly_4_read_actions",
+        "source_guard": "PASS",
+        "blob_refs": [
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "config.js",
+            "sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "tests/entry630_employee_comms_readonly_dispatch.test.mjs",
+            "sha": "b51df382024579f7a9152eb2400af90dffabce64"
+          }
+        ],
+        "source_ranges": "employee-api-dispatcher-v1.js#L100-L106; config.js#L30-L33; tests/entry630_employee_comms_readonly_dispatch.test.mjs#L62-L90",
+        "scope_warning": "source observation only"
+      },
+      {
+        "id": "entry652_session_restore_guard",
+        "source_guard": "PASS",
+        "blob_refs": [
+          {
+            "path": "app.js",
+            "sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          },
+          {
+            "path": "trendos-edge-orders-read-v1.js",
+            "sha": "8a6f990828e0362a4faccac71a32144a6d9ec3aa"
+          },
+          {
+            "path": "tests/entry652_employee_session_lifecycle_guard.test.mjs",
+            "sha": "c6af484e1aa181764e13cd563d4f1ac27b375705"
+          }
+        ],
+        "source_ranges": "app.js#L1700-L1850; trendos-edge-orders-read-v1.js#L202-L209; tests/entry652_employee_session_lifecycle_guard.test.mjs#L11-L43",
+        "scope_warning": "source observation only"
+      },
+      {
+        "id": "entry654_portal_readiness_source_no_go",
+        "source_guard": "PASS",
+        "blob_refs": [
+          {
+            "path": "cloudflare-d1/src/customer-portal-native-readiness-v0.mjs",
+            "sha": "77dd108c5a229822da6d1625337d1d8989feb0cf"
+          },
+          {
+            "path": "cloudflare-d1/src/index_v2.js",
+            "sha": "4a555efb4b3f44ba371549d5cec055cc7ce1777f"
+          },
+          {
+            "path": "tests/entry654_customer_portal_native_readiness_v0.test.mjs",
+            "sha": "293c8ae17aa5b921b76bea1b7857d9afd7fb85e9"
+          }
+        ],
+        "source_ranges": "cloudflare-d1/src/customer-portal-native-readiness-v0.mjs#L1-L38,L94-L116; tests/entry654_customer_portal_native_readiness_v0.test.mjs#L49-L99",
+        "scope_warning": "source observation only"
+      },
+      {
+        "id": "entry655_order_ownership_source_no_go",
+        "source_guard": "PASS",
+        "blob_refs": [
+          {
+            "path": "cloudflare-d1/src/customer-portal-order-ownership-audit-v0.mjs",
+            "sha": "e8748f137851e3b415bbceef094e769f49ed94fd"
+          },
+          {
+            "path": "cloudflare-d1/src/index_v2.js",
+            "sha": "4a555efb4b3f44ba371549d5cec055cc7ce1777f"
+          },
+          {
+            "path": "tests/entry655_customer_order_ownership_audit.test.mjs",
+            "sha": "4711ca95613e48b74655b8071fa93a327b01d925"
+          }
+        ],
+        "source_ranges": "cloudflare-d1/src/customer-portal-order-ownership-audit-v0.mjs#L1-L17,L50-L70; tests/entry655_customer_order_ownership_audit.test.mjs#L35-L69",
+        "scope_warning": "source observation only"
+      },
+      {
+        "id": "entry659_ticket_source_no_live_endpoint",
+        "source_guard": "PASS",
+        "blob_refs": [
+          {
+            "path": "cloudflare-d1/src/customer-portal-password-enrollment-ticket-v0.mjs",
+            "sha": "f4a06fdf0f7ebb82942084e360ee1f7b3617bcd3"
+          },
+          {
+            "path": "cloudflare-d1/src/index_v2.js",
+            "sha": "4a555efb4b3f44ba371549d5cec055cc7ce1777f"
+          },
+          {
+            "path": "tests/entry659_customer_enrollment_ticket_source.test.mjs",
+            "sha": "16d4100260a702b79a57b02595f3159eff8f98ac"
+          }
+        ],
+        "source_ranges": "cloudflare-d1/src/customer-portal-password-enrollment-ticket-v0.mjs#L1-L5,L103-L110; tests/entry659_customer_enrollment_ticket_source.test.mjs#L30-L39",
+        "scope_warning": "source observation only"
+      },
+      {
+        "id": "registration_enum_mismatch_conditional",
+        "source_guard": "PASS",
+        "blob_refs": [
+          {
+            "path": "app.js",
+            "sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          },
+          {
+            "path": "trendos-edge-orders-read-v1.js",
+            "sha": "8a6f990828e0362a4faccac71a32144a6d9ec3aa"
+          },
+          {
+            "path": "cloudflare-d1/src/t12-operational-runtime-handler.mjs",
+            "sha": "1bb1ee6e8eca9b85f20d93394aad699908cc8c80"
+          }
+        ],
+        "source_ranges": "app.js#L5748-L5760; trendos-edge-orders-read-v1.js#L995-L1005; cloudflare-d1/src/t12-operational-runtime-handler.mjs#L222-L227",
+        "scope_warning": "source observation only"
+      },
+      {
+        "id": "registration_response_check_missing_conditional",
+        "source_guard": "PASS",
+        "blob_refs": [
+          {
+            "path": "app.js",
+            "sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          }
+        ],
+        "source_ranges": "app.js#L5748-L5760",
+        "scope_warning": "source observation only"
+      },
+      {
+        "id": "edge_token_revocation_per_request_unverified",
+        "source_guard": "PASS",
+        "blob_refs": [
+          {
+            "path": "cloudflare-d1/src/edge-orders-read-v1.mjs",
+            "sha": "540cca2143e7da940b96d6f990a8951e3b5c87ab"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          }
+        ],
+        "source_ranges": "cloudflare-d1/src/edge-orders-read-v1.mjs#L112-L127, auth separate D1 session check",
+        "scope_warning": "source observation only"
+      }
+    ],
+    "historical_entry_source_reconciliations": [
+      {
+        "entry_id": 630,
+        "scope": "Comms READONLY routing and historical test scenario",
+        "source_reconciled": "PASS_LANES_BOUNDARY",
+        "current_runtime": "OPEN"
+      },
+      {
+        "entry_id": 652,
+        "scope": "Employee session lifecycle guard and 401 frontend signal",
+        "source_reconciled": "PASS_SOURCE_CONTRACT",
+        "current_runtime": "OPEN"
+      },
+      {
+        "entry_id": 654,
+        "scope": "Customer portal readiness diagnostic explicitly NO_GO and not in worker index",
+        "source_reconciled": "PASS_SOURCE_NO_GO",
+        "current_runtime": "OPEN"
+      },
+      {
+        "entry_id": 655,
+        "scope": "Order ownership diagnostic not customer authorization, NO_GO",
+        "source_reconciled": "PASS_SOURCE_NO_GO",
+        "current_runtime": "OPEN"
+      },
+      {
+        "entry_id": 659,
+        "scope": "OTP enrollment ticket primitives source-only, no live endpoints",
+        "source_reconciled": "PASS_SOURCE_NO_GO",
+        "current_runtime": "OPEN"
+      }
+    ],
+    "important_reconciliation": "Current worker index_v2 dispatches session path to cloud-session-bridge-v3 BEFORE old edge-orders reader; old source module's Apps Script GET exchangeSession is not proof that current worker session route uses it. Actual deployed entrypoint and env still unknown.",
+    "source_only_pending_issues": [
+      "Registration notification uses order_registered, Native backend allowlist uses registration; branch conditional on known cloudNativeLineIds. Record and treat as candidate contract mismatch, NOT reproduced Production failure.",
+      "Registration notification handler does not inspect API business success; only exception catch.",
+      "Edge token verifier validates signed claims/expiry but does not itself query revoked employee session per request. Full route/TTL and test evidence needed."
+    ],
+    "no_private_customer_data_copied": true,
+    "source_guard_pass_count": 10,
+    "synthetic_or_repo_tests_executed": 0,
+    "original_entry_full_current_runtime_reconciliations": 0,
+    "production_release_claim": false,
+    "do_not_modify_catalog_until_migration_policy_lifted": true,
+    "final_cutover": "NO_GO"
   }
 }
