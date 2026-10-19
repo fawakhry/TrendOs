@@ -1,0 +1,108 @@
+{
+  "version": "TRENDOS_ZERO_GOOGLE_FOUR_PHASE_DECISION_REGISTER_V1",
+  "baseline_book_sha": "7acf1e61c73b5eb402195c5cef4d8d04ca05c59f",
+  "as_of": "2026-10-20",
+  "scope": "SOURCE_ONLY_OFFLINE_REVIEW",
+  "production_release": "NO_GO",
+  "source_review_phases_completed": 4,
+  "live_cutover_phases_certified": 0,
+  "legacy_customer_actions": 9,
+  "canonical_systems_keep": [
+    "trendos-ui",
+    "trendos-d1-api",
+    "trendos-main"
+  ],
+  "refs": {
+    "customer_readiness": "cloudflare-d1/src/customer-portal-native-readiness-v0.mjs",
+    "customer_ownership": "cloudflare-d1/src/customer-portal-order-ownership-audit-v0.mjs",
+    "book24_source_pr": "https://github.com/fawakhry/TrendOs/pull/194",
+    "native_employee_security_pr": "https://github.com/fawakhry/TrendOs/pull/210",
+    "controller": "tools/zero-google-release-v1/four-phase-gate.mjs",
+    "audit_runner": "tools/zero-google-release-v1/run-offline-audit.mjs"
+  },
+  "decisions": [
+    {
+      "id": "D01",
+      "title": "Cloudflare current deployed versions and flags",
+      "state": "PENDING_EXTERNAL_READONLY_EVIDENCE",
+      "blocking": true,
+      "must_prove": [
+        "Worker deployed version and deployment IDs",
+        "bundle identity + source compare",
+        "actual auth and routing flags",
+        "consumer map for legacy workers"
+      ],
+      "prohibited_without_proof": [
+        "PRODUCTION_DEPLOY",
+        "DISABLE_GOOGLE",
+        "DELETE_CLOUDFLARE_RESOURCE"
+      ]
+    },
+    {
+      "id": "D02",
+      "title": "Native customer identity and nine action migration",
+      "state": "PENDING_OWNER_IDENTITY_FINANCE_APPROVAL",
+      "blocking": true,
+      "must_prove": [
+        "OTP independent customer consent/ownership",
+        "D1 session + revocation",
+        "scoped customer order ownership",
+        "Draft D1 write idempotency",
+        "R2 file ACL",
+        "EasyStore finance approval"
+      ],
+      "prohibited_without_proof": [
+        "ACTIVATE_CUSTOMER_LOGIN",
+        "ROUTE_CUSTOMER_DRAFTS",
+        "CHANGE_FINANCE",
+        "DISABLE_CUSTOMER_GOOGLE"
+      ]
+    },
+    {
+      "id": "D03",
+      "title": "BOOK24 cross-project exclusive task writer",
+      "state": "PENDING_LIVE_SINGLE_WRITER_EVIDENCE",
+      "blocking": true,
+      "must_prove": [
+        "WORK_QUEUE_V1 deployment + ScriptLock scope",
+        "OPERATOR_TASK_V2 deployment + ScriptLock scope",
+        "D1 writer/Edge deployed version and mode",
+        "cross-store fence + conflict tests",
+        "rollback and active-task inventory"
+      ],
+      "prohibited_without_proof": [
+        "ENABLE_TASK_WRITER",
+        "DISABLE_EXISTING_TASK_SCRIPT",
+        "DECLARE_SINGLE_WRITER"
+      ]
+    },
+    {
+      "id": "D04",
+      "title": "Isolated stage, backup restore and rollback",
+      "state": "PENDING_PROTECTED_STAGE_BACKUP_OWNER_GO",
+      "blocking": true,
+      "must_prove": [
+        "isolated staging (not repurposed existing tenant D1)",
+        "verified backup and actual restore",
+        "authorized staff/department read/write canary",
+        "stable idempotency and order consistency",
+        "post-release watch + rollback owners"
+      ],
+      "prohibited_without_proof": [
+        "CANARY_PRODUCTION_WRITES",
+        "LIVE_CUTOVER",
+        "PUBLISH_ZERO_GOOGLE_COMPLETE"
+      ]
+    }
+  ],
+  "proof_limits": {
+    "github_actions": "SOURCE_ONLY_NOT_LIVE_ATTESTATION",
+    "work_book": "HISTORICAL_VERSIONS_NOT_CURRENT_DEPLOY_PROOF",
+    "programmatic_cutover_authority": false,
+    "google_api_requests": 0,
+    "cloudflare_api_mutations": 0,
+    "d1_customer_writes": 0,
+    "finance_writes": 0,
+    "printer_actions": 0
+  }
+}
