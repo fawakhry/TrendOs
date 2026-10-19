@@ -203,6 +203,34 @@ class SixGateRealityTest(unittest.TestCase):
                 m._api_get(op, TOKEN, ACCOUNT, worker, suffix, byte_limit=100)
         self.assertEqual(op.requests, [])
 
+    def test_public_historical_stage_not_qualified_as_private(self):
+        out = m.unified_report(QUEUE, FakeOpener(), TOKEN, ACCOUNT, enabled=True)
+        self.assertIn("HISTORICAL STAGE WORKERS.DEV PUBLISHED",
+                      out["steps"][0]["missing"])
+        self.assertIn("LIVE WORKERS.DEV HOST PUBLISHED",
+                      out["steps"][3]["missing"])
+        self.assertFalse(out["workers"]["trendos-d1-staging"]["publication"]
+                         ["cloudflareAccessVerified"])
+        self.assertEqual(out["release"], "NO_GO")
+
+    def test_missing_isolated_stage_and_wrong_public_stage_fail_closed(self):
+        workers = {
+            "trendos-d1-staging": {"publication": {
+                "verified": True, "workersDevPublished": True}},
+            "trendos-server68-isolated-stage": {
+                "deployment": {"verified": False, "reason": "NOT_FOUND"},
+                "publication": {"verified": False, "reason": "NOT_FOUND"}
+            },
+        }
+        rows = m._stage_rows(QUEUE, workers)
+        self.assertIn("REQUIRED ISOLATED WORKER ABSENT", rows[0]["missing"])
+        workers["trendos-server68-isolated-stage"]["publication"] = {
+            "verified": True, "workersDevPublished": True
+        }
+        rows = m._stage_rows(QUEUE, workers)
+        self.assertIn("ISOLATED STAGE WORKERS.DEV PUBLICATION UNSAFE", rows[0]["missing"])
+        self.assertEqual(rows[0]["status"], "DEFERRED_NO_GO")
+
     def test_missing_stage_remains_no_go_even_if_deployment_exists(self):
         out = m.unified_report(QUEUE, FakeOpener(), TOKEN, ACCOUNT, enabled=True)
         self.assertEqual(out["steps"][0]["status"], "DEFERRED_NO_GO")
