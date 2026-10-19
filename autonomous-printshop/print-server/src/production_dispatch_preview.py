@@ -18,7 +18,7 @@ _ALLOWED_ARTIFACT = {
     "storageProvider", "activeLineMatch", "archived",
 }
 _ID = re.compile(r"^[A-Za-z0-9_.:/-]{1,96}$")
-_FILE_ID = re.compile(r"^[A-Za-z0-9_.:/-]{1,180}$")
+_FILE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,179}$")
 _SHA256 = re.compile(r"^[a-f0-9]{64}$")
 _ACCEPTED_MIMES = {"image/jpeg", "image/png", "image/tiff", "image/webp", "application/pdf"}
 _CLOSED = {
