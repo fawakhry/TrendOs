@@ -52,6 +52,11 @@ footer{text-align:center;padding:20px;color:#576a80}
 <p id="feedback" role="status" aria-live="polite"></p>
 <p class="muted">لوحة المدير الأصلية تظهر بزر مستقل بعد التحميل بأسفل الشاشة، وبها الأداء والتنبيهات وسياسة التسليم.</p>
 </section>
+<section class="panel"><h2>🔎 فحص توافق Core وD1 (قراءة وهمية)</h2>
+<p class="muted">بيفحص شكل بيانات بنود الأوردرات في الـCore مقارنة بالواجهة التجريبية. لا يتصل بـCloudflare، ولا ينفذ أي تغيير أو تسليم.</p>
+<div id="coreCompatibility" role="status" aria-live="polite">لم يبدأ فحص التوافق.</div>
+<p class="muted">فحص شكل البيانات لا يثبت جاهزية الإنتاج. ربط الهوية والحسابات وسلطة الكتابة ما زال ممنوعًا.</p>
+</section>
 <section class="panel"><h2>📦 متابعة الأوردرات</h2>
 <p class="muted">التسلسل المسموح: طلب جديد ← جاري التنفيذ ← جاهز للتسليم ← تم التسليم. ممنوع القفز بين الحالات أو تسليم أوردر عليه منع.</p>
 <div style="overflow-x:auto"><table><thead><tr><th>الأوردر</th><th>العميل</th><th>المنتج/القسم</th><th>الحالة</th><th>التسليم</th><th>الإجراء</th></tr></thead><tbody id="orders"><tr><td colspan="6">جار تحميل بيانات التجربة...</td></tr></tbody></table></div>
