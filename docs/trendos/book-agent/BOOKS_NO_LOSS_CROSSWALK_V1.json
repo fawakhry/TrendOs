@@ -3900,5 +3900,139 @@
     "decision": "DO_NOT_DELETE_OR_VERBATIM_PUBLISH_BEFORE_PRIVATE_NO_LOSS_MIGRATION_OR_AUTHORIZED_REDACTION_STRATEGY",
     "full_entry_reconciliation": "OPEN",
     "new_production_evidence": false
+  },
+  "migration_continuation_independent_reverification_20261019": {
+    "task": "TRENDOS-SAFE-BOOK-MIGRATION-RESUME-20261019",
+    "date": "2026-10-19",
+    "observed_head_before_commit": "faf15347f39913c5fbc709710c38682fbdb4e4f3",
+    "source_master_blob_sha": "8ad577fc1b6379beafbd2975dc514d33b5b01e39",
+    "unified_catalog_blob_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde",
+    "protected_archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "protected_archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+    "verification_type": "ACTUAL_UTF8_JS_STRING_CONTENT_EQUALITY_WITH_EXPLICIT_BOUNDARY_NORMALIZATION",
+    "individual_exact_verbatim_rechecks": [
+      {
+        "entry_id": 615,
+        "unit": "036",
+        "characters": 28210,
+        "exact_archived_verbatim": true,
+        "archived_heading_at_start": true,
+        "result": "PASS"
+      },
+      {
+        "entry_id": 627,
+        "unit": "027",
+        "characters": 4197,
+        "exact_archived_verbatim": true,
+        "archived_heading_at_start": true,
+        "result": "PASS"
+      },
+      {
+        "entry_id": 630,
+        "unit": "028",
+        "characters": 2024,
+        "exact_archived_verbatim": true,
+        "archived_heading_at_start": true,
+        "result": "PASS"
+      },
+      {
+        "entry_id": 631,
+        "unit": "029",
+        "characters": 1983,
+        "exact_archived_verbatim": true,
+        "archived_heading_at_start": true,
+        "result": "PASS"
+      },
+      {
+        "entry_id": 632,
+        "unit": "030",
+        "characters": 1911,
+        "exact_archived_verbatim": true,
+        "archived_heading_at_start": true,
+        "result": "PASS"
+      },
+      {
+        "entry_id": 633,
+        "unit": "031",
+        "characters": 1415,
+        "exact_archived_verbatim": true,
+        "archived_heading_at_start": true,
+        "result": "PASS"
+      },
+      {
+        "entry_id": 634,
+        "unit": "032",
+        "characters": 1790,
+        "exact_archived_verbatim": true,
+        "archived_heading_at_start": true,
+        "result": "PASS"
+      },
+      {
+        "entry_id": 635,
+        "unit": "033",
+        "characters": 2734,
+        "exact_archived_verbatim": true,
+        "archived_heading_at_start": true,
+        "result": "PASS"
+      },
+      {
+        "entry_id": 636,
+        "unit": "034",
+        "characters": 2787,
+        "exact_archived_verbatim": true,
+        "archived_heading_at_start": true,
+        "result": "PASS"
+      }
+    ],
+    "contiguous_group_rechecks": [
+      {
+        "ids": "637-652",
+        "marker": "MASTER_ENTRY637_TO_652",
+        "characters": 82654,
+        "result": "PASS"
+      },
+      {
+        "ids": "653-659",
+        "marker": "MASTER_ENTRY653_TO_659",
+        "characters": 23502,
+        "result": "PASS"
+      }
+    ],
+    "entry619_reconciliation": {
+      "result": "PASS",
+      "archived_source_section_characters": 34721,
+      "exact_previously_migrated_exclusions": [
+        {
+          "scope": "MASTER_CLEANING_CHECKPOINT_20261002",
+          "characters": 619
+        },
+        {
+          "scope": "MASTER_ARCHIVE_NAV_POLICY",
+          "characters": 2617
+        },
+        {
+          "scope": "MASTER_ENTRY595_BASELINE_BLOCK",
+          "characters": 508
+        }
+      ],
+      "exclusion_total": 3744,
+      "unified_body_characters": 30976,
+      "separator": "One trailing LF outside 30,976-character body",
+      "no_duplicate_historical_units": true
+    },
+    "privacy_review": {
+      "entry615": "PRIOR_SCOPED_PRIVACY_REVIEW_RECORDED; ARCHIVE_VERBATIM_RECHECK_PASS",
+      "entry596_599_600": "BLOCKED_PRIVACY_REVIEW; REMAIN_IN_ACTIVE_MASTER; DO_NOT_COPY_PII_TO_PUBLIC_CATALOG",
+      "remaining_privacy_hold_heading_count": 2
+    },
+    "historical_units_complete_existing": 38,
+    "historical_units_newly_migrated_this_audit": 0,
+    "full_runtime_function_cross_reference": "OPEN_FOR_ALL_66_ORIGINAL_ENTRY_IDS",
+    "production_inference": "NONE",
+    "owner_final_cutover_approval": false,
+    "active_source_book_preserved": true,
+    "frozen_unified_book_unchanged": true,
+    "archives_untouched": true,
+    "next_safe_work": "Review Entry596 and Entry599/600 privacy-preserving preservation pathway and historical function-to-code cross-references; no public verbatim migration before approval."
   }
 }
