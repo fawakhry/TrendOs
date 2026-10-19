@@ -8313,20 +8313,22 @@
       630,
       644,
       650,
+      651,
       652,
       653,
       654,
       655,
+      657,
       658,
       659
     ],
-    "source_contract_review_count": 10,
-    "current_source_contract_review_pass": 10,
+    "source_contract_review_count": 12,
+    "current_source_contract_review_pass": 12,
     "original_entry_count": 66,
     "original_entry_full_runtime_reconciliations_closed": 0,
     "original_entry_current_runtime_reconciliations_remaining": 66,
-    "source_contract_review_remaining_without_individual_audit": 56,
-    "source_code_guard_checks": 27,
+    "source_contract_review_remaining_without_individual_audit": 54,
+    "source_code_guard_checks": 36,
     "old_book_active_write": true,
     "unified_book_frozen_migration_only": true,
     "historical_migration_units_preserved_and_verified": 38,
@@ -8443,5 +8445,54 @@
     "customer_data_used": "NONE",
     "no_d1_mutation_or_production_write": true,
     "full_functional_certification": "OPEN"
+  },
+  "entry651_657_current_source_contracts_20261020": {
+    "date": "2026-10-20",
+    "observed_head_before_commit": "a195fdf9cbb6e5b705672a786a6032e92fe28924",
+    "entries": [
+      651,
+      657
+    ],
+    "result": "SOURCE_CONTRACT_REVIEW_PASS_NO_RUNTIME_DEPLOY_EVIDENCE",
+    "checks": {
+      "restoreStartupVerifyBeforeBoot": true,
+      "restoreNativeVerifyViaApi": true,
+      "restoreRejectedSessionCleared": true,
+      "restoreNetworkFailureDoesNotBoot": true,
+      "otpSourceNotWorkerImported": true,
+      "otpSourceSecureBindings": true,
+      "otpIntentNoSMSOrLiveDB": true,
+      "otpMigrationUnappliedLabel": true,
+      "otpMigrationApprovedGrant": true
+    },
+    "blobs": [
+      {
+        "path": "app.js",
+        "sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+      },
+      {
+        "path": "cloudflare-d1/src/customer-portal-phone-enrollment-v0.mjs",
+        "sha": "5841468f5875208eb5164c05bd4dee8a12c16e64"
+      },
+      {
+        "path": "cloudflare-d1/migrations/0034_customer_portal_phone_otp_enrollment_v1.sql",
+        "sha": "5eeee6232cb749e7cb6ab04889a861d147b6d590"
+      },
+      {
+        "path": "cloudflare-d1/src/index_v2.js",
+        "sha": "4a555efb4b3f44ba371549d5cec055cc7ce1777f"
+      }
+    ],
+    "source_references": [
+      "app.js#L1696-L1777,L8113-L8115",
+      "cloudflare-d1/src/customer-portal-phone-enrollment-v0.mjs#L1-L9,L51-L65,L89-L119,L153-L177",
+      "cloudflare-d1/migrations/0034_customer_portal_phone_otp_enrollment_v1.sql#L1-L8,L35-L50"
+    ],
+    "caveats": [
+      "Historical Entry651 production proof in migrated text is NOT current Oct20 deployment proof.",
+      "Entry657 customer OTP is explicitly source-only. No SMS, no grant provisioning, no D1 apply, no customer identity authority.",
+      "No executable tests run in this task."
+    ],
+    "runtime_certification": "OPEN"
   }
 }
