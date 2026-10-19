@@ -1600,8 +1600,14 @@ async function saveDeptLineA2V1(env,auth,b){
   let department=text(b.department)||auth.department;if(auth.mode==='print')department='طباعة';if(auth.mode==='laser')department='ليزر';
   if(!orderId||!department||!itemName)return {success:false,message:'رقم الأوردر والقسم واسم البند مطلوبون.'};
   const id=text(b.accountingLineId||b.id||b.lineId)||text(b.requestId)||uid('ACC'),workDate=workDateKeyV1(b.workDate||b.date);
-  const existing=await env.DB.prepare("SELECT version,approval_status AS approvalStatus,final_invoice_no AS invoiceNo FROM employee_accounting_dept_lines_v1 WHERE accounting_line_id=?").bind(id).first();
+  const existing=await env.DB.prepare("SELECT version,order_id AS orderId,department,customer_name AS customerName,line_id AS sourceLineId,approval_status AS approvalStatus,final_invoice_no AS invoiceNo FROM employee_accounting_dept_lines_v1 WHERE accounting_line_id=?").bind(id).first();
   if(existing&&(text(existing.invoiceNo)||text(existing.approvalStatus)==='معتمد من القسم'))return {success:false,message:'لا يمكن تعديل بند تم اعتماده أو سحبه لفاتورة نهائية.'};
+  // A stable accounting_line_id belongs to one order, department, customer
+  // and original source line. A print user must not relocate a laser line.
+  if(existing&&(text(existing.orderId)!==orderId||text(existing.department)!==department||
+    (text(existing.customerName)&&text(existing.customerName)!==text(b.customerName))||
+    (text(existing.sourceLineId)&&text(existing.sourceLineId)!==text(b.lineId))))
+    return {success:false,code:'accounting-dept-line-immutable-identity',message:'لا يمكن تغيير الأوردر أو القسم أو العميل أو مرجع البند الأصلي لنفس بند الحسابات.'};
   const materialName=text(b.materialName),materialConsumption=num(b.materialConsumption||b.consumption||b.consumedAreaTotal);
   const materialCostValue=num(b.materialCost)||materialConsumption*await materialCost(env,materialName);
   const operating=num(b.operatingCost),other=num(b.otherCost),total=num(b.totalCost,materialCostValue+operating+other),sale=num(b.salePrice||b.lineTotal||b.systemSalePrice),profit=sale-total;
@@ -1898,11 +1904,27 @@ async function finalInvoiceA2V1(env,auth,b){
   }else lineRows=await rows(env,"SELECT * FROM employee_accounting_dept_lines_v1 WHERE order_id=? AND approval_status='معتمد من القسم' AND final_invoice_no='' ORDER BY accounting_line_id",[orderId]);
   if(!lineRows.length)return {success:false,message:'لا توجد بنود أقسام معتمدة ومفتوحة للتقفيل النهائي.'};
   if(ids.length&&lineRows.length!==ids.length)return {success:false,message:'بعض البنود غير معتمدة أو تم تقفيلها بالفعل.'};
+  // One final invoice must include every pending approved department line.
+  // Do not silently omit unapproved lines from the customer's invoice.
+  const allOpen=await rows(env,"SELECT accounting_line_id,approval_status,customer_name FROM employee_accounting_dept_lines_v1 WHERE order_id=? AND final_invoice_no='' ORDER BY accounting_line_id",[orderId]);
+  if(allOpen.some(x=>text(x.approval_status)!=='معتمد من القسم'))
+    return {success:false,code:'accounting-dept-lines-not-all-approved',message:'يوجد بنود قسم لم تعتمد بعد؛ لا يمكن تقفيل جزء من فاتورة الأوردر.'};
+  if(allOpen.length!==lineRows.length)
+    return {success:false,code:'accounting-final-invoice-missing-dept-lines',message:'يجب ضم كل بنود وائل وجابر المعتمدة في فاتورة عميل واحدة.'};
+  const lineCustomerNames=new Set(lineRows.map(x=>key(x.customer_name)));
+  if(lineCustomerNames.has('')||lineCustomerNames.size!==1)
+    return {success:false,code:'accounting-dept-customer-unverified',message:'اسم العميل في بنود الأقسام ناقص أو غير متطابق. يلزم مراجعة ربط العميل قبل التقفيل.'};
   ids=lineRows.map(x=>text(x.accounting_line_id));
   const subtotal=lineRows.reduce((a,l)=>a+num(l.sale_price),0),manualAmount=Math.max(0,num(b.manualAmount||b.manualValue)),discount=Math.max(0,num(b.discount)),finalTotal=Math.max(0,subtotal+manualAmount-discount),paid=Math.max(0,num(b.paid));
   if(!(finalTotal>0))return {success:false,message:'إجمالي الفاتورة يجب أن يكون أكبر من صفر.'};
   if(paid>finalTotal+0.000001)return {success:false,message:'المدفوع لا يمكن أن يزيد عن إجمالي الفاتورة.'};
   const remaining=Math.max(0,finalTotal-paid),customer=await resolvePartyV1(env,'customer',{customerId:b.customerId,customerName:b.customerName||b.customer});
+  if(!lineCustomerNames.has(key(customer.partyName)))
+    return {success:false,code:'accounting-final-customer-mismatch',message:'عميل الفاتورة الرسمية مختلف عن عميل بنود الأوردر. يمنع التقفيل والتحصيل.'};
+  // A reopened UNDER_REVIEW invoice can be replaced; an active CLOSED one
+  // cannot be followed by another financial invoice for the same order.
+  const alreadyClosed=await env.DB.prepare("SELECT invoice_no AS invoiceNo FROM employee_accounting_final_invoices_v1 WHERE order_id=? AND status IN ('CLOSED','مغلق') LIMIT 1").bind(orderId).first();
+  if(alreadyClosed)return {success:false,code:'accounting-order-already-final-invoiced',message:'الأوردر له فاتورة نهائية مغلقة بالفعل. لا يمكن إنشاء فاتورة مالية ثانية.'};
   if(customerCreditEnabledV1(env)&&await customerCreditReadV1(env,customer.partyId)>0)
     return {success:false,code:'customer-credit-final-invoice-needs-verified-adapter',message:'لا يمكن تجاهل رصيد العميل الدائن عند تقفيل فاتورة أقسام. يلزم المسار المعتمد أولًا.'};
   const workDate=workDateKeyV1(b.workDate||b.date),department=accountingDepartmentV1(b.department)||text(b.department)||'كل الأقسام';
@@ -1922,8 +1944,8 @@ async function finalInvoiceA2V1(env,auth,b){
   if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true,trustedByServer:true};
   const invoiceNo=await nextInvoiceNo(env),now=Date.now(),newCash=Math.max(0,paid-heldPayment),statements=[];
   const qs=ids.map(()=>'?').join(',');
-  let insertSql="INSERT INTO employee_accounting_final_invoices_v1(invoice_no,request_key,order_id,customer_name,customer_party_id,accounting_line_ids_json,manual_item,manual_amount,subtotal,discount,final_total,paid,remaining,payment_method,finance_department,status,closed_by,notes,created_at_ms,work_date,version) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'CLOSED',?,?,?,?,1 WHERE (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE accounting_line_id IN ("+qs+") AND order_id=? AND approval_status='معتمد من القسم' AND final_invoice_no='')=?";
-  const insertBind=[invoiceNo,ctx.requestKey,orderId,customer.partyName,customer.partyId,JSON.stringify(ids),text(b.manualItem||b.manualDescription),manualAmount,subtotal,discount,finalTotal,paid,remaining,text(b.paymentType||b.paymentMethod||'آجل'),department,auth.user.username,text(b.notes),now,workDate,...ids,orderId,ids.length];
+  let insertSql="INSERT INTO employee_accounting_final_invoices_v1(invoice_no,request_key,order_id,customer_name,customer_party_id,accounting_line_ids_json,manual_item,manual_amount,subtotal,discount,final_total,paid,remaining,payment_method,finance_department,status,closed_by,notes,created_at_ms,work_date,version) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'CLOSED',?,?,?,?,1 WHERE (SELECT COUNT(*) FROM employee_accounting_dept_lines_v1 WHERE accounting_line_id IN ("+qs+") AND order_id=? AND approval_status='معتمد من القسم' AND final_invoice_no='')=? AND NOT EXISTS(SELECT 1 FROM employee_accounting_final_invoices_v1 WHERE order_id=? AND status IN ('CLOSED','مغلق'))";
+  const insertBind=[invoiceNo,ctx.requestKey,orderId,customer.partyName,customer.partyId,JSON.stringify(ids),text(b.manualItem||b.manualDescription),manualAmount,subtotal,discount,finalTotal,paid,remaining,text(b.paymentType||b.paymentMethod||'آجل'),department,auth.user.username,text(b.notes),now,workDate,...ids,orderId,ids.length,orderId];
   if(heldPayment>0){insertSql+=" AND EXISTS(SELECT 1 FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND status='UNDER_REVIEW' AND replacement_invoice_no='' AND held_paid=? AND (customer_party_id='' OR customer_party_id=?))";insertBind.push(heldFrom,heldPayment,customer.partyId);}
   statements.push(env.DB.prepare(insertSql).bind(...insertBind));
   statements.push(env.DB.prepare("UPDATE employee_accounting_party_balances_v1 SET balance=balance+?,version=version+1,last_request_key=?,party_name=?,updated_at_ms=?,updated_at=CURRENT_TIMESTAMP WHERE party_type='customer' AND party_id=? AND version=? AND EXISTS(SELECT 1 FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? AND request_key=?)").bind(remaining,ctx.requestKey,customer.partyName,now,customer.partyId,balanceVersion,invoiceNo,ctx.requestKey));
