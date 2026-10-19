@@ -8314,17 +8314,19 @@
       644,
       650,
       652,
+      653,
       654,
       655,
+      658,
       659
     ],
-    "source_contract_review_count": 8,
-    "current_source_contract_review_pass": 8,
+    "source_contract_review_count": 10,
+    "current_source_contract_review_pass": 10,
     "original_entry_count": 66,
     "original_entry_full_runtime_reconciliations_closed": 0,
     "original_entry_current_runtime_reconciliations_remaining": 66,
-    "source_contract_review_remaining_without_individual_audit": 58,
-    "source_code_guard_checks": 21,
+    "source_contract_review_remaining_without_individual_audit": 56,
+    "source_code_guard_checks": 27,
     "old_book_active_write": true,
     "unified_book_frozen_migration_only": true,
     "historical_migration_units_preserved_and_verified": 38,
@@ -8361,7 +8363,8 @@
       }
     ],
     "final_go_no_go": "NO_GO",
-    "owner_approval_on_cutover": false
+    "owner_approval_on_cutover": false,
+    "extra_evidence_date": "2026-10-20"
   },
   "entry653_legacy_employee_proxy_retirement_source_20261020": {
     "date": "2026-10-20",
@@ -8402,5 +8405,43 @@
     ],
     "runtime_certification": "OPEN",
     "owner_approval_needed": true
+  },
+  "entry658_atomic_otp_inert_source_contract_20261020": {
+    "date": "2026-10-20",
+    "head_before_commit": "211a96f92c68e9ca1a40cd0e4c7d19f9e23eee3f",
+    "entry_id": 658,
+    "result": "SOURCE_CONTRACT_VERIFIED_NOT_LIVE_AND_NOT_EXECUTED",
+    "checks": {
+      "fiveSqlStatementsDefined": true,
+      "noWorkerImport": true,
+      "sourceExplicitNoProduction": true,
+      "sqlControlGates": true,
+      "offlineSqlTestUsesMemoryDb": true,
+      "sourceChecksBlockNetwork": true,
+      "bothTestFilesPinned": true
+    },
+    "files": [
+      {
+        "path": "cloudflare-d1/src/customer-portal-phone-otp-atomic-sql-v0.mjs",
+        "blob_sha": "7ee3684295bd1a7ccf92b374576e2d237e8bc66e"
+      },
+      {
+        "path": "tests/entry658_customer_phone_otp_atomic_sqlite.test.py",
+        "blob_sha": "2a8bbe95a15349e60893964970cb64154ddb1fef"
+      },
+      {
+        "path": "tests/entry658_customer_otp_atomic_source.test.mjs",
+        "blob_sha": "079c4cd8bb08e47fb31b3d4fa41645f7cf790234"
+      },
+      {
+        "path": "cloudflare-d1/src/index_v2.js",
+        "blob_sha": "4a555efb4b3f44ba371549d5cec055cc7ce1777f"
+      }
+    ],
+    "historical_test_boundary": "Node source-only and Python SQLite :memory: test definitions present; not executed this session",
+    "live_runtime_and_sms": "NO_GO",
+    "customer_data_used": "NONE",
+    "no_d1_mutation_or_production_write": true,
+    "full_functional_certification": "OPEN"
   }
 }
