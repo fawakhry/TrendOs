@@ -1,7 +1,7 @@
 """SERVER-78: ONE read-only Cloudflare reality check for D01..D06.
 
-Only deployed Worker metadata, Worker code marker booleans and Worker settings
-binding TYPES/NAMES. No customer/order/D1/R2 reads, script writes/deploys,
+Only deployed Worker metadata, Worker code marker booleans, Worker settings
+binding TYPES/NAMES and Workers.dev subdomain publication booleans. No customer/order/D1/R2 reads, script writes/deploys,
 Ubuntu access or credential printing. This is never a six-gate approval.
 Requires an explicit CLI flag and an environment runtime interlock.
 """
@@ -50,7 +50,7 @@ class RemoteEvidenceError(Exception):
 def _api_get(opener, token, account, worker, suffix, *, byte_limit):
     version_read = (worker in ("trendos", "trendos-d1-api")
                     and re.fullmatch(r"/versions/[a-fA-F0-9-]{36}", suffix) is not None)
-    if worker not in _WORKERS or (suffix not in ("/deployments", "/content/v2", "/settings")
+    if worker not in _WORKERS or (suffix not in ("/deployments", "/content/v2", "/settings", "/subdomain")
                                     and not version_read):
         raise RemoteEvidenceError("UNEXPECTED_WORKER_OR_API_PATH")
     if not re.fullmatch(r"[a-fA-F0-9]{32}", account):
@@ -164,6 +164,23 @@ def _code(data):
     }
 
 
+def _subdomain(data):
+    if not data.get("verified"):
+        return {"verified": False, "reason": data.get("reason", "UNVERIFIED")}
+    result = data["result"]
+    enabled = result.get("enabled")
+    previews = result.get("previews_enabled")
+    if type(enabled) is not bool or type(previews) is not bool:
+        return {"verified": False, "reason": "PUBLICATION_FLAGS_UNVERIFIED"}
+    return {
+        "verified": True,
+        "workersDevPublished": enabled,
+        "previewUrlsPublished": previews,
+        "cloudflareAccessVerified": False,
+        "publicDataExposureProven": False,
+    }
+
+
 def _settings(data):
     if not data.get("verified"):
         return {"verified": False, "reason": data.get("reason", "UNVERIFIED")}
@@ -232,8 +249,8 @@ def unified_report(queue, opener=None, token="", account="", enabled=False):
     workers = {}
     if remote:
         for worker in _WORKERS:
-            endpoints = ("/deployments", "/content/v2", "/settings") if worker == "trendos-d1-api" else (
-                "/deployments", "/content/v2") if worker == "trendos" else ("/deployments",)
+            endpoints = ("/deployments", "/content/v2", "/settings", "/subdomain") if worker == "trendos-d1-api" else (
+                "/deployments", "/content/v2", "/subdomain") if worker == "trendos" else ("/deployments", "/subdomain")
             detail = {}
             active_version_id = ""
             for suffix in endpoints:
@@ -242,9 +259,9 @@ def unified_report(queue, opener=None, token="", account="", enabled=False):
                 if suffix == "/deployments":
                     active_version_id = _active_version_id(data)
                 key = {"/deployments": "deployment", "/content/v2": "code",
-                       "/settings": "settings"}[suffix]
+                       "/settings": "settings", "/subdomain": "publication"}[suffix]
                 detail[key] = {"/deployments": _deployments, "/content/v2": _code,
-                               "/settings": _settings}[suffix](data)
+                               "/settings": _settings, "/subdomain": _subdomain}[suffix](data)
             if worker in ("trendos", "trendos-d1-api"):
                 if active_version_id:
                     detail["activeVersion"] = _active_version_detail(
@@ -261,7 +278,7 @@ def unified_report(queue, opener=None, token="", account="", enabled=False):
         "schema": "trendos.server78.unified-six-stage-live-reality.v1",
         "reportKind": "CLOUD_METADATA_SOURCE_AUDIT_ONLY",
         "remoteCloudflareApiGetPerformed": bool(remote),
-        "scope": "WORKER_DEPLOYMENTS_SCRIPT_CONTENT_AND_BINDING_METADATA_ONLY",
+        "scope": "WORKER_DEPLOYMENTS_SCRIPT_CONTENT_BINDING_AND_SUBDOMAIN_METADATA_ONLY",
         "workers": workers,
         "steps": _stage_rows(queue, workers),
         "release": "NO_GO",
