@@ -6989,5 +6989,428 @@
     "other_projects_books_not_modified": true,
     "new_catalog_unchanged": true,
     "owner_final_approval": false
+  },
+  "current_catalog_original_entry_coverage_20261019": {
+    "date": "2026-10-19",
+    "observed_head_before_commit": "532f0d8c64bda15ef54c8156fc3a70f79eb6673e",
+    "catalog_blob_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde",
+    "active_master_blob_sha": "75cbaaed57257237e5ef52a2e2802e2c1f7c1f42",
+    "original_entry_ids": 66,
+    "explicit_entry_identifiers_present_in_catalog": 65,
+    "absent_identifiers": [
+      600
+    ],
+    "absent_in_catalog_but_preserved_in_active_book": [
+      600
+    ],
+    "nonstandalone_archived_mentions_already_present": [
+      498,
+      533,
+      595,
+      628
+    ],
+    "verified_historical_units_total": 38,
+    "preserved_migrated_entry_ids_total": 59,
+    "full_runtime_semantic_mappings_verified": 0,
+    "method": "Exact EntryNNN token presence; group Entry599/600 does not count as literal Entry600. Counts do NOT measure documentation meaning or completeness.",
+    "counts": [
+      {
+        "entry": 498,
+        "catalog": 1,
+        "active": 0,
+        "unit": null
+      },
+      {
+        "entry": 533,
+        "catalog": 2,
+        "active": 0,
+        "unit": null
+      },
+      {
+        "entry": 595,
+        "catalog": 2,
+        "active": 1,
+        "unit": null
+      },
+      {
+        "entry": 596,
+        "catalog": 3,
+        "active": 5,
+        "unit": null
+      },
+      {
+        "entry": 597,
+        "catalog": 7,
+        "active": 3,
+        "unit": "002"
+      },
+      {
+        "entry": 598,
+        "catalog": 4,
+        "active": 3,
+        "unit": "003"
+      },
+      {
+        "entry": 599,
+        "catalog": 3,
+        "active": 7,
+        "unit": null
+      },
+      {
+        "entry": 600,
+        "catalog": 0,
+        "active": 5,
+        "unit": null
+      },
+      {
+        "entry": 601,
+        "catalog": 6,
+        "active": 1,
+        "unit": "006"
+      },
+      {
+        "entry": 602,
+        "catalog": 2,
+        "active": 0,
+        "unit": "006"
+      },
+      {
+        "entry": 603,
+        "catalog": 6,
+        "active": 2,
+        "unit": "007"
+      },
+      {
+        "entry": 604,
+        "catalog": 5,
+        "active": 0,
+        "unit": "007"
+      },
+      {
+        "entry": 605,
+        "catalog": 9,
+        "active": 0,
+        "unit": "007"
+      },
+      {
+        "entry": 606,
+        "catalog": 6,
+        "active": 3,
+        "unit": "008"
+      },
+      {
+        "entry": 607,
+        "catalog": 2,
+        "active": 3,
+        "unit": "009"
+      },
+      {
+        "entry": 608,
+        "catalog": 6,
+        "active": 3,
+        "unit": "010"
+      },
+      {
+        "entry": 609,
+        "catalog": 8,
+        "active": 5,
+        "unit": "011"
+      },
+      {
+        "entry": 610,
+        "catalog": 13,
+        "active": 4,
+        "unit": "012"
+      },
+      {
+        "entry": 611,
+        "catalog": 17,
+        "active": 4,
+        "unit": "013"
+      },
+      {
+        "entry": 612,
+        "catalog": 7,
+        "active": 3,
+        "unit": "014"
+      },
+      {
+        "entry": 613,
+        "catalog": 6,
+        "active": 2,
+        "unit": "015"
+      },
+      {
+        "entry": 614,
+        "catalog": 8,
+        "active": 1,
+        "unit": "016"
+      },
+      {
+        "entry": 615,
+        "catalog": 23,
+        "active": 2,
+        "unit": "036"
+      },
+      {
+        "entry": 616,
+        "catalog": 8,
+        "active": 1,
+        "unit": "017"
+      },
+      {
+        "entry": 617,
+        "catalog": 5,
+        "active": 1,
+        "unit": "018"
+      },
+      {
+        "entry": 618,
+        "catalog": 4,
+        "active": 1,
+        "unit": "019"
+      },
+      {
+        "entry": 619,
+        "catalog": 9,
+        "active": 2,
+        "unit": "035"
+      },
+      {
+        "entry": 620,
+        "catalog": 3,
+        "active": 1,
+        "unit": "020"
+      },
+      {
+        "entry": 621,
+        "catalog": 2,
+        "active": 1,
+        "unit": "021"
+      },
+      {
+        "entry": 622,
+        "catalog": 8,
+        "active": 1,
+        "unit": "022"
+      },
+      {
+        "entry": 623,
+        "catalog": 19,
+        "active": 1,
+        "unit": "023"
+      },
+      {
+        "entry": 624,
+        "catalog": 7,
+        "active": 1,
+        "unit": "024"
+      },
+      {
+        "entry": 625,
+        "catalog": 5,
+        "active": 1,
+        "unit": "025"
+      },
+      {
+        "entry": 626,
+        "catalog": 2,
+        "active": 1,
+        "unit": "026"
+      },
+      {
+        "entry": 627,
+        "catalog": 6,
+        "active": 2,
+        "unit": "027"
+      },
+      {
+        "entry": 628,
+        "catalog": 1,
+        "active": 0,
+        "unit": null
+      },
+      {
+        "entry": 630,
+        "catalog": 3,
+        "active": 1,
+        "unit": "028"
+      },
+      {
+        "entry": 631,
+        "catalog": 4,
+        "active": 1,
+        "unit": "029"
+      },
+      {
+        "entry": 632,
+        "catalog": 5,
+        "active": 1,
+        "unit": "030"
+      },
+      {
+        "entry": 633,
+        "catalog": 4,
+        "active": 1,
+        "unit": "031"
+      },
+      {
+        "entry": 634,
+        "catalog": 4,
+        "active": 1,
+        "unit": "032"
+      },
+      {
+        "entry": 635,
+        "catalog": 5,
+        "active": 1,
+        "unit": "033"
+      },
+      {
+        "entry": 636,
+        "catalog": 5,
+        "active": 1,
+        "unit": "034"
+      },
+      {
+        "entry": 637,
+        "catalog": 16,
+        "active": 2,
+        "unit": "037"
+      },
+      {
+        "entry": 638,
+        "catalog": 4,
+        "active": 0,
+        "unit": "037"
+      },
+      {
+        "entry": 639,
+        "catalog": 2,
+        "active": 0,
+        "unit": "037"
+      },
+      {
+        "entry": 640,
+        "catalog": 3,
+        "active": 0,
+        "unit": "037"
+      },
+      {
+        "entry": 641,
+        "catalog": 4,
+        "active": 0,
+        "unit": "037"
+      },
+      {
+        "entry": 642,
+        "catalog": 10,
+        "active": 1,
+        "unit": "037"
+      },
+      {
+        "entry": 643,
+        "catalog": 14,
+        "active": 0,
+        "unit": "037"
+      },
+      {
+        "entry": 644,
+        "catalog": 2,
+        "active": 0,
+        "unit": "037"
+      },
+      {
+        "entry": 645,
+        "catalog": 1,
+        "active": 0,
+        "unit": "037"
+      },
+      {
+        "entry": 646,
+        "catalog": 2,
+        "active": 0,
+        "unit": "037"
+      },
+      {
+        "entry": 647,
+        "catalog": 3,
+        "active": 0,
+        "unit": "037"
+      },
+      {
+        "entry": 648,
+        "catalog": 2,
+        "active": 0,
+        "unit": "037"
+      },
+      {
+        "entry": 649,
+        "catalog": 1,
+        "active": 0,
+        "unit": "037"
+      },
+      {
+        "entry": 650,
+        "catalog": 1,
+        "active": 0,
+        "unit": "037"
+      },
+      {
+        "entry": 651,
+        "catalog": 2,
+        "active": 0,
+        "unit": "037"
+      },
+      {
+        "entry": 652,
+        "catalog": 5,
+        "active": 0,
+        "unit": "037"
+      },
+      {
+        "entry": 653,
+        "catalog": 4,
+        "active": 1,
+        "unit": "038"
+      },
+      {
+        "entry": 654,
+        "catalog": 6,
+        "active": 0,
+        "unit": "038"
+      },
+      {
+        "entry": 655,
+        "catalog": 2,
+        "active": 0,
+        "unit": "038"
+      },
+      {
+        "entry": 656,
+        "catalog": 4,
+        "active": 0,
+        "unit": "038"
+      },
+      {
+        "entry": 657,
+        "catalog": 2,
+        "active": 0,
+        "unit": "038"
+      },
+      {
+        "entry": 658,
+        "catalog": 3,
+        "active": 0,
+        "unit": "038"
+      },
+      {
+        "entry": 659,
+        "catalog": 2,
+        "active": 0,
+        "unit": "038"
+      }
+    ],
+    "decision": "Retain Entry599/600 privacy hold, no public raw copy, owner final cutover blocked until independent functional and privacy evidence."
   }
 }
