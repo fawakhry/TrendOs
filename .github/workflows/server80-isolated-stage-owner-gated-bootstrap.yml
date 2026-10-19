@@ -41,6 +41,7 @@ jobs:
           set -euo pipefail
           test "$SERVER80_APPROVAL" = 'SERVER80_AUTHORIZE_NEW_PRIVATE_STAGE_ONLY'
           test "$GITHUB_ACTOR" = 'fawakhry'
+          test "$GITHUB_REPOSITORY" = 'fawakhry/TrendOs'
           test "$GITHUB_REF" = 'refs/heads/main'
           [[ "$SERVER80_EXPECTED_COMMIT" =~ ^[a-f0-9]{40}$ ]]
           test -n "$CLOUDFLARE_API_TOKEN"
@@ -77,17 +78,22 @@ jobs:
                   return None
           account = os.environ['CLOUDFLARE_ACCOUNT_ID']
           token = os.environ['CLOUDFLARE_API_TOKEN']
-          url = 'https://api.cloudflare.com/client/v4/accounts/' + account + '/workers/scripts/trendos-server68-isolated-stage/deployments'
-          req = Request(url, method='GET', headers={'Authorization': 'Bearer '+token, 'Accept': 'application/json'})
+          base = 'https://api.cloudflare.com/client/v4/accounts/' + account + '/workers/scripts/trendos-server68-isolated-stage'
           client = build_opener(ProxyHandler({}), HTTPSHandler(), NoRedirect())
-          try:
-              with client.open(req, timeout=15):
-                  raise SystemExit('SERVER80_TARGET_ALREADY_EXISTS_ABORT_NO_DEPLOY')
-          except HTTPError as exc:
-              code = exc.code
-              exc.close()
-              if code != 404:
-                  raise SystemExit('SERVER80_TARGET_VERIFICATION_FAILED_NO_DEPLOY')
+          # Independently verify that neither script/settings nor deployments
+          # exist. 404 alone on deployments is insufficient for "new Worker".
+          for suffix in ('', '/settings', '/deployments'):
+              req = Request(base+suffix, method='GET', headers={
+                  'Authorization': 'Bearer '+token, 'Accept': 'application/json'
+              })
+              try:
+                  with client.open(req, timeout=15):
+                      raise SystemExit('SERVER80_TARGET_ALREADY_EXISTS_ABORT_NO_DEPLOY')
+              except HTTPError as exc:
+                  code = exc.code
+                  exc.close()
+                  if code != 404:
+                      raise SystemExit('SERVER80_TARGET_VERIFICATION_FAILED_NO_DEPLOY')
           print('SERVER80_NEW_STAGE_NAME_CONFIRMED_ABSENT=YES')
           PY
       - name: Offline Wrangler dry-run (no Cloudflare mutation)
