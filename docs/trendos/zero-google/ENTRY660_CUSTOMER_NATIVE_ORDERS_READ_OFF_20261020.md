@@ -16,7 +16,7 @@
 
 ```bash
 node --test tests/entry660_customer_native_orders_off.test.mjs
-python3 -m unittest tests/entry660_customer_native_orders_sqlite.test.py -v
+python3 tests/entry660_customer_native_orders_sqlite.test.py -v
 ```
 
 اختبار SQLite فعلي في الذاكرة يحمّل migrations 0005/0006/0008/0032/0033 إلى **قاعدة مصطنعة مؤقتة**، ثم يختبر جلسة موظف/عميل مختلفة، انتهاءها، تغيير كلمة المرور (session_version)، إبطالها، وضع التحكم OFF/CANARY، تطابق portal_code، ملكية VERIFIED/REVOKED، mismatch في external_customer_id، وقائمة البنود الآمنة. جميع الهوية والقيم في الاختبار وهمية.
