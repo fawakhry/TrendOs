@@ -5183,11 +5183,71 @@
         "path": "customer-manager-v1.js",
         "result": "PATH_EXISTS",
         "current_blob_sha": "9627116f22f00eb5d7282638c19dbe95d89332f7"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-comms-native-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "f415d06ccd15ba241d679c61b7afeb6ec904e4b8"
+      },
+      {
+        "path": "tests/entry614_employee_comms_native.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "e12c19a4d30f915d421706dbe56140babac5be5b"
+      },
+      {
+        "path": "tests/entry630_employee_comms_readonly_dispatch.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "b51df382024579f7a9152eb2400af90dffabce64"
+      },
+      {
+        "path": "tests/trendos_whatsapp_integrity_v1.test.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "924962b313fae6170425037a3d8cd0378aaa7b8f"
+      },
+      {
+        "path": "cloudflare-d1/src/accounting-native-module.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "65ebbbf37a0cff1bc807bd3f434eaf7b1282d05d"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "66440daa0c737966221f5b279a210b4211144d2c"
+      },
+      {
+        "path": "gaber-easystore-ledger-adapter-v1.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "e2916d475c963737cb41b14858e3eefeea773a4f"
+      },
+      {
+        "path": "gaber-ledger-daily-report-v1.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "5d1cce2f88e2a06e7f7f928ba89b6442e4e19861"
+      },
+      {
+        "path": "tests/entry614_employee_accounting_native.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "1977dcefe399114c99700bed6e08c19a339f2fd8"
+      },
+      {
+        "path": "tests/gaber_easystore_ledger_adapter_v1.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "27b9169f2def11fd295989a4afea0b44e5d5a195"
+      },
+      {
+        "path": "tests/gaber_ledger_daily_report_balance_gate_v1.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "4ed61995cbd344f0988d8e553580425252d51c15"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-core-native-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "90b8d2d2353b3cbb2d85f8500e54bc64cfc3c82e"
       }
     ],
     "runtime_verified": false,
-    "checked_count": 36,
-    "present_count": 36,
+    "checked_count": 48,
+    "present_count": 48,
     "unresolved_count": 0
   }
 }
