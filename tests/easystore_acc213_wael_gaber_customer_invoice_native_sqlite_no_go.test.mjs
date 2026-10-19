@@ -106,7 +106,6 @@ await test('ACC213: Wael/Gaber department lines become exactly one authenticated
     assert.equal(row.department,'طباعة');
     assert.equal(row.customer_name,'ACC213 FAKE A');
   });
-  assert.equal((await addLine('ACC213_GABER','ACC213_LASER_1','fake laser job',30)).success,true);
   await t.test('department approver cannot close, finance closer cannot approve department',async()=>{
     const deny=await send('ACC213_RAHMA','approveAccountingDeptInvoice',{requestId:rid(),orderId:'ACC213_ORDER_A',department:'طباعة'});
     assert.equal(deny.success,false,JSON.stringify(deny));
@@ -116,6 +115,7 @@ await test('ACC213: Wael/Gaber department lines become exactly one authenticated
     const wrong=await send('ACC213_GABER','approveAccountingDeptInvoice',{requestId:rid(),orderId:'ACC213_ORDER_A',department:'طباعة'});
     assert.equal(wrong.success,false,JSON.stringify(wrong));
   });
+  assert.equal((await addLine('ACC213_GABER','ACC213_LASER_1','fake laser job',30)).success,true);
   for(const [user,department] of [['ACC213_WAEL','طباعة'],['ACC213_GABER','ليزر']]){
     const a=await send(user,'approveAccountingDeptInvoice',{requestId:rid(),orderId:'ACC213_ORDER_A',department});
     assert.equal(a.success,true,JSON.stringify(a));
