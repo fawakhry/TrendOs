@@ -36,7 +36,7 @@ jobs:
       - name: Run actual SQL against disposable Python SQLite DB and five migrations
         run: |
           set -euo pipefail
-          python3 -m unittest tests/entry660_customer_native_orders_sqlite.test.py -v
+          python3 tests/entry660_customer_native_orders_sqlite.test.py -v
       - name: Preserve customer Google forwarding and no-regression for employee transport
         run: |
           set -euo pipefail
