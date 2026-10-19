@@ -281,6 +281,21 @@ try{
  // Explicit pinning of phase-one mode alone is not production GO. With fake
  // G2 roster and simulated GENERAL in ephemeral SQLite, actual native sale
  // and ordinary customer receipt remain available on their original paths.
+ // ACC212 fake STATIC fixture: public keys and signatures only, never
+ // private keys, real custody, actual cash or production approval.
+ const fakeOpening={version:1,scope:'PHASE1_CASH_ONLY',zeroOpening:true,
+   cutoverDate:'2026-10-20',preparedBy:'ACC212_FAKE_CASHIER',
+   reviewedBy:'ACC212_FAKE_REVIEWER',customerReceivablesCents:0,
+   supplierPayablesCents:0,cashCents:0,stockUnits:0,otherLiabilitiesCents:0,
+   sourceHashes:{customers:'a'.repeat(64),suppliers:'b'.repeat(64),
+     cash:'c'.repeat(64),stock:'d'.repeat(64),other:'e'.repeat(64)},
+   preparerSignature:'h3k3GEykce0puqqVoo_3Ts2D1zV9Ll6sgbROCLUcF3uMJ2_CBo8D6ULIYjRPtKJBmC3AyT2OBzNgnHDbVlYjCQ',
+   reviewerSignature:'UjkkRN_nS4CdOEw_tjR6WUoV2FBHObxqK8-7qzplZ_FPNOjFU26PM6TDHXED_OrnenewPTgjscu8wCEbpCEWBQ'};
+ env.ACCOUNTING_FINANCE_OPENING_PREPARER_PUBLIC_JWK_V1=JSON.stringify({
+   kty:'OKP',crv:'Ed25519',x:'TiknAcR7kEwMWFrw_sWCZY-sA45n2HuKSuRo0FP4PYA'});
+ env.ACCOUNTING_FINANCE_OPENING_REVIEWER_PUBLIC_JWK_V1=JSON.stringify({
+   kty:'OKP',crv:'Ed25519',x:'LQT4eNpI7LNvyyw8CJHjp1laRoP_nPV0G2IcOnsGCmM'});
+ env.ACCOUNTING_FINANCE_OPENING_ZERO_ATTESTATION_V1=JSON.stringify(fakeOpening);
  const newSale=await send('saveEasyStoreSaleV2',{
    requestId:'ACC211-PHASE1-SALE-0001',customerId:customer,department:'طباعة',
    item:'ACC187_FAKE_MATERIAL',invoiceNo:'ACC211-PHASE1-INV-0001',
