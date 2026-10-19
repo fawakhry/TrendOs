@@ -820,7 +820,7 @@ try{
 
   const fakeApprovedFinalLine=(label,amount=45)=>{
     const orderId='FAKE_FINAL_ORDER_'+label,lineId='FAKE_FINAL_LINE_'+label;
-    db.prepare("INSERT INTO employee_accounting_dept_lines_v1(accounting_line_id,order_id,department,item_name,approval_status,sale_price,final_invoice_no,version) VALUES(?,?,'طباعة','FAKE_FINAL_SERVICE','معتمد من القسم',?,'',1)")
+    db.prepare("INSERT INTO employee_accounting_dept_lines_v1(accounting_line_id,order_id,department,customer_name,item_name,approval_status,sale_price,final_invoice_no,version) VALUES(?,?,'طباعة','FAKE_ONLY_FAKE_CUST_A','FAKE_FINAL_SERVICE','معتمد من القسم',?,'',1)")
       .run(lineId,orderId,amount);
     return {requestId:'FAKE_FINAL_COMMAND_'+label+'_0001',orderId,lineIds:[lineId],
       customerId:'FAKE_CUST_A',department:'طباعة',workDate:'2099-12-31',
