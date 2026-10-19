@@ -4,6 +4,7 @@ import http from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {DatabaseSync} from 'node:sqlite';
 import {randomBytes,timingSafeEqual} from 'node:crypto';
+import {inspectCoreD1ReadContractV1,syntheticCoreD1ReadFixtureV1} from './core-d1-read-compatibility-v1.mjs';
 import {fileURLToPath} from 'node:url';
 import {resolve,dirname} from 'node:path';
 
@@ -105,6 +106,8 @@ export async function startPilot({port=4178}={}){
       }
       if(req.method==='GET'&&name==='/api/session')return reply(res,200,{success:true,token,mode:'SYNTHETIC_LOCAL_ONLY',financeRelease:'NO_GO'});
       if(!authorized(req,token))return deny(res,401,'PILOT_TOKEN_REQUIRED');
+      if(req.method==='GET'&&name==='/api/core-read-compatibility')
+        return reply(res,200,inspectCoreD1ReadContractV1(syntheticCoreD1ReadFixtureV1()));
       if(req.method==='GET'&&name==='/api/orders')return reply(res,200,{success:true,orders:rows(db),financeRelease:'NO_GO'});
       const auditMatch=/^\/api\/orders\/(DEMO-\d{4,})\/history$/.exec(name);
       if(req.method==='GET'&&auditMatch){
