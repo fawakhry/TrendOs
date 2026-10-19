@@ -55,6 +55,46 @@ loopback-only trial, NOT trusted SSO or cross-device authorization.
 
 Test starts real 127.0.0.1 HTTP server on ephemeral port with real disposable SQLite. Tests include HTTP get/create/update, manager counters, blocking conditions, financial endpoint denials and ephemeral restart. It is NOT simulated frontend-only tests and does NOT verify cloud/production integrations.
 
+## Core/D1 read-contract preflight — source-only V2, no actual backend
+
+This pilot can show a **fake Core-shaped** `/api/core-read-compatibility` report.
+It is protected by the local ephemeral token and has no other input or external
+connector. It aggregates **synthetic** Core line records, **not** real D1
+orders, and never includes names, phones, notes, raw line/order identifiers,
+amounts or live debt.
+
+The contract is pinned to the repository's existing
+`cloudflare-d1/src/employee-core-native-v1.mjs`:
+`getRows/getRowsPageV1931`, `dataSource='employee-core-d1'`,
+`version='ENTRY650_D1_EMPLOYEE_CORE_PAGE_ALIAS_V1'`,
+`serverPaged=false`, one row **per lineId**, and original statuses
+`طلب جديد`, `بدأ التنفيذ`, `تحت التنفيذ`, `جاهز للاستلام`,
+`تم التسليم`, `متوقف`, `مكرر`, `ملغى`.
+
+**Known blocking mismatch:** the local V1 demo uses
+`جاري التنفيذ` / `جاهز للتسليم` and one status per whole order.
+The actual Core mutates a `lineId`, not this pilot's synthetic
+`DEMO-0001` order ID. Never silently translate these statuses or
+wire the pilot status/create endpoints to `/v1/employee/core`.
+Multiple departments may own lines within one order. The contract
+validator fails closed on duplicate/missing line provenance, unknown
+statuses, missing `cloudNative` / `writeAuthority`, and invalid
+wrapper metadata; it returns only aggregates and always
+`writeEnabled=false`, `financeRelease=NO_GO`,
+`productionVerified=false`.
+
+Run with **no Cloudflare, Google, or printer access**:
+
+    node --test tests/ops_pilot_core_d1_read_compatibility.test.mjs
+    node --test tests/ops_pilot_local_http.test.mjs
+
+**Next engineering gates:** authenticated isolated Core-D1 stage GET-only
+with server-role scoping and verified D1 schema, source-to-page
+coverage/freshness/parity, stable order/line identity, inherited
+BOOK24 Single Writer and BOOK19 delivery/finance authority,
+separate protected stage approval and rollback. This local
+preflight cannot establish any of those runtime facts.
+
 ## Decisions deliberately deferred (not blockers to isolated development)
 
 - **GO/NO_GO** owner approval for actual deployment, routing, staff SSO, persisted
