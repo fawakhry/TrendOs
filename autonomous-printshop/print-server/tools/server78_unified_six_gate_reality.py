@@ -48,7 +48,10 @@ class RemoteEvidenceError(Exception):
 
 
 def _api_get(opener, token, account, worker, suffix, *, byte_limit):
-    if worker not in _WORKERS or suffix not in ("/deployments", "/content/v2", "/settings"):
+    version_read = (worker in ("trendos", "trendos-d1-api")
+                    and re.fullmatch(r"/versions/[a-fA-F0-9-]{36}", suffix) is not None)
+    if worker not in _WORKERS or (suffix not in ("/deployments", "/content/v2", "/settings")
+                                    and not version_read):
         raise RemoteEvidenceError("UNEXPECTED_WORKER_OR_API_PATH")
     if not re.fullmatch(r"[a-fA-F0-9]{32}", account):
         raise RemoteEvidenceError("INVALID_ACCOUNT_SCOPE")
@@ -103,6 +106,48 @@ def _deployments(data):
         "versionSummary": v, "createdUtc": str(top.get("created_on") or "")[:24],
         "sourceGitCommitParity": "NOT_PROVEN",
     }
+
+
+def _active_version_detail(data, expected_id):
+    if not data.get("verified"):
+        return {"verified": False, "reason": data.get("reason", "UNVERIFIED")}
+    result = data["result"]
+    if result.get("id") != expected_id:
+        return {"verified": False, "reason": "ACTIVE_VERSION_ID_MISMATCH"}
+    resources = result.get("resources")
+    script = resources.get("script", {}) if type(resources) is dict else {}
+    metadata = result.get("metadata")
+    source = metadata.get("source") if type(metadata) is dict else None
+    etag = script.get("etag") if type(script) is dict else None
+    return {
+        "verified": True,
+        "activeVersionIdentityMatched": True,
+        "scriptEtagPrefix": etag[:12] if type(etag) is str and
+                            re.fullmatch(r"[a-fA-F0-9]{64}", etag) else "UNAVAILABLE",
+        "source": source if source in (
+            "api", "wrangler", "dash", "terraform", "cf_cli", "integration",
+            "quick_editor", "playground", "workersci", "unknown"
+        ) else "UNKNOWN",
+        "gitShaParity": "NOT_PROVEN",
+    }
+
+
+def _active_version_id(response):
+    if not response.get("verified"):
+        return ""
+    deployments = response["result"].get("deployments")
+    if not isinstance(deployments, list) or not deployments or type(deployments[0]) is not dict:
+        return ""
+    versions = deployments[0].get("versions")
+    if not isinstance(versions, list) or len(versions) != 1 or type(versions[0]) is not dict:
+        return ""
+    item = versions[0]
+    version_id = item.get("version_id")
+    if item.get("percentage") != 100 or type(version_id) is not str:
+        return ""
+    if not re.fullmatch(r"[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}", version_id):
+        return ""
+    return version_id
 
 
 def _code(data):
@@ -190,13 +235,27 @@ def unified_report(queue, opener=None, token="", account="", enabled=False):
             endpoints = ("/deployments", "/content/v2", "/settings") if worker == "trendos-d1-api" else (
                 "/deployments", "/content/v2") if worker == "trendos" else ("/deployments",)
             detail = {}
+            active_version_id = ""
             for suffix in endpoints:
                 data = _api_get(opener, token, account, worker, suffix,
                                 byte_limit=_MAX_CODE if suffix == "/content/v2" else _MAX_JSON)
+                if suffix == "/deployments":
+                    active_version_id = _active_version_id(data)
                 key = {"/deployments": "deployment", "/content/v2": "code",
                        "/settings": "settings"}[suffix]
                 detail[key] = {"/deployments": _deployments, "/content/v2": _code,
                                "/settings": _settings}[suffix](data)
+            if worker in ("trendos", "trendos-d1-api"):
+                if active_version_id:
+                    detail["activeVersion"] = _active_version_detail(
+                        _api_get(opener, token, account, worker,
+                                 "/versions/" + active_version_id, byte_limit=_MAX_JSON),
+                        active_version_id
+                    )
+                else:
+                    detail["activeVersion"] = {
+                        "verified": False, "reason": "NO_UNAMBIGUOUS_ACTIVE_VERSION"
+                    }
             workers[worker] = detail
     return {
         "schema": "trendos.server78.unified-six-stage-live-reality.v1",
