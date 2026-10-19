@@ -5710,5 +5710,1284 @@
     "all_distinct_catalog_paths_accounted_for": true,
     "qualification": "SOURCE_LINK_PATH/STATIC_GIT_OBJECT_AUDIT_ONLY",
     "no_runtime_or_branch_merge": true
+  },
+  "original_66_entry_editorial_topic_navigation_20261019": {
+    "date": "2026-10-19",
+    "observed_head_before_commit": "75e3ae76f17a6eadd408d4b56860cfe17480a2f8",
+    "catalog_blob_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde",
+    "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+    "status": "ALL_66_ARCHIVED_REFERENCE_AND_PROVISIONAL_CHAPTER_TOPIC_INDEXED_NOT_RUNTIME_RECONCILED",
+    "entry_total": 66,
+    "with_provisional_editorial_chapter_topics": 62,
+    "mention_only_not_function_mappable": [
+      498,
+      533,
+      595,
+      628
+    ],
+    "privacy_held_entries": [
+      596,
+      599,
+      600
+    ],
+    "editorial_chapter_count": 32,
+    "original_entry_runtime_reconciliation_count_still": 0,
+    "method": "Thematic historical Entry heading to selected catalog chapter title; each candidate chapter contains at least one actually present source path. This does not validate path-to-entry semantics, runtime deployment, function ownership, integration, or current user action.",
+    "entries": [
+      {
+        "entry_id": 498,
+        "archived_source_reference_checked": true,
+        "historical_unit": null,
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [],
+        "kind": "MENTION_ONLY_NO_STANDALONE_FUNCTION_MAPPING",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 533,
+        "archived_source_reference_checked": true,
+        "historical_unit": null,
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [],
+        "kind": "MENTION_ONLY_NO_STANDALONE_FUNCTION_MAPPING",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 595,
+        "archived_source_reference_checked": true,
+        "historical_unit": null,
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [],
+        "kind": "MENTION_ONLY_NO_STANDALONE_FUNCTION_MAPPING",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 596,
+        "archived_source_reference_checked": true,
+        "historical_unit": null,
+        "privacy_hold": true,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 28,
+            "source_refs_verified_present_count": 8,
+            "example_verified_path": "app.js"
+          },
+          {
+            "chapter": 15,
+            "source_refs_verified_present_count": 4,
+            "example_verified_path": "app.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 597,
+        "archived_source_reference_checked": true,
+        "historical_unit": "002",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 28,
+            "source_refs_verified_present_count": 8,
+            "example_verified_path": "app.js"
+          },
+          {
+            "chapter": 15,
+            "source_refs_verified_present_count": 4,
+            "example_verified_path": "app.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 598,
+        "archived_source_reference_checked": true,
+        "historical_unit": "003",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 28,
+            "source_refs_verified_present_count": 8,
+            "example_verified_path": "app.js"
+          },
+          {
+            "chapter": 15,
+            "source_refs_verified_present_count": 4,
+            "example_verified_path": "app.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 599,
+        "archived_source_reference_checked": true,
+        "historical_unit": null,
+        "privacy_hold": true,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 28,
+            "source_refs_verified_present_count": 8,
+            "example_verified_path": "app.js"
+          },
+          {
+            "chapter": 15,
+            "source_refs_verified_present_count": 4,
+            "example_verified_path": "app.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 600,
+        "archived_source_reference_checked": true,
+        "historical_unit": null,
+        "privacy_hold": true,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 28,
+            "source_refs_verified_present_count": 8,
+            "example_verified_path": "app.js"
+          },
+          {
+            "chapter": 15,
+            "source_refs_verified_present_count": 4,
+            "example_verified_path": "app.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 601,
+        "archived_source_reference_checked": true,
+        "historical_unit": "006",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 602,
+        "archived_source_reference_checked": true,
+        "historical_unit": "006",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 603,
+        "archived_source_reference_checked": true,
+        "historical_unit": "007",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 604,
+        "archived_source_reference_checked": true,
+        "historical_unit": "007",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 605,
+        "archived_source_reference_checked": true,
+        "historical_unit": "007",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 606,
+        "archived_source_reference_checked": true,
+        "historical_unit": "008",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 607,
+        "archived_source_reference_checked": true,
+        "historical_unit": "009",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 608,
+        "archived_source_reference_checked": true,
+        "historical_unit": "010",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 609,
+        "archived_source_reference_checked": true,
+        "historical_unit": "011",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 610,
+        "archived_source_reference_checked": true,
+        "historical_unit": "012",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 611,
+        "archived_source_reference_checked": true,
+        "historical_unit": "013",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 612,
+        "archived_source_reference_checked": true,
+        "historical_unit": "014",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 613,
+        "archived_source_reference_checked": true,
+        "historical_unit": "015",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 614,
+        "archived_source_reference_checked": true,
+        "historical_unit": "016",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 26,
+            "source_refs_verified_present_count": 14,
+            "example_verified_path": "cloudflare-d1/wrangler.toml"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 615,
+        "archived_source_reference_checked": true,
+        "historical_unit": "036",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 26,
+            "source_refs_verified_present_count": 14,
+            "example_verified_path": "cloudflare-d1/wrangler.toml"
+          },
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 616,
+        "archived_source_reference_checked": true,
+        "historical_unit": "017",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 26,
+            "source_refs_verified_present_count": 14,
+            "example_verified_path": "cloudflare-d1/wrangler.toml"
+          },
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 617,
+        "archived_source_reference_checked": true,
+        "historical_unit": "018",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 23,
+            "source_refs_verified_present_count": 4,
+            "example_verified_path": "config.js"
+          },
+          {
+            "chapter": 19,
+            "source_refs_verified_present_count": 8,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 618,
+        "archived_source_reference_checked": true,
+        "historical_unit": "019",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 23,
+            "source_refs_verified_present_count": 4,
+            "example_verified_path": "config.js"
+          },
+          {
+            "chapter": 19,
+            "source_refs_verified_present_count": 8,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 619,
+        "archived_source_reference_checked": true,
+        "historical_unit": "035",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 18,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          },
+          {
+            "chapter": 29,
+            "source_refs_verified_present_count": 12,
+            "example_verified_path": "index.html"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 620,
+        "archived_source_reference_checked": true,
+        "historical_unit": "020",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 23,
+            "source_refs_verified_present_count": 4,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 621,
+        "archived_source_reference_checked": true,
+        "historical_unit": "021",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 622,
+        "archived_source_reference_checked": true,
+        "historical_unit": "022",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 623,
+        "archived_source_reference_checked": true,
+        "historical_unit": "023",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 624,
+        "archived_source_reference_checked": true,
+        "historical_unit": "024",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 625,
+        "archived_source_reference_checked": true,
+        "historical_unit": "025",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 626,
+        "archived_source_reference_checked": true,
+        "historical_unit": "026",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 627,
+        "archived_source_reference_checked": true,
+        "historical_unit": "027",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 628,
+        "archived_source_reference_checked": true,
+        "historical_unit": null,
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [],
+        "kind": "MENTION_ONLY_NO_STANDALONE_FUNCTION_MAPPING",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 630,
+        "archived_source_reference_checked": true,
+        "historical_unit": "028",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 17,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 631,
+        "archived_source_reference_checked": true,
+        "historical_unit": "029",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 632,
+        "archived_source_reference_checked": true,
+        "historical_unit": "030",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 633,
+        "archived_source_reference_checked": true,
+        "historical_unit": "031",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 634,
+        "archived_source_reference_checked": true,
+        "historical_unit": "032",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 635,
+        "archived_source_reference_checked": true,
+        "historical_unit": "033",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 636,
+        "archived_source_reference_checked": true,
+        "historical_unit": "034",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 637,
+        "archived_source_reference_checked": true,
+        "historical_unit": "037",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 638,
+        "archived_source_reference_checked": true,
+        "historical_unit": "037",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 639,
+        "archived_source_reference_checked": true,
+        "historical_unit": "037",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 640,
+        "archived_source_reference_checked": true,
+        "historical_unit": "037",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 641,
+        "archived_source_reference_checked": true,
+        "historical_unit": "037",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 642,
+        "archived_source_reference_checked": true,
+        "historical_unit": "037",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 643,
+        "archived_source_reference_checked": true,
+        "historical_unit": "037",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 644,
+        "archived_source_reference_checked": true,
+        "historical_unit": "037",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 19,
+            "source_refs_verified_present_count": 8,
+            "example_verified_path": "config.js"
+          },
+          {
+            "chapter": 23,
+            "source_refs_verified_present_count": 4,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 645,
+        "archived_source_reference_checked": true,
+        "historical_unit": "037",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 22,
+            "source_refs_verified_present_count": 6,
+            "example_verified_path": "config.js"
+          },
+          {
+            "chapter": 20,
+            "source_refs_verified_present_count": 5,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 646,
+        "archived_source_reference_checked": true,
+        "historical_unit": "037",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 25,
+            "source_refs_verified_present_count": 13,
+            "example_verified_path": "manager-center-v1932.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 647,
+        "archived_source_reference_checked": true,
+        "historical_unit": "037",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 23,
+            "source_refs_verified_present_count": 4,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 648,
+        "archived_source_reference_checked": true,
+        "historical_unit": "037",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 649,
+        "archived_source_reference_checked": true,
+        "historical_unit": "037",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 24,
+            "source_refs_verified_present_count": 15,
+            "example_verified_path": "autonomous-printshop/MASTER_BOOK.md"
+          },
+          {
+            "chapter": 19,
+            "source_refs_verified_present_count": 8,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 650,
+        "archived_source_reference_checked": true,
+        "historical_unit": "037",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 24,
+            "source_refs_verified_present_count": 15,
+            "example_verified_path": "autonomous-printshop/MASTER_BOOK.md"
+          },
+          {
+            "chapter": 17,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 651,
+        "archived_source_reference_checked": true,
+        "historical_unit": "037",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 652,
+        "archived_source_reference_checked": true,
+        "historical_unit": "037",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 653,
+        "archived_source_reference_checked": true,
+        "historical_unit": "038",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 14,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 654,
+        "archived_source_reference_checked": true,
+        "historical_unit": "038",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 16,
+            "source_refs_verified_present_count": 13,
+            "example_verified_path": "index.html"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 655,
+        "archived_source_reference_checked": true,
+        "historical_unit": "038",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 16,
+            "source_refs_verified_present_count": 13,
+            "example_verified_path": "index.html"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 656,
+        "archived_source_reference_checked": true,
+        "historical_unit": "038",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 21,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "cloudflare-d1/src/index_v2.js"
+          },
+          {
+            "chapter": 26,
+            "source_refs_verified_present_count": 14,
+            "example_verified_path": "cloudflare-d1/wrangler.toml"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 657,
+        "archived_source_reference_checked": true,
+        "historical_unit": "038",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 16,
+            "source_refs_verified_present_count": 13,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 658,
+        "archived_source_reference_checked": true,
+        "historical_unit": "038",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 16,
+            "source_refs_verified_present_count": 13,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      },
+      {
+        "entry_id": 659,
+        "archived_source_reference_checked": true,
+        "historical_unit": "038",
+        "privacy_hold": false,
+        "editorial_chapter_topic_candidates": [
+          {
+            "chapter": 16,
+            "source_refs_verified_present_count": 13,
+            "example_verified_path": "index.html"
+          },
+          {
+            "chapter": 30,
+            "source_refs_verified_present_count": 11,
+            "example_verified_path": "config.js"
+          }
+        ],
+        "kind": "HISTORICAL_HEADING_TOPIC_NAVIGATION_ONLY",
+        "fully_reconciled_function_mapping": false
+      }
+    ],
+    "other_projects_books_not_modified": true,
+    "new_catalog_unchanged": true,
+    "owner_final_approval": false
   }
 }
