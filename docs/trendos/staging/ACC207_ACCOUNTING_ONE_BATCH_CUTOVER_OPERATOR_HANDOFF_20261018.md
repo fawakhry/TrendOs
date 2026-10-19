@@ -17,6 +17,14 @@ Prepare a private isolated environment with dummy customers/transactions only; h
 
 A decision to run a **sales-and-collections-only production launch while deferring cash refunds** is an explicit owner *scope decision*, **not inferred** by the engineering team. A restricted first phase still needs verified real employee grants, signed opening/cash custody, isolated backup+restore, exact pinned deployed Worker and owner go-live approval, as appropriate to its financial actions.
 
+
+
+## ACC211 delegated scope update — 2026-10-19
+
+The owner issued a **general technical-decision delegation**. The engineering team has now **SELECTED** the conservative restricted first phase (**cash-only sales and cash-only customer collections**; NO refunds/returns/credit/supplier/manual corrections) as the scope for eventual *owner-approved* rollout. This resolves the **D3 scope-selection choice only**, and is implemented in the native checked-in worker as a **server-only optional extra deny guard**, not an activation of the production ledger. See [ACC211 phase-one decisions, exact remaining evidence and guard semantics](./ACC211_OWNER_DELEGATED_FINANCE_PHASE1_SCOPE_DECISIONS_20261019.md).
+
+G1 real custody and responsible operator, G2 private verified user permissions, G3 opening date/real balances, G4 genuine item-refund/post-day-close approvals and first trusted financial transaction, G5 independent backup+restore evidence, and release pinned SHA/maintenance operator remain **UNSUPPLIED**, not tacit YES. Do not send individual approval questions during independent coding work; keep a single acceptance packet. All accounts remain `FINANCE_RELEASE=NO_GO`, no production deployment. This addendum supersedes only the **D3 scope-selection choice** in the older table below.
+
 ## Owner decision batch — resolve once, privately (do not post employee details into GitHub)
 
 | ID | Decision/evidence needed | Consequence if pending |
