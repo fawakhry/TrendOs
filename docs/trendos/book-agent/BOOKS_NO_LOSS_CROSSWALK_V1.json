@@ -5363,11 +5363,71 @@
         "path": "autonomous-printshop/core/machine-readiness-v1.mjs",
         "result": "PATH_EXISTS",
         "current_blob_sha": "7d55363ae738a9b830762e58ff2fcdbb5388aa2c"
+      },
+      {
+        "path": "autonomous-printshop/core/operator-task-authority-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "a6423d65c2f5434fcf435e66d232a999bed78b17"
+      },
+      {
+        "path": "autonomous-printshop/observer/worker.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "0f37f2802dab2a72019e8908a9abbdf7e32bd486"
+      },
+      {
+        "path": "autonomous-printshop/dashboard/worker.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "bc1b5c32881a3d494c6688105b374c76f5a9c352"
+      },
+      {
+        "path": "autonomous-printshop/core/control-tower-panel-status-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "435d589832debf3e23dabc7f45bc8df586732a2f"
+      },
+      {
+        "path": "autonomous-printshop/core/owner-exception-model-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "231bddc9d1f3c57220a40d27be3ed6cba8d28016"
+      },
+      {
+        "path": "autonomous-printshop/employee-supervisor/worker.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "4fd54b444e28178adbb46dfc7155a81e46bcd0c9"
+      },
+      {
+        "path": "autonomous-printshop/tests/autonomous_printshop_shadow_route_v1.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "7f39425a2aac27217888528594a1dc475c73087e"
+      },
+      {
+        "path": "autonomous-printshop/tests/machine_readiness_v1.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "0c45b45597eaa84e1baaff827806a571c9cc2edd"
+      },
+      {
+        "path": "manager-center-v1932.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "3d83a67f23056e2428b184c29e984fea871627b3"
+      },
+      {
+        "path": "trend-master-resilience-v1931.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "105facf54f263ab2eb2fa1a014afb3651b251232"
+      },
+      {
+        "path": "trend-master-panels-v1931.gs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "be21b24b23b4c9eb7615c68c2b80c60441f08c14"
+      },
+      {
+        "path": "work-queue-v1.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "12f084f0ec8f3fc86f4034bf65eda726d09dd84a"
       }
     ],
     "runtime_verified": false,
-    "checked_count": 72,
-    "present_count": 72,
+    "checked_count": 84,
+    "present_count": 84,
     "unresolved_count": 0
   }
 }
