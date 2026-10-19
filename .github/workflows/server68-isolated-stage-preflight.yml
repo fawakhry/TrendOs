@@ -33,6 +33,7 @@ on:
       - autonomous-printshop/print-server/tests/test_server69_canary_once_cli.py
       - autonomous-printshop/print-server/src/production_dispatch_preview.py
       - autonomous-printshop/print-server/tests/test_server76_production_dispatch_preview.py
+      - autonomous-printshop/print-server/tests/test_server77_real_reader_dispatch_preview.py
       - tests/server33_trendosshop_service_orders_read.test.mjs
       - cloudflare-d1/src/trendosshop-service-orders-read-v1.mjs
       - tests/server67_purpose_scoped_mirror_service_read.test.mjs
@@ -100,6 +101,14 @@ jobs:
             -s autonomous-printshop/print-server/tests \
             -p 'test_server76_production_dispatch_preview.py' -v
           echo 'SERVER76_HANDOFF_PREVIEW=PASS; NO_DEVICE_COMMANDS; NO_CUSTOMER_DATA'
+      - name: SERVER-77 existing scoped HTTPS reader to in-memory employee queue (FakeOpener)
+        run: |
+          PYTHONPATH=autonomous-printshop/print-server \
+            PYTHONDONTWRITEBYTECODE=1 \
+            python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server77_real_reader_dispatch_preview.py' -v
+          echo 'SERVER77_QUEUE_ADAPTER=PASS; NO_CLOUD_PRODUCTION; NO_FILES_OR_DEVICES'
       - name: Validate isolated Worker bundle with Wrangler offline dry-run
         run: |
           set -euo pipefail
