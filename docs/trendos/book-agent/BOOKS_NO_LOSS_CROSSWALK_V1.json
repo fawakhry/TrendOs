@@ -5423,11 +5423,71 @@
         "path": "work-queue-v1.js",
         "result": "PATH_EXISTS",
         "current_blob_sha": "12f084f0ec8f3fc86f4034bf65eda726d09dd84a"
+      },
+      {
+        "path": "work-queue-backend-v1.gs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "87a82c18889c1c5533d94ed3f965c875c1533485"
+      },
+      {
+        "path": "customer-feedback-v1.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "2426aec33e79f1e16615ad1263fa8244d4742c45"
+      },
+      {
+        "path": "customer-feedback-backend-v1.gs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "8c35dedebace40ca380979f1f556c021731a0548"
+      },
+      {
+        "path": "docs/trendos/MATBAGY_MULTI_AI_ROOM_ARCHITECTURE.md",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "f4ac865c1b06ac3e7f06dc8f3efa68dedc9aa863"
+      },
+      {
+        "path": "docs/trendos/MATBAGY_KNOWLEDGE_EXTRACTION_ARCHITECTURE.md",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "1ba58c1a388f338bcdd408bf23161f0ec7e24506"
+      },
+      {
+        "path": "cloudflare-d1/production-shadow/index.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "cabf0237c3aea2479b56ab237eeb9877c86254a4"
+      },
+      {
+        "path": "cloudflare-d1/src/normalized-import-gate.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "116398e82baae83260a5698e4a8e859665a9a68e"
+      },
+      {
+        "path": "cloudflare-d1/D1_Orders_Live_Sync_V2.gs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "0e0770856fdcad15a478b72a2ec22f2f8455c82b"
+      },
+      {
+        "path": "cloudflare-d1/D1_Normalized_Live_Sync_V2.gs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "3fc43cffb6e80c0fe0a05cc439518461ba88eaf0"
+      },
+      {
+        "path": "tests/cloudflare_normalized_import_v1.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "c8764083d60fb96dab43dc178d7168348ea8f999"
+      },
+      {
+        "path": "tests/d1_normalized_live_sync_delta_v2.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "c683b87ec46a94f6fde528e42dc43d7e64ca72c6"
+      },
+      {
+        "path": "tests/d1_orders_live_sync_delta_v2.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "17643ac68f06f007fbd47d8144d784c7b2ab0970"
       }
     ],
     "runtime_verified": false,
-    "checked_count": 84,
-    "present_count": 84,
+    "checked_count": 96,
+    "present_count": 96,
     "unresolved_count": 0
   }
 }
