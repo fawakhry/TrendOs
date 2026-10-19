@@ -4034,5 +4034,44 @@
     "frozen_unified_book_unchanged": true,
     "archives_untouched": true,
     "next_safe_work": "Review Entry596 and Entry599/600 privacy-preserving preservation pathway and historical function-to-code cross-references; no public verbatim migration before approval."
+  },
+  "remaining_privacy_hold_source_integrity_20261019": {
+    "date": "2026-10-19",
+    "observed_head_before_commit": "c9009e010f0dd7a66e0ec2c603797fadc2afbe68",
+    "active_master_blob_sha": "8ad577fc1b6379beafbd2975dc514d33b5b01e39",
+    "protected_archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+    "status": "SOURCE_CONTENT_PRESERVED_PUBLIC_VERBATIM_MIGRATION_BLOCKED",
+    "checks": {
+      "entry596_exact": true,
+      "entry599_600_archive_prefix": true,
+      "entry599_600_addendum_is_markdown_separator_only": true,
+      "remainingEntryHeadings": 2
+    },
+    "segments": [
+      {
+        "entry_ids": [
+          596
+        ],
+        "archive_characters": 1557,
+        "active_characters": 1557,
+        "archive_exact": true
+      },
+      {
+        "entry_ids": [
+          599,
+          600
+        ],
+        "archive_characters": 2470,
+        "active_characters": 2493,
+        "archive_exact_prefix": true,
+        "additional_nonrecord_markdown_separator_chars": 23
+      }
+    ],
+    "safety": "Do not move customer-associated historical order IDs or contact handles into catalog without sanctioned privacy-preserving strategy; no values written in audit",
+    "sensitive_values_duplicated_in_ledger": false,
+    "protected_archive_unchanged": true,
+    "source_retained": true,
+    "owner_decision": "Authorize controlled restricted-access migration or precise redaction and private no-loss storage; otherwise maintain hold.",
+    "recorded_production_changes": "NONE"
   }
 }
