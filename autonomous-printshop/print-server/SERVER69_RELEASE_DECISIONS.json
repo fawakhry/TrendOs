@@ -58,7 +58,8 @@
       ],
       "requiredBefore": "Deny old mirror read endpoints on production",
       "rationale": "Existing R5 workflow is pinned to older commit and expects legacy mirror GET HTTP 200; opt-in Apps Script behavior not verified live.",
-      "sourceEvidence": "SERVER-70: 5 repository-known old consumers verified by static source audit; actual live Apps Script/Cloudflare callers, approved fallback and migrated deployment unknown"
+      "sourceEvidence": "SERVER-70: 5 repository-known old consumers verified by static source audit; actual live Apps Script/Cloudflare callers, approved fallback and migrated deployment unknown",
+      "hostPinGate": "No signed Apps Script cutover until owner's independently verified exact Cloudflare Worker hostname is set in D1_MIRROR_SERVICE_READ_V1_EXPECTED_HOSTNAME; do not copy unverified domain or credentials. Source-only tests don't confirm deployed property."
     },
     {
       "id": "D04",
@@ -113,5 +114,16 @@
     "liveExhaustive": false,
     "liveMigratedCountVerified": 0,
     "githubCiRun": "https://github.com/fawakhry/TrendOs/actions/runs/39158915112"
+  },
+  "signedAppsScriptDestinationPin": {
+    "gate": "D03",
+    "sourceFile": "cloudflare-d1/D1_Mirror_Service_Read_V1.gs",
+    "requiredProperty": "D1_MIRROR_SERVICE_READ_V1_EXPECTED_HOSTNAME",
+    "verifiedAtSource": "SERVER-71 test fixture .invalid only",
+    "approvedLiveHostname": null,
+    "liveScriptPropertiesReadOrModified": false,
+    "secureOptInStillDefaultOff": true,
+    "testReport": "autonomous-printshop/print-server/SERVER71_APPS_SCRIPT_SIGNED_TARGET_PIN_20261019.md",
+    "status": "SOURCE_ONLY_PIN_REQUIRED_NOT_PROVISIONED"
   }
 }
