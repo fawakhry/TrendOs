@@ -5483,11 +5483,71 @@
         "path": "tests/d1_orders_live_sync_delta_v2.test.mjs",
         "result": "PATH_EXISTS",
         "current_blob_sha": "17643ac68f06f007fbd47d8144d784c7b2ab0970"
+      },
+      {
+        "path": ".github/workflows/trendos-02cw-worker-promote-version-temp.yml",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "78f5d2f2a6c91c996565d2dcdcdb32eb5bf98b43"
+      },
+      {
+        "path": ".github/workflows/trendos-02cw-worker-rollback-safe-temp.yml",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "613fc264999d8bc9fbc279bcb70ba4e5ca2681f0"
+      },
+      {
+        "path": ".github/workflows/trendos-02cw-worker-postdeploy-readonly-temp.yml",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "83363d95e63954bee916fd153e9cf454e204f234"
+      },
+      {
+        "path": "docs/trendos/book-agent/CURRENT_UI_ELEMENT_INDEX.md",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "2f2f01d758dabf7cbb98922bc33791e34f0b7079"
+      },
+      {
+        "path": "Code.gs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "e91d78dcceeeca2804e721d58e065a6a7181bfc2"
+      },
+      {
+        "path": "tests/entry644_employee_core_general_dispatch.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "9bf2ef49f80a14deb8148812873654bdb272e847"
+      },
+      {
+        "path": "tests/frontend_employee_accounting_family_router_entry619.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "1032f2c6156b45dfb8bdbb31c536105e444b246e"
+      },
+      {
+        "path": "cloudflare-d1/src/accounting-finance-api-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "5bfbeff90263a2cb0bec39ea21b9741347c6b89b"
+      },
+      {
+        "path": "cloudflare-d1/src/accounting-finance-core-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "a9c7cdf197b29ad49ff1ed457dc4fd07b0f1cfe2"
+      },
+      {
+        "path": "tests/easystore_a1_day_ops_reads_v1.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "d0ef723ad7dc9ab38c24dbfc8daecad45a78353f"
+      },
+      {
+        "path": "tests/cloudflare_accounting_f2_finance_core_v1.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "feabe103509ee3b1f517e53af961f349cb257304"
+      },
+      {
+        "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
       }
     ],
     "runtime_verified": false,
-    "checked_count": 96,
-    "present_count": 96,
+    "checked_count": 108,
+    "present_count": 108,
     "unresolved_count": 0
   }
 }
