@@ -1,0 +1,36 @@
+name: ACC214 Accounting Draft and Customer Directory Role-Scope SQLite NO_GO
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  readonly-scope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Real native D1 Worker and fake verified SSO on disposable SQLite
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          FINANCE_RELEASE: 'NO_GO'
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test -z "$GOOGLE_APPLICATION_CREDENTIALS"
+          test "$FINANCE_RELEASE" = 'NO_GO'
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --check tests/easystore_acc190_verified_actor_cost_redaction_sqlite.test.mjs
+          node --test tests/easystore_acc190_verified_actor_cost_redaction_sqlite.test.mjs
+          node --test tests/easystore_acc213_wael_gaber_customer_invoice_native_sqlite_no_go.test.mjs
+          node tests/frontend_employee_accounting_family_router_entry619.test.mjs
+          echo 'ACC214_FINANCE_WRITES_REAL=ZERO'
+          echo 'ACC214_LEGACY_ACCOUNTING_FRONTEND=OFF'
+          echo 'ACC214_RUNTIME_AND_FINANCE_GO=NO_GO'
