@@ -66,6 +66,24 @@ await test('10 invalid source objects fail closed; no auto optimistic fallback',
     assert.throws(()=>examineAcc207({accountingSource:s,existingFinanceGate:gate}),/REQUIRED_SOURCE_MISSING/);
   }
 });
+await test('11 delegated restricted phase-1 scope is defined, but approval gates not signed',()=>{
+  const d=inspectRepoAcc207();
+  assert.equal(d.delegatedSafePhase1Scope,'CASH_SALES_AND_CUSTOMER_COLLECTIONS_ONLY');
+  assert.equal(d.phase1ScopeIsBusinessSelectionNotFinancialRelease,true);
+  assert.equal(d.refundsStockCreditAndSupplierMutationsPhase1Allowed,false);
+  assert.equal(d.employeeFinanceGrantsAuthenticated,false);
+  assert.equal(d.ownerOpeningBalancesReconciled,false);
+  assert.equal(d.codeInspectionPassed,true,JSON.stringify(d.checks));
+  assert.equal(d.financeRelease,'NO_GO');
+  assert.equal(d.productionDeployApproved,false);
+});
+await test('12 a source missing ACC211 extra guard cannot pass delegated phase1 source checks',()=>{
+  const modified=worker.replace('function acc211Phase1WriteRejectionV1(','function removedACC211ForTest(');
+  const result=examineAcc207({accountingSource:modified,existingFinanceGate:gate});
+  assert.equal(result.checks.acc211_restricted_scope_is_optional_and_safe,false);
+  assert.equal(result.codeInspectionPassed,false);
+  assert.equal(result.financeRelease,'NO_GO');
+});
 console.log('ACC207_FINANCE_RELEASE_CONSOLIDATED_DECISION_BATCH=TESTED');
 console.log('ACC207_CLAIMED_SIGNOFF_NEVER_AUTO_AUTHORIZED=PASS');
 console.log('ACC207_FINANCE_RELEASE=NO_GO');
