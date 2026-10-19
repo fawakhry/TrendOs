@@ -7,6 +7,7 @@ on:
     paths:
       - 'tools/zero-google-release-v1/**'
       - 'tests/zero_google_four_phase_release_gate.test.mjs'
+      - 'docs/trendos/zero-google/FOUR_PHASE_DECISION_REGISTER_V1.json'
       - 'cloudflare-d1/src/customer-portal-native-readiness-v0.mjs'
       - 'cloudflare-d1/src/legacy-browser-transport-v1.mjs'
       - 'cloudflare-d1/src/operator-task-edge-v2.mjs'
