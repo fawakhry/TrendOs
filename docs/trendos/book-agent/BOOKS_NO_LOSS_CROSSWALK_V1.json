@@ -11627,5 +11627,114 @@
       }
     ],
     "disposition": "No owner decisions requested mid-batch; preserved and continued remaining safe work."
+  },
+  "zero_google_current_branch_static_dependency_matrix_20261020": {
+    "date": "2026-10-20",
+    "head_before_commit": "afd8a0924496b5cf18663e2d964df18d756ad37d",
+    "method": "Read active Worker index route precedence, Browser legacy transport and native dispatcher at work-branch HEAD; NOT live traffic or deployed runtime.",
+    "zero_google_full_runtime_certification": "OPEN_NOT_PASSED",
+    "paths": [
+      {
+        "area": "Employee Native Auth",
+        "category": "CLOUD_NATIVE_SOURCE_WITH_GUARDS",
+        "entrypoint": "cloudflare-d1/src/index_v2.js#L46-L49",
+        "authority": "Native Auth to D1; configured worker native-only true",
+        "evidence": "cloudflare-d1/src/employee-auth-native-v1.mjs, cloudflare-d1/wrangler.toml",
+        "production": "UNVERIFIED"
+      },
+      {
+        "area": "Legacy Browser Cloud proxy",
+        "category": "REGISTERED_ROUTE",
+        "entrypoint": "cloudflare-d1/src/index_v2.js#L43-L44",
+        "authority": "/v1/legacy-api exists; NativeOnly denies non-customer legacy actions before upstream; customer-session legacy allowlist still distinct",
+        "evidence": "cloudflare-d1/src/legacy-browser-transport-v1.mjs#L7-L34,L57-L70",
+        "production": "UNKNOWN which customer actions currently exercised"
+      },
+      {
+        "area": "Customer portal sessions and drafts",
+        "category": "GOOGLE_DEPENDENCY_CANDIDATE_REQUIRES_RUNTIME_AUDIT",
+        "entrypoint": "employee-api-dispatcher-v1.js#L108-L117 and legacy-browser-transport-v1.mjs#L29-L34",
+        "authority": "customerLogin, customerLogout, changeCustomerPassword, getCustomerOrders, customer draft functions are in legacy customer action allowlist; upstream is Apps Script when actually invoked",
+        "production": "CUSTOMER_NATIVE_PORTAL_NOT_CERTIFIED"
+      },
+      {
+        "area": "Operator Task V2",
+        "category": "GOOGLE_WRITE_AUTHORITY_DOCUMENTED_IN_ROUTE_COMMENT",
+        "entrypoint": "cloudflare-d1/src/index_v2.js#L160-L163",
+        "authority": "Documented as default-OFF hybrid; Apps Script/Sheets remains Task write authority if enabled",
+        "production": "UNKNOWN current task lane use"
+      },
+      {
+        "area": "Cloud native T12 line runtime",
+        "category": "D1_SOURCE_PRESENT_DEPLOYMENT_UNKNOWN",
+        "entrypoint": "cloudflare-d1/src/index_v2.js#L139-L152",
+        "authority": "T12 line runtime D1 update/notify and guarded create paths",
+        "production": "UNKNOWN deployed route and business flags"
+      },
+      {
+        "area": "Orders mirror freshness",
+        "category": "POTENTIAL_GOOGLE_MIRROR_DEPENDENCY",
+        "entrypoint": "cloudflare-d1/src/index_v2.js#L107-L136",
+        "authority": "Qualified D1 mirror read; Google heartbeat may exist conditionally; no assumption of live mandatory heartbeat",
+        "production": "UNKNOWN snapshot freshness/deployed flags"
+      },
+      {
+        "area": "Frontend Google integration",
+        "category": "CONFIG_PRESENT_USAGE_NOT_PROVEN",
+        "entrypoint": "config.js#L7; cloudflare-d1/wrangler.toml#L8",
+        "authority": "Google Sheet URL in frontend config and Apps Script upstream URL in worker config; presence alone does not prove live usage",
+        "production": "UNKNOWN usage and app project properties"
+      },
+      {
+        "area": "EasyStore Accounting",
+        "category": "EXTERNAL_PROJECT_AUTHORITY",
+        "entrypoint": "config.js and employee-accounting-native-v1.mjs",
+        "authority": "TrendOS Accounting read-only source; EasyStore business accounting remains separate owner",
+        "production": "No finance cutover or mutation undertaken"
+      },
+      {
+        "area": "Autonomous Printshop",
+        "category": "EXTERNAL_PROJECT_API_AUTHORITY",
+        "entrypoint": "employee-andon-v1.js",
+        "authority": "Standalone supervisor source; no copying external project book",
+        "production": "UNKNOWN deployed end-to-end service"
+      }
+    ],
+    "blobs": [
+      {
+        "path": "cloudflare-d1/src/legacy-browser-transport-v1.mjs",
+        "sha": "d3f1407c260c4b623352469372265c01d9bd8ad4"
+      },
+      {
+        "path": "employee-api-dispatcher-v1.js",
+        "sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-legacy-bridge-v1.mjs",
+        "sha": "e317c9692970d8f31b2980fa07b692e882911928"
+      },
+      {
+        "path": "cloudflare-d1/src/index_v2.js",
+        "sha": "4a555efb4b3f44ba371549d5cec055cc7ce1777f"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+        "sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+      },
+      {
+        "path": "cloudflare-d1/src/t12-legacy-line-runtime.mjs",
+        "sha": "828389a5c57b2e91b42ad24a6726261a01e5fe4d"
+      },
+      {
+        "path": "config.js",
+        "sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+      },
+      {
+        "path": "cloudflare-d1/wrangler.toml",
+        "sha": "579b06e4918a9ed965be183e69742205f03cdc74"
+      }
+    ],
+    "safety": "Source-only. No Apps Script, D1, deployments, account tokens or customer data accessed; no production modifications.",
+    "priority_next": "Read-only deployed SHA/flags, customer legacy route usage, Operator Task authority, order Google mirrors, frontend links and cutover approval separately."
   }
 }
