@@ -10716,5 +10716,916 @@
     "no_retroactive_auth_or_workflow_replay": true,
     "cutover": "NO_GO",
     "next": "Remaining Entry IDs starting 613 backward and private reference holds"
+  },
+  "source_semantic_resume_batch6_20261020": {
+    "date": "2026-10-20",
+    "head_before_commit": "0956c8a1bb3bc7b56563fc4ae4791e1c533a670e",
+    "scope": "SOURCE_TRIAGE_AND_ARCHIVED_ENTRY_RECONCILIATION_NOT_FULL_RUNTIME_CERTIFICATION",
+    "last_batch_count": 21,
+    "cumulative_original_entry_classified": 66,
+    "cumulative_original_entries_total": 66,
+    "cumulative_initial_source_contract_audits": 20,
+    "additional_bounded_source_mappings": 46,
+    "remaining_entries_without_individual_classification": 0,
+    "remaining_full_production_runtime_certifications": 66,
+    "entries": [
+      {
+        "entry_id": 498,
+        "classification": "HISTORICAL_ONLY",
+        "historical_entry_scope": "MENTION_ONLY_IN_MASTER",
+        "reviewed_topic": "Manual artifacts packaging and historical line authority checkpoint, reference only.",
+        "source_owner": "ORDER_AUTHORITY_HISTORY",
+        "historical_catalog_reference": {
+          "status": "NO_STANDALONE_CATALOG_HEADING_OR_COMBINED_SECTION"
+        },
+        "primary_source_or_test_inspected": {
+          "path": "docs/trendos/blackbox/منصة ترند/TRENDOS_T12_ENTRY498_ENTRY499_MANUAL_ARTIFACTS_READY_ENTRY_501_2026-09-30.md",
+          "blob_sha": "1d56a7cdce76b9481aa532625f78adac61eebdde"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "trendos-edge-orders-read-v1.js",
+            "blob_sha": "8a6f990828e0362a4faccac71a32144a6d9ec3aa"
+          },
+          {
+            "path": "cloudflare-d1/src/t12-general-create-handler.mjs",
+            "blob_sha": "d8bd8d13f6e69b55839822ddb5e473585e6d8842"
+          }
+        ],
+        "api_and_data_scope": "Historical frontend/session routing only",
+        "google_dependency_status": "Historical reference is not sufficient to classify Google as actively required or retired",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      },
+      {
+        "entry_id": 533,
+        "classification": "HISTORICAL_ONLY",
+        "historical_entry_scope": "MENTION_ONLY_IN_MASTER",
+        "reviewed_topic": "Frontend employee session isolation and logout local state contract, reference only.",
+        "source_owner": "EMPLOYEE_SESSION",
+        "historical_catalog_reference": {
+          "status": "NO_STANDALONE_CATALOG_HEADING_OR_COMBINED_SECTION"
+        },
+        "primary_source_or_test_inspected": {
+          "path": "tests/frontend_employee_session_isolation_entry533.test.mjs",
+          "blob_sha": "98e99be5a5b2008282ba1af14ea33c48a9a4ce98"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          }
+        ],
+        "api_and_data_scope": "Historical frontend/session routing only",
+        "google_dependency_status": "Historical reference is not sufficient to classify Google as actively required or retired",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      },
+      {
+        "entry_id": 595,
+        "classification": "HISTORICAL_ONLY",
+        "historical_entry_scope": "MENTION_ONLY_IN_MASTER",
+        "reviewed_topic": "Historical read-only frontend active version/health inspection, not a latest active version.",
+        "source_owner": "FRONTEND_RELEASE",
+        "historical_catalog_reference": {
+          "line": 1681,
+          "label": "## الملحق التاريخي ي — سجل حالات الإصدار عند Entry595 (نسخة 2026-10-02)"
+        },
+        "primary_source_or_test_inspected": {
+          "path": ".github/workflows/trendos-entry595-frontend-readonly-verify.yml",
+          "blob_sha": "dcf8eec469b330174a535b9a67cee485bfb1bf3b"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "index.html",
+            "blob_sha": "788074c5fb4c3d4db2af9dc0b4dabffe3c34cfc1"
+          },
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          }
+        ],
+        "api_and_data_scope": "Historical frontend/session routing only",
+        "google_dependency_status": "Historical reference is not sufficient to classify Google as actively required or retired",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      },
+      {
+        "entry_id": 596,
+        "classification": "BLOCKED_PRIVACY",
+        "historical_entry_scope": "ENTRY_HEADING_IN_MASTER",
+        "reviewed_topic": "Legacy orphan order-line audit includes protected customer/order records; privacy hold.",
+        "source_owner": "ORDERS_PRIVACY_AND_RUNTIME",
+        "historical_catalog_reference": {
+          "status": "NO_STANDALONE_CATALOG_HEADING_OR_COMBINED_SECTION"
+        },
+        "primary_source_or_test_inspected": {
+          "path": ".github/workflows/trendos-entry596-legacy-orphan-lines-readonly.yml",
+          "blob_sha": "860391d6e023044441ad058afe83497526b8662f"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "cloudflare-d1/src/t12-legacy-line-runtime.mjs",
+            "blob_sha": "828389a5c57b2e91b42ad24a6726261a01e5fe4d"
+          },
+          {
+            "path": "cloudflare-d1/src/t12-operational-runtime-handler.mjs",
+            "blob_sha": "1bb1ee6e8eca9b85f20d93394aad699908cc8c80"
+          },
+          {
+            "path": "cloudflare-d1/src/edge-orders-read-v1.mjs",
+            "blob_sha": "540cca2143e7da940b96d6f990a8951e3b5c87ab"
+          },
+          {
+            "path": "trendos-edge-orders-read-v1.js",
+            "blob_sha": "8a6f990828e0362a4faccac71a32144a6d9ec3aa"
+          },
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          }
+        ],
+        "api_and_data_scope": "CUSTOMER_AND_ORDER_PRIVATE_VALUES_NOT_ACCESSED",
+        "google_dependency_status": "Historical Apps Script and D1 overlap must be traced safely without copying private rows",
+        "privacy_actions": "No protected customer records copied into the public book or crosswalk. Restricted vault/storage retention decision still requires owner's explicit approval.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "BLOCKED_OWNER_DECISION_SECURE_CUSTOMER_ORDER_ARCHIVE"
+      },
+      {
+        "entry_id": 597,
+        "classification": "SOURCE_PARTIAL",
+        "historical_entry_scope": "ENTRY_HEADING_IN_MASTER",
+        "reviewed_topic": "Legacy line runtime D1 overlay source, guarded status/notification and offline test.",
+        "source_owner": "ORDERS_PRIVACY_AND_RUNTIME",
+        "historical_catalog_reference": {
+          "line": 1569,
+          "label": "## الملحق التاريخي ز — Entry597 / تأهيل Legacy Line Runtime قبل النشر"
+        },
+        "primary_source_or_test_inspected": {
+          "path": "tests/t12_legacy_line_runtime_entry597.test.mjs",
+          "blob_sha": "0a86ca9804a32e3061da461995dfac11c1950280"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "cloudflare-d1/src/t12-legacy-line-runtime.mjs",
+            "blob_sha": "828389a5c57b2e91b42ad24a6726261a01e5fe4d"
+          },
+          {
+            "path": "cloudflare-d1/src/t12-operational-runtime-handler.mjs",
+            "blob_sha": "1bb1ee6e8eca9b85f20d93394aad699908cc8c80"
+          },
+          {
+            "path": "cloudflare-d1/src/edge-orders-read-v1.mjs",
+            "blob_sha": "540cca2143e7da940b96d6f990a8951e3b5c87ab"
+          },
+          {
+            "path": "trendos-edge-orders-read-v1.js",
+            "blob_sha": "8a6f990828e0362a4faccac71a32144a6d9ec3aa"
+          },
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          }
+        ],
+        "api_and_data_scope": "Cloudflare T12 line runtime / D1 shadow; legacy orders Apps Script authority needs current check",
+        "google_dependency_status": "Historical reference is not sufficient to classify Google as actively required or retired",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      },
+      {
+        "entry_id": 598,
+        "classification": "SOURCE_PARTIAL",
+        "historical_entry_scope": "ENTRY_HEADING_IN_MASTER",
+        "reviewed_topic": "Historical production preflight for legacy Orders and D1 overlay; no new production check.",
+        "source_owner": "ORDERS_PRIVACY_AND_RUNTIME",
+        "historical_catalog_reference": {
+          "line": 1604,
+          "label": "## الملحق التاريخي ح — Entry598 / فحص ما قبل إصلاح Legacy Orders"
+        },
+        "primary_source_or_test_inspected": {
+          "path": ".github/workflows/trendos-entry598-legacy-orders-production-preflight.yml",
+          "blob_sha": "49cd9e7b96d5e969f75c15a80de3a4f3a237ad31"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "cloudflare-d1/src/t12-legacy-line-runtime.mjs",
+            "blob_sha": "828389a5c57b2e91b42ad24a6726261a01e5fe4d"
+          },
+          {
+            "path": "cloudflare-d1/src/t12-operational-runtime-handler.mjs",
+            "blob_sha": "1bb1ee6e8eca9b85f20d93394aad699908cc8c80"
+          },
+          {
+            "path": "cloudflare-d1/src/edge-orders-read-v1.mjs",
+            "blob_sha": "540cca2143e7da940b96d6f990a8951e3b5c87ab"
+          },
+          {
+            "path": "trendos-edge-orders-read-v1.js",
+            "blob_sha": "8a6f990828e0362a4faccac71a32144a6d9ec3aa"
+          },
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          }
+        ],
+        "api_and_data_scope": "Cloudflare T12 line runtime / D1 shadow; legacy orders Apps Script authority needs current check",
+        "google_dependency_status": "Historical reference is not sufficient to classify Google as actively required or retired",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      },
+      {
+        "entry_id": 599,
+        "classification": "BLOCKED_PRIVACY",
+        "historical_entry_scope": "ENTRY_HEADING_IN_MASTER",
+        "reviewed_topic": "Legacy order repair procedure linked with customer/order business records; privacy hold.",
+        "source_owner": "ORDERS_PRIVACY_AND_RUNTIME",
+        "historical_catalog_reference": {
+          "status": "NO_STANDALONE_CATALOG_HEADING_OR_COMBINED_SECTION"
+        },
+        "primary_source_or_test_inspected": {
+          "path": ".github/workflows/trendos-entry599-legacy-orders-production-repair.yml",
+          "blob_sha": "9e7916a47b79f0329ff9e0c2152513f79cb11b15"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "cloudflare-d1/src/t12-legacy-line-runtime.mjs",
+            "blob_sha": "828389a5c57b2e91b42ad24a6726261a01e5fe4d"
+          },
+          {
+            "path": "cloudflare-d1/src/t12-operational-runtime-handler.mjs",
+            "blob_sha": "1bb1ee6e8eca9b85f20d93394aad699908cc8c80"
+          },
+          {
+            "path": "cloudflare-d1/src/edge-orders-read-v1.mjs",
+            "blob_sha": "540cca2143e7da940b96d6f990a8951e3b5c87ab"
+          },
+          {
+            "path": "trendos-edge-orders-read-v1.js",
+            "blob_sha": "8a6f990828e0362a4faccac71a32144a6d9ec3aa"
+          },
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          }
+        ],
+        "api_and_data_scope": "CUSTOMER_AND_ORDER_PRIVATE_VALUES_NOT_ACCESSED",
+        "google_dependency_status": "Historical Apps Script and D1 overlap must be traced safely without copying private rows",
+        "privacy_actions": "No protected customer records copied into the public book or crosswalk. Restricted vault/storage retention decision still requires owner's explicit approval.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "BLOCKED_OWNER_DECISION_SECURE_CUSTOMER_ORDER_ARCHIVE"
+      },
+      {
+        "entry_id": 600,
+        "classification": "BLOCKED_PRIVACY",
+        "historical_entry_scope": "MENTION_ONLY_IN_MASTER",
+        "reviewed_topic": "Legacy order postflight linked with protected source records; privacy hold.",
+        "source_owner": "ORDERS_PRIVACY_AND_RUNTIME",
+        "historical_catalog_reference": {
+          "status": "NO_STANDALONE_CATALOG_HEADING_OR_COMBINED_SECTION"
+        },
+        "primary_source_or_test_inspected": {
+          "path": ".github/workflows/trendos-entry600-legacy-orders-readonly-postflight.yml",
+          "blob_sha": "02bb3e81c552c31dc2c5803e970027d7208857ad"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "cloudflare-d1/src/t12-legacy-line-runtime.mjs",
+            "blob_sha": "828389a5c57b2e91b42ad24a6726261a01e5fe4d"
+          },
+          {
+            "path": "cloudflare-d1/src/t12-operational-runtime-handler.mjs",
+            "blob_sha": "1bb1ee6e8eca9b85f20d93394aad699908cc8c80"
+          },
+          {
+            "path": "cloudflare-d1/src/edge-orders-read-v1.mjs",
+            "blob_sha": "540cca2143e7da940b96d6f990a8951e3b5c87ab"
+          },
+          {
+            "path": "trendos-edge-orders-read-v1.js",
+            "blob_sha": "8a6f990828e0362a4faccac71a32144a6d9ec3aa"
+          },
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          }
+        ],
+        "api_and_data_scope": "CUSTOMER_AND_ORDER_PRIVATE_VALUES_NOT_ACCESSED",
+        "google_dependency_status": "Historical Apps Script and D1 overlap must be traced safely without copying private rows",
+        "privacy_actions": "No protected customer records copied into the public book or crosswalk. Restricted vault/storage retention decision still requires owner's explicit approval.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "BLOCKED_OWNER_DECISION_SECURE_CUSTOMER_ORDER_ARCHIVE"
+      },
+      {
+        "entry_id": 601,
+        "classification": "SOURCE_PARTIAL",
+        "historical_entry_scope": "ENTRY_HEADING_IN_MASTER",
+        "reviewed_topic": "Slow login diagnostic comparing static frontend, Cloud API, legacy Apps Script transport.",
+        "source_owner": "FRONTEND_LOGIN_AUTH",
+        "historical_catalog_reference": {
+          "line": 1721,
+          "label": "### Entry601/602 — بطء واجهة/تسجيل دخول الموظفين — Root cause confirmed"
+        },
+        "primary_source_or_test_inspected": {
+          "path": ".github/workflows/trendos-entry601-login-latency-readonly.yml",
+          "blob_sha": "43438eb7a17f29d0f5d510e590fb9edbd6541183"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "index.html",
+            "blob_sha": "788074c5fb4c3d4db2af9dc0b4dabffe3c34cfc1"
+          },
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          }
+        ],
+        "api_and_data_scope": "Browser login/Native auth + current Cloudflare bridge",
+        "google_dependency_status": "Historical legacy login path may have used Apps Script; current Worker Native settings are separate source-evidence only",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      },
+      {
+        "entry_id": 602,
+        "classification": "HISTORICAL_ONLY",
+        "historical_entry_scope": "MENTION_ONLY_IN_MASTER",
+        "reviewed_topic": "Native Employee Auth readiness workflow historically paired with login diagnosis.",
+        "source_owner": "FRONTEND_LOGIN_AUTH",
+        "historical_catalog_reference": {
+          "status": "NO_STANDALONE_CATALOG_HEADING_OR_COMBINED_SECTION"
+        },
+        "primary_source_or_test_inspected": {
+          "path": ".github/workflows/trendos-entry602-native-auth-readiness.yml",
+          "blob_sha": "9edb961dcd8b1c9aa45b213fd1502b0eb7e42ac1"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          },
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+            "blob_sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+          }
+        ],
+        "api_and_data_scope": "Browser login/Native auth + current Cloudflare bridge",
+        "google_dependency_status": "Historical legacy login path may have used Apps Script; current Worker Native settings are separate source-evidence only",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      },
+      {
+        "entry_id": 603,
+        "classification": "SOURCE_PARTIAL",
+        "historical_entry_scope": "ENTRY_HEADING_IN_MASTER",
+        "reviewed_topic": "Login-fast client bootstrap source test checks no early unauthenticated employee dynamic JS.",
+        "source_owner": "FRONTEND_LOGIN_AUTH",
+        "historical_catalog_reference": {
+          "line": 1775,
+          "label": "### Entry603/604/605 — Login-fast Frontend Production = CLOSED PASS"
+        },
+        "primary_source_or_test_inspected": {
+          "path": "tests/frontend_login_fast_surface_entry603.test.mjs",
+          "blob_sha": "37bb3d110fbd7a9099af368f0eb58de3201ae748"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "index.html",
+            "blob_sha": "788074c5fb4c3d4db2af9dc0b4dabffe3c34cfc1"
+          },
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          }
+        ],
+        "api_and_data_scope": "Browser login/Native auth + current Cloudflare bridge",
+        "google_dependency_status": "Historical legacy login path may have used Apps Script; current Worker Native settings are separate source-evidence only",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      },
+      {
+        "entry_id": 604,
+        "classification": "HISTORICAL_ONLY",
+        "historical_entry_scope": "MENTION_ONLY_IN_MASTER",
+        "reviewed_topic": "Controlled production release of historical login-fast asset; not current deployment.",
+        "source_owner": "FRONTEND_LOGIN_AUTH",
+        "historical_catalog_reference": {
+          "status": "NO_STANDALONE_CATALOG_HEADING_OR_COMBINED_SECTION"
+        },
+        "primary_source_or_test_inspected": {
+          "path": ".github/workflows/trendos-entry604-login-fast-production.yml",
+          "blob_sha": "e983dfcb073955a29eeb883ff643ef0fe4a745d2"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "index.html",
+            "blob_sha": "788074c5fb4c3d4db2af9dc0b4dabffe3c34cfc1"
+          },
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          }
+        ],
+        "api_and_data_scope": "Browser login/Native auth + current Cloudflare bridge",
+        "google_dependency_status": "Historical legacy login path may have used Apps Script; current Worker Native settings are separate source-evidence only",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      },
+      {
+        "entry_id": 605,
+        "classification": "HISTORICAL_ONLY",
+        "historical_entry_scope": "MENTION_ONLY_IN_MASTER",
+        "reviewed_topic": "Historical read-only postflight of login-fast release on previous candidate branch.",
+        "source_owner": "FRONTEND_LOGIN_AUTH",
+        "historical_catalog_reference": {
+          "status": "NO_STANDALONE_CATALOG_HEADING_OR_COMBINED_SECTION"
+        },
+        "primary_source_or_test_inspected": {
+          "path": ".github/workflows/trendos-entry605-login-fast-readonly-postflight.yml",
+          "blob_sha": "ba5d739d4f12ae34a9c0a630d728513bcd89ba2b"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "index.html",
+            "blob_sha": "788074c5fb4c3d4db2af9dc0b4dabffe3c34cfc1"
+          },
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          }
+        ],
+        "api_and_data_scope": "Browser login/Native auth + current Cloudflare bridge",
+        "google_dependency_status": "Historical legacy login path may have used Apps Script; current Worker Native settings are separate source-evidence only",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      },
+      {
+        "entry_id": 606,
+        "classification": "SOURCE_PARTIAL",
+        "historical_entry_scope": "ENTRY_HEADING_IN_MASTER",
+        "reviewed_topic": "Historical native employee auth migration pre-cutover block and gates.",
+        "source_owner": "NATIVE_AUTH_LEGACY_BRIDGE",
+        "historical_catalog_reference": {
+          "line": 1813,
+          "label": "## الملحق التاريخي م — Entry606 / بوابة Native Employee Auth قبل التفعيل"
+        },
+        "primary_source_or_test_inspected": {
+          "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+          "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          },
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+            "blob_sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+          }
+        ],
+        "api_and_data_scope": "Native employee sessions D1 and legacy employee action routing",
+        "google_dependency_status": "Native-only source flags checked in work branch; active Google property/caller count not yet independently proven",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      },
+      {
+        "entry_id": 607,
+        "classification": "SOURCE_PARTIAL",
+        "historical_entry_scope": "ENTRY_HEADING_IN_MASTER",
+        "reviewed_topic": "Historical disconnected-session checkpoint; not current resumption instructions.",
+        "source_owner": "NATIVE_AUTH_LEGACY_BRIDGE",
+        "historical_catalog_reference": {
+          "line": 1845,
+          "label": "## الملحق التاريخي ن — Entry607 / استئناف العمل بعد انقطاع سابق للإنترنت"
+        },
+        "primary_source_or_test_inspected": {
+          "path": "config.js",
+          "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          },
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+            "blob_sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+          }
+        ],
+        "api_and_data_scope": "Native employee sessions D1 and legacy employee action routing",
+        "google_dependency_status": "Native-only source flags checked in work branch; active Google property/caller count not yet independently proven",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      },
+      {
+        "entry_id": 608,
+        "classification": "SOURCE_PARTIAL",
+        "historical_entry_scope": "ENTRY_HEADING_IN_MASTER",
+        "reviewed_topic": "Historical native Auth/Bridge read-only risk assessment workflow.",
+        "source_owner": "NATIVE_AUTH_LEGACY_BRIDGE",
+        "historical_catalog_reference": {
+          "line": 1911,
+          "label": "## الملحق التاريخي س — Entry608 / مراجعة Native Auth بعد انقطاع سابق"
+        },
+        "primary_source_or_test_inspected": {
+          "path": ".github/workflows/trendos-entry608-native-auth-bridge-readonly.yml",
+          "blob_sha": "36cafd43756bc109963218a7f1d7d67aee86825e"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          },
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+            "blob_sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+          }
+        ],
+        "api_and_data_scope": "Native employee sessions D1 and legacy employee action routing",
+        "google_dependency_status": "Native-only source flags checked in work branch; active Google property/caller count not yet independently proven",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      },
+      {
+        "entry_id": 609,
+        "classification": "SOURCE_PARTIAL",
+        "historical_entry_scope": "ENTRY_HEADING_IN_MASTER",
+        "reviewed_topic": "Historical bridge/native policy inventory comparing legacy browser, customer and edge action groups.",
+        "source_owner": "NATIVE_AUTH_LEGACY_BRIDGE",
+        "historical_catalog_reference": {
+          "line": 2186,
+          "label": "## الملحق التاريخي ع — Entry609 / جرد وظائف Compatibility Bridge أثناء التأهيل"
+        },
+        "primary_source_or_test_inspected": {
+          "path": "tests/entry609_native_auth_cutover_inventory.test.mjs",
+          "blob_sha": "058f49f08fa531f14fabbe6650bd9f03590feba4"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          },
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+            "blob_sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+          }
+        ],
+        "api_and_data_scope": "Native employee sessions D1 and legacy employee action routing",
+        "google_dependency_status": "Native-only source flags checked in work branch; active Google property/caller count not yet independently proven",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      },
+      {
+        "entry_id": 610,
+        "classification": "SOURCE_PARTIAL",
+        "historical_entry_scope": "ENTRY_HEADING_IN_MASTER",
+        "reviewed_topic": "Repository-only qualification of staged Native Auth cutover policies.",
+        "source_owner": "NATIVE_AUTH_LEGACY_BRIDGE",
+        "historical_catalog_reference": {
+          "line": 2234,
+          "label": "## الملحق التاريخي ف — Entry610 / تأهيل Repository-only لسياسات Native Auth"
+        },
+        "primary_source_or_test_inspected": {
+          "path": ".github/workflows/trendos-entry610-native-auth-cutover-readonly.yml",
+          "blob_sha": "b51e32fc6e7c77f75675b98de6ce6c90566eadb9"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          },
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+            "blob_sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+          }
+        ],
+        "api_and_data_scope": "Native employee sessions D1 and legacy employee action routing",
+        "google_dependency_status": "Native-only source flags checked in work branch; active Google property/caller count not yet independently proven",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      },
+      {
+        "entry_id": 611,
+        "classification": "SOURCE_PARTIAL",
+        "historical_entry_scope": "ENTRY_HEADING_IN_MASTER",
+        "reviewed_topic": "Native Auth default-OFF staged canary historical test (current config differs).",
+        "source_owner": "NATIVE_AUTH_LEGACY_BRIDGE",
+        "historical_catalog_reference": {
+          "line": 2403,
+          "label": "## الملحق التاريخي ق — Entry611 / إعداد Native Auth Canary بوضع Default-OFF"
+        },
+        "primary_source_or_test_inspected": {
+          "path": "tests/frontend_employee_native_canary_entry611.test.mjs",
+          "blob_sha": "c63a5f3eb7fd82cba679cdcbfb597722b24e4e2a"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          },
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+            "blob_sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+          }
+        ],
+        "api_and_data_scope": "Native employee sessions D1 and legacy employee action routing",
+        "google_dependency_status": "Native-only source flags checked in work branch; active Google property/caller count not yet independently proven",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Historical test asserts Native Auth false while current repo config true; preflight requalification needed, do not replay."
+      },
+      {
+        "entry_id": 612,
+        "classification": "SOURCE_PARTIAL",
+        "historical_entry_scope": "ENTRY_HEADING_IN_MASTER",
+        "reviewed_topic": "Production read-only Native Auth preflight workflow at a historical source baseline.",
+        "source_owner": "NATIVE_AUTH_LEGACY_BRIDGE",
+        "historical_catalog_reference": {
+          "line": 2607,
+          "label": "## الملحق التاريخي ر — Entry612 / Production mutation preflight (قراءة فقط)"
+        },
+        "primary_source_or_test_inspected": {
+          "path": ".github/workflows/trendos-entry612-native-auth-production-readonly-preflight.yml",
+          "blob_sha": "b249c8ce8a4ceea7797541856a1ec759744c0a90"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          },
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+            "blob_sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+          }
+        ],
+        "api_and_data_scope": "Native employee sessions D1 and legacy employee action routing",
+        "google_dependency_status": "Native-only source flags checked in work branch; active Google property/caller count not yet independently proven",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      },
+      {
+        "entry_id": 613,
+        "classification": "SOURCE_PARTIAL",
+        "historical_entry_scope": "ENTRY_HEADING_IN_MASTER",
+        "reviewed_topic": "Historical canary approval superseded by owner's later functions-first Zero-Google decision.",
+        "source_owner": "NATIVE_AUTH_LEGACY_BRIDGE",
+        "historical_catalog_reference": {
+          "line": 2758,
+          "label": "## الملحق التاريخي ش — Entry613 / محاولة Canary معتمدة تاريخيًا ثم ملغاة بقرار أحدث"
+        },
+        "primary_source_or_test_inspected": {
+          "path": "tests/entry613_diya_production_canary_manifest.test.mjs",
+          "blob_sha": "6ad8be24e8b2a04f6b52643b5f9be7ec10b7d998"
+        },
+        "related_current_code_paths": [
+          {
+            "path": "app.js",
+            "blob_sha": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+          },
+          {
+            "path": "config.js",
+            "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+          },
+          {
+            "path": "employee-api-dispatcher-v1.js",
+            "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+          },
+          {
+            "path": "cloudflare-d1/src/cloud-session-bridge-v3.mjs",
+            "blob_sha": "7b9ad0dd88a22251ed4937d85dbd65fc5605cd3c"
+          }
+        ],
+        "api_and_data_scope": "Native employee sessions D1 and legacy employee action routing",
+        "google_dependency_status": "Native-only source flags checked in work branch; active Google property/caller count not yet independently proven",
+        "privacy_actions": "No sensitive values used.",
+        "tests_executed": 0,
+        "production_runtime_verified": false,
+        "remaining_gate": "Current deployed SHA, full source caller/data provenance, and endpoint-level test not established."
+      }
+    ],
+    "history_consistency": "38/38 archived transfer units retained; original 66 historical references retained including privacy-held Entry600",
+    "tests_executed": 0,
+    "production_modified": false,
+    "privacy_hold": [
+      596,
+      599,
+      600
+    ],
+    "cutover": "NO_GO",
+    "future_source_deep_audits": "Some SOURCE_PARTIAL and HISTORICAL_ONLY entries need deeper current call/data graph and deployed parity. Zero unclassified IDs is not equivalent to verified functionality."
+  },
+  "book_reconciliation_decisions_deferred_20261020": {
+    "date": "2026-10-20",
+    "owner_decision_pending": [
+      {
+        "id": "PRIVACY-596-599-600",
+        "description": "Select restricted encrypted archive/access controls and retention for private customer order/contact records; only migrate non-sensitive metadata to public catalog. Keep originals in protected Git archive until affirmative approval.",
+        "state": "BLOCKED_OWNER_DECISION",
+        "safe_alternative": "Preserve original without copying records; progress other Entries."
+      },
+      {
+        "id": "BOOK-CUTOVER",
+        "description": "Final deletion of old Master Book and transfer of editorial write authority to unified book after all source/current-runtime claims are qualified and owner grants new approval.",
+        "state": "NO_GO",
+        "safe_alternative": "Continue append-only Master+Crosswalk; catalog frozen."
+      },
+      {
+        "id": "RUNTIME-AND-ZERO-GOOGLE",
+        "description": "Read-only deployed Worker SHA/version, Google Apps Script actual runtime entrypoints and corresponding current dependencies, D1/R2 permission, live service tests.",
+        "state": "EVIDENCE_REQUIRED",
+        "safe_alternative": "Document source-only scope; do not change routes, secrets, Workers, production data."
+      },
+      {
+        "id": "AUTH-LEGACY-WORKFLOWS",
+        "description": "Historical Entry639/640/642 workflows have stale preflight assumptions relative to present config; requalify before any future controlled replay.",
+        "state": "OWNER_CODE_LANE_REVIEW",
+        "safe_alternative": "Do not reexecute in book-reconciliation lane."
+      },
+      {
+        "id": "ORDER-WHATSAPP-EDGE-SESSION",
+        "description": "Investigate notification enum mismatch, successful-response validation and Edge revocation with separate source owner/reproduction before any fix.",
+        "state": "ENGINEERING_FOLLOWUP",
+        "safe_alternative": "Retain conditional source evidence."
+      }
+    ],
+    "disposition": "No owner decisions requested mid-batch; preserved and continued remaining safe work."
   }
 }
