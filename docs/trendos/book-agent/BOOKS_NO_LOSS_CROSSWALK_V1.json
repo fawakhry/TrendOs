@@ -1122,7 +1122,13 @@
       "migration_blocker": {
         "type": "LEGACY_ORDER_PRIVACY_REVIEW",
         "detail": "Contains historic identifiers for legacy customer order repair. Preserve full source in active master until privacy classification/no-loss transfer is explicitly proven.",
-        "old_source_preserved": true
+        "old_source_preserved": true,
+        "privacy_audit": "2026-10-19",
+        "source_archive_scoped_match": "PASS",
+        "safe_transfer_confirmed": false,
+        "source_remains_active": true,
+        "reason": "CUSTOMER_ASSOCIATED_ORDER_IDENTIFIERS_AND_CONTACT_HANDLE_OR_SHARED_HISTORY",
+        "next_step": "PRIVATE_PROVENANCE_PRESERVATION_AND_DEIDENTIFIED_PUBLIC_SUMMARY_WITH_OWNER_APPROVED_NO_LOSS_POLICY"
       }
     },
     {
@@ -1209,7 +1215,13 @@
       "migration_blocker": {
         "type": "LEGACY_ORDERS_COMBINED_ENTRY_599_600",
         "detail": "Combined heading has operational production baseline plus a customer-associated handle/order note. Source must remain in old book pending safe historical text transfer/authoritative active baseline split.",
-        "old_source_preserved": true
+        "old_source_preserved": true,
+        "privacy_audit": "2026-10-19",
+        "source_archive_scoped_match": "PASS",
+        "safe_transfer_confirmed": false,
+        "source_remains_active": true,
+        "reason": "CUSTOMER_ASSOCIATED_ORDER_IDENTIFIERS_AND_CONTACT_HANDLE_OR_SHARED_HISTORY",
+        "next_step": "PRIVATE_PROVENANCE_PRESERVATION_AND_DEIDENTIFIED_PUBLIC_SUMMARY_WITH_OWNER_APPROVED_NO_LOSS_POLICY"
       }
     },
     {
@@ -1226,7 +1238,13 @@
       "migration_blocker": {
         "type": "SHARED_599_600_HEADING_MENTION_ONLY",
         "detail": "Entry600 appears within combined Entry599/600 heading, not a standalone historical heading; do not separately remove or falsely count as migrated.",
-        "old_source_preserved": true
+        "old_source_preserved": true,
+        "privacy_audit": "2026-10-19",
+        "source_archive_scoped_match": "PASS",
+        "safe_transfer_confirmed": false,
+        "source_remains_active": true,
+        "reason": "CUSTOMER_ASSOCIATED_ORDER_IDENTIFIERS_AND_CONTACT_HANDLE_OR_SHARED_HISTORY",
+        "next_step": "PRIVATE_PROVENANCE_PRESERVATION_AND_DEIDENTIFIED_PUBLIC_SUMMARY_WITH_OWNER_APPROVED_NO_LOSS_POLICY"
       }
     },
     {
@@ -3703,12 +3721,12 @@
   ],
   "latest_review": {
     "date": "2026-10-19",
-    "head_before_crosswalk_commit": "1490ecbe34125a6e74dbd35cf22e2e1a63f8d1d6",
-    "active_master_blob_sha": "52b98a66c04d6b1d05e64289ce96d539db379c72",
+    "head_before_crosswalk_commit": "0b336360b611aec86b765e00b3bfbae1fe6b440f",
+    "active_master_blob_sha": "8ad577fc1b6379beafbd2975dc514d33b5b01e39",
     "new_catalog_blob_sha": "6f3bdfd8396aecc785ed17a514a20bd3af273bde",
     "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
     "archive_master_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
-    "notes": "2026-10-19 independent scoped historical archive audit: 33 direct Entry slices, Entry608 reconstructed from 3 chunks, Entry619 exact after prior 001/004/005 appendix split. 40 markers paired. Full 66-entry runtime reconciliation and legacy privacy still OPEN; no production modification."
+    "notes": "Scoped archive integrity of all 38 units independently confirmed; legacy order entries 596/599/600 preserved, source/archival text checked, privacy classes and zero-copy audit recorded; no deletion/no Prod."
   },
   "non_entry_section_migrations": [
     {
@@ -3845,5 +3863,42 @@
     "files_modified_by_this_audit": [
       "docs/trendos/book-agent/BOOKS_NO_LOSS_CROSSWALK_V1.json"
     ]
+  },
+  "legacy_orders_privacy_review_20261019": {
+    "date": "2026-10-19",
+    "status": "SOURCE_ARCHIVE_PRESERVATION_CONFIRMED_PRIVACY_HOLD_REMAINS",
+    "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "archive_blob_sha": "a5eb39309413c2c2b8c5b62cab4ebc581e90f71e",
+    "active_master_blob_sha": "8ad577fc1b6379beafbd2975dc514d33b5b01e39",
+    "sections": {
+      "Entry596": {
+        "archive_exact": true,
+        "characters": 1556,
+        "order_code_occurrences": 4,
+        "legacy_short_order_reference_occurrences": 6,
+        "no_values_copied": true
+      },
+      "Entry599_600": {
+        "archive_exact_content_prefix": true,
+        "archived_characters": 2469,
+        "source_characters": 2492,
+        "additional_content": "WHITESPACE_AND_SEPARATOR_ONLY",
+        "social_handle_occurrences": 3,
+        "contact_handle_or_pseudonym_present": true,
+        "order_reference_present": true,
+        "no_values_copied": true
+      }
+    },
+    "private_data_classification": [
+      "ORDER_IDENTIFIERS",
+      "CUSTOMER_ASSOCIATED_CONTACT_HANDLE",
+      "HISTORICAL_DELIVERED_ORDER_STATES"
+    ],
+    "sensitive_values_embedded_in_new_audit": false,
+    "personal_records_copied_to_new_catalog": false,
+    "secret_pattern_scan": "NO_KNOWN_RAW_SECRET_PATTERN_DETECTED_NOT_COMPREHENSIVE",
+    "decision": "DO_NOT_DELETE_OR_VERBATIM_PUBLISH_BEFORE_PRIVATE_NO_LOSS_MIGRATION_OR_AUTHORIZED_REDACTION_STRATEGY",
+    "full_entry_reconciliation": "OPEN",
+    "new_production_evidence": false
   }
 }
