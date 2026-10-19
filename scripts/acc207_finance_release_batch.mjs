@@ -30,6 +30,10 @@ export function examineAcc207({accountingSource,existingFinanceGate,ownerClaims,
     supplier_payment_sql_fix_present:accountingSource.includes("'payment_paid',?,?,-1"),
     custody_handoff_sql_fix_present:accountingSource.includes("VALUES(?,?,?,?,?,'HANDOFF',?,?,?,?,?,?)"),
     legacy_deploy_readiness_never_auto_go:existingFinanceGate.includes("release_decision:'NO_GO'"),
+    acc211_restricted_scope_is_optional_and_safe:accountingSource.includes('function acc211Phase1WriteRejectionV1(')&&
+      accountingSource.includes("acc211-owner-grants-required")&&
+      accountingSource.includes("acc211-credit-flow-off-required")&&
+      accountingSource.includes("acc211-phase1-action-denied"),
     owner_approval_not_inferred_from_source:true
   };
   const cannotPostReturns=!accountingSource.includes("else if(action==='refundEasyStoreSaleV2')")
@@ -40,6 +44,11 @@ export function examineAcc207({accountingSource,existingFinanceGate,ownerClaims,
   // signatures, custody, production backup or irreversible financial writes.
   return Object.freeze({
     schema:'ACC207_ONE_BATCH_FINANCE_RELEASE_EVIDENCE_V1',
+    delegatedSafePhase1Scope:'CASH_SALES_AND_CUSTOMER_COLLECTIONS_ONLY',
+    phase1ScopeIsBusinessSelectionNotFinancialRelease:true,
+    refundsStockCreditAndSupplierMutationsPhase1Allowed:false,
+    employeeFinanceGrantsAuthenticated:false,
+    ownerOpeningBalancesReconciled:false,
     inspectedWorkerSha256:sha(accountingSource),
     codeInspectionPassed:Object.values(checks).every(Boolean),
     checks:Object.freeze(checks),
