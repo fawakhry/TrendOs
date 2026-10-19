@@ -7412,5 +7412,330 @@
       }
     ],
     "decision": "Retain Entry599/600 privacy hold, no public raw copy, owner final cutover blocked until independent functional and privacy evidence."
+  },
+  "historical_entry_related_current_source_symbol_probe_20261019": {
+    "date": "2026-10-19",
+    "observed_head": "4e550498f72aa89d8a86f82a744cb63697bfaaa9",
+    "evidence_class": "STATIC_CURRENT_SOURCE_SYMBOL_AND_TEST_FILE_PRESENCE_ONLY_NOT_BEHAVIORAL_TEST_OR_DEPLOY_EVIDENCE",
+    "current_source_file_count": 11,
+    "files": [
+      {
+        "family": "AUTH",
+        "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+        "blob_sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded",
+        "observed_symbols": [
+          {
+            "symbol": "handleLogin",
+            "present": true
+          },
+          {
+            "symbol": "employee_auth_sessions_v1",
+            "present": true
+          },
+          {
+            "symbol": "handleVerify",
+            "present": true
+          },
+          {
+            "symbol": "session_version",
+            "present": true
+          }
+        ]
+      },
+      {
+        "family": "DISPATCH",
+        "path": "employee-api-dispatcher-v1.js",
+        "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee",
+        "observed_symbols": [
+          {
+            "symbol": "verifyEmployeeSession",
+            "present": true
+          },
+          {
+            "symbol": "customerManagerV1",
+            "present": true
+          },
+          {
+            "symbol": "login",
+            "present": true
+          }
+        ]
+      },
+      {
+        "family": "COMMS",
+        "path": "cloudflare-d1/src/employee-comms-native-v1.mjs",
+        "blob_sha": "f415d06ccd15ba241d679c61b7afeb6ec904e4b8",
+        "observed_symbols": [
+          {
+            "symbol": "employee_comms_control_v1",
+            "present": true
+          },
+          {
+            "symbol": "READONLY",
+            "present": true
+          },
+          {
+            "symbol": "customerManager",
+            "present": true
+          }
+        ]
+      },
+      {
+        "family": "ACCOUNTING",
+        "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+        "blob_sha": "66440daa0c737966221f5b279a210b4211144d2c",
+        "observed_symbols": [
+          {
+            "symbol": "READONLY",
+            "present": true
+          },
+          {
+            "symbol": "employee_accounting",
+            "present": true
+          },
+          {
+            "symbol": "accounting",
+            "present": true
+          }
+        ]
+      },
+      {
+        "family": "OPS",
+        "path": "cloudflare-d1/src/employee-ops-native-v1.mjs",
+        "blob_sha": "1a6e8c3a42cf9283cf21e0a23b0dec7f51ff710c",
+        "observed_symbols": [
+          {
+            "symbol": "attendance",
+            "present": true
+          },
+          {
+            "symbol": "employee_ops",
+            "present": true
+          },
+          {
+            "symbol": "READONLY",
+            "present": true
+          }
+        ]
+      },
+      {
+        "family": "PORTAL",
+        "path": "cloudflare-d1/src/customer-portal-native-readiness-v0.mjs",
+        "blob_sha": "77dd108c5a229822da6d1625337d1d8989feb0cf",
+        "observed_symbols": [
+          {
+            "symbol": "NO_GO",
+            "present": true
+          },
+          {
+            "symbol": "customer",
+            "present": true
+          },
+          {
+            "symbol": "readiness",
+            "present": true
+          }
+        ]
+      },
+      {
+        "family": "OWNERSHIP",
+        "path": "cloudflare-d1/src/customer-portal-order-ownership-audit-v0.mjs",
+        "blob_sha": "e8748f137851e3b415bbceef094e769f49ed94fd",
+        "observed_symbols": [
+          {
+            "symbol": "customer",
+            "present": true
+          },
+          {
+            "symbol": "ownership",
+            "present": true
+          },
+          {
+            "symbol": "normalized",
+            "present": false
+          }
+        ]
+      },
+      {
+        "family": "TICKET",
+        "path": "cloudflare-d1/src/customer-portal-password-enrollment-ticket-v0.mjs",
+        "blob_sha": "f4a06fdf0f7ebb82942084e360ee1f7b3617bcd3",
+        "observed_symbols": [
+          {
+            "symbol": "ticket",
+            "present": true
+          },
+          {
+            "symbol": "otp",
+            "present": true
+          },
+          {
+            "symbol": "password",
+            "present": true
+          }
+        ]
+      },
+      {
+        "family": "ORDERS",
+        "path": "cloudflare-d1/src/edge-orders-read-v1.mjs",
+        "blob_sha": "540cca2143e7da940b96d6f990a8951e3b5c87ab",
+        "observed_symbols": [
+          {
+            "symbol": "verifyOrdersEdgeToken",
+            "present": true
+          },
+          {
+            "symbol": "expires",
+            "present": true
+          },
+          {
+            "symbol": "verifyEmployeeSession",
+            "present": true
+          }
+        ]
+      },
+      {
+        "family": "T12",
+        "path": "cloudflare-d1/src/t12-operational-runtime-handler.mjs",
+        "blob_sha": "1bb1ee6e8eca9b85f20d93394aad699908cc8c80",
+        "observed_symbols": [
+          {
+            "symbol": "registration",
+            "present": true
+          },
+          {
+            "symbol": "markCustomerNotified",
+            "present": false
+          },
+          {
+            "symbol": "ready_notify",
+            "present": true
+          }
+        ]
+      },
+      {
+        "family": "CONFIG",
+        "path": "config.js",
+        "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2",
+        "observed_symbols": [
+          {
+            "symbol": "MATBAGY_EMPLOYEE_NATIVE_AUTH_V1",
+            "present": true
+          },
+          {
+            "symbol": "MATBAGY_EMPLOYEE_LEGACY_BRIDGE_V1",
+            "present": true
+          },
+          {
+            "symbol": "MATBAGY_EMPLOYEE_COMMS_CUTOVER_MODE",
+            "present": true
+          }
+        ]
+      }
+    ],
+    "frontend_flag_literals": {
+      "employeeNativeAuthSourceFlag": true,
+      "employeeLegacyBridgeSourceFlagDisabled": true,
+      "employeeCommsReadOnlySourceFlag": true
+    },
+    "linked_entry_test_file_candidates": [
+      {
+        "entry_id": 614,
+        "available_test_files": [
+          {
+            "path": "tests/entry614_employee_comms_native.test.mjs",
+            "blob_sha": "e12c19a4d30f915d421706dbe56140babac5be5b"
+          },
+          {
+            "path": "tests/entry614_employee_accounting_native.test.mjs",
+            "blob_sha": "1977dcefe399114c99700bed6e08c19a339f2fd8"
+          },
+          {
+            "path": "tests/entry614_employee_content_native.test.mjs",
+            "blob_sha": "f8bf077f9f03eacdf660a81f5a2e3f2582fac98b"
+          },
+          {
+            "path": "tests/entry614_employee_ops_native.test.mjs",
+            "blob_sha": "3175ce077af183c4a5a00d6a5decba6c874db376"
+          }
+        ]
+      },
+      {
+        "entry_id": 630,
+        "available_test_files": [
+          {
+            "path": "tests/entry630_employee_comms_readonly_dispatch.test.mjs",
+            "blob_sha": "b51df382024579f7a9152eb2400af90dffabce64"
+          }
+        ]
+      },
+      {
+        "entry_id": 644,
+        "available_test_files": [
+          {
+            "path": "tests/entry644_employee_core_general_dispatch.test.mjs",
+            "blob_sha": "9bf2ef49f80a14deb8148812873654bdb272e847"
+          }
+        ]
+      },
+      {
+        "entry_id": 650,
+        "available_test_files": [
+          {
+            "path": "tests/entry650_employee_core_order_page_read.test.mjs",
+            "blob_sha": "00893ac30dbbb4ee5af8cd0b655d40cb2674f686"
+          }
+        ]
+      },
+      {
+        "entry_id": 652,
+        "available_test_files": [
+          {
+            "path": "tests/entry652_employee_session_lifecycle_guard.test.mjs",
+            "blob_sha": "c6af484e1aa181764e13cd563d4f1ac27b375705"
+          },
+          {
+            "path": "tests/entry652_employee_session_runtime_401_dispatch.test.mjs",
+            "blob_sha": "cb0ed4b2d56facd8e8d08cea4591e92cf41bb149"
+          }
+        ]
+      },
+      {
+        "entry_id": 654,
+        "available_test_files": [
+          {
+            "path": "tests/entry654_customer_portal_native_readiness_v0.test.mjs",
+            "blob_sha": "293c8ae17aa5b921b76bea1b7857d9afd7fb85e9"
+          }
+        ]
+      },
+      {
+        "entry_id": 655,
+        "available_test_files": [
+          {
+            "path": "tests/entry655_customer_order_ownership_audit.test.mjs",
+            "blob_sha": "4711ca95613e48b74655b8071fa93a327b01d925"
+          }
+        ]
+      },
+      {
+        "entry_id": 659,
+        "available_test_files": [
+          {
+            "path": "tests/entry659_customer_enrollment_ticket_source.test.mjs",
+            "blob_sha": "16d4100260a702b79a57b02595f3159eff8f98ac"
+          }
+        ]
+      }
+    ],
+    "entries_with_test_filename_candidates": 8,
+    "tests_executed_this_step": 0,
+    "code_semantics_and_runtime_coverage": "OPEN",
+    "no_runtime_production_inference": true,
+    "notes": [
+      "Symbol presence is not path reachability or authorization behavior proof.",
+      "Missing selected token in OWNERSHIP/T12 is not an asserted production bug; review actual implementation contract before deciding.",
+      "Historical tests only enumerated by filenames. No claims of test PASS or deployed applicability."
+    ]
   }
 }
