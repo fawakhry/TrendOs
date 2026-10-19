@@ -5243,11 +5243,71 @@
         "path": "cloudflare-d1/src/employee-core-native-v1.mjs",
         "result": "PATH_EXISTS",
         "current_blob_sha": "90b8d2d2353b3cbb2d85f8500e54bc64cfc3c82e"
+      },
+      {
+        "path": "cloudflare-d1/src/operator-task-edge-v2.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "7ef7aa4a52246d6423ccd8c27c9457b76bcc8643"
+      },
+      {
+        "path": "cloudflare-d1/src/autonomous-printshop-shadow-v1.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "98d6d6899645317798871b556ce970d61f276310"
+      },
+      {
+        "path": "tests/entry650_employee_core_order_page_read.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "00893ac30dbbb4ee5af8cd0b655d40cb2674f686"
+      },
+      {
+        "path": "tests/operator_task_edge_v2.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "e88a705f5247bdd2a7f4df56ce90351b122466a4"
+      },
+      {
+        "path": "cloudflare-d1/src/edge-orders-freshness-gate.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "34fe30371fa94b616a9c6555f40097a3ff26e7d4"
+      },
+      {
+        "path": "cloudflare-d1/src/edge-orders-idle-verifier.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "fbb8e257e61e4d6c54c5079a34f0bc8e63fa2842"
+      },
+      {
+        "path": "cloudflare-d1/src/edge-orders-idle-heartbeat.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "11fc442d0d7a2ba242f3ee60fe970adec2cc8b78"
+      },
+      {
+        "path": "cloudflare-d1/src/edge-orders-read-02cr-freshness.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "5754ddc481b65465bf997842cef3f41ac14ff0fd"
+      },
+      {
+        "path": "cloudflare-d1/src/mirror-gate.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "d9321c3a9c1678fd7a53abc6a24df73dbee25ebc"
+      },
+      {
+        "path": "cloudflare-d1/src/mirror-delta-gate.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "7822080e6f615d34065b0f2bc042c438443431de"
+      },
+      {
+        "path": "tests/trendos_integrity_dashboard_v1.test.js",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "1869cc6d8237708122ae00fbbbd651292d2615e1"
+      },
+      {
+        "path": "tests/cloudflare_edge_orders_idle_freshness_integration_v1.test.mjs",
+        "result": "PATH_EXISTS",
+        "current_blob_sha": "a0f1b5114fc56be359a681a73b3419c20d78f2ed"
       }
     ],
     "runtime_verified": false,
-    "checked_count": 48,
-    "present_count": 48,
+    "checked_count": 60,
+    "present_count": 60,
     "unresolved_count": 0
   }
 }
