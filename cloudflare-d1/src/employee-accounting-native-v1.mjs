@@ -2650,6 +2650,68 @@ function acc211Phase1WriteRejectionV1(env,auth,action,b){
   return 'acc211-phase1-action-denied';
 }
 
+
+// ACC212 / G3: require TWO distinct, actual cryptographic signatures on
+// explicit ZERO opening statements before ACC211 cash-only stage writes.
+// This is an *additional* read-only server ENV attestation check, NOT a
+// query of real historical accounting sources; the claimed source hashes
+// and key custody require independent human/source verification (G1–G5).
+// No secrets, staff IDs or digital private keys belong in the repo or body.
+// Even two valid fake/test signatures DO NOT authorize finance production GO.
+async function acc212VerifyOpeningZeroEvidenceV1(env){
+  const fail={ok:false,code:'acc212-zero-opening-proof-not-authenticated'};
+  try{
+    const raw=env&&env.ACCOUNTING_FINANCE_OPENING_ZERO_ATTESTATION_V1;
+    const preparedJwkRaw=env&&env.ACCOUNTING_FINANCE_OPENING_PREPARER_PUBLIC_JWK_V1;
+    const reviewedJwkRaw=env&&env.ACCOUNTING_FINANCE_OPENING_REVIEWER_PUBLIC_JWK_V1;
+    if(typeof raw!=='string'||raw.length>7000||raw.length<100||
+      typeof preparedJwkRaw!=='string'||preparedJwkRaw.length>1800||
+      typeof reviewedJwkRaw!=='string'||reviewedJwkRaw.length>1800)return fail;
+    const a=JSON.parse(raw),pj=JSON.parse(preparedJwkRaw),rj=JSON.parse(reviewedJwkRaw);
+    if(!a||a.version!==1||a.scope!=='PHASE1_CASH_ONLY'||a.zeroOpening===true!==true||
+      typeof a.cutoverDate!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(a.cutoverDate)||
+      !Number.isFinite(Date.parse(a.cutoverDate+'T00:00:00Z'))||
+      typeof a.preparedBy!=='string'||typeof a.reviewedBy!=='string'||
+      !/^[A-Za-z0-9_.:-]{6,180}$/.test(a.preparedBy)||
+      !/^[A-Za-z0-9_.:-]{6,180}$/.test(a.reviewedBy)||
+      a.preparedBy===a.reviewedBy)return fail;
+    // All figures are explicitly ZERO only for a proved clean cutover.
+    const moneyFields=['customerReceivablesCents','supplierPayablesCents',
+      'cashCents','stockUnits','otherLiabilitiesCents'];
+    if(!moneyFields.every(k=>a[k]===0))return fail;
+    const sourceKeys=['customers','suppliers','cash','stock','other'];
+    const h=a.sourceHashes;
+    if(!h||!sourceKeys.every(k=>typeof h[k]==='string'&&/^[a-f0-9]{64}$/.test(h[k])))return fail;
+    const jwkValid=j=>j&&j.kty==='OKP'&&j.crv==='Ed25519'&&
+      typeof j.x==='string'&&/^[A-Za-z0-9_-]{40,50}$/.test(j.x)&&
+      !Object.prototype.hasOwnProperty.call(j,'d');
+    if(!jwkValid(pj)||!jwkValid(rj)||pj.x===rj.x)return fail;
+    const sigValid=s=>typeof s==='string'&&/^[A-Za-z0-9_-]{84,88}$/.test(s);
+    if(!sigValid(a.preparerSignature)||!sigValid(a.reviewerSignature))return fail;
+    const canonical={
+      version:1,scope:'PHASE1_CASH_ONLY',zeroOpening:true,cutoverDate:a.cutoverDate,
+      preparedBy:a.preparedBy,reviewedBy:a.reviewedBy,
+      customerReceivablesCents:0,supplierPayablesCents:0,cashCents:0,
+      stockUnits:0,otherLiabilitiesCents:0,
+      sourceHashes:{customers:h.customers,suppliers:h.suppliers,cash:h.cash,
+        stock:h.stock,other:h.other}
+    };
+    const encoded=new TextEncoder().encode('ACC212_OPENING_ZERO_V1\n'+JSON.stringify(canonical));
+    const decode=s=>{
+      const b64=s.replace(/-/g,'+').replace(/_/g,'/');
+      const value=atob(b64+'='.repeat((4-b64.length%4)%4));
+      return Uint8Array.from(value,c=>c.charCodeAt(0));
+    };
+    const prep=await crypto.subtle.importKey('jwk',pj,{name:'Ed25519'},false,['verify']);
+    const review=await crypto.subtle.importKey('jwk',rj,{name:'Ed25519'},false,['verify']);
+    if(!await crypto.subtle.verify('Ed25519',prep,decode(a.preparerSignature),encoded)||
+      !await crypto.subtle.verify('Ed25519',review,decode(a.reviewerSignature),encoded))
+      return fail;
+    return {ok:true,code:'acc212-two-signatures-over-exact-zero-claims',
+      cutoverDate:a.cutoverDate};
+  }catch{return fail}
+}
+
 async function handleEmployeeAccountingNativeRequest(request,env){
   const h=cors(request,env);if(request.method==='OPTIONS')return new Response(null,{status:204,headers:h});
   if(!originAllowed(request,env))return json({success:false,code:'origin-not-allowed'},403,h);
@@ -2670,6 +2732,14 @@ async function handleEmployeeAccountingNativeRequest(request,env){
   const auth=await authenticate(request,b,env);if(!auth.ok)return json({success:false,code:'employee-session-rejected',message:auth.message},auth.status||401,h);
   const acc211Denied=READ_ACTIONS.has(action)?'':acc211Phase1WriteRejectionV1(env,auth,action,b);
   if(acc211Denied)return json({success:false,code:acc211Denied,financeRelease:'NO_GO'},403,h);
+  // A conditional zero opening is NOT a declaration that real finance is
+  // empty. Require independently pinned server-side Ed25519 public keys
+  // and two different signed zero assertions for EVERY ACC211 write.
+  if(!READ_ACTIONS.has(action)&&
+    text(env&&env.EASYSTORE_FINANCE_PHASE1_SCOPE_V1).toUpperCase()==='ENFORCE'){
+    const openingProof=await acc212VerifyOpeningZeroEvidenceV1(env);
+    if(!openingProof.ok)return json({success:false,code:openingProof.code,financeRelease:'NO_GO'},403,h);
+  }
   try{
     if((c.mode==='CANARY'||c.mode==='GENERAL')&&!READ_ACTIONS.has(action))await enforceWriteCanaryV1(env,auth,action,b,c.mode==='CANARY');
     let out;
