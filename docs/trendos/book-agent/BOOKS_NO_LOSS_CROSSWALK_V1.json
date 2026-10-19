@@ -8176,5 +8176,132 @@
     "production_release_claim": false,
     "do_not_modify_catalog_until_migration_policy_lifted": true,
     "final_cutover": "NO_GO"
+  },
+  "source_semantic_accounting_core_reconciliation_20261020": {
+    "date": "2026-10-20",
+    "head_before_commit": "ec5febc7c263e31d1e9ced5355522318d321fed8",
+    "branch": "agent/trendos-book-audit-v1-20261014",
+    "class": "VERIFIED_SOURCE_CONTRACT_NOT_EXECUTED_TEST_OR_DEPLOYED_SYSTEM",
+    "flags": [
+      {
+        "name": "accountingModeReadonly",
+        "pass": true
+      },
+      {
+        "name": "coreModeGeneral",
+        "pass": true
+      },
+      {
+        "name": "accountingThreeFrontendReads",
+        "pass": true
+      },
+      {
+        "name": "accountingBackendReadonlyWriteGuard",
+        "pass": true
+      },
+      {
+        "name": "accountingWorkerRoute",
+        "pass": true
+      },
+      {
+        "name": "coreGeneralRouter",
+        "pass": true
+      },
+      {
+        "name": "coreBackendControlWrites",
+        "pass": true
+      },
+      {
+        "name": "coreEmployeeAuth",
+        "pass": true
+      },
+      {
+        "name": "corePageReadD1",
+        "pass": true
+      },
+      {
+        "name": "pageAdapter",
+        "pass": true
+      },
+      {
+        "name": "accountedHistoricalTests",
+        "pass": true
+      }
+    ],
+    "verified_current_source": [
+      {
+        "path": "config.js",
+        "blob_sha": "8b83d9afd53d9c7fc95d9fb309ec0bfa350121d2"
+      },
+      {
+        "path": "employee-api-dispatcher-v1.js",
+        "blob_sha": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+      },
+      {
+        "path": "cloudflare-d1/src/index_v2.js",
+        "blob_sha": "4a555efb4b3f44ba371549d5cec055cc7ce1777f"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+        "blob_sha": "66440daa0c737966221f5b279a210b4211144d2c"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-core-native-v1.mjs",
+        "blob_sha": "90b8d2d2353b3cbb2d85f8500e54bc64cfc3c82e"
+      },
+      {
+        "path": "tests/frontend_employee_accounting_family_router_entry619.test.mjs",
+        "blob_sha": "1032f2c6156b45dfb8bdbb31c536105e444b246e"
+      },
+      {
+        "path": "tests/entry644_employee_core_general_dispatch.test.mjs",
+        "blob_sha": "9bf2ef49f80a14deb8148812873654bdb272e847"
+      },
+      {
+        "path": "tests/entry650_employee_core_order_page_read.test.mjs",
+        "blob_sha": "00893ac30dbbb4ee5af8cd0b655d40cb2674f686"
+      }
+    ],
+    "entry_source_mapping": [
+      {
+        "entry_id": 619,
+        "status": "SOURCE_GATES_VERIFIED_RUNTIME_OPEN",
+        "proof": "config Accounting=READONLY; frontend routes three eligible reads; Backend READONLY rejects nonreads; worker route present",
+        "paths": [
+          "config.js#L30",
+          "employee-api-dispatcher-v1.js#L56-L62,L245-L253",
+          "cloudflare-d1/src/employee-accounting-native-v1.mjs#L849-L865",
+          "tests/frontend_employee_accounting_family_router_entry619.test.mjs#L74-L112"
+        ],
+        "blocked": "Standalone EasyStore real finance authority, deployed D1 control mode and billing mutation behavior not audited."
+      },
+      {
+        "entry_id": 644,
+        "status": "SOURCE_GATES_VERIFIED_RUNTIME_OPEN",
+        "proof": "config CORE=GENERAL; frontend gated four writes; server Control READONLY prevents mutations; authenticated handler in worker",
+        "paths": [
+          "config.js#L31",
+          "employee-api-dispatcher-v1.js#L64-L83,L255-L266",
+          "cloudflare-d1/src/employee-core-native-v1.mjs#L339-L361",
+          "tests/entry644_employee_core_general_dispatch.test.mjs#L53-L109"
+        ],
+        "blocked": "Actual D1 Control state, writer semantics, end-to-end server authorization and production release evidence not audited."
+      },
+      {
+        "entry_id": 650,
+        "status": "SOURCE_GATES_VERIFIED_RUNTIME_OPEN",
+        "proof": "Frontend page call remapped to Core getRows, server returns D1-backed rows with serverPaged=false, screenAllowed role check",
+        "paths": [
+          "employee-api-dispatcher-v1.js#L624-L635",
+          "cloudflare-d1/src/employee-core-native-v1.mjs#L363-L376",
+          "tests/entry650_employee_core_order_page_read.test.mjs#L52-L70"
+        ],
+        "blocked": "Live page rendering, current deployed URL, pagination performance and production D1 correctness still unverified."
+      }
+    ],
+    "extra_runtime_reconciliations_closed": 0,
+    "historical_test_files_read_not_executed": 3,
+    "privacy_customer_data_untouched": true,
+    "owner_approval_needed_before_book_cutover": true
   }
 }
