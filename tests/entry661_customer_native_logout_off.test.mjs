@@ -61,7 +61,7 @@ test('atomic CAS affects only authenticated fingerprint and returns no token/PII
 test('replay/missing session denied; database unknown outcome never success',async()=>{
   const base={token:TOKEN,secret:SECRET,nowMs:123456};
   assert.equal((await revokeCustomerNativeSessionV0({...base,db:mockDb(0)})).status,401);
-  assert.equal((await revokeCustomerNativeSessionV0({...base,db:mockDb(undefined)})).status,503);
+  assert.equal((await revokeCustomerNativeSessionV0({...base,db:mockDb(null)})).status,503);
   const broken=await revokeCustomerNativeSessionV0({...base,db:mockDb(1,true)});
   assert.equal(broken.status,503);
   assert.doesNotMatch(JSON.stringify(broken),/PRIVATE-DB-NOTES/);
