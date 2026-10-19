@@ -65,7 +65,7 @@ try{
  const env={DB,CORS_ORIGINS:'https://fawakhry.github.io'};
  let verifiedRole='admin';
  const ctx=vm.createContext({
-   crypto:webcrypto,TextEncoder,Response,Request,Headers,URL,URLSearchParams,
+   crypto:webcrypto,atob:globalThis.atob,TextEncoder,Response,Request,Headers,URL,URLSearchParams,
    Date,Intl,JSON,Math,console,
    verifyEmployeeSessionCloudFirst:async (username,token)=>{
      if(username!=='ACC170_SYNTHETIC_OPERATOR'||token!=='ACC170_NONPRODUCTION_TOKEN')
@@ -271,6 +271,13 @@ try{
  assert.equal(overCredit.status,403);assert.equal(overCredit.code,'acc211-credit-flow-off-required');
  env.EASYSTORE_CUSTOMER_CREDIT_V1='OFF';
 
+ // No verified prior-zero evidence was provided by the owner.
+ const noOpening=await send('saveEasyStoreSaleV2',{
+   requestId:'ACC212-NO-OPENING-PROOF',customerId:customer,
+   invoiceNo:'ACC212-NO-OPENING',paid:0
+ });
+ assert.equal(noOpening.status,403);
+ assert.equal(noOpening.code,'acc212-zero-opening-proof-not-authenticated');
  // Explicit pinning of phase-one mode alone is not production GO. With fake
  // G2 roster and simulated GENERAL in ephemeral SQLite, actual native sale
  // and ordinary customer receipt remain available on their original paths.
