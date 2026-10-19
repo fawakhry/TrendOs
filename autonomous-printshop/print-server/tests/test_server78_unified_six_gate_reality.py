@@ -45,6 +45,11 @@ class FakeOpener:
         )
         assert req.get_header("Authorization") == "Bearer " + TOKEN
         path = req.full_url
+        if path.endswith("/subdomain"):
+            return Response(json.dumps({
+                "success": True,
+                "result": {"enabled": True, "previews_enabled": False}
+            }).encode())
         if path.endswith("/content/v2"):
             # Fake bearer-looking customer text MUST NOT be reflected.
             source = b"/v1/edge/orders/02cr/page" + b"/v1/edge/customers/search" + b"FAKE_PRIVATE_CUSTOMER_12345"
@@ -90,7 +95,7 @@ class SixGateRealityTest(unittest.TestCase):
         op = FakeOpener()
         out = m.unified_report(QUEUE, op, TOKEN, ACCOUNT, enabled=True)
         self.assertTrue(out["remoteCloudflareApiGetPerformed"])
-        self.assertEqual(len(op.requests), 9)  # 2 prod +3 API +1+1 stages, plus 2 exact active version GETs.
+        self.assertEqual(len(op.requests), 13)  # old 9 GETs plus 4 script subdomain GETs.
         self.assertEqual([x["id"] for x in out["steps"]], list(m._GATE_IDS))
         self.assertTrue(all(x["status"] == "DEFERRED_NO_GO" for x in out["steps"]))
         self.assertTrue(all(not x["liveAccepted"] for x in out["steps"]))
@@ -150,6 +155,26 @@ class SixGateRealityTest(unittest.TestCase):
             self.assertTrue(item["markers"]["ordersPageSource"])
             self.assertEqual(item["versionParity"], "NOT_PROVEN")
             self.assertNotIn("digestPrefix", item)
+
+    def test_workers_dev_publication_does_not_prove_customer_exposure(self):
+        out = m.unified_report(QUEUE, FakeOpener(), TOKEN, ACCOUNT, enabled=True)
+        for worker in m._WORKERS:
+            p = out["workers"][worker]["publication"]
+            self.assertTrue(p["verified"])
+            self.assertTrue(p["workersDevPublished"])
+            self.assertFalse(p["previewUrlsPublished"])
+            self.assertFalse(p["cloudflareAccessVerified"])
+            self.assertFalse(p["publicDataExposureProven"])
+        self.assertEqual(out["release"], "NO_GO")
+
+    def test_missing_or_malformed_subdomain_access_never_guessed(self):
+        self.assertEqual(m._subdomain({"verified": False, "reason": "AUTH_DENIED"}),
+                         {"verified": False, "reason": "AUTH_DENIED"})
+        for bad in ({"enabled": "false", "previews_enabled": False},
+                    {"enabled": False},
+                    {"enabled": 0, "previews_enabled": False}):
+            state = m._subdomain({"verified": True, "result": bad})
+            self.assertFalse(state["verified"])
 
     def test_declared_binding_name_is_not_approval(self):
         out = m.unified_report(QUEUE, FakeOpener(), TOKEN, ACCOUNT, enabled=True)
