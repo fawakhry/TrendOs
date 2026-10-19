@@ -7775,8 +7775,8 @@
       },
       {
         "id": "G07_E2E_FUNCTION_AND_RUNTIME_SEMANTIC_RECONCILIATION",
-        "state": "OPEN_SOURCE_ONLY_8_OF_66",
-        "evidence": "Eight Entry IDs source-contract assessed on branch (619,630,644,650,652,654,655,659); 0/66 certified for current deployed E2E runtime."
+        "state": "OPEN_SOURCE_ONLY_12_OF_66",
+        "evidence": "12 historical Entry IDs source-contract reviewed on 2026-10-20; 0/66 verified in current deployed E2E runtime; no CI claimed."
       },
       {
         "id": "G08_OWNER_APPROVAL_AND_RELEASE",
@@ -8494,5 +8494,60 @@
       "No executable tests run in this task."
     ],
     "runtime_certification": "OPEN"
+  },
+  "source_semantic_batch_20261020_final_checkpoint": {
+    "date": "2026-10-20",
+    "head_before_commit": "748b0654596dbb2acabc5299a0ef4fcad8f170e9",
+    "work_branch": "agent/trendos-book-audit-v1-20261014",
+    "summary": "12 SOURCE-ONLY SEMANTICALLY_REVIEWED_ENTRIES; 38/38 ARCHIVAL_VERBATIM; FINAL_RUNTIME_AND_OWNER_CUTOVER_OPEN",
+    "historical_transfer_units_total": 38,
+    "archival_match": "PASS",
+    "original_entries": 66,
+    "source_checked_entries": [
+      619,
+      630,
+      644,
+      650,
+      651,
+      652,
+      653,
+      654,
+      655,
+      657,
+      658,
+      659
+    ],
+    "source_contract_checks_completed": 36,
+    "source_entries_remaining_for_individual_review": 54,
+    "production_runtime_independently_verified": 0,
+    "privacy_entries_blocked": [
+      596,
+      599,
+      600
+    ],
+    "source_finding_to_resolve": [
+      "Legacy session route historical GET vs currently wired cloud-session bridge (route order confirmed in source)",
+      "Conditional WhatsApp registration type mismatch order_registered vs Native registration",
+      "Frontend registration acknowledgement does not check returned business success",
+      "Orders Edge token revocation semantics remain endpoint-level unverified",
+      "Customer OTP portal still source-only NO_GO"
+    ],
+    "ci_status_read": {
+      "sha": "748b0654596dbb2acabc5299a0ef4fcad8f170e9",
+      "status_records": 0,
+      "pass_not_claimed": true
+    },
+    "static_source_only": true,
+    "no_runtime_env_production_actions": true,
+    "no_end_to_end_tests_run": true,
+    "current_old_book": "ACTIVE_WRITE",
+    "current_new_catalog": "FROZEN_MIGRATION_ONLY",
+    "final_cutover_permission": "NOT_GRANTED",
+    "next_batch": [
+      "Entry656 customer readiness/zero-Google health evidentiary trace",
+      "Entry647/648 employee auth+attendance source contract",
+      "Remaining historical Entries grouped by active code ownership",
+      "Read-only independent latest deployed SHA and end-to-end evidence"
+    ]
   }
 }
