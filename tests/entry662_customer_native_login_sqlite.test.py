@@ -69,7 +69,7 @@ class NativeCustomerLoginSqlite(unittest.TestCase):
                              (token_fingerprint(),NOW,NOW)).fetchone()
         self.assertEqual(read["customerId"],"C1")
         self.assertEqual({row["orderId"] for row in self.db.execute(
-            fixture.sql("CUSTOMER_NATIVE_ORDER_LINES_SQL_V0"),("C1",41,0))},{"O1","O5"} if False else {"O1","O5"})
+            fixture.sql("CUSTOMER_NATIVE_ORDER_LINES_SQL_V0"),("C1",41,0))},{"O1","O5"})
         row=self.db.execute(
             "SELECT token_fingerprint_hex,expires_at_ms,source FROM customer_portal_native_sessions_v1 WHERE token_fingerprint_hex=?",
             (token_fingerprint(),)).fetchone()
@@ -125,7 +125,7 @@ class NativeCustomerLoginSqlite(unittest.TestCase):
           "UPDATE customer_portal_native_accounts_v1 SET state='DISABLED' WHERE customer_id='C1'",
           "UPDATE customer_portal_native_accounts_v1 SET must_change=1 WHERE customer_id='C1'"
         ]:
-            self.db.rollback()
+            self.db.close()
             self.db=fixture.seeded()
             self.db.execute("UPDATE customer_portal_native_accounts_v1 SET password_salt_hex=?,password_hash_hex=?,must_change=0 WHERE customer_id='C1'",(SALT,HASH))
             self.db.execute(update)
