@@ -1,0 +1,160 @@
+name: SERVER-81 Owner-Approved CREATE ONE Unpublished Isolated Stage
+
+# ONE owner-approved bootstrap, requested in the chat on 2026-10-20.
+# This workflow has exactly ONE branch/path trigger. Must not be repurposed.
+# Scope: CREATE nonpublic trendos-server68-isolated-stage ONLY (no customer D1,
+# no prod hostname/route, no R2, no live reader, no Ubuntu or user data).
+on:
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+    paths:
+      - .github/workflows/server81-owner-approved-new-stage-create-once.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server81-new-stage-create-once
+  cancel-in-progress: false
+
+jobs:
+  create-new-unpublished-stage:
+    if: github.repository == 'fawakhry/TrendOs' && github.ref == 'refs/heads/release/server68-staging-qualification-20261016' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Single owner-approved source snapshot; refuse any unrelated change
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'fawakhry/TrendOs'
+          test "$GITHUB_REF" = 'refs/heads/release/server68-staging-qualification-20261016'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^)" = 'd1f4af779c3291b7fac15765a138e14aa52c7b02'
+          test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = '.github/workflows/server81-owner-approved-new-stage-create-once.yml'
+          test -n "$CLOUDFLARE_API_TOKEN"
+          [[ "$CLOUDFLARE_ACCOUNT_ID" =~ ^[a-fA-F0-9]{32}$ ]]
+          echo 'SERVER81_USER_APPROVED_STAGE_CREATION=YES; EXACT_SOURCE_PARENT_PIN=PASS'
+      - name: Revalidate stage isolation and offline regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node autonomous-printshop/print-server/tools/server80_isolated_stage_deploy_guard.mjs --validate
+          node --test tests/server80_isolated_stage_owner_bootstrap.test.mjs
+          grep -Fx 'name = "trendos-server68-isolated-stage"' cloudflare-d1/wrangler.server68-isolated-stage.toml
+          grep -Fx 'workers_dev = false' cloudflare-d1/wrangler.server68-isolated-stage.toml
+          grep -Fx 'preview_urls = false' cloudflare-d1/wrangler.server68-isolated-stage.toml
+          ! grep -Eq '^\[\[(d1_databases|routes|r2_buckets|kv_namespaces|services)\]\]' cloudflare-d1/wrangler.server68-isolated-stage.toml
+          test ! -e cloudflare-d1/.dev.vars
+          echo 'SERVER81_PUBLIC_ROUTES=NONE; PRODUCTION_D1=NOT_BOUND'
+      - name: Fail-closed check that target does NOT exist at Cloudflare
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from urllib.error import HTTPError, URLError
+          from urllib.request import Request, build_opener, HTTPSHandler, HTTPRedirectHandler, ProxyHandler
+          class NoRedirect(HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl): return None
+          acct=os.environ['CLOUDFLARE_ACCOUNT_ID']
+          token=os.environ['CLOUDFLARE_API_TOKEN']
+          base='https://api.cloudflare.com/client/v4/accounts/'+acct+'/workers/scripts/trendos-server68-isolated-stage'
+          opener=build_opener(ProxyHandler({}),HTTPSHandler(),NoRedirect())
+          for suffix in ('', '/settings', '/deployments'):
+              request=Request(base+suffix,method='GET',headers={
+                  'Authorization':'Bearer '+token,'Accept':'application/json'})
+              try:
+                  with opener.open(request,timeout=15):
+                      raise SystemExit('SERVER81_EXISTING_STAGE_ABORT_NEVER_OVERWRITE')
+              except HTTPError as exc:
+                  code=exc.code
+                  exc.close()
+                  if code!=404:
+                      raise SystemExit('SERVER81_ACCOUNT_AUTH_OR_TARGET_UNVERIFIED_ABORT')
+              except (URLError,TimeoutError,OSError):
+                  raise SystemExit('SERVER81_ACCOUNT_NETWORK_UNVERIFIED_ABORT')
+          print('SERVER81_TARGET_ABSENT_ALL_THREE_CLOUDFLARE_GET=PASS')
+          PY
+      - name: Wrangler bundle validation (no Cloudflare modification)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 deploy \
+            --config cloudflare-d1/wrangler.server68-isolated-stage.toml \
+            --dry-run --outdir /tmp/server81-dry
+          test -n "$(find /tmp/server81-dry -maxdepth 1 -type f -name '*.js' -print -quit)"
+          echo 'SERVER81_DRY_RUN=PASS; CREATE_STILL_NOT_PERFORMED'
+      - name: CREATE new unpublished isolated-stage Worker only; NEVER touch production
+        id: stage_create
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 deploy \
+            --config cloudflare-d1/wrangler.server68-isolated-stage.toml
+          echo 'SERVER81_NEW_STAGE_WORKER_CREATED=ATTEMPTED'
+      - name: Verify new deployment exists and neither Workers.dev nor preview URLs published
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,time
+          from urllib.error import HTTPError, URLError
+          from urllib.request import Request, build_opener, HTTPSHandler, HTTPRedirectHandler, ProxyHandler
+          class NoRedirect(HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl): return None
+          acct=os.environ['CLOUDFLARE_ACCOUNT_ID']
+          token=os.environ['CLOUDFLARE_API_TOKEN']
+          base='https://api.cloudflare.com/client/v4/accounts/'+acct+'/workers/scripts/trendos-server68-isolated-stage'
+          opener=build_opener(ProxyHandler({}),HTTPSHandler(),NoRedirect())
+          def get(suffix):
+              req=Request(base+suffix,method='GET',headers={
+                'Authorization':'Bearer '+token,'Accept':'application/json'})
+              with opener.open(req,timeout=15) as res:
+                  buf=res.read(65537)
+                  if res.status!=200 or len(buf)>65536: raise RuntimeError('UNQUALIFIED_METADATA')
+                  data=json.loads(buf)
+                  if data.get('success') is not True or type(data.get('result')) is not dict:
+                      raise RuntimeError('API_RESULT_INVALID')
+                  return data['result']
+          result=None
+          for _ in range(8):
+              try:
+                  pub=get('/subdomain')
+                  deployments=get('/deployments').get('deployments')
+                  if (type(pub) is dict and pub.get('enabled') is False and
+                      pub.get('previews_enabled') is False and
+                      isinstance(deployments,list) and deployments):
+                      result='SERVER81_NEW_STAGE_UNPUBLISHED_AND_DEPLOYED=VERIFIED'
+                      break
+              except (HTTPError,URLError,TimeoutError,ValueError,RuntimeError,OSError):
+                  pass
+              time.sleep(3)
+          if result is None:
+              raise SystemExit('SERVER81_POSTDEPLOY_PUBLICATION_OR_VERSION_UNVERIFIED_MANUAL_HOLD')
+          print(result)
+          print('SERVER81_PROD_WORKER_CHANGED=NO_BY_SCOPE; D1_READ=NO; UBUNTU=NO')
+          PY
+      - name: Report stage-creation-only result
+        shell: bash
+        run: |
+          {
+            echo '## SERVER-81 owner-approved NEW stage bootstrap'
+            echo ''
+            echo 'New isolated Worker deployment verified with Workers.dev OFF and preview URLs OFF.'
+            echo 'No production D1, customer/order data, routes, secrets or print devices accessed.'
+            echo 'No authenticated private Access or synthetic D1 yet; D01–D06 still NO_GO.'
+            echo 'Follow-up configuration requires separate readiness checks.'
+          } >> "$GITHUB_STEP_SUMMARY"
