@@ -46,9 +46,10 @@ class FakeOpener:
         assert req.get_header("Authorization") == "Bearer " + TOKEN
         path = req.full_url
         if path.endswith("/subdomain"):
+            stage = "trendos-server68-isolated-stage" in path
             return Response(json.dumps({
                 "success": True,
-                "result": {"enabled": True, "previews_enabled": False}
+                "result": {"enabled": False if stage else True, "previews_enabled": False}
             }).encode())
         if path.endswith("/content/v2"):
             # Fake bearer-looking customer text MUST NOT be reflected.
@@ -62,13 +63,19 @@ class FakeOpener:
             }}
             return Response(json.dumps(payload).encode())
         if path.endswith("/settings"):
-            payload = {"success": True, "result": {"bindings": [
-                {"name": "DB", "type": "d1", "id": "DO_NOT_REPORT_PRIVATE_D1_ID"},
-                {"name": "TRENDOSSHOP_SERVICE_READ_ENABLED", "type": "plain_text", "text": "false"},
-                {"name": "TRENDOSSHOP_READER_TOKEN_SHA256_HEX", "type": "secret_text",
-                 "text": "DO_NOT_REPORT_SECRET_VALUE"},
-                {"name": "SOME_SECRET", "type": "secret_text", "text": "PRIVATE"},
-            ]}}
+            if "trendos-server68-isolated-stage" in path:
+                bindings = [{"name": "MIRROR_SERVICE_READ_REPLAY_DO",
+                             "type": "durable_object_namespace",
+                             "id": "PRIVATE_STAGE_DO_IDENTIFIER"}]
+            else:
+                bindings = [
+                    {"name": "DB", "type": "d1", "id": "DO_NOT_REPORT_PRIVATE_D1_ID"},
+                    {"name": "TRENDOSSHOP_SERVICE_READ_ENABLED", "type": "plain_text", "text": "false"},
+                    {"name": "TRENDOSSHOP_READER_TOKEN_SHA256_HEX", "type": "secret_text",
+                     "text": "DO_NOT_REPORT_SECRET_VALUE"},
+                    {"name": "SOME_SECRET", "type": "secret_text", "text": "PRIVATE"},
+                ]
+            payload = {"success": True, "result": {"bindings": bindings}}
         else:
             payload = {"success": True, "result": {"deployments": [{
                 "id": "EXACT_WORKER_DEPLOYMENT_IDENTIFIER_SHOULD_NOT_BE_PRINTED",
@@ -95,7 +102,7 @@ class SixGateRealityTest(unittest.TestCase):
         op = FakeOpener()
         out = m.unified_report(QUEUE, op, TOKEN, ACCOUNT, enabled=True)
         self.assertTrue(out["remoteCloudflareApiGetPerformed"])
-        self.assertEqual(len(op.requests), 13)  # old 9 GETs plus 4 script subdomain GETs.
+        self.assertEqual(len(op.requests), 14)  # includes new isolated-stage bindings GET.
         self.assertEqual([x["id"] for x in out["steps"]], list(m._GATE_IDS))
         self.assertTrue(all(x["status"] == "DEFERRED_NO_GO" for x in out["steps"]))
         self.assertTrue(all(not x["liveAccepted"] for x in out["steps"]))
@@ -161,7 +168,8 @@ class SixGateRealityTest(unittest.TestCase):
         for worker in m._WORKERS:
             p = out["workers"][worker]["publication"]
             self.assertTrue(p["verified"])
-            self.assertTrue(p["workersDevPublished"])
+            self.assertIs(p["workersDevPublished"],
+                          worker != "trendos-server68-isolated-stage")
             self.assertFalse(p["previewUrlsPublished"])
             self.assertFalse(p["cloudflareAccessVerified"])
             self.assertFalse(p["publicDataExposureProven"])
@@ -230,6 +238,37 @@ class SixGateRealityTest(unittest.TestCase):
         rows = m._stage_rows(QUEUE, workers)
         self.assertIn("ISOLATED STAGE WORKERS.DEV PUBLICATION UNSAFE", rows[0]["missing"])
         self.assertEqual(rows[0]["status"], "DEFERRED_NO_GO")
+
+    def test_newly_created_stage_unpublished_and_without_d1_is_partial_d01_only(self):
+        out = m.unified_report(QUEUE, FakeOpener(), TOKEN, ACCOUNT, enabled=True)
+        self.assertTrue(out["unpublishedStageWithoutD1Verified"])
+        stage = out["workers"]["trendos-server68-isolated-stage"]
+        self.assertTrue(stage["deployment"]["verified"])
+        self.assertTrue(stage["publication"]["verified"])
+        self.assertFalse(stage["publication"]["workersDevPublished"])
+        self.assertFalse(stage["publication"]["previewUrlsPublished"])
+        self.assertEqual(stage["settings"]["bindingTypes"]["DB"], "ABSENT")
+        self.assertEqual(stage["settings"]["bindingTypes"]["MIRROR_SERVICE_READ_REPLAY_DO"],
+                         "durable_object_namespace")
+        self.assertIn("ACCESS/SYNTHETIC_D1 STILL MISSING", out["steps"][0]["missing"])
+        self.assertEqual(out["steps"][0]["status"], "DEFERRED_NO_GO")
+        self.assertEqual(out["release"], "NO_GO")
+
+    def test_new_stage_accidentally_bound_to_d1_cannot_be_verified_safe(self):
+        opener = FakeOpener()
+        original = opener.open
+        def malicious_stage_settings(req, timeout):
+            if (req.full_url.endswith("/settings") and
+                    "trendos-server68-isolated-stage" in req.full_url):
+                return Response(json.dumps({"success": True, "result": {
+                    "bindings": [{"name": "DB", "type": "d1",
+                                  "id": "DONT_LOG_CUSTOMER_DB"}]}}).encode())
+            return original(req, timeout)
+        opener.open = malicious_stage_settings
+        out = m.unified_report(QUEUE, opener, TOKEN, ACCOUNT, enabled=True)
+        self.assertFalse(out["unpublishedStageWithoutD1Verified"])
+        self.assertIn("VERIFY NOT PRODUCTION", out["steps"][0]["missing"])
+        self.assertNotIn("DONT_LOG_CUSTOMER_DB", json.dumps(out))
 
     def test_missing_stage_remains_no_go_even_if_deployment_exists(self):
         out = m.unified_report(QUEUE, FakeOpener(), TOKEN, ACCOUNT, enabled=True)
