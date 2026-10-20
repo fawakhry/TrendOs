@@ -232,8 +232,20 @@ def _stage_rows(queue, workers):
     if isolated is not None and isolated.get("deployment", {}).get("reason") == "NOT_FOUND":
         evidence["D01"] += "; REQUIRED ISOLATED WORKER ABSENT"
     stage_pub = (isolated or {}).get("publication", {})
+    stage_dep = (isolated or {}).get("deployment", {})
+    stage_settings = (isolated or {}).get("settings", {})
     if stage_pub.get("verified") and stage_pub.get("workersDevPublished") is True:
         evidence["D01"] += "; ISOLATED STAGE WORKERS.DEV PUBLICATION UNSAFE"
+    if stage_pub.get("verified") and stage_pub.get("previewUrlsPublished") is True:
+        evidence["D01"] += "; ISOLATED STAGE PREVIEW PUBLICATION UNSAFE"
+    if stage_settings.get("verified") and stage_settings.get("bindingTypes", {}).get("DB") != "ABSENT":
+        evidence["D01"] += "; ISOLATED STAGE DB BINDING PRESENT; VERIFY NOT PRODUCTION"
+    if (stage_pub.get("verified") and stage_dep.get("verified") and
+            stage_settings.get("verified") and
+            stage_pub.get("workersDevPublished") is False and
+            stage_pub.get("previewUrlsPublished") is False and
+            stage_settings.get("bindingTypes", {}).get("DB") == "ABSENT"):
+        evidence["D01"] += "; NEW UNPUBLISHED STAGE EXISTS WITHOUT D1; ACCESS/SYNTHETIC_D1 STILL MISSING"
     live_pub = workers.get("trendos-d1-api", {}).get("publication", {})
     if live_pub.get("verified") and live_pub.get("workersDevPublished") is True:
         evidence["D04"] += "; LIVE WORKERS.DEV HOST PUBLISHED; ACCESS POLICY UNVERIFIED"
@@ -262,7 +274,9 @@ def unified_report(queue, opener=None, token="", account="", enabled=False):
     if remote:
         for worker in _WORKERS:
             endpoints = ("/deployments", "/content/v2", "/settings", "/subdomain") if worker == "trendos-d1-api" else (
-                "/deployments", "/content/v2", "/subdomain") if worker == "trendos" else ("/deployments", "/subdomain")
+                "/deployments", "/content/v2", "/subdomain") if worker == "trendos" else (
+                "/deployments", "/settings", "/subdomain") if worker == "trendos-server68-isolated-stage" else (
+                "/deployments", "/subdomain")
             detail = {}
             active_version_id = ""
             for suffix in endpoints:
@@ -286,8 +300,21 @@ def unified_report(queue, opener=None, token="", account="", enabled=False):
                         "verified": False, "reason": "NO_UNAMBIGUOUS_ACTIVE_VERSION"
                     }
             workers[worker] = detail
+    isolated = workers.get("trendos-server68-isolated-stage", {})
+    publication = isolated.get("publication", {})
+    settings = isolated.get("settings", {})
+    deployment = isolated.get("deployment", {})
+    stage_bootstrap_verified = (
+        deployment.get("verified") is True and
+        publication.get("verified") is True and
+        settings.get("verified") is True and
+        publication.get("workersDevPublished") is False and
+        publication.get("previewUrlsPublished") is False and
+        settings.get("bindingTypes", {}).get("DB") == "ABSENT"
+    )
     return {
         "schema": "trendos.server78.unified-six-stage-live-reality.v1",
+        "unpublishedStageWithoutD1Verified": stage_bootstrap_verified,
         "reportKind": "CLOUD_METADATA_SOURCE_AUDIT_ONLY",
         "remoteCloudflareApiGetPerformed": bool(remote),
         "scope": "WORKER_DEPLOYMENTS_SCRIPT_CONTENT_BINDING_AND_SUBDOMAIN_METADATA_ONLY",
