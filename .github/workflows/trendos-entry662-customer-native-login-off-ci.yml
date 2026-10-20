@@ -1,0 +1,55 @@
+name: TrendOS Entry662 Native Customer Login OFF — Fake SQLite
+on:
+  push:
+    branches:
+      - feat/zero-google-native-customer-login-session-off-20261020
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/customer-portal-native-login-v0.mjs'
+      - 'tests/entry662_customer_native_login_off.test.mjs'
+      - 'tests/entry662_customer_native_login_sqlite.test.py'
+      - '.github/workflows/trendos-entry662-customer-native-login-off-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-customer-login-atomic-session-source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify native password verifier + session CAS; no live credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          OPENAI_API_KEY: ''
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/customer-portal-native-login-v0.mjs
+          node --test tests/entry662_customer_native_login_off.test.mjs
+          node --test tests/entry661_customer_native_logout_off.test.mjs
+          node --test tests/entry660_customer_native_orders_off.test.mjs
+      - name: Real SQL on disposable SQLite only with previous native boundary tests
+        run: |
+          set -euo pipefail
+          python3 tests/entry662_customer_native_login_sqlite.test.py -v
+          python3 tests/entry661_customer_native_logout_sqlite.test.py -v
+          python3 tests/entry660_customer_native_orders_sqlite.test.py -v
+      - name: Preserve existing legacy employee/customer transport
+        run: |
+          node tests/entry653_zero_google_employee_legacy_proxy_retirement.test.mjs
+      - name: Explicit OFF deployment markers
+        run: |
+          echo 'ENTRY662_CUSTOMER_LOGIN=SOURCE_ONLY'
+          echo 'NATIVE_CUSTOMER_HTTP_LOGIN=NOT_WIRED'
+          echo 'CUSTOMER_PASSWORD_ENROLLMENT=UNDEPLOYED'
+          echo 'GLOBAL_ANTI_CREDENTIAL_STUFFING_GATE=NOT_COMPLETE'
+          echo 'GOOGLE_CUSTOMER_LEGACY_ACTIONS_LIVE=9'
+          echo 'REAL_CUSTOMER_CREDENTIALS_OR_PROD_D1=NONE'
+          echo 'PRODUCTION_DEPLOY=NO'
+          echo 'ZERO_GOOGLE_COMPLETE=NO'
