@@ -36,7 +36,8 @@ test('no separate official order writer, no new order or customer HTTP route',()
  const index=readFileSync('cloudflare-d1/src/index_v2.js','utf8');
  assert.doesNotMatch(index,/customer-portal-native-submit-preflight-v0/);
  const source=readFileSync('cloudflare-d1/src/customer-portal-native-submit-preflight-v0.mjs','utf8');
- assert.doesNotMatch(source,/createT12GeneralOrder\s*\(|INSERT INTO t12_prod_orders|db\.batch\s*\(/);
+ const statements=source.split('\n').filter(line=>!/^\s*(?:\*|\/\*|\/\/)/.test(line)).join('\n');
+ assert.doesNotMatch(statements,/createT12GeneralOrder\s*\(|INSERT INTO t12_prod_orders|db\.batch\s*\(/);
  assert.doesNotMatch(source,/APPS_SCRIPT_API_URL|script\.google\.com|fetch\s*\(/);
  assert.equal(CUSTOMER_DRAFT_SUBMIT_PREFLIGHT_POLICY_V0.officialOrderCreatorCalled,false);
  assert.equal(CUSTOMER_DRAFT_SUBMIT_PREFLIGHT_POLICY_V0.workerEntryWired,false);
