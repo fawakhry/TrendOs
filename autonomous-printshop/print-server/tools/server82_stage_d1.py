@@ -1,7 +1,7 @@
 """SERVER-82: guarded *synthetic-only* D1 setup for an isolated Cloudflare Worker.
 
 No customer data, real orders, production queries or secrets in source/output.
---validate is fully offline; --create-seed is a one-shot, owner-gated action.
+--validate is fully offline; --resume-existing verifies test D1 read-only.
 """
 import json
 import os
@@ -109,6 +109,7 @@ class Cloudflare:
         self.base = BASE + account
         self.token = token
         self.created_db_id = None
+        self.resumed_existing = False
         self.opener = opener or build_opener(
             ProxyHandler({}), HTTPSHandler(), NoRedirect())
 
@@ -127,6 +128,12 @@ class Cloudflare:
         if query and (self.created_db_id is None or
                       query.group(0).split("/")[3] != self.created_db_id):
             raise StageBlocked("SERVER82_ENDPOINT_NOT_ALLOWLISTED")
+        if query and self.resumed_existing and (
+            type(payload) is not dict or
+            payload.get("sql") !=
+            "SELECT line_id,order_id,department,qty FROM t12_prod_lines ORDER BY line_id"
+        ):
+            raise StageBlocked("SERVER82_RESUMED_DB_WRITES_FORBIDDEN")
         data = json.dumps(payload).encode() if payload is not None else None
         req = Request(self.base + path, method=method, data=data, headers={
             "Authorization": "Bearer " + self.token, "Accept": "application/json",
@@ -201,6 +208,27 @@ class Cloudflare:
             raise StageBlocked("SERVER82_D1_FILTER_NOT_EXACT")
         return True
 
+    def retrieve_existing_synthetic(self):
+        # Rescue the EXACT test-only D1 created during a misisolated CI unit
+        # test; do not create another resource or seed/modify any rows.
+        raw = self.call("GET", f"/d1/database?name={DATABASE}&page=1&per_page=100")
+        results = raw.get("result")
+        if not isinstance(results, list) or len(results) != 1:
+            raise StageBlocked("SERVER82_EXACTLY_ONE_STAGE_DB_REQUIRED")
+        result = results[0]
+        if type(result) is not dict or result.get("name") != DATABASE:
+            raise StageBlocked("SERVER82_EXISTING_DB_NAME_UNQUALIFIED")
+        dbid = result.get("uuid")
+        if not isinstance(dbid, str) or not UUID.fullmatch(dbid):
+            raise StageBlocked("SERVER82_EXISTING_DB_UUID_UNQUALIFIED")
+        # Match the narrow creation day in the successful run receipt.
+        created = result.get("created_at")
+        if type(created) is not str or not created.startswith("2026-10-21T16:33:"):
+            raise StageBlocked("SERVER82_EXISTING_DB_PROVENANCE_UNVERIFIED")
+        self.created_db_id = dbid
+        self.resumed_existing = True
+        return dbid
+
     def create(self):
         result = self.call("POST", "/d1/database", {"name": DATABASE}).get("result")
         if not isinstance(result, dict) or result.get("name") != DATABASE:
@@ -211,16 +239,19 @@ class Cloudflare:
         self.created_db_id = dbid
         return dbid
 
-    def seed_and_verify(self, dbid, statements):
+    def seed_and_verify(self, dbid, statements, *, seed=True):
         if not UUID.fullmatch(dbid) or dbid != self.created_db_id:
             raise StageBlocked("SERVER82_WRONG_DB_ID")
-        for statement in statements:
-            res = self.call("POST", f"/d1/database/{dbid}/query",
-                            {"sql": statement}).get("result")
-            if (not isinstance(res, list) or not res or
-                not all(isinstance(item, dict) and item.get("success") is True
-                        for item in res)):
-                raise StageBlocked("SERVER82_FIXTURE_QUERY_FAILED")
+        if self.resumed_existing and seed:
+            raise StageBlocked("SERVER82_RESUMED_DB_WRITES_FORBIDDEN")
+        if seed:
+            for statement in statements:
+                res = self.call("POST", f"/d1/database/{dbid}/query",
+                                {"sql": statement}).get("result")
+                if (not isinstance(res, list) or not res or
+                    not all(isinstance(item, dict) and item.get("success") is True
+                            for item in res)):
+                    raise StageBlocked("SERVER82_FIXTURE_QUERY_FAILED")
         result = self.call("POST", f"/d1/database/{dbid}/query", {
             "sql": "SELECT line_id,order_id,department,qty FROM t12_prod_lines ORDER BY line_id"
         }).get("result")
@@ -246,22 +277,20 @@ def main(argv=None):
         if args == ["--validate"]:
             print("SERVER82_SYNTHETIC_FIXTURE_OFFLINE=PASS")
             return 0
-        if args != ["--create-seed"]:
+        if args != ["--resume-existing"]:
             raise StageBlocked("SERVER82_MODE_NOT_ALLOWED")
         if os.environ.get("SERVER82_OWNER_CONTINUATION_ALLOWED") != "true":
             raise StageBlocked("SERVER82_OWNER_CONTINUATION_REQUIRED")
         cf = Cloudflare(os.environ.get("CLOUDFLARE_ACCOUNT_ID", ""),
                         os.environ.get("CLOUDFLARE_API_TOKEN", ""))
         cf.confirm_stage()
-        cf.name_absent()
-        dbid = cf.create()
-        print("SERVER82_NEW_SYNTHETIC_D1_CREATED=YES", flush=True)
-        cf.seed_and_verify(dbid, statements)
+        dbid = cf.retrieve_existing_synthetic()
+        cf.seed_and_verify(dbid, statements, seed=False)
         Path("/tmp/server82-db-id").write_text(dbid, encoding="utf-8")
         # NEVER commit DB IDs, credentials, or this ephemeral config.
         Path("/tmp/server82-stage-toml").write_text(
             ephemeral_bound_toml(conf, dbid), encoding="utf-8")
-        print("SERVER82_TWO_FAKE_LINES_ONE_FAKE_ORDER=VERIFIED", flush=True)
+        print("SERVER82_EXISTING_SYNTHETIC_DB_VERIFIED_READ_ONLY=YES", flush=True)
         return 0
     except (StageBlocked, OSError, ValueError, TypeError) as exc:
         msg = str(exc)
