@@ -1,4 +1,4 @@
--- SERVER-82: completely synthetic Cloudflare D1 dataset. NEVER load into trendos-main.
+-- SERVER-82: completely synthetic Cloudflare D1 dataset. NEVER load into any real database.
 -- This file contains no production customer/order identifiers, phone numbers or secrets.
 CREATE TABLE IF NOT EXISTS sheet_catalog (
   sheet_name TEXT PRIMARY KEY,
