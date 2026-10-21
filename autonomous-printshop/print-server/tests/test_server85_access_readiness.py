@@ -50,6 +50,8 @@ class Fake:
             payload=[{"name":"Other PRIVATE_ACCESS_USER","type":"self_hosted","domain":"private.example.com"}] if self.access=="ALLOW" else "wrong"
         elif url.endswith("/zones?account.id="+A+"&page=1&per_page=100"):
             payload=[{"name":"SECRET_PRIVATE_ZONE.example","status":"active"}] if self.zones=="ALLOW" else "wrong"
+        elif url.endswith("/workers/workers"):
+            payload=[{"name":D,"id":"12345678-1234-4234-8234-123456789abc"}]
         else:
             raise AssertionError("unwanted API route: "+url)
         return Response({"success":True,"result":payload})
@@ -72,7 +74,8 @@ class ReadinessTest(TestCase):
         fake=Fake()
         report=s.inspect(s.CloudflareGet(A,T,fake))
         self.assertTrue(report["currentStageSafeOffline"])
-        self.assertEqual(len(fake.calls),5)
+        self.assertEqual(len(fake.calls),6)
+        self.assertTrue(report["workerIdentity"]["verified"])
         self.assertTrue(all(q.get_method()=="GET" for q in fake.calls))
         for key in ("privateAccessPolicyVerified","privateHostnameRouteVerified",
                     "shortLivedMachineCredentialIssued","realUbuntuNetworkSessionVerified",
