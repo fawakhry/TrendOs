@@ -1,0 +1,75 @@
+name: SERVER-87 One-Shot Stage-Only Cloudflare Access DENY ALL
+
+# This operation can CREATE ONLY a new Access app protecting the one exact
+# stage Worker, with an explicit BLOCK EVERYONE rule. It CANNOT publish it.
+# No production Worker, D1, private hostname or real customer traffic.
+on:
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+    paths:
+      - .github/workflows/server87-stage-access-deny-all-once.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server87-denyall-once
+  cancel-in-progress: false
+
+jobs:
+  create-denyall-protection:
+    if: github.repository == 'fawakhry/TrendOs' && github.event_name == 'push' && github.ref == 'refs/heads/release/server68-staging-qualification-20261016'
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SERVER87_OWNER_STAGE_AUTH_ONLY: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Enforce reviewed exact-parent single file-only trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'fawakhry/TrendOs'
+          test "$GITHUB_REF" = 'refs/heads/release/server68-staging-qualification-20261016'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^)" = 'd2da9500b306a62a75e6ac0de030eb1981fe7e9e'
+          test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = '.github/workflows/server87-stage-access-deny-all-once.yml'
+          test -n "$CLOUDFLARE_API_TOKEN"
+          [[ "$CLOUDFLARE_ACCOUNT_ID" =~ ^[a-fA-F0-9]{32}$ ]]
+          echo 'SERVER87_OWNER_SCOPE=EXACT_STAGE_ONLY; PRODUCTION_WORKERS=PROHIBITED'
+      - name: Execute defensive no-credential offline unit tests first
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          SERVER87_OWNER_STAGE_AUTH_ONLY: 'false'
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server87_stage_access_denyall.py' -v
+          echo 'SERVER87_DENY_ALL_STATIC=PASS; INTERNET_CREDENTIALS_NOT_ACCESSIBLE_TO_TESTS'
+      - name: Install only an exact-Worker Access app with BLOCK EVERYONE; verify it
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 \
+            autonomous-printshop/print-server/tools/server87_stage_access_denyall.py \
+            --install-exact-deny-all
+      - name: Explain this is not a public endpoint or live service authorization
+        shell: bash
+        run: |
+          {
+            echo '## SERVER-87 stage-only Access protection'
+            echo 'Cloudflare Access app created for isolated Worker ID only.'
+            echo '**Policy: BLOCK EVERYONE.** No service principal, client secret, public URL.'
+            echo 'The Worker is still unpublished with both public switches OFF.'
+            echo 'Existing production Workers/D1, R5, Ubuntu, printers, laser remain untouched.'
+            echo 'A separate policy/credential and host-access step is required for synthetic canary.'
+          } >> "$GITHUB_STEP_SUMMARY"
