@@ -81,8 +81,10 @@ export async function preflightNativeCustomerDraftSubmitV0({db,token,secret,draf
       return deny('T12_CUSTOMER_MULTI_ITEM_SUBMIT_NOT_YET_SUPPORTED');
     const files=await db.prepare(CUSTOMER_DRAFT_SUBMIT_FILES_SQL_V0)
       .bind(draftId).first();
-    if(!files||!Number.isSafeInteger(Number(files.fileCount))||
-       !Number.isSafeInteger(Number(files.notReady)))
+    if(!files||files.fileCount==null||files.notReady==null||
+       !Number.isSafeInteger(Number(files.fileCount))||
+       !Number.isSafeInteger(Number(files.notReady))||
+       Number(files.fileCount)<0||Number(files.notReady)<0)
       return deny('DRAFT_FILE_READINESS_UNKNOWN',503);
     // T12 general create currently does not attach R2 draft files. Reject
     // ANY attachment, including READY, instead of silently discarding it.
