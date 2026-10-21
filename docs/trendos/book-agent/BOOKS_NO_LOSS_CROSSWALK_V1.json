@@ -11860,5 +11860,187 @@
     "legacy_customer_protected_records_copied": false,
     "risk": "CI cannot prove Worker deployment, D1 schema/identity grant, Google closure, finance ownership or cross-PR integration. Dry-run tests only.",
     "next_gate": "Audit five unimplemented customer actions, verify read-only deployed parity and task single-writer authority, integrate stacked drafts only by separate authorization."
+  },
+  "five_remaining_customer_action_contracts_20261021": {
+    "date": "2026-10-21",
+    "observed_book_head_before_commit": "2f22500906fe18df77078e5b7dad482f29e394dd",
+    "report": "docs/trendos/book-agent/CUSTOMER_FIVE_ACTIONS_SOURCE_CONTRACT_AUDIT_20261021.md",
+    "report_commit": "2f22500906fe18df77078e5b7dad482f29e394dd",
+    "evidence_level": "SOURCE_STATIC_CONTRACT_INSPECTION_NOT_LIVE_E2E_OR_BACKEND_IMPLEMENTATION",
+    "source_sha_refs": [
+      [
+        "app.js",
+        "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+      ],
+      [
+        "employee-api-dispatcher-v1.js",
+        "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee"
+      ],
+      [
+        "cloudflare-d1/src/legacy-browser-transport-v1.mjs",
+        "d3f1407c260c4b623352469372265c01d9bd8ad4"
+      ],
+      [
+        "cloudflare-d1/src/index_v2.js",
+        "4a555efb4b3f44ba371549d5cec055cc7ce1777f"
+      ],
+      [
+        "cloudflare-d1/migrations/0032_customer_portal_identity_foundation_v1.sql",
+        "8d38e4b1059a9a1a31a214e877d2cc56e7c6a7d0"
+      ],
+      [
+        "cloudflare-d1/migrations/0033_customer_portal_native_order_ownership_v1.sql",
+        "2852c998fd5997f8f7dcad21b81e0878530edeb2"
+      ],
+      [
+        "cloudflare-d1/migrations/0034_customer_portal_phone_otp_enrollment_v1.sql",
+        "5eeee6232cb749e7cb6ab04889a861d147b6d590"
+      ],
+      [
+        "cloudflare-d1/migrations/0035_customer_portal_otp_enrollment_ticket_v1.sql",
+        "86cec2bcbdf23ec231a48e0ca3c91f60c0db3889"
+      ],
+      [
+        "cloudflare-d1/src/employee-content-native-v1.mjs",
+        "fab5eeeca0ecc9312380054b32f01a44639f4664"
+      ],
+      [
+        "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+        "66440daa0c737966221f5b279a210b4211144d2c"
+      ],
+      [
+        "cloudflare-d1/src/customer-portal-native-readiness-v0.mjs",
+        "77dd108c5a229822da6d1625337d1d8989feb0cf"
+      ]
+    ],
+    "action_contracts": [
+      {
+        "action": "getCustomerPortalAccountsV1859",
+        "frontend": "app.js:L9325-L9326",
+        "legacy_boundary": "CUSTOMER_SESSION_ACTIONS via downstream/legacy-browser transport",
+        "input_fields": [
+          "customerCode",
+          "code",
+          "token"
+        ],
+        "response_consumed": [
+          "invoices",
+          "transactions",
+          "totalInvoices",
+          "totalPaid",
+          "totalRemaining",
+          "balance"
+        ],
+        "native_candidate": "NOT_FOUND_IN_REVIEWED_CUSTOMER_NATIVE_MODULES",
+        "security_gate": "exact authenticated customer invoice and transaction ownership, EasyStore-financial-owner read authorization, avoid employee Accounting auth reuse",
+        "classification": "REQUIRED_NATIVE_READ_NOT_IMPLEMENTED_IN_REVIEWED_BRANCH",
+        "test_run": false
+      },
+      {
+        "action": "createCustomerDraft",
+        "frontend": "app.js:L3902-L3913",
+        "input_fields": [
+          "customerCode",
+          "token"
+        ],
+        "response_consumed": [
+          "draftId",
+          "folderUrl"
+        ],
+        "native_candidate": "NOT_FOUND_IN_REVIEWED_CUSTOMER_NATIVE_MODULES",
+        "security_gate": "customer scoped draft creation with idempotent allocation, no Apps Script folder authority inheritance",
+        "classification": "REQUIRED_NATIVE_D1_WRITE_NOT_IMPLEMENTED_IN_REVIEWED_BRANCH",
+        "test_run": false
+      },
+      {
+        "action": "addCustomerDraftItem",
+        "frontend": "app.js:L3935-L3993",
+        "input_fields": [
+          "draftId",
+          "department",
+          "itemName",
+          "qty",
+          "notes",
+          "heatPress",
+          "flyPrint",
+          "franchiseBranchCode",
+          "customerCode",
+          "token"
+        ],
+        "response_consumed": [
+          "itemId"
+        ],
+        "native_candidate": "NOT_FOUND_IN_REVIEWED_CUSTOMER_NATIVE_MODULES",
+        "source_risk": "Conditional duplicate server item when add succeeded but subsequent sequential upload fails before browser records item; backend behavior was not independently reviewed.",
+        "security_gate": "draft ownership, item idempotency, version/state CAS, lost-ACK recovery",
+        "classification": "REQUIRED_NATIVE_D1_WRITE_NOT_IMPLEMENTED_IN_REVIEWED_BRANCH",
+        "test_run": false
+      },
+      {
+        "action": "submitCustomerDraft",
+        "frontend": "app.js:L3998-L4028",
+        "input_fields": [
+          "draftId",
+          "customerCode",
+          "token"
+        ],
+        "response_consumed": [
+          "orderId"
+        ],
+        "native_candidate": "NOT_FOUND_IN_REVIEWED_CUSTOMER_NATIVE_MODULES",
+        "source_risk": "Visible frontend payload has no stable submission request-id; backend de-duplication unknown, no actual duplicate proven.",
+        "security_gate": "one draft to one canonical T12 order, exactly-once idempotent commit, financial and task single writer controls",
+        "classification": "REQUIRED_NATIVE_T12_TRANSACTION_NOT_IMPLEMENTED_IN_REVIEWED_BRANCH",
+        "test_run": false
+      },
+      {
+        "action": "uploadCustomerDraftFile",
+        "frontend": "app.js:L3914-L3934",
+        "input_fields": [
+          "draftId",
+          "itemId",
+          "fileName",
+          "mimeType",
+          "size",
+          "base64",
+          "customerCode",
+          "token"
+        ],
+        "response_consumed": [
+          "fileUrl",
+          "fileId"
+        ],
+        "native_candidate": "NOT_FOUND_IN_REVIEWED_CUSTOMER_NATIVE_MODULES",
+        "security_gate": "private customer-owned R2 ACL, server-checked MIME/size, dedupe, orphan file recovery; employee content R2 not equivalent",
+        "classification": "REQUIRED_PRIVATE_NATIVE_FILE_HANDLER_NOT_IMPLEMENTED_IN_REVIEWED_BRANCH",
+        "test_run": false
+      }
+    ],
+    "current_authority_notes": [
+      "Employee Native-only does not retire the nine legacy customer-session actions; legacy-browser transport explicitly permits their upstream forwarding from source.",
+      "Employee Content R2 FILES/public-url support cannot be treated as a private customer file service.",
+      "Employee Accounting Native has employee session policy; portal financial reads require independent customer finance/ownership permission.",
+      "Entry654–659 SQL is explicitly source-only/unapplied and does not establish customer draft D1 schema or finance mirror authority.",
+      "Entries660–663 remain stacked unmerged OFF PR candidates; no canonical integration CI at the present Book HEAD."
+    ],
+    "new_customer_action_implementation_added": 0,
+    "missing_five_individually_source_inspected": 5,
+    "still_missing_native_customer_action_candidates": 5,
+    "existing_source_only_customer_candidate_actions": 4,
+    "verified_production_customer_google_decommissions": 0,
+    "additional_CI_executed": 0,
+    "consumer_traffic_inspected": false,
+    "customer_personal_records_accessed": false,
+    "owner_pending_decisions": [
+      "D01_DEPLOYED_PARITY",
+      "D02_CUSTOMER_OTP_OWNERSHIP_AND_EASYSTORE_FINANCE",
+      "D03_ORDER_TASK_SINGLE_WRITER",
+      "D04_STAGE_BACKUP_ROLLBACK",
+      "PRIVACY_596_599_600"
+    ],
+    "production_mutation": false,
+    "book_cutover": "NO_GO",
+    "old_master_active": true,
+    "unified_catalog_frozen": true
   }
 }
