@@ -1,0 +1,60 @@
+name: TrendOS Entry664 Native Customer Draft Create OFF — SQLite
+on:
+  push:
+    branches:
+      - feat/zero-google-native-customer-draft-create-off-20261021
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/customer-portal-native-draft-create-v0.mjs'
+      - 'cloudflare-d1/migrations/0036_customer_portal_native_draft_create_v1.sql'
+      - 'tests/entry664_customer_native_draft_create_off.test.mjs'
+      - 'tests/entry664_customer_native_draft_create_sqlite.test.py'
+      - '.github/workflows/trendos-entry664-customer-native-draft-create-off-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-customer-draft-create-source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: New handler negative cases and all previous native customer actions
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          OPENAI_API_KEY: ''
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/customer-portal-native-draft-create-v0.mjs
+          node --test tests/entry664_customer_native_draft_create_off.test.mjs
+          node --test tests/entry663_customer_native_change_password_off.test.mjs
+          node --test tests/entry662_customer_native_login_off.test.mjs
+          node --test tests/entry661_customer_native_logout_off.test.mjs
+          node --test tests/entry660_customer_native_orders_off.test.mjs
+      - name: Real disposable SQLite D1 migration constraints and all native customer tests
+        run: |
+          set -euo pipefail
+          python3 tests/entry664_customer_native_draft_create_sqlite.test.py -v
+          python3 tests/entry663_customer_native_change_password_sqlite.test.py -v
+          python3 tests/entry662_customer_native_login_sqlite.test.py -v
+          python3 tests/entry661_customer_native_logout_sqlite.test.py -v
+          python3 tests/entry660_customer_native_orders_sqlite.test.py -v
+      - name: Existing legacy customer and employee transport unchanged
+        run: |
+          set -euo pipefail
+          node tests/entry653_zero_google_employee_legacy_proxy_retirement.test.mjs
+      - name: Enforce offline-only status markers
+        run: |
+          echo 'ENTRY664_CUSTOMER_DRAFT_CREATE=SOURCE_IMPLEMENTED_OFF'
+          echo 'REAL_T12_ORDER_CREATE=NOT_TOUCHED'
+          echo 'CUSTOMER_GOOGLE_ACTIONS_LIVE_RETIRED=0'
+          echo 'PRODUCTION_D1_MIGRATION=NOT_APPLIED'
+          echo 'CLOUDFLARE_DEPLOY=NO'
+          echo 'NO_REAL_CUSTOMER_DATA=YES'
+          echo 'ZERO_GOOGLE_COMPLETE=NO'
