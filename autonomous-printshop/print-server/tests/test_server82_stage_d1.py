@@ -182,6 +182,38 @@ class Stage82Test(unittest.TestCase):
         with self.assertRaisesRegex(m.StageBlocked, "STAGE_NOT_SYNTHETIC_READY"):
             m.Cloudflare(ACCOUNT, TOKEN, Unsafe()).confirm_stage()
 
+    def test_resume_existing_exact_synthetic_d1_read_only_no_creates_or_inserts(self):
+        class ExistingStageD1(FakeOpener):
+            def open(self, request, timeout):
+                if request.full_url.endswith('per_page=100'):
+                    return FakeResponse({'success': True, 'result': [{
+                        'name': m.DATABASE, 'uuid': UUID,
+                        'created_at': '2026-10-21T16:33:22.100Z'}]})
+                return super().open(request, timeout)
+        fake = ExistingStageD1()
+        c = m.Cloudflare(ACCOUNT, TOKEN, fake)
+        c.confirm_stage()
+        actual = c.retrieve_existing_synthetic()
+        self.assertEqual(actual, UUID)
+        with self.assertRaisesRegex(m.StageBlocked, "WRITES_FORBIDDEN"):
+            c.seed_and_verify(actual, m.fixture_statements(FIXTURE))
+        self.assertTrue(c.seed_and_verify(
+            actual, m.fixture_statements(FIXTURE), seed=False))
+        writes = [x for x in fake.requests if x.get_method() == 'POST']
+        self.assertEqual(len(writes), 1)
+        self.assertTrue(json.loads(writes[0].data)['sql'].startswith('SELECT'))
+
+    def test_resume_existing_fails_closed_on_wrong_creation_date_or_name(self):
+        class Wrong(FakeOpener):
+            def open(self, request, timeout):
+                if request.full_url.endswith('per_page=100'):
+                    return FakeResponse({'success': True, 'result': [{
+                        'name': m.DATABASE, 'uuid': UUID,
+                        'created_at': '2026-10-01T01:01:01Z'}]})
+                return super().open(request, timeout)
+        with self.assertRaisesRegex(m.StageBlocked, "PROVENANCE_UNVERIFIED"):
+            m.Cloudflare(ACCOUNT, TOKEN, Wrong()).retrieve_existing_synthetic()
+
     def test_explicit_owner_guard_default_off(self):
         self.assertEqual(m.main(["--validate"]), 0)
         # Mode without approval is blocked before any token or network use.
