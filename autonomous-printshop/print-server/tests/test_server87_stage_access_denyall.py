@@ -23,7 +23,10 @@ class FakeAPI(m.API):
     def call(self,method,path,body=None):
         self.calls.append((method,path,body))
         if path.endswith("/deployments"):
-            return {"deployments":[{"versions":[{"version_id":m.VERSION,"percentage":100}]}]}
+            return {"deployments":[
+                {"versions":[{"version_id":m.VERSION,"percentage":100}]},
+                {"versions":[{"version_id":"00000000-0000-0000-0000-000000000000","percentage":100}]}
+            ]}
         if path.endswith("/settings"):
             return {"bindings":[
                 {"name":"DB","type":"d1"},
