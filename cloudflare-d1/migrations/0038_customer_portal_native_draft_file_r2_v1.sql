@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS customer_portal_native_draft_files_v1 (
     CHECK (content_type IN ('image/jpeg','image/png','application/pdf')),
   byte_size INTEGER NOT NULL CHECK (byte_size BETWEEN 1 AND 5242880),
   r2_object_key TEXT NOT NULL UNIQUE
-    CHECK (length(r2_object_key)=48 AND substr(r2_object_key,1,16)='customer-drafts/'
+    CHECK (length(r2_object_key)=52 AND substr(r2_object_key,1,16)='customer-drafts/'
       AND substr(r2_object_key,17,4)='CDF-'
       AND substr(r2_object_key,21) NOT GLOB '*[^0-9a-f]*'),
   state TEXT NOT NULL DEFAULT 'PENDING'
