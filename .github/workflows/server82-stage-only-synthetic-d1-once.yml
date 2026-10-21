@@ -1,7 +1,7 @@
-name: SERVER-82 Create ONE Synthetic D1 and Bind Unpublished Stage Only
+name: SERVER-82 Resume Existing Synthetic D1 / Bind Unpublished Stage Only
 
 # User-directed continuation of already created private test Worker.
-# One-shot, parent-pinned, path-filtered, stage-only mutation. No prod D1.
+# One-shot, parent-pinned, path-filtered, NO database creation, only stage binding.
 # Do not add workflow_dispatch, schedule, generic deploy or repeat trigger.
 on:
   push:
@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  create-synthetic-d1-and-bind-unpublished-stage:
+  verify-existing-synthetic-d1-and-bind-unpublished-stage:
     if: github.repository == 'fawakhry/TrendOs' && github.ref == 'refs/heads/release/server68-staging-qualification-20261016' && github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 18
@@ -42,13 +42,17 @@ jobs:
           test "$GITHUB_REPOSITORY" = 'fawakhry/TrendOs'
           test "$GITHUB_REF" = 'refs/heads/release/server68-staging-qualification-20261016'
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD^)" = '9615561835f1918bdb4bb8b04b6245da3714f63d'
+          test "$(git rev-parse HEAD^)" = '196d7c11ad516d0e536d32778d018d5303195b8f'
           test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = '.github/workflows/server82-stage-only-synthetic-d1-once.yml'
           test -n "$CLOUDFLARE_API_TOKEN"
           [[ "$CLOUDFLARE_ACCOUNT_ID" =~ ^[a-fA-F0-9]{32}$ ]]
           echo 'SERVER82_ONE_SHOT_LOCKED_TO_STAGE_ONLY=PASS'
-      - name: Verify schema, no real customer data and known unpublished Worker config
+      - name: Verify schema OFFLINE without inheriting Cloudflare secrets
         shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          SERVER82_OWNER_CONTINUATION_ALLOWED: 'false'
         run: |
           set -euo pipefail
           PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
@@ -58,15 +62,15 @@ jobs:
           node autonomous-printshop/print-server/tools/server80_isolated_stage_deploy_guard.mjs --validate
           test ! -e cloudflare-d1/.dev.vars
           echo 'SERVER82_PREEXISTING_PRODUCTION_D1=FORBIDDEN'
-      - name: Create new D1 only after exact stage version/source/publication metadata preflight
+      - name: Verify existing fake D1 via SELECT only before any Worker binding
         shell: bash
         run: |
           set -euo pipefail
           PYTHONDONTWRITEBYTECODE=1 python3 \
-            autonomous-printshop/print-server/tools/server82_stage_d1.py --create-seed
+            autonomous-printshop/print-server/tools/server82_stage_d1.py --resume-existing
           test -s /tmp/server82-db-id
           test -s /tmp/server82-stage-toml
-          echo 'SERVER82_NEW_FAKE_D1_CREATED_AND_SEEDED=YES'
+          echo 'SERVER82_EXISTING_FAKE_D1_PROVENANCE_AND_LINES=READONLY_VERIFIED'
       - name: Prepare temporary isolated-stage binding (never commit resource IDs)
         shell: bash
         run: |
@@ -97,7 +101,7 @@ jobs:
           set -euo pipefail
           npx --yes wrangler@4.149.0 deploy \
             --config cloudflare-d1/wrangler.server68-isolated-stage.toml
-          echo 'SERVER82_UNPUBLISHED_STAGE_BINDING_DEPLOY=ATTEMPTED'
+          echo 'SERVER82_UNPUBLISHED_STAGE_EXISTING_D1_BINDING_DEPLOY=ATTEMPTED'
       - name: Independently verify only fake D1 bound and stage still unpublished
         shell: bash
         run: |
@@ -140,7 +144,7 @@ jobs:
         run: |
           {
             echo '## SERVER-82: stage-only synthetic D1'
-            echo 'Created one new D1 with two fictional lines for one fake order.'
+            echo 'Reused existing D1 with exactly two fictional lines for one fake order.'
             echo 'Existing unpublished stage Worker bound to this D1 only.'
             echo 'Workers.dev OFF; preview URLs OFF; all customer/order readers OFF.'
             echo 'No production D1, R5, Apps Script, Ubuntu, files, or equipment touched.'
