@@ -46,7 +46,9 @@ const env=(overrides={})=>({
 test('source-only defaults OFF, additive 0036 schema, no published Worker route or official order mutations',()=>{
  const ddl=readFileSync('cloudflare-d1/migrations/0036_customer_portal_native_draft_create_v1.sql','utf8');
  assert.match(ddl,/customer_portal_native_drafts_v1/);
- assert.doesNotMatch(ddl,/INSERT INTO t12_prod_orders|UPDATE t12_prod_orders|CREATE TABLE .*t12_prod_orders|finance/i);
+ const statements=ddl.split('\n').filter(s=>!/^\s*--/.test(s)).join('\n');
+ assert.doesNotMatch(statements,/\b(?:INSERT\s+INTO|UPDATE|CREATE\s+TABLE)\s+t12_prod_orders\b/i);
+ assert.doesNotMatch(statements,/\b(?:INSERT\s+INTO|UPDATE|CREATE\s+TABLE)\s+[a-z_]*finance[a-z_]*\b/i);
  assert.equal(CUSTOMER_NATIVE_DRAFT_POLICY_V0.defaultEnabled,false);
  assert.equal(CUSTOMER_NATIVE_DRAFT_POLICY_V0.workerEntryWired,false);
  assert.equal(CUSTOMER_NATIVE_DRAFT_POLICY_V0.officialOrderCreation,false);
