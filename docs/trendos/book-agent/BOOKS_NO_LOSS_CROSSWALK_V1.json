@@ -12042,5 +12042,118 @@
     "book_cutover": "NO_GO",
     "old_master_active": true,
     "unified_catalog_frozen": true
+  },
+  "book_agent_customer_route_static_execution_and_closed_pr_reconciliation_20261021": {
+    "date": "2026-10-21",
+    "branch": "agent/trendos-book-audit-v1-20261014",
+    "observed_start_head": "a4dc520501265838a1cfa7f43d4fbeceb64e3b92",
+    "evidence_class": "EXECUTED_STATIC_SOURCE_ASSERTIONS_AND_LIVE_GITHUB_PR_METADATA_NOT_DEPLOYED_HEALTH",
+    "pr_lineage_after_owner_cleanup": [
+      {
+        "entry": 660,
+        "pr": 213,
+        "state": "CLOSED",
+        "merged": false,
+        "head_sha": "7d71168b7a1c339be6ac45a0c4b5b4cf5a8557bd",
+        "closed_at_utc": "2026-10-21T12:21:53Z",
+        "ownership": "do_not_reopen_without_explicit_owner_approval"
+      },
+      {
+        "entry": 661,
+        "pr": 214,
+        "state": "CLOSED",
+        "merged": false,
+        "head_sha": "24d72422f50eea9b279aab00d3f80f526192543d",
+        "closed_at_utc": "2026-10-21T12:21:55Z",
+        "ownership": "do_not_reopen_without_explicit_owner_approval"
+      },
+      {
+        "entry": 662,
+        "pr": 215,
+        "state": "CLOSED",
+        "merged": false,
+        "head_sha": "9205f2053b1f9b245f767e27c5d6989c4e6e0a63",
+        "closed_at_utc": "2026-10-21T12:21:58Z",
+        "ownership": "do_not_reopen_without_explicit_owner_approval"
+      },
+      {
+        "entry": 663,
+        "pr": 216,
+        "state": "OPEN_DRAFT_UNMERGED",
+        "merged": false,
+        "head_sha": "77c1af6b446d96b3bf4a62f54aff4fac72871040",
+        "base_ref": "feat/zero-google-native-customer-login-session-off-20261020",
+        "base_sha": "9205f2053b1f9b245f767e27c5d6989c4e6e0a63",
+        "ownership": "base_pr_215_closed_unmerged; check independent combined integration head before any merge"
+      }
+    ],
+    "old_20261021_open_draft_label_for_213_215": "SUPERSEDED_BY_CURRENT_PR_METADATA",
+    "source_static_checks_run_in_this_turn": 10,
+    "source_static_checks_passed": 10,
+    "assertions": [
+      {
+        "check": "nine_exact_in_dispatcher",
+        "pass": true
+      },
+      {
+        "check": "nine_exact_in_legacy_transport",
+        "pass": true
+      },
+      {
+        "check": "nine_exact_in_readiness",
+        "pass": true
+      },
+      {
+        "check": "remaining_five_have_literal_app_call",
+        "pass": true
+      },
+      {
+        "check": "legacy_browser_route_registered",
+        "pass": true
+      },
+      {
+        "check": "customer_exempted_from_native_only_legacy_denial",
+        "pass": true
+      },
+      {
+        "check": "customer_native_control_initially_off",
+        "pass": true
+      },
+      {
+        "check": "ownership_migration_only_future_no_backfill",
+        "pass": true
+      },
+      {
+        "check": "no_customer_native_draft_registered_in_worker",
+        "pass": true
+      },
+      {
+        "check": "no_native_customer_660_663_registered_in_worker",
+        "pass": true
+      }
+    ],
+    "comparison_contract": "read files from current audited Book branch, compare three independent nine-action lists, check five app.js call sites, worker route registration/native missing hooks and OFF/no-backfill migration metadata",
+    "source_blob_shas": {
+      "employee-api-dispatcher-v1.js": "78dfb66bf9e37bd4b3b29d5e2905d2198d3c56ee",
+      "cloudflare-d1/src/legacy-browser-transport-v1.mjs": "d3f1407c260c4b623352469372265c01d9bd8ad4",
+      "cloudflare-d1/src/customer-portal-native-readiness-v0.mjs": "77dd108c5a229822da6d1625337d1d8989feb0cf",
+      "app.js": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875",
+      "cloudflare-d1/src/index_v2.js": "4a555efb4b3f44ba371549d5cec055cc7ce1777f",
+      "cloudflare-d1/migrations/0032_customer_portal_identity_foundation_v1.sql": "8d38e4b1059a9a1a31a214e877d2cc56e7c6a7d0",
+      "cloudflare-d1/migrations/0033_customer_portal_native_order_ownership_v1.sql": "2852c998fd5997f8f7dcad21b81e0878530edeb2"
+    },
+    "limits": "Regex/string source checks, not live HTTP, authentication, DB query, full SQL migration test, Node runtime, actual Google usage telemetry, nor security certification",
+    "production_health_check": "UNAVAILABLE; container DNS and website retrieval cannot reach Cloudflare hosts. Do not infer outage.",
+    "prod_mutations": 0,
+    "new_ci_runs": 0,
+    "original_66_hist_count_unchanged": 66,
+    "decision_queue_update": {
+      "id": "CUSTOMER_DRAFT_PR_CHAIN_CLOSED_213_215",
+      "state": "BLOCKED_OWNER_INTEGRATION_AUTHORITY",
+      "safe_next_step": "Preserve closure. #216 remains unmerged with base pointing to closed #215 branch. Carry forward source designs only if owner approves a newly reviewed integration plan; no auto reopen, cherry-pick or merge."
+    },
+    "production_go": "NO_GO",
+    "zero_google_complete": false,
+    "book_cutover": "NO_GO"
   }
 }
