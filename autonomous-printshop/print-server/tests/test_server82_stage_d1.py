@@ -133,6 +133,32 @@ class Stage82Test(unittest.TestCase):
         self.assertEqual(len(opener.requests), 3)
         self.assertTrue(all(x.get_method() == "GET" for x in opener.requests))
 
+    def test_exact_name_filtered_cloudflare_d1_list_without_result_info(self):
+        fake = FakeOpener()
+        client = m.Cloudflare(ACCOUNT, TOKEN, fake)
+        self.assertTrue(client.name_absent())
+        self.assertEqual(len(fake.requests), 1)
+        self.assertTrue(fake.requests[0].full_url.endswith(
+            '/d1/database?name='+m.DATABASE+'&page=1&per_page=100'
+        ))
+
+    def test_d1_filter_must_return_only_empty_exact_name_results(self):
+        class Existing(FakeOpener):
+            def open(self, request, timeout):
+                if request.full_url.endswith('per_page=100'):
+                    return FakeResponse({'success':True,
+                                         'result':[{'name':m.DATABASE}]})
+                return super().open(request,timeout)
+        class NotExact(FakeOpener):
+            def open(self, request, timeout):
+                if request.full_url.endswith('per_page=100'):
+                    return FakeResponse({'success':True,
+                                         'result':[{'name':'OTHER-PRIVATE-DATABASE'}]})
+                return super().open(request,timeout)
+        for fake in (Existing(),NotExact()):
+            with self.assertRaises(m.StageBlocked):
+                m.Cloudflare(ACCOUNT,TOKEN,fake).name_absent()
+
     def test_fake_create_and_verify_only_in_memory_remote_mock(self):
         opener = FakeOpener()
         c = m.Cloudflare(ACCOUNT, TOKEN, opener)
