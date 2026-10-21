@@ -42,7 +42,7 @@ jobs:
           test "$GITHUB_REPOSITORY" = 'fawakhry/TrendOs'
           test "$GITHUB_REF" = 'refs/heads/release/server68-staging-qualification-20261016'
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD^)" = '0f7e3de4563c24b46f1e9808b944bb1e5bbe91d3'
+          test "$(git rev-parse HEAD^)" = '9615561835f1918bdb4bb8b04b6245da3714f63d'
           test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = '.github/workflows/server82-stage-only-synthetic-d1-once.yml'
           test -n "$CLOUDFLARE_API_TOKEN"
           [[ "$CLOUDFLARE_ACCOUNT_ID" =~ ^[a-fA-F0-9]{32}$ ]]
