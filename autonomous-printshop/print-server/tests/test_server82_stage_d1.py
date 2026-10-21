@@ -1,7 +1,9 @@
 """SERVER-82 source-only guard tests, no Cloudflare network/calls/devices."""
 import importlib.util
 import json
+import os
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 SOURCE = Path("autonomous-printshop/print-server/tools/server82_stage_d1.py")
@@ -183,7 +185,10 @@ class Stage82Test(unittest.TestCase):
     def test_explicit_owner_guard_default_off(self):
         self.assertEqual(m.main(["--validate"]), 0)
         # Mode without approval is blocked before any token or network use.
-        self.assertEqual(m.main(["--create-seed"]), 2)
+        # NEVER inherit production CI credentials or authorization in tests:
+        # the old test accidentally invoked live Cloudflare on 2026-10-21.
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(m.main(["--create-seed"]), 2)
 
 
 if __name__ == "__main__":
