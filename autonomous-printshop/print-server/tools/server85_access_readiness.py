@@ -20,6 +20,9 @@ ALLOWED = {
     "stage_subdomain": lambda a: f"/accounts/{a}/workers/scripts/{STAGE}/subdomain",
     "access_apps": lambda a: f"/accounts/{a}/access/apps?page=1&per_page=100",
     "account_zones": lambda a: f"/zones?account.id={a}&page=1&per_page=100",
+    # Beta Workers API lists immutable Worker IDs (distinct from script names);
+    # need exact match before any future Access worker-destination request.
+    "worker_identities": lambda a: f"/accounts/{a}/workers/workers",
 }
 
 
@@ -142,6 +145,31 @@ def inspect(api):
                 "accountHasZone": len(items) > 0,
                 "zoneNamesNotDisclosed": True,
             }
+    identity = api.get("worker_identities")
+    if not identity.get("ok"):
+        worker_identity = {"verified": False, "status": identity.get("status", "UNKNOWN")}
+    else:
+        res = identity.get("result")
+        if type(res) is not list:
+            worker_identity = {"verified": False, "status": "WORKER_IDENTITY_RESPONSE_UNVERIFIED"}
+        else:
+            matched = [
+                x for x in res if type(x) is dict and x.get("name") == STAGE
+            ]
+            if len(matched) == 1:
+                uuid = matched[0].get("id")
+                worker_identity = {
+                    "verified": type(uuid) is str and bool(re.fullmatch(
+                        r"[a-fA-F0-9]{8}(?:-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}", uuid)),
+                    "exactStageIdentityFound": True,
+                    "immutableWorkerIdNotPrinted": True,
+                }
+            else:
+                worker_identity = {
+                    "verified": False,
+                    "status": "STAGE_UUID_NOT_RESOLVED",
+                    "immutableWorkerIdNotPrinted": True,
+                }
     can_stage_inbound = all((
         stage.get("stage_deploy", {}).get("verified") is True,
         stage.get("stage_settings", {}).get("d1BindingPresent") is True,
@@ -155,6 +183,7 @@ def inspect(api):
         "scope": "CLOUDFLARE_METADATA_GET_ONLY",
         "stage": stage,
         "externalPrerequisites": external,
+        "workerIdentity": worker_identity,
         "currentStageSafeOffline": can_stage_inbound,
         "privateAccessPolicyVerified": False,
         "privateHostnameRouteVerified": False,
