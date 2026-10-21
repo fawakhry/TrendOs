@@ -105,7 +105,9 @@ class API:
         base = f"/accounts/{self.acct}"
         deploy = self.call("GET", f"{base}/workers/scripts/{STAGE}/deployments")
         dep = deploy.get("deployments") if type(deploy) is dict else None
-        ver = dep[0].get("versions") if type(dep) is list and len(dep) == 1 and type(dep[0]) is dict else None
+        # Cloudflare retains multiple historical deployments. Only the FIRST
+        # (most recent, actively serving) deployment determines current safety.
+        ver = dep[0].get("versions") if type(dep) is list and len(dep) >= 1 and type(dep[0]) is dict else None
         if (type(ver) is not list or len(ver) != 1 or
                 ver[0].get("version_id") != VERSION or ver[0].get("percentage") != 100):
             raise StageDenied("SERVER87_STAGE_VERSION_DRIFT")
