@@ -446,3 +446,10 @@
 - `ORIGINAL_HISTORICAL_INVENTORY=66/66`; `SOURCE_CUSTOMER_CANDIDATES=4/9` OFF/unmerged; `FIVE_GAPS_REVIEWED=5/5`; `NEW_NATIVE_RUNTIME_IMPLEMENTATIONS=0`; `PRODUCTION_GOOGLE_RETIRED_VERIFIED=0/9`; `PRODUCTION_STATUS=NO_GO`.
 - **NEXT:** Do not redo historical 66 or five source contracts. To build next need explicit separate development authority after verifying legacy Apps Script behavior, D1 ownership, customer consent/OTP and EasyStore read rights; to certify live production get read-only deployed SHA/worker flags. Book remains append-only active; catalog frozen; private Entries596/599/600 pending protected custody decision.
 
+
+### 2026-10-21 public read-only URL reachability — INCONCLUSIVE / NOT LIVE PROOF
+- Attempted unauthenticated public GET retrieval only via a website-reading tool for `/v1/employee/auth/health`, `/v1/employee/content/health`, `/v1/employee/legacy-action/health` on `trendos-d1-api.trendmall-contact.workers.dev`, plus public `trendos-ui.trendmall-contact.workers.dev/config.js`. Each URL was **inaccessible to the retrieval tool**; no reliable HTTP response code, JSON body, deployed bundle identity or settings were returned.
+- This is an **environment/source retrieval blocker**, **not** proof that TrendOS or its endpoints are down, and not a current production parity certification. No credentials or customer data were sent and no writes/deployments/CI were made.
+- D01 external deployed SHA/settings check remains `PENDING_READONLY_EVIDENCE`. Do not guess current runtime modes based on this failure.
+- Post-documentation verification against GitHub: `4` new commits from previous Book HEAD `50ef7692856a5a77a0865a323288d8802e38c290` to `786eb62af88deb0fd43aee89fb5e5280bea4ff6f`, touching only `TrendOS_MASTER_BOOK.md` and three `docs/trendos/book-agent/*` files; original `66` ID inventory intact. No `app.js`, `index_v2.js`, config, migrations or live resources changed.
+
