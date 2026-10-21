@@ -160,7 +160,7 @@ def inspect(api):
                 uuid = matched[0].get("id")
                 worker_identity = {
                     "verified": type(uuid) is str and bool(re.fullmatch(
-                        r"[a-fA-F0-9]{8}(?:-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}", uuid)),
+                        r"(?:[a-fA-F0-9]{32}|[a-fA-F0-9]{8}(?:-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12})", uuid)),
                     "exactStageIdentityFound": True,
                     "immutableWorkerIdNotPrinted": True,
                 }
