@@ -427,3 +427,13 @@
 - `PRODUCTION_CHANGED=NO`, `TESTS_RUN_THIS_BATCH=0`, `INDEPENDENT_CURRENT_RUNTIME_CERTIFICATIONS=0/66`. `OLD_MASTER_ACTIVE_WRITE=YES`; `NEW_UNIFIED_CATALOG=FROZEN_MIGRATION_ONLY`; `BOOK_FINAL_CUTOVER=NO_GO`.
 - **NEXT:** Do not duplicate 66 classification or 38 historical migrations. Collect exact current deployed SHA/CI, source-owner deep contract testing of partial entries and safe private retention decision, then seek separate explicit cutover approval. Preserve all external project books, Cloudflare services, R2, D1, Apps Script, Secrets and customer data.
 
+
+## 2026-10-21 / POST-ENTRY659 NEW DRAFT SOURCE & EXACT-HEAD CI RECONCILIATION
+- Read-only observed starting Book HEAD `c412e6e196a86d7cc5e2f7348a4e0caa11567d88`. Original 66 historical Entry inventory untouched, 38/38 archival transfer unchanged; this session does **not** upgrade the previous `SOURCE_PARTIAL` classifications to Production PASS.
+- New additive report `POST_ENTRY659_CURRENT_SOURCE_CI_AUDIT_20261021.md` Commit `1bc88fe5e1ddebc6e33eb48e21dde61d8ed60d00`, crosswalk audit-link Commit `a6bc24581f0e4ed71189273f08724ab7f483c662`, Master checkpoint Commit `4312911f5366522f3f2b2e01dac92b5dc3a7ece2`.
+- Observed newer PRs: #213 Entry660, #214 Entry661, #215 Entry662, #216 Entry663 are stacked DRAFT / OPEN / UNMERGED. Candidate code 4/9 customer legacy actions, default OFF, unimported and not deployed; 0/9 retirements verified. PR #210 all-path employee legacy guard and #212 offline four-phase gates remain separately DRAFT and unmerged.
+- Checked GitHub Actions exact-head SUCCESS: PR #210 run `39334805027`; #212 `39338160932`; #213 `39340568630`; #214 `39341207288`; #215 `39472400009`; #216 `39473316485`. Last run's job `118802746819` has Node fake, disposable SQLite for all four and employee legacy regression all SUCCESS. **No new CI executed.**
+- CI and source are not current live deploy proof. Decision D01 (deployed Cloudflare parity), D02 (independent identity/OTP/customers/order ownership/EasyStore), D03 (ScriptLock/Edge Task single writer), D04 (isolated stage and rollback) remain NO_GO until independent owner-approved evidence.
+- Local repo download unavailable due DNS in sandbox; do not mark local tests PASS. No Production/D1/R2/Apps Script/Google/SMS/finance/Printshop mutation and no private customer data copied; no merges or PR changes.
+- `NEXT_RESUME_POINT`: inspect latest branch and new PR heads; verify documented report/crosswalk/master; source-audit five not-yet-prepared customer actions and exact committed deployment parity with authorized read-only evidence, then request separate approval for any release. Preserve active old book and frozen catalog.
+
