@@ -113,7 +113,7 @@ class Cloudflare:
             ProxyHandler({}), HTTPSHandler(), NoRedirect())
 
     def call(self, method, path, payload=None):
-        listing = re.fullmatch(r"/d1/database\?per_page=100&page=[1-9]\d{0,2}", path)
+        listing = path == f"/d1/database?name={DATABASE}&page=1&per_page=100"
         query = re.fullmatch(r"/d1/database/[a-f0-9-]{36}/query", path)
         worker = path in {
             f"/workers/scripts/{STAGE}/deployments",
@@ -182,18 +182,24 @@ class Cloudflare:
         return True
 
     def name_absent(self):
-        for page in range(1, 6):
-            raw = self.call("GET", f"/d1/database?per_page=100&page={page}")
-            items, info = raw.get("result"), raw.get("result_info")
-            if (not isinstance(items, list) or not isinstance(info, dict) or
-                type(info.get("total_pages")) is not int or
-                not 1 <= info["total_pages"] <= 5):
-                raise StageBlocked("SERVER82_D1_LIST_INCOMPLETE")
-            if any(isinstance(x, dict) and x.get("name") == DATABASE for x in items):
-                raise StageBlocked("SERVER82_STAGE_D1_ALREADY_EXISTS")
-            if page >= info["total_pages"]:
-                return True
-        raise StageBlocked("SERVER82_D1_PAGE_COUNT_LIMIT")
+        # Cloudflare D1 supports an exact name filter. result_info is OPTIONAL;
+        # it reports total_count without search params, not total_pages.
+        # Never enumerate or log existing customer/production database names.
+        raw = self.call("GET", f"/d1/database?name={DATABASE}&page=1&per_page=100")
+        items, info = raw.get("result"), raw.get("result_info")
+        if (not isinstance(items, list) or len(items) >= 100 or
+            any(type(x) is not dict or type(x.get("name")) is not str for x in items)):
+            raise StageBlocked("SERVER82_D1_FILTERED_LIST_UNQUALIFIED")
+        if info is not None and (
+            type(info) is not dict or
+            (info.get("page") is not None and info.get("page") != 1) or
+            (info.get("count") is not None and info.get("count") != len(items))):
+            raise StageBlocked("SERVER82_D1_FILTER_RESULT_INCONSISTENT")
+        if any(x["name"] == DATABASE for x in items):
+            raise StageBlocked("SERVER82_STAGE_D1_ALREADY_EXISTS")
+        if items:
+            raise StageBlocked("SERVER82_D1_FILTER_NOT_EXACT")
+        return True
 
     def create(self):
         result = self.call("POST", "/d1/database", {"name": DATABASE}).get("result")
