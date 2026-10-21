@@ -108,6 +108,7 @@ class Cloudflare:
             raise StageBlocked("SERVER82_TOKEN_ABSENT")
         self.base = BASE + account
         self.token = token
+        self.created_db_id = None
         self.opener = opener or build_opener(
             ProxyHandler({}), HTTPSHandler(), NoRedirect())
 
@@ -120,6 +121,11 @@ class Cloudflare:
             f"/workers/scripts/{STAGE}/subdomain"}
         if not ((method == "GET" and (bool(listing) or worker)) or
                 (method == "POST" and (path == "/d1/database" or bool(query)))):
+            raise StageBlocked("SERVER82_ENDPOINT_NOT_ALLOWLISTED")
+        # D1 SQL is permitted ONLY on the database UUID created in THIS run;
+        # no arbitrary UUID, including a real production D1, is ever accepted.
+        if query and (self.created_db_id is None or
+                      query.group(0).split("/")[3] != self.created_db_id):
             raise StageBlocked("SERVER82_ENDPOINT_NOT_ALLOWLISTED")
         data = json.dumps(payload).encode() if payload is not None else None
         req = Request(self.base + path, method=method, data=data, headers={
@@ -196,10 +202,11 @@ class Cloudflare:
         dbid = result.get("uuid") or result.get("id")
         if not isinstance(dbid, str) or not UUID.fullmatch(dbid):
             raise StageBlocked("SERVER82_DB_IDENTIFIER_UNVERIFIED")
+        self.created_db_id = dbid
         return dbid
 
     def seed_and_verify(self, dbid, statements):
-        if not UUID.fullmatch(dbid):
+        if not UUID.fullmatch(dbid) or dbid != self.created_db_id:
             raise StageBlocked("SERVER82_WRONG_DB_ID")
         for statement in statements:
             res = self.call("POST", f"/d1/database/{dbid}/query",
