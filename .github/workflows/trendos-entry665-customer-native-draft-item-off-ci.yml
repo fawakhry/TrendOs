@@ -1,0 +1,62 @@
+name: TrendOS Entry665 Native Customer Draft Item OFF — SQLite
+on:
+  push:
+    branches:
+      - feat/zero-google-native-customer-draft-add-item-off-20261021
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/customer-portal-native-draft-item-v0.mjs'
+      - 'cloudflare-d1/migrations/0037_customer_portal_native_draft_items_v1.sql'
+      - 'tests/entry665_customer_native_draft_item_off.test.mjs'
+      - 'tests/entry665_customer_native_draft_item_sqlite.test.py'
+      - '.github/workflows/trendos-entry665-customer-native-draft-item-off-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  customer-native-draft-item-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Native draft item handler and prior four Native customer modules
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          OPENAI_API_KEY: ''
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/customer-portal-native-draft-item-v0.mjs
+          node --test tests/entry665_customer_native_draft_item_off.test.mjs
+          node --test tests/entry664_customer_native_draft_create_off.test.mjs
+          node --test tests/entry663_customer_native_change_password_off.test.mjs
+          node --test tests/entry662_customer_native_login_off.test.mjs
+          node --test tests/entry661_customer_native_logout_off.test.mjs
+          node --test tests/entry660_customer_native_orders_off.test.mjs
+      - name: Real SQL on disposable SQLite across all six Native source actions
+        run: |
+          set -euo pipefail
+          python3 tests/entry665_customer_native_draft_item_sqlite.test.py -v
+          python3 tests/entry664_customer_native_draft_create_sqlite.test.py -v
+          python3 tests/entry663_customer_native_change_password_sqlite.test.py -v
+          python3 tests/entry662_customer_native_login_sqlite.test.py -v
+          python3 tests/entry661_customer_native_logout_sqlite.test.py -v
+          python3 tests/entry660_customer_native_orders_sqlite.test.py -v
+      - name: Legacy browser transport stays unchanged
+        run: |
+          set -euo pipefail
+          node tests/entry653_zero_google_employee_legacy_proxy_retirement.test.mjs
+      - name: Source-only zero production authority
+        run: |
+          echo 'CUSTOMER_SOURCE_READY_ACTIONS=6_OF_9'
+          echo 'CUSTOMER_LIVE_GOOGLE_RETIRED=0_OF_9'
+          echo 'CUSTOMER_SOURCE_DRAFT_ITEM=OFF'
+          echo 'CLOUDFLARE_PROD_DEPLOY=NO'
+          echo 'OFFICIAL_ORDER_CREATE=NO'
+          echo 'FINANCE_AND_PRINT_MUTATION=NO'
+          echo 'ZERO_GOOGLE_COMPLETE=NO'
