@@ -37,6 +37,9 @@ on:
       - autonomous-printshop/print-server/tools/server80_isolated_stage_deploy_guard.mjs
       - .github/workflows/server80-isolated-stage-owner-gated-bootstrap.yml
       - tests/server80_isolated_stage_owner_bootstrap.test.mjs
+      - cloudflare-d1/fixtures/server82_stage_only_synthetic.sql
+      - autonomous-printshop/print-server/tools/server82_stage_d1.py
+      - autonomous-printshop/print-server/tests/test_server82_stage_d1.py
       - tests/server33_trendosshop_service_orders_read.test.mjs
       - cloudflare-d1/src/trendosshop-service-orders-read-v1.mjs
       - tests/server67_purpose_scoped_mirror_service_read.test.mjs
@@ -117,6 +120,15 @@ jobs:
           node --test tests/server80_isolated_stage_owner_bootstrap.test.mjs
           node autonomous-printshop/print-server/tools/server80_isolated_stage_deploy_guard.mjs --validate
           echo 'SERVER80_STAGE_BOOTSTRAP=SOURCE_ONLY; OWNER_APPROVAL_REQUIRED; WORKER_DEPLOY=NO'
+      - name: SERVER-82 synthetic D1 safety and fake print laser fixtures (strictly offline)
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server82_stage_d1.py' -v
+          PYTHONDONTWRITEBYTECODE=1 python3 \
+            autonomous-printshop/print-server/tools/server82_stage_d1.py --validate
+          echo 'SERVER82_D1_STAGE=SOURCE_TESTED; CUSTOMER_ROWS=NO; REMOTE_MUTATION=NO'
       - name: Validate isolated Worker bundle with Wrangler offline dry-run
         run: |
           set -euo pipefail
