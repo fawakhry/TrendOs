@@ -84,7 +84,7 @@ class NativeDraftCreateSqlite(unittest.TestCase):
         self.db.execute("UPDATE customer_portal_native_accounts_v1 SET session_version=2 WHERE customer_id='C1'")
         self.assertEqual(self.create(),0)
         self.assertIsNone(self.owned())
-    def test_07_off_shadow_canary_controls deny(self):
+    def test_07_off_shadow_canary_controls_deny(self):
         for mode in ("OFF","SHADOW","CANARY"):
             self.db.execute("UPDATE customer_portal_native_control_v1 SET mode=?",(mode,))
             self.assertEqual(self.create(),0)
