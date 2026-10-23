@@ -45,6 +45,7 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import json, tomllib
           t=Path('cloudflare-d1/easystore-finance-stage/wrangler.toml').read_text()
           assert 'c2fe1a54-90f5-4e6f-9d51-80ce23e21328' in t
           assert 'database_name = "easystore-accounting-staging"' in t
@@ -52,7 +53,14 @@ jobs:
               assert bad not in t
           assert 'FINANCE_WRITES = "OFF"' in t
           assert 'workers_dev = false' in t
-          assert 'ACCOUNTING_FINANCE_GRANTS_V1 = "{\\\"version\\\":1,\\\"grants\\\":[]}"' in t or 'grants' in t
+          vals=tomllib.loads(t)
+          assert vals['workers_dev'] is False
+          assert vals['vars']['FINANCE_RELEASE']=='NO_GO'
+          assert vals['vars']['FINANCE_WRITES']=='OFF'
+          assert vals['vars']['EASYSTORE_ACCOUNTING_D1_WRITE_MODE']=='OFF'
+          assert vals['vars']['ACCOUNTING_FINANCE_GRANTS_MODE_V1']=='ENFORCE'
+          assert json.loads(vals['vars']['ACCOUNTING_FINANCE_GRANTS_V1'])=={'version':1,'grants':[]}
+          assert len(vals['d1_databases'])==1 and len(vals['services'])==2
           assert 'EASYSTORE_CUSTOMER_SOURCE_V1 = "REMOTE_REQUIRED"' in t
           assert 'binding = "TRENDOS_CUSTOMER_FACTS"' in t
           assert 'service = "trendos-customer-facts-stage-source"' in t
