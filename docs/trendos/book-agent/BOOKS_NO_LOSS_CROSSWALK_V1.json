@@ -16634,5 +16634,173 @@
       "new_book": "FROZEN_MIGRATION_ONLY",
       "cutover": "NO_GO"
     }
+  },
+  "book_agent_20261023_t12_edge_readback_and_r2_partial_failure_synthetic_v1": {
+    "date": "2026-10-23",
+    "book_head_read_before_write": "92a3f14ff66b575032d873c5ba6d0ecdea108493",
+    "pinned_repo": "fawakhry/TrendOs",
+    "source_commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "classification": "ISOLATED_SOURCE_FUNCTION_EXECUTION_WITH_OFFLINE_STUBS_NOT_GITHUB_CI_OR_CLOUDFLARE_WORKER",
+    "additive_to": [
+      "book_agent_20261023_t12_ack_and_edge_revocation_source_delta_v1",
+      "book_agent_20261023_synthetic_20_source_runtime_cases_v1",
+      "book_agent_20261023_r2_file_delivery_provenance_source_delta_v1"
+    ],
+    "no_duplicate_ticket": true,
+    "sources": [
+      {
+        "path": "cloudflare-d1/src/edge-orders-read-v1.mjs",
+        "blob": "540cca2143e7da940b96d6f990a8951e3b5c87ab",
+        "scope": "issueOrdersEdgeToken / verifyOrdersEdgeToken; HMAC NOT cryptographically tested, fake deterministic sign/verify"
+      },
+      {
+        "path": "cloudflare-d1/src/t12-general-create-handler.mjs",
+        "blob": "d8bd8d13f6e69b55839822ddb5e473585e6d8842",
+        "scope": "handleT12GeneralCreateRequest; real handler logic, fake Edge signatures/DB/Response"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-comms-native-v1.mjs",
+        "blob": "f415d06ccd15ba241d679c61b7afeb6ec904e4b8",
+        "scope": "uploadOrderFile; fake file bytes, digest, R2 and D1 fault injection"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-content-native-v1.mjs",
+        "blob": "fab5eeeca0ecc9312380054b32f01a44639f4664",
+        "scope": "uploadPublicFile; fake file bytes, digest, R2 and D1 fault injection"
+      }
+    ],
+    "edge_readback_8_cases": [
+      {
+        "name": "unsigned_readback",
+        "http": 401,
+        "pass": true
+      },
+      {
+        "name": "signed_customer_readback",
+        "http": 403,
+        "pass": true
+      },
+      {
+        "name": "signed_unknown_observer_reads_unrelated_print_order",
+        "http": 200,
+        "saw_fake_customer_phone": true,
+        "order_actor_different": true,
+        "db_user_acl_query": false,
+        "pass": true
+      },
+      {
+        "name": "signed_laser_reads_print_order_even_create_off",
+        "http": 200,
+        "db_mode": "OFF",
+        "db_selects": 2,
+        "pass": true
+      },
+      {
+        "name": "expired_edge_token",
+        "http": 401,
+        "error": "expired",
+        "pass": true
+      },
+      {
+        "name": "synthetic_valid_signed_token_verifier",
+        "verified": true,
+        "revocation_store_lookup": false,
+        "pass": true
+      },
+      {
+        "name": "unauth_health_returns_fake_control_metadata",
+        "http": 200,
+        "synthetic_next_order_number": 12345,
+        "pass": true
+      },
+      {
+        "name": "signed_create_post_blocked_when_mode_off",
+        "http": 423,
+        "create_function_calls": 0,
+        "pass": true
+      }
+    ],
+    "r2_upload_4_cases": [
+      {
+        "name": "comms_r2_put_succeeds_d1_message_insert_fails",
+        "steps": [
+          "D1.first",
+          "R2.put",
+          "D1.message"
+        ],
+        "injected_exception": "INJECTED_MESSAGE_FAILURE",
+        "r2_delete_calls": 0,
+        "pass": true
+      },
+      {
+        "name": "comms_r2_put_and_message_succeed_d1_file_row_fails",
+        "steps": [
+          "D1.first",
+          "R2.put",
+          "D1.message",
+          "D1.other",
+          "D1.order_file"
+        ],
+        "injected_exception": "INJECTED_ORDER_FILE_FAILURE",
+        "r2_delete_calls": 0,
+        "pass": true
+      },
+      {
+        "name": "content_r2_put_succeeds_d1_file_row_fails",
+        "steps": [
+          "R2.put",
+          "D1.content_file"
+        ],
+        "injected_exception": "INJECTED_CONTENT_FILE_FAILURE",
+        "r2_delete_calls": 0,
+        "pass": true
+      },
+      {
+        "name": "content_r2_put_fails_prevents_d1_metadata_insert",
+        "steps": [
+          "R2.put"
+        ],
+        "injected_exception": "INJECTED_PUT_FAILURE",
+        "r2_delete_calls": 0,
+        "pass": true
+      }
+    ],
+    "count": 12,
+    "matched_expected": 12,
+    "interpretation": "The 200 readback results in synthetic signed-actor tests confirm the source handler does not enforce per-order/department authorization on readback and GET does not check create mode OFF. Unknown role cannot obtain a real valid token from this test; toy HMAC is NOT real signature proof. The R2 partial failure fixture demonstrates no compensating FILES.delete or recovery journal in exercised original function paths, without proving deployed orphan objects. 12/12 means expected source predicates reproduced, not security PASS.",
+    "evidence_levels": {
+      "SOURCE_ONLY": "FUNCTIONAL_ISOLATED_STUBS_12_CASES",
+      "CI_VERIFIED": "NO_GITHUB_ACTIONS_FOR_NEW_TESTS",
+      "STAGING_VERIFIED": "NO",
+      "PRODUCTION_VERIFIED": "NO",
+      "R2_BINARY_PROVENANCE": "UNVERIFIED"
+    },
+    "pending_owner_decisions": [
+      "T12_READBACK_PER_ORDER_DEPARTMENT_ACTOR_AUTHORIZATION",
+      "T12_READBACK_WHEN_CREATE_CONTROL_OFF",
+      "T12_HEALTH_PUBLIC_METADATA_POLICY",
+      "EDGE_REVOCATION_AND_ROLE_VALIDATION_POLICY",
+      "R2_ORPHAN_COMPENSATION_AND_RETRY_POLICY"
+    ],
+    "no_mutation": {
+      "production": 0,
+      "Cloudflare": 0,
+      "real_D1": 0,
+      "real_R2": 0,
+      "finance": 0,
+      "code": 0,
+      "archive": 0,
+      "catalog": 0,
+      "customer": 0
+    },
+    "authority": {
+      "old_book": "ACTIVE_WRITE",
+      "new_catalog": "FROZEN_MIGRATION_ONLY",
+      "final_cutover": "NO_GO",
+      "finance_authority": "EASYSTORE",
+      "ownership_attested": false,
+      "live_google_retired": "0/9 VERIFIED",
+      "deployed_sha": "UNVERIFIED"
+    }
   }
 }
