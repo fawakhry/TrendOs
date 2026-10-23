@@ -24,3 +24,10 @@ The original HTTPS stage request remains `HTTP 403`; `accessAuthenticatedProven=
 ## Audit continuity
 
 The legacy `UBUNTU_SERVER_BOOK.md` has a long-running SERVER-95…131 record. Attempts to append SERVER-132 directly to the large book were blocked by tool safety checks, so this small **supplemental book entry** preserves both stages without overwriting or deleting the authoritative prior history. Cross-link from the main book when a safe GitHub editing workflow becomes available.
+
+## SERVER-134 — Owner confirms Analytics API token creation
+
+- Owner reported in the ongoing conversation that the new Cloudflare API token **was created** and its secret value is visible in the Cloudflare UI. **No secret was shared or copied into GitHub.** This is owner-reported creation, not API-side verification.
+- The preceding Token Summary screenshot showed exactly Account Analytics: Read scoped to the sole existing TrendMall account and expiry October 30, 2026. The intended use remains a bounded read-only Access CF-Ray investigation, not production data retrieval.
+- Next one-step owner action: store the token locally using a hidden terminal prompt in a private path outside all Git repositories with directory mode 0700 and file mode 0600. Do not paste the token into shell command text, chat, screenshots, GitHub Actions secrets, or GitHub files. A successful local save is **not yet confirmed**.
+- `CLOUDFLARE_TOKEN_CREATED=OWNER_REPORTED`; `TOKEN_VALUE_DISCLOSED=NO`; `TOKEN_LOCAL_SAVE=NOT_YET_CONFIRMED`; `STAGE_HTTP403_ROOT_CAUSE=UNRESOLVED`; `PRODUCTION_ORDERS_DEVICES=UNTOUCHED`.
