@@ -9449,3 +9449,27 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 
 <!-- END_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_003 -->
 
+## ملحق تاريخي — إثباتات ترحيل الكتب الوسيطة والعمليات القديمة (2026-10-16)
+
+> Historical administrative observations only. No change in the current owner authority or actual runtime evidence.
+
+<!-- BOOK_AGENT_20261023: historical administrative text; source old Master blob 35b322d4b3ec194ef202474104e2a981118d9168. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_OWNER_TRANSITION_20261016_MIGRATED_EARLIER -->
+- **MIGRATED EARLIER:** `TRENDOS_LEGACY_PRE_SPLIT_BOOK.md` complete exact migrated to new historical appendix A then removed old file (commit `be5e1951d5fb84f583640b03d291cb3abeee4a0f`). `TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md` original 31 chapters exactly preserved and unique prologue in appendix C then removed old file (commit `21f6b07c370b1570fc6e1253be014da7b33239c1`).
+<!-- END_VERBATIM_MIGRATION:MASTER_OWNER_TRANSITION_20261016_MIGRATED_EARLIER -->
+
+<!-- BOOK_AGENT_20261023: historical administrative text; source old Master blob 35b322d4b3ec194ef202474104e2a981118d9168. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_OWNER_TRANSITION_20261016_MIGRATED_THIS_PASS -->
+- **MIGRATED THIS PASS:** `TRENDOS_BOOKS_SINGLE_INDEX.md` exact text source `478a58583d0d27c96448199cfe42f765baf76c1d` to unified historical appendix D commit `c6c0bb2d8e9a5fc0e81c0cb509364e90853cf770`; compared to Git archive source, deleted intermediate commit `fb81fabe6551df836efb1a1a5030904f56ac1899`. `BOOK_VNEXT_OUTLINE.md` source `63cc0ea3622f1bd2a6c0ca5f5fe559b988693023` to new appendix E commit `b2f28d26d9a034cfd9be4d2eacc9e918220b4c7b`, exact source/archive comparison, deleted intermediate commit `c5de50efba69664038226166c6f339582244486f`.
+<!-- END_VERBATIM_MIGRATION:MASTER_OWNER_TRANSITION_20261016_MIGRATED_THIS_PASS -->
+
+<!-- BOOK_AGENT_20261023: historical administrative text; source old Master blob 35b322d4b3ec194ef202474104e2a981118d9168. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_OWNER_TRANSITION_20261016_NO_LOSS_CHECK -->
+- **NO-LOSS CHECK:** All four intermediate TrendOS book-like sources have original text or unique content preserved in one unified new book, and pre-transfer originals in `archive/trendos-books-before-single-book-20261016` SHA `b2788ecb4c187717e020321954a1ea449c1aa0d5`. Does **not** mean 66 MASTER entries reconciled or latest production runtime verified. Master remains until fully migrated.
+<!-- END_VERBATIM_MIGRATION:MASTER_OWNER_TRANSITION_20261016_NO_LOSS_CHECK -->
+
+<!-- BOOK_AGENT_20261023: historical administrative text; source old Master blob 35b322d4b3ec194ef202474104e2a981118d9168. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_OWNER_TRANSITION_20261016_OPERATIONS -->
+- **OPERATIONS:** Product code unchanged; no deployment, merge, runtime mutation, or independent-project deletion.
+<!-- END_VERBATIM_MIGRATION:MASTER_OWNER_TRANSITION_20261016_OPERATIONS -->
+
