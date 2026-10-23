@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><title>TrendOS isolated customer browser fixture</title></head>
+<body>
+  <main>
+    <h1>عميل تجريبي — تشغيل محلي فقط</h1>
+    <label>كود العميل<input id="customer-code" autocomplete="off"></label>
+    <label>كلمة المرور<input id="customer-password" type="password" autocomplete="off"></label>
+    <button id="login">دخول</button>
+    <button id="orders">أوردراتي</button>
+    <button id="logout">خروج</button>
+    <p id="status" role="status">ready</p>
+    <output id="order-list"></output>
+  </main>
+  <!-- Serve ONLY the original, unchanged source customer adapter in local CI. -->
+  <script src="/customer-native-browser-transport-v0.js"></script>
+  <script>
+    'use strict';
+    (function () {
+      const state = { customer: null, legacyCalls: 0 };
+      const status = document.querySelector('#status');
+      const output = document.querySelector('#order-list');
+      function downstream() {
+        state.legacyCalls += 1;
+        throw new Error('Legacy Google fallback is forbidden in Stage browser fixture');
+      }
+      async function call(action, params) {
+        return window.trendosCustomerNativeBrowserDispatchV0(action, params, downstream);
+      }
+      document.querySelector('#login').onclick = async function () {
+        status.textContent = 'logging-in';
+        const code = document.querySelector('#customer-code').value;
+        const passwordInput = document.querySelector('#customer-password');
+        const password = passwordInput.value;
+        try {
+          const response = await call('customerLogin', {customerCode:code,password,
+            token:'LOCAL_FAKE_GOOGLE_SECRET_SHOULD_NOT_FORWARD'});
+          state.customer = response.customer;
+          status.textContent = response.success === true &&
+            response.customer.nativeSession === true ? 'logged-in' : 'login-not-confirmed';
+        } catch (e) {status.textContent = 'login-error:' + e.code;} 
+        finally {passwordInput.value='';}
+      };
+      document.querySelector('#orders').onclick = async function () {
+        status.textContent = 'reading';
+        try {
+          // Caller-forged customer ID must NEVER influence D1 ownership.
+          const data = await call('getCustomerOrders', {customerId:'LOCAL-C2',
+            customerCode:'LOCAL-FORGED-CODE',token:'LOCAL_FAKE_GOOGLE_TOKEN'});
+          output.textContent = data.orders.map(x=>x.orderId).join(',');
+          status.textContent = data.success ? 'orders-ok' : 'orders-not-confirmed';
+        } catch (e) {status.textContent = 'orders-error:' + e.code;}
+      };
+      document.querySelector('#logout').onclick = async function () {
+        status.textContent = 'logging-out';
+        try {
+          const result = await call('customerLogout',state.customer || {});
+          status.textContent = result.serverSessionRevoked === true &&
+            result.sessionRevoked === true ? 'logout-ok' : 'logout-not-confirmed';
+        } catch (e) {status.textContent = 'logout-error:' + e.code;}
+        finally {state.customer = null;}
+      };
+      window.customerStageBrowserFixtureV0 = Object.freeze({
+        get customer(){return state.customer;},
+        get legacyCalls(){return state.legacyCalls;},
+        call,
+        get nativeEnabled(){return window.TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED === true;}
+      });
+    })();
+  </script>
+</body></html>
