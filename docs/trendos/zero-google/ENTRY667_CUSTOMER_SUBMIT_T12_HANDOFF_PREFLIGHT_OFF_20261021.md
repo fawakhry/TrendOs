@@ -34,3 +34,11 @@ python3 tests/entry667_customer_draft_submit_preflight_sqlite.test.py -v
 - أضيفت قراءة `t12_prod_request_ledger` **الموجود بالفعل** بمفتاح Cloud المشتق من المسودة: أي صف سابق سواء `PREPARED` أو `COMMITTED` أو حالة غير مألوفة يوقف الإرسال ويطلب trusted reconciliation. لا `INSERT/UPDATE` ولا كشف `order_id` ولا استدعاء Order Writer ولا تلقائية لإعادة المحاولة بعد ACK ملتبس.
 - الاختبارات: Node يحاكي المفتاح/الجلسة ويمنع replay ويحظر الهاتف الضعيف؛ SQLite المعزولة تستخدم جدول T12 canonical وتثبت قراءة `PREPARED/COMMITTED` وعدم mutation. الاختبارات لا تثبت ضمان exactly-once بين فحصين قراءة منفصلين؛ عند التنفيذ الحقيقي يلزم trusted atomic handoff وسجل idempotency الأصلي.
 - لا تُفعّل وظيفة إرسال العميل أو Route. `T12_OFFICIAL_CUSTOMER_SUBMIT=NOT_IMPLEMENTED`, `ZERO_GOOGLE_LIVE=0/9`, `DEPLOY=NO`.
+
+
+## Entry681 — Transactional T12 submit preflight (SOURCE_ONLY/OFF)
+
+- Owner/session, draft lines, file readiness count, and existing T12 canonical request ledger observation are now executed together in one **D1 `db.batch` read transaction** using four parameterized SELECTs; no separate queries and no fallback if batch incomplete/unavailable.
+- Ledger request key is deterministically derived **inside SQL** from the authoritative draft created_at_ms and draft ID in the same transaction, avoiding reading owner at one epoch then checking the ledger at another. JS still validates exact canonical T12 key and strong customer identity; a PREPARED, COMMITTED or unknown ledger row blocks submission until trusted reconciliation.
+- Fake Node adapter asserts no individual first/all path, rejects missing/partial D1 batch; SQLite runs four original SELECTs under one read SAVEPOINT and tests PREPARED/COMMITTED replay. All data and order tables are synthetic.
+- A successful read transaction does **not** freeze the draft afterwards or authorize a T12 service actor. One logical item and no attachments are still the only eligible preflight shape. `transactionalReadBatch=true`, `snapshotSealed=false`, `OFF`, `T12_CUSTOMER_OFFICIAL_SUBMIT=NO_GO`, `GOOGLE_LIVE_RETIRED=0/9_VERIFIED`.
