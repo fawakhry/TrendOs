@@ -1143,3 +1143,10 @@
 - The screenshot proves the correct permission option was **located**, not yet definitively selected/committed or granted; no claim that `Read` has been chosen. Account Resources still show `Include → All accounts` and expiry remains `No expiration`, so the form is **not safe to submit**.
 - **Next single owner action:** click the visible dropdown menu option **Account Analytics** (directly under the active field), then send screenshot before setting the rightmost action to Read. Do not click Continue to summary or create a token. No secret has been shown.
 - `TOKEN_CREATED=NO`; `ACCOUNT_ANALYTICS_OPTION_LOCATED=YES`; `ACCOUNT_ANALYTICS_ACTION_READ=NOT_YET_SET`; `ACCOUNT_SCOPE_AND_EXPIRY=NOT_YET_RESTRICTED`; `HTTP403_CAUSE=UNRESOLVED`; `PRODUCTION_UNTOUCHED=YES`.
+
+### SERVER-20261023-127 — Account Analytics selected without granting action (owner screenshot ~22:28 Cairo)
+
+- Owner selected **Account Analytics** as the product in the middle permission field on the in-progress `Create Custom Token` form. The category is `Account`, while the right-hand permission action field still reads `Select...`; **Read** has not yet been selected. No additional permission rows have been added.
+- The owner-visible form still defaults to `Account Resources: Include → All accounts` and `Token expiration: No expiration`. Both must be restricted to the one intended Cloudflare account and a short expiry before final token creation; the authorization is confined to account analytics read-only diagnosis of the isolated-stage CF-Ray.
+- **Next single owner UI action:** open the rightmost `Permissions` action dropdown (`Select...`) next to `Account Analytics` to inspect available `Read` choice. Do not submit/continue to summary, create tokens, or change existing secrets or Access policies.
+- `ACCOUNT_ANALYTICS_SELECTED=YES`; `READ_SELECTED=NO`; `ACCOUNT_SCOPE_RESTRICTED=NO`; `EXPIRY_SET=NO`; `TOKEN_CREATED=NO`; `CF_RAY=a4f30217e9ef9aca-MRS`; `HTTP403_ROOT_CAUSE=UNRESOLVED`; `PRODUCTION_UNTOUCHED=YES`.
