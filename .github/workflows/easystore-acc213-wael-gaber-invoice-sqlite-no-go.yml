@@ -29,6 +29,11 @@ jobs:
           node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
           node --check tests/easystore_acc213_wael_gaber_customer_invoice_native_sqlite_no_go.test.mjs
           node --test tests/easystore_acc213_wael_gaber_customer_invoice_native_sqlite_no_go.test.mjs
+          node --check cloudflare-d1/src/t12-order-customer-finance-fence-sourceonly.mjs
+          node --check tests/t12_order_customer_finance_fence_sourceonly.test.mjs
+          node --test tests/t12_order_customer_finance_fence_sourceonly.test.mjs
+          echo 'ACC222_T12_NATIVE_ORDER_CUSTOMER_FK_ATTESTED=NO'
+          echo 'ACC222_FINANCE_RELEASE=NO_GO'
           echo 'ACC213_REAL_WORKER_DISPOSABLE_SQLITE_ONLY=YES'
           echo 'ACC213_D1_DEPLOY=NO'
           echo 'ACC213_EASYSTORE_MONEY_WRITES=ZERO'
