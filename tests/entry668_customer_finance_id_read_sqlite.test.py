@@ -97,7 +97,12 @@ class NativeCustomerFinanceExactIdSqlite(unittest.TestCase):
  def test_10_missing_active_enrollment_or_must_change_blocks(self):
   self.db.execute("UPDATE customer_portal_native_accounts_v1 SET must_change=1 WHERE customer_id='C1'")
   self.assertIsNone(self.read())
-  self.db.execute("UPDATE customer_portal_native_accounts_v1 SET must_change=0,verified_enrollment_ref='' WHERE customer_id='C1'")
+  # The real schema protects ACTIVE accounts from having their enrollment
+  # proof blanked. Verify that enforcement rather than forging invalid D1.
+  with self.assertRaises(Exception):
+   self.db.execute("UPDATE customer_portal_native_accounts_v1 SET must_change=0,verified_enrollment_ref='' WHERE customer_id='C1'")
+  # A DISABLED account can lack enrollment, but must never expose balance.
+  self.db.execute("UPDATE customer_portal_native_accounts_v1 SET state='DISABLED',must_change=0,verified_enrollment_ref='' WHERE customer_id='C1'")
   self.assertIsNone(self.read())
  def test_11_supplier_entry_does_not_satisfy_missing_customer_balance(self):
   self.db.execute("DELETE FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id='C1'")
