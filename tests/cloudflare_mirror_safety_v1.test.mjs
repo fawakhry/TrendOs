@@ -123,7 +123,7 @@ async function testStatsReadOnly() {
   const e = env();
   const response = await handleMirrorRequest(
     new Request('https://preview.test/v1/mirror/stats', {
-      headers: { Origin: 'https://fawakhry.github.io' }
+      headers: { Origin: 'https://fawakhry.github.io', 'x-migration-secret': 'migration-secret' }
     }),
     e
   );
@@ -140,7 +140,7 @@ async function testCapabilitiesReadOnlyAndAtomicReady() {
   const e = env();
   const response = await handleMirrorRequest(
     new Request('https://preview.test/v1/mirror/capabilities', {
-      headers: { Origin: 'https://fawakhry.github.io' }
+      headers: { Origin: 'https://fawakhry.github.io', 'x-migration-secret': 'migration-secret' }
     }),
     e
   );
@@ -157,7 +157,7 @@ async function testCapabilitiesReadOnlyAndAtomicReady() {
 async function testCapabilitiesFailClosedWithoutStagingTables() {
   const e = env({ DB: new MockDB(['sheet_catalog', 'sheet_rows']) });
   const response = await handleMirrorRequest(
-    new Request('https://preview.test/v1/mirror/capabilities'),
+    new Request('https://preview.test/v1/mirror/capabilities', { headers: { 'x-migration-secret': 'migration-secret' } }),
     e
   );
   assert.equal(response.status, 200);
@@ -173,7 +173,7 @@ async function testSheetReadOnly() {
   const e = env();
   const response = await handleMirrorRequest(
     new Request('https://preview.test/v1/mirror/sheet?name=%D8%A8%D9%86%D9%88%D8%AF%20%D8%A7%D9%84%D8%A3%D9%88%D8%B1%D8%AF%D8%B1%D8%A7%D8%AA&limit=1', {
-      headers: { Origin: 'https://fawakhry.github.io' }
+      headers: { Origin: 'https://fawakhry.github.io', 'x-migration-secret': 'migration-secret' }
     }),
     e
   );

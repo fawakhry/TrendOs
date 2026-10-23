@@ -359,6 +359,12 @@ export async function handleEmployeeCoreNativeRequest(request,env){
   if(text(c.mode)==='READONLY'&&!READ_ACTIONS.has(action))return json({success:false,code:'employee-core-readonly'},503,cors(request,env));
   if(!READ_ACTIONS.has(action)&&!WRITE_ACTIONS.has(action))return json({success:false,code:'employee-core-action-unknown'},400,cors(request,env));
   const a=await authenticate(request,body,env);if(!a.ok)return json({success:false,message:a.message},a.status||401,cors(request,env));
+  // BOOK25 P0: A client-hidden manager button is not server authorization.
+  // Restrict private activity, archive, debt and staff KPI data to explicit
+  // authenticated admin role. Reject BEFORE those queries run.
+  if((action==='getTrendMasterCenterV1931'||action==='getActivityLog')&&key(a.user.role)!=='admin'){
+    return json({success:false,code:'manager-access-denied'},403,cors(request,env));
+  }
   try{
     let out;
     if(action==='getRows'||action==='getRowsPageV1931'){

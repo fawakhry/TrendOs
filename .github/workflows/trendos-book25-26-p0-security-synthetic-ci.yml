@@ -1,0 +1,47 @@
+name: TrendOS Chapters 25-26 P0 Auth — Fake-Only CI
+
+on:
+  push:
+    branches:
+      - fix/book25-26-p0-auth-20261016
+    paths:
+      - 'cloudflare-d1/src/mirror-gate.mjs'
+      - 'cloudflare-d1/src/employee-core-native-v1.mjs'
+      - 'tests/book25_26_p0_auth_synthetic.test.mjs'
+      - 'tests/cloudflare_mirror_safety_v1.test.mjs'
+      - '.github/workflows/trendos-book25-26-p0-security-synthetic-ci.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/mirror-gate.mjs'
+      - 'cloudflare-d1/src/employee-core-native-v1.mjs'
+      - 'tests/book25_26_p0_auth_synthetic.test.mjs'
+      - 'tests/cloudflare_mirror_safety_v1.test.mjs'
+      - '.github/workflows/trendos-book25-26-p0-security-synthetic-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  p0-fake-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: |
+          node --check cloudflare-d1/src/mirror-gate.mjs
+          node --check cloudflare-d1/src/employee-core-native-v1.mjs
+          node --check tests/book25_26_p0_auth_synthetic.test.mjs
+      - name: Fake-only mirror and manager permission regressions
+        run: node --test tests/book25_26_p0_auth_synthetic.test.mjs
+      - name: Existing mirror read-only/migration contract regression
+        run: node tests/cloudflare_mirror_safety_v1.test.mjs
+      - name: Existing manager direct core contract regression
+        run: node tests/entry646_manager_center_core_direct.test.mjs
+      - name: No production or deployment
+        run: |
+          echo "FAKE_D1_ONLY=YES"
+          echo "PRODUCTION_DATA_READ=NO"
+          echo "DEPLOY_OR_MERGE=NO"
