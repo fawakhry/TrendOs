@@ -19,8 +19,8 @@
 ## Missing binding proof and implemented SERVER-97
 - GitHub source implementation: `tools/server97_access_worker_binding_audit.py`. It reads only account-scoped Cloudflare GET endpoints:
   - `/access/apps/<exact-stage-app-id>`;
-  - `/workers/workers?page=N&per_page=100`, max five pages, to match the **immutable Worker ID** of the exact Worker named `trendos-server68-isolated-stage` against `destinations[0].worker_id`.
-- Fail closed for mismatch, missing/ambiguous destination, unexpected public path overrides, missing Worker, over-limit pagination, malformed data, unauthorized read; print only constant status codes, never API response bodies, secret credentials, worker IDs or customer information.
+  - `/workers/workers/trendos-server68-isolated-stage`: exact named Worker GET, to match its **immutable Worker ID** against `destinations[0].worker_id` with no account-wide Worker enumeration.
+- Fail closed for mismatch, missing/ambiguous destination, unexpected public path overrides, missing Worker, malformed data, unauthorized read; print only constant status codes, never API response bodies, secret credentials, worker IDs or customer information.
 - Worker metadata list requires `Workers Metadata Read Only` or a qualifying Workers read permission; existing `CLOUDFLARE_ACCESS_API_TOKEN` was only confirmed for Access app/policy read. **Do not expand token permissions automatically.** A permissions failure means `UNVERIFIED`, not a product defect or real auth proof.
 - `tests/test_server97_access_worker_binding_audit.py`: synthetic opener, no Cloudflare requests, exact ID success, mismatch/unsafe policy rejection, denied scope, invalid input, missing/duplicate worker.
 - `.github/workflows/server97-stage-worker-binding-readonly.yml`: new tests first with credentials empty, then GET-only metadata audit using existing secret **without printing it**. Never touches Worker HTTP endpoint or D1. Existing SERVER-68 preflight may auto-trigger on branch push but SERVER-97 does **not** request running SERVER-95 again.
@@ -45,3 +45,8 @@
 - Owner approval is required before any expanded credential or live infrastructure change. Do not rerun the same CI credential read unchanged and expect different evidence.
 
 `SERVER97_CI_OFFLINE=PASS_7_7`; `SERVER97_CF_READONLY_BINDING=UNVERIFIED_PERMISSION_DENIED`; `SERVER97_BRANCH_DOCUMENTED=YES`; `REAL_STAGE_ACCESS_RESULT=STILL_403_LAST_OWNER_EVIDENCE`.
+
+## Read-scope reduction — subsequent source improvement
+
+- Switched from the Worker-list GET to **one exact stage Worker GET** using the official Cloudflare `GET /accounts/{account_id}/workers/workers/{worker_id}` API (the path accepts Worker name or ID). The endpoint returns the immutable Worker ID. Existing audited authorization still lacks Worker metadata scope; no additional rights were granted. https://developers.cloudflare.com/api/resources/workers/subresources/beta/subresources/workers/methods/get/
+- Corresponding fake-only tests and dedicated workflow updated to prove the same matching invariant while never enumerating unrelated/production Workers. A CI result remains necessary for the updated version; no claim of live approval from source changes.
