@@ -26,6 +26,7 @@ SELECT o.order_id AS orderId,o.request_key AS requestKey,
   o.priority AS orderPriority,o.source AS orderSource,o.notes AS orderNotes,
   o.status AS orderStatus,l.status AS ledgerStatus,
   l.canonical_json AS originalCanonicalJson,
+  l.policy_epoch AS originalLedgerPolicyEpoch,
   l.order_id AS ledgerOrderId,l.actor AS ledgerActor,
   s.order_id AS capturedOrderId,s.request_key AS capturedRequestKey,
   s.customer_id AS officialCustomerId,
@@ -132,6 +133,7 @@ export async function inspectT12EmployeeOrderFinanceCandidate({
   const plain=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
   if(!plain(original)||original.actor!==o.orderActor||
      original.requestKey!==o.requestKey||!id(original.policyEpoch)||
+     original.policyEpoch!==o.originalLedgerPolicyEpoch||
      !plain(original.identity)||!plain(original.order)||
      !plain(original.sourceCapture)||!Array.isArray(original.lines)||
      !Array.isArray(original.queuePlans)||!plain(original.activityPlan))
