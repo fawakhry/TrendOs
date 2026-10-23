@@ -236,8 +236,26 @@ def main():
             status,otherstill=request(port,paths["orders"],token=token2)
             check(status==200 and len(otherstill.get("lines",[]))==1,
                   "Other tenant lost session after first tenant revoke")
-            # Persisted DO dual-key counter includes each successful login.
-            for i in range(4):
+            # Run the unchanged original browser dispatcher in a TEST-ONLY
+            # Node VM. Its test window.fetch diverts the exact pinned API
+            # origin to THIS loopback Worker; it checks real HTTP OPTIONS
+            # CORS preflight, C1-only orders, D1 CAS logout and no Google.
+            # Never load/activate the browser switch on the real portal.
+            bridge=subprocess.run(
+                ["node",str(ROOT/"tests/customer_stage_browser_adapter_real_http_local.mjs")],
+                cwd=ROOT,text=True,capture_output=True,timeout=45,
+                env={**os.environ,"CUSTOMER_STAGE_LOCAL_PORT":str(port),
+                     "CLOUDFLARE_API_TOKEN":"","CLOUDFLARE_ACCOUNT_ID":""}
+            )
+            if bridge.returncode:
+                raise AssertionError("Local browser adapter bridge failed: "+
+                                     bridge.stderr[-3000:])
+            check("PASS: source customer browser adapter" in bridge.stdout,
+                  "Browser adapter did not attest local preflight")
+            print(bridge.stdout.strip())
+            # C1 already made TWO successful logins: Python + Node VM. Three
+            # wrong attempts reach 5; the following attempt must be 429.
+            for i in range(3):
                 status,wrong=request(port,paths["login"],method="POST",
                     payload={"portalCode":CODE,"password":"LOCAL-WRONG-PASSWORD-"+str(i)+"-NOT_REAL"})
                 check(status==401,"Expected generic rejection for bad local password")
@@ -254,7 +272,7 @@ def main():
             status,otherafter=request(port,paths["orders"],token=token2)
             check(status==200 and len(otherafter.get("lines",[]))==1,
                   "D1 owner read did not survive local Worker restart")
-            print("PASS: Wrangler local real D1+SQLite Durable Object: 2-tenant login, scoped orders, CAS revoke, replay denial, 5/15m rate and restart persistence")
+            print("PASS: Wrangler local real D1+SQLite Durable Object + original browser adapter CORS: 2-tenant login, scoped orders, CAS revoke, preflight, replay denial, 5/15m rate and restart persistence")
             print("NO_DEPLOY=YES; CLOUD_CUSTOMER_DB_UNTOUCHED=YES; STAGE_REMOTE_UNPROVISIONED=YES")
         finally:
             stop_dev(proc)
