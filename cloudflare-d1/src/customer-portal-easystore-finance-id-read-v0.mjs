@@ -69,9 +69,13 @@ export async function readNativeCustomerEasyStoreBalanceV0({
    const row=await db.prepare(CUSTOMER_EASYSTORE_EXACT_ID_BALANCE_SQL_V0)
      .bind(mac,nowMs,nowMs).first();
    if(!row||!row.customerId)return denied('CUSTOMER_FINANCE_SCOPE_OR_BALANCE_UNAVAILABLE',404);
-   const amount=Number(row.balance),updatedAt=Number(row.balanceUpdatedAtMs),
+   // Never coerce NULL, undefined, blank text or booleans into a fake EGP 0.
+   // Canonical D1/SQLite REAL balances are numeric; schema drift fails closed.
+   if(typeof row.balance!=='number'||!Number.isFinite(row.balance)||
+      row.balance<0)return denied('EASYSTORE_BALANCE_MISSING_OR_INVALID');
+   const amount=row.balance,updatedAt=Number(row.balanceUpdatedAtMs),
      version=Number(row.balanceVersion);
-   if(!Number.isFinite(amount)||Math.abs(amount)>1e12||
+   if(Math.abs(amount)>1e12||
       !Number.isSafeInteger(updatedAt)||updatedAt<=0||updatedAt>nowMs||
       nowMs-updatedAt>24*60*60*1000||
       !Number.isSafeInteger(version)||version<1||
