@@ -710,5 +710,28 @@
       "finance": 0
     },
     "duplicate_issue": false
+  },
+  "current_no_loss_gate_20261023_t12_key_customer_identity_delta_v1": {
+    "date": "2026-10-23",
+    "crosswalk_key": "book_agent_20261023_t12_client_key_and_customer_lane_identity_delta_v1",
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "book_head_at_read": "5c80f007b3634090919e5074aad72e65b0f17cbc",
+    "checks": 2,
+    "source_only": true,
+    "ci_verified_new_cases": false,
+    "staging_verified": false,
+    "production_verified": false,
+    "client_id_issuance_attested": false,
+    "customer_lane_heuristic_not_finance_customer_ownership": true,
+    "owner_gates": [
+      "CLIENT_KEY_SESSION_EPOCH_ISSUANCE_AND_PERSISTENCE",
+      "CUSTOMER_PHONE_MISSING_SAME_NAME_COLLISION_POLICY",
+      "EASYSTORE_ORDER_CUSTOMER_OFFICIAL_ID_ATTESTATION"
+    ],
+    "old_book": "ACTIVE_WRITE",
+    "catalog": "FROZEN_MIGRATION_ONLY",
+    "cutover": "NO_GO",
+    "production_mutation": 0,
+    "finance_authority": "EASYSTORE"
   }
 }
