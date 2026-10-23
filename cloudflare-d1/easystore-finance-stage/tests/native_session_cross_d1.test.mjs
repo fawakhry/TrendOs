@@ -94,6 +94,23 @@ test('real native SSO + real native finance READONLY across physically separate 
   const noGrant=await send({action:'getEasyStoreCustomers'});
   assert.equal(noGrant.status,403);
   financeEnv.ACCOUNTING_FINANCE_GRANTS_V1=JSON.stringify({version:1,grants:[{username:user,mode:'final'}]});
+  // Native-only source cannot authorize expired, forced-password-change or
+  // stale session versions; NONE may fall back to old Apps Script/shadow auth.
+  op.exec("UPDATE employee_auth_control_v1 SET mode='TRANSITIONAL' WHERE singleton=1");
+  const wrongMode=await send({action:'getEasyStoreCustomers'});
+  assert.equal(wrongMode.status,401);
+  op.exec("UPDATE employee_auth_control_v1 SET mode='NATIVE' WHERE singleton=1");
+  op.prepare("UPDATE employee_auth_users_v1 SET must_change=1 WHERE username_key=?").run(user);
+  const forcedPassword=await send({action:'getEasyStoreCustomers'});
+  assert.equal(forcedPassword.status,401);
+  op.prepare("UPDATE employee_auth_users_v1 SET must_change=0,session_version=2 WHERE username_key=?").run(user);
+  const staleVersion=await send({action:'getEasyStoreCustomers'});
+  assert.equal(staleVersion.status,401);
+  op.prepare("UPDATE employee_auth_users_v1 SET session_version=1 WHERE username_key=?").run(user);
+  op.prepare("UPDATE employee_auth_sessions_v1 SET expires_at_ms=? WHERE username_key=?").run(Date.now()-1000,user);
+  const expired=await send({action:'getEasyStoreCustomers'});
+  assert.equal(expired.status,401);
+  op.prepare("UPDATE employee_auth_sessions_v1 SET expires_at_ms=? WHERE username_key=?").run(Date.now()+3600000,user);
   op.prepare('UPDATE employee_auth_sessions_v1 SET revoked_at_ms=? WHERE username_key=?').run(Date.now(),user);
   const revoked=await send({action:'getEasyStoreCustomers'});
   assert.equal(revoked.status,401);
