@@ -34,3 +34,11 @@ python3 tests/entry668_customer_finance_id_read_sqlite.test.py -v
 **P0:** فحص `submitCustomerDraft` موجود في Entry667 #220 كـ**preflight قراءة فقط**؛ ليس إنشاء أوردر إنتاج. لا يجوز إعادة تنفيذ Writer T12 هنا، ولا تحويل الأرصدة إلى أوامر إنشاء/سداد. BOOK24 Single Writer وCustomer OTP والـCloudflare current deployment وStage rollback لم تتأهل بعد.
 
 **الحصيلة:** سبعة أفعال مصدرية لعميل، وثامن `submitCustomerDraft` فحص فقط، وتاسع `getCustomerPortalAccountsV1859` **رصيد Preview مؤمّن مصدرًا فقط**. عدد الأفعال المنقولة من Google بالفعل في الإنتاج = `0/9`. `FINANCE_AUTHORITATIVE=NO`; `EASYSTORE_ACCOUNTS_PARITY=UNVERIFIED`; `ZERO_GOOGLE_LIVE_COMPLETE=NO`; `PRODUCTION_DEPLOY=NO`.
+
+## Entry669 — رفض الرصيد المفقود قبل التحويل الرقمي (23 أكتوبر 2026)
+
+- اكتُشفت فجوة Fail-Closed في نموذج Entry668: التحويل `Number(row.balance)` يحوّل `null` أو النص الفارغ إلى صفر، رغم أن جدول `0024` الأصلي يمنع NULL. أي Adapter أو تغيير Schema لاحق لا يجوز له اختراع رصيد صفر.
+- أُضيف شرط صريح `typeof row.balance === 'number'` مع finite/nonnegative قبل العرض، واختبار Node ضد `null`/`undefined`/الفراغ/النصوص/boolean/negative، مع السماح فقط بصفر رقمي حقيقي. `employee_accounting_party_balances_v1` يظل المصدر كما هو، دون تعديل مالي أو Migration.
+- **حالة الاختبارات:** راجع Workflow exact-head بعد commit؛ لا تحوّل هذه الحماية إلى إقرار بختم `EasyStore` أو نشر.
+- **قرار P0 معلق:** ربط `party_id` الحقيقي والدفاتر/الفواتير/الحركات المالية وإثبات حداثة وملكية المصدر، بتوقيع موثوق من مالك EasyStore، قبل تركيب Route أو تحويل `getCustomerPortalAccountsV1859`. لا تتحول Boolean params الاختبارية إلى attestation تشغيلية.
+- **الحالة:** SOURCE_OFF / PREVIEW_ONLY / ZERO_GOOGLE_LIVE=0/9 / NO_MERGE / NO_DEPLOY. PR #221.
