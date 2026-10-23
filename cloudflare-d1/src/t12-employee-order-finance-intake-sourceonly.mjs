@@ -60,11 +60,26 @@ SELECT line.line_id AS lineId,line.order_id AS orderId,
  FROM t12_prod_lines line
  WHERE line.order_id=? ORDER BY line.ordinal ASC LIMIT 3
 `;
+
+export const T12_EMPLOYEE_INTAKE_ACTIVITY_SQL=`
+SELECT event_key AS eventKey,request_key AS requestKey,order_id AS orderId,
+ event_type AS eventType,payload_json AS payloadJson
+ FROM t12_prod_events
+ WHERE request_key=? AND event_key='activity' LIMIT 2
+`;
+export const T12_EMPLOYEE_INTAKE_OUTBOX_SQL=`
+SELECT event_key AS eventKey,request_key AS requestKey,order_id AS orderId,
+ line_id AS lineId,event_type AS eventType,status AS deliveryStatus,
+ payload_json AS payloadJson
+ FROM t12_prod_outbox
+ WHERE request_key=? ORDER BY event_key ASC LIMIT 3
+`;
 export const T12_EMPLOYEE_FINANCE_INTAKE_POLICY=Object.freeze({
  sourceOnly:true,workerEntryWired:false,httpRouteAvailable:false,
  readsOneD1Batch:true,originalT12Only:true,
  reliesOnACC223ImmutableCapture:true,
  comparesOriginalT12CanonicalLedger:true,
+ comparesOriginalT12ActivityAndOutbox:true,
  existingFinanceConnectorReused:true,usesOfficialNativeCustomerId:true,
  sourceSelectorVerifiesCustomerOwnership:false,
  includesBillingPrices:false,
@@ -84,9 +99,11 @@ export async function inspectT12EmployeeOrderFinanceCandidate({
   // then .all() reads; actor/customer/line may change between statements.
   const batch=await db.batch([
    db.prepare(T12_EMPLOYEE_INTAKE_ORDER_SQL).bind(orderId),
-   db.prepare(T12_EMPLOYEE_INTAKE_LINES_SQL).bind(orderId)
+   db.prepare(T12_EMPLOYEE_INTAKE_LINES_SQL).bind(orderId),
+   db.prepare(T12_EMPLOYEE_INTAKE_ACTIVITY_SQL).bind(orderId),
+   db.prepare(T12_EMPLOYEE_INTAKE_OUTBOX_SQL).bind(orderId)
   ]);
-  if(!Array.isArray(batch)||batch.length!==2||
+  if(!Array.isArray(batch)||batch.length!==4||
      batch.some(x=>!x||x.success!==true||!Array.isArray(x.results)))
    return deny('T12_INTAKE_READ_TRANSACTION_UNVERIFIED',503);
   const orderRows=batch[0].results;
@@ -199,6 +216,41 @@ export async function inspectT12EmployeeOrderFinanceCandidate({
   }
   if(lines.length===2&&new Set(lines.map(x=>x.department)).size!==2)
    return deny('T12_DUPLICATED_OR_INVALID_DEPARTMENT_LANES');
+  // ACC230: the ORIGINAL writer creates exactly one source activity event
+  // and one outbox record per physical T12 line in the SAME create batch.
+  // Missing, extra, rewritten or failed entries signal a partial/unknown
+  // operational handoff, not a safe candidate for EasyStore billing.
+  const activities=batch[2].results;
+  if(activities.length!==1)return deny('T12_ACTIVITY_EVENT_MISSING_OR_AMBIGUOUS');
+  const activity=activities[0];
+  if(!activity||activity.eventKey!=='activity'||
+     activity.requestKey!==o.requestKey||activity.orderId!==orderId||
+     activity.eventType!=='order-create'||
+     typeof activity.payloadJson!=='string')
+   return deny('T12_ORIGINAL_ACTIVITY_EVENT_DRIFT');
+  let storedActivity;
+  try{storedActivity=JSON.parse(activity.payloadJson);}
+  catch{return deny('T12_ORIGINAL_ACTIVITY_EVENT_DRIFT');}
+  if(JSON.stringify(storedActivity)!==JSON.stringify(original.activityPlan))
+   return deny('T12_ORIGINAL_ACTIVITY_EVENT_DRIFT');
+  const outbox=batch[3].results;
+  if(outbox.length!==lines.length)
+   return deny('T12_ORIGINAL_OUTBOX_LINES_MISSING_OR_EXTRA');
+  for(let i=0;i<outbox.length;i++){
+   const q=outbox[i],expected=original.queuePlans[i],line=lines[i];
+   if(!q||!plain(expected)||
+      q.eventKey!=='queue:'+String(i+1).padStart(2,'0')||
+      q.requestKey!==o.requestKey||q.orderId!==orderId||
+      q.lineId!==line.lineId||q.eventType!=='trend-master-status-intent'||
+      !['pending','done'].includes(q.deliveryStatus)||
+      typeof q.payloadJson!=='string')
+    return deny('T12_ORIGINAL_OUTBOX_ROW_INVALID_OR_FAILED');
+   let storedPlan;
+   try{storedPlan=JSON.parse(q.payloadJson);}
+   catch{return deny('T12_ORIGINAL_OUTBOX_PAYLOAD_DRIFT');}
+   if(JSON.stringify(storedPlan)!==JSON.stringify(expected))
+    return deny('T12_ORIGINAL_OUTBOX_PAYLOAD_DRIFT');
+  }
   // These IDs are an INTERNAL operational candidate only. The original
   // EasyStore invoice requires distinct real departmental APPROVALS, financial
   // pricing and independent official customer ownership/provenance.
