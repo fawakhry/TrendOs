@@ -37,7 +37,7 @@ def exact_deny_payload(worker_id):
         "destinations": [{"type": "worker", "worker_id": worker_id}],
         "policies": [{
             "name": "Deny all until owner-approved machine identity",
-            "decision": "block",
+            "decision": "deny",
             "include": [{"everyone": {}}],
         }],
     }
@@ -178,7 +178,7 @@ class API:
         if type(pol) is not list or len(pol) != 1:
             raise StageDenied("SERVER87_ACCESS_POLICY_NOT_SINGLE_DENY")
         first = pol[0]
-        if (type(first) is not dict or first.get("decision") != "block" or
+        if (type(first) is not dict or first.get("decision") != "deny" or
                 first.get("include") != [{"everyone": {}}]):
             raise StageDenied("SERVER87_ACCESS_POLICY_NOT_DENY_ALL")
         pub = self.call("GET", f"/accounts/{self.acct}/workers/scripts/{STAGE}/subdomain")
