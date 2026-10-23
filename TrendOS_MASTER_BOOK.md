@@ -48,44 +48,6 @@
 
 ## 1. الحالة النشطة — Production baseline بعد Entry600
 
-### Frontend
-- Canonical frontend: Cloudflare Worker `trendos-ui`.
-- Active frontend version: `adfb5056-af23-4d7f-8e12-7de6417dfce2` عند 100%.
-- Active frontend deployment: `a066abb8-4c33-4050-813b-123df4140450`.
-- Login-fast qualified source: `9150049fb169c9ca122003b5dc0b2bd960de61ed`.
-- Unauthenticated login/entry surface no longer eagerly fetches the 18 employee runtime modules; 2 critical modules start only after employee session boot, and the remaining 16 are deferred 250ms after authenticated boot.
-- `MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED=true` live.
-- Legacy `updateLine` ذو stable Line ID يذهب إلى `/v1/t12/orders/line-runtime/legacy-update` بدل Apps Script.
-- Root/config/edge/app = HTTP 200.
-- Browser Refresh recovery وinitial Edge readiness وduplicate-order Arabic message كلها preserved بعد Entry600.
-- Independent read-only verify: run `37027847139` = SUCCESS.
-- GitHub Pages القديم ليس canonical entrypoint.
-
-### API / D1
-- Canonical API Worker: `trendos-d1-api`.
-- Migration `0010_t12_duplicate_order_guard.sql` applied.
-- Migration `0011_t12_legacy_line_runtime.sql` applied.
-- Active API version: `ce156662-a698-47fc-b73c-dfd4657be9f5`.
-- Active API deployment: `477ee04d-10ac-4fc3-9ba6-e81691bcd286`.
-- Active API bundle SHA-256: `7550c3a82b30acf0f34c52565568df8d7e7d6092ca322b36bbac7726256a0bc6`.
-- `ORDER_CREATE_MODE=GENERAL`.
-- `DUPLICATE_GUARD_READY=YES`.
-- Duplicate guard window = 120000 ms.
-- `CUSTOMER_WRITE_MODE=GENERAL`.
-- Legacy line runtime health = PASS، `legacySchemaReady=true`، `writeMode=cloud-native+legacy-overlay`.
-- `EMPLOYEE_AUTH_MODE=OFF` و`LEGACY_BRIDGE_ENABLED=NO` ما زالا كما هما.
-- لا توجد pending migrations بعد Entry600.
-
-### Orders
-- New Order CREATE authority يعمل Cloud-native على D1 في GENERAL.
-- duplicate-order guard live في API والواجهة.
-- refresh disappearance defect مغلق بعد owner acceptance + read-only verification.
-- Legacy status/notes update ذو stable Line ID أصبح Cloud/D1 عبر legacy runtime overlay؛ لا يعتمد على Apps Script line lookup لهذا المسار.
-- الـ15 stale legacy Orders المؤكدة تم reconcile إلى `تم التسليم` في D1 runtime بدون تغيير Order IDs وبدون Google write.
-- Base `sheet_rows` mirror التاريخي بقي كما هو ولم يُعاد كتابته؛ runtime overlay هو طبقة الحالة الحالية.
-- لا تُعد أي historical Google Order writer أو canary أو staging workflow سلطة حالية.
-- أي Legacy Orders action آخر غير `updateLine` ما زال يظهر في Zero-Google audit يُعامل dependency متبقية حتى يثبت Runtime أنه أزيل.
-
 ### Entry596 — أوردرات Legacy قديمة ظاهرة Active رغم أنها مُسلّمة
 - الاسم العربي للبحث: **الأوردرات القديمة لا تقفل / البند غير موجود / أوردرات مسلمة ظاهرة / stale legacy orders / legacy line identity**.
 - Root cause مؤكد Read-only: D1 Lines mirror متوقف عند `2026-09-26 18:33:08` ويعرض **15 بندًا قديمًا كـ`طلب جديد`**، بينما نفس الـ15 بند في Google الحالي كلها **`تم التسليم`**.
