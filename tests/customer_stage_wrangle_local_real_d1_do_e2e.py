@@ -231,6 +231,15 @@ def main():
             status,forbid=request(port,paths["orders"],origin="https://evil.test")
             check(status==403 and forbid.get("code")=="CUSTOMER_STAGE_ORIGIN_FORBIDDEN",
                   "Origin not rejected")
+            # Prove the Worker itself rejects a login from Chromium's
+            # second (untrusted) loopback Origin, without issuing any bearer.
+            status,foreign_login=request(port,paths["login"],method="POST",
+                payload={"portalCode":CODE,"password":PASSWORD},
+                origin="http://127.0.0.1:8001")
+            check(status==403 and foreign_login.get("code")==
+                  "CUSTOMER_STAGE_ORIGIN_FORBIDDEN" and
+                  not foreign_login.get("token"),
+                  "Untrusted browser Origin unexpectedly issued a session")
             status,unknown=request(port,"/v1/legacy-api")
             check(status==404 and unknown.get("code")=="CUSTOMER_STAGE_ROUTE_NOT_FOUND",
                   "Legacy/employee path must not exist in standalone Stage")
