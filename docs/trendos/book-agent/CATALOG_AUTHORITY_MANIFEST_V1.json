@@ -414,5 +414,45 @@
     "final_cutover": "NO_GO",
     "runtime_status": "NOT_REVALIDATED_BY_BOOK_AGENT",
     "verification_scope": "REPO_SOURCE_DOC_STRUCTURE_ONLY; NO_TESTS_RERUN; NO_PRODUCTION_ACCESS; NO_NEW_CATALOG_WRITES"
+  },
+  "current_no_loss_gate_checkpoint_20261023_after_entry679_pr_source_provenance": {
+    "date": "2026-10-23",
+    "source_head_before_checkpoint": "c661cc4f0796ca8cb0706698a2f5febe05e23646",
+    "crosswalk_new_key": "agent_trendos_active_entries_669_679_pr_provenance_reconciliation_20261023",
+    "old_source_blob": "fb57e290726403bc7d64e457340ba256c5e5b2ee",
+    "catalog_blob_unmodified": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "active_entries_reconciled_as_references": [
+      669,
+      670,
+      671,
+      672,
+      673,
+      674,
+      675,
+      676,
+      678,
+      679
+    ],
+    "count": 10,
+    "entry677": "NO_DISTINCT_HEADING_FOUND_NOT_CLAIMED_LOST",
+    "pr220": {
+      "head": "1303167b60dc47e44c97b428862541bf7900428f",
+      "state": "OPEN_DRAFT_UNMERGED"
+    },
+    "pr221": {
+      "head": "acba0c15ece7a57fa7a406cdeae50b499386edcb",
+      "state": "OPEN_DRAFT_UNMERGED"
+    },
+    "feature_source_status": "SOURCE_ONLY_OFF_ON_PR_BRANCH_NOT_BOOK_BRANCH",
+    "catalog_topical_chapters": "EXIST_32_32_BUT_NOT_CURRENT_669_679_MIGRATION",
+    "original_migrations": "75_UNCHANGED_115_115_MARKERS",
+    "raw_private_order_data": "NOT_REPLICATED",
+    "old_write": "ACTIVE_WRITE",
+    "new_write": "FROZEN_MIGRATION_ONLY",
+    "safe_historical_copy_remove": "NONE_NO_ELIGIBLE_SECTIONS",
+    "owner_final_cutover": "NO_GO",
+    "deployed_or_production_validation": "NOT_PERFORMED",
+    "no_external_project_modification": true,
+    "no_runtime_mutation": true
   }
 }
