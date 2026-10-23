@@ -64,13 +64,13 @@ await test('ACC213: Wael/Gaber department lines become exactly one authenticated
   });
   vm.runInContext(code+'\n;globalThis.ACC213_HANDLER=handleEmployeeAccountingNativeRequest;',context,{timeout:15000});
   let networkCalls=0;
-  async function send(user,action,data={}){
+  async function send(user,action,data={},authToken='ACC213_FAKE_TOKEN'){
     const before=globalThis.fetch;
     globalThis.fetch=()=>{networkCalls++;throw Error('OFFLINE_NETWORK_FORBIDDEN')};
     try{
       const resp=await context.ACC213_HANDLER(new Request('https://offline.invalid/v1/employee/accounting',{
         method:'POST',headers:{Origin:'https://fawakhry.github.io',
-          Authorization:'Bearer ACC213_FAKE_TOKEN','Content-Type':'application/json'},
+          Authorization:'Bearer '+authToken,'Content-Type':'application/json'},
         body:JSON.stringify({action,username:user,...data})
       }),env);
       return {httpStatus:resp.status,...await resp.json()};
@@ -139,8 +139,9 @@ await test('ACC213: Wael/Gaber department lines become exactly one authenticated
       lineIds:JSON.stringify(['ACC213_PRINT_1']),paid:10});
     assert.equal(partial.code,'accounting-final-invoice-missing-dept-lines',JSON.stringify(partial));
   });
+  const finalRequestId=rid();
   const close=await send('ACC213_RAHMA','saveAccountingFinalInvoice',{
-    requestId:rid(),orderId:'ACC213_ORDER_A',customerId:'ACC213_CUST_A',
+    requestId:finalRequestId,orderId:'ACC213_ORDER_A',customerId:'ACC213_CUST_A',
     lineIds:JSON.stringify(['ACC213_PRINT_1','ACC213_LASER_1','ACC213_PRINT_2']),
     paymentMethod:'نقدي',paid:10});
   assert.equal(close.success,true,JSON.stringify(close));
@@ -152,6 +153,35 @@ await test('ACC213: Wael/Gaber department lines become exactly one authenticated
   assert.equal(count('employee_accounting_cashbox_v1'),1);
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM employee_accounting_party_ledger_v1 WHERE operation='payment_received'").get().n,1);
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM employee_accounting_dept_lines_v1 WHERE final_invoice_no=?").get(close.invoiceNo).n,3);
+  await t.test('exact HTTP invoice retry cannot charge twice or create another receipt',async()=>{
+    const oldBalance=db.prepare("SELECT balance FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id='ACC213_CUST_A'").get().balance;
+    const oldLedger=count('employee_accounting_party_ledger_v1');
+    const oldCash=count('employee_accounting_cashbox_v1');
+    const oldInvoice=count('employee_accounting_final_invoices_v1');
+    const repeat=await send('ACC213_RAHMA','saveAccountingFinalInvoice',{
+      requestId:finalRequestId,orderId:'ACC213_ORDER_A',customerId:'ACC213_CUST_A',
+      lineIds:JSON.stringify(['ACC213_PRINT_1','ACC213_LASER_1','ACC213_PRINT_2']),
+      paymentMethod:'نقدي',paid:10});
+    // A pre-existing CLOSED invoice is an allowed fail-closed replay result;
+    // an identical success response is NOT required for safety, but zero
+    // additional ledger or cash movements IS mandatory.
+    assert.ok(repeat.duplicatePrevented===true ||
+              repeat.code==='accounting-order-already-final-invoiced',JSON.stringify(repeat));
+    assert.equal(count('employee_accounting_final_invoices_v1'),oldInvoice);
+    assert.equal(count('employee_accounting_cashbox_v1'),oldCash);
+    assert.equal(count('employee_accounting_party_ledger_v1'),oldLedger);
+    assert.equal(db.prepare("SELECT balance FROM employee_accounting_party_balances_v1 WHERE party_type='customer' AND party_id='ACC213_CUST_A'").get().balance,oldBalance);
+  });
+  await t.test('invalid or expired fake SSO never posts another customer invoice',async()=>{
+    const before=count('employee_accounting_request_ledger_v1');
+    const bad=await send('ACC213_RAHMA','saveAccountingFinalInvoice',{
+      requestId:rid(),orderId:'ACC213_ORDER_A',customerId:'ACC213_CUST_A',
+      paymentMethod:'نقدي',paid:10},'ACC213_EXPIRED_FAKE_TOKEN');
+    assert.equal(bad.success,false,JSON.stringify(bad));
+    assert.equal(count('employee_accounting_final_invoices_v1'),1);
+    assert.equal(count('employee_accounting_cashbox_v1'),1);
+    assert.equal(count('employee_accounting_request_ledger_v1'),before);
+  });
   await t.test('new approved item for same order cannot create a second CLOSED invoice or cash receipt',async()=>{
     assert.equal((await addLine('ACC213_GABER','ACC213_LASER_2','later fake laser job',15)).success,true);
     assert.equal((await send('ACC213_GABER','approveAccountingDeptInvoice',{
