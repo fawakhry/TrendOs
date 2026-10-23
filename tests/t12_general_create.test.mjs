@@ -199,7 +199,13 @@ const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456',qty=1)=>({
 
 
 const acc223Link={customerId:'CUS-FAKE-1',evidenceRef:'ACC223_STAGING_UNATTESTED_001'};
-const acc223Opts={canary:false,mode:'isolated-source-only',allowSourceCapture:true,officialCustomerLink:acc223Link};
+const acc224SelectorSecret='ACC224_ISOLATED_FAKE_EDGE_SECRET_NOT_FOR_REAL_DEPLOYMENT_123456';
+const acc224SelectorToken=await issueOrdersEdgeToken(
+  {sub:actor,role:'service',screens:['service'],department:'service'},
+  acc224SelectorSecret);
+const acc224SelectorSession={token:acc224SelectorToken,secret:acc224SelectorSecret};
+const acc223Opts={canary:false,mode:'isolated-source-only',allowSourceCapture:true,
+  officialCustomerLink:acc223Link,selectorSession:acc224SelectorSession};
 const acc223Input=(key='cld1_1800000700000_ACC223_1234567890123456')=>({
   ...input(key) // Legacy T12 external ID 999002 stays numeric and independent
 });
@@ -239,6 +245,10 @@ const armIsolated=db=>db.raw.prepare("UPDATE t12_order_customer_at_create_contro
   assert.equal(capture.external_customer_id,'999002');
   assert.equal(capture.customer_version,1);
   assert.equal(capture.actor_subject,actor);
+  assert.equal(capture.selector_role,'service');
+  assert.match(capture.selector_session_sha256,/^[0-9a-f]{64}$/);
+  assert.ok(Number(capture.selector_expires_at)>Number(capture.selector_issued_at));
+  assert.equal(String(JSON.stringify(capture)).includes(acc224SelectorToken),false);
   assert.equal(capture.capture_status,'SOURCE_ONLY_NOT_ATTESTED');
   assert.equal(capture.finance_authorized,0);
   assert.equal(capture.delivery_authorized,0);
@@ -299,6 +309,65 @@ const armIsolated=db=>db.raw.prepare("UPDATE t12_order_customer_at_create_contro
   assert.equal(db.count('t12_order_customer_at_create_v1'),0);
   assert.equal(db.control().nextNo,4323);
 }
+
+{
+  const db=new D1('GENERAL',0);installFakeCustomer(db);armIsolated(db);
+  // Old unsigned ACC223 options must STOP after ACC224 tightening.
+  const missing=await createT12GeneralOrder(db,acc223Input(),actor,
+    {...acc223Opts,selectorSession:undefined});
+  assert.equal(missing.success,false);
+  assert.equal(missing.reason,'source-capture-employee-selection-session-required');
+  const tokenWithoutSignature=await createT12GeneralOrder(db,acc223Input(),actor,
+    {...acc223Opts,selectorSession:{token:'x.y.z',secret:acc224SelectorSecret}});
+  assert.equal(tokenWithoutSignature.success,false);
+  assert.equal(tokenWithoutSignature.reason,'source-capture-employee-selection-session-invalid');
+  const changedSecret=await createT12GeneralOrder(db,acc223Input(),actor,
+    {...acc223Opts,selectorSession:{token:acc224SelectorToken,secret:'other-long-test-secret-invalid-999'}});
+  assert.equal(changedSecret.success,false);
+  assert.equal(changedSecret.reason,'source-capture-employee-selection-session-invalid');
+  const wrongActor=await issueOrdersEdgeToken({
+    sub:'OTHER_EMPLOYEE',role:'service',screens:['service']},acc224SelectorSecret);
+  const actorMismatch=await createT12GeneralOrder(db,acc223Input(),actor,
+    {...acc223Opts,selectorSession:{token:wrongActor,secret:acc224SelectorSecret}});
+  assert.equal(actorMismatch.success,false);
+  assert.equal(actorMismatch.reason,'source-capture-employee-selection-session-invalid');
+  const wrongRole=await issueOrdersEdgeToken({
+    sub:actor,role:'print',screens:['print']},acc224SelectorSecret);
+  const roleDenied=await createT12GeneralOrder(db,acc223Input(),actor,
+    {...acc223Opts,selectorSession:{token:wrongRole,secret:acc224SelectorSecret}});
+  assert.equal(roleDenied.success,false);
+  assert.equal(roleDenied.reason,'source-capture-employee-selection-session-invalid');
+  const now=Math.floor(Date.now()/1000);
+  const expired=await issueOrdersEdgeToken({
+    sub:actor,role:'service',screens:['service']},acc224SelectorSecret,now-2000,60);
+  const expiredDenied=await createT12GeneralOrder(db,acc223Input(),actor,
+    {...acc223Opts,selectorSession:{token:expired,secret:acc224SelectorSecret}});
+  assert.equal(expiredDenied.success,false);
+  assert.equal(expiredDenied.reason,'source-capture-employee-selection-session-invalid');
+  const future=await issueOrdersEdgeToken({
+    sub:actor,role:'service',screens:['service']},acc224SelectorSecret,now+120,600);
+  const futureDenied=await createT12GeneralOrder(db,acc223Input(),actor,
+    {...acc223Opts,selectorSession:{token:future,secret:acc224SelectorSecret}});
+  assert.equal(futureDenied.success,false);
+  assert.equal(futureDenied.reason,'source-capture-employee-selection-session-invalid');
+  assert.equal(db.count('t12_prod_orders'),0);
+  assert.equal(db.count('t12_order_customer_at_create_v1'),0);
+}
+{
+  const db=new D1('GENERAL',0);installFakeCustomer(db);armIsolated(db);
+  const first=await createT12GeneralOrder(db,acc223Input(),actor,acc223Opts);
+  assert.equal(first.success,true,JSON.stringify(first));
+  const differentSession=await issueOrdersEdgeToken({
+    sub:actor,role:'service',screens:['service']},acc224SelectorSecret);
+  const conflict=await createT12GeneralOrder(db,acc223Input(),actor,
+    {...acc223Opts,selectorSession:{token:differentSession,secret:acc224SelectorSecret}});
+  assert.equal(conflict.success,false);
+  assert.equal(conflict.reason,'same-key-actor-payload-or-policy-conflict');
+  assert.equal(db.count('t12_prod_orders'),1);
+  assert.equal(db.count('t12_order_customer_at_create_v1'),1);
+}
+console.log('ACC224 signed EXISTING Orders Edge selector provenance only; FINANCE_RELEASE=NO_GO');
+
 console.log('ACC223 actual T12 general CREATE + OFF-default in-transaction customer source capture PASS; FINANCE_RELEASE=NO_GO');
 
 console.log('T12 general CREATE isolated PASS');
