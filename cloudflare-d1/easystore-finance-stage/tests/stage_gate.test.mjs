@@ -4,7 +4,7 @@ import worker from '../index.mjs';
 
 const health = 'https://example.invalid/v1/employee/accounting/health';
 const api = 'https://example.invalid/v1/employee/accounting';
-function fakeDb(mode='OFF',tableCount=22) {
+function fakeDb(mode='OFF',tableCount=22,operationalTables=0) {
   return {
     prepare(sql) {
       return {
@@ -12,6 +12,7 @@ function fakeDb(mode='OFF',tableCount=22) {
           if (sql.includes("SELECT mode FROM employee_accounting_control_v1"))
             return {mode};
           if (sql.includes("name LIKE 'employee_accounting_%'")) return {n:tableCount};
+          if (sql.includes("name LIKE 't12_%'")) return {n:operationalTables};
           if (sql.includes("SELECT mode,next_invoice_number")) return {
             mode, nextInvoiceNumber:1, policyEpoch:1
           };
@@ -54,6 +55,15 @@ test('broken schema, wrong mode and absent D1 reject health', async () => {
     assert.equal(res.status,503);
     assert.equal((await res.json()).financeWrites,'OFF');
   }
+});
+test('Stage rejects mixed D1 operational or employee tables even with all 22 finance tables',async()=>{
+  const res=await worker.fetch(new Request(health),{
+    DB:fakeDb('OFF',22,1),
+    EASYSTORE_CUSTOMER_SOURCE_V1:'REMOTE_REQUIRED',
+    EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1:'REMOTE_NATIVE_REQUIRED'
+  });
+  assert.equal(res.status,503);
+  assert.equal((await res.json()).code,'isolated-accounting-stage-schema-or-mode-not-ready');
 });
 test('not an operational or customer API, and no non-GET health', async () => {
   let r=await worker.fetch(new Request('https://example.invalid/v1/t12/orders'),{DB:fakeDb()});
