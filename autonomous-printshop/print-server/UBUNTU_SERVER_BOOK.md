@@ -954,3 +954,12 @@
 - **No entries or authentication attempts were actually queried or seen** at this checkpoint. These categories must not be conflated: Gateway HTTP request logs are not automatically inbound Access-authentication attempts; Admin activity logs are configuration events, not proof of machine identity. Cloudflare Access UI authentication logs can focus on identity login events; service-token/non-identity diagnostics may require Analytics GraphQL. An empty or non-applicable UI list is **not proof** the machine was never seen by Access.
 - Next single owner action: click the **Access authentication logs** card (top row, middle) for read-only inspection, avoiding any export or sharing credentials or customer data. Record what the page actually shows before reasoning about the 403.
 - Existing access policy and Worker remain unchanged; `HTTP403_CAUSE=UNRESOLVED`, `SERVICE_TOKEN_AUTHENTICATED=NOT_PROVEN`, `UBUNTU_CHANGED=NO`, `PRODUCTION_TOUCHED=NO`, `DEVICE_EXECUTION=OFF`.
+
+
+### SERVER-20261023-102 — Access authentication logs initial read-only view (owner screenshot, 2026-10-23 ~21:37 Cairo)
+
+- **Observed live UI:** Cloudflare One → Insights & Logs → Logs → Access authentication logs. Visible one active filter (badge **1**), a yellow notice **"The chart does not show your selected filters: Service auth logs"**, time window **Last 12 hours**, limit 50, overview **Allowed 0 / Blocked 0**, and table **"No results found"**.
+- **Critical interpretation:** chart specifically excludes selected Service auth logs, so Allowed 0 / Blocked 0 chart cannot validate service-token traffic. Table has no results for the *current*, not-yet-expanded filter and time window; not proof that Access received no service token headers or that the earlier HTTP 403 occurred in the Worker. Do not infer a fixed 403 or new issue from absent results.
+- **One next owner action:** Click **Filters** (badge 1) to inspect exact applied filter without modifying it, then provide screenshot. Keep secrets, request headers, cookies, and customer/business data out of the conversation. No Export to CSV, Save, policy edit, new request to Ubuntu/Worker, D1 or printer/laser action.
+- **Trace markers:** `ACCESS_LOG_UI_FILTER=SERVICE_AUTH_LOGS`; `ACCESS_LOG_UI_WINDOW=LAST_12_HOURS`; `ACCESS_LOG_TABLE_RESULT=NONE_WITH_CURRENT_FILTER`; `CHART_SERVICE_AUTH_COVERAGE=NO`; `HTTP403_ROOT_CAUSE=UNRESOLVED`; `CLOUDFLARE_MUTATION=NO`.
+
