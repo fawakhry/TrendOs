@@ -36,6 +36,33 @@ function fixture(lanes=2,skipCapture=false){
       'service','a'.repeat(64),1800000000,1800000600);
  }
 
+
+ // ACC229: emulate the ORIGINAL T12 writer's existing canonical_json shape,
+ // including at-create signed selector source and exact old order line payload.
+ const canonical={
+  actor:A,policyEpoch:'FAKE_POLICY',requestKey:KEY,
+  identity:{mode:'external',customerName:'FAKE CLIENT',customerPhone:'01000000000',externalCustomerId:'999002'},
+  order:{department:lanes===2?'متعدد الأقسام':'طباعة',priority:'عادي',status:'طلب جديد',
+   source:'T12 General Create',notes:'',heatPress:'لا',flyPrint:'لا'},
+  lines:rows.slice(0,lanes).map((l,i)=>({
+    ordinal:i+1,department:l.department,assignedTo:l.who,itemName:l.name,
+    qty:1,priority:'عادي',status:'طلب جديد',heatPress:'لا',flyPrint:'لا'
+  })),
+  activityPlan:{requestKey:KEY,eventType:'order-create-intent'},
+  queuePlans:rows.slice(0,lanes).map(l=>({
+   requestKey:KEY,department:l.department,assignedTo:l.who,
+   eventType:'trend-master-status-intent'
+  }))
+ };
+ if(!skipCapture)canonical.sourceCapture={
+  customerId:C,externalCustomerId:'999002',customerVersion:1,
+  evidenceRef:'FAKE_ACC228_SIGNED_SELECTOR_EVIDENCE',
+  selectorRole:'service',selectorSessionSha256:'a'.repeat(64),
+  selectorIssuedAt:1800000000,selectorExpiresAt:1800000600
+ };
+ raw.prepare('UPDATE t12_prod_request_ledger SET canonical_json=? WHERE request_key=?')
+  .run(JSON.stringify(canonical),KEY);
+
  let batches=0;
  const db={
   prepare(sql){
@@ -132,10 +159,67 @@ test('missing/extra/cross-order/incorrectly assigned Print+Laser lines fail clos
  x.raw.exec("UPDATE t12_prod_lines SET assigned_to='جابر' WHERE line_id='4323-02'");
  x.raw.exec("DELETE FROM t12_prod_lines WHERE line_id='4323-01'");
  assert.equal((await request(x)).body.code,'T12_SOURCE_LINE_SET_INCOMPLETE_OR_UNSUPPORTED');
- x.raw.prepare("INSERT INTO t12_prod_lines (line_id,order_id,request_key,ordinal,department,assigned_to,item_name,qty,priority,status,heat_press,fly_print) VALUES ('4323-01',?,?,1,'طباعة','وائل','FAKE',1,'عادي','طلب جديد',0,0)").run(ORDER_ID,KEY);
+ x.raw.prepare("INSERT INTO t12_prod_lines (line_id,order_id,request_key,ordinal,department,assigned_to,item_name,qty,priority,status,heat_press,fly_print) VALUES ('4323-01',?,?,1,'طباعة','وائل','FAKE MUG - طباعة',1,'عادي','طلب جديد',0,0)").run(ORDER_ID,KEY);
  assert.equal((await request(x)).status,200);
  x.raw.prepare("INSERT INTO t12_prod_lines (line_id,order_id,request_key,ordinal,department,assigned_to,item_name,qty,priority,status,heat_press,fly_print) VALUES ('4323-03',?,?,3,'ليزر','جابر','UNEXPECTED',1,'عادي','طلب جديد',0,0)").run(ORDER_ID,KEY);
  assert.equal((await request(x)).body.code,'T12_SOURCE_LINE_SET_INCOMPLETE_OR_UNSUPPORTED');
+}));
+test('ACC229 detects mutated quantity, item name, priority or print flags even when old IDs stay correct',()=>withFixture(async x=>{
+ for(const [change,undo] of [
+  ["UPDATE t12_prod_lines SET qty=7 WHERE line_id='4323-01'",
+   "UPDATE t12_prod_lines SET qty=1 WHERE line_id='4323-01'"],
+  ["UPDATE t12_prod_lines SET item_name='ALTERED' WHERE line_id='4323-02'",
+   "UPDATE t12_prod_lines SET item_name='FAKE MUG - ليزر' WHERE line_id='4323-02'"],
+  ["UPDATE t12_prod_lines SET priority='VIP' WHERE line_id='4323-01'",
+   "UPDATE t12_prod_lines SET priority='عادي' WHERE line_id='4323-01'"],
+  ["UPDATE t12_prod_lines SET heat_press=1 WHERE line_id='4323-01'",
+   "UPDATE t12_prod_lines SET heat_press=0 WHERE line_id='4323-01'"],
+  ["UPDATE t12_prod_lines SET fly_print=1 WHERE line_id='4323-01'",
+   "UPDATE t12_prod_lines SET fly_print=0 WHERE line_id='4323-01'"]
+ ]){
+  x.raw.exec(change);
+  const result=await request(x);
+  assert.equal(result.status,409,change);
+  assert.equal(result.body.code,'T12_SOURCE_LINE_SET_INCOMPLETE_OR_UNSUPPORTED',change);
+  x.raw.exec(undo);
+  assert.equal((await request(x)).status,200,undo);
+ }
+}));
+test('ACC229 detects changed original customer/department/notes and even matching-name based relabel',()=>withFixture(async x=>{
+ for(const [change,undo] of [
+  ["UPDATE t12_prod_orders SET customer_name='SAME-NAME-OTHER-USER'",
+   "UPDATE t12_prod_orders SET customer_name='FAKE CLIENT'"],
+  ["UPDATE t12_prod_orders SET customer_phone='01099999999'",
+   "UPDATE t12_prod_orders SET customer_phone='01000000000'"],
+  ["UPDATE t12_prod_orders SET notes='EXTRA PRIVATE NOTE'",
+   "UPDATE t12_prod_orders SET notes=''"],
+  ["UPDATE t12_prod_orders SET department='طباعة'",
+   "UPDATE t12_prod_orders SET department='متعدد الأقسام'"],
+  ["UPDATE t12_prod_orders SET source='UNTRUSTED'",
+   "UPDATE t12_prod_orders SET source='T12 General Create'"]
+ ]){
+  x.raw.exec(change);
+  const result=await request(x);
+  assert.equal(result.body.code,'T12_ORIGINAL_CREATE_ORDER_DRIFT',change);
+  x.raw.exec(undo);
+  assert.equal((await request(x)).status,200,undo);
+ }
+}));
+test('ACC229 refuses missing/corrupted ledger intent or edited selector capture inside ledger',()=>withFixture(async x=>{
+ const original=x.raw.prepare('SELECT canonical_json val FROM t12_prod_request_ledger WHERE request_key=?').get(KEY).val;
+ for(const altered of ['{}','not-valid-json',
+  JSON.stringify({...JSON.parse(original),sourceCapture:{
+    ...JSON.parse(original).sourceCapture,evidenceRef:'FORGED_CHANGED_SELECTOR_PROOF'
+  }}),
+  JSON.stringify({...JSON.parse(original),lines:[JSON.parse(original).lines[0]]})
+ ]){
+  x.raw.prepare('UPDATE t12_prod_request_ledger SET canonical_json=? WHERE request_key=?').run(altered,KEY);
+  const res=await request(x);
+  assert.equal(res.status,409,altered.slice(0,60));
+  assert.equal(res.body.financeAuthorized,false);
+  x.raw.prepare('UPDATE t12_prod_request_ledger SET canonical_json=? WHERE request_key=?').run(original,KEY);
+  assert.equal((await request(x)).status,200);
+ }
 }));
 test('without D1 batch, broken transaction or broken schema return generic fail closed',async()=>{
  const lacking=await inspect({db:{prepare(){}},orderId:ORDER_ID,expectedOfficialCustomerId:C});
