@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker from '../easystore-finance-stage/index.mjs';
+import worker from '../index.mjs';
 
 const health = 'https://example.invalid/v1/employee/accounting/health';
 const api = 'https://example.invalid/v1/employee/accounting';
