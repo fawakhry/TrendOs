@@ -6,6 +6,7 @@ import {
  CUSTOMER_DRAFT_SUBMIT_SCOPED_SQL_V0,
  CUSTOMER_DRAFT_SUBMIT_ITEMS_SQL_V0,
  CUSTOMER_DRAFT_SUBMIT_FILES_SQL_V0,
+ CUSTOMER_DRAFT_SUBMIT_EXISTING_T12_REQUEST_SQL_V0,
  CUSTOMER_DRAFT_SUBMIT_PREFLIGHT_POLICY_V0
 } from '../cloudflare-d1/src/customer-portal-native-submit-preflight-v0.mjs';
 
@@ -16,14 +17,15 @@ const owner={draftId:DRAFT,createdAtMs:NOW-60000,draftState:'DRAFT',
 const lines=[{itemId:ITEM,ordinal:1,department:'طباعة',itemName:'مج طباعة',qty:2,
  notes:'',heatPress:0,flyPrint:0}];
 let calls=[];
-function fake({account=owner,items=lines,files={fileCount:0,notReady:0},broken=false}={}){
+function fake({account=owner,items=lines,files={fileCount:0,notReady:0},prior=null,broken=false}={}){
  return{prepare(sql){
   const kind=sql.includes('SELECT d.draft_id AS draftId')?'scope':
-    sql.includes('SELECT i.item_id AS itemId')?'items':'files';
+    sql.includes('SELECT i.item_id AS itemId')?'items':
+    sql.includes('FROM t12_prod_request_ledger')?'ledger':'files';
   calls.push({kind,phase:'prepare'});
   return{bind(...args){calls.push({kind,phase:'bind',args});
    return{
-     async first(){if(broken)throw Error('FAKE_PRIVATE_SQL');return kind==='scope'?account:files;},
+     async first(){if(broken)throw Error('FAKE_PRIVATE_SQL');return kind==='scope'?account:kind==='ledger'?prior:files;},
      async all(){if(broken)throw Error('FAKE_PRIVATE_SQL');return{results:items};}
    };
   }};
@@ -45,7 +47,8 @@ test('no separate official order writer, no new order or customer HTTP route',()
  assert.equal(CUSTOMER_DRAFT_SUBMIT_PREFLIGHT_POLICY_V0.filesAllowed,0);
  assert.equal(CUSTOMER_DRAFT_SUBMIT_PREFLIGHT_POLICY_V0.productionRelease,'NO_GO');
  for(const sql of [CUSTOMER_DRAFT_SUBMIT_SCOPED_SQL_V0,
-  CUSTOMER_DRAFT_SUBMIT_ITEMS_SQL_V0,CUSTOMER_DRAFT_SUBMIT_FILES_SQL_V0])
+  CUSTOMER_DRAFT_SUBMIT_ITEMS_SQL_V0,CUSTOMER_DRAFT_SUBMIT_FILES_SQL_V0,
+  CUSTOMER_DRAFT_SUBMIT_EXISTING_T12_REQUEST_SQL_V0])
   assert.match(sql,/SELECT/);
  assert.match(CUSTOMER_DRAFT_SUBMIT_SCOPED_SQL_V0,/s\.session_version=a\.session_version/);
  assert.match(CUSTOMER_DRAFT_SUBMIT_SCOPED_SQL_V0,/ctl\.mode='GENERAL'/);
@@ -59,13 +62,33 @@ test('one exact owner-verified eligible item uses canonical T12 without any writ
  assert.equal(value.body.officialOrderCreated,false);
  assert.equal(value.body.productionWriteAuthorized,false);
  assert.equal(value.body.needsTrustedEmployeeDelegate,true);
- assert.deepEqual(calls.filter(x=>x.phase==='prepare').map(x=>x.kind),['scope','items','files']);
- assert.equal(calls.filter(x=>x.phase==='bind').length,3);
+ assert.deepEqual(calls.filter(x=>x.phase==='prepare').map(x=>x.kind),['scope','items','files','ledger']);
+ assert.equal(calls.filter(x=>x.phase==='bind').length,4);
  const raw=JSON.stringify(value);
  assert.equal(raw.includes('01012345678'),false);
  assert.equal(raw.includes('عميل وهمي'),false);
  assert.equal(raw.includes('C1'),false);
  assert.equal(raw.includes(TOKEN),false);
+});
+test('existing T12 request key, whether PREPARED or COMMITTED, always requires trusted reconciliation',async()=>{
+ for(const status of ['PREPARED','COMMITTED','UNKNOWN']){
+  calls=[];
+  const res=await run(fake({prior:{status}}));
+  assert.equal(res.status,409);
+  assert.equal(res.body.code,'T12_EXISTING_REQUEST_REQUIRES_TRUSTED_RECONCILIATION');
+  assert.equal(res.body.officialOrderCreated,false);
+  assert.equal(calls.filter(x=>x.kind==='ledger'&&x.phase==='bind').length,1);
+  const key='cld1_'+(NOW-60000)+'_'+DRAFT.slice(4);
+  assert.equal(calls.filter(x=>x.kind==='ledger'&&x.phase==='bind')[0].args[0],key);
+  assert.doesNotMatch(JSON.stringify(res),/customerId|requestKey|orderId/);
+ }
+});
+test('short registered phone fails T12 writer identity before reading its request ledger',async()=>{
+ calls=[];
+ const res=await run(fake({account:{...owner,customerPhone:'123'}}));
+ assert.equal(res.status,409);
+ assert.equal(res.body.code,'T12_CUSTOMER_STRONG_IDENTITY_REQUIRED');
+ assert.equal(calls.some(x=>x.kind==='ledger'),false);
 });
 test('owner and session failures refuse before inspecting item list',async()=>{
  for(const x of [null,{...owner,draftId:'CDR-'+'44'.repeat(16)}]){
