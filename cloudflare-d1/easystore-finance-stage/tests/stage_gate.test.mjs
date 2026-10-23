@@ -29,7 +29,7 @@ function fakeDb(mode='OFF',tableCount=22) {
 }
 
 test('isolated Stage invokes ORIGINAL native health on finance-only D1', async () => {
-  const res = await worker.fetch(new Request(health), {DB:fakeDb(),EASYSTORE_CUSTOMER_SOURCE_V1:'REMOTE_REQUIRED'});
+  const res = await worker.fetch(new Request(health), {DB:fakeDb(),EASYSTORE_CUSTOMER_SOURCE_V1:'REMOTE_REQUIRED',EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1:'REMOTE_NATIVE_REQUIRED'});
   const data = await res.json();
   assert.equal(res.status,200,JSON.stringify(data));
   assert.equal(data.nativeEngine,'employee-accounting-native-v1');
@@ -42,14 +42,14 @@ test('ALL invoice/receipt POSTs fail closed even when D1 control says GENERAL', 
     for (const action of ['saveAccountingFinalInvoice','savePartyLedgerTransaction','getEasyStoreCustomers']) {
       const res = await worker.fetch(new Request(api,{
         method:'POST',body:JSON.stringify({action})
-      }),{DB:fakeDb(mode),EASYSTORE_CUSTOMER_SOURCE_V1:'REMOTE_REQUIRED'});
+      }),{DB:fakeDb(mode),EASYSTORE_CUSTOMER_SOURCE_V1:'REMOTE_REQUIRED',EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1:'REMOTE_NATIVE_REQUIRED'});
       assert.equal(res.status,503);
       assert.equal((await res.json()).code,'isolated-stage-financial-routes-disabled');
     }
   }
 });
 test('broken schema, wrong mode and absent D1 reject health', async () => {
-  for (const env of [undefined,{DB:fakeDb('GENERAL'),EASYSTORE_CUSTOMER_SOURCE_V1:'REMOTE_REQUIRED'},{DB:fakeDb('OFF',21),EASYSTORE_CUSTOMER_SOURCE_V1:'REMOTE_REQUIRED'}]) {
+  for (const env of [undefined,{DB:fakeDb('GENERAL'),EASYSTORE_CUSTOMER_SOURCE_V1:'REMOTE_REQUIRED',EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1:'REMOTE_NATIVE_REQUIRED'},{DB:fakeDb('OFF',21),EASYSTORE_CUSTOMER_SOURCE_V1:'REMOTE_REQUIRED',EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1:'REMOTE_NATIVE_REQUIRED'}]) {
     const res = await worker.fetch(new Request(health),env);
     assert.equal(res.status,503);
     assert.equal((await res.json()).financeWrites,'OFF');
