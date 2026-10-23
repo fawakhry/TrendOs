@@ -36,10 +36,23 @@ ONLY the safe identity/table-name metadata, not backup contents or tokens.
 python3 cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py inspect
 ```
 
-Interpretation: if the target has ANY table already, **STOP**. Do not reapply
-migrations, drop tables, assume an empty balance, or import an empty database.
-Identify the existing source and reconcile manually before any SQL. This gate
-also rejects wrong account/UUID even if a database has the same display name.
+Interpretation (ACC238 strict read-only provider proof):
+- `EMPTY_STAGE_UNMIGRATED`: exact UUID confirmed and no user tables; NOT
+  authorization to apply. Owner-confirmed exclusive window and private backup
+  restore are still required.
+- `NONEMPTY_SCHEMA_UNQUALIFIED_STOP`: unexpected, missing, or mixed tables;
+  `schemaApplied=false`. STOP — no reapply, drops, or guessed repairs.
+- `NATIVE_SCHEMA_VERIFIED_WRITES_OFF`: all 22 original native table names
+  match locally reconstructed migrations, native control mode is OFF, deny
+  canary remains closed, and required invoice columns exist. This is still
+  NOT a provider backup/restore qualification or a financial GO.
+- Wrong UUID, malformed provider response or unsafe native control fails
+  closed with an error.
+
+Regardless of status, `mayApplyMigrations=false`,
+`backupAndRestoreVerified=false`, `financeRelease=NO_GO`,
+`financeWrites=OFF`. Do not reapply to any nonempty database.
+This gate rejects the wrong account/UUID even if the display name matches.
 
 **Phase C — EXPLICIT STAGE-ONLY SCHEMA APPLY.** Do this **only** after owner
 authorization for a dedicated exclusive Stage change window, confirmation that
