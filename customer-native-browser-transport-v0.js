@@ -33,7 +33,7 @@
     // Testing callback is a source-only seam; a real login always takes
     // precedence through the in-memory token from the verified HTTP response.
     var issuer = window.trendosCustomerNativeBearerV0;
-    var token = nativeToken || (typeof issuer === 'function' ? issuer() : '');
+    var token = nativeToken || (nativeEpoch === 0 && typeof issuer === 'function' ? issuer() : '');
     if (typeof token !== 'string' || !/^[a-f0-9]{64}$/i.test(token))
       throw fail('CUSTOMER_NATIVE_SESSION_NOT_AVAILABLE');
     return token;
