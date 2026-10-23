@@ -1,0 +1,72 @@
+name: TrendOS Customer Isolated Stage Worker OFF
+on:
+  push:
+    branches:
+      - feat/zero-google-customer-isolated-stage-worker-off-20261024
+  pull_request:
+    paths:
+      - 'cloudflare-d1/customer-stage/index.mjs'
+      - 'cloudflare-d1/wrangler.customer-stage.toml'
+      - 'tests/customer_isolated_stage_worker_off.test.mjs'
+      - '.github/workflows/trendos-customer-isolated-stage-worker-off-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-customer-stage-source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify exact standalone Worker source syntax
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/customer-stage/index.mjs
+          node --check tests/customer_isolated_stage_worker_off.test.mjs
+      - name: Isolated customer stage end-to-end fake Native D1 session and denial paths
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          OPENAI_API_KEY: ''
+          TRENDOS_CUSTOMER_PORTAL_SESSION_HMAC_SECRET: ''
+        run: |
+          set -euo pipefail
+          node --test tests/customer_isolated_stage_worker_off.test.mjs
+      - name: Recheck original server logout/read/login without production DB
+        run: |
+          set -euo pipefail
+          node --test tests/entry660_customer_native_orders_off.test.mjs
+          node --test tests/entry661_customer_native_logout_off.test.mjs
+          node --test tests/entry662_customer_native_login_off.test.mjs
+          python3 tests/entry660_customer_native_orders_sqlite.test.py -v
+          python3 tests/entry661_customer_native_logout_sqlite.test.py -v
+          python3 tests/entry662_customer_native_login_sqlite.test.py -v
+      - name: Recheck current customer browser and employee transport contracts
+        run: |
+          set -euo pipefail
+          node --test tests/customer_native_browser_transport_off.test.mjs
+          node --test tests/customer_native_login_http_off.test.mjs
+      - name: Bundle isolated stage Worker only — Wrangler dry-run, never deploy
+        working-directory: cloudflare-d1
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 deploy --dry-run --config wrangler.customer-stage.toml --outdir ../customer-stage-dry-run
+      - name: Fail if staging candidate binds production D1 or changes prod entry
+        run: |
+          set -euo pipefail
+          grep -Eq 'TRENDOS_CUSTOMER_PORTAL_STAGING_ENABLED[[:space:]]*=[[:space:]]*"false"' cloudflare-d1/wrangler.customer-stage.toml
+          ! grep -Eq 'database_id|\[\[d1_databases\]\]|\[\[r2_buckets\]\]|routes[[:space:]]*=' cloudflare-d1/wrangler.customer-stage.toml
+          ! grep -q 'customer-stage/index' cloudflare-d1/production-shadow/index.js
+          ! grep -q 'customer-stage/index' cloudflare-d1/src/index_v2.js
+          echo 'WRANGLER_DRY_RUN_ONLY=YES'
+          echo 'NO_DEPLOY_NO_D1_BINDING=YES'
+          echo 'CUSTOMER_NATIVE_STAGING_FLAG=OFF'
+          echo 'LIVE_CUSTOMER_GOOGLE_RETIRED=0_OF_9'

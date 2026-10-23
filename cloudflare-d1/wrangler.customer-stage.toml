@@ -1,0 +1,17 @@
+# Independent customer-only staging candidate. REVIEW ONLY, DO NOT DEPLOY.
+# Intentionally no route, workers.dev URL, D1 database, R2, durable-rate gate,
+# SMS provider, secrets, production DB ID or existing production Worker name.
+# Isolated D1/rate binding must be independently provisioned for an approved stage.
+name = "trendos-customer-portal-isolated-stage-v0"
+main = "customer-stage/index.mjs"
+compatibility_date = "2026-08-27"
+workers_dev = false
+preview_urls = false
+
+[vars]
+CORS_ORIGINS = "http://127.0.0.1:8000,http://localhost:8000"
+TRENDOS_CUSTOMER_PORTAL_STAGING_ENABLED = "false"
+TRENDOS_CUSTOMER_PORTAL_STAGE_MODE = "isolated-customer-stage-v0"
+TRENDOS_CUSTOMER_PORTAL_NATIVE_LOGIN_HTTP_V0_ENABLED = "false"
+TRENDOS_CUSTOMER_PORTAL_NATIVE_ORDERS_READ_V0_ENABLED = "false"
+TRENDOS_CUSTOMER_PORTAL_NATIVE_LOGOUT_V0_ENABLED = "false"
