@@ -41,7 +41,7 @@ function corsHeaders(request, env) {
   return {
     'access-control-allow-origin': allowOrigin,
     'access-control-allow-methods': 'GET,POST,OPTIONS',
-    'access-control-allow-headers': 'content-type,x-migration-secret,authorization',
+    'access-control-allow-headers': 'content-type,x-migration-secret,x-mirror-read-secret,authorization',
     'access-control-max-age': '86400',
     vary: 'Origin'
   };
@@ -64,6 +64,10 @@ function migrationAuthorized(request, env) {
   return !!expected && supplied === expected;
 }
 
+function mirrorReadAuthorized(request, env) {
+  const expected=text(env.MIRROR_READ_SECRET),supplied=text(request.headers.get('x-mirror-read-secret'));
+  return !!expected && supplied===expected; // Dedicated READ key, never MIGRATION_SECRET.
+}
 export function isMirrorPath(path) {
   return path === '/v1/import/sheet' ||
     path === '/v1/mirror/heartbeat' ||
@@ -322,6 +326,7 @@ export async function handleMirrorRequest(request, env, ctx) {
   // They must never call legacy ensureMirrorSchema(), so parity/freshness probes
   // remain observational even if a table is unexpectedly absent.
   if (request.method === 'GET') {
+    if (!mirrorReadAuthorized(request,env))return json({success:false,code:'mirror-read-unauthorized',schemaMutationFree:true},401,cors);
     try {
       if (path === '/v1/mirror/sheets') {
         return json({ success: true, schemaMutationFree: true, sheets: await listSheetsReadOnly(env) }, 200, cors);
