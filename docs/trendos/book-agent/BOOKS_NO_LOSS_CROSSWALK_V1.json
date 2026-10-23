@@ -15073,5 +15073,496 @@
     "no_archive_edit": true,
     "no_runtime_mutation": true,
     "no_private_data_republication": true
+  },
+  "book_agent_20261023_all_467_pinned_line_anchor_eof_census_entry683_v1": {
+    "date": "2026-10-23",
+    "book_head_before_commit": "63688cdef8bc75406b2bea9b4ccfdb1696a9c402",
+    "frozen_catalog_blob": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "methodology": "Prior 40 highest-reference-density exact-SHA/path groups and 286 link occurrences reused without rerun. Remaining 134 unique SHA/path groups each fetched at exact Git commit with complete file content and actual EOF line counted, including trailing-newline handling. All remaining 134 fetches succeeded. No 578-tree-path recheck or semantic/deployed examination.",
+    "completed_eof_census": {
+      "total_pinned_blob_links": 578,
+      "sha_pinned_links_with_line_anchors": 467,
+      "sha_pinned_links_without_anchors": 111,
+      "distinct_sha_file_path_groups": 174,
+      "previous_groups": 40,
+      "previous_occurrences": 286,
+      "new_groups_completed": 134,
+      "new_occurrences_completed": 181,
+      "unread_groups": 0,
+      "unread_anchor_occurrences": 0,
+      "prev_in_bounds": 279,
+      "prev_overruns": 7,
+      "new_in_bounds": 166,
+      "new_overruns": 15,
+      "total_in_bounds": 445,
+      "total_overruns": 22,
+      "distinct_out_of_range_fragment_targets": 21,
+      "unresolved_file_fetches": 0
+    },
+    "already_known_from_prior_audit": {
+      "previous_sweep_7": [
+        {
+          "catalog_line": 580,
+          "exact_commit": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+          "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+          "line_start": 881,
+          "line_end": 893,
+          "source_EOF": 892,
+          "overrun": 1
+        },
+        {
+          "catalog_line": 623,
+          "exact_commit": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+          "path": "cloudflare-d1/src/employee-core-native-v1.mjs",
+          "line_start": 331,
+          "line_end": 392,
+          "source_EOF": 391,
+          "overrun": 1
+        },
+        {
+          "catalog_line": 630,
+          "exact_commit": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+          "path": "cloudflare-d1/src/operator-task-edge-v2.mjs",
+          "line_start": 144,
+          "line_end": 182,
+          "source_EOF": 181,
+          "overrun": 1
+        },
+        {
+          "catalog_line": 744,
+          "exact_commit": "70a839ba79897e55e0d4e49b2b412f2cbaa6ba50",
+          "path": "cloudflare-d1/src/employee-content-native-v1.mjs",
+          "line_start": 250,
+          "line_end": 283,
+          "source_EOF": 282,
+          "overrun": 1
+        },
+        {
+          "catalog_line": 787,
+          "exact_commit": "70a839ba79897e55e0d4e49b2b412f2cbaa6ba50",
+          "path": "cloudflare-d1/src/employee-ops-native-v1.mjs",
+          "line_start": 261,
+          "line_end": 296,
+          "source_EOF": 295,
+          "overrun": 1
+        },
+        {
+          "catalog_line": 1052,
+          "exact_commit": "fbff27ea5d7d597e7f61ff28f048ad91b1a8b80b",
+          "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+          "line_start": 875,
+          "line_end": 893,
+          "source_EOF": 892,
+          "overrun": 1
+        },
+        {
+          "catalog_line": 1154,
+          "exact_commit": "899481050a690951288f2e0e88917554e1798ad6",
+          "path": "autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md",
+          "line_start": 124,
+          "line_end": 150,
+          "source_EOF": 149,
+          "overrun": 1
+        }
+      ],
+      "entry652_duplicate_occurrences_from_preceding_sample": [
+        {
+          "catalog_line": 1097,
+          "exact_commit": "e486fa6d47907ff0fd65f3cdaa6a03787ae7139f",
+          "path": "tests/entry652_employee_session_lifecycle_guard.test.mjs",
+          "line_start": 1,
+          "line_end": 55,
+          "source_EOF": 51,
+          "overrun": 4
+        },
+        {
+          "catalog_line": 1132,
+          "exact_commit": "e486fa6d47907ff0fd65f3cdaa6a03787ae7139f",
+          "path": "tests/entry652_employee_session_lifecycle_guard.test.mjs",
+          "line_start": 1,
+          "line_end": 55,
+          "source_EOF": 51,
+          "overrun": 4
+        }
+      ]
+    },
+    "newly_identified_overrun_occurrences": [
+      {
+        "catalog_line": 703,
+        "exact_commit": "70a839ba79897e55e0d4e49b2b412f2cbaa6ba50",
+        "path": "cloudflare-d1/src/edge-orders-freshness-gate.mjs",
+        "line_start": 121,
+        "line_end": 228,
+        "source_EOF": 227,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 712,
+        "exact_commit": "70a839ba79897e55e0d4e49b2b412f2cbaa6ba50",
+        "path": "cloudflare-d1/src/edge-orders-read-02cr-canary.mjs",
+        "line_start": 216,
+        "line_end": 295,
+        "source_EOF": 294,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 814,
+        "exact_commit": "70a839ba79897e55e0d4e49b2b412f2cbaa6ba50",
+        "path": "tests/entry614_employee_ops_native.test.mjs",
+        "line_start": 1,
+        "line_end": 42,
+        "source_EOF": 41,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 907,
+        "exact_commit": "4580ff5cb278d18434e4410f5be386fbc2ecd2c9",
+        "path": "cloudflare-d1/production-shadow/index.js",
+        "line_start": 22,
+        "line_end": 57,
+        "source_EOF": 56,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 912,
+        "exact_commit": "4580ff5cb278d18434e4410f5be386fbc2ecd2c9",
+        "path": "cloudflare-d1/src/normalized-import-gate.mjs",
+        "line_start": 211,
+        "line_end": 281,
+        "source_EOF": 280,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 925,
+        "exact_commit": "4580ff5cb278d18434e4410f5be386fbc2ecd2c9",
+        "path": "cloudflare-d1/production-shadow/index.js",
+        "line_start": 49,
+        "line_end": 57,
+        "source_EOF": 56,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 930,
+        "exact_commit": "4580ff5cb278d18434e4410f5be386fbc2ecd2c9",
+        "path": ".github/workflows/trendos-02cw-worker-rollback-safe-temp.yml",
+        "line_start": 1,
+        "line_end": 61,
+        "source_EOF": 55,
+        "overrun": 6
+      },
+      {
+        "catalog_line": 1035,
+        "exact_commit": "be3faac2e557809ed78d66fd6f97be35a8ef5699",
+        "path": "tests/entry650_employee_core_order_page_read.test.mjs",
+        "line_start": 1,
+        "line_end": 83,
+        "source_EOF": 71,
+        "overrun": 12
+      },
+      {
+        "catalog_line": 1081,
+        "exact_commit": "fbff27ea5d7d597e7f61ff28f048ad91b1a8b80b",
+        "path": "tests/entry614_employee_accounting_native.test.mjs",
+        "line_start": 1,
+        "line_end": 95,
+        "source_EOF": 48,
+        "overrun": 47
+      },
+      {
+        "catalog_line": 1081,
+        "exact_commit": "fbff27ea5d7d597e7f61ff28f048ad91b1a8b80b",
+        "path": "tests/easystore_a1_day_ops_reads_v1.test.mjs",
+        "line_start": 1,
+        "line_end": 66,
+        "source_EOF": 42,
+        "overrun": 24
+      },
+      {
+        "catalog_line": 1113,
+        "exact_commit": "e486fa6d47907ff0fd65f3cdaa6a03787ae7139f",
+        "path": "tests/frontend_easystore_sso_entry619.test.js",
+        "line_start": 1,
+        "line_end": 51,
+        "source_EOF": 47,
+        "overrun": 4
+      },
+      {
+        "catalog_line": 1132,
+        "exact_commit": "e486fa6d47907ff0fd65f3cdaa6a03787ae7139f",
+        "path": "tests/frontend_easystore_sso_entry619.test.js",
+        "line_start": 1,
+        "line_end": 52,
+        "source_EOF": 47,
+        "overrun": 5
+      },
+      {
+        "catalog_line": 1164,
+        "exact_commit": "ab21183f9444b8ebb49932f1b1e4f3c381888851",
+        "path": "autonomous-printshop/print-server/src/trendos_client.py",
+        "line_start": 308,
+        "line_end": 326,
+        "source_EOF": 325,
+        "overrun": 1
+      }
+    ],
+    "complete_overrun_inventory": [
+      {
+        "catalog_line": 580,
+        "exact_commit": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+        "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+        "line_start": 881,
+        "line_end": 893,
+        "source_EOF": 892,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 623,
+        "exact_commit": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+        "path": "cloudflare-d1/src/employee-core-native-v1.mjs",
+        "line_start": 331,
+        "line_end": 392,
+        "source_EOF": 391,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 630,
+        "exact_commit": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+        "path": "cloudflare-d1/src/operator-task-edge-v2.mjs",
+        "line_start": 144,
+        "line_end": 182,
+        "source_EOF": 181,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 703,
+        "exact_commit": "70a839ba79897e55e0d4e49b2b412f2cbaa6ba50",
+        "path": "cloudflare-d1/src/edge-orders-freshness-gate.mjs",
+        "line_start": 121,
+        "line_end": 228,
+        "source_EOF": 227,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 712,
+        "exact_commit": "70a839ba79897e55e0d4e49b2b412f2cbaa6ba50",
+        "path": "cloudflare-d1/src/edge-orders-read-02cr-canary.mjs",
+        "line_start": 216,
+        "line_end": 295,
+        "source_EOF": 294,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 744,
+        "exact_commit": "70a839ba79897e55e0d4e49b2b412f2cbaa6ba50",
+        "path": "cloudflare-d1/src/employee-content-native-v1.mjs",
+        "line_start": 250,
+        "line_end": 283,
+        "source_EOF": 282,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 787,
+        "exact_commit": "70a839ba79897e55e0d4e49b2b412f2cbaa6ba50",
+        "path": "cloudflare-d1/src/employee-ops-native-v1.mjs",
+        "line_start": 261,
+        "line_end": 296,
+        "source_EOF": 295,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 814,
+        "exact_commit": "70a839ba79897e55e0d4e49b2b412f2cbaa6ba50",
+        "path": "tests/entry614_employee_ops_native.test.mjs",
+        "line_start": 1,
+        "line_end": 42,
+        "source_EOF": 41,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 907,
+        "exact_commit": "4580ff5cb278d18434e4410f5be386fbc2ecd2c9",
+        "path": "cloudflare-d1/production-shadow/index.js",
+        "line_start": 22,
+        "line_end": 57,
+        "source_EOF": 56,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 912,
+        "exact_commit": "4580ff5cb278d18434e4410f5be386fbc2ecd2c9",
+        "path": "cloudflare-d1/src/normalized-import-gate.mjs",
+        "line_start": 211,
+        "line_end": 281,
+        "source_EOF": 280,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 925,
+        "exact_commit": "4580ff5cb278d18434e4410f5be386fbc2ecd2c9",
+        "path": "cloudflare-d1/production-shadow/index.js",
+        "line_start": 49,
+        "line_end": 57,
+        "source_EOF": 56,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 930,
+        "exact_commit": "4580ff5cb278d18434e4410f5be386fbc2ecd2c9",
+        "path": ".github/workflows/trendos-02cw-worker-rollback-safe-temp.yml",
+        "line_start": 1,
+        "line_end": 61,
+        "source_EOF": 55,
+        "overrun": 6
+      },
+      {
+        "catalog_line": 1035,
+        "exact_commit": "be3faac2e557809ed78d66fd6f97be35a8ef5699",
+        "path": "tests/entry650_employee_core_order_page_read.test.mjs",
+        "line_start": 1,
+        "line_end": 83,
+        "source_EOF": 71,
+        "overrun": 12
+      },
+      {
+        "catalog_line": 1052,
+        "exact_commit": "fbff27ea5d7d597e7f61ff28f048ad91b1a8b80b",
+        "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+        "line_start": 875,
+        "line_end": 893,
+        "source_EOF": 892,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 1081,
+        "exact_commit": "fbff27ea5d7d597e7f61ff28f048ad91b1a8b80b",
+        "path": "tests/entry614_employee_accounting_native.test.mjs",
+        "line_start": 1,
+        "line_end": 95,
+        "source_EOF": 48,
+        "overrun": 47
+      },
+      {
+        "catalog_line": 1081,
+        "exact_commit": "fbff27ea5d7d597e7f61ff28f048ad91b1a8b80b",
+        "path": "tests/easystore_a1_day_ops_reads_v1.test.mjs",
+        "line_start": 1,
+        "line_end": 66,
+        "source_EOF": 42,
+        "overrun": 24
+      },
+      {
+        "catalog_line": 1097,
+        "exact_commit": "e486fa6d47907ff0fd65f3cdaa6a03787ae7139f",
+        "path": "tests/entry652_employee_session_lifecycle_guard.test.mjs",
+        "line_start": 1,
+        "line_end": 55,
+        "source_EOF": 51,
+        "overrun": 4
+      },
+      {
+        "catalog_line": 1113,
+        "exact_commit": "e486fa6d47907ff0fd65f3cdaa6a03787ae7139f",
+        "path": "tests/frontend_easystore_sso_entry619.test.js",
+        "line_start": 1,
+        "line_end": 51,
+        "source_EOF": 47,
+        "overrun": 4
+      },
+      {
+        "catalog_line": 1132,
+        "exact_commit": "e486fa6d47907ff0fd65f3cdaa6a03787ae7139f",
+        "path": "tests/frontend_easystore_sso_entry619.test.js",
+        "line_start": 1,
+        "line_end": 52,
+        "source_EOF": 47,
+        "overrun": 5
+      },
+      {
+        "catalog_line": 1132,
+        "exact_commit": "e486fa6d47907ff0fd65f3cdaa6a03787ae7139f",
+        "path": "tests/entry652_employee_session_lifecycle_guard.test.mjs",
+        "line_start": 1,
+        "line_end": 55,
+        "source_EOF": 51,
+        "overrun": 4
+      },
+      {
+        "catalog_line": 1154,
+        "exact_commit": "899481050a690951288f2e0e88917554e1798ad6",
+        "path": "autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md",
+        "line_start": 124,
+        "line_end": 150,
+        "source_EOF": 149,
+        "overrun": 1
+      },
+      {
+        "catalog_line": 1164,
+        "exact_commit": "ab21183f9444b8ebb49932f1b1e4f3c381888851",
+        "path": "autonomous-printshop/print-server/src/trendos_client.py",
+        "line_start": 308,
+        "line_end": 326,
+        "source_EOF": 325,
+        "overrun": 1
+      }
+    ],
+    "classification": "EOF_FRAGMENT_BOUND_ONLY_NOT_BROKEN_FILE_LINK; 578/578 HISTORIC SOURCE PATH PRESENCE ALREADY CHECKED; 467/467 LINE RANGES NOW CLASSIFIED. DOES NOT CERTIFY SEMANTIC CONTENT, CURRENT SOURCE, LIVE DEPLOYMENT, AUTHORIZATION OR E2E.",
+    "editorial_queue": "Do not modify FROZEN catalog or silently rewrite historical citations. Correct only after explicit authorization with version-pinned content check and owner cutover policy.",
+    "live_new_source_entry683": {
+      "original_source": "TrendOS_MASTER_BOOK.md ACTIVE_WRITE",
+      "preserved_unchanged": true,
+      "draft_pr_221": {
+        "state": "OPEN_DRAFT_UNMERGED_OBSERVED",
+        "head": "fca5625e53815647addc6d183ebe4040990acdf5"
+      },
+      "source_module": {
+        "path": "cloudflare-d1/src/customer-portal-native-seal-t12-link-read-v0.mjs",
+        "blob": "ff5c71408d9af8c66f5407f23304e818cea65342"
+      },
+      "tests": [
+        {
+          "path": "tests/entry683_customer_seal_t12_operational_link_off.test.mjs",
+          "blob": "9c71d2e8bd596439335facafe2ebb52225bfe9c5"
+        },
+        {
+          "path": "tests/entry683_customer_seal_t12_operational_link_sqlite.test.py",
+          "blob": "f71c073607f5bc25b2825a2b6ad7ae3794728780"
+        }
+      ],
+      "exact_head_actions": [
+        {
+          "id": 40003868725,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "head": "fca5625e53815647addc6d183ebe4040990acdf5"
+        },
+        {
+          "id": 40003868719,
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "head": "fca5625e53815647addc6d183ebe4040990acdf5"
+        }
+      ],
+      "evidence": "SOURCE_ONLY_OFF_READ_ONLY_D1_BATCH_NO_DEPLOY",
+      "finance_boundary": "EASYSTORE_FINANCIAL_AUTHORITY_NOT_DUPLICATED_FROM_INDEPENDENT_BOOK",
+      "unresolved": [
+        "NO_REAL_OWNER_ATTESTATION",
+        "NO_OFFICIAL_CUSTOMER_FK",
+        "NO_FINANCE_AUTHORIZATION",
+        "NO_LOSSLESS_MULTI_ITEM_OR_R2_HANDOFF",
+        "NO_CLOUD_DEPLOYED_SHA",
+        "SEPARATE_PR211_PR221_NOT_SAME_TESTED_WORKER_SHA"
+      ]
+    },
+    "owner_gates": {
+      "old": "ACTIVE_WRITE",
+      "new": "FROZEN_MIGRATION_ONLY",
+      "cutover": "NO_GO",
+      "protected_private": "RETAIN_596_599_600",
+      "SERVER61": "PRESERVED",
+      "archive": "PRESERVED"
+    },
+    "no_copy_remove_actions": true,
+    "no_private_data_copy": true,
+    "no_runtime_or_independent_project_mutation": true
   }
 }

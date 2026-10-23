@@ -589,5 +589,25 @@
     "new_book": "FROZEN_MIGRATION_ONLY",
     "final_cutover": "NO_GO",
     "no_private_or_runtime_mutations": true
+  },
+  "current_no_loss_gate_20261023_all_467_line_anchor_bounds_entry683": {
+    "date": "2026-10-23",
+    "crosswalk_key": "book_agent_20261023_all_467_pinned_line_anchor_eof_census_entry683_v1",
+    "catalog_sha": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "original_book_head_at_check": "63688cdef8bc75406b2bea9b4ccfdb1696a9c402",
+    "pinned_467_range_bounds": "467_OF_467_COMPLETE_445_IN_BOUNDS_22_OUT_OF_BOUNDS",
+    "overrun_fragment_targets_unique": 21,
+    "unread_range_groups": 0,
+    "historic_paths": "578_OF_578_PREVIOUSLY_VERIFIED_UNCHANGED",
+    "semantics_and_deployment": "NOT_PROVEN",
+    "source_entry683": "PRESERVED_OLD_SOURCE_ONLY_OFF_NO_FINANCIAL_AUTHORIZATION",
+    "entry683_pr221_head": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "selected_exact_head_actions": "2_OF_2_COMPLETED_SUCCESS",
+    "old_book": "ACTIVE_WRITE",
+    "new_book": "FROZEN_MIGRATION_ONLY",
+    "owner_final_cutover": "NO_GO",
+    "protected_entries": "UNCHANGED",
+    "no_frozen_catalog_change": true,
+    "no_independent_project_or_runtime_mutation": true
   }
 }
