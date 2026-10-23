@@ -413,3 +413,12 @@ This is a supplemental Ubuntu server-book entry, preserving existing book histor
 - No new Ubuntu or Worker testing, policy change or token rotation. PR #190 remains Open/Draft. HTTP403 root cause unresolved.
 
 `SERVER183_SUPPORT_FORM=OPEN`; `SUPPORT_CASE_SUBMITTED=NO`; `NEXT_STEP=PASTE_DESCRIPTION_ONLY`; `PR190=OPEN_DRAFT`.
+
+## SERVER-184 — owner pasted draft technical support case into Cloudflare form (2026-10-24 ~01:10 Cairo)
+
+- Owner screenshot displays Cloudflare Support Portal > Open a case > Submit a support case. The issue-description textarea visibly contains the final portion of the English technical support statement (security-protection disclaimer and thanks), but screenshot is scrolled to the end **inside the textarea**; therefore its full beginning cannot be independently verified from this screenshot alone.
+- Priority remains `P4 - General questions`, consistent with isolated staging and no confirmed production outage. Attachments, affected zones, and add-others show no selections. A `workers.dev` hostname must not be represented as a customer-owned affected zone unless Cloudflare requires and confirms appropriate scoping.
+- **Submission has NOT been observed.** Owner was instructed to submit only if the full vetted no-secret description was pasted, then provide Cloudflare confirmation or Case Number. Do not invent ticket ID, vendor reply or successful resolution. Do not upload screenshots revealing Client IDs, Client Secrets or Analytics tokens.
+- No new Ubuntu requests, policy changes, token rotations, Worker deployment or production/print operations. Stage HTTP403 root cause remains unresolved; PR #190 remains Open/Draft.
+
+`SERVER184_FORM_DESCRIPTION_END=VISIBLE`; `FULL_DESCRIPTION_VERIFIED=NO`; `CASE_SUBMITTED=NOT_YET_CONFIRMED`; `NEXT_STEP=OWNER_SUBMIT_AND_CAPTURE_CONFIRMATION`; `ACCESS_HTTP403_ROOT_CAUSE=UNRESOLVED`; `PR190=DO_NOT_MERGE`.
