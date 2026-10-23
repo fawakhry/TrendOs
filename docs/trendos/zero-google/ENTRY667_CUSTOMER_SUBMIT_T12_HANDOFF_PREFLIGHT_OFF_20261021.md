@@ -23,3 +23,7 @@ python3 tests/entry667_customer_draft_submit_preflight_sqlite.test.py -v
 تُستخدم بيانات عملاء ومسودات ومرفقات وهمية وقواعد SQLite من migrations الفعلية، مع حالات تسرب ملكية بين العملاء، انتهاء/إبطال Session، الحساب المشكوك فيه، تعدد البنود، الملفات غير المرفوعة والمرفوعة كاملة، وتأكيد انعدام أي Writer.
 
 **الحالة النهائية:** `T12_NATIVE_DRAFT_SUBMIT_PREFLIGHT=PREPARED_SOURCE_OFF` وليس `submitCustomerDraft=IMPLEMENTED`. الـ7 وظائف السابقة مجهزة برمجيًا، والفعل الثامن **فحص جاهزية فقط**، والفعل التاسع `getCustomerPortalAccountsV1859` يحتاج EasyStore كمرجع للحسابات دون بناء دفتر مالي ثانٍ. `CUSTOMER_LIVE_GOOGLE_RETIRED=0/9`, `ZERO_GOOGLE_COMPLETE=NO`, `DEPLOY=NO`.
+
+## Entry670 — عدم فقد خصائص البند في تهيئة T12 (23 أكتوبر 2026)
+
+أُضيفت حماية SOURCE_ONLY ترفض بنود الليزر التي تحمل `heatPress` أو `flyPrint`، وأي قيم أعلام خارج 0/1، لأن تطبيع T12 يُسقط هذه الخصائص لليزر. يرفض Preflight كذلك أي اختلاف في القسم، ملاحظات البند، مصدر الأوردر أو الأعلام بين بيانات D1 ونتيجة `buildT12OrderCreateShadowIntent` حتى لا يُعلن البند قابلًا للإرسال إذا تغير محتواه. اختبارات Node تشمل الرفض والسماح لبند متوافق فقط. يحظر الإعلان عن إرسال رسمي؛ ما زالت متطلبات multi-item + R2 + trusted actor + writer authority وBOOK24 قائمة. `SUBMIT=READONLY_PREFLIGHT`, `CLOUD_DEPLOY=NO`.
