@@ -9366,3 +9366,57 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 
 <!-- END_VERBATIM_MIGRATION:MASTER_CHECKPOINT_BOOK_AGENT_20261023_21_EXACT_SERVER_SECTION_MIGRATIONS_AND_HISTORICAL_LINK_NORMALIZATION -->
 
+## ملحق تاريخي — Entry600 Production baseline المبلّغ عنه بتاريخ 2026-10-02 (غير مُعاد التحقق حاليًا)
+
+> Archived statements from the old Master about past live status, exactly copied for preservation only. Version/deployment labels below are point-in-time claims: they are NOT current Cloudflare telemetry or new production certification. Sensitive order-level entries 596/599/600 are intentionally excluded.
+
+<!-- BOOK_AGENT_20261023: exact source text, old Master blob fda148566da3acfb17efcc78ba9f3f2ebc716aca. HISTORICAL_SNAPSHOT_ONLY. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BASELINE_ENTRY600_1_FRONTEND -->
+### Frontend
+- Canonical frontend: Cloudflare Worker `trendos-ui`.
+- Active frontend version: `adfb5056-af23-4d7f-8e12-7de6417dfce2` عند 100%.
+- Active frontend deployment: `a066abb8-4c33-4050-813b-123df4140450`.
+- Login-fast qualified source: `9150049fb169c9ca122003b5dc0b2bd960de61ed`.
+- Unauthenticated login/entry surface no longer eagerly fetches the 18 employee runtime modules; 2 critical modules start only after employee session boot, and the remaining 16 are deferred 250ms after authenticated boot.
+- `MATBAGY_T12_LEGACY_LINE_RUNTIME_V1_ENABLED=true` live.
+- Legacy `updateLine` ذو stable Line ID يذهب إلى `/v1/t12/orders/line-runtime/legacy-update` بدل Apps Script.
+- Root/config/edge/app = HTTP 200.
+- Browser Refresh recovery وinitial Edge readiness وduplicate-order Arabic message كلها preserved بعد Entry600.
+- Independent read-only verify: run `37027847139` = SUCCESS.
+- GitHub Pages القديم ليس canonical entrypoint.
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BASELINE_ENTRY600_1_FRONTEND -->
+
+<!-- BOOK_AGENT_20261023: exact source text, old Master blob fda148566da3acfb17efcc78ba9f3f2ebc716aca. HISTORICAL_SNAPSHOT_ONLY. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BASELINE_ENTRY600_2_API_D1 -->
+### API / D1
+- Canonical API Worker: `trendos-d1-api`.
+- Migration `0010_t12_duplicate_order_guard.sql` applied.
+- Migration `0011_t12_legacy_line_runtime.sql` applied.
+- Active API version: `ce156662-a698-47fc-b73c-dfd4657be9f5`.
+- Active API deployment: `477ee04d-10ac-4fc3-9ba6-e81691bcd286`.
+- Active API bundle SHA-256: `7550c3a82b30acf0f34c52565568df8d7e7d6092ca322b36bbac7726256a0bc6`.
+- `ORDER_CREATE_MODE=GENERAL`.
+- `DUPLICATE_GUARD_READY=YES`.
+- Duplicate guard window = 120000 ms.
+- `CUSTOMER_WRITE_MODE=GENERAL`.
+- Legacy line runtime health = PASS، `legacySchemaReady=true`، `writeMode=cloud-native+legacy-overlay`.
+- `EMPLOYEE_AUTH_MODE=OFF` و`LEGACY_BRIDGE_ENABLED=NO` ما زالا كما هما.
+- لا توجد pending migrations بعد Entry600.
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BASELINE_ENTRY600_2_API_D1 -->
+
+<!-- BOOK_AGENT_20261023: exact source text, old Master blob fda148566da3acfb17efcc78ba9f3f2ebc716aca. HISTORICAL_SNAPSHOT_ONLY. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BASELINE_ENTRY600_3_ORDERS -->
+### Orders
+- New Order CREATE authority يعمل Cloud-native على D1 في GENERAL.
+- duplicate-order guard live في API والواجهة.
+- refresh disappearance defect مغلق بعد owner acceptance + read-only verification.
+- Legacy status/notes update ذو stable Line ID أصبح Cloud/D1 عبر legacy runtime overlay؛ لا يعتمد على Apps Script line lookup لهذا المسار.
+- الـ15 stale legacy Orders المؤكدة تم reconcile إلى `تم التسليم` في D1 runtime بدون تغيير Order IDs وبدون Google write.
+- Base `sheet_rows` mirror التاريخي بقي كما هو ولم يُعاد كتابته؛ runtime overlay هو طبقة الحالة الحالية.
+- لا تُعد أي historical Google Order writer أو canary أو staging workflow سلطة حالية.
+- أي Legacy Orders action آخر غير `updateLine` ما زال يظهر في Zero-Google audit يُعامل dependency متبقية حتى يثبت Runtime أنه أزيل.
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BASELINE_ENTRY600_3_ORDERS -->
+
