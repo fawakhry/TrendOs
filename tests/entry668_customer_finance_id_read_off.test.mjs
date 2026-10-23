@@ -107,6 +107,22 @@ test('expired, future-dated or stale balances fail closed, not reported as zero'
  assert.equal(edge.status,200);
  assert.equal(edge.body.balance,0);
 });
+test('missing, null, blank, boolean and malformed balances never become invented zero',async()=>{
+ for(const balance of [null,undefined,'', '   ',false,'0','125.50',-0.01]){
+  const x=await readNativeCustomerEasyStoreBalanceV0(input({db:db({
+    row:{...FAKE_ROW,balance}
+  })}));
+  assert.equal(x.status,503,JSON.stringify({balance}));
+  assert.equal(x.body.code,'EASYSTORE_BALANCE_MISSING_OR_INVALID');
+  assert.equal(x.body.success,false);
+  assert.equal(x.body.balance,undefined);
+ }
+ const actualZero=await readNativeCustomerEasyStoreBalanceV0(input({db:db({
+   row:{...FAKE_ROW,balance:0}
+ })}));
+ assert.equal(actualZero.status,200);
+ assert.equal(actualZero.body.balance,0);
+});
 test('missing party-id match and SQL errors cannot expose customer ledger',async()=>{
  for(const row of [null,{...FAKE_ROW,customerId:null}]){
   const x=await readNativeCustomerEasyStoreBalanceV0(input({db:db({row})}));
