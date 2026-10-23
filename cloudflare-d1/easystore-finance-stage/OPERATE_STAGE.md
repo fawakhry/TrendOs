@@ -63,6 +63,49 @@ Regardless of status, `mayApplyMigrations=false`,
 `financeWrites=OFF`. Do not reapply to any nonempty database.
 This gate rejects the wrong account/UUID even if the display name matches.
 
+**Phase B2 — PRIVATE BACKUP + LOCAL RESTORE, STILL NO D1 WRITES
+(ACC241).** Only after `inspect` shows the exact expected UUID,
+`userTables=[]`, and `inspectState=EMPTY_STAGE_UNMIGRATED`. This action
+rechecks the provider before export; rejects any user table / mixed DB;
+creates an SQL export in a protected local directory; restores it into
+independent, disposable SQLite; validates integrity, foreign keys and no
+application tables; hashes the protected export; rechecks live table names
+for concurrent drift; and writes protected local JSON evidence.
+It **never** issues remote SQL DDL, a Worker deployment or a finance POST.
+The SQL file stays on the operator's Ubuntu machine: NEVER paste/upload its
+contents, tokens or original finance data into chat/GitHub.
+
+Use the verified local Wrangler binary. Run from the **newest tested
+read-only ACC241 checkout**, not the stale detached ACC240 worktree:
+
+```bash
+cd "$HOME/TrendOs-finance-inspect-acc241"
+umask 077
+WRANGLER="$HOME/.local/share/trendos-finance-tools/node_modules/.bin/wrangler"
+BACKUP_DIR="$HOME/.private-easystore-stage/backup-only-$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$HOME/.private-easystore-stage"
+chmod 700 "$HOME/.private-easystore-stage"
+mkdir -m 700 "$BACKUP_DIR"
+PYTHONDONTWRITEBYTECODE=1 python3 \
+  cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py \
+  backup-verify \
+  --private-backup-dir "$BACKUP_DIR" \
+  --confirm-stage-uuid c2fe1a54-90f5-4e6f-9d51-80ce23e21328 \
+  --wrangler "$WRANGLER"
+```
+
+Expected `result=STAGE_EXPORT_RESTORED_LOCALLY_ONLY`, private
+`stage_before_migration.sql` (0600) and `stage_backup_evidence.json`
+(0600). Do not send the SQL export to anyone. Do not claim independent
+Ubuntu disaster recovery: `independentSecondHostRestore=NOT_RUN` until
+a separate restore has actually been tested securely. This action
+does NOT sign off on a future schema apply — it must take its own fresh
+protected pre-migration export and explicit owner approval.
+
+If export, restore, permissions, stage UUID, empty-schema check or
+post-export live schema recheck fails, STOP; leave the private evidence/
+partial file for secure local review. Do not retry `apply` as a fix.
+
 **Phase C — EXPLICIT STAGE-ONLY SCHEMA APPLY.** Do this **only** after owner
 authorization for a dedicated exclusive Stage change window, confirmation that
 this is synthetic/not production data, and a recovery operator on Ubuntu.
