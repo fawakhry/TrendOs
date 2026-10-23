@@ -14188,5 +14188,247 @@
     "owner_final_cutover": "NO_GO",
     "no_runtime_mutation": true,
     "no_private_data_republication": true
+  },
+  "book_agent_20261023_remaining_github_link_targets_and_anchor_sampling_v2": {
+    "date": "2026-10-23",
+    "scope": "DOCS_ONLY_VERIFICATION_NO_CATALOG_MUTATION",
+    "parent_head_at_write": "622b175316ceeaaceba25cdae72302f1f46a4c84",
+    "frozen_catalog_blob": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "previous_checked_pinned_paths_reused_without_retest": 578,
+    "prior_branch_links_reused_without_retest": 11,
+    "remaining_github_links_tested": {
+      "occurrences": 90,
+      "unique_api_targets": 76,
+      "api_resolved": 76,
+      "not_resolved": 0,
+      "families": {
+        "pinned_blob": {
+          "occurrences": 578,
+          "valid": 578,
+          "scope": "PRIOR_CHECKPOINT_EXACT_SHA_FILE_PATHS_ONLY",
+          "rechecked": false
+        },
+        "branch_blob": {
+          "occurrences": 11,
+          "valid": 11,
+          "scope": "PRIOR_CHECKPOINT_OBSERVED_REFS_ONLY",
+          "rechecked": false
+        },
+        "tree": {
+          "occurrences": 2,
+          "unique": 2,
+          "exists": 2
+        },
+        "actions": {
+          "occurrences": 32,
+          "unique": 26,
+          "exists": 26,
+          "run_completed_success": 22,
+          "run_completed_failure": 4
+        },
+        "pull_requests": {
+          "occurrences": 20,
+          "unique": 14,
+          "exists": 14,
+          "open_draft": 4,
+          "closed_draft_unmerged": 10
+        },
+        "commit": {
+          "occurrences": 36,
+          "unique": 34,
+          "exists": 34
+        },
+        "github_total": 679
+      },
+      "archive_refs_checked": [
+        {
+          "ref": "archive/trendos-books-before-single-book-20261016",
+          "head": "b2788ecb4c187717e020321954a1ea449c1aa0d5"
+        },
+        {
+          "ref": "archive/trendos-before-legacy-cleanup-20261016",
+          "head": "6b82fd3bf00eb80669a3b5ca14ff8eab420a6074"
+        }
+      ],
+      "actions_failed_run_ids": [
+        38316884906,
+        39065826023,
+        38955408023,
+        38957780811
+      ],
+      "observed_open_draft_pr_numbers": [
+        132,
+        161,
+        190,
+        216
+      ],
+      "observed_closed_unmerged_draft_pr_numbers": [
+        135,
+        184,
+        154,
+        176,
+        185,
+        187,
+        195,
+        213,
+        214,
+        215
+      ],
+      "method": "Individual GitHub REST GET for 2 tree refs, 26 workflow runs, 14 PRs, 34 Git commits; confirmed 76/76 API target responses. No rerun.",
+      "proof_limits": "Historical target existence and Action conclusion, not job assertions, anchored semantic equivalence, deployment, production or E2E."
+    },
+    "line_anchor_sample": {
+      "checked": 10,
+      "correct_endpoint_and_line_range": 9,
+      "broken_upper_line_bound": 1,
+      "scope": "EXACT_SHA_FILE_FETCH_WITH_START_END_LINE; sampled source symbol/token presence only, not proof of business claims",
+      "known_out_of_range": {
+        "chapter": 30,
+        "catalog_line": 1132,
+        "target_path": "tests/entry652_employee_session_lifecycle_guard.test.mjs",
+        "target_commit": "e486fa6d47907ff0fd65f3cdaa6a03787ae7139f",
+        "target_blob": "c6af484e1aa181764e13cd563d4f1ac27b375705",
+        "fragment": "#L1-L55",
+        "actual_file_lines": 51,
+        "valid_fragment_line_count": 51,
+        "action": "REQUIRES_AUTHORIZED_CATALOG_CORRECTION_ONLY_AFTER_THAW_NOT_INLINE_PATCH"
+      },
+      "sampled_chapters": [
+        10,
+        11,
+        14,
+        16,
+        18,
+        20,
+        26,
+        30,
+        31,
+        32
+      ],
+      "verified_targets": [
+        {
+          "chapter": 10,
+          "path": "employee-api-dispatcher-v1.js",
+          "fragment": "L120-L127",
+          "symbols": [
+            "CLOUD_EDGE_ACTIONS",
+            "createManualOrder"
+          ]
+        },
+        {
+          "chapter": 11,
+          "path": "app.js",
+          "fragment": "L5695-L5746",
+          "symbols": [
+            "createCustomer",
+            "customerName"
+          ]
+        },
+        {
+          "chapter": 14,
+          "path": "config.js",
+          "fragment": "L15-L39",
+          "symbols": [
+            "NATIVE_AUTH",
+            "LEGACY_BRIDGE"
+          ]
+        },
+        {
+          "chapter": 16,
+          "path": "app.js",
+          "fragment": "L3997-L4025",
+          "symbols": [
+            "submitCustomerDraft",
+            "draftId"
+          ]
+        },
+        {
+          "chapter": 18,
+          "path": "config.js",
+          "fragment": "L18-L34",
+          "symbols": [
+            "ACCOUNTING_CUTOVER_MODE",
+            "READONLY"
+          ]
+        },
+        {
+          "chapter": 20,
+          "path": "config.js",
+          "fragment": "L62-L68",
+          "symbols": [
+            "FAST_PRINT_UPLOAD_URL"
+          ]
+        },
+        {
+          "chapter": 26,
+          "path": "cloudflare-d1/wrangler.toml",
+          "fragment": "L8-L40",
+          "symbols": [
+            "TRENDOS_CLOUD_WRITE_V1_ENABLED"
+          ]
+        },
+        {
+          "chapter": 30,
+          "path": "tests/entry652_employee_session_lifecycle_guard.test.mjs",
+          "fragment": "L1-L55",
+          "symbols": [
+            "SESSION_EPOCH_CONTRACT"
+          ],
+          "line_end_valid": false
+        },
+        {
+          "chapter": 31,
+          "path": "autonomous-printshop/print-server/README.md",
+          "fragment": "L1-L44",
+          "symbols": [
+            "Windows",
+            "print"
+          ]
+        },
+        {
+          "chapter": 32,
+          "path": "cloudflare-d1/src/employee-comms-native-v1.mjs",
+          "fragment": "L305-L326",
+          "symbols": [
+            "serveFile",
+            "authenticate"
+          ]
+        }
+      ]
+    },
+    "chapter_quality_triage": {
+      "chapters_present": 32,
+      "top_level_sequence": "1-32_CONTIGUOUS",
+      "catalog_length_lines": 9526,
+      "chapter32_lines_including_historical_annex": 8335,
+      "interpretation": "Long chapter32 has historical migration and audit appendices; not a missing chapter, but navigation/quality partition review deferred while frozen.",
+      "live_evidence": "NOT_CERTIFIED_BY_URL_AUDIT",
+      "unresolved": [
+        "TEST_LOG_ASSERTIONS_AND_LINK_CONTEXT_MATCH",
+        "CURRENT_HEAD_CODE_PARITY_WITH_HISTORICAL_SHA",
+        "RUNTIME_DEPLOYED_SHA",
+        "R2_BODY_AND_T12_E2E",
+        "OWNER_EDIT_OR_CUTOVER_APPROVAL"
+      ],
+      "dynamic_links": "Tree branches are mutable; PR status can change. Git commits immutable. GitHub Actions conclusion tied to that run head SHA only.",
+      "sample_scope": "Ten historically pinned line anchors. One URL fragment exceeds actual file EOF. Source token inspection is not a full semantic validation."
+    },
+    "old_active_entries": "Entry669-682 including absent separate heading Entry677 as previously noted; original active source retained intact; no entries moved.",
+    "owner_gates": {
+      "old": "ACTIVE_WRITE",
+      "new": "FROZEN_MIGRATION_ONLY",
+      "cutover": "NO_GO",
+      "private_596_599_600": "PROTECTED",
+      "server61": "HOLD",
+      "archive": "READ_ONLY_PRESERVED"
+    },
+    "migration_actions": {
+      "copy": 0,
+      "remove": 0,
+      "catalog_modified": false
+    },
+    "production_mutation": false,
+    "independent_project_mutation": false,
+    "private_content_copied": false
   }
 }

@@ -502,5 +502,29 @@
     "pending_privacy_and_server61_owner_decisions": true,
     "final_cutover": "NO_GO",
     "no_external_runtime_or_independent_project_mutations": true
+  },
+  "current_no_loss_gate_20261023_remaining_urls_anchor_quality_v2": {
+    "date": "2026-10-23",
+    "crosswalk_key": "book_agent_20261023_remaining_github_link_targets_and_anchor_sampling_v2",
+    "parent_head_before_checkpoint": "622b175316ceeaaceba25cdae72302f1f46a4c84",
+    "catalog_blob_unchanged": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "prior_exact_sha_file_path": "578/578_PRESENT_NOT_RETESTED",
+    "prior_branch_path": "11/11_PRESENT_AT_PRIOR_SNAPSHOT_NOT_RETESTED",
+    "other_github_url_occurrences": "90/90_RESOLVED_ACROSS_76_UNIQUE_API_TARGETS",
+    "github_run_results": "22_COMPLETED_SUCCESS_4_COMPLETED_FAILURE_AMONG_26_UNIQUE_RUNS",
+    "pull_request_status": "4_OPEN_DRAFT_10_CLOSED_UNMERGED_DRAFT_AT_OBSERVED_TIME",
+    "commit_refs": "34/34_RESOLVED",
+    "tree_refs": "2/2_RESOLVED",
+    "sampled_anchored_lines": "9/10_FULL_RANGE_EXISTS_1_OUT_OF_BOUNDS_L55_GT_EOF51",
+    "known_bad_fragment": "chapter30 tests/entry652_employee_session_lifecycle_guard.test.mjs#L1-L55 ends at file line 51",
+    "catalog_quality": "32_CONSECUTIVE_CHAPTERS_CH32_CONTAINS_LARGE_HISTORICAL_APPENDICES",
+    "semantic_assertion_and_live_deployment": "NOT_VERIFIED",
+    "old_book": "ACTIVE_WRITE",
+    "new_book": "FROZEN_MIGRATION_ONLY",
+    "final_cutover": "NO_GO",
+    "protected_private_entries": "KEEP_OLD",
+    "server61": "KEEP_OLD",
+    "catalog_edit": false,
+    "no_external_mutations": true
   }
 }
