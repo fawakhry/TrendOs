@@ -205,3 +205,10 @@ BUSINESS_CREATE_TEST_SENT=NO
 - **Strictly held boundaries:** exact original `Entry596`, `Entry599/600` private order/customer records; `SERVER-20261016-61` explicit DO_NOT_MOVE; writer-transition policy and current checkpoint; deployed Cloudflare SHA / live Google customer actions / cross-service Single Writer / 256 test outcomes and customer finance+T12 boundaries still require independent evidence and explicit owner decisions.
 - **Unchanged authority:** `OLD_BOOK=ACTIVE_WRITE`; `CATALOG=FROZEN_MIGRATION_ONLY`; `FINAL_CUTOVER=NO_GO`. This Book Agent performed GitHub documentation edits only; no Production, customer data, Cloudflare, D1/R2, Apps Script, Google, EasyStore, Printshop, PR, CI, merge or deploy mutation.
 
+### BOOK-AGENT-20261023-75-EXACT-HISTORICAL-CHECKPOINT
+
+- Documentation-only COPY→VERIFY→REMOVE of two historical administrative receipts: MIGRATION UNIT 004 (961 chars) and UNIT 005 (816 chars). COPY commit `f1efe60cb04d531b8d80dd46cf25e8ff9a87a66a`; independent exact comparison 2/2 PASS; REMOVE commit `519078a2f717cdd0e3a3bfee910a49a707f8b23c`; pinned-source full reconstruction PASS.
+- Historical transfer count for 2026-10-23: **75 sections / 109,955 characters**; catalog markers **115/115** unique balanced. Prior 38 historical archival units are separate.
+- Crosswalk commit `f19012c1e2df796e256c78e1cbf29df2cc7045b2`; Manifest commit `2897e5184f791176711965c3016bde359ac69114`.
+- Active owner writing rules, protected SERVER-61, private Entry596/599/600, and new operational Entry669/670/671 all remain in the old book. Deployment, cloud identity, Google retirement, Single Writer, and test execution evidence are not certified by this migration.
+- Old `ACTIVE_WRITE`; new catalog `FROZEN_MIGRATION_ONLY`; final owner cutover `NO_GO`.
