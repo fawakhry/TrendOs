@@ -17180,5 +17180,118 @@
       "REAL_DATA_MUTATIONS": 0
     },
     "nonduplicate_to": "book_agent_20261023_edge_native_revocation_r2_checksum_synthetic_cases_v1"
+  },
+  "book_agent_20261023_entry645_r2_binding_raw_url_route_fixture_v1": {
+    "date": "2026-10-23",
+    "book_parent_sha": "16664c644223c08939bbd115f5839edee6c5fc6b",
+    "pinned_PR221_commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "classification": "NEW_EXECUTED_OFFLINE_URL_ROUTE_PARITY_WITH_HISTORIC_ENTRY645_BINDING_CONTEXT",
+    "source": [
+      {
+        "file": ".github/workflows/trendos-entry645-content-r2-foundation-controlled.yml",
+        "blob": "d075e30894d84fc99f492dec863fded94b55d096",
+        "lines": "L22-L27,L98-L172,L195-L224",
+        "fact": "Workflow can PATCH FILES r2_bucket and FILES_PUBLIC_BASE_URL directly by Cloudflare worker settings API then activate settings version; only if its preflight runs and succeeds. Declares base https://trendos-d1-api.trendmall-contact.workers.dev. Static workflow does not prove deployed binding."
+      },
+      {
+        "file": "cloudflare-d1/wrangler.toml",
+        "blob": "579b06e4918a9ed965be183e69742205f03cdc74",
+        "fact": "Committed config declares DB but no FILES/R2 nor FILES_PUBLIC_BASE_URL. Effective settings may differ."
+      },
+      {
+        "file": "cloudflare-d1/src/employee-content-native-v1.mjs",
+        "blob": "fab5eeeca0ecc9312380054b32f01a44639f4664",
+        "lines": "L88-L108,L254-L262"
+      },
+      {
+        "file": "cloudflare-d1/src/employee-comms-native-v1.mjs",
+        "blob": "f415d06ccd15ba241d679c61b7afeb6ec904e4b8",
+        "lines": "L207-L226,L305-L315"
+      },
+      {
+        "file": "cloudflare-d1/production-shadow/index.js",
+        "blob": "cabf0237c3aea2479b56ab237eeb9877c86254a4",
+        "lines": "L23-L55"
+      },
+      {
+        "file": "cloudflare-d1/src/index_v2.js",
+        "blob": "4a555efb4b3f44ba371549d5cec055cc7ce1777f",
+        "lines": "L38-L67,L188-L195"
+      },
+      {
+        "file": "cloudflare-d1/src/index.js",
+        "blob": "b789a87377b769536f422b991ac5485e58c5c3b2",
+        "lines": "L338-L389"
+      }
+    ],
+    "harness": "Actual original uploadPublicFile/uploadOrderFile and isEmployeeContentNativePath/isEmployeeCommsNativePath function bodies executed with fake DB/FILES.put, original src/index.js base GET router executed with synthetic URL/Response; main index_v2 and production-shadow dispatch followed by static code trace. No real Cloudflare, DNS or R2.",
+    "cases": [
+      {
+        "case": "content_entry645_api_base",
+        "constructed": "/employee-content/platform_ads/FILE-FAKE-ONLY-UUID-0001/fixture.png",
+        "route_recognized": false,
+        "core_base_mock_status": 404,
+        "R2_PUT_fake": 1,
+        "observed_expected": true
+      },
+      {
+        "case": "content_no_base_handler",
+        "constructed": "/v1/employee/content/file/FILE-FAKE-ONLY-UUID-0001",
+        "route_recognized": true,
+        "R2_PUT_fake": 1,
+        "observed_expected": true
+      },
+      {
+        "case": "comms_entry645_api_base",
+        "constructed": "/order-conversations/FAKE_ORDER/FAKE_LINE/OCF-FAKE-ONLY-UUID-0001/fixture.png",
+        "route_recognized": false,
+        "core_base_mock_status": 404,
+        "R2_PUT_fake": 1,
+        "observed_expected": true
+      },
+      {
+        "case": "comms_no_base_handler",
+        "constructed": "/v1/employee/comms/file/OCF-FAKE-ONLY-UUID-0001",
+        "route_recognized": true,
+        "R2_PUT_fake": 1,
+        "observed_expected": true
+      }
+    ],
+    "tests": 4,
+    "assertions_expected": 4,
+    "historical_context": {
+      "entry": "Entry645 Attempt1 BLOCKED_SAFE",
+      "date": "2026-10-07",
+      "run_id": 37551605425,
+      "job_id": 112568154452,
+      "archived_receipt": "R2 API authorization 403, PATCH/activation and postflight skipped",
+      "not_retested": true,
+      "current_live_state": "UNKNOWN"
+    },
+    "interpretation": "If exact Entry645 FILES_PUBLIC_BASE_URL is active together with pinned Worker routing, raw R2-key URLs returned by both upload functions do not match /v1 file handlers and the core fallback returns 404. With unset base, handler-link form matches. This is source-only conditional link correctness, not evidence of currently broken production links or that Entry645 deployed, and no evidence a separate CDN route does not exist. Do not open private bucket to fix.",
+    "pending_owner_gates": [
+      "ACTIVE_CLOUDFLARE_DEPLOYED_VERSION_AND_BINARY_SHA",
+      "EFFECTIVE_FILES_R2_BINDING_AND_FILES_PUBLIC_BASE_URL",
+      "PER_COLLECTION_PUBLIC_OR_PRIVATE_R2_DELIVERY_AND_OWNER_ACL",
+      "RAW_R2_KEY_URL_VS_WORKER_FILE_HANDLER_PARITY",
+      "BINDING_PRESERVATION_AFTER_NEXT_WRANGLER_DEPLOY"
+    ],
+    "proof": {
+      "SOURCE_ONLY": "FOUR_ORIGINAL_FUNCTION_FAKE_IO_ASSERTIONS",
+      "CI_NEW": "NOT_RUN",
+      "STAGING": "NO",
+      "PRODUCTION": "NO",
+      "CLOUDFLARE_SHA": "UNVERIFIED",
+      "R2_BINARY": "UNVERIFIED"
+    },
+    "authority": {
+      "OLD_BOOK": "ACTIVE_WRITE",
+      "CATALOG": "FROZEN_MIGRATION_ONLY",
+      "CUTOVER": "NO_GO",
+      "FINANCE": "EASYSTORE",
+      "OFFICIAL_CUSTOMER_OWNER": "NO",
+      "PRODUCTION_MUTATIONS": 0
+    },
+    "duplicates": false
   }
 }

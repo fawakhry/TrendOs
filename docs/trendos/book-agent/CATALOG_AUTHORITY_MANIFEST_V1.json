@@ -903,5 +903,30 @@
     "final_cutover": "NO_GO",
     "finance_authority": "EASYSTORE",
     "prod_mutations": 0
+  },
+  "current_no_loss_gate_20261023_entry645_r2_settings_vs_file_url_router_v1": {
+    "date": "2026-10-23",
+    "crosswalk_key": "book_agent_20261023_entry645_r2_binding_raw_url_route_fixture_v1",
+    "book_head_read": "16664c644223c08939bbd115f5839edee6c5fc6b",
+    "source_commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "workflow_blob": "d075e30894d84fc99f492dec863fded94b55d096",
+    "new_offline_cases": 4,
+    "observed_as_expected": 4,
+    "workflow_can_patch_runtime_bindings": "YES_SOURCE_ONLY",
+    "historical_first_attempt": "BLOCKED_SAFE_AUTH_403",
+    "current_files_binding": "UNVERIFIED",
+    "file_url_from_entry645_worker_base": "RAW_KEY_PATH_NOT_RECOGNIZED_BY_WORKER_SOURCE_ROUTER",
+    "src_base_mock_status": 404,
+    "fallback_without_base": "V1_FILE_HANDLER_PATH_RECOGNIZED",
+    "real_cloudflare_probe": "NONE",
+    "staging": "NO",
+    "prod": "NO",
+    "new_CI": "NO",
+    "owner_gate": "READ_ONLY_ACTIVE_VERSION_SETTINGS_SOURCE_SHA_PUBLIC_FILE_DELIVERY_POLICY",
+    "book": "ACTIVE_WRITE",
+    "catalog": "FROZEN_MIGRATION_ONLY",
+    "cutover": "NO_GO",
+    "finance": "EASYSTORE",
+    "prod_mutations": 0
   }
 }
