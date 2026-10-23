@@ -53,7 +53,7 @@ export function reserveCustomerLoginAttemptStageV0(sql,input,nowMs){
     CUSTOMER_STAGE_RATE_POLICY_V0.maxIpAttempts];
   const counts=[];
   for(let i=0;i<keys.length;i++){
-    const row=sql.exec(SQL_SELECT,keys[i]).one();
+    const row=sql.exec(SQL_SELECT,keys[i]).toArray()[0] || null;
     const count=row&&row.windowId===windowId?row.hits:0;
     if(!Number.isSafeInteger(count)||count<0)
       throw new TypeError('invalid-stage-throttle-counter');
@@ -78,7 +78,7 @@ export class CustomerLoginThrottleStageV0 {
       if(request.headers.get('Content-Type')!=='application/json')
         return reply(415,{allowed:false,persisted:false});
       const length=request.headers.get('Content-Length');
-      if(length&&(!/^\\d+$/.test(length)||Number(length)>512))
+      if(length&&(!/^[0-9]+$/.test(length)||Number(length)>512))
         return reply(413,{allowed:false,persisted:false});
       const raw=await request.text();
       if(typeof raw!=='string'||raw.length>512)
