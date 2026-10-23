@@ -32,6 +32,7 @@ jobs:
           node --check cloudflare-d1/src/t12-order-customer-finance-fence-sourceonly.mjs
           node --check tests/t12_order_customer_finance_fence_sourceonly.test.mjs
           node --test tests/t12_order_customer_finance_fence_sourceonly.test.mjs
+          node --check cloudflare-d1/src/t12-official-customer-selection-session-sourceonly.mjs
           node --check cloudflare-d1/src/t12-general-create.mjs
           node --check tests/t12_general_create.test.mjs
           node --test tests/t12_general_create.test.mjs
