@@ -199,10 +199,24 @@ test('FULL offline Native stage login → own D1 order read → server CAS logou
     TRENDOS_CUSTOMER_PORTAL_NATIVE_LOGOUT_V0_ENABLED:'true',
     TRENDOS_CUSTOMER_PORTAL_SESSION_HMAC_SECRET:SECRET,
     TRENDOS_CUSTOMER_PORTAL_THROTTLE_HMAC_SECRET:RATE_SECRET,
-    CUSTOMER_NATIVE_LOGIN_RATE_GATE_V0:{
-      async reserveMany({keys,policy}){
-        state.gate.push({keys,policy});
-        return {allowed:true,persisted:true};
+    // Simulated CF namespace only in synthetic E2E. The production Stage
+    // router now ignores an untrusted env-injected reserveMany() object.
+    CUSTOMER_LOGIN_RATE_STAGE_V0:{
+      idFromName(name){
+        assert.equal(name,'singleton-customer-native-login-stage-v0');
+        return 'synthetic-stage-do-id';
+      },
+      get(id){
+        assert.equal(id,'synthetic-stage-do-id');
+        return {async fetch(url,options){
+          assert.equal(new URL(url).pathname,'/internal/customer-login-rate/reserve');
+          assert.equal(options.method,'POST');
+          const {keys,policy}=JSON.parse(options.body);
+          state.gate.push({keys,policy});
+          return new Response(JSON.stringify({allowed:true,persisted:true}),{
+            status:200,headers:{'content-type':'application/json'}
+          });
+        }};
       }
     },DB:db};
   const login=await failBody(await stage.fetch(request(LOGIN,'POST',{
@@ -239,4 +253,53 @@ test('FULL offline Native stage login → own D1 order read → server CAS logou
   assert.equal(replay.body.code,'CUSTOMER_SESSION_REJECTED');
   const serialized=JSON.stringify(state.operations);
   assert.doesNotMatch(serialized,new RegExp(PASSWORD));
+});
+
+test('a mock caller-supplied rate gate cannot bypass missing Stage Durable Object binding',async()=>{
+  let dbHits=0,untrustedCalled=0;
+  const env={...envOff(),TRENDOS_CUSTOMER_PORTAL_STAGING_ENABLED:'true',
+    TRENDOS_CUSTOMER_PORTAL_NATIVE_LOGIN_HTTP_V0_ENABLED:'true',
+    TRENDOS_CUSTOMER_PORTAL_THROTTLE_HMAC_SECRET:RATE_SECRET,
+    TRENDOS_CUSTOMER_PORTAL_SESSION_HMAC_SECRET:SECRET,
+    CUSTOMER_NATIVE_LOGIN_RATE_GATE_V0:{async reserveMany(){
+      untrustedCalled++;return {allowed:true,persisted:true};
+    }},
+    DB:{prepare(){dbHits++;throw Error('must deny first');}}};
+  const result=await failBody(await stage.fetch(request(LOGIN,'POST',{
+    edge:true,headers:{'Content-Type':'application/json',
+      'CF-Connecting-IP':'192.0.2.17'},
+    body:JSON.stringify({portalCode:CODE,password:PASSWORD})
+  }),env));
+  assert.equal(result.status,503);
+  assert.equal(result.body.code,'CUSTOMER_NATIVE_LOGIN_DURABLE_THROTTLE_UNAVAILABLE');
+  assert.equal(dbHits,0);
+  assert.equal(untrustedCalled,0);
+});
+test('Durable Object reservation failure stops the original customer D1 password verifier',async()=>{
+  for(const outcome of [
+    {status:503,payload:{allowed:false,persisted:false}},
+    {status:200,payload:{allowed:true,persisted:false}},
+    {status:200,payload:{allowed:false,persisted:true}}
+  ]){
+    let dbHits=0;
+    const env={...envOff(),TRENDOS_CUSTOMER_PORTAL_STAGING_ENABLED:'true',
+      TRENDOS_CUSTOMER_PORTAL_NATIVE_LOGIN_HTTP_V0_ENABLED:'true',
+      TRENDOS_CUSTOMER_PORTAL_THROTTLE_HMAC_SECRET:RATE_SECRET,
+      TRENDOS_CUSTOMER_PORTAL_SESSION_HMAC_SECRET:SECRET,
+      CUSTOMER_LOGIN_RATE_STAGE_V0:{
+        idFromName(){return 'fake-only-in-test';},
+        get(){return {async fetch(){
+          return new Response(JSON.stringify(outcome.payload),{status:outcome.status});
+        }};}
+      },
+      DB:{prepare(){dbHits++;throw Error('no D1 work permitted');}}
+    };
+    const result=await failBody(await stage.fetch(request(LOGIN,'POST',{
+      edge:true,headers:{'Content-Type':'application/json',
+        'CF-Connecting-IP':'192.0.2.17'},
+      body:JSON.stringify({portalCode:CODE,password:PASSWORD})
+    }),env));
+    assert.equal(result.status,outcome.status===200&&outcome.payload.persisted?429:503);
+    assert.equal(dbHits,0);
+  }
 });

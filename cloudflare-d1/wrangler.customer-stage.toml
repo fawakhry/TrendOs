@@ -15,3 +15,14 @@ TRENDOS_CUSTOMER_PORTAL_STAGE_MODE = "isolated-customer-stage-v0"
 TRENDOS_CUSTOMER_PORTAL_NATIVE_LOGIN_HTTP_V0_ENABLED = "false"
 TRENDOS_CUSTOMER_PORTAL_NATIVE_ORDERS_READ_V0_ENABLED = "false"
 TRENDOS_CUSTOMER_PORTAL_NATIVE_LOGOUT_V0_ENABLED = "false"
+
+# Cloudflare SQLite-backed Durable Object, STAGE namespace ONLY.
+# Dedicated global singleton atomically accounts for BOTH HMAC keys;
+# no customer D1, R2, SMS, secrets, production Worker or public routes bound.
+[[durable_objects.bindings]]
+name = "CUSTOMER_LOGIN_RATE_STAGE_V0"
+class_name = "CustomerLoginThrottleStageV0"
+
+[[migrations]]
+tag = "customer_stage_rate_v0_sqlite"
+new_sqlite_classes = ["CustomerLoginThrottleStageV0"]
