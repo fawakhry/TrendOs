@@ -1,5 +1,6 @@
 import { buildT12OrderCreateShadowIntent } from './t12-order-create-shadow-intent.mjs';
 import { classifyT12ClientRequestKey } from './t12-cloud-client-key-admission.mjs';
+import { inspectT12CustomerSelectorSessionSourceOnly } from './t12-official-customer-selection-session-sourceonly.mjs';
 
 export const T12_GENERAL_CREATE_VERSION='T12_GENERAL_CREATE_20261001_DUP_GUARD_V1';
 export const T12_DUPLICATE_ORDER_GUARD_WINDOW_MS=120000;
@@ -16,7 +17,9 @@ function canonical(intent,actor,epoch,sourceCapture=null){
   // Unchanged byte-for-byte for all legacy creates; optional capture is
   // intentionally part of idempotent replay identity, not a mutable add-on.
   if(sourceCapture)base.sourceCapture={customerId:sourceCapture.customerId,
-    externalCustomerId:sourceCapture.externalCustomerId,customerVersion:sourceCapture.customerVersion,evidenceRef:sourceCapture.evidenceRef};
+    externalCustomerId:sourceCapture.externalCustomerId,customerVersion:sourceCapture.customerVersion,evidenceRef:sourceCapture.evidenceRef,
+    selectorRole:sourceCapture.selectorRole,selectorSessionSha256:sourceCapture.selectorSessionSha256,
+    selectorIssuedAt:sourceCapture.selectorIssuedAt,selectorExpiresAt:sourceCapture.selectorExpiresAt};
   return JSON.stringify(base);
 }
 function businessCanonical(intent){
@@ -82,10 +85,12 @@ async function verifiedRead(db,intent,canonicalJson,actor,epoch,sourceCapture=nu
     lineIds.push(x.lineId);
   }
   if(sourceCapture){
-    const captured=await row(db.prepare('SELECT customer_id AS customerId,external_customer_id AS externalCustomerId,customer_version AS customerVersion,actor_subject AS actorSubject,evidence_ref AS evidenceRef,capture_status AS captureStatus,finance_authorized AS financeAuthorized,delivery_authorized AS deliveryAuthorized FROM t12_order_customer_at_create_v1 WHERE order_id=? AND request_key=? LIMIT 1').bind(l.orderId,key));
+    const captured=await row(db.prepare('SELECT customer_id AS customerId,external_customer_id AS externalCustomerId,customer_version AS customerVersion,actor_subject AS actorSubject,evidence_ref AS evidenceRef,selector_role AS selectorRole,selector_session_sha256 AS selectorSessionSha256,selector_issued_at AS selectorIssuedAt,selector_expires_at AS selectorExpiresAt,capture_status AS captureStatus,finance_authorized AS financeAuthorized,delivery_authorized AS deliveryAuthorized FROM t12_order_customer_at_create_v1 WHERE order_id=? AND request_key=? LIMIT 1').bind(l.orderId,key));
     if(!captured||captured.customerId!==sourceCapture.customerId||captured.externalCustomerId!==sourceCapture.externalCustomerId||
       Number(captured.customerVersion)!==sourceCapture.customerVersion||
       captured.actorSubject!==actor||captured.evidenceRef!==sourceCapture.evidenceRef||
+      captured.selectorRole!==sourceCapture.selectorRole||captured.selectorSessionSha256!==sourceCapture.selectorSessionSha256||
+      Number(captured.selectorIssuedAt)!==sourceCapture.selectorIssuedAt||Number(captured.selectorExpiresAt)!==sourceCapture.selectorExpiresAt||
       captured.captureStatus!=='SOURCE_ONLY_NOT_ATTESTED'||
       Number(captured.financeAuthorized)!==0||Number(captured.deliveryAuthorized)!==0)
       return {kind:'INDETERMINATE'};
@@ -141,6 +146,15 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
        evidenceRef.length<12||evidenceRef.length>180||
        /[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069]/u.test(evidenceRef))
       return fail('source-capture-identity-untrusted-or-invalid');
+    // Authentication is verified by the SAME existing Orders Edge verifier.
+    // The live HTTP route does not pass this server-only selector option.
+    const selectorSession=options.selectorSession;
+    if(!selectorSession||typeof selectorSession!=='object'||Array.isArray(selectorSession))
+      return fail('source-capture-employee-selection-session-required');
+    const selector=await inspectT12CustomerSelectorSessionSourceOnly({
+      token:selectorSession.token,secret:selectorSession.secret,expectedActor:safeActor
+    });
+    if(!selector.ok)return fail('source-capture-employee-selection-session-invalid');
     try{
       const gate=await row(db.prepare("SELECT mode FROM t12_order_customer_at_create_control_v1 WHERE singleton=1 AND marker='ACC223_ORDER_CUSTOMER_SOURCE_CAPTURE_V1' LIMIT 1"));
       if(!gate||gate.mode!=='ISOLATED')return fail('source-capture-control-off');
@@ -148,7 +162,9 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
       if(!customer||customer.customerId!==customerId||customer.active!=='نعم'||
          !Number.isSafeInteger(Number(customer.version))||Number(customer.version)<1)
         return fail('source-capture-customer-unavailable-or-inactive');
-      sourceCapture={customerId,externalCustomerId:intent.identity.externalCustomerId,customerVersion:Number(customer.version),evidenceRef};
+      sourceCapture={customerId,externalCustomerId:intent.identity.externalCustomerId,customerVersion:Number(customer.version),evidenceRef,
+        selectorRole:selector.role,selectorSessionSha256:selector.tokenSha256,
+        selectorIssuedAt:selector.issuedAt,selectorExpiresAt:selector.expiresAt};
     }catch{return fail('source-capture-evidence-read-unavailable');}
   }
   const epoch=text(control.policyEpoch),canonicalJson=canonical(intent,safeActor,epoch,sourceCapture);
@@ -206,8 +222,9 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
   if(sourceCapture){
     // Direct VALUES INSERT + trigger RAISE(ABORT), not SELECT/IGNORE:
     // absent/mutated customer or ledger MUST abort the entire D1 batch.
-    s.push(stmt(db,'INSERT INTO t12_order_customer_at_create_v1 (order_id,request_key,customer_id,external_customer_id,customer_version,actor_subject,evidence_ref) VALUES (?,?,?,?,?,?,?)',
-      orderId,intent.requestKey,sourceCapture.customerId,sourceCapture.externalCustomerId,sourceCapture.customerVersion,safeActor,sourceCapture.evidenceRef));
+    s.push(stmt(db,'INSERT INTO t12_order_customer_at_create_v1 (order_id,request_key,customer_id,external_customer_id,customer_version,actor_subject,evidence_ref,selector_role,selector_session_sha256,selector_issued_at,selector_expires_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+      orderId,intent.requestKey,sourceCapture.customerId,sourceCapture.externalCustomerId,sourceCapture.customerVersion,safeActor,sourceCapture.evidenceRef,
+      sourceCapture.selectorRole,sourceCapture.selectorSessionSha256,sourceCapture.selectorIssuedAt,sourceCapture.selectorExpiresAt));
   }
   s.push(stmt(db,'UPDATE t12_prod_duplicate_order_guard SET order_id=(SELECT order_id FROM t12_prod_request_ledger WHERE request_key=?),updated_at=CURRENT_TIMESTAMP WHERE fingerprint=? AND request_key=?',
     intent.requestKey,duplicateFingerprint,intent.requestKey));
