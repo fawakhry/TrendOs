@@ -135,6 +135,13 @@ jobs:
               elif len(items)<100: break
           else: raise SystemExit('SERVER94_TOKEN_PAGINATION_OVER_LIMIT')
           if len(found_tokens)!=1 or found_tokens[0].get('id')!=selected_token_id:
+              # Report only aggregate/schema booleans; never values, IDs or names.
+              exact=len(found_tokens)
+              print('SERVER94_SAFE_DIAG_NAME_MATCH_COUNT='+('0' if exact==0 else '1' if exact==1 else 'MANY'))
+              print('SERVER94_SAFE_DIAG_ID_EQUALS='+str(exact==1 and found_tokens[0].get('id')==selected_token_id).upper())
+              print('SERVER94_SAFE_DIAG_CLIENT_ID_EQUALS='+str(exact==1 and found_tokens[0].get('client_id')==selected_token_id).upper())
+              print('SERVER94_SAFE_DIAG_ID_TYPE='+('STRING' if exact==1 and type(found_tokens[0].get('id')) is str else 'OTHER'))
+              print('SERVER94_SAFE_DIAG_INCLUDE_TOKEN_ID_TYPE='+('STRING' if type(selected_token_id) is str else 'OTHER'))
               raise SystemExit('SERVER94_POLICY_TOKEN_NAME_MISMATCH')
           print('SERVER94_LIVE_STAGE_ACCESS_POLICY=DENY_EVERYONE_PLUS_SINGLE_UBUNTU_TOKEN_SERVICE_AUTH_VERIFIED')
           print('SERVER94_STAGE_WORKERS_DEV=OFF;PREVIEW=OFF;SERVICE_READER=OFF')
