@@ -1035,5 +1035,45 @@
     "STAGING": "NO",
     "PRODUCTION": "NO",
     "LIVE_MUTATIONS": 0
+  },
+  "current_no_loss_gate_20261024_cross_workflow_writer_and_r2_config_predeploy_v1": {
+    "date": "2026-10-24",
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "prior_book_head": "6dd5bc8a022d20eec8e7b8c0b837693b34e3db3f",
+    "crosswalk_key": "book_agent_20261024_entry645_rollback_third_party_and_02cw_files_guard_v1",
+    "workflow_blobs": {
+      "entry645": "d075e30894d84fc99f492dec863fded94b55d096",
+      "entry642": "02b1dffd6d7d7f034d784f22b0e631f3d03e2bb2",
+      "codeonly": "b3037c872886bb37b6f0effee65e2a0ac8dce379",
+      "wrangler": "579b06e4918a9ed965be183e69742205f03cdc74"
+    },
+    "tests_executed": 15,
+    "distinct_new_semantic_assertions": 12,
+    "results_expected": "15/15",
+    "rollback_third_party_overwrite": "MOCK_ONLY",
+    "rollback_pre_state_check": "ABSENT_IN_SOURCE",
+    "workflows_share_same_concurrency_group": false,
+    "codeonly_predeploy_checks_FILES": false,
+    "codeonly_checks_target_bucket": false,
+    "wrangler_declares_FILES": false,
+    "actual_prod_FILES_loss_proven": false,
+    "active_deployed_sha": "UNVERIFIED",
+    "active_files_binding": "UNVERIFIED",
+    "source_bundle_sha256": "UNVERIFIED",
+    "owner_gates": [
+      "REQUIRE_SHARED_TARGET_WORKER_SINGLE_WRITER_LOCK_ACROSS_ALL_DEPLOYMENT_WORKFLOWS",
+      "BLOCK_ROLLBACK_UNLESS_ACTIVE_VERSION_MATCHES_OWN_NEW_VERSION_AND_CODE_ETAG_OR_USE_ATOMIC_CAS",
+      "REQUERY_ACTIVE_PERCENT100_AFTER_ROLLBACK_AND_RECONCILE_UNCERTAIN_ACK",
+      "PREDEPLOY_ASSERT_SOURCE_WRANGLER_AND_EFFECTIVE_FILES_R2_BINDING_PLUS_EXACT_BUCKET",
+      "POSTDEPLOY_READONLY_VERIFY_FILES_BINDING_POSITIVE_AUTHORIZED_AND_PRIVATE_DENIAL",
+      "GENERATE_REPRODUCIBLE_BUNDLE_SHA256_AND_MATCH_CLOUDFLARE_ACTIVE_SCRIPT",
+      "REJECT_UNRELATED_CONCURRENT_WRITER_WITHOUT_ROLLBACK"
+    ],
+    "CI_NEW": "NOT_RUN",
+    "PRODUCTION": "NO",
+    "FINANCE": "EASYSTORE",
+    "CUTOVER": "NO_GO",
+    "CATALOG": "FROZEN_MIGRATION_ONLY",
+    "MUTATIONS": 0
   }
 }

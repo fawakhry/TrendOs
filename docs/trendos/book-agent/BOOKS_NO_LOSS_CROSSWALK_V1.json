@@ -17763,5 +17763,181 @@
       "CODE_MUTATIONS": 0,
       "PR_MERGES": 0
     }
+  },
+  "book_agent_20261024_entry645_rollback_third_party_and_02cw_files_guard_v1": {
+    "date": "2026-10-24",
+    "round": "BOOK-AGENT-20261024-ROLLBACK-THIRD-PARTY-FILES-GUARD-15-CHECKS",
+    "branch_head_prior": "6dd5bc8a022d20eec8e7b8c0b837693b34e3db3f",
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "sources": {
+      "entry645_workflow": ".github/workflows/trendos-entry645-content-r2-foundation-controlled.yml",
+      "entry645_blob": "d075e30894d84fc99f492dec863fded94b55d096",
+      "rollback_lines": "271-298",
+      "entry642_workflow": ".github/workflows/trendos-entry642-deploy-resilient-auth-hardening.yml",
+      "entry642_blob": "02b1dffd6d7d7f034d784f22b0e631f3d03e2bb2",
+      "codeonly_workflow": ".github/workflows/trendos-02cw-worker-codeonly-deploy-temp.yml",
+      "codeonly_blob": "b3037c872886bb37b6f0effee65e2a0ac8dce379",
+      "codeonly_gate_lines": "57-75",
+      "wrangler": "cloudflare-d1/wrangler.toml",
+      "wrangler_blob": "579b06e4918a9ed965be183e69742205f03cdc74"
+    },
+    "test_accounting": {
+      "total_executed_source_assertions": 15,
+      "distinct_new_semantic_assertions": 12,
+      "rollback_original_node_invocations": 5,
+      "rollback_distinct_new": 2,
+      "rollback_controls": 3,
+      "codeonly_original_grep_static_predicate_variants": 7,
+      "workflow_concurrency_pair_comparisons": 3,
+      "all_expected_results": "15/15",
+      "previous_8_rollback_tests_reexecuted": false
+    },
+    "test_method": "Original rollback Node helper executed with mocked POST-only fetch and in-memory filesystem; only terminal process.exit catch replaced by throw. Source-derived grep -Ec/-Eq rules converted POSIX [:space:] to JavaScript \\s for static matching against original and synthetic candidate sources. Three workflow concurrency.group strings compared directly. This is NOT real bash, Wrangler, Cloudflare or GitHub Actions execution.",
+    "original_rollback_cases": [
+      {
+        "id": "own_fresh_active_to_pre",
+        "observation": "PASS_POST_PRE",
+        "original_source_node": true,
+        "ctrl": true
+      },
+      {
+        "id": "unrelated_third_active_overwritten_by_rollback",
+        "observation": "PASS_POST_PRE_THIRD_LOST_IN_MOCK",
+        "original_source_node": true,
+        "material_new": true
+      },
+      {
+        "id": "already_pre_active_still_posts_pre",
+        "observation": "PASS_REDUNDANT_POST",
+        "original_source_node": true,
+        "material_new": true
+      },
+      {
+        "id": "third_party_active_post_http_failure",
+        "observation": "FAIL_CLOUD_API",
+        "original_source_node": true,
+        "ctrl": true
+      },
+      {
+        "id": "third_party_active_post_success_false",
+        "observation": "FAIL_CLOUD_API",
+        "original_source_node": true,
+        "ctrl": true
+      }
+    ],
+    "codeonly_source_guards": [
+      {
+        "id": "02cw_original_wrangler_missing_FILES",
+        "guard": "PASS",
+        "files": "MISSING",
+        "material_new": true
+      },
+      {
+        "id": "02cw_config_with_mock_correct_FILES",
+        "guard": "PASS",
+        "files": "MOCK_CORRECT",
+        "material_new": true
+      },
+      {
+        "id": "02cw_config_with_mock_WRONG_bucket",
+        "guard": "PASS",
+        "files": "MOCK_WRONG",
+        "material_new": true
+      },
+      {
+        "id": "02cw_config_with_mock_BROKEN_PUBLIC_BASE_URL",
+        "guard": "PASS",
+        "files": "BASE_URL_WRONG",
+        "material_new": true
+      },
+      {
+        "id": "02cw_injected_d1_migrations_apply",
+        "guard": "FAIL",
+        "files": "ORIGINAL",
+        "material_new": true
+      },
+      {
+        "id": "02cw_injected_secret_put",
+        "guard": "FAIL",
+        "files": "ORIGINAL",
+        "material_new": true
+      },
+      {
+        "id": "02cw_injected_second_deploy",
+        "guard": "FAIL",
+        "files": "ORIGINAL",
+        "material_new": true
+      }
+    ],
+    "cross_workflow_group_pair_results": [
+      {
+        "id": "entry645_vs_entry642",
+        "result": "DISTINCT_CONCURRENCY_GROUPS",
+        "material_new": true
+      },
+      {
+        "id": "entry645_vs_02cw",
+        "result": "DISTINCT_CONCURRENCY_GROUPS",
+        "material_new": true
+      },
+      {
+        "id": "entry642_vs_02cw",
+        "result": "DISTINCT_CONCURRENCY_GROUPS",
+        "material_new": true
+      }
+    ],
+    "findings": [
+      "Entry645 rollback helper unconditionally posts PRE if Bash marker gates reached; does not read active version or ensure active is its own FRESH before rollback. A fake concurrent THIRD deployment is overwritten.",
+      "02CW static predeploy command grep guard counts expected Wrangler deploy and rejects D1 migrations/secret commands, but never inspects Wrangler R2 FILES binding, target bucket or public base URL: 4 failing/missing FILES configuration variants all pass the original command guard.",
+      "Entry645, Entry642 and 02CW each define their own concurrency group, not a shared worker-wide lock; no cross-workflow serialization is supplied by these group strings.",
+      "Wrangler has DB binding, no FILES declaration. That fact cannot establish if current live settings contain FILES or whether a future Wrangler deploy will remove it; Cloudflare behavior remains untested.",
+      "Entry498 historical esbuild artifact workflow uses pinned older source and cannot attest current PR221 active deployed worker. No current active version, compiled SHA256 or binding confirmed."
+    ],
+    "owner_gates": [
+      "REQUIRE_SHARED_TARGET_WORKER_SINGLE_WRITER_LOCK_ACROSS_ALL_DEPLOYMENT_WORKFLOWS",
+      "BLOCK_ROLLBACK_UNLESS_ACTIVE_VERSION_MATCHES_OWN_NEW_VERSION_AND_CODE_ETAG_OR_USE_ATOMIC_CAS",
+      "REQUERY_ACTIVE_PERCENT100_AFTER_ROLLBACK_AND_RECONCILE_UNCERTAIN_ACK",
+      "PREDEPLOY_ASSERT_SOURCE_WRANGLER_AND_EFFECTIVE_FILES_R2_BINDING_PLUS_EXACT_BUCKET",
+      "POSTDEPLOY_READONLY_VERIFY_FILES_BINDING_POSITIVE_AUTHORIZED_AND_PRIVATE_DENIAL",
+      "GENERATE_REPRODUCIBLE_BUNDLE_SHA256_AND_MATCH_CLOUDFLARE_ACTIVE_SCRIPT",
+      "REJECT_UNRELATED_CONCURRENT_WRITER_WITHOUT_ROLLBACK"
+    ],
+    "concurrent": {
+      "pr211": {
+        "head": "339e731cf28accca5d072b3ee1e8b3d5fd927ede",
+        "state": "open",
+        "draft": true,
+        "owner": "EASYSTORE_AGENT_INDEPENDENT"
+      },
+      "pr221": {
+        "head": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "state": "open",
+        "draft": true
+      }
+    },
+    "proof": {
+      "SOURCE_ONLY": "15_OF_15_EXPECTED_OBSERVATIONS",
+      "NEW_DISTINCT_SOURCE_SEMANTICS": 12,
+      "NATIVE_BASH_EXECUTION": "NO",
+      "WRANGLER_EXECUTION": "NO",
+      "NEW_CI": "NOT_RUN",
+      "STAGING": "NO",
+      "PRODUCTION": "NO",
+      "REAL_CLOUDFLARE_CALLS": 0,
+      "ACTIVE_DEPLOYED_SHA": "UNVERIFIED",
+      "R2_ACTIVE_BINDING": "UNVERIFIED",
+      "BINARY_PROVENANCE": "UNVERIFIED"
+    },
+    "authority": {
+      "master": "ACTIVE_WRITE",
+      "catalog": "FROZEN_MIGRATION_ONLY",
+      "archive": "UNCHANGED",
+      "cutover": "NO_GO",
+      "finance": "EASYSTORE_ONLY",
+      "prod_changes": 0,
+      "customer_mutations": 0,
+      "code_changes": 0,
+      "merge": 0
+    }
   }
 }
