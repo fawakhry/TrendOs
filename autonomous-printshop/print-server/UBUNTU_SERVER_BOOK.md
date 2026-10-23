@@ -939,3 +939,10 @@
 - USER_CANCELED_ACCESS_EDIT=YES; NO_CLOUDFLARE_SETTINGS_SAVED_OBSERVED; NO_TOKEN_VALUES_EXPOSED; UBUNTU_UNCHANGED; PRODUCTION_UNCHANGED; PR190_DRAFT=YES; SERVER95_403_ROOT_CAUSE=UNRESOLVED.
 
 **Next authorized one-step diagnostic:** prioritize read-only inspection of Cloudflare Access machine/non-identity auth logs or safely correlating a single stage CF-Ray (no token, cookies, request body or order data). Do NOT expand API-token rights, change Service Auth/Block policy, request another secret rotation, or rerun the unchanged Ubuntu 403 request. Distinguish config audit logs from authentication logs. All devices OFF and D01–D06 release gates preserved.
+
+
+### SERVER-20261023-100 — Access Insights & Logs navigation (owner UI, 2026-10-23 ~21:34 Cairo)
+
+- Owner-provided Cloudflare screenshot: Cloudflare Access Applications list visible; Zero Trust → **Insights & Logs** navigation menu expanded and **Logs** subitem visible (alongside Overview, Dashboards, Digital experience). This is navigation only, no authentication logs queried or results observed yet.
+- Next single owner action: click **Logs**, then provide screenshot before selecting any log type/filter or claiming a Service Token rejection cause.
+- No Access policy, token, Worker, D1, Ubuntu, production, customer order, print or laser changes. `HTTP403_ROOT_CAUSE=UNRESOLVED`; `AUTH_LOGS_READ=NOT_YET`.
