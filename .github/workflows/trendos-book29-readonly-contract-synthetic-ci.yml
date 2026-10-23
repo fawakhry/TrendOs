@@ -1,0 +1,44 @@
+name: TrendOS Book29 Accounting READONLY Safety — Fake D1 CI
+on:
+  push:
+    branches:
+      - audit/book29-readonly-contract-proof-20261016
+    paths:
+      - 'tests/book29_accounting_readonly_contract_synthetic.test.mjs'
+      - '.github/workflows/trendos-book29-readonly-contract-synthetic-ci.yml'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'employee-api-dispatcher-v1.js'
+      - 'app.js'
+      - 'config.js'
+  pull_request:
+    paths:
+      - 'tests/book29_accounting_readonly_contract_synthetic.test.mjs'
+      - '.github/workflows/trendos-book29-readonly-contract-synthetic-ci.yml'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'employee-api-dispatcher-v1.js'
+      - 'app.js'
+      - 'config.js'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fake-finance-no-write:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: node --check tests/book29_accounting_readonly_contract_synthetic.test.mjs
+      - name: Accounting READONLY fake D1 denied write contracts and known gaps
+        run: node --test tests/book29_accounting_readonly_contract_synthetic.test.mjs
+      - name: Existing Native accounting source gates
+        run: node tests/entry614_employee_accounting_native.test.mjs
+      - name: Explicit no-write assurance
+        run: |
+          echo "REAL_FINANCIAL_TRANSACTIONS=NO"
+          echo "ACCOUNTING_NATIVE_GENERAL=NO"
+          echo "PRODUCTION_D1=NO"
+          echo "DEPLOY_OR_MERGE=NO"
