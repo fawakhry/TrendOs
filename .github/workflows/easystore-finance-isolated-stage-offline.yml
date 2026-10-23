@@ -7,6 +7,8 @@ on:
       - 'cloudflare-d1/migrations/00*_employee_accounting_*.sql'
       - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
       - 'cloudflare-d1/src/accounting-customer-facts-contract-v1.mjs'
+      - 'cloudflare-d1/src/accounting-employee-session-bridge-v1.mjs'
+      - 'cloudflare-d1/src/employee-auth-native-v1.mjs'
       - '.github/workflows/easystore-finance-isolated-stage-offline.yml'
   push:
     branches:
@@ -17,6 +19,8 @@ on:
       - 'cloudflare-d1/migrations/00*_employee_accounting_*.sql'
       - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
       - 'cloudflare-d1/src/accounting-customer-facts-contract-v1.mjs'
+      - 'cloudflare-d1/src/accounting-employee-session-bridge-v1.mjs'
+      - 'cloudflare-d1/src/employee-auth-native-v1.mjs'
       - '.github/workflows/easystore-finance-isolated-stage-offline.yml'
   workflow_dispatch:
 permissions:
@@ -50,10 +54,19 @@ jobs:
           assert 'EASYSTORE_CUSTOMER_SOURCE_V1 = "REMOTE_REQUIRED"' in t
           assert 'binding = "TRENDOS_CUSTOMER_FACTS"' in t
           assert 'service = "trendos-customer-facts-stage-source"' in t
+          assert 'EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1 = "REMOTE_NATIVE_REQUIRED"' in t
+          assert 'binding = "TRENDOS_EMPLOYEE_SESSION"' in t
+          assert 'service = "trendos-native-session-stage-source"' in t
           o=Path('cloudflare-d1/easystore-finance-stage/wrangler.trendos-customer-facts-source.toml').read_text()
           assert 'workers_dev = false' in o
           assert 'database_name = "trendos-staging"' in o
           assert 'easystore-accounting-staging' not in o
           assert '5c4b92bf-e043-4f6e-bd6d-d514a92cd825' not in o
           assert 'TRENDOS_CUSTOMER_FACTS_SOURCE_V1 = "ENFORCE"' in o
+          a=Path('cloudflare-d1/easystore-finance-stage/wrangler.trendos-native-session-source.toml').read_text()
+          assert 'workers_dev = false' in a
+          assert 'database_name = "trendos-staging"' in a
+          assert 'easystore-accounting-staging' not in a
+          assert 'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "true"' in a
+          assert 'TRENDOS_NATIVE_SESSION_SOURCE_V1 = "ENFORCE"' in a
           print('PASS: private TrendOS source, signed service boundary, dedicated finance D1, writes OFF')
