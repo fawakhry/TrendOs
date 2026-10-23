@@ -36,3 +36,12 @@ This is a supplemental Ubuntu server-book entry, preserving existing book histor
 - Fetch the new code into the existing clean detached sandbox only: `git -C "$HOME/TrendOs-stage-access-sandbox" fetch --no-tags origin refs/heads/release/server68-staging-qualification-20261016`. This does NOT switch HEAD, start the tool, read the secret or send Cloudflare traffic. Verify output, then do a pinned detached switch to `aa2846f4cde7b771172f464d8777033ee60c8ec0` **in a separate owner turn**. Keep all steps one at a time. Do not rerun SERVER-95 or re-create tokens.
 
 `REAL_SERVER136_GRAPHQL=HTTP200_ZERO_ROWS`; `REAL_SERVER141_GRAPHQL=NOT_RUN`; `STAGE_HTTP403_ROOT_CAUSE=UNRESOLVED`; `SERVER141_FAKE_CI=PASS_12`; `PR190=DRAFT`; `PRODUCTION_UNTOUCHED=YES`.
+
+
+## SERVER-143 — owner fetched qualified SERVER-141 staging revision
+
+- **Owner terminal evidence (2026-10-23 ~23:25 Africa/Cairo)**: Successfully ran only `git -C "$HOME/TrendOs-stage-access-sandbox" fetch --no-tags origin refs/heads/release/server68-staging-qualification-20261016`; terminal confirmed `Receiving objects: 100% (2201/2201)`, `Resolving deltas: 100% (1574/1574)`, and `release/server68-staging-qualification-20261016 -> FETCH_HEAD` before returning to shell. No working-tree switch or program execution occurred in this step.
+- A successful `fetch` downloads repository objects and updates FETCH_HEAD but **does not move detached HEAD**. The current isolated Ubuntu sandbox remained pinned at SERVER-136 SHA `e599835802d7d1fe3da9bf1fdda03156ead49bc6` based on the previous verified checkout, unless an unreported user action changed it.
+- Confirmed on GitHub that the tested SERVER-141 script and dedicated fake-only workflow both exist at commit `aa2846f4cde7b771172f464d8777033ee60c8ec0`, with 12/12 fake-only tests passed in run 40018659172. Do not chase later documentation-only HEAD, rerun SERVER-95, or expose stored token.
+- **Next one-step owner action**: `git -C "$HOME/TrendOs-stage-access-sandbox" switch --detach aa2846f4cde7b771172f464d8777033ee60c8ec0`. This must operate on sandbox only; if Git refuses due to local modifications, do not force/reset.
+- `SERVER143_FETCH=SUCCESS`; `SERVER141_CHECKOUT=PENDING`; `REAL_SERVER141_GRAPHQL=NOT_RUN`; `HTTP403_ROOT_CAUSE=UNKNOWN`; `PRODUCTION_AND_DEVICES=UNTOUCHED`.
