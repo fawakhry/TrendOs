@@ -1164,3 +1164,11 @@
 - The Account Resources still show **Include → All accounts** and expiration appears to remain **No expiration**, so no token should be submitted yet. No token value is displayed; no network request or production order/device operation is associated with this UI step.
 - **Next one owner action:** open the `All accounts` Account Resources dropdown, inspect account-scoping choices, then share screenshot without selecting or saving yet.
 - `ANALYTICS_PERMISSION_READ_SELECTED=YES`; `ACCOUNT_SCOPE_PENDING=YES`; `EXPIRY_PENDING=YES`; `TOKEN_CREATED=NO`; `HTTP403_UNRESOLVED=YES`; `PRODUCTION_UNTOUCHED=YES`.
+
+### SERVER-20261023-130 — owner identified single-account token resource choice (owner screenshot ~22:50 Africa/Cairo)
+
+- Cloudflare `Create Custom Token` draft named `TrendOS Stage CF-Ray Readonly 20261023` still shows single permission row `Account → Account Analytics → Read`.
+- Owner opened the `Account Resources` selector under `Include`, showing current selected `All accounts` plus an alternative **existing Trendmall.contact account**. The screenshot shows `All accounts` still checked; a single-account scope has NOT yet been selected.
+- Only the one TrendMall Cloudflare account should be selected for the approved bounded stage diagnostic. `Token expiration` still appears `No expiration`; do not issue the token until short expiry is configured and review is complete.
+- **Next one owner action:** select the existing named TrendMall account option in the open Account Resources dropdown, not `All accounts`. Then send screenshot before touching expiry.
+- `RESOURCE_OPTION_DISCOVERED=YES`; `RESOURCE_SELECTED=NOT_YET`; `ANALYTICS_READ=SELECTED`; `EXPIRY_SET=NO`; `TOKEN_CREATED=NO`; `ACCESS_403_CAUSE=UNRESOLVED`; `PRODUCTION_TOUCHED=NO`.
