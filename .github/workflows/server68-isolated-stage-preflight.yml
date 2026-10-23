@@ -1,0 +1,171 @@
+name: SERVER-68 Isolated Stage Preflight (No Deploy)
+on:
+  pull_request:
+    paths:
+      - cloudflare-d1/wrangler.server68-isolated-stage.toml
+      - cloudflare-d1/src/mirror-service-replay-guard-v1.mjs
+      - cloudflare-d1/src/mirror-service-read-v1.mjs
+      - cloudflare-d1/production-shadow/index.js
+      - tests/server68_isolated_stage_preflight.test.mjs
+      - tests/server68_secure_mirror_pagination_compat.test.mjs
+      - tests/server68_r5_signed_metadata_preflight.test.mjs
+      - cloudflare-d1/r5-server68-signed-metadata-preflight.mjs
+      - tests/server68_wrangle_local_runtime_smoke.mjs
+      - tests/server69_ubuntu_python_to_local_workerd.py
+      - tests/server69_release_decision_queue.test.mjs
+      - tests/server70_legacy_read_consumer_inventory.test.mjs
+      - tests/server70_apps_script_live_sync_secure_read_contract.test.mjs
+      - tests/server71_apps_script_signed_destination_pin.test.mjs
+      - tests/server73_six_stage_source_readiness.test.mjs
+      - autonomous-printshop/print-server/tools/server73_six_stage_readiness.mjs
+      - tests/server69_ubuntu_python_to_local_workerd.py
+      - autonomous-printshop/print-server/SERVER70_LEGACY_READ_CONSUMER_INVENTORY.json
+      - cloudflare-d1/D1_Full_Migration.gs
+      - cloudflare-d1/D1_Orders_Live_Sync.gs
+      - cloudflare-d1/D1_Mirror_Service_Read_V1.gs
+      - .github/workflows/trendos-r5-periodic-controlled.yml
+      - customer_manager_d1_bridge_v1934.js
+      - autonomous-printshop/print-server/SERVER69_RELEASE_DECISIONS.json
+      - autonomous-printshop/print-server/SERVICE_ORDER_READER_POLICY_V1.json
+      - autonomous-printshop/print-server/src/trendosshop_read_once.py
+      - autonomous-printshop/print-server/tests/test_server34_trendosshop_read_once.py
+      - autonomous-printshop/print-server/src/trendosshop_canary_once_cli.py
+      - autonomous-printshop/print-server/tests/test_server69_canary_once_cli.py
+      - autonomous-printshop/print-server/src/production_dispatch_preview.py
+      - autonomous-printshop/print-server/tests/test_server76_production_dispatch_preview.py
+      - autonomous-printshop/print-server/tests/test_server77_real_reader_dispatch_preview.py
+      - autonomous-printshop/print-server/tools/server80_isolated_stage_deploy_guard.mjs
+      - .github/workflows/server80-isolated-stage-owner-gated-bootstrap.yml
+      - tests/server80_isolated_stage_owner_bootstrap.test.mjs
+      - cloudflare-d1/fixtures/server82_stage_only_synthetic.sql
+      - autonomous-printshop/print-server/tools/server82_stage_d1.py
+      - autonomous-printshop/print-server/tests/test_server82_stage_d1.py
+      - autonomous-printshop/print-server/tools/server85_access_readiness.py
+      - autonomous-printshop/print-server/tests/test_server85_access_readiness.py
+      - autonomous-printshop/print-server/tools/server87_stage_access_denyall.py
+      - autonomous-printshop/print-server/tests/test_server87_stage_access_denyall.py
+      - autonomous-printshop/print-server/src/stage_access_probe.py
+      - autonomous-printshop/print-server/tests/test_server95_stage_access_probe.py
+      - tests/server33_trendosshop_service_orders_read.test.mjs
+      - cloudflare-d1/src/trendosshop-service-orders-read-v1.mjs
+      - tests/server67_purpose_scoped_mirror_service_read.test.mjs
+      - tests/fixtures/server68_local_mirror_fixture.sql
+      - cloudflare-d1/wrangler.server68-local-runtime.toml
+      - cloudflare-d1/D1_Orders_Read_Cutover.gs
+      - .github/workflows/server68-isolated-stage-preflight.yml
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+
+permissions:
+  contents: read
+
+jobs:
+  offline-isolated-stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    # Explicitly NO env.CLOUDFLARE_API_TOKEN, NO Account ID, NO GitHub Secrets.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check staging target isolation, source auth and role-limited clients
+        run: |
+          node --test tests/server68_isolated_stage_preflight.test.mjs \
+            tests/server68_r5_signed_metadata_preflight.test.mjs \
+            tests/server33_trendosshop_service_orders_read.test.mjs \
+            tests/server69_release_decision_queue.test.mjs \
+            tests/server70_legacy_read_consumer_inventory.test.mjs \
+            tests/server70_apps_script_live_sync_secure_read_contract.test.mjs \
+            tests/server71_apps_script_signed_destination_pin.test.mjs \
+            tests/server73_six_stage_source_readiness.test.mjs \
+            tests/server68_secure_mirror_pagination_compat.test.mjs \
+            tests/server67_purpose_scoped_mirror_service_read.test.mjs \
+            tests/server67_apps_script_signed_mirror_client_offline.test.mjs \
+            tests/server66_legacy_mirror_read_gate.test.mjs \
+            tests/server56_legacy_customer_bridge_compat.test.mjs \
+            tests/server30_legacy_sensitive_read_gate.test.mjs
+      - name: Six-stage source readiness report (NO_GO expected; no remote access)
+        run: |
+          node autonomous-printshop/print-server/tools/server73_six_stage_readiness.mjs --report
+      - name: Verify existing Python Ubuntu one-shot client (FakeOpener, no network)
+        run: |
+          PYTHONPATH=autonomous-printshop/print-server \
+            PYTHONDONTWRITEBYTECODE=1 \
+            python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server34_trendosshop_read_once.py' -v
+      - name: Verify disabled Ubuntu canary CLI and PII-free output (fake reader)
+        run: |
+          PYTHONPATH=autonomous-printshop/print-server \
+            PYTHONDONTWRITEBYTECODE=1 \
+            python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server69_canary_once_cli.py' -v
+      - name: SERVER-76 employee production handoff preview (fake records, no network)
+        run: |
+          PYTHONPATH=autonomous-printshop/print-server \
+            PYTHONDONTWRITEBYTECODE=1 \
+            python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server76_production_dispatch_preview.py' -v
+          echo 'SERVER76_HANDOFF_PREVIEW=PASS; NO_DEVICE_COMMANDS; NO_CUSTOMER_DATA'
+      - name: SERVER-77 existing scoped HTTPS reader to in-memory employee queue (FakeOpener)
+        run: |
+          PYTHONPATH=autonomous-printshop/print-server \
+            PYTHONDONTWRITEBYTECODE=1 \
+            python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server77_real_reader_dispatch_preview.py' -v
+          echo 'SERVER77_QUEUE_ADAPTER=PASS; NO_CLOUD_PRODUCTION; NO_FILES_OR_DEVICES'
+      - name: SERVER-80 offline owner-only stage bootstrap guard (no deploy)
+        run: |
+          node --test tests/server80_isolated_stage_owner_bootstrap.test.mjs
+          node autonomous-printshop/print-server/tools/server80_isolated_stage_deploy_guard.mjs --validate
+          echo 'SERVER80_STAGE_BOOTSTRAP=SOURCE_ONLY; OWNER_APPROVAL_REQUIRED; WORKER_DEPLOY=NO'
+      - name: SERVER-82 synthetic D1 safety and fake print laser fixtures (strictly offline)
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server82_stage_d1.py' -v
+          PYTHONDONTWRITEBYTECODE=1 python3 \
+            autonomous-printshop/print-server/tools/server82_stage_d1.py --validate
+          echo 'SERVER82_D1_STAGE=SOURCE_TESTED; CUSTOMER_ROWS=NO; REMOTE_MUTATION=NO'
+      - name: SERVER-87 Access deny-all stage-only contract (unit tests, Cloudflare tokens absent)
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          SERVER87_OWNER_STAGE_AUTH_ONLY: 'false'
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server87_stage_access_denyall.py' -v
+          echo 'SERVER87_OFFLINE_DENY_ALL_TESTED=YES; ACCESS_POST=NO'
+      - name: SERVER-95 stage-only Access probe security tests (NO network or credential)
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCESS_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server95_stage_access_probe.py' -v
+          echo 'SERVER95_STAGE_ACCESS_CLIENT=FAKE_TEST_PASS; PROD_HOST=REJECT; ACCESS_LIVE=OFF'
+      - name: Validate isolated Worker bundle with Wrangler offline dry-run
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.149.0 deploy \
+            --config cloudflare-d1/wrangler.server68-isolated-stage.toml \
+            --dry-run --outdir /tmp/trendos-server68-offline
+          test -d /tmp/trendos-server68-offline
+          test -n "$(find /tmp/trendos-server68-offline -maxdepth 1 -type f -name '*.js' -print -quit)"
+          echo 'SERVER68_DRY_RUN=PASS; NO_DEPLOY, NO_D1_BINDING, NO_CLOUDFLARE_TOKEN'
+      - name: Local Wrangler runtime with synthetic SQLite D1 and durable replay guard
+        timeout-minutes: 7
+        run: |
+          node tests/server68_wrangle_local_runtime_smoke.mjs

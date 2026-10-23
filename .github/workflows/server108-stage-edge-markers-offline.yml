@@ -1,0 +1,37 @@
+name: SERVER-108 Stage Edge Markers (Synthetic No-Network Only)
+
+# No Cloudflare tokens, no stage or production requests, no SERVER-95 repeat.
+on:
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+    paths:
+      - autonomous-printshop/print-server/src/server108_stage_edge_diagnostic.py
+      - autonomous-printshop/print-server/tests/test_server108_stage_edge_diagnostic.py
+      - .github/workflows/server108-stage-edge-markers-offline.yml
+
+permissions:
+  contents: read
+
+jobs:
+  bounded-edge-metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCESS_API_TOKEN: ''
+      CF_ACCESS_CLIENT_ID: ''
+      CF_ACCESS_CLIENT_SECRET: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test new SERVER-108 stage-only CF-Ray filter via fake transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server108_stage_edge_diagnostic.py' -v
+          echo 'SERVER108_STAGE_EDGE_META=FAKE_ONLY_NO_CLOUDFLARE_REQUESTS'
+          echo 'SERVER108_UBUNTU_LIVE=OFF; PRODUCTION_TOUCHED=NO; PRINTER_LASER=OFF'

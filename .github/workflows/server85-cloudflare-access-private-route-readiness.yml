@@ -1,0 +1,59 @@
+name: SERVER-85 Cloudflare Access Private Route Discovery (Read Only)
+
+# No account/prod or stage mutation. Only redacted API read privileges.
+on:
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+    paths:
+      - .github/workflows/server85-cloudflare-access-private-route-readiness.yml
+      - autonomous-printshop/print-server/tools/server85_access_readiness.py
+      - autonomous-printshop/print-server/tests/test_server85_access_readiness.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server85-readonly-cloudflare-access
+  cancel-in-progress: false
+
+jobs:
+  get-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Synthetic Access/zone/metadata tests with all Cloudflare credentials REDACTED
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          SERVER85_METADATA_READ_ALLOW: 'false'
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server85_access_readiness.py' -v
+          echo 'SERVER85_OFFLINE_ACCESS_REGRESSIONS=PASS; REAL_CLOUDFLARE_TOKEN=UNAVAILABLE_TO_TESTS'
+      - name: Inspect real Access application visibility / owned-zone availability (GET only)
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SERVER85_METADATA_READ_ALLOW: 'true'
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 \
+            autonomous-printshop/print-server/tools/server85_access_readiness.py \
+            --metadata-get-only > /tmp/server85-redacted.jsonl
+          cat /tmp/server85-redacted.jsonl
+          grep -F '"d01D06Release":"NO_GO"' /tmp/server85-redacted.jsonl >/dev/null
+          {
+            echo '## SERVER-85 — Cloudflare Access/private-route prerequisite inventory'
+            echo 'This job used Cloudflare GET-only metadata. No Worker, D1 or Access writes.'
+            echo 'Result: private Access and machine-to-Ubuntu connection NOT authorized or established.'
+            echo 'Next steps require policy/route authorization and an accessible physical Ubuntu host.'
+          } >> "$GITHUB_STEP_SUMMARY"

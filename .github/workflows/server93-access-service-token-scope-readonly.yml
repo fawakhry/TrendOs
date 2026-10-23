@@ -1,0 +1,50 @@
+name: SERVER-93 Cloudflare Access Service Token Capability (GET Only)
+
+# Always read-only: does not create/rotate/export service tokens or change Access.
+on:
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+    paths:
+      - .github/workflows/server93-access-service-token-scope-readonly.yml
+      - autonomous-printshop/print-server/tools/server93_service_token_scope_probe.py
+      - autonomous-printshop/print-server/tests/test_server93_service_token_scope_probe.py
+
+permissions:
+  contents: read
+
+jobs:
+  service-token-availability-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prove fake-only request path without inherited Cloudflare credentials
+        shell: bash
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ''
+          CLOUDFLARE_ACCESS_API_TOKEN: ''
+          SERVER93_METADATA_READ_ALLOWED: 'false'
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server93_service_token_scope_probe.py' -v
+      - name: Read ONLY Access Service Token metadata entitlement
+        shell: bash
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCESS_API_TOKEN: ${{ secrets.CLOUDFLARE_ACCESS_API_TOKEN }}
+          SERVER93_METADATA_READ_ALLOWED: 'true'
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 \
+            autonomous-printshop/print-server/tools/server93_service_token_scope_probe.py --get-only
+          {
+            echo '## SERVER-93: Cloudflare Access Service Token capability'
+            echo 'The stage still has a DENY ALL policy. This job uses GET only.'
+            echo 'No machine credential was created, rotated or revealed.'
+            echo 'Private Access policy / published routing / actual Ubuntu connectivity remain OFF.'
+          } >> "$GITHUB_STEP_SUMMARY"

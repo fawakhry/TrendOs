@@ -1,0 +1,105 @@
+name: SERVER-74 Cloudflare Worker Deployment Metadata (GET Only)
+
+# Owner-approved browser-free inventory. This never deploys or reads D1/customer data.
+on:
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+    paths:
+      - .github/workflows/server74-cloudflare-deployment-metadata-readonly.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server74-cloudflare-metadata-readonly
+  cancel-in-progress: false
+
+jobs:
+  cloudflare-metadata-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: GET deployment metadata only (no checkout, no business API, no D1 access)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from urllib.request import Request, build_opener, HTTPSHandler, HTTPRedirectHandler
+          from urllib.error import HTTPError, URLError
+
+          WORKERS = ('trendos', 'trendos-d1-api', 'trendos-d1-staging')
+          token = os.environ.get('CLOUDFLARE_API_TOKEN', '')
+          account = os.environ.get('CLOUDFLARE_ACCOUNT_ID', '')
+          if not token or not account:
+              print('SERVER74=NOT_RUN_REPOSITORY_CLOUDFLARE_SECRETS_UNAVAILABLE')
+              print('SERVER74_PRODUCTION_UNCHANGED=YES; D1_DATA_ACCESSED=NO')
+              raise SystemExit(0)
+          # Reject redirects to guarantee the bearer never reaches another authority.
+          class NoRedirect(HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+          opener = build_opener(HTTPSHandler(), NoRedirect())
+          for worker in WORKERS:
+              url = ('https://api.cloudflare.com/client/v4/accounts/' + account
+                  + '/workers/scripts/' + worker + '/deployments')
+              req = Request(url, method='GET', headers={
+                  'Authorization': 'Bearer ' + token,
+                  'Accept': 'application/json',
+              })
+              try:
+                  with opener.open(req, timeout=12) as response:
+                      if response.status != 200:
+                          print('SERVER74_WORKER=' + worker + ';VERIFIED=NO;HTTP_STATUS=' + str(response.status))
+                          continue
+                      payload = response.read(131073)
+                      if len(payload) > 131072:
+                          print('SERVER74_WORKER=' + worker + ';VERIFIED=NO;RESPONSE_TOO_LARGE=YES')
+                          continue
+                      body = json.loads(payload)
+                      if body.get('success') is not True or not isinstance(body.get('result'), dict):
+                          print('SERVER74_WORKER=' + worker + ';VERIFIED=NO;API_RESULT_INVALID=YES')
+                          continue
+                      deployments = body['result'].get('deployments')
+                      if not isinstance(deployments, list) or not deployments:
+                          print('SERVER74_WORKER=' + worker + ';VERIFIED=NO;NO_DEPLOYMENTS=YES')
+                          continue
+                      latest = deployments[0]
+                      if not isinstance(latest, dict):
+                          print('SERVER74_WORKER=' + worker + ';VERIFIED=NO;SHAPE_INVALID=YES')
+                          continue
+                      created = str(latest.get('created_on') or '')[:24]
+                      versions = latest.get('versions')
+                      if not isinstance(versions, list):
+                          versions = []
+                      safe_versions = []
+                      for version in versions[:3]:
+                          if isinstance(version, dict):
+                              safe_versions.append({
+                                  'version_prefix': str(version.get('version_id') or '')[:12],
+                                  'percent': version.get('percentage'),
+                              })
+                      print('SERVER74_WORKER_DEPLOYMENT=' + json.dumps({
+                          'worker': worker, 'verified_get': True,
+                          'deployed_at': created,
+                          'deployment_prefix': str(latest.get('id') or '')[:12],
+                          'versions': safe_versions,
+                          'github_sha_parity': 'NOT_VERIFIED',
+                      }, ensure_ascii=True, separators=(',', ':')))
+              except HTTPError as exc:
+                  # No response bodies; a 401/403 is a missing privilege, NOT Worker absence.
+                  print('SERVER74_WORKER=' + worker + ';VERIFIED=NO;HTTP_STATUS=' + str(exc.code))
+                  exc.close()
+              except (URLError, TimeoutError, ValueError, TypeError, KeyError, OSError):
+                  print('SERVER74_WORKER=' + worker + ';VERIFIED=NO;NETWORK_OR_SHAPE_ERROR=YES')
+          print('SERVER74_METHODS=GET_ONLY;URL_SCOPE=WORKER_DEPLOYMENT_METADATA_ONLY')
+          print('SERVER74_CUSTOMER_READ=NO;ORDERS_READ=NO;D1_READ=NO')
+          print('SERVER74_SECRETS_PRINTED=NO;WORKER_DEPLOY=NO;UBUNTU_EXECUTION=NO')
+          print('SERVER74_RELEASE_GATE_D01_TO_D06=UNCHANGED_NO_GO')
+          PY

@@ -16,6 +16,7 @@ function sandbox({enabled=false,omitSigner=false,omitSecret=false,returnStatus=2
   const sent=[];
   const values={
     D1_API_URL:'https://service-fixture.invalid',
+    D1_MIRROR_SERVICE_READ_V1_EXPECTED_HOSTNAME:'service-fixture.invalid',
     D1_MIGRATION_SECRET:'SYNTHETIC_IMPORT_SECRET_NOT_FOR_READS',
     D1_MIRROR_SERVICE_READ_V1_ENABLED:enabled?'true':'false',
     D1_MIRROR_METADATA_HMAC_SECRET:omitSecret?'':META_KEY,
@@ -109,6 +110,6 @@ test('signer rejects arbitrary route, not a generic API credential',()=>{
 });
 test('signed GET is never sent to a non-HTTPS API destination',()=>{
   const x=sandbox({enabled:true});x.values.D1_API_URL='http://unsafe.invalid';
-  assert.throws(()=>x.context.d1FullGet_('/v1/mirror/stats'),/SERVER67_D1_API_URL_NOT_SET/);
+  assert.throws(()=>x.context.d1FullGet_('/v1/mirror/stats'),/SERVER71_SIGNED_TARGET_NOT_APPROVED/);
   assert.equal(x.sent.length,0);
 });

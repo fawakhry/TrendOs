@@ -1,0 +1,37 @@
+name: SERVER-146 Cloudflare Access Schema Preflight Offline
+
+on:
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+    paths:
+      - autonomous-printshop/print-server/src/server146_access_schema_preflight.py
+      - autonomous-printshop/print-server/src/server136_access_ray_graphql.py
+      - autonomous-printshop/print-server/tests/test_server146_access_schema_preflight.py
+      - .github/workflows/server146-access-schema-preflight-offline.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fake-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCESS_CLIENT_ID: ''
+      CLOUDFLARE_ACCESS_CLIENT_SECRET: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run SERVER-146 fake-only schema preflight tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server146_access_schema_preflight.py' -v
+          echo 'SERVER146_CI=FAKE_ONLY; LIVE_GRAPHQL_CALLS=0'
+          echo 'EVENTS_QUERIED=0; ORDERS_READ=0; PRODUCTION_WORKER_TOUCHED=NO; PRINT_LASER=OFF'

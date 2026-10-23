@@ -10,8 +10,20 @@ function d1MirrorServiceReadEnabledV1_() {
 function d1MirrorServiceReadV1_(legacyPath) {
   if (!d1MirrorServiceReadEnabledV1_()) throw new Error('SERVER67_SECURE_MIRROR_CLIENT_OFF');
   var props = PropertiesService.getScriptProperties();
-  var apiUrl = String(props.getProperty('D1_API_URL') || '').replace(/\/+$/, '');
-  if (!apiUrl || !/^https:\/\//.test(apiUrl)) throw new Error('SERVER67_D1_API_URL_NOT_SET');
+  // SERVER-71: secure opt-in sends an HMAC signature only to an independently
+  // pinned HTTPS host. Never treat arbitrary Script Property URLs as approved.
+  // Existing legacy reads and scripts remain unchanged while opt-in is OFF.
+  var apiUrl = String(props.getProperty('D1_API_URL') || '').trim().replace(/\/+$/, '');
+  var expectedHost = String(props.getProperty('D1_MIRROR_SERVICE_READ_V1_EXPECTED_HOSTNAME') || '').trim().toLowerCase();
+  if (!expectedHost || !/^[a-z0-9][a-z0-9.-]*[a-z0-9]$/.test(expectedHost) ||
+      expectedHost.indexOf('..') !== -1 || !/\.[a-z]{2,63}$/.test(expectedHost)) {
+    throw new Error('SERVER71_SIGNED_TARGET_NOT_PINNED');
+  }
+  var urlMatch = /^https:\/\/([a-z0-9][a-z0-9.-]*[a-z0-9])$/i.exec(apiUrl);
+  if (!urlMatch || urlMatch[1].toLowerCase() !== expectedHost ||
+      urlMatch[1].indexOf('..') !== -1) {
+    throw new Error('SERVER71_SIGNED_TARGET_NOT_APPROVED');
+  }
   var match = /^\/v1\/mirror\/(stats|sheets|capabilities|sheet)(\?.*)?$/.exec(String(legacyPath || ''));
   if (!match) throw new Error('SERVER67_ROUTE_NOT_ALLOWED');
   var kind = match[1], query = match[2] || '';
@@ -21,7 +33,7 @@ function d1MirrorServiceReadV1_(legacyPath) {
     ? 'D1_MIRROR_PARITY_HMAC_SECRET'
     : 'D1_MIRROR_METADATA_HMAC_SECRET';
   var secret = String(props.getProperty(secretProperty) || '');
-  if (secret.length < 32) throw new Error('SERVER67_SERVICE_SECRET_MISSING');
+  if (secret.length < 32 || secret.length > 256) throw new Error('SERVER67_SERVICE_SECRET_MISSING');
   var path = '/v1/service/mirror/' + kind;
   var seconds = String(Math.floor(Date.now() / 1000));
   var nonce = Utilities.getUuid().replace(/-/g, '');
