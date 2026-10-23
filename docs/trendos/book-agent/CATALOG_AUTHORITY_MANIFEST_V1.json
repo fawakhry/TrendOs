@@ -1075,5 +1075,39 @@
     "CUTOVER": "NO_GO",
     "CATALOG": "FROZEN_MIGRATION_ONLY",
     "MUTATIONS": 0
+  },
+  "current_no_loss_gate_20261024_entry645_inherit_latest_collision_owner_guard_v1": {
+    "day": "2026-10-24",
+    "crosswalk_key": "book_agent_20261024_entry645_latest_inheritance_duplicate_binding_8cases_v1",
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "workflow_blob": "d075e30894d84fc99f492dec863fded94b55d096",
+    "book_head_before": "4ed401c0338f1a37233a4a75a864b1ec91113036",
+    "new_mock_case_executions": 8,
+    "expected_observations": "8/8",
+    "materially_new_boundary_variants": 5,
+    "controls": 3,
+    "latest_references_unpinned": true,
+    "duplicate_files_public_base_name_in_payload": true,
+    "duplicate_DB_if_present_in_source": true,
+    "actual_cloudflare_duplicate_binding_acceptance": "UNVERIFIED",
+    "actual_deployed_sha": "UNVERIFIED",
+    "actual_R2_binding": "UNVERIFIED",
+    "external_contract": "Cloudflare API docs: latest is most recently uploaded version and may differ from active deployed version; explicit ID may require different endpoint",
+    "owner_gates": [
+      "SERIALIZE_SAME_WORKER_ALL_WF_AND_EXTERNAL_WRITERS",
+      "VALIDATE_UNIQUE_EXISTING_AND_RESULT_BINDING_NAMES",
+      "REJECT_PREEXISTING_FILES_PUBLIC_BASE_URL_OR_VERSIONED_MIGRATION_WITH_CONFLICT_RESOLUTION",
+      "ATTEST_BINDING_SOURCE_ACTIVE_VERSION_EQUALS_ALLOWED_LATEST_AT_PATCH_TIME",
+      "USE_SUPPORTED_VERSION_TARGETED_API_OR_LOCK_NOT_UNSUPPORTED_PIN_IN_SETTINGS_PATCH",
+      "CHECK_EFFECTIVE_CLOUDFLARE_ACTIVE_BINDINGS_AND_SHA_AFTER_CONTROLLED_STAGE_CHANGE"
+    ],
+    "pr211_head_observed": "aa5a91165c58264f570503f9fd4d028748ae1914",
+    "pr221_head_observed": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "NEW_CI": "NOT_RUN",
+    "STAGE": "NO",
+    "PRODUCTION": "NO",
+    "FINANCE": "EASYSTORE",
+    "FINAL_CUTOVER": "NO_GO",
+    "live_mutations": 0
   }
 }

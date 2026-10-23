@@ -17939,5 +17939,114 @@
       "code_changes": 0,
       "merge": 0
     }
+  },
+  "book_agent_20261024_entry645_latest_inheritance_duplicate_binding_8cases_v1": {
+    "day": "2026-10-24",
+    "round": "BOOK-AGENT-20261024-ENTRY645-INHERIT-LATEST-COLLISION-8-SOURCE-CASES",
+    "book_head_before": "4ed401c0338f1a37233a4a75a864b1ec91113036",
+    "repo": "fawakhry/TrendOs",
+    "pr221_source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "source_path": ".github/workflows/trendos-entry645-content-r2-foundation-controlled.yml",
+    "source_blob": "d075e30894d84fc99f492dec863fded94b55d096",
+    "source_lines": "103-176",
+    "synthetic_executions": 8,
+    "expected_source_observations": "8/8",
+    "materially_new_boundary_variants": 5,
+    "controls": 3,
+    "cases": [
+      {
+        "id": "PINNING_BASE_DB_KV",
+        "outcome": "PASS",
+        "interpretation": "Payload DB and CACHE both inherit version_id latest, plus new FILES and public URL; baseline control"
+      },
+      {
+        "id": "DUPLICATE_FILES_PUBLIC_BASE_URL",
+        "outcome": "PASS_WITH_DUPLICATE",
+        "interpretation": "Old public base inherited and new base appended under identical name"
+      },
+      {
+        "id": "DUPLICATE_DB_BINDINGS_UNCHECKED",
+        "outcome": "PASS_WITH_DUPLICATE",
+        "interpretation": "Pre-settings duplicated DB entries retained despite Map check"
+      },
+      {
+        "id": "EXISTING_FILES_BLOCKED",
+        "outcome": "REJECT_BEFORE_PATCH",
+        "interpretation": "Existing FILES binding correctly denies PATCH; control"
+      },
+      {
+        "id": "MISSING_DB_BLOCKED",
+        "outcome": "REJECT_BEFORE_PATCH",
+        "interpretation": "Missing DB binding correctly denies PATCH; control"
+      },
+      {
+        "id": "LATEST_REFERENCE_WHEN_BINDINGS_HAVE_DISTINCT_VERSIONS",
+        "outcome": "PASS_WITH_LATEST",
+        "interpretation": "Even original mock version_id PRE and OLDER rewritten to latest in inherited payload"
+      },
+      {
+        "id": "CONCURRENT_BINDING_UPDATE_AFTER_GET",
+        "outcome": "PASS_UNGUARDED",
+        "interpretation": "Mock unrelated binding change after GET/before PATCH does not change payload or trigger additional pre-PATCH version/setting requery"
+      },
+      {
+        "id": "FILE_URL_COLLIDES_WITH_NON_PLAINTEXT_BINDING",
+        "outcome": "PASS_WITH_DUPLICATE",
+        "interpretation": "Old secret_text FILES_PUBLIC_BASE_URL inherited plus new plain_text same name"
+      }
+    ],
+    "methodology": "Original Node body extracted from lines 103-176. Terminal catch only changed from process.exit to throw; fake fs, fake Cloudflare fetch, injected FormData/Blob retaining PATCH JSON. All fake secrets/DB/bucket. No actual Bash, Cloudflare, R2, network, CI or customer files.",
+    "findings": [
+      "Existing binding objects are converted to {name,type:'inherit',version_id:'latest'} without pinning to PRE or each original binding's source. PATCH has no preceding re-read after settings GET.",
+      "An existing FILES_PUBLIC_BASE_URL (plain_text or secret_text) is inherited and a second plain_text of same name appended; no de-duplication or collision veto in source. Cloudflare validation behavior unknown.",
+      "A synthetic GET settings response with duplicate DB names passes source Map presence check, and both inherited records are emitted. Cloudflare may reject this; server behavior not tested.",
+      "When simulated remote binding changes after settings GET but before PATCH, code still constructs/dispatches same payload; actual inheritance resolution/race behavior not proven."
+    ],
+    "externally_confirmed_api_contract": {
+      "source_url": "https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/script_and_version_settings/",
+      "fact": "Cloudflare API docs explicitly say inherit.version_id='latest' resolves to most recently uploaded version, which may not be deployed version.",
+      "caveat": "Docs also say script upload and script/version upload endpoints accept only 'latest', while distinct Workers API versions endpoint can accept explicit ID. Do not assume simply changing version_id to PRE is supported by this PATCH route; test supported API and create isolated Stage proof before modifying."
+    },
+    "risks_not_proven": [
+      "Cloudflare accepted a payload with duplicate binding names",
+      "A live R2 binding was removed",
+      "Live Worker inherited secrets from an unintended newer version",
+      "Actual Cloudflare latest changed mid-PATCH",
+      "CI/Stage/Production green"
+    ],
+    "owner_next_gates": [
+      "SERIALIZE_SAME_WORKER_ALL_WF_AND_EXTERNAL_WRITERS",
+      "VALIDATE_UNIQUE_EXISTING_AND_RESULT_BINDING_NAMES",
+      "REJECT_PREEXISTING_FILES_PUBLIC_BASE_URL_OR_VERSIONED_MIGRATION_WITH_CONFLICT_RESOLUTION",
+      "ATTEST_BINDING_SOURCE_ACTIVE_VERSION_EQUALS_ALLOWED_LATEST_AT_PATCH_TIME",
+      "USE_SUPPORTED_VERSION_TARGETED_API_OR_LOCK_NOT_UNSUPPORTED_PIN_IN_SETTINGS_PATCH",
+      "CHECK_EFFECTIVE_CLOUDFLARE_ACTIVE_BINDINGS_AND_SHA_AFTER_CONTROLLED_STAGE_CHANGE"
+    ],
+    "concurrent": {
+      "pr211_sha": "aa5a91165c58264f570503f9fd4d028748ae1914",
+      "pr211_draft": true,
+      "pr221_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+      "pr221_draft": true
+    },
+    "evidence_level": {
+      "SOURCE_ONLY": "8/8_MOCK_PREDICATES",
+      "CLOUDFLARE_API_CALLS": 0,
+      "CI_NEW": "NOT_RUN",
+      "STAGE": "NO",
+      "PRODUCTION": "NO",
+      "DEPLOYED_SHA": "UNVERIFIED",
+      "R2_BINDING": "UNVERIFIED"
+    },
+    "authority": {
+      "MASTER": "ACTIVE_WRITE",
+      "CATALOG": "FROZEN_MIGRATION_ONLY",
+      "ARCHIVE": "UNCHANGED",
+      "CUTOVER": "NO_GO",
+      "FINANCE": "EASYSTORE",
+      "PROD_MUTATIONS": 0,
+      "CODE_MUTATIONS": 0,
+      "PR_MERGE": 0,
+      "REAL_CUSTOMER_DATA": 0
+    }
   }
 }
