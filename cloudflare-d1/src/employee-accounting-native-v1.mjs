@@ -2768,7 +2768,7 @@ async function acc212VerifyOpeningZeroEvidenceV1(env){
   }catch{return fail}
 }
 
-async function handleEmployeeAccountingNativeRequest(request,env){
+export async function handleEmployeeAccountingNativeRequest(request,env){
   const h=cors(request,env);if(request.method==='OPTIONS')return new Response(null,{status:204,headers:h});
   if(!originAllowed(request,env))return json({success:false,code:'origin-not-allowed'},403,h);
   const path=new URL(request.url).pathname.replace(/\/+$/,'')||'/';
