@@ -1,5 +1,9 @@
 import { verifyEmployeeSessionCloudFirst } from './cloud-session-bridge-v3.mjs';
-import { readOfficialCustomersV1 } from './accounting-customer-facts-contract-v1.mjs';
+// Lazy import preserves original fake-SQLite VM harnesses in legacy-mode tests.
+async function readOfficialCustomersV1(env,query){
+  const {readOfficialCustomersV1:read}=await import('./accounting-customer-facts-contract-v1.mjs');
+  return read(env,query);
+}
 
 const ROOT='/v1/employee/accounting';
 const HEALTH='/v1/employee/accounting/health';
