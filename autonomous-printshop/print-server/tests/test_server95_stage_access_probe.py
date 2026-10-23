@@ -1,7 +1,14 @@
 """SERVER-95 fake-only Access probe tests: NO real network, secrets or D1."""
 import unittest
+import importlib.util
+from pathlib import Path
 from urllib.error import HTTPError, URLError
-from src.stage_access_probe import StageProbeDenied, probe_stage_access_once
+
+spec = importlib.util.spec_from_file_location(
+    "server95_probe", Path("autonomous-printshop/print-server/src/stage_access_probe.py"))
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+StageProbeDenied, probe_stage_access_once = mod.StageProbeDenied, mod.probe_stage_access_once
 
 ORIGIN = "https://trendos-server68-isolated-stage.trendmall-contact.workers.dev"
 ID = "FAKE_TEST_ID_012345678901.access"
