@@ -17,13 +17,19 @@ const reason=(code,shape=false,counts={})=>Object.freeze({
   provenanceVerified:false,liveRuntimeVerified:false,
   version:T12_ORDER_CUSTOMER_FINANCE_FENCE_VERSION,...counts
 });
-function rows(db,sql,...params){
+async function rows(db,sql,...params){
  const s=db.prepare(sql);
- return params.length?s.bind(...params).all():s.all();
+ const response=await (params.length?s.bind(...params).all():s.all());
+ if(Array.isArray(response))return response; // node:sqlite disposable fixture
+ if(response&&Array.isArray(response.results))return response.results; // Cloudflare D1
+ throw new Error('unexpected D1 all() response');
 }
-function one(db,sql,...params){
+async function one(db,sql,...params){
  const s=db.prepare(sql);
- return params.length?s.bind(...params).first():s.first();
+ const response=await (params.length?s.bind(...params).first():s.first());
+ if(response===null||response===undefined)return null;
+ if(typeof response!=='object'||Array.isArray(response))throw new Error('unexpected D1 first() response');
+ return response;
 }
 export async function inspectOfficialT12OrderCustomerShape(db,input={}){
   if(!db||typeof db.prepare!=='function'||!input||typeof input!=='object'||
@@ -35,12 +41,12 @@ export async function inspectOfficialT12OrderCustomerShape(db,input={}){
      new Set(expectedLineIds).size!==expectedLineIds.length)
     return fail('INVALID_OR_DUPLICATED_EXACT_IDS');
   try{
-    const fk=rows(db,'PRAGMA foreign_key_list(t12_prod_orders)');
-    const fields=rows(db,'PRAGMA table_info(t12_prod_orders)');
+    const fk=await rows(db,'PRAGMA foreign_key_list(t12_prod_orders)');
+    const fields=await rows(db,'PRAGMA table_info(t12_prod_orders)');
     const hasOfficialKey=fields.some(x=>x.name==='customer_id');
     const hasOfficialFk=fk.some(x=>x.table==='t12_customers'&&x.from==='customer_id'&&x.to==='customer_id');
     if(!hasOfficialKey||!hasOfficialFk)return fail('OFFICIAL_CUSTOMER_ID_AND_FK_NOT_IN_SCHEMA');
-    const order=one(db,
+    const order=await one(db,
       'SELECT o.customer_id AS customerId,o.request_key AS requestKey, '+
       'l.status AS commitStatus,l.order_id AS ledgerOrderId,l.actor AS creatorActor, '+
       'c.active AS customerActive FROM t12_prod_orders o '+
@@ -53,7 +59,7 @@ export async function inspectOfficialT12OrderCustomerShape(db,input={}){
     if(order.commitStatus!=='COMMITTED'||order.ledgerOrderId!==orderId||
        !validId(order.creatorActor))
       return fail('ORDER_CREATION_NOT_COMMITTED');
-    const actual=rows(db,'SELECT line_id AS lineId FROM t12_prod_lines WHERE order_id=? ORDER BY line_id',orderId);
+    const actual=await rows(db,'SELECT line_id AS lineId FROM t12_prod_lines WHERE order_id=? ORDER BY line_id',orderId);
     const expectedSet=new Set(expectedLineIds);
     if(actual.length!==expectedLineIds.length||
        actual.some(x=>!validId(x.lineId)||!expectedSet.has(x.lineId)))
