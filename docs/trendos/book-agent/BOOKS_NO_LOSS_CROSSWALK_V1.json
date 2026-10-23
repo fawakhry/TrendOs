@@ -19033,5 +19033,46 @@
     "finance_authority": "EASYSTORE",
     "stage": "NOT_VERIFIED",
     "production": "NO_DEPLOY"
+  },
+  "migration_20261024_2_edge_revocation_hmac_history_exact_v1": {
+    "migration_id": "BOOK-MIGRATION-20261024-EDGE-REVOCATION-HMAC2-COPY-VERIFY-REMOVE",
+    "date": "2026-10-24",
+    "authority": "OWNER_CONTINUE_HISTORICAL_BOOK_MIGRATION",
+    "source_commit": "6330a795519ffbc4ba5351a2e91078984b6df7b5",
+    "source_master_blob": "11f855c39b0c2d88a5a648d1bee4ec1203ea4895",
+    "copy_commit": "465e148f1c555ba6cb4f97447b421960f90067b2",
+    "copy_catalog_blob": "f1b26f8389085e38f791b62f7b9fb1cd73dc2388",
+    "operation": "COPY_VERIFY_REMOVE",
+    "source_unchanged_during_copy": true,
+    "verified": "2/2_EXACT_FULL_TEXT_GIT_BLOB",
+    "characters": 6402,
+    "units": [
+      {
+        "id": "HIST-20261023-EDGE-REVOCATION-R2-DIGEST-12",
+        "sha": "31584ac0856abbf45d7569c00d50b4bb806d4222",
+        "characters": 2973
+      },
+      {
+        "id": "HIST-20261023-EDGE-HMAC-IAT-EXCHANGE-17",
+        "sha": "f0ccfa16ff67d100baa134d3092db7f99809b02f",
+        "characters": 3429
+      }
+    ],
+    "old_master_reconstruction": "SOURCE_MINUS_TWO_EXACT_STRINGS_PLUS_RECEIPT_AND_ENTRY694_EVENT_05",
+    "issue_ledger": [
+      "EDGE-694-01",
+      "R2-694-02",
+      "T12-694-04",
+      "EDGE-694-02",
+      "T12-694-05"
+    ],
+    "historical_executions": "12+17_SOURCE_OFFLINE_ONLY_NO_NEW_CI",
+    "archive": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "stage": "NOT_VERIFIED",
+    "production": "NO",
+    "old_master": "ACTIVE_WRITE",
+    "catalog": "FROZEN_MIGRATION_ONLY",
+    "cutover": "NO_GO",
+    "finance": "EASYSTORE"
   }
 }

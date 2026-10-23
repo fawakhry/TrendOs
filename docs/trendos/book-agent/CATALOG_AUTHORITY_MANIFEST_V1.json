@@ -1353,5 +1353,33 @@
     "production_deploy": "NO",
     "final_cutover": "NO_GO",
     "owner_approval": "NOT_GRANTED"
+  },
+  "current_no_loss_gate_20261024_edge_revocation_hmac_history_v1": {
+    "date": "2026-10-24",
+    "crosswalk_key": "migration_20261024_2_edge_revocation_hmac_history_exact_v1",
+    "source_commit": "6330a795519ffbc4ba5351a2e91078984b6df7b5",
+    "copy_commit": "465e148f1c555ba6cb4f97447b421960f90067b2",
+    "copy_catalog_blob": "f1b26f8389085e38f791b62f7b9fb1cd73dc2388",
+    "verification": "2/2_VERBATIM_GIT_BLOB",
+    "unit_count": 2,
+    "characters": 6402,
+    "remove_scope": "TWO_EXACT_ORIGINAL_STRINGS_ONLY",
+    "old_master_rebuilt_minus_units_plus_new_receipts": true,
+    "entry694_latest_event": "ENTRY694-LEDGER-EVENT-20261024-05",
+    "open_security_policy": [
+      "EDGE-694-01",
+      "R2-694-02",
+      "T12-694-04",
+      "EDGE-694-02",
+      "T12-694-05"
+    ],
+    "archive_unchanged_sha": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "active_master": "ACTIVE_WRITE",
+    "unified_catalog": "FROZEN_MIGRATION_ONLY",
+    "finance_authority": "EASYSTORE",
+    "stage": "NOT_VERIFIED",
+    "production_deploy": "NO",
+    "final_cutover": "NO_GO",
+    "owner_final_approval": "NOT_GRANTED"
   }
 }

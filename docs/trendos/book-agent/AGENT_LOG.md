@@ -736,3 +736,9 @@
 - Owner continuation on exact current book branch. Historical source original SHA `916ebcfa8e628f6e6ab2d6591f27385c74a20b1e`, COPY-only `d97efd0bff899ae3bbfd0490c467bdcf7ed47809`; fresh independent VERIFY 2/2, 5788 characters and stored Git Blob identity; old master unchanged until REMOVE.
 - REMOVE exactly 2 historical source-only fixture records (Edge/readback + R2 partial PUT/D1 failures; T12 COMMITTED replay outbox/event parity). No operational Entry 669-694 removed; old residual is exact old minus 2 strings plus receipt and ENTRY694-LEDGER-EVENT-20261024-04, preserving 3 open issues. Catalog remains frozen except COPY appendix.
 - Crosswalk `migration_20261024_2_t12_edge_r2_replay_fixtures_v1`, Manifest `current_no_loss_gate_20261024_t12_edge_r2_replay_fixtures_v1`; archive unchanged and no app/finance/production/network mutations. Source tests historical only, stage NO, final cutover NO_GO.
+
+
+## 2026-10-24 / BOOK-MIGRATION-20261024-EDGE-REVOCATION-HMAC2-COPY-VERIFY-REMOVE
+- On Master source `6330a795519ffbc4ba5351a2e91078984b6df7b5`, performed catalog-only COPY commit `465e148f1c555ba6cb4f97447b421960f90067b2`, re-fetched and checked both unit Git Blobs, full text, length and original Master presence 2/2 PASS (6402 chars); old active source unchanged during COPY.
+- Precise REMOVE of only two original historical source/offline security observations and appended exact receipt and ENTRY694-LEDGER-EVENT-20261024-05 for source findings left OPEN. The catalog was not edited after COPY, Master Entries669–694 untouched, protected archive unchanged.
+- Crosswalk `migration_20261024_2_edge_revocation_hmac_history_exact_v1`; Manifest `current_no_loss_gate_20261024_edge_revocation_hmac_history_v1`. No Cloudflare, customer, finance, Node CI, deploy, merge, data writes. Production=NO, Stage=NOT_VERIFIED, Final CUTOVER=NO_GO.
