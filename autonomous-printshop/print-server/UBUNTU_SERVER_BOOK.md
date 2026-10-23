@@ -978,3 +978,11 @@
 - Exact significance: earlier `No results found` excluded service-auth records by design. The filter must be changed to `Show service auth logs` for a meaningful UI inspection, and the original `Last 12 hours` window remains a separate coverage limitation.
 - Next single owner interaction: select **Show service auth logs**, inspect read-only table; do not export, adjust policies/tokens, issue Ubuntu requests or view customer data. No claim yet that any logs exist or HTTP403 is fixed.
 - `SERVICE_AUTH_LOG_FILTER_OPTIONS_CONFIRMED=YES`; `SHOW_SERVICE_AUTH_SELECTED=NOT_YET`; `HTTP403_CAUSE=UNRESOLVED`; `PRODUCTION_CHANGED=NO`.
+
+
+### SERVER-20261023-105 — Service Auth logs visible filter but no table results (owner screenshot, 2026-10-23 ~21:42 Cairo)
+
+- Owner switched Cloudflare One Access authentication logs filter from **Hide service auth logs** to **Show service auth logs**. UI URL now contains `non_identity=true`, one filter still active, previous yellow chart warning is absent. Visible time interval explicitly **2026-10-23 09:37 → 21:37** (Cairo user browser rendering), limit 50; table still **No results found**, graph Allowed 0/Blocked 0.
+- Evidence boundary: this proves the service-auth-specific dashboard view is empty **for the selected window**, not that the Access Service Token never reached the edge or that Access/Worker generated the previous HTTP 403. No timestamps/Ray IDs of old requests were correlated; known-token failures, unknown token IDs and default logging behavior may differ. Do not re-run Ubuntu 403 unchanged or infer success/failure from aggregate counters.
+- Next owner single read-only action: open the **date/time range dropdown** displaying `Oct 23, 09:37 → Oct 23, 21:37` to inspect available wider intervals; do not select/change any interval until choices are visible. No Export to CSV, production requests, credentials, Cloudflare config mutations or physical machine activity.
+- `SERVICE_AUTH_LOG_FILTER=SHOW`; `LOG_RESULTS_IN_12H=NONE`; `HTTP403_CAUSE=UNRESOLVED`; `ACCESS_AUTHENTICATED=NOT_PROVEN`; `CLOUDFLARE_CONFIG_WRITE=NO`; `PR190=DRAFT`.
