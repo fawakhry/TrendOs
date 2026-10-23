@@ -180,10 +180,11 @@ test('unknown account and wrong password return generic rejection without detail
   const b=fixture();
   const wrong=await b.call({body:{...input,password:'FAKE-Wrong-Password-NotReal-2026!'}});
   assert.equal(wrong.status,401);
-  assert.equal((await wrong.json()).code,'CUSTOMER_LOGIN_REJECTED');
+  const wrongData=await wrong.json();
+  assert.equal(wrongData.code,'CUSTOMER_LOGIN_REJECTED');
   assert.ok(b.calls.db.some(x=>x.kind==='fail'));
   assert.ok(!b.calls.db.some(x=>x.kind==='issue'));
-  assert.doesNotMatch(JSON.stringify({success:false,code:'CUSTOMER_LOGIN_REJECTED'}),/FAKE-C1|PC-FAKE-1|Password/);
+  assert.doesNotMatch(JSON.stringify(wrongData),/FAKE-C1|PC-FAKE-1|Password/);
 });
 test('valid mocked account issues real PBKDF2-verified opaque bearer and no private response fields',async()=>{
   verifier=await seededAccount();
