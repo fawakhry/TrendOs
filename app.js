@@ -4438,11 +4438,17 @@ Trend Mall`;
 
     const day = data.dayClose, dayPanel = $("dayClosePreviewPanel"), dayList = $("dayClosePreviewList");
     if (dayPanel) dayPanel.classList.toggle("hidden", !permissions.canCloseDay);
+    // Absence/errors are UNKNOWN, not an empty list of blockers.
+    const readyVerified = !!(day && !day.error && Array.isArray(day.blockers) &&
+      typeof day.ready === "boolean" && day.ready === (day.blockers.length === 0));
+    if (closeBtn) closeBtn.disabled = !permissions.canCloseDay || !readyVerified || !day.ready;
     if (permissions.canCloseDay && dayList) {
-      const blockers = (day && day.blockers) || [];
-      dayList.innerHTML = blockers.length ? blockers.map(function(v){ return '<div class="trend-list-item danger-text">' + escapeHtml(v) + '</div>'; }).join("") : '<div class="trend-list-item"><b>كل المراجعات سليمة، يمكن تنفيذ قفلة اليوم.</b></div>';
-      if ($("dayCloseReadyBadge")) $("dayCloseReadyBadge").textContent = blockers.length ? (blockers.length + " مانع") : "جاهز";
-      if (closeBtn) closeBtn.disabled = blockers.length > 0;
+      const blockers = readyVerified ? day.blockers : [];
+      dayList.innerHTML = !readyVerified ?
+        '<div class="trend-list-item danger-text"><b>غير جاهز للتحقق — بيانات المراجعة غير متاحة.</b></div>' :
+        blockers.length ? blockers.map(function(v){ return '<div class="trend-list-item danger-text">' + escapeHtml(v) + '</div>'; }).join("") :
+        '<div class="trend-list-item"><b>كل المراجعات سليمة، يمكن تنفيذ قفلة اليوم.</b></div>';
+      if ($("dayCloseReadyBadge")) $("dayCloseReadyBadge").textContent = !readyVerified ? "غير جاهز للتحقق" : blockers.length ? (blockers.length + " مانع") : "جاهز";
     }
   }
 
@@ -4479,8 +4485,24 @@ Trend Mall`;
   }
 
   async function runAccountingCloseV1931() {
-    if (!confirm("سيتم تقفيل العهد والليزر والطباعة والإجمالي بموافقة واحدة بعد فحص الموانع. هل تريد المتابعة؟")) return;
-    await runTrendMasterAction("runAccountingDayAutomationV1921", { confirm: "RUN_SAFE_DAY_CLOSE" });
+    // Always obtain a fresh server-side read preview before asking for approval.
+    // The financial backend rechecks all blockers again before any mutation.
+    try {
+      const preview = await api("getTrendMasterCenterV1931", authParams({ archivePage: state.archivePage, archiveQuery: state.archiveQuery }));
+      const day = preview && preview.success === true && preview.permissions &&
+        preview.permissions.canCloseDay === true && preview.dayClose;
+      state.trendMaster = preview && preview.success === true ? preview : state.trendMaster;
+      if (preview && preview.success === true) renderTrendMasterCenter();
+      if (!day || day.error || !Array.isArray(day.blockers) || day.ready !== true || day.blockers.length) {
+        alert("غير جاهز للتحقق — أعد فحص مراجعة اليوم وموانع التقفيل.");
+        return false;
+      }
+      if (!confirm("تمت مراجعة الموانع الآن. سيعيد الخادم فحصها قبل التقفيل. هل تؤكد؟")) return false;
+      return await runTrendMasterAction("runAccountingDayAutomationV1921", { confirm: "RUN_SAFE_DAY_CLOSE" });
+    } catch (err) {
+      alert("غير جاهز للتحقق — تعذر تحميل مراجعة اليوم.");
+      return false;
+    }
   }
 
 
@@ -6142,14 +6164,15 @@ Trend Mall`;
   }
 
   async function hardRefreshMainScreen() {
+    // CH27: never discard a live edit/save, and coalesce repeated refresh clicks.
+    if (state.editing || state.saving || state.refreshInFlight) return false;
+    state.refreshInFlight = true;
     const btn = $("refreshBtn");
     const oldText = btn ? btn.textContent : "";
     if (btn) {
       btn.disabled = true;
       btn.textContent = "جاري التحديث...";
     }
-    state.editing = false;
-    state.saving = false;
     try {
       await loadRows(true);
       try { if ($("matbagyNoteModal") && !$('matbagyNoteModal').classList.contains('hidden')) await loadMatbagyNotesServer(); } catch (e) {}
@@ -6158,12 +6181,16 @@ Trend Mall`;
     } catch (err) {
       setLoading((err && err.message) || "تعذر التحديث.", true);
     } finally {
+      state.refreshInFlight = false;
       if (btn) {
         btn.disabled = false;
         btn.textContent = oldText || "تحديث الآن";
       }
     }
+    return true;
   }
+  // Late legacy onclick patchers are suppressed by one capture listener below.
+  window.__TRENDOS_CH27_SAFE_REFRESH_V1__ = hardRefreshMainScreen;
 
   function startRefresh() {
     stopRefresh();
@@ -7499,7 +7526,8 @@ Trend Mall`;
     $("password").addEventListener("keydown", function (e) { if (e.key === "Enter") doLogin(); });
     $("username").addEventListener("keydown", function (e) { if (e.key === "Enter") $("password").focus(); });
 
-    $("refreshBtn").addEventListener("click", hardRefreshMainScreen);
+    // CH27 canonical click route is installed once at window capture in V1921 handoff.
+    // Do NOT also bind hardRefreshMainScreen here: legacy onclick patches coexist.
     $("logoutBtn").addEventListener("click", logout);
     $("changePassBtn").addEventListener("click", openPasswordModal);
     $("cancelPassBtn").addEventListener("click", closePasswordModal);
@@ -7589,7 +7617,19 @@ Trend Mall`;
     if (messageList) messageList.addEventListener("click", async function(ev){
       const openBtn=ev.target.closest&&ev.target.closest(".open-automation-wa"),copyBtn=ev.target.closest&&ev.target.closest(".copy-automation-message");
       if(copyBtn){const ok=await copyTextToClipboard(copyBtn.getAttribute("data-message")||"");alert(ok?"تم نسخ الرسالة.":"تعذر نسخ الرسالة.");return;}
-      if(openBtn){window.open(openBtn.getAttribute("data-wa-url")||"","TrendOS_WhatsApp");await runTrendMasterAction("markAutomationMessageSentV1931",{id:openBtn.getAttribute("data-message-id")},true);}
+      if(openBtn){
+        // Opening a WhatsApp compose window is NOT employee confirmation,
+        // provider acceptance, or delivery evidence. Never mark as SENT.
+        const waUrl = openBtn.getAttribute("data-wa-url") || "";
+        let target;
+        try { target = new URL(waUrl); } catch (err) { target = null; }
+        if (!target || target.protocol !== "https:" || !["wa.me","api.whatsapp.com"].includes(target.hostname)) {
+          alert("رابط واتساب غير صالح."); return;
+        }
+        const popup = window.open(target.toString(), "TrendOS_WhatsApp");
+        if (!popup) { alert("المتصفح منع فتح واتساب. الرسالة لم تُسجّل كمرسلة."); return; }
+        alert("تم فتح واتساب فقط. لم يتم تأكيد إرسال الرسالة أو قبولها أو تسليمها.");
+      }
     });
     const saveDebtRestrictionButton=$("saveDebtRestrictionBtn");
     if(saveDebtRestrictionButton)saveDebtRestrictionButton.addEventListener("click",async function(){
@@ -11009,11 +11049,14 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     return {name:user.name||safeLS('matbagy_user_name')||user.username||safeLS('matbagy_username')||'',username:user.username||safeLS('matbagy_username')||user.name||safeLS('matbagy_user_name')||'',token:user.token||safeLS('matbagy_session_token')||'',role:user.role||'',department:user.department||''};
   }
   function roleMode(){
-    var u=sessionUser(),blob=norm([u.name,u.username,u.role,u.department,safeLS('trendos_session')].join(' '));
-    if(/ضياء|diaa|admin|مدير/.test(blob))return 'admin';
-    if(/رحمه|رحمة|rahma|ريفان|ريڤان|revan|rivan|final/.test(blob))return 'final';
-    if(/جابر|gaber|jaber|laser|ليزر/.test(blob))return 'laser';
-    if(/وائل|wael|print|طباع/.test(blob))return 'print';
+    // UI navigation hint ONLY; never infer finance authorization from
+    // usernames, department labels, or serialized browser storage.
+    var live=(window.trendosState||window.state||{}).user||{};
+    var role=norm(live.role);
+    if(role==='admin')return 'admin';
+    if(role==='final')return 'final';
+    if(role==='laser')return 'laser';
+    if(role==='print')return 'print';
     return 'employee';
   }
   function entry619SsoNonce(){
@@ -11021,7 +11064,17 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     return 'sso-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12);
   }
   function entry619PostEmployeeSso(child,targetOrigin,nonce,u,params){
-    if(!child||!u||!u.token)return false;
+    // Mutable config must not route credentials to an untrusted SSO origin.
+    // EasyStore backend remains the only authority for financial roles.
+    if(targetOrigin!=='https://fawakhry.github.io'||!child||!u||!u.token||!nonce)return false;
+    // BOOK30 logout race: never retry an obsolete bearer token
+    // after logout, password change, or account switch in the current tab.
+    function sessionStillCurrent(){
+      var live=(window.trendosState||window.state||{}).user||{};
+      return !!live.token && live.token===u.token &&
+        String(live.username||live.name||'')===String(u.username||u.name||'');
+    }
+    if(!sessionStillCurrent())return false;
     var stopped=false,timer=null,tries=0;
     function stop(){
       if(stopped)return;stopped=true;
@@ -11036,6 +11089,7 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     }
     function send(){
       if(stopped)return;
+      if(!sessionStillCurrent()){stop();return;}
       tries++;
       try{
         child.postMessage({
@@ -11067,7 +11121,11 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     if(!u.token){alert('انتهت جلسة الموظف. سجل الدخول في TrendOS مرة أخرى ثم افتح الحسابات.');return false;}
     try{
       var url=new URL(base,location.href),screen=dayClose?'dailyClose':(mode==='admin'?'dashboard':mode==='final'?'final':'dept');
-      var nonce=entry619SsoNonce();
+      // Only the approved HTTPS EasyStore route may receive session credentials.
+        if(url.origin!=='https://fawakhry.github.io'||!/^\/EasyStore(?:\/|$)/.test(url.pathname)){
+          alert('تم رفض رابط EasyStore غير موثوق؛ لن يتم إرسال جلسة الموظف.');return false;
+        }
+        var nonce=entry619SsoNonce();
       var params={from:'trendos',sso:'1',employeeSSO:'1',skipLogin:'1',module:'accounting',screen:screen,mode:mode,roleMode:mode,department:mode==='laser'?'ليزر':mode==='print'?'طباعة':u.department,name:u.name,username:u.username,ssoNonce:nonce,v:CACHE_TAG};
       Object.keys(params).forEach(function(key){if(params[key]!==undefined&&params[key]!==null&&params[key]!=='')url.searchParams.set(key,params[key]);});
       var child=window.open(url.toString(),dayClose?'Matbagy_Accounting_Day_Close':'Matbagy_EasyStore_Accounting');
@@ -11099,7 +11157,24 @@ window.MATBAGY_V1886_PRODUCT_CATALOG_ONLY = true;
     if(!account&&!day)return;ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();return day?window.openMatbagyAccountingDayCloseV1921():window.openMatbagyEasyStoreAccountingV1921();
   },true);
   document.addEventListener('input',function(ev){if(mainVisible()&&ev.target&&ev.target.matches&&ev.target.matches('input:not([readonly]), textarea, select'))dirty=true;},true);
-  window.addEventListener('click',function(ev){if(ev.target&&ev.target.closest&&ev.target.closest('#refreshBtn')){dirty=false;lastSafeRefresh=Date.now();}},true);
+  // CH27: a single capture owner bypasses historical refresh onclick patches.
+  // stopImmediatePropagation is deliberate and scoped ONLY to refreshBtn.
+  window.addEventListener('click',function(ev){
+    var target=ev.target&&ev.target.closest?ev.target.closest('#refreshBtn'):null;
+    if(!target)return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();
+    var live=window.trendosState||window.state||{};
+    if(dirty||modalOpen()||live.editing||live.saving||live.refreshInFlight){
+      if(!live.refreshInFlight)alert('يوجد نموذج مفتوح أو تعديلات غير محفوظة؛ احفظها أو أغلقها قبل التحديث.');
+      return false;
+    }
+    lastSafeRefresh=Date.now();
+    var run=window.__TRENDOS_CH27_SAFE_REFRESH_V1__;
+    if(typeof run==='function')run();
+    return false;
+  },true);
   document.addEventListener('visibilitychange',function(){if(!document.hidden)safeRefresh();});
   window.addEventListener('focus',safeRefresh);
   if(typeof setInterval==='function')setInterval(safeRefresh,180000);

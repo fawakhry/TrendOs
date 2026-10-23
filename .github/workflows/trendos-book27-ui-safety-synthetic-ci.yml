@@ -1,0 +1,49 @@
+name: TrendOS Book27 UI Safety — Fake-Only CI
+on:
+  push:
+    branches:
+      - fix/book27-ui-safety-20261016
+    paths:
+      - 'app.js'
+      - 'Code.gs'
+      - 'tests/book27_ui_safety_synthetic.test.mjs'
+      - 'tests/frontend_easystore_sso_entry619.test.js'
+      - 'tests/trendos_resume_no_autorefresh_v1.test.mjs'
+      - '.github/workflows/trendos-book27-ui-safety-synthetic-ci.yml'
+  pull_request:
+    paths:
+      - 'app.js'
+      - 'Code.gs'
+      - 'tests/book27_ui_safety_synthetic.test.mjs'
+      - 'tests/frontend_easystore_sso_entry619.test.js'
+      - 'tests/trendos_resume_no_autorefresh_v1.test.mjs'
+      - '.github/workflows/trendos-book27-ui-safety-synthetic-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fake-ui-and-backend-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax validation
+        run: |
+          node --check app.js
+          node --check tests/book27_ui_safety_synthetic.test.mjs
+      - name: Chapter27 all four issue regression tests (fake only)
+        run: node --test tests/book27_ui_safety_synthetic.test.mjs
+      - name: Previous EasyStore SSO contract
+        run: node tests/frontend_easystore_sso_entry619.test.js
+      - name: Previous refresh suppression contract
+        run: node tests/trendos_resume_no_autorefresh_v1.test.mjs
+      - name: Safety declaration
+        run: |
+          echo "REAL_WHATSAPP_SEND=NO"
+          echo "REAL_DAY_CLOSE=NO"
+          echo "REAL_FINANCE_ACCESS=NO"
+          echo "PRODUCTION_DEPLOY=NO"
+          echo "MERGE=NO"

@@ -5181,7 +5181,17 @@ function runTrendMasterAutomationCoreV1931_(){
 function runTrendMasterAutomationV1931_(e){const p=(e&&e.parameter)||{},auth=authorize_(p.username,p.token);if(!auth.ok)return {success:false,message:auth.message};const role=roleFromArabic_(auth.user.role,auth.user.department);if(role!=="admin"&&searchKey_(auth.user.username).indexOf("ضياء")===-1)return {success:false,message:"تشغيل الأتمتة متاح لضياء فقط."};return runTrendMasterAutomationCoreV1931_();}
 function runTrendMasterAutomationScheduledV1931(){return runTrendMasterAutomationCoreV1931_();}
 function installTrendMasterAutomationV1931_(e){const p=(e&&e.parameter)||{},auth=authorize_(p.username,p.token);if(!auth.ok)return {success:false,message:auth.message};const role=roleFromArabic_(auth.user.role,auth.user.department);if(role!=="admin"&&searchKey_(auth.user.username).indexOf("ضياء")===-1)return {success:false,message:"تفعيل الأتمتة متاح لضياء فقط."};const existing=ScriptApp.getProjectTriggers().filter(function(t){return t.getHandlerFunction()==="runTrendMasterAutomationScheduledV1931";});if(!existing.length)ScriptApp.newTrigger("runTrendMasterAutomationScheduledV1931").timeBased().everyHours(1).create();return {success:true,message:existing.length?"الأتمتة مفعلة بالفعل كل ساعة.":"تم تفعيل الأتمتة كل ساعة: رسائل، تنبيهات، مخزون، تقييم وAI.",installed:true,version:"V1931_TREND_MASTER"};}
-function markAutomationMessageSentV1931_(e){const p=(e&&e.parameter)||{},auth=authorize_(p.username,p.token);if(!auth.ok)return {success:false,message:auth.message};const sheet=ensureAutomationQueueV1931_(),id=normalize_(p.id);if(!id||sheet.getLastRow()<2)return {success:false,message:"رقم الرسالة غير موجود."};const h=headersMap_(sheet),idc=firstCol_(h,["ID"],1),data=sheet.getRange(2,1,sheet.getLastRow()-1,sheet.getLastColumn()).getValues();for(let i=0;i<data.length;i++){if(normalize_(valueAt_(data[i],idc))!==id)continue;updateByHeaders_(sheet,i+2,{"حالة الإرسال":"تم الإرسال","تم بواسطة":auth.user.username,"وقت الإرسال":new Date()},true);return {success:true,message:"تم تسجيل إرسال الرسالة."};}return {success:false,message:"الرسالة غير موجودة."};}
+function markAutomationMessageSentV1931_(e){
+  const p=(e&&e.parameter)||{},auth=authorize_(p.username,p.token);
+  if(!auth.ok)return {success:false,message:auth.message};
+  // BOOK27: legacy client-side "open WhatsApp" cannot attest provider acceptance
+  // or delivery. Fail CLOSED; leave queue pending and do not touch the sheet.
+  // A future provider webhook must verify its signature, provider message ID,
+  // queue/order ownership and idempotent state transition separately.
+  return {success:false,code:"PROVIDER_ACK_REQUIRED",
+    message:"فتح واتساب أو تأكيد الموظف لا يثبت قبول مزود الإرسال أو التسليم؛ لم يتم تسجيل الرسالة كمرسلة.",
+    states:{whatsappOpened:"UNVERIFIED",employeeConfirmed:"UNVERIFIED",providerAccepted:"UNVERIFIED",delivered:"UNVERIFIED"}};
+}
 
 function getDashboard_(e) {
   const auth = authorize_(e.parameter.username, e.parameter.token);
