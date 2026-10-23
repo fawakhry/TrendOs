@@ -152,7 +152,10 @@ try {
     } finally {await hostilePage.close();}
     const posts=requests.filter(x=>x.method==='POST');
     const gets=requests.filter(x=>x.method==='GET');
-    assert.equal(posts.filter(x=>x.path.endsWith('/login')).length,1);
+    // Count only the approved UI origin; the negative Origin intentionally
+    // makes a routed login attempt which the Stage Worker must reject.
+    assert.equal(posts.filter(x=>x.path.endsWith('/login') &&
+      x.origin===frontend).length,1);
     assert.equal(posts.filter(x=>x.path.endsWith('/logout')).length,1);
     assert.ok(gets.some(x=>x.path.endsWith('/orders')));
     // Native POST content-type and Bearer GET/POST are non-simple browser
