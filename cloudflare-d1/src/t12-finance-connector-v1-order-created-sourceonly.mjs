@@ -16,7 +16,8 @@ export const T12_FINANCE_ORDER_CREATED_POLICY=Object.freeze({
   originalSourceReaderRequired:true,onlyEventType:'order_created',
   financialAuthority:false,customerOwnershipAttested:false,
   departmentApprovalsVerified:false,invoicePostingAllowed:false,
-  replayLedgerVerified:false,independentKeyCustodyVerified:false
+  replayLedgerVerified:false,independentKeyCustodyVerified:false,
+  timestampAnchoredToOriginalT12Create:true
 });
 const hasOwn=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
 const plain=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
@@ -105,12 +106,12 @@ function signatureBytes(s){
   return Uint8Array.from(raw,c=>c.charCodeAt(0));
  }catch{return null;}
 }
-function envelopeFromSource(o,at){
+function envelopeFromSource(o){
  const orderId=o.orderId,customerId=o.officialCustomerId;
  return {
   contract_version:'ACCOUNTING_CONNECTOR_CONTRACT_V1',
   event_id:'t12:order_created:'+orderId,event_type:'order_created',
-  occurred_at:new Date(Math.floor(at/1000)*1000).toISOString().slice(0,19)+'Z',
+  occurred_at:o.sourceCreatedAt,
   source_system:'TrendOS',source_entity_type:'order',source_entity_id:orderId,
   correlation_id:orderId,idempotency_key:'t12:order_created:'+orderId,
   evidence_refs:['t12:original-ledger:'+orderId,'t12:runtime-read:'+orderId],
@@ -143,7 +144,18 @@ export async function buildT12SignedOrderCreatedSourceOnly({
     o.canRequestInvoice!==false||o.connectorEventPublished!==false||
     o.posted!==false)
   return fail('ORIGINAL_T12_SOURCE_NOT_QUALIFIED');
- const envelope=envelopeFromSource(o,at);
+ // Rebuilding an envelope for the SAME idempotency key must reproduce
+ // EXACT same bytes even when the caller clock/time of retry changes.
+ // But do not mint a fresh signature for a long-expired create event;
+ // without a durable signed outbox, later retransmission is NOT qualified.
+ const sourceTime=Date.parse(o.sourceCreatedAt);
+ if(typeof o.sourceCreatedAt!=='string'||!Number.isSafeInteger(sourceTime)||
+    sourceTime<=0||new Date(sourceTime).toISOString().slice(0,19)+'Z'!==o.sourceCreatedAt)
+  return fail('ORIGINAL_T12_CREATE_TIME_NOT_ATTESTED');
+ const age=at-sourceTime;
+ if(age < -60000||age > 300000)
+  return fail('ORIGINAL_T12_CREATE_OUTSIDE_SIGNING_WINDOW');
+ const envelope=envelopeFromSource(o);
  if(!validEnvelope(envelope))return fail('ORIGINAL_T12_ENVELOPE_UNQUALIFIED');
  try{
   const bytes=new TextEncoder().encode(canonical(envelope));
