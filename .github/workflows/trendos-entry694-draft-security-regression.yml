@@ -1,0 +1,87 @@
+name: TrendOS Entry694 Draft Security Regression (no deploy)
+
+on:
+  push:
+    branches:
+      - agent/security-read-guards-entry692-20261024
+      - agent/cloudflare-rollback-files-guard-entry693-20261024
+    paths:
+      - '.github/workflows/trendos-entry694-draft-security-regression.yml'
+      - 'tests/entry692_private_read_guards.test.mjs'
+      - 'tests/entry693_cloudflare_guard_source.test.mjs'
+      - 'cloudflare-d1/src/employee-comms-native-v1.mjs'
+      - 'cloudflare-d1/src/employee-content-native-v1.mjs'
+      - 'cloudflare-d1/src/mirror-gate.mjs'
+      - 'cloudflare-d1/src/t12-read-overlay-handler.mjs'
+      - '.github/workflows/trendos-entry645-content-r2-foundation-controlled.yml'
+      - '.github/workflows/trendos-entry642-deploy-resilient-auth-hardening.yml'
+      - '.github/workflows/trendos-02cw-worker-codeonly-deploy-temp.yml'
+  pull_request:
+    branches:
+      - feat/zero-google-customer-finance-easystore-id-read-off-20261021
+    paths:
+      - '.github/workflows/trendos-entry694-draft-security-regression.yml'
+      - 'tests/entry692_private_read_guards.test.mjs'
+      - 'tests/entry693_cloudflare_guard_source.test.mjs'
+      - 'cloudflare-d1/src/employee-comms-native-v1.mjs'
+      - 'cloudflare-d1/src/employee-content-native-v1.mjs'
+      - 'cloudflare-d1/src/mirror-gate.mjs'
+      - 'cloudflare-d1/src/t12-read-overlay-handler.mjs'
+      - '.github/workflows/trendos-entry645-content-r2-foundation-controlled.yml'
+      - '.github/workflows/trendos-entry642-deploy-resilient-auth-hardening.yml'
+      - '.github/workflows/trendos-02cw-worker-codeonly-deploy-temp.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: entry694-security-regression-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  offline-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parse changed source and regression scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in             cloudflare-d1/src/employee-comms-native-v1.mjs             cloudflare-d1/src/employee-content-native-v1.mjs             cloudflare-d1/src/mirror-gate.mjs             cloudflare-d1/src/t12-read-overlay-handler.mjs; do
+            node --check "$f"
+          done
+          for f in tests/entry692_private_read_guards.test.mjs tests/entry693_cloudflare_guard_source.test.mjs; do
+            if [ -f "$f" ]; then node --check "$f"; fi
+          done
+      - name: Execute new isolated security and rollback regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          if [ -f tests/entry692_private_read_guards.test.mjs ]; then
+            node tests/entry692_private_read_guards.test.mjs
+            count=$((count+1))
+          fi
+          if [ -f tests/entry693_cloudflare_guard_source.test.mjs ]; then
+            node tests/entry693_cloudflare_guard_source.test.mjs
+            count=$((count+1))
+          fi
+          test "$count" -ge 1
+          echo "ENTRY694_NATIVE_TEST_MODULES=$count"
+      - name: Original offline module contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/entry614_employee_comms_native.test.mjs
+          node tests/entry614_employee_content_native.test.mjs
+          node tests/t12_read_overlay_handler.test.mjs
+          node tests/cloudflare_mirror_safety_v1.test.mjs
+          echo 'ENTRY694_LEGACY_MODULE_CONTRACTS=PASS'
+
+# No secrets, write permissions, Cloudflare credentials, wrangler deploy or live D1/R2.
