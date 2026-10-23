@@ -9797,3 +9797,41 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 <!-- END_VERBATIM_UNIT:HIST-20261024-ENTRY645-INHERIT-DUPLICATE-8 -->
 
 <!-- END_EXACT_HISTORICAL_MIGRATION:20261024_7_R2_ENTRY645_WORKFLOW_OFFLINE_AUDITS -->
+
+
+## ملحق تاريخي — تدقيقات مصدرية T12/Edge وR2 provenance وهوية الطلب (2026-10-24)
+
+<!-- BEGIN_EXACT_HISTORICAL_MIGRATION:20261024_3_T12_R2_IDENTITY_SOURCE_NOTES;SOURCE_COMMIT:4984909c534ef2b26528c7e5bd5245fdc9efce64 -->
+
+<!-- BEGIN_VERBATIM_UNIT:HIST-20261023-T12-ACK-EDGE-DELTA;OLD_COMMIT:4984909c534ef2b26528c7e5bd5245fdc9efce64;BLOB:8ec9595fe766e0c2862fe31dbe735ef84c979db3;CHARACTERS:2297 -->
+### BOOK-AGENT-20261023-T12-ACK-EDGE-DELTA-V1 — T12 ACK child integrity and Orders Edge session lifecycle (source-only)
+- At exact book HEAD `16973c4db843468ca6ff7bfb44403826f2331e82`, read unchanged original PR221 source SHA `fca5625e53815647addc6d183ebe4040990acdf5` and preserved Entries683–686, prior risk-ranked 14-gate semantic matrix and 22 frozen-catalog editorial proposals. No rerun of 578/467 links, migration, Entry686 tests or finance details.
+- **New T12 proof boundary:** original GENERAL CREATE writes activity plus per-line outbox within one D1 batch, but replay/ambiguous ACK `verifiedRead` validates ledger/order/lines only, not activity/outbox. Entry686 original finance intake checks both via an independent source-only reader not imported as GENERAL runtime enforcement. No observed loss of D1 transactional atomicity; requires synthetic fault-injection and explicit ACK-proof owner policy.
+- **New auth-lifecycle boundary:** Orders Edge issues 600s default / 900s max signed tokens after Apps Script employee verification; T12 GENERAL/READBACK verify Edge HMAC/expiry but not active native D1 session version/revocation, current role, order-specific employee ACL or additional readback scope. Native D1 logout/password updates do not automatically revoke already issued Edge tokens. Owner decisions: allowable revocation delay, least-privilege role/readback, synthetic logout/password/disable/role-change tests. No production access probe or exploited vulnerability asserted.
+- Exact pinned path/blob/range and the four evidence levels in Crosswalk `book_agent_20261023_t12_ack_and_edge_revocation_source_delta_v1` and Manifest `current_no_loss_gate_20261023_t12_ack_edge_source_delta_v1`. `SOURCE_ONLY=YES`; `NEW_CI_TESTS=NONE`; `STAGING/PRODUCTION=UNVERIFIED`. PR211 and PR221 remain independent OPEN DRAFTs, not one Worker; existing EasyStore is sole finance authority and T12 customer-order official ownership is unproven.
+- State unchanged: OLD ACTIVE_WRITE, NEW FROZEN_MIGRATION_ONLY, CUTOVER NO_GO, DEPLOYED_SHA UNVERIFIED, R2 PROVENANCE UNVERIFIED, SINGLE_WRITER OPEN, Google customer actions 0/9 retired. Existing Entries683–686, private596/599/600, SERVER61 and historical markers untouched. Zero code/cloud/customer/EasyStore/production/merge/deploy mutations.
+
+
+<!-- END_VERBATIM_UNIT:HIST-20261023-T12-ACK-EDGE-DELTA -->
+
+<!-- BEGIN_VERBATIM_UNIT:HIST-20261023-R2-PROVENANCE-DELTA;OLD_COMMIT:4984909c534ef2b26528c7e5bd5245fdc9efce64;BLOB:64137edcaab1b4ca6f991cb2e4743460b3b7f8df;CHARACTERS:2633 -->
+### BOOK-AGENT-20261023-R2-PROVENANCE-DELTA-V1 — R2 binary lifecycle & static deployment-config proof (OFF)
+- Continued at book HEAD `ce59fc4da657cc8103a6dc55c53d6b7a57fb3f67` with concurrent **Entry687** fully preserved; inspected immutable original PR221 source `fca5625e53815647addc6d183ebe4040990acdf5`. Reused existing BOOK20/BOOK22 file-ACL findings, no duplicate ticket or re-run of prior 467 link census, 115 migrations, or CI.
+- **Comms R2 chain:** `employee-comms-native-v1.mjs` writes `FILES.put` → `appendMessage` (D1 messages/conversation) → file metadata INSERT (D1), and stores upload SHA-256 in metadata. Separate steps have no visible durable pending marker or compensating R2 deletion; `serveFile` selects only key/MIME and does not validate bytes against stored SHA-256 or check order owner/`visible_to_customer` before reading. Hence `R2_BINARY_PROVENANCE=UNVERIFIED`, despite storing an upload hash. Synthetic orphan/partial-write and bad-hash deny tests need owner-approved design.
+- **Content R2 chain:** `employee-content-native-v1.mjs` writes R2 → D1 file row → (some actions) content record upsert; partial failure can leave unlinked blob/metadata. If `FILES_PUBLIC_BASE_URL` is set, the link points to that base + R2 key, otherwise fallback is the handler file route. Content FILE GET dispatch occurs before employee auth and uses `public,max-age=3600`; comms FILE GET likewise precedes auth and does not gate `visible_to_customer`. Owner must distinguish public advertising objects from private proofs and verify external R2 URL access policy; origin CORS does not replace authorization.
+- **Static deployment configuration limit:** checked same pinned SHA `cloudflare-d1/wrangler.toml` (`579b06e4918a9ed965be183e69742205f03cdc74`): worker entrypoint `production-shadow/index.js`, D1 DB stanza, **no declared R2 FILES bucket binding or FILES_PUBLIC_BASE_URL in this committed Wrangler file**. Cloudflare dashboard/separate config may differ. This does not establish deployed R2 absence or public accessibility; verify deployed SHA, actual binding, domain settings and binary checksum only by approved read-only evidence.
+- Evidence Crosswalk `book_agent_20261023_r2_file_delivery_provenance_source_delta_v1` / Manifest `current_no_loss_gate_20261023_r2_delivery_provenance_delta_v1`; `SOURCE_ONLY`, **new CI tests not run**, STAGING/PROD UNVERIFIED, no live file GETs. OLD ACTIVE_WRITE / NEW FROZEN_MIGRATION_ONLY / CUTOVER NO_GO; EasyStore financial authority and customer ownership gates unchanged, 0/9 verified Google customer actions retired; no runtime/cloud/finance/production or catalog changes.
+
+
+<!-- END_VERBATIM_UNIT:HIST-20261023-R2-PROVENANCE-DELTA -->
+
+<!-- BEGIN_VERBATIM_UNIT:HIST-20261023-T12-KEY-CUSTOMER-IDENTITY-DELTA;OLD_COMMIT:4984909c534ef2b26528c7e5bd5245fdc9efce64;BLOB:34b62fd9807823763320a245dfea6c28ffce777d;CHARACTERS:2057 -->
+### BOOK-AGENT-20261023-T12-KEY-IDENTITY-DELTA-V1 — source-only request-key and customer-lane identity evidence
+- Book HEAD `c53fb3a41351518345add7886d48f749e828c4c3`; pinned original T12 PR221 source `fca5625e53815647addc6d183ebe4040990acdf5`, no new CI or historical inventory, and preserved concurrent Entry687. **clientRequestId syntax ≠ key issuance authorization**: the raw client id must be one `cld1_<13digit>_<16–80 safe chars>` key; the namespace classifier explicitly reports `createAuthorized:false` even when syntactically eligible and requires a trusted, persistent server/session/epoch binding. GENERAL handler checks the signed Edge employee token and writer binds actor/epoch/payload to committed D1 ledger, but neither proves trusted *issuance* or browser retry persistence. New gate: owner issuance policy plus synthetic replays, wrong actor/payload/epoch and stale/future keys; no production creates.
+- **T12 operational customer lane ≠ EasyStore finance ownership:** sameCustomerIdentity uses registered phone if both present but may fall back to normalized exact **name** when a historical row lacks phone, despite new lane claim requiring strong phone material. For external customer mode, exact external id (if both present) or matching phone is used. These heuristics drive same-department duplicate prevention only and can produce false blocks when historical names collide; they do not verify official EasyStore customer_id/financial ownership. New gate: fake same-name/different-phone/Arabic-digit/missing-data and partial Print/Laser tests + explicit owner blocking policy.
+- Crosswalk `book_agent_20261023_t12_client_key_and_customer_lane_identity_delta_v1` / Manifest `current_no_loss_gate_20261023_t12_key_customer_identity_delta_v1`; `SOURCE_ONLY`; `CI_VERIFIED_NEW_CASES=NO`; STAGING/PRODUCTION UNVERIFIED; no duplicate issue, no code or live data access. Owner gates and EasyStore boundary remain NO_GO. OLD ACTIVE_WRITE; catalog FROZEN_MIGRATION_ONLY; Entry683–687/private SERVER61 preserved; ZERO_GOOGLE=0/9 VERIFIED.
+
+
+<!-- END_VERBATIM_UNIT:HIST-20261023-T12-KEY-CUSTOMER-IDENTITY-DELTA -->
+
+<!-- END_EXACT_HISTORICAL_MIGRATION:20261024_3_T12_R2_IDENTITY_SOURCE_NOTES -->
