@@ -17654,5 +17654,114 @@
       "workflows_triggered": 0
     },
     "duplicate_issue": false
+  },
+  "book_agent_20261023_entry645_activation_race_6cases_deployed_provenance_v1": {
+    "date": "2026-10-23",
+    "round": "BOOK-AGENT-20261023-ENTRY645-ACTIVATE-TOCTOU-6-SOURCE-CASES",
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "workflow": ".github/workflows/trendos-entry645-content-r2-foundation-controlled.yml",
+    "workflow_blob": "d075e30894d84fc99f492dec863fded94b55d096",
+    "source_lines": "179-224",
+    "book_head_before": "831a5700e878be7a1e7ce476367ebd62734bbbee",
+    "new_offline_test_count": 6,
+    "expected_observations_matched": "6/6",
+    "cases": [
+      {
+        "id": "baseline_pre_to_fresh",
+        "observed": "PASS",
+        "detail": "Initial PRE GET; POST FRESH; final GET FRESH; active marker YES"
+      },
+      {
+        "id": "mismatched_fresh_script_etag",
+        "observed": "REJECT_EXPECTED",
+        "detail": "No POST when version script etag differs"
+      },
+      {
+        "id": "already_third_party_active",
+        "observed": "REJECT_EXPECTED",
+        "detail": "Initial THIRD GET prevents POST"
+      },
+      {
+        "id": "post_ack_active_still_pre",
+        "observed": "REJECT_EXPECTED",
+        "detail": "POST acknowledged but GET PRE: no marker"
+      },
+      {
+        "id": "already_fresh_active",
+        "observed": "PASS",
+        "detail": "Initial FRESH GET; no POST; marker YES"
+      },
+      {
+        "id": "race_overwrites_intervening_third",
+        "observed": "PASS_IN_FAKE_ENV_RISK",
+        "detail": "GET PRE; mocked third-party change to THIRD between GET and POST; POST sets FRESH, final GET FRESH and success marker; intervening third change not detected"
+      }
+    ],
+    "method": "Execute original activation Node code with fake fetch and in-memory fs; only terminal catch instrumented to propagate test error. No Cloudflare/API/CI/customer data.",
+    "prior_patch_rollback_8_rerun": false,
+    "proven_from_source": [
+      "Checks script ETag before posting",
+      "Checks single 100-percent version before/after POST",
+      "Non-atomic GET PRE followed by POST FRESH can overwrite hypothetically intervening THIRD in mock"
+    ],
+    "not_proven": [
+      "Actual Cloudflare raced deployment",
+      "Cloudflare control plane transactional guarantees or CAS support",
+      "Active deployed source/binary, effective FILES binding, production readiness"
+    ],
+    "deployed_provenance_source": {
+      "worker_entrypoint": "cloudflare-d1/production-shadow/index.js",
+      "wrangler": "cloudflare-d1/wrangler.toml",
+      "wrangler_blob": "579b06e4918a9ed965be183e69742205f03cdc74",
+      "wrangler_files_declared": false,
+      "codeonly_deploy_workflow": "trendos-02cw-worker-codeonly-deploy-temp.yml",
+      "codeonly_blob": "b3037c872886bb37b6f0effee65e2a0ac8dce379",
+      "codeonly_command": "npx wrangler deploy --config cloudflare-d1/wrangler.toml",
+      "manual_artifact_workflow": "trendos-t12-entry500-manual-deploy-artifacts.yml",
+      "manual_artifact_blob": "b428536c5173f3102ca22dc0ac3486b8c4d80f67",
+      "manual_artifact_applies_to": "Entry498 SHA 28d67401461a445d71e7d21994ffc1eb2413ecce only: esbuild production-shadow/index.js -> dist/api/trendos-entry498-worker.js and SHA256, not current PR221 SHA/live Cloudflare",
+      "read_only_deployed_content_workflow_blob": "20241fe1b1647b096fdfba209e823451f6f15b3c",
+      "actual_current_compiled_bundle_sha256": "UNVERIFIED",
+      "actual_deployed_worker_sha": "UNVERIFIED",
+      "actual_active_FILES_binding": "UNVERIFIED"
+    },
+    "concurrent": {
+      "PR211": {
+        "sha": "339e731cf28accca5d072b3ee1e8b3d5fd927ede",
+        "state": "open",
+        "draft": true,
+        "summary": "ACC235 official customer source boundary, ACC236 private/native session Stage and ACC237 original-only D1 stage bootstrap offline tests; other agent owner."
+      },
+      "PR221": {
+        "sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "state": "open",
+        "draft": true
+      }
+    },
+    "owner_controls": [
+      "ATOMIC_SINGLE_WRITER_OR_CAS_FOR_DEPLOYMENT",
+      "DURABLE_PATCH_INTENT_AND_AMBIGUOUS_ACK_RECONCILIATION",
+      "NO_ROLLBACK_OF_UNRELATED_THIRD_PARTY_CHANGE",
+      "CURRENT_BUILD_SHA256_TO_ACTIVE_CLOUDFLARE_VERSION_ATTESTATION",
+      "FILES_BINDING_PRESERVATION_ACROSS_FUTURE_WRANGLER_DEPLOY"
+    ],
+    "proof_level": {
+      "SOURCE_ONLY": "6_OF_6_EXPECTED",
+      "NEW_CI": "NOT_RUN",
+      "STAGING": "NO",
+      "PRODUCTION": "NO",
+      "CLOUDFLARE_API": "NOT_CALLED",
+      "DEPLOYED_SHA": "UNVERIFIED",
+      "FILES_BINDING": "UNVERIFIED"
+    },
+    "policy": {
+      "MASTER": "ACTIVE_WRITE",
+      "CATALOG": "FROZEN_MIGRATION_ONLY",
+      "FINAL_CUTOVER": "NO_GO",
+      "FINANCE_AUTHORITY": "EASYSTORE",
+      "PRODUCTION_MUTATIONS": 0,
+      "CODE_MUTATIONS": 0,
+      "PR_MERGES": 0
+    }
   }
 }

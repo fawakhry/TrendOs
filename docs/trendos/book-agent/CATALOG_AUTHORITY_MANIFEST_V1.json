@@ -1005,5 +1005,35 @@
     "cutover": "NO_GO",
     "finance": "EASYSTORE",
     "live_mutations": 0
+  },
+  "current_no_loss_gate_20261023_entry645_activation_cas_and_deployment_provenance_v1": {
+    "date": "2026-10-23",
+    "crosswalk_key": "book_agent_20261023_entry645_activation_race_6cases_deployed_provenance_v1",
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "workflow_blob": "d075e30894d84fc99f492dec863fded94b55d096",
+    "old_book_head": "831a5700e878be7a1e7ce476367ebd62734bbbee",
+    "source_only_cases": "6/6",
+    "conditional_TOCTOU_mock_overwrites_third_party": true,
+    "actual_cloudflare_race_proven": false,
+    "current_live_SHA": "UNVERIFIED",
+    "current_bundle_SHA256": "UNVERIFIED",
+    "FILES_ACTIVE_BINDING": "UNVERIFIED",
+    "pr211_head": "339e731cf28accca5d072b3ee1e8b3d5fd927ede",
+    "pr221_head": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "owner_controls": [
+      "ATOMIC_SINGLE_WRITER_OR_CAS_FOR_DEPLOYMENT",
+      "DURABLE_PATCH_INTENT_AND_AMBIGUOUS_ACK_RECONCILIATION",
+      "NO_ROLLBACK_OF_UNRELATED_THIRD_PARTY_CHANGE",
+      "CURRENT_BUILD_SHA256_TO_ACTIVE_CLOUDFLARE_VERSION_ATTESTATION",
+      "FILES_BINDING_PRESERVATION_ACROSS_FUTURE_WRANGLER_DEPLOY"
+    ],
+    "MASTER": "ACTIVE_WRITE",
+    "CATALOG": "FROZEN_MIGRATION_ONLY",
+    "FINAL_CUTOVER": "NO_GO",
+    "FINANCE_AUTHORITY": "EASYSTORE",
+    "NEW_CI": "NOT_RUN",
+    "STAGING": "NO",
+    "PRODUCTION": "NO",
+    "LIVE_MUTATIONS": 0
   }
 }
