@@ -245,5 +245,26 @@
     "old_book_active_write": true,
     "new_unified_catalog_migration_only": true,
     "decision": "NO_GO_FINAL_ONE_BOOK_CUTOVER"
+  },
+  "current_no_loss_gate_checkpoint_20261023_after_26_receipts": {
+    "date": "2026-10-23",
+    "previous_checkpoint": "current_no_loss_gate_checkpoint_20261023_all_21",
+    "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+    "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+    "crosswalk_commit": "e37b2b42d22bd16e4510c9c1b761e4dd7afdac2d",
+    "source_characters": 11578,
+    "historical_server_sections_from_prior_batch": 21,
+    "historical_migration_receipt_sections_from_this_batch": 26,
+    "total_sections_transferred_by_oct23_rounds": 47,
+    "current_catalog_unique_balanced_begin_end_pairs": 87,
+    "no_loss_exact_removed_section_reconstruction": "PASS",
+    "active_master_remaining_content_not_all_transferred": true,
+    "private_Entry596_599_600": "PRESERVED_NOT_PUBLICLY_COPIED",
+    "SERVER_61": "PRESERVED_EXPLICIT_OWNER_HOLD",
+    "new_book_migration_only": true,
+    "old_master_active_write": true,
+    "owner_cutover_approval": false,
+    "final_cutover": "NO_GO",
+    "runtime_or_customer_changes": false
   }
 }
