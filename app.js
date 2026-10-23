@@ -1444,8 +1444,16 @@ Trend Mall`;
   }
 
   window.trendosSecureApiV1922 = async function(action, params) {
-    if (typeof window.trendosLegacyApiTransportV1 !== 'function') throw new Error('Cloud API transport غير جاهز.');
-    return window.trendosLegacyApiTransportV1(action, params);
+    // Entry: customer-only native transport. When OFF this is exactly the old
+    // Cloud→legacy dispatch. Employee/T12 routing stays under its own wrapper.
+    var legacy = function(a, p) {
+      if (typeof window.trendosLegacyApiTransportV1 !== 'function') throw new Error('Cloud API transport غير جاهز.');
+      return window.trendosLegacyApiTransportV1(a, p);
+    };
+    if (typeof window.trendosCustomerNativeBrowserDispatchV0 === 'function') {
+      return window.trendosCustomerNativeBrowserDispatchV0(action, params, legacy);
+    }
+    return legacy(action, params);
   };
 
   function api(action, params) { return window.trendosSecureApiV1922(action, params); }
