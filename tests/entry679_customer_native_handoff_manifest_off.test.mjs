@@ -20,17 +20,26 @@ const file={fileId:FILE,draftId:DRAFT,itemId:IT1,customerId:'C1',
  sha256Hex:'a'.repeat(64),objectKey:'customer-drafts/'+FILE,
  createdAtMs:NOW-10000,updatedAtMs:NOW-5000};
 let queries=[];
-function fake({account=owner,lines=items,attachments=[file],broken=false}={}){
+function fake({account=owner,lines=items,attachments=[file],
+ broken=false,invalidBatch=false}={}){
  return{prepare(sql){
   const kind=sql.includes('SELECT d.draft_id AS draftId')?'owner':
    sql===FILE_SQL?'files':'items';
   queries.push({kind,phase:'prepare'});
   return{bind(...args){queries.push({kind,phase:'bind',args});return{
-   async first(){if(broken)throw Error('PRIVATE_SCHEMA');return account;},
-   async all(){if(broken)throw Error('PRIVATE_SCHEMA');return{
-    results:kind==='files'?attachments:lines
-   };}
+   kind,
+   async first(){throw Error('NON_TRANSACTIONAL_FIRST_FORBIDDEN');},
+   async all(){throw Error('NON_TRANSACTIONAL_ALL_FORBIDDEN');}
   }}};
+ },
+ async batch(stmts){
+  queries.push({kind:'transaction',phase:'batch',count:stmts.length});
+  if(broken)throw Error('PRIVATE_SCHEMA');
+  if(invalidBatch)return[{success:true,results:[account]},{success:false,results:lines},
+    {success:true,results:attachments}];
+  return stmts.map(s=>({success:true,results:
+    s.kind==='owner'?(account?[account]:[]):
+    s.kind==='items'?lines:attachments}));
  }};
 }
 const run=(fixture=fake(),opts={})=>inspect({db:fixture,token:TOKEN,secret:SECRET,
@@ -44,7 +53,9 @@ test('manifest is never a new route, R2 writer or T12 order writer',()=>{
  assert.match(FILE_SQL,/LIMIT 251/);
  assert.equal(POLICY.httpRouteAvailable,false);
  assert.equal(POLICY.manifestPersisted,false);
- assert.equal(POLICY.crossReadAtomic,false);
+ assert.equal(POLICY.crossReadAtomic,true);
+ assert.equal(POLICY.readOnlyD1Batch,true);
+ assert.equal(POLICY.immutableSnapshot,false);
 });
 test('all 2 independent lines and READY R2 metadata represented without exposing PII',async()=>{
  queries=[];
@@ -58,7 +69,11 @@ test('all 2 independent lines and READY R2 metadata represented without exposing
  assert.equal(x.body.officialOrderCreated,false);
  assert.deepEqual(queries.filter(x=>x.phase==='prepare').map(x=>x.kind),
    ['owner','items','files']);
- assert.equal(queries.at(-1).args[0],DRAFT);
+ assert.equal(queries.filter(x=>x.phase==='batch').length,1);
+ assert.equal(queries.filter(x=>x.phase==='batch')[0].count,3);
+ assert.equal(queries.filter(x=>x.phase==='bind').at(-1).args[0],DRAFT);
+ assert.equal(x.body.transactionalReadBatch,true);
+ assert.equal(x.body.atomicConsistencyVerified,false);
  for(const leak of ['C1','عميل وهمي','01012345678','customer-drafts/',TOKEN,FILE,IT1])
   assert.equal(JSON.stringify(x).includes(leak),false,leak);
  const different=await run(fake({lines:[items[0],{...items[1],qty:2}]}));
@@ -101,6 +116,22 @@ test('pending, misplaced, wrongly owned, malformed, duplicate files rejected',as
   assert.equal(r.status,409);
   assert.equal(r.body.handoffReady,false);
  }
+});
+test('fail closed if adapter lacks D1 batch or a batch query did not succeed',async()=>{
+ const without=fake();delete without.batch;
+ const missing=await run(without);
+ assert.equal(missing.status,503);
+ assert.equal(missing.body.manifestDigest,undefined);
+ const partial=await run(fake({invalidBatch:true}));
+ assert.equal(partial.status,503);
+ assert.equal(partial.body.code,'MANIFEST_READ_TRANSACTION_NOT_VERIFIED');
+ assert.equal(partial.body.snapshotSealed,false);
+});
+test('D1 batch must replace all independent first/all SELECT calls',async()=>{
+ queries=[];
+ const x=await run(fake());
+ assert.equal(x.body.transactionalReadBatch,true);
+ assert.deepEqual(queries.filter(y=>y.phase==='batch').map(y=>y.count),[3]);
 });
 test('owner/session expiry, no DB, read errors never produce a digest',async()=>{
  for(const x of [
