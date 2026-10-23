@@ -5,6 +5,9 @@ on:
       - feat/zero-google-customer-finance-easystore-id-read-off-20261021
   pull_request:
     paths:
+      - 'cloudflare-d1/src/customer-portal-native-handoff-manifest-v0.mjs'
+      - 'tests/entry679_customer_native_handoff_manifest_off.test.mjs'
+      - 'tests/entry679_customer_native_handoff_manifest_sqlite.test.py'
       - 'cloudflare-d1/src/customer-portal-native-r2-pending-audit-v0.mjs'
       - 'tests/entry675_customer_r2_pending_audit_off.test.mjs'
       - 'tests/entry675_customer_r2_pending_audit_sqlite.test.py'
@@ -41,6 +44,7 @@ jobs:
           set -euo pipefail
           python3 tests/entry668_customer_finance_id_read_sqlite.test.py -v
           python3 tests/entry675_customer_r2_pending_audit_sqlite.test.py -v
+          python3 tests/entry679_customer_native_handoff_manifest_sqlite.test.py -v
           python3 tests/entry660_customer_native_orders_sqlite.test.py -v
       - name: Preserve all previous native portal stages and no new finance writer
         run: |
@@ -49,6 +53,8 @@ jobs:
           node --test tests/entry666_customer_native_r2_file_off.test.mjs
           node --check cloudflare-d1/src/customer-portal-native-r2-pending-audit-v0.mjs
           node --test tests/entry675_customer_r2_pending_audit_off.test.mjs
+          node --check cloudflare-d1/src/customer-portal-native-handoff-manifest-v0.mjs
+          node --test tests/entry679_customer_native_handoff_manifest_off.test.mjs
           node --test tests/entry665_customer_native_draft_item_off.test.mjs
           node --test tests/entry664_customer_native_draft_create_off.test.mjs
           node --test tests/entry663_customer_native_change_password_off.test.mjs
