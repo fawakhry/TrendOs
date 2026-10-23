@@ -1,0 +1,70 @@
+name: TrendOS Entry667 Customer Submit T12 Preflight OFF
+on:
+  push:
+    branches:
+      - feat/zero-google-customer-submit-t12-handoff-preflight-off-20261021
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/customer-portal-native-handoff-manifest-v0.mjs'
+      - 'tests/entry679_customer_native_handoff_manifest_off.test.mjs'
+      - 'tests/entry679_customer_native_handoff_manifest_sqlite.test.py'
+      - 'cloudflare-d1/src/customer-portal-native-r2-pending-audit-v0.mjs'
+      - 'tests/entry675_customer_r2_pending_audit_off.test.mjs'
+      - 'tests/entry675_customer_r2_pending_audit_sqlite.test.py'
+      - 'cloudflare-d1/src/customer-portal-native-submit-preflight-v0.mjs'
+      - 'tests/entry667_customer_draft_submit_preflight_off.test.mjs'
+      - 'tests/entry667_customer_draft_submit_preflight_sqlite.test.py'
+      - '.github/workflows/trendos-entry667-customer-submit-preflight-off-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  read-only-native-customer-submit-qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pure shadow T12 delegated preflight and customer boundary
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          OPENAI_API_KEY: ''
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/customer-portal-native-submit-preflight-v0.mjs
+          node --test tests/entry667_customer_draft_submit_preflight_off.test.mjs
+          node --test tests/entry666_customer_native_r2_file_off.test.mjs
+          node --check cloudflare-d1/src/customer-portal-native-r2-pending-audit-v0.mjs
+          node --test tests/entry675_customer_r2_pending_audit_off.test.mjs
+          node --check cloudflare-d1/src/customer-portal-native-handoff-manifest-v0.mjs
+          node --test tests/entry679_customer_native_handoff_manifest_off.test.mjs
+          node --test tests/entry665_customer_native_draft_item_off.test.mjs
+          node --test tests/entry664_customer_native_draft_create_off.test.mjs
+      - name: Real schema on fake-memory D1 SQLite no official T12 transaction
+        run: |
+          set -euo pipefail
+          python3 tests/entry667_customer_draft_submit_preflight_sqlite.test.py -v
+          python3 tests/entry675_customer_r2_pending_audit_sqlite.test.py -v
+          python3 tests/entry679_customer_native_handoff_manifest_sqlite.test.py -v
+          python3 tests/entry666_customer_native_r2_file_sqlite.test.py -v
+          python3 tests/entry665_customer_native_draft_item_sqlite.test.py -v
+          python3 tests/entry664_customer_native_draft_create_sqlite.test.py -v
+      - name: Existing Legacy employee guard regression
+        run: |
+          set -euo pipefail
+          node tests/entry653_zero_google_employee_legacy_proxy_retirement.test.mjs
+      - name: No production order or financial authority
+        run: |
+          echo 'NATIVE_SUBMIT_PREFLIGHT=SOURCE_ONLY'
+          echo 'OFFICIAL_T12_ORDER_CREATED=NO'
+          echo 'CUSTOMER_DIRECT_T12_CREATE=DENIED'
+          echo 'EXACTLY_ONCE_PRODUCTION_ORDER=UNVERIFIED'
+          echo 'EASYSTORE_FINANCE_APPROVAL=NOT_GRANTED'
+          echo 'CLOUDFLARE_D1_GOOGLE_PROD_MUTATION=NO'
+          echo 'CUSTOMER_GOOGLE_LEGACY_RETIRED=0_OF_9'
+          echo 'ZERO_GOOGLE_COMPLETE=NO'
