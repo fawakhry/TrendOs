@@ -13317,5 +13317,130 @@
     "catalog_state": "FROZEN_MIGRATION_ONLY",
     "master_state": "ACTIVE_WRITE",
     "decision": "NO_GO"
+  },
+  "migration_resumed_20261023_2_receipts_embedded_after_protected_SERVER61": {
+    "date": "2026-10-23",
+    "description": "Copy two independent historical MIGRATION UNIT 004/005 receipts after protected SERVER-61 note without moving any part of SERVER-61",
+    "source": "TrendOS_MASTER_BOOK.md",
+    "destination": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+    "source_at_initial_head": "d7109e6eebb2e052350cc88aba3d323505caaee3",
+    "source_blob_before": "0b82bc5f0917b1d0335de5da073e617c14726c74",
+    "copy_commit": "f1efe60cb04d531b8d80dd46cf25e8ff9a87a66a",
+    "remove_commit": "519078a2f717cdd0e3a3bfee910a49a707f8b23c",
+    "source_blob_after": "f54de08884ff016e55f077877c192803b30be1b0",
+    "destination_blob_after": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "units": [
+      {
+        "historical_id": "MIGRATION UNIT 004",
+        "source_characters": 961,
+        "catalog_marker": "MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_004",
+        "independently_refetched_source_to_destination_exact": "PASS",
+        "old_section_removed_after_full_comparison": "PASS",
+        "category": "HISTORICAL_ADMINISTRATIVE_RECEIPT_NOT_ACTIVE_SERVER61_BODY"
+      },
+      {
+        "historical_id": "MIGRATION UNIT 005",
+        "source_characters": 816,
+        "catalog_marker": "MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_005",
+        "independently_refetched_source_to_destination_exact": "PASS",
+        "old_section_removed_after_full_comparison": "PASS",
+        "category": "HISTORICAL_ADMINISTRATIVE_RECEIPT_NOT_ACTIVE_SERVER61_BODY"
+      }
+    ],
+    "source_characters_total": 1777,
+    "individual_text_match": "2_OF_2_PASS",
+    "old_book_exact_reconstruction_using_original_sha": "PASS",
+    "protected_server61_exact_prefix_preserved": true,
+    "server61_explicit_no_move_hold": "ACTIVE_UNCHANGED",
+    "protected_order_entries": "Entry596 and Entry599/600 unchanged in old only",
+    "parallel_active_engineering_entries_preserved": [
+      "Entry669",
+      "Entry670",
+      "Entry671"
+    ],
+    "oct23_verified_historical_sections_before": 73,
+    "oct23_verified_historical_sections_after": 75,
+    "oct23_source_characters_after": 109955,
+    "older_38_archived_historical_transfer_units_separate": true,
+    "catalog_unique_begin_end_marker_pairs": 115,
+    "still_in_old_master": [
+      {
+        "section_heading": "1. الحالة النشطة — Production baseline بعد Entry600",
+        "source_start_offset": 5861,
+        "characters": 56,
+        "classification": "ACTIVE_OWNER_TRANSITION_AND_EDITORIAL_POLICY_KEEP_OLD"
+      },
+      {
+        "section_heading": "Entry596 — أوردرات Legacy قديمة ظاهرة Active رغم أنها مُسلّمة",
+        "source_start_offset": 5917,
+        "characters": 1557,
+        "classification": "PRIVACY_HELD_RAW_RECORD"
+      },
+      {
+        "section_heading": "Entry599/600 — إصلاح Production للأوردرات القديمة = CLOSED PASS",
+        "source_start_offset": 7474,
+        "characters": 2493,
+        "classification": "PRIVACY_HELD_RAW_RECORD"
+      },
+      {
+        "section_heading": "Owner Book Transition Progress — 2026-10-16 / OLD_WRITE_ACTIVE_AND_NEW_FROZEN",
+        "source_start_offset": 9967,
+        "characters": 1578,
+        "classification": "ACTIVE_OWNER_TRANSITION_AND_EDITORIAL_POLICY_KEEP_OLD"
+      },
+      {
+        "section_heading": "SERVER-20261016-61 — customer-manager D1 bridge malformed-response fallback (2026-10-16)",
+        "source_start_offset": 11545,
+        "characters": 2130,
+        "classification": "EXPLICIT_OWNER_NO_MIGRATE"
+      },
+      {
+        "section_heading": "2026-10-23 — Entry669 Zero Google finance safety (LIVE status: NO_GO)",
+        "source_start_offset": 13675,
+        "characters": 3336,
+        "classification": "ACTIVE_ENGINEERING_NOTE_KEEP_OLD"
+      },
+      {
+        "section_heading": "BOOK-AGENT-20261023-71-SAFE-TRANSFERS-FINAL-CURRENT-CHECKPOINT",
+        "source_start_offset": 17011,
+        "characters": 2447,
+        "classification": "ACTIVE_BOOK_AGENT_CHECKPOINT_KEEP_OLD"
+      },
+      {
+        "section_heading": "2026-10-23 — Entry670 T12 zero-loss draft preflight and PR chain audit",
+        "source_start_offset": 19458,
+        "characters": 3784,
+        "classification": "ACTIVE_ENGINEERING_NOTE_KEEP_OLD"
+      },
+      {
+        "section_heading": "2026-10-23 — Entry671 live T12 health read-only verification",
+        "source_start_offset": 23242,
+        "characters": 1504,
+        "classification": "ACTIVE_ENGINEERING_NOTE_KEEP_OLD"
+      },
+      {
+        "section_heading": "2026-10-23 — Entry672 legacy and operator-task source/runtime route audit",
+        "source_start_offset": 24746,
+        "characters": 2041,
+        "classification": "ACTIVE_OWNER_TRANSITION_AND_EDITORIAL_POLICY_KEEP_OLD"
+      },
+      {
+        "section_heading": "2026-10-23 — Entry673 public frontend reachability",
+        "source_start_offset": 26787,
+        "characters": 820,
+        "classification": "ACTIVE_OWNER_TRANSITION_AND_EDITORIAL_POLICY_KEEP_OLD"
+      },
+      {
+        "section_heading": "BOOK-AGENT-20261023-73-EXACT-MIGRATIONS-AND-CONCURRENT-SOURCE-PRESERVATION",
+        "source_start_offset": 27607,
+        "characters": 2395,
+        "classification": "ACTIVE_BOOK_AGENT_CHECKPOINT_KEEP_OLD"
+      }
+    ],
+    "no_runtime_evidence_promoted": true,
+    "cutover_owner_approved": false,
+    "old_master_authority": "ACTIVE_WRITE",
+    "catalog_authority": "FROZEN_MIGRATION_ONLY",
+    "decision": "NO_GO"
   }
 }
