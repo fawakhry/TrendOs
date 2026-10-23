@@ -107,6 +107,38 @@ class StageAccessTest(unittest.TestCase):
             self.assertEqual(m.main(["--install-exact-deny-all"]),2)
             self.assertEqual(m.main([]),64)
 
+    def test_use_separate_access_write_token_and_existing_worker_read_token(self):
+        class R:
+            status=200
+            def __enter__(self): return self
+            def __exit__(self,*a): pass
+            def read(self,n=-1): return b'{"success":true,"result":{}}'
+        class Spy:
+            def __init__(self): self.seen=[]
+            def open(self,req,timeout):
+                self.seen.append((req.get_method(),req.full_url,req.get_header("Authorization")))
+                return R()
+        spy=Spy()
+        writer="ACCESS_ONLY_FAKE_TOKEN_0123456789"
+        reader="WORKER_READ_FAKE_TOKEN_0123456789"
+        acct="c"*32
+        a=m.API(acct,writer,opener=spy,worker_read_token=reader)
+        self.assertEqual(a.call("GET",f"/accounts/{acct}/workers/scripts/{m.STAGE}/settings"),{})
+        self.assertEqual(a.call("GET",f"/accounts/{acct}/access/apps?page=1&per_page=100"),{})
+        self.assertEqual(a.call("POST",f"/accounts/{acct}/access/apps",m.exact_deny_payload(WORKER)),{})
+        self.assertEqual([x[2] for x in spy.seen],
+                         ["Bearer "+reader,"Bearer "+writer,"Bearer "+writer])
+        self.assertTrue(all("trendos-d1-api" not in x[1] for x in spy.seen))
+
+    def test_no_access_token_from_worker_read_only_secret_in_main(self):
+        with patch.dict(os.environ,{
+            "SERVER87_OWNER_STAGE_AUTH_ONLY":"true",
+            "CLOUDFLARE_ACCOUNT_ID":"c"*32,
+            "CLOUDFLARE_API_TOKEN":"WORKER_READ_ONLY_LONG_TOKEN_123456",
+            "CLOUDFLARE_ACCESS_API_TOKEN":""
+        },clear=True):
+            self.assertEqual(m.main(["--install-exact-deny-all"]),2)
+
     def test_allowlist_request_cannot_target_production_scripts(self):
         a=m.API("c"*32,"FAKE_TOKEN_01234567890123456789",opener=object())
         with self.assertRaisesRegex(m.StageDenied,"ENDPOINT_OR_METHOD_DENIED"):
