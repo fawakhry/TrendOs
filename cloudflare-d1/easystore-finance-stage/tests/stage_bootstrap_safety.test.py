@@ -160,6 +160,23 @@ class StageBootstrapTests(unittest.TestCase):
             self.assertFalse(any(x in c for cmd in cli.commands for c in cmd
                                  for x in ("time-travel", "restore", "delete")))
 
+    def test_provider_soft_failure_does_not_count_as_applied(self):
+        class SoftFail(OfflineWrangler):
+            def run(self, *cmd):
+                if "--file" in cmd:
+                    return '[{"success":false,"results":[]}]'
+                return super().run(*cmd)
+        with tempfile.TemporaryDirectory() as folder:
+            cli = SoftFail()
+            with self.assertRaisesRegex(
+                b.GateError, "REMOTE_MIGRATION_APPLY_RESULT_NOT_CONFIRMED"
+            ):
+                b.apply_stage(cli, folder, b.STAGE_UUID,
+                              "EXCLUSIVE_STAGE_CHANGE_WINDOW")
+            self.assertEqual(cli.apply_files, [])
+            self.assertTrue((Path(folder) / "pre_migration_original_stage.sql").is_file())
+            self.assertFalse((Path(folder) / "stage_schema_evidence.json").exists())
+
     def test_wrong_configuration_or_unprotected_backup_halts_before_remote(self):
         with tempfile.TemporaryDirectory() as folder:
             Path(folder).chmod(0o755)
