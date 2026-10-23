@@ -17,6 +17,11 @@ ACCOUNTING_FINANCE_GRANTS_V1 = "{\"version\":1,\"grants\":[]}"
 EASYSTORE_CUSTOMER_CREDIT_V1 = "OFF"
 EASYSTORE_CUSTOMER_SOURCE_V1 = "REMOTE_REQUIRED"
 
+# Internal read-only operational source via Worker service binding.
+[[services]]
+binding = "TRENDOS_CUSTOMER_FACTS"
+service = "trendos-customer-facts-stage-source"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "easystore-accounting-staging"
