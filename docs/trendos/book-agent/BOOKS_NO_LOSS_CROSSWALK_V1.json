@@ -17293,5 +17293,124 @@
       "PRODUCTION_MUTATIONS": 0
     },
     "duplicates": false
+  },
+  "book_agent_20261023_entry645_r2_postflight_false_green_subgate_7cases_v1": {
+    "date": "2026-10-23",
+    "read_head_before_write": "8f22b2281ce3629f797a772f247804848982c87c",
+    "pinned_original_source_commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "source": {
+      "workflow": ".github/workflows/trendos-entry645-content-r2-foundation-controlled.yml",
+      "blob": "d075e30894d84fc99f492dec863fded94b55d096",
+      "exact_lines": "L226-L266",
+      "r2_health_gate": "L233-L238",
+      "missing_file_http_code_gate": "L244-L245",
+      "code_etag_same_version": "L204-L222"
+    },
+    "execution_harness": "Extracted EXACT current workflow Node health predicate from lines 235-237 (replaced process.exit with equivalent return) and applied exact Bash `test \"$code\" = \"404\"` to fake HTTP status. Executed 7 synthetic V8 source sub-gate cases only. No entire workflow/GitHub Actions, Cloudflare, D1, R2, real object or actual private URL was accessed.",
+    "case_count": 7,
+    "assertions_match_expected": 7,
+    "cases": [
+      {
+        "name": "healthy_postflight_with_raw_key_route_404",
+        "inputs": {
+          "health_good": true,
+          "nonexistent_file_http": 404,
+          "raw_key_file_http": 404,
+          "real_file_get_checked": false
+        },
+        "r2_subgate": "ACCEPTED",
+        "risk_not_seen": "RAW_LINK_ROUTE_UNQUALIFIED"
+      },
+      {
+        "name": "healthy_postflight_with_real_r2_get_403",
+        "inputs": {
+          "health_good": true,
+          "nonexistent_file_http": 404,
+          "existing_file_get_http": 403
+        },
+        "r2_subgate": "ACCEPTED",
+        "risk_not_seen": "REAL_FILE_READBACK_UNQUALIFIED"
+      },
+      {
+        "name": "healthy_postflight_with_private_unauth_get_200",
+        "inputs": {
+          "health_good": true,
+          "nonexistent_file_http": 404,
+          "unauthorized_private_file_http": 200
+        },
+        "r2_subgate": "ACCEPTED",
+        "risk_not_seen": "FILE_ACL_UNQUALIFIED"
+      },
+      {
+        "name": "healthy_postflight_with_returned_file_url_unverified",
+        "inputs": {
+          "health_good": true,
+          "nonexistent_file_http": 404,
+          "file_url_route_attested": false
+        },
+        "r2_subgate": "ACCEPTED",
+        "risk_not_seen": "FILE_URL_PATH_UNQUALIFIED"
+      },
+      {
+        "name": "r2Ready_false",
+        "inputs": {
+          "health_good": false,
+          "r2Ready": false,
+          "nonexistent_file_http": 404
+        },
+        "r2_subgate": "REJECTED",
+        "control": "CORRECT_NEGATIVE_CONTROL"
+      },
+      {
+        "name": "nonexistent_file_returns_200",
+        "inputs": {
+          "health_good": true,
+          "nonexistent_file_http": 200
+        },
+        "r2_subgate": "REJECTED",
+        "control": "CORRECT_NEGATIVE_CONTROL"
+      },
+      {
+        "name": "content_mode_general",
+        "inputs": {
+          "health_good": false,
+          "content_mode": "GENERAL",
+          "nonexistent_file_http": 404
+        },
+        "r2_subgate": "REJECTED",
+        "control": "CORRECT_NEGATIVE_CONTROL"
+      }
+    ],
+    "new_observation": "The Entry645 R2 portion of postflight accepts healthy flags and a 404 for an intentionally nonexistent file. Neither component tests a real fixture PUT→metadata mapping→generated URL→authorized GET, nor private-file unauthorized denial, checksum, R2 object read, CDN/direct bucket path or deployed SHA. A pass of the isolated R2 sub-gate cannot certify those controls; full historical workflow and other postflight stability checks were not simulated.",
+    "historic_boundary": {
+      "Entry645_Attempt1": "BLOCKED_SAFE_2026_10_07_R2_API_403_NO_SETTINGS_PATCH_AS_FROZEN_RECORD",
+      "full_entry645_workflow_success": "NOT_ATTESTED_CURRENTLY",
+      "previous_R2_link_fixture": "book_agent_20261023_entry645_r2_binding_raw_url_route_fixture_v1",
+      "real_production_failure": "NOT_ASSERTED"
+    },
+    "evidence_contract": {
+      "code_provenance": "read-only active Cloudflare deployment ID, exactly one 100-percent Worker version, source/binary hash compare to pinned commit through build artifact, account/route and worker identity; redact secrets",
+      "effective_settings": "read-only exact active version FILES binding and R2 bucket identity, FILES_PUBLIC_BASE_URL route/CDN policy, storage scope, source and activation provenance; do not infer from static Wrangler",
+      "positive_file_delivery": "approved synthetic file in disposable non-production bucket, upload+metadata+returned URL route readback+checksum, R2 key vs handler path, prove authorized read and fake unauthorized deny BEFORE FILES.get, no real client files",
+      "safe_transition": "owner-reviewed rollback, binding persistence test after isolated Wrangler deploy, signed evidence with timestamps and redacted sensitive identifiers; no live run without owner authorization"
+    },
+    "pending_gates": [
+      "ACTIVE_CLOUDFLARE_DEPLOYED_SHA_UNVERIFIED",
+      "FILES_BINDING_CURRENT_UNVERIFIED",
+      "R2_BINARY_HASH_UNVERIFIED",
+      "CONTENT_DELIVERY_ROUTE_ACL_UNVERIFIED",
+      "PRIVATE_COMMS_FILE_AUTH_UNVERIFIED"
+    ],
+    "CI_NEW_RUNS": 0,
+    "STAGING_TESTED": false,
+    "PRODUCTION_TESTED": false,
+    "source_only": true,
+    "owner_finance": "EASYSTORE",
+    "final_cutover": "NO_GO",
+    "catalog": "FROZEN_MIGRATION_ONLY",
+    "old_book": "ACTIVE_WRITE",
+    "new_code_changes": 0,
+    "production_mutations": 0,
+    "duplicate_issue": false
   }
 }

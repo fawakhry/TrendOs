@@ -928,5 +928,30 @@
     "cutover": "NO_GO",
     "finance": "EASYSTORE",
     "prod_mutations": 0
+  },
+  "current_no_loss_gate_20261023_entry645_r2_positive_delivery_acl_proof_v1": {
+    "date": "2026-10-23",
+    "crosswalk_key": "book_agent_20261023_entry645_r2_postflight_false_green_subgate_7cases_v1",
+    "head_at_draft": "8f22b2281ce3629f797a772f247804848982c87c",
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "postflight_workflow_blob": "d075e30894d84fc99f492dec863fded94b55d096",
+    "seven_source_gate_fixtures": 7,
+    "observed_expected": 7,
+    "actual_full_workflow_executed": "NO",
+    "source_R2_health_and_missing_file_404": "NOT_POSITIVE_R2_DELIVERY_OR_ACL_PROOF",
+    "positive_readback_verified": false,
+    "private_negative_access_denied_verified": false,
+    "r2_checksum_verified": false,
+    "active_deployed_sha_verified": false,
+    "live_binding_verified": false,
+    "CI_VERIFIED": "NO_NEW_RUN",
+    "STAGING_VERIFIED": "NO",
+    "PRODUCTION_VERIFIED": "NO",
+    "owner_required": "APPROVED_READ_ONLY_CLOUDFLARE_PROVENANCE_AND_DISPOSABLE_STAGING_POSITIVE_FILE_ROUTE_NEGATIVE_ACL_PROOF",
+    "old_book": "ACTIVE_WRITE",
+    "catalog": "FROZEN_MIGRATION_ONLY",
+    "cutover": "NO_GO",
+    "finance_authority": "EASYSTORE",
+    "live_mutations": 0
   }
 }
