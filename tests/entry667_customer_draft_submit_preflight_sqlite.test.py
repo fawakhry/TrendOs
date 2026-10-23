@@ -23,6 +23,7 @@ def sql(name):
 OWNER=sql("CUSTOMER_DRAFT_SUBMIT_SCOPED_SQL_V0")
 ITEMS=sql("CUSTOMER_DRAFT_SUBMIT_ITEMS_SQL_V0")
 FILES=sql("CUSTOMER_DRAFT_SUBMIT_FILES_SQL_V0")
+EXISTING=sql("CUSTOMER_DRAFT_SUBMIT_EXISTING_T12_REQUEST_SQL_V0")
 
 class NativeSubmitPreflightSqlite(unittest.TestCase):
  def setUp(self):
@@ -94,8 +95,20 @@ class NativeSubmitPreflightSqlite(unittest.TestCase):
   self.assertIsNone(self.owner())
   self.db.execute("UPDATE t12_customers SET legacy_chat_code='PC-C2' WHERE customer_id='C2'")
   self.assertIsNone(self.owner(now=NOW+31000))
- def test_11_read_only_sql_does_not_change_source_orders_or_drafts(self):
+ def test_11_t12_existing_cloud_request_needs_manual_reconciliation(self):
+  key='cld1_'+str(NOW-60000)+'_'+DRAFT[4:]
+  self.assertIsNone(self.db.execute(EXISTING,(key,)).fetchone())
+  self.db.execute("""
+    INSERT INTO t12_prod_request_ledger
+      (request_key,actor,policy_epoch,canonical_json,order_id,status)
+    VALUES (?, 'FAKE_ACTOR', 'FAKE_EPOCH', '{}', 'FAKE_ORDER', 'PREPARED')
+  """,(key,))
+  self.assertEqual(self.db.execute(EXISTING,(key,)).fetchone()['status'],'PREPARED')
+  self.db.execute("UPDATE t12_prod_request_ledger SET status='COMMITTED' WHERE request_key=?",(key,))
+  self.assertEqual(self.db.execute(EXISTING,(key,)).fetchone()['status'],'COMMITTED')
+  self.assertIsNone(self.db.execute(EXISTING,('cld1_'+str(NOW-60000)+'_'+'a'*32,)).fetchone())
+ def test_12_read_only_sql_does_not_change_source_orders_or_drafts(self):
   before=self.db.total_changes
-  self.owner();self.items();self.files()
+  self.owner();self.items();self.files();self.db.execute(EXISTING,('cld1_'+str(NOW-60000)+'_'+DRAFT[4:],)).fetchone()
   self.assertEqual(self.db.total_changes,before)
 if __name__=="__main__":unittest.main()
