@@ -81,14 +81,21 @@ class SealedToCanonicalT12Sqlite(unittest.TestCase):
    VALUES (?,?,?,1,'طباعة','','ALTERED',2,'عادي','طلب جديد',0,0)""",
    (self.order_id+'-01',self.order_id,self.key))
   self.assertNotEqual(self.records()[2][0]['itemName'],self.snapshot[6][0][3])
- def test_05_second_independent_draft_line_never_authorized_as_one_item(self):
-  self.db.execute("""INSERT INTO t12_prod_lines
-   (line_id,order_id,request_key,ordinal,department,assigned_to,item_name,
-    qty,priority,status,heat_press,fly_print)
-   VALUES ('FAKE-ORPHAN','FAKE-ORDER-1','other',1,'طباعة','','NOT RELATED',
-   1,'عادي','طلب جديد',0,0)""") if False else None
-  self.assertEqual(len(self.snapshot[6]),1)
-  self.assertEqual(len(self.records()[1]),0)
+ def test_05_another_order_request_cannot_be_mistaken_for_sealed_draft(self):
+  self.insert()
+  other_key='cld1_'+str(f.NOW)+'_'+'4'*32
+  self.db.execute("""INSERT INTO t12_prod_request_ledger
+   (request_key,actor,policy_epoch,canonical_json,order_id,status)
+   VALUES (?,'other-stage-actor','FAKE_POLICY','{}','FAKE-OTHER-982','COMMITTED')""",
+   (other_key,))
+  self.db.execute("""INSERT INTO t12_prod_orders
+   (order_id,request_key,customer_mode,customer_name,customer_phone,department,
+    priority,status,source,notes,actor)
+   VALUES ('FAKE-OTHER-982',?,'registered','ANY','123','طباعة','عادي','طلب جديد',
+   'customer-native-draft','','other-stage-actor')""",(other_key,))
+  _,related,_=self.records()
+  self.assertEqual(len(related),1)
+  self.assertEqual(related[0]['orderId'],self.order_id)
  def test_06_seal_cannot_be_edited_to_match_rogue_T12_ledger(self):
   self.insert()
   with self.assertRaises(sqlite3.DatabaseError):
