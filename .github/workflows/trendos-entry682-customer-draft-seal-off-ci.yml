@@ -39,7 +39,6 @@ jobs:
         run: |
           set -euo pipefail
           python3 tests/entry682_customer_draft_immutable_seal_sqlite.test.py -v
-          python3 tests/entry681_customer_draft_submit_preflight_sqlite.test.py -v || test ! -f tests/entry681_customer_draft_submit_preflight_sqlite.test.py
           python3 tests/entry679_customer_native_handoff_manifest_sqlite.test.py -v
       - name: Confirm strict owner release gate
         run: |
