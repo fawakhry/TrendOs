@@ -21,7 +21,11 @@ function deny(code,status=409){return {status,body:{
 export const T12_EMPLOYEE_INTAKE_ORDER_SQL=`
 SELECT o.order_id AS orderId,o.request_key AS requestKey,
   o.actor AS orderActor,o.external_customer_id AS externalCustomerId,
+  o.customer_mode AS orderCustomerMode,o.customer_name AS orderCustomerName,
+  o.customer_phone AS orderCustomerPhone,o.department AS orderDepartment,
+  o.priority AS orderPriority,o.source AS orderSource,o.notes AS orderNotes,
   o.status AS orderStatus,l.status AS ledgerStatus,
+  l.canonical_json AS originalCanonicalJson,
   l.order_id AS ledgerOrderId,l.actor AS ledgerActor,
   s.order_id AS capturedOrderId,s.request_key AS capturedRequestKey,
   s.customer_id AS officialCustomerId,
@@ -50,7 +54,8 @@ SELECT line.line_id AS lineId,line.order_id AS orderId,
  line.request_key AS requestKey,line.ordinal AS ordinal,
  line.department AS department,line.assigned_to AS assignedTo,
  line.status AS lineStatus,line.qty AS qty,
- line.item_name AS itemName
+ line.item_name AS itemName,line.priority AS priority,
+ line.heat_press AS heatPress,line.fly_print AS flyPrint
  FROM t12_prod_lines line
  WHERE line.order_id=? ORDER BY line.ordinal ASC LIMIT 3
 `;
@@ -58,6 +63,7 @@ export const T12_EMPLOYEE_FINANCE_INTAKE_POLICY=Object.freeze({
  sourceOnly:true,workerEntryWired:false,httpRouteAvailable:false,
  readsOneD1Batch:true,originalT12Only:true,
  reliesOnACC223ImmutableCapture:true,
+ comparesOriginalT12CanonicalLedger:true,
  existingFinanceConnectorReused:true,usesOfficialNativeCustomerId:true,
  sourceSelectorVerifiesCustomerOwnership:false,
  includesBillingPrices:false,
@@ -111,21 +117,78 @@ export async function inspectT12EmployeeOrderFinanceCandidate({
      o.selectorExpiresAt-o.selectorIssuedAt>900||
      !id(o.evidenceRef)||o.evidenceRef.length<12)
    return deny('T12_IMMUTABLE_SELECTOR_EVIDENCE_MISMATCH');
+  // ACC229: the previous shape-only check could accept altered item/qty
+  // because assigned_to and line_id were still valid. The ORIGINAL T12
+  // general writer stores canonical full create intent, actor and selector
+  // metadata in its existing request ledger. Compare original to current D1
+  // without treating unsigned ledger content as customer financial ownership.
+  const originalText=o.originalCanonicalJson;
+  if(typeof originalText!=='string'||originalText.length<30||
+     originalText.length>131072)
+   return deny('ORIGINAL_T12_CREATE_INTENT_NOT_AVAILABLE');
+  let original;
+  try{original=JSON.parse(originalText);}
+  catch{return deny('ORIGINAL_T12_CREATE_INTENT_NOT_AVAILABLE');}
+  const plain=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
+  if(!plain(original)||original.actor!==o.orderActor||
+     original.requestKey!==o.requestKey||!id(original.policyEpoch)||
+     !plain(original.identity)||!plain(original.order)||
+     !plain(original.sourceCapture)||!Array.isArray(original.lines)||
+     !Array.isArray(original.queuePlans)||!plain(original.activityPlan))
+   return deny('ORIGINAL_T12_CREATE_INTENT_NOT_AVAILABLE');
+  const source=original.sourceCapture;
+  if(source.customerId!==expectedOfficialCustomerId||
+     source.externalCustomerId!==o.capturedExternalCustomerId||
+     source.customerVersion!==o.capturedCustomerVersion||
+     source.evidenceRef!==o.evidenceRef||
+     source.selectorRole!==o.selectorRole||
+     source.selectorSessionSha256!==o.selectorSessionFingerprint||
+     source.selectorIssuedAt!==o.selectorIssuedAt||
+     source.selectorExpiresAt!==o.selectorExpiresAt)
+   return deny('T12_ORIGINAL_CREATE_CUSTOMER_CAPTURE_CONFLICT');
+  if(original.identity.mode!==o.orderCustomerMode||
+     original.identity.customerName!==o.orderCustomerName||
+     original.identity.customerPhone!==o.orderCustomerPhone||
+     original.identity.externalCustomerId!==o.externalCustomerId||
+     original.order.department!==o.orderDepartment||
+     original.order.priority!==o.orderPriority||
+     original.order.source!==o.orderSource||
+     original.order.notes!==o.orderNotes||
+     original.order.status!==o.orderStatus||
+     original.activityPlan.requestKey!==o.requestKey||
+     original.queuePlans.length!==original.lines.length)
+   return deny('T12_ORIGINAL_CREATE_ORDER_DRIFT');
   const lines=batch[1].results;
-  if(lines.length<1||lines.length>2)
+  if(lines.length<1||lines.length>2||original.lines.length!==lines.length)
    return deny('T12_SOURCE_LINE_SET_INCOMPLETE_OR_UNSUPPORTED');
   const seen=new Set();
   const normalized=[];
   for(let i=0;i<lines.length;i++){
    const l=lines[i];
    const expectedEmployee={'طباعة':'وائل','ليزر':'جابر'}[l?.department];
+   const originalLine=original.lines[i];
+   const queue=original.queuePlans[i];
    if(!l||!id(l.lineId)||seen.has(l.lineId)||
       l.lineId!==orderId+'-'+String(i+1).padStart(2,'0')||
       l.ordinal!==i+1||l.orderId!==orderId||
       l.requestKey!==o.requestKey||l.lineStatus!=='طلب جديد'||
       !expectedEmployee||l.assignedTo!==expectedEmployee||
       typeof l.itemName!=='string'||l.itemName.trim()===''||
-      typeof l.qty!=='number'||!Number.isFinite(l.qty)||l.qty<=0)
+      typeof l.qty!=='number'||!Number.isFinite(l.qty)||l.qty<=0||
+      !plain(originalLine)||!plain(queue)||
+      originalLine.ordinal!==i+1||
+      originalLine.department!==l.department||
+      originalLine.assignedTo!==l.assignedTo||
+      originalLine.itemName!==l.itemName||
+      originalLine.qty!==l.qty||
+      originalLine.priority!==l.priority||
+      originalLine.status!==l.lineStatus||
+      originalLine.heatPress!==(l.heatPress===1?'نعم':'لا')||
+      originalLine.flyPrint!==(l.flyPrint===1?'نعم':'لا')||
+      ![0,1].includes(l.heatPress)||![0,1].includes(l.flyPrint)||
+      queue.requestKey!==o.requestKey||
+      queue.department!==l.department||
+      queue.assignedTo!==l.assignedTo)
     return deny('T12_SOURCE_LINE_SET_INCOMPLETE_OR_UNSUPPORTED');
    seen.add(l.lineId);
    normalized.push(Object.freeze({
