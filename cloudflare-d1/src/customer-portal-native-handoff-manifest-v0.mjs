@@ -1,7 +1,7 @@
-/* Entry679 — OFF-source-only bounded D1 customer draft handoff inventory.
- * NOT a T12 delegated writer or an atomic/sealed draft snapshot. No D1/R2
- * mutation. It cannot certify binary bytes or capture a consistent cross-read
- * snapshot while customer draft mutations are still possible.
+/* Entry679/680 — OFF-source-only bounded customer draft handoff inventory.
+ * Uses a single D1 read-only transaction batch for owner/items/file metadata.
+ * NOT a T12 writer, immutable/sealed draft, binary R2 proof, or live release.
+ * Customer modifications AFTER this read are still possible.
  */
 import { fingerprintCustomerSessionV0 } from './customer-portal-native-orders-v0.mjs';
 import {
@@ -58,7 +58,8 @@ const hex=bytes=>Array.from(bytes,x=>x.toString(16).padStart(2,'0')).join('');
 export async function inspectNativeCustomerDraftHandoffManifestV0({
  db,token,secret,draftId,nowMs
 }={}){
- if(!db||typeof db.prepare!=='function'||typeof secret!=='string'||secret.length<32||
+ if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function'||
+    typeof secret!=='string'||secret.length<32||
     !safeInt(nowMs,1500000000000,Number.MAX_SAFE_INTEGER))
    return fail('MANIFEST_BACKEND_UNAVAILABLE',503);
  if(typeof token!=='string'||!HEX64.test(token))
@@ -66,19 +67,28 @@ export async function inspectNativeCustomerDraftHandoffManifestV0({
  if(!validId(draftId,'CDR-'))return fail('MANIFEST_DRAFT_ID_INVALID',400);
  try{
   const mac=await fingerprintCustomerSessionV0(token,secret);
-  const owner=await db.prepare(CUSTOMER_DRAFT_SUBMIT_SCOPED_SQL_V0)
-   .bind(draftId,mac,nowMs,nowMs).first();
+  // D1 batch is one SQL transaction: all three source-table SELECTs see
+  // one read-consistent database state (no three-query time-of-check gap).
+  // It is still not an immutable seal; mutations can happen after commit.
+  const batch=await db.batch([
+   db.prepare(CUSTOMER_DRAFT_SUBMIT_SCOPED_SQL_V0)
+     .bind(draftId,mac,nowMs,nowMs),
+   db.prepare(CUSTOMER_DRAFT_SUBMIT_ITEMS_SQL_V0).bind(draftId),
+   db.prepare(CUSTOMER_DRAFT_HANDOFF_FILES_SQL_V0).bind(draftId)
+  ]);
+  if(!Array.isArray(batch)||batch.length!==3||
+     batch.some(r=>!r||r.success!==true||!Array.isArray(r.results)))
+    return fail('MANIFEST_READ_TRANSACTION_NOT_VERIFIED',503);
+  const owners=batch[0].results;
+  if(owners.length!==1)return fail('MANIFEST_DRAFT_OWNER_UNAUTHORIZED',404);
+  const owner=owners[0];
   if(!owner||owner.draftId!==draftId||
      typeof owner.customerId!=='string'||!owner.customerId||
      !safeInt(owner.createdAtMs,1,nowMs+60000)||
      typeof owner.customerName!=='string'||!owner.customerName.trim()||
      typeof owner.customerPhone!=='string')
     return fail('MANIFEST_DRAFT_OWNER_UNAUTHORIZED',404);
-  const itemResult=await db.prepare(CUSTOMER_DRAFT_SUBMIT_ITEMS_SQL_V0)
-   .bind(draftId).all();
-  if(!itemResult||!Array.isArray(itemResult.results))
-    return fail('MANIFEST_ITEM_READ_UNAVAILABLE',503);
-  const itemRows=itemResult.results;
+  const itemRows=batch[1].results;
   if(itemRows.length<1||itemRows.length>50)
     return fail('MANIFEST_ITEM_COUNT_INVALID');
   if(!itemRows.every(itemSafe))
@@ -86,11 +96,7 @@ export async function inspectNativeCustomerDraftHandoffManifestV0({
   const itemIds=new Set(itemRows.map(r=>r.itemId));
   if(itemIds.size!==itemRows.length)
     return fail('MANIFEST_DUPLICATE_ITEM_ID');
-  const fileResult=await db.prepare(CUSTOMER_DRAFT_HANDOFF_FILES_SQL_V0)
-   .bind(draftId).all();
-  if(!fileResult||!Array.isArray(fileResult.results))
-    return fail('MANIFEST_FILE_READ_UNAVAILABLE',503);
-  const fileRows=fileResult.results;
+  const fileRows=batch[2].results;
   if(fileRows.length>250)return fail('MANIFEST_FILE_CAP_EXCEEDED');
   const counts=new Map(),fileIds=new Set();
   for(const file of fileRows){
@@ -118,7 +124,8 @@ export async function inspectNativeCustomerDraftHandoffManifestV0({
    readOnly:true,diagnosticOnly:true,manifestDigest,
    itemCount:itemRows.length,fileCount:fileRows.length,
    snapshotSealed:false,atomicConsistencyVerified:false,
-   r2FullBytesVerified:false,readyFileMetadataOnly:true,
+   transactionalReadBatch:true,r2FullBytesVerified:false,
+   readyFileMetadataOnly:true,
    handoffReady:false,needsTrustedAtomicHandoff:true,
    needsExistingT12Writer:true,officialOrderCreated:false,
    productionWriteAuthorized:false
@@ -127,7 +134,7 @@ export async function inspectNativeCustomerDraftHandoffManifestV0({
 }
 export const CUSTOMER_DRAFT_HANDOFF_MANIFEST_POLICY_V0=Object.freeze({
  sourceOnly:true,workerEntryWired:false,httpRouteAvailable:false,
- crossReadAtomic:false,immutableSnapshot:false,
+ crossReadAtomic:true,readOnlyD1Batch:true,immutableSnapshot:false,
  r2FullBytesVerified:false,manifestPersisted:false,
  maxItems:50,maxFilesPerItem:5,productionRelease:'NO_GO'
 });
