@@ -1873,14 +1873,24 @@ Trend Mall`;
   });
 
   function saveCustomerSession() {
+    // Source-only Native customer sessions are memory-bound, never persisted
+    // to legacy browser storage or exposed to old Apps Script after reload.
+    if (state.customer && state.customer.nativeSession === true) {
+      try { sessionStorage.removeItem("matbagy_platform_customer_session"); } catch (e) {}
+      try { localStorage.removeItem("matbagy_platform_customer_session"); } catch (e) {}
+      return;
+    }
     sessionStorage.setItem("matbagy_platform_customer_session", JSON.stringify({ customer: state.customer }));
     try { localStorage.removeItem("matbagy_platform_customer_session"); } catch (e) {}
   }
 
   function loadCustomerSession() {
+    // Do not restore an old Google session as a newly qualified Native login.
+    if (window.TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED === true) return false;
     try {
       const data = JSON.parse(sessionStorage.getItem("matbagy_platform_customer_session") || "null");
-      if (data && data.customer && data.customer.token && data.customer.customerCode) {
+      if (data && data.customer && data.customer.nativeSession !== true &&
+          data.customer.token && data.customer.customerCode) {
         state.customer = data.customer;
         return true;
       }
