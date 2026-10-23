@@ -27,3 +27,10 @@ python3 tests/entry667_customer_draft_submit_preflight_sqlite.test.py -v
 ## Entry670 — عدم فقد خصائص البند في تهيئة T12 (23 أكتوبر 2026)
 
 أُضيفت حماية SOURCE_ONLY ترفض بنود الليزر التي تحمل `heatPress` أو `flyPrint`، وأي قيم أعلام خارج 0/1، لأن تطبيع T12 يُسقط هذه الخصائص لليزر. يرفض Preflight كذلك أي اختلاف في القسم، ملاحظات البند، مصدر الأوردر أو الأعلام بين بيانات D1 ونتيجة `buildT12OrderCreateShadowIntent` حتى لا يُعلن البند قابلًا للإرسال إذا تغير محتواه. اختبارات Node تشمل الرفض والسماح لبند متوافق فقط. يحظر الإعلان عن إرسال رسمي؛ ما زالت متطلبات multi-item + R2 + trusted actor + writer authority وBOOK24 قائمة. `SUBMIT=READONLY_PREFLIGHT`, `CLOUD_DEPLOY=NO`.
+
+## Entry674 — Identity + T12 ledger replay preflight (SOURCE_ONLY / 23 أكتوبر 2026)
+
+- أعيد استخدام **نفس دالة T12 الأصلية** `customerLaneIdentityMaterial` لتجنب أن يعلن Preflight نجاح عميل مسجل برقم قصير أو هوية يرفضها كاتب T12 نفسه. لا يُستخدم اسم العميل كإثبات ملكية.
+- أضيفت قراءة `t12_prod_request_ledger` **الموجود بالفعل** بمفتاح Cloud المشتق من المسودة: أي صف سابق سواء `PREPARED` أو `COMMITTED` أو حالة غير مألوفة يوقف الإرسال ويطلب trusted reconciliation. لا `INSERT/UPDATE` ولا كشف `order_id` ولا استدعاء Order Writer ولا تلقائية لإعادة المحاولة بعد ACK ملتبس.
+- الاختبارات: Node يحاكي المفتاح/الجلسة ويمنع replay ويحظر الهاتف الضعيف؛ SQLite المعزولة تستخدم جدول T12 canonical وتثبت قراءة `PREPARED/COMMITTED` وعدم mutation. الاختبارات لا تثبت ضمان exactly-once بين فحصين قراءة منفصلين؛ عند التنفيذ الحقيقي يلزم trusted atomic handoff وسجل idempotency الأصلي.
+- لا تُفعّل وظيفة إرسال العميل أو Route. `T12_OFFICIAL_CUSTOMER_SUBMIT=NOT_IMPLEMENTED`, `ZERO_GOOGLE_LIVE=0/9`, `DEPLOY=NO`.
