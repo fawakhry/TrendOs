@@ -73,7 +73,7 @@ class Server108Tests(unittest.TestCase):
         self.assertEqual(out["status"], 403)
         self.assertEqual(out["cfRay"], "abcd1234abcd1234-AMS")
         self.assertEqual(out["contentType"], "text/plain")
-        self.assertFalse(out["stageProbeReturned"])
+        self.assertTrue(out["stageProbeReturned"])  # SERVER-95 returns a bounded 403 status, NOT auth proof
         self.assertFalse(out["accessAuthenticatedProven"])
         self.assertEqual(len(t.requests), 1)
         req, timeout = t.requests[0]
