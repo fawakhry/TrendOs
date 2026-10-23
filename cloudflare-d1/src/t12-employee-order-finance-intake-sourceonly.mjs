@@ -26,6 +26,8 @@ SELECT o.order_id AS orderId,o.request_key AS requestKey,
   o.priority AS orderPriority,o.source AS orderSource,o.notes AS orderNotes,
   o.status AS orderStatus,l.status AS ledgerStatus,
   l.canonical_json AS originalCanonicalJson,
+  l.created_at AS originalLedgerCreatedAt,
+  o.created_at AS originalOrderCreatedAt,
   l.policy_epoch AS originalLedgerPolicyEpoch,
   l.order_id AS ledgerOrderId,l.actor AS ledgerActor,
   s.order_id AS capturedOrderId,s.request_key AS capturedRequestKey,
@@ -56,6 +58,7 @@ SELECT line.line_id AS lineId,line.order_id AS orderId,
  line.department AS department,line.assigned_to AS assignedTo,
  line.status AS lineStatus,line.qty AS qty,
  line.item_name AS itemName,line.priority AS priority,
+ line.created_at AS originalLineCreatedAt,
  line.heat_press AS heatPress,line.fly_print AS flyPrint
  FROM t12_prod_lines line
  WHERE line.order_id=? ORDER BY line.ordinal ASC LIMIT 3
@@ -63,7 +66,8 @@ SELECT line.line_id AS lineId,line.order_id AS orderId,
 
 export const T12_EMPLOYEE_INTAKE_ACTIVITY_SQL=`
 SELECT event_key AS eventKey,request_key AS requestKey,order_id AS orderId,
- event_type AS eventType,payload_json AS payloadJson
+ event_type AS eventType,payload_json AS payloadJson,
+ created_at AS originalActivityCreatedAt
  FROM t12_prod_events
  WHERE request_key=(SELECT request_key FROM t12_prod_orders WHERE order_id=?)
    AND event_key='activity' LIMIT 2
@@ -71,7 +75,7 @@ SELECT event_key AS eventKey,request_key AS requestKey,order_id AS orderId,
 export const T12_EMPLOYEE_INTAKE_OUTBOX_SQL=`
 SELECT event_key AS eventKey,request_key AS requestKey,order_id AS orderId,
  line_id AS lineId,event_type AS eventType,status AS deliveryStatus,
- payload_json AS payloadJson
+ payload_json AS payloadJson,created_at AS originalOutboxCreatedAt
  FROM t12_prod_outbox
  WHERE request_key=(SELECT request_key FROM t12_prod_orders WHERE order_id=?)
  ORDER BY event_key ASC LIMIT 3
@@ -110,6 +114,7 @@ export const T12_EMPLOYEE_FINANCE_INTAKE_POLICY=Object.freeze({
  comparesOriginalT12CanonicalLedger:true,
  comparesOriginalT12ActivityAndOutbox:true,
  comparesCurrentT12RuntimeAndLastMutation:true,
+ validatesOriginalCreateTimestamps:true,
  existingFinanceConnectorReused:true,usesOfficialNativeCustomerId:true,
  sourceSelectorVerifiesCustomerOwnership:false,
  includesBillingPrices:false,
@@ -117,6 +122,16 @@ export const T12_EMPLOYEE_FINANCE_INTAKE_POLICY=Object.freeze({
  financeAuthorized:false,financeWriteAuthorized:false,
  productionRelease:'NO_GO'
 });
+// SQLite CURRENT_TIMESTAMP is UTC; reject malformed/ambiguous sources rather
+// than treating local timezone or an independently chosen retry time as truth.
+function sourceUtcSeconds(x){
+ if(typeof x!=='string'||!/^(\\d{4})-(\\d{2})-(\\d{2}) (\\d{2}):(\\d{2}):(\\d{2})$/.test(x))
+  return null;
+ const iso=x.replace(' ','T')+'Z',parsed=Date.parse(iso);
+ if(!Number.isSafeInteger(parsed)||parsed<=0||
+    new Date(parsed).toISOString().slice(0,19)+'Z'!==iso)return null;
+ return parsed;
+}
 export async function inspectT12EmployeeOrderFinanceCandidate({
  db,orderId,expectedOfficialCustomerId
 }={}){
@@ -319,6 +334,24 @@ export async function inspectT12EmployeeOrderFinanceCandidate({
          'جاهز للاستلام','تم التسليم'].includes(r.runtimeStatus))
     return deny('T12_RUNTIME_UNKNOWN_STATE');
   }
+  // ACC234: original CREATE writer puts ledger, order, every line, the
+  // one activity event and each queue item into ONE D1 batch. The event's
+  // immutable created_at is the sole connector occurred_at. Re-signing on a
+  // later attempt MUST NOT depend on the retry wall-clock. All creation
+  // timestamps must parse as UTC and stay in the same bounded creation batch;
+  // do not trust mutable runtime.updated_at as an at-create timestamp.
+  const sourceMs=sourceUtcSeconds(activity.originalActivityCreatedAt);
+  const ledgerMs=sourceUtcSeconds(o.originalLedgerCreatedAt);
+  const orderMs=sourceUtcSeconds(o.originalOrderCreatedAt);
+  const createTimes=[
+   ledgerMs,orderMs,
+   ...lines.map(l=>sourceUtcSeconds(l.originalLineCreatedAt)),
+   ...outbox.map(q=>sourceUtcSeconds(q.originalOutboxCreatedAt))
+  ];
+  if(sourceMs===null||createTimes.some(t=>t===null||
+     Math.abs(t-sourceMs)>60000)||
+     ledgerMs>orderMs+1000||orderMs>sourceMs+1000)
+   return deny('T12_ORIGINAL_CREATE_TIMESTAMP_MISSING_OR_DRIFTED');
   // These IDs are an INTERNAL operational candidate only. The original
   // EasyStore invoice requires distinct real departmental APPROVALS, financial
   // pricing and independent official customer ownership/provenance.
@@ -327,7 +360,8 @@ export async function inspectT12EmployeeOrderFinanceCandidate({
    operationalSourceShapeVerified:true,
    source:'original-t12-at-create-source-only',
    officialCustomerId:expectedOfficialCustomerId,
-   orderId,lines:normalized,
+   orderId,sourceCreatedAt:new Date(sourceMs).toISOString().slice(0,19)+'Z',
+   lines:normalized,
    lineCount:normalized.length,
    sourceOnly:true,readOnly:true,
    officialCustomerOwnershipAttested:false,
