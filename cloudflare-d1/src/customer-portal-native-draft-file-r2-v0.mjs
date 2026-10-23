@@ -89,6 +89,9 @@ SELECT f.file_id AS fileId,f.state AS state
    AND c.active='نعم' AND TRIM(COALESCE(c.legacy_chat_code,''))=a.portal_code
    AND ctl.marker='ENTRY654_CUSTOMER_PORTAL_NATIVE_V1'
    AND ctl.policy_epoch>=1 AND ctl.mode='GENERAL'
+   AND NOT EXISTS(SELECT 1 FROM t12_customers other
+     WHERE other.customer_id<>a.customer_id AND other.active='نعم'
+       AND TRIM(COALESCE(other.legacy_chat_code,''))=a.portal_code)
  LIMIT 1
 `;
 export const CUSTOMER_NATIVE_FILE_FINALIZE_CAS_SQL_V0=`
@@ -121,6 +124,9 @@ UPDATE customer_portal_native_draft_files_v1
         AND TRIM(COALESCE(c.legacy_chat_code,''))=a.portal_code
         AND ctl.marker='ENTRY654_CUSTOMER_PORTAL_NATIVE_V1'
         AND ctl.policy_epoch>=1 AND ctl.mode='GENERAL'
+       AND NOT EXISTS(SELECT 1 FROM t12_customers other
+         WHERE other.customer_id<>a.customer_id AND other.active='نعم'
+           AND TRIM(COALESCE(other.legacy_chat_code,''))=a.portal_code)
    )
 `;
 
