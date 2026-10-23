@@ -244,8 +244,14 @@ def apply_stage(cli, destination, confirmation, exclusive):
                 stop("MIGRATION_SOURCE_CHANGED_AFTER_PREFLIGHT")
             # Explicit file input: no operational migrations_dir and never
             # migration 0031 first. No automatic retries after partial failure.
-            cli.run("d1", "execute", STAGE_NAME, "--remote", "--file", str(target),
-                    "--yes", "--json")
+            raw = strict_json(cli.run(
+                "d1", "execute", STAGE_NAME, "--remote", "--file", str(target),
+                "--yes", "--json"
+            ))
+            if (not isinstance(raw, list) or not raw or
+                    any(not isinstance(x, dict) or x.get("success") is not True
+                        for x in raw)):
+                stop("REMOTE_MIGRATION_APPLY_RESULT_NOT_CONFIRMED")
             statement_names.append(name)
         # Independent expected names are built by replaying the ORIGINAL files.
         db = sqlite3.connect(":memory:")
@@ -301,6 +307,8 @@ def main():
                           "schemaApplied": names != [],
                           "financeRelease": "NO_GO"}
             else:
+                if os.environ.get("CI", "").lower() == "true" or os.environ.get("GITHUB_ACTIONS"):
+                    stop("LIVE_D1_APPLY_FORBIDDEN_FROM_CI")
                 result = apply_stage(cli, args.private_backup_dir,
                                      args.confirm_stage_uuid,
                                      args.exclusive_stage_window)
