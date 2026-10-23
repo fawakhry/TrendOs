@@ -1,0 +1,38 @@
+name: SERVER-150 Stage Access GraphQL Offline Safety
+
+on:
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+    paths:
+      - autonomous-printshop/print-server/src/server150_stage_app_graphql_diagnostic.py
+      - autonomous-printshop/print-server/src/server141_stage_app_access_events.py
+      - autonomous-printshop/print-server/src/server136_access_ray_graphql.py
+      - autonomous-printshop/print-server/tests/test_server150_stage_app_graphql_diagnostic.py
+      - .github/workflows/server150-stage-app-graphql-offline.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fake-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCESS_CLIENT_ID: ''
+      CLOUDFLARE_ACCESS_CLIENT_SECRET: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check isolated SERVER-150 16 fake-only tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server150_stage_app_graphql_diagnostic.py' -v
+          echo 'SERVER150_CI=FAKE_ONLY; LIVE_GRAPHQL_CALLS=0'
+          echo 'ORDERS_READ=0; PRODUCTION_WORKER_TOUCHED=NO; PRINT_LASER=OFF'
