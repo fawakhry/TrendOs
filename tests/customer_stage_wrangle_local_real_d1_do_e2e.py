@@ -59,7 +59,7 @@ def ephemeral_port():
         return s.getsockname()[1]
 
 def request(port,path,method="GET",payload=None,token=None,origin=STAGE_ORIGIN):
-    headers={"Origin":origin}
+    headers={"Origin":origin,"CF-Connecting-IP":"192.0.2.17"}
     if payload is not None:
         headers["Content-Type"]="application/json"
     if token is not None:
