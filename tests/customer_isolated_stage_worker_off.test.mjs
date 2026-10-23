@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import stage,{CUSTOMER_STAGE_POLICY_V0} from '../cloudflare-d1/customer-stage/index.mjs';
+import stage from '../cloudflare-d1/customer-stage/index.mjs';
+import {CUSTOMER_STAGE_POLICY_V0} from '../cloudflare-d1/customer-stage/stage-policy-v0.mjs';
 import {hashNewCustomerPasswordV0}
   from '../cloudflare-d1/src/customer-portal-phone-enrollment-v0.mjs';
 import {fingerprintCustomerSessionV0}
