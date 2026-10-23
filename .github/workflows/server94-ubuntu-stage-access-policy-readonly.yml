@@ -1,0 +1,142 @@
+name: SERVER-94 Verify Stage Ubuntu Service Auth Exact Token (GET Only)
+
+# Read Cloudflare Access policy and service-token metadata, plus stage worker
+# publication/settings. Never log credentials, token IDs, names, or real rows.
+on:
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+    paths:
+      - .github/workflows/server94-ubuntu-stage-access-policy-readonly.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCESS_API_TOKEN: ${{ secrets.CLOUDFLARE_ACCESS_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Verify saved Service Auth policy matches exactly 7-day Ubuntu stage token
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, sys
+          from urllib.request import Request,build_opener,HTTPSHandler,HTTPRedirectHandler,ProxyHandler
+          from urllib.error import HTTPError,URLError
+          a=os.environ.get('CLOUDFLARE_ACCOUNT_ID','')
+          read=os.environ.get('CLOUDFLARE_API_TOKEN','')
+          access=os.environ.get('CLOUDFLARE_ACCESS_API_TOKEN','')
+          if not re.fullmatch('[0-9a-fA-F]{32}',a) or min(len(read),len(access))<16:
+              raise SystemExit('SERVER94_MISSING_AUDIT_CREDENTIAL')
+          b='/accounts/'+a
+          stage='trendos-server68-isolated-stage'
+          appname='TrendOS isolated stage - DENY ALL - S87'
+          polname='TrendOS Ubuntu Stage - Service Auth'
+          tokenname='TrendOS Ubuntu Synthetic Stage'
+          class NoRedirect(HTTPRedirectHandler):
+              def redirect_request(self,req,fp,code,msg,headers,newurl): return None
+          op=build_opener(ProxyHandler({}),HTTPSHandler(),NoRedirect())
+          def get(suffix,typ):
+              fixed={
+                'access':{b+'/access/apps?page=1&per_page=100'},
+                'worker':{b+'/workers/workers',
+                           b+'/workers/scripts/'+stage+'/subdomain',
+                           b+'/workers/scripts/'+stage+'/settings'}
+              }
+              if typ not in fixed: raise SystemExit('SERVER94_INVALID_API_TYPE')
+              if suffix not in fixed[typ]:
+                  if typ!='access' or not (
+                    re.fullmatch(re.escape(b)+r'/access/apps/[0-9a-fA-F-]{32,36}(/policies)?',suffix)
+                    or re.fullmatch(re.escape(b)+r'/access/service_tokens\\?page=[1-9][0-9]{0,1}&per_page=100',suffix)
+                  ):
+                      raise SystemExit('SERVER94_FORBIDDEN_ENDPOINT')
+              req=Request('https://api.cloudflare.com/client/v4'+suffix,method='GET',
+                          headers={'Authorization':'Bearer '+(access if typ=='access' else read),
+                                   'Accept':'application/json'})
+              try:
+                  with op.open(req,timeout=15) as res:
+                      data=res.read(262145)
+                      if res.status!=200 or len(data)>262144:
+                          raise SystemExit('SERVER94_BAD_RESPONSE')
+              except (HTTPError,URLError,TimeoutError,OSError):
+                  raise SystemExit('SERVER94_CLOUDFLARE_GET_DENIED') from None
+              try: p=json.loads(data)
+              except (TypeError,ValueError): raise SystemExit('SERVER94_INVALID_RESPONSE') from None
+              if type(p) is not dict or p.get('success') is not True:
+                  raise SystemExit('SERVER94_API_NOT_SUCCESS')
+              return p
+          workers=get(b+'/workers/workers','worker')['result']
+          found=[w for w in workers if type(w) is dict and w.get('name')==stage] if type(workers) is list else []
+          if len(found)!=1 or not re.fullmatch('[0-9a-fA-F]{32}',str(found[0].get('id',''))):
+              raise SystemExit('SERVER94_STAGE_ID_UNVERIFIED')
+          worker_id=found[0]['id']
+          sub=get(b+'/workers/scripts/'+stage+'/subdomain','worker')['result']
+          if type(sub) is not dict or sub.get('enabled') is not False or sub.get('previews_enabled') is not False:
+              raise SystemExit('SERVER94_STAGE_EXPOSED_UNEXPECTEDLY')
+          settings=get(b+'/workers/scripts/'+stage+'/settings','worker')['result']
+          rows=settings.get('bindings') if type(settings) is dict else None
+          if type(rows) is not list: raise SystemExit('SERVER94_SETTINGS_UNVERIFIED')
+          names={x.get('name'):x for x in rows if type(x) is dict}
+          if (names.get('DB',{}).get('type')!='d1' or
+              names.get('TRENDOSSHOP_SERVICE_READ_ENABLED',{}).get('text')!='false' or
+              names.get('MIRROR_SERVICE_READ_ENABLED',{}).get('text')!='false' or
+              'TRENDOSSHOP_READER_TOKEN_SHA256_HEX' in names):
+              raise SystemExit('SERVER94_STAGE_READER_NOT_SAFE')
+          apps=get(b+'/access/apps?page=1&per_page=100','access')['result']
+          if type(apps) is not list or len(apps)>=100:
+              raise SystemExit('SERVER94_ACCESS_APP_LIST_INCOMPLETE')
+          found=[x for x in apps if type(x) is dict and x.get('name')==appname]
+          if len(found)!=1: raise SystemExit('SERVER94_STAGE_APP_NOT_UNIQUE')
+          appid=found[0].get('id')
+          if not isinstance(appid,str) or not re.fullmatch('[0-9a-fA-F-]{32,36}',appid):
+              raise SystemExit('SERVER94_APP_ID_INVALID')
+          app=get(b+'/access/apps/'+appid,'access')['result']
+          if (type(app) is not dict or app.get('name')!=appname or app.get('type')!='self_hosted'
+                  or app.get('destinations')!=[{'type':'worker','worker_id':worker_id}]):
+              raise SystemExit('SERVER94_APP_WORKER_TARGET_MISMATCH')
+          policies=get(b+'/access/apps/'+appid+'/policies','access')['result']
+          if type(policies) is not list or len(policies)!=2:
+              raise SystemExit('SERVER94_EXACTLY_TWO_POLICIES_REQUIRED')
+          denies=[p for p in policies if type(p) is dict and p.get('decision')=='deny' and
+                  p.get('include')==[{'everyone':{}}]]
+          stage_auth=[p for p in policies if type(p) is dict and p.get('name')==polname and
+                      p.get('decision')=='non_identity']
+          if len(denies)!=1 or len(stage_auth)!=1:
+              raise SystemExit('SERVER94_MISSING_DENY_OR_SERVICE_AUTH')
+          inc=stage_auth[0].get('include')
+          if type(inc) is not list or len(inc)!=1 or type(inc[0]) is not dict:
+              raise SystemExit('SERVER94_SERVICE_AUTH_SELECTOR_UNQUALIFIED')
+          selector=inc[0].get('service_token')
+          if type(selector) is not dict or set(selector)!={'token_id'}:
+              raise SystemExit('SERVER94_SERVICE_AUTH_NOT_SERVICE_TOKEN_ONLY')
+          selected_token_id=selector.get('token_id')
+          if not isinstance(selected_token_id,str) or not selected_token_id:
+              raise SystemExit('SERVER94_SERVICE_AUTH_MISSING_TOKEN')
+          if stage_auth[0].get('exclude') or stage_auth[0].get('require'):
+              raise SystemExit('SERVER94_SERVICE_AUTH_ADDITIONAL_SELECTORS_UNREVIEWED')
+          found_tokens=[]
+          for page in range(1,11):
+              p=get(b+f'/access/service_tokens?page={page}&per_page=100','access')
+              items=p.get('result')
+              if type(items) is not list or len(items)>100:
+                  raise SystemExit('SERVER94_SERVICE_TOKEN_PAGE_INVALID')
+              for t in items:
+                  if type(t) is dict and t.get('name')==tokenname:
+                      found_tokens.append(t)
+              info=p.get('result_info')
+              if type(info) is dict and type(info.get('total_pages')) is int:
+                  if page>=info['total_pages']: break
+              elif len(items)<100: break
+          else: raise SystemExit('SERVER94_TOKEN_PAGINATION_OVER_LIMIT')
+          if len(found_tokens)!=1 or found_tokens[0].get('id')!=selected_token_id:
+              raise SystemExit('SERVER94_POLICY_TOKEN_NAME_MISMATCH')
+          print('SERVER94_LIVE_STAGE_ACCESS_POLICY=DENY_EVERYONE_PLUS_SINGLE_UBUNTU_TOKEN_SERVICE_AUTH_VERIFIED')
+          print('SERVER94_STAGE_WORKERS_DEV=OFF;PREVIEW=OFF;SERVICE_READER=OFF')
+          print('SERVER94_UBUNTU_CONNECTIVITY=NOT_YET_TESTED;PRODUCTION_CHANGES=NONE')
+          PY
