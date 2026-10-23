@@ -57,3 +57,11 @@
 - Real configuration-read attempt: **fail-closed** `SERVER97_WORKERS_METADATA_READ_SCOPE_UNAVAILABLE` (`Access app GET` permitted; `Worker exact GET` not authorized). Not evidence of a staging service-token failure or misbinding.
 - Only next missing authorization: *individual stage Worker metadata read only* or an equivalent owner UI read-only proof. Existing CI credential must not be broadened automatically. Do not rerun a denied request with unchanged permissions.
 - Keep `HTTP_403_ROOT_CAUSE=UNRESOLVED`, `REAL_CLOUD_ACCESS_AUTH=NOT_PROVEN`, `WORKER_D1_MUTATIONS=0`, `PRODUCTION_TOUCHED=NO`.
+
+## Owner screenshot: Cloudflare Access incident narrowed (2026-10-23, 21:17 Cairo)
+
+- The owner opened Cloudflare's **official** incident detail at `https://www.cloudflarestatus.com/incidents/t0p23w62n13j` (read-only; no settings changed).
+- **Access Availability Issues**: incident **started October 23, 2026 at 12:01 PM GMT+3**, **identified 12:12**, **monitoring 12:15**, and **resolved 12:22 PM GMT+3**.
+- The stated initial issue specifically referred to Cloudflare Access **when using Microsoft Entra ID**; the bulletin does **not** state that Access Service Token credentials were impacted.
+- Therefore this incident **cannot be used as evidence for the SERVER-95 Ubuntu machine-token HTTP 403**, and re-running the identical probe just because the incident resolved is not justified.
+- `CF_ACCESS_INCIDENT=RESOLVED_ENTRA_ID_SCOPED_NOTICE`; `SERVICE_TOKEN_INCIDENT_CAUSATION=NOT_ESTABLISHED`; `ACCESS_POLICY_CHANGED=NO`; `UBUNTU_OR_PRODUCTION_TOUCHED=NO`.
