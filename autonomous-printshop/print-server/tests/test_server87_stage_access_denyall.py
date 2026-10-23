@@ -50,7 +50,7 @@ class FakeAPI(m.API):
         if path.endswith("/access/apps/"+APP+"/policies"):
             if self.mode=="UNSAFE_ALLOW":
                 return [{"decision":"allow","include":[{"everyone":{}}]}]
-            return [{"decision":"block","include":[{"everyone":{}}]}]
+            return [{"decision":"deny","include":[{"everyone":{}}]}]
         raise AssertionError("Unexpected endpoint "+method+" "+path)
 
 
@@ -63,7 +63,7 @@ class StageAccessTest(unittest.TestCase):
         self.assertEqual(len(writes),1)
         self.assertEqual(writes[0][1],"/accounts/"+a.acct+"/access/apps")
         self.assertEqual(writes[0][2],m.exact_deny_payload(WORKER))
-        self.assertEqual(writes[0][2]["policies"][0]["decision"],"block")
+        self.assertEqual(writes[0][2]["policies"][0]["decision"],"deny")
         self.assertEqual(writes[0][2]["destinations"],[{"type":"worker","worker_id":WORKER}])
         self.assertNotIn("trendos-d1-api",str(a.calls))
         self.assertNotIn("/d1/database",str(a.calls))
