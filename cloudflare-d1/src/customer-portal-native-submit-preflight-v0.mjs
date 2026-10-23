@@ -96,6 +96,13 @@ export async function preflightNativeCustomerDraftSubmitV0({db,token,secret,draf
        !['طباعة','ليزر'].includes(item.department)||
        !Number.isSafeInteger(Number(item.qty))||Number(item.qty)<1||Number(item.qty)>99)
       return deny('CUSTOMER_DRAFT_ITEM_CONTRACT_INVALID');
+    // Exact preservation: T12 cannot accept laser-specific press/quick-print
+    // flags; reject instead of silently dropping them during normalization.
+    const press=Number(item.heatPress),fly=Number(item.flyPrint);
+    if(!Number.isSafeInteger(press)||![0,1].includes(press)||
+       !Number.isSafeInteger(fly)||![0,1].includes(fly)||
+       (item.department==='ليزر'&&(press!==0||fly!==0)))
+      return deny('T12_CUSTOMER_DRAFT_UNSUPPORTED_LINE_FLAGS');
     const created=Number(owner.createdAtMs);
     if(!Number.isSafeInteger(created)||created<1500000000000||
        created>nowMs+60000)return deny('CUSTOMER_DRAFT_CREATE_EPOCH_INVALID');
@@ -122,6 +129,11 @@ export async function preflightNativeCustomerDraftSubmitV0({db,token,secret,draf
        intent.identity.mode!=='registered'||
        intent.requestKey!==requestKey||
        intent.lines[0].itemName!==item.itemName||
+       intent.lines[0].department!==item.department||
+       intent.lines[0].heatPress!==(press===1?'نعم':'لا')||
+       intent.lines[0].flyPrint!==(fly===1?'نعم':'لا')||
+       intent.order.notes!==String(item.notes||'')||
+       intent.order.source!=='customer-native-draft'||
        Number(intent.lines[0].qty)!==Number(item.qty))
       return deny('T12_CANONICAL_CREATE_CONTRACT_REFUSED');
     // No candidate payload/PII sent to the browser. A future trusted
