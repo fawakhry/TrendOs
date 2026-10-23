@@ -2,6 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
+import {webcrypto} from 'node:crypto';
+import {
+ buildT12SignedOrderCreatedSourceOnly as signOrder,
+ verifyT12SignedOrderCreatedSourceOnly as verifyOrder,
+ T12_FINANCE_ORDER_CREATED_POLICY as SIGNER_POLICY
+} from '../cloudflare-d1/src/t12-finance-connector-v1-order-created-sourceonly.mjs';
 import {
  inspectT12EmployeeOrderFinanceCandidate as inspect,
  T12_EMPLOYEE_INTAKE_ORDER_SQL as ORDER,
@@ -375,6 +381,131 @@ test('ACC232 original unmodified create and current runtime remain a single read
  assert.equal(r.body.readOnly,true);
  assert.equal(r.body.officialCustomerOwnershipAttested,false);
 }));
+
+// ACC233 signed order-created: only invented keys/data, never the accounting DB.
+const FIXTURE_KEY_ID='ACC233_FAKE_SIGNING_KEY';
+const fakeSignKey=()=>webcrypto.subtle.importKey('raw',
+ new Uint8Array(32).fill(31),{name:'HMAC',hash:'SHA-256'},false,['sign','verify']);
+const otherSignKey=()=>webcrypto.subtle.importKey('raw',
+ new Uint8Array(32).fill(42),{name:'HMAC',hash:'SHA-256'},false,['sign','verify']);
+const SIGN_TIME=1790000000000;
+const signed=(x,signKey)=>signOrder({
+ db:x.db,orderId:ORDER_ID,expectedOfficialCustomerId:C,
+ signKey,keyId:FIXTURE_KEY_ID,mode:'ISOLATED_SOURCE_ONLY',nowMs:SIGN_TIME
+});
+const verified=(message,verifyKey,nowMs=SIGN_TIME)=>verifyOrder({
+ message,verifyKey,expectedKeyId:FIXTURE_KEY_ID,nowMs
+});
+test('ACC233 signed order-created is OFF, not Worker-wired, and never a financial approval',()=>{
+ const worker=readFileSync('cloudflare-d1/src/index_v2.js','utf8');
+ const signer=readFileSync('cloudflare-d1/src/t12-finance-connector-v1-order-created-sourceonly.mjs','utf8');
+ assert.doesNotMatch(worker,/t12-finance-connector-v1-order-created-sourceonly/);
+ assert.doesNotMatch(signer,/saveAccountingFinalInvoice\s*\(|fetch\s*\(|INSERT INTO|UPDATE\s+t12_prod/);
+ assert.equal(SIGNER_POLICY.defaultMode,'OFF');
+ assert.equal(SIGNER_POLICY.onlyEventType,'order_created');
+ assert.equal(SIGNER_POLICY.departmentApprovalsVerified,false);
+ assert.equal(SIGNER_POLICY.invoicePostingAllowed,false);
+});
+test('ACC233 signs EXACT source-owned T12 order_created V1 envelope with no personal or financial data',()=>withFixture(async x=>{
+ const key=await fakeSignKey();
+ const before=x.raw.prepare('SELECT total_changes() n').get().n;
+ const r=await signed(x,key);
+ assert.equal(r.success,true,JSON.stringify(r));
+ assert.equal(x.batches(),1);
+ assert.equal(x.raw.prepare('SELECT total_changes() n').get().n,before);
+ assert.equal(r.message.envelope.event_type,'order_created');
+ assert.equal(r.message.envelope.contract_version,'ACCOUNTING_CONNECTOR_CONTRACT_V1');
+ assert.equal(r.message.envelope.payload.expected_line_count,2);
+ assert.deepEqual(r.message.envelope.payload.lines.map(l=>l.department),['طباعة','ليزر']);
+ assert.equal(r.message.envelope.payload.customer_id,C);
+ assert.equal(r.message.envelope.payload.finance_authorized,false);
+ assert.equal(r.connectorEventPublished,false);
+ for(const privateText of ['FAKE CLIENT','01000000000','999002','FAKE_ACC228_SIGNED_SELECTOR_EVIDENCE']){
+  assert.equal(JSON.stringify(r).includes(privateText),false);
+ }
+ const v=await verified(r.message,key);
+ assert.equal(v.success,true,JSON.stringify(v));
+ assert.equal(v.cryptographicSignatureVerified,true);
+ assert.equal(v.officialCustomerOwnershipAttested,false);
+ assert.equal(v.departmentApprovalsVerified,false);
+ assert.equal(v.invoicePostingAllowed,false);
+ assert.equal(v.replayLedgerVerified,false);
+}));
+test('ACC233 deterministic event identity/signature for retries but no replay ledger attested',()=>withFixture(async x=>{
+ const key=await fakeSignKey();
+ const a=await signed(x,key),b=await signed(x,key);
+ assert.equal(a.success,true);assert.equal(b.success,true);
+ assert.deepEqual(a.message,b.message);
+ assert.equal(a.message.envelope.event_id,'t12:order_created:'+ORDER_ID);
+ assert.equal(a.message.envelope.idempotency_key,a.message.envelope.event_id);
+ assert.equal((await verified(a.message,key)).replayLedgerVerified,false);
+},1));
+test('ACC233 rejects unauthorized modes, missing/wrong keys and incomplete source',()=>withFixture(async x=>{
+ const k=await fakeSignKey();
+ const deny=await signOrder({db:x.db,orderId:ORDER_ID,
+  expectedOfficialCustomerId:C,signKey:k,keyId:FIXTURE_KEY_ID});
+ assert.equal(deny.code,'SIGNER_DEFAULT_OFF');
+ assert.equal(x.batches(),0);
+ assert.equal((await signed(x,null)).code,'SIGNING_INPUT_OR_KEY_UNQUALIFIED');
+ assert.equal((await signOrder({db:x.db,orderId:ORDER_ID,
+  expectedOfficialCustomerId:'WRONG_CUSTOMER',signKey:k,
+  keyId:FIXTURE_KEY_ID,mode:'ISOLATED_SOURCE_ONLY',nowMs:SIGN_TIME}))
+ .code,'ORIGINAL_T12_SOURCE_NOT_QUALIFIED');
+}));
+test('ACC233 existing order after cancelled T12 line cannot obtain a signed operational message',()=>withFixture(async x=>{
+ const key=await fakeSignKey();
+ runtimeState(x,'4323-02','ملغى','jaber-synthetic');
+ runtimeEvent(x,'4323-02','طلب جديد','ملغى','jaber-synthetic');
+ const r=await signed(x,key);
+ assert.equal(r.code,'ORIGINAL_T12_SOURCE_NOT_QUALIFIED');
+ assert.equal(r.connectorEventPublished,false);
+}));
+test('ACC233 altered signed line, customer, event type and hidden finance flag fail contract/signature',()=>withFixture(async x=>{
+ const key=await fakeSignKey();
+ const created=await signed(x,key);
+ assert.equal(created.success,true);
+ for(const patch of [
+  m=>{m.envelope.payload.customer_id='ANOTHER';},
+  m=>{m.envelope.payload.lines[1].department='طباعة';},
+  m=>{m.envelope.event_type='order_line_approved';},
+  m=>{m.envelope.payload.finance_authorized=true;},
+  m=>{m.envelope.payload.lines[0].line_id='4323-02';}
+ ]){
+  const forged=structuredClone(created.message);patch(forged);
+  const result=await verified(forged,key);
+  assert.equal(result.success,false,JSON.stringify(result));
+  assert.equal(result.invoicePostingAllowed,false);
+ }
+ const reworded=structuredClone(created.message);
+ reworded.envelope.evidence_refs[0]='t12:original-ledger:OTHER';
+ assert.equal((await verified(reworded,key)).success,false);
+}));
+test('ACC233 mismatched signer identity, wrong verifier key and corrupted signature fail closed',()=>withFixture(async x=>{
+ const key=await fakeSignKey(),other=await otherSignKey();
+ const created=await signed(x,key);assert.equal(created.success,true);
+ assert.equal((await verified(created.message,other)).code,'SOURCE_SIGNATURE_MISMATCH');
+ assert.equal((await verifyOrder({message:created.message,verifyKey:key,
+  expectedKeyId:'ANOTHER_KEY',nowMs:SIGN_TIME})).code,'UNTRUSTED_SIGNER_OR_ENVELOPE');
+ const forged=structuredClone(created.message);
+ forged.signature='THIS_IS_NOT_BASE64_SIGNATURE';
+ assert.equal((await verified(forged,key)).code,'MALFORMED_SOURCE_SIGNATURE');
+}));
+test('ACC233 event expiry and future timestamp reject even valid cryptographic HMAC',()=>withFixture(async x=>{
+ const key=await fakeSignKey(),r=await signed(x,key);
+ assert.equal(r.success,true);
+ assert.equal((await verified(r.message,key,SIGN_TIME+301000)).code,
+  'EXPIRED_OR_FUTURE_SOURCE_EVENT');
+ assert.equal((await verified(r.message,key,SIGN_TIME-61000)).code,
+  'EXPIRED_OR_FUTURE_SOURCE_EVENT');
+ assert.equal((await verified(r.message,key,SIGN_TIME+299000)).success,true);
+}));
+test('ACC233 no absent capture, changed original item, or forged runtime signature from original T12',()=>withFixture(async x=>{
+ const key=await fakeSignKey();
+ x.raw.exec("UPDATE t12_prod_lines SET item_name='UNTRUSTED ITEM' WHERE line_id='4323-01'");
+ const r=await signed(x,key);
+ assert.equal(r.code,'ORIGINAL_T12_SOURCE_NOT_QUALIFIED');
+},2));
+
 test('without D1 batch, broken transaction or broken schema return generic fail closed',async()=>{
  const lacking=await inspect({db:{prepare(){}},orderId:ORDER_ID,expectedOfficialCustomerId:C});
  assert.equal(lacking.status,503);
