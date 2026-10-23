@@ -454,5 +454,31 @@
     "deployed_or_production_validation": "NOT_PERFORMED",
     "no_external_project_modification": true,
     "no_runtime_mutation": true
+  },
+  "current_no_loss_gate_20261023_active_680_681_ci_provenance": {
+    "date": "2026-10-23",
+    "crosswalk_new_checkpoint_key": "book_agent_entries_680_681_d1_read_batch_exact_head_evidence_20261023",
+    "observed_old_head_before_book_checkpoint": "376d1a48d187b2d67f17b1d454e1988c979b3d3a",
+    "old_source_blob": "84271410a3dc8f1aff9bc36ffdd30f4166f5e6b6",
+    "catalog_source_blob": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "active_engineering_entries_held_in_old": [
+      "Entry680",
+      "Entry681"
+    ],
+    "exact_pr_heads": {
+      "pr220": "e735a9a970634c3647d2360b7a9c4fb000a8773b",
+      "pr221": "8ca319ee8c54f72d6cbc7c07d897445a17849af4"
+    },
+    "confirmed_exact_head_ci_success_count": 7,
+    "earlier_intermediate_ci_failures_preserved_count": 3,
+    "source_code_batch_fixes": "OFF_READONLY_D1_TRANSACTION_NOT_DURABLE_SEAL_NOT_DEPLOYED",
+    "former_75_historical_migrations": "UNCHANGED",
+    "catalog_migration_pairs": "115/115_UNIQUE",
+    "old_book": "ACTIVE_WRITE",
+    "new_catalog": "FROZEN_MIGRATION_ONLY",
+    "owner_approval_for_private_and_SERVER61": "PENDING",
+    "owner_final_cutover": "NO_GO",
+    "production_runtime_proof": "NONE_FROM_THIS_BOOK_AGENT",
+    "independent_project_or_cloudflare_google_change": false
   }
 }

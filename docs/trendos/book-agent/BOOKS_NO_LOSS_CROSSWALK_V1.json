@@ -13908,5 +13908,144 @@
     ],
     "cutover": "NO_GO",
     "production_mutation": false
+  },
+  "book_agent_entries_680_681_d1_read_batch_exact_head_evidence_20261023": {
+    "date": "2026-10-23",
+    "source_head_before_book_agent_commit": "376d1a48d187b2d67f17b1d454e1988c979b3d3a",
+    "old_master_blob": "84271410a3dc8f1aff9bc36ffdd30f4166f5e6b6",
+    "catalog_unchanged_blob": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "supersedes_active_entry_matrix": "agent_trendos_active_entries_669_679_pr_provenance_reconciliation_20261023",
+    "newer_source_only_entries": [
+      {
+        "entry": 680,
+        "active_source_heading": "2026-10-23 — Entry680 exact D1 read transaction for native customer T12 handoff inventory",
+        "source_type": "ACTIVE_ENGINEERING_NOTE_PRESERVE_OLD",
+        "catalog_chapter_target_candidates": [
+          10,
+          16,
+          20,
+          21,
+          32
+        ],
+        "pr": 220,
+        "pr_head": "e735a9a970634c3647d2360b7a9c4fb000a8773b",
+        "file": "cloudflare-d1/src/customer-portal-native-handoff-manifest-v0.mjs",
+        "file_blob": "95a7d96830d20b3623df0dd834cd7d0a5c53714d",
+        "tested_semantics": "THREE_PARAMETERIZED_SELECTS_ONE_D1_DB_BATCH_READ_TRANSACTION",
+        "source_return_flags": [
+          "transactionalReadBatch=true",
+          "snapshotSealed=false",
+          "atomicConsistencyVerified=false",
+          "r2FullBytesVerified=false"
+        ],
+        "not_claimed": [
+          "DURABLE_SEALED_DRAFT",
+          "BINARY_R2_VERIFICATION",
+          "PRODUCTION_HANDOFF",
+          "EXACTLY_ONCE_T12_CREATE",
+          "LIVE_DEPLOYMENT"
+        ]
+      },
+      {
+        "entry": 681,
+        "active_source_heading": "2026-10-23 — Entry681 native customer T12 preflight same-transaction ledger replay guard",
+        "source_type": "ACTIVE_ENGINEERING_NOTE_PRESERVE_OLD",
+        "catalog_chapter_target_candidates": [
+          10,
+          16,
+          21,
+          26
+        ],
+        "pr": 220,
+        "pr_head": "e735a9a970634c3647d2360b7a9c4fb000a8773b",
+        "file": "cloudflare-d1/src/customer-portal-native-submit-preflight-v0.mjs",
+        "file_blob": "f4aa6d54db8213f957290adff5f92375243cf149",
+        "tested_semantics": "FOUR_PARAMETERIZED_SELECTS_WITH_LEDGER_JOIN_AND_DERIVED_REQUEST_KEY_ONE_D1_DB_BATCH_READ_TRANSACTION",
+        "source_return_flags": [
+          "transactionalReadBatch=true",
+          "snapshotSealed=false",
+          "officialOrderCreated=false"
+        ],
+        "not_claimed": [
+          "TRUSTED_T12_SUBMITTER",
+          "CUSTOMER_DRAFT_IMMUTABILITY",
+          "FULL_50_ITEM_AND_R2_HANDOFF",
+          "LOST_ACK_PRODUCTION_REPLAY",
+          "GOOGLE_RETIREMENT"
+        ]
+      }
+    ],
+    "checked_prs": [
+      {
+        "pr": 220,
+        "exact_head": "e735a9a970634c3647d2360b7a9c4fb000a8773b",
+        "state": "OPEN_DRAFT_UNMERGED",
+        "successful_completed_workflow_runs": [
+          39989004659,
+          39989004795,
+          39989005320
+        ]
+      },
+      {
+        "pr": 221,
+        "exact_head": "8ca319ee8c54f72d6cbc7c07d897445a17849af4",
+        "state": "OPEN_DRAFT_UNMERGED",
+        "successful_completed_workflow_runs": [
+          39989010756,
+          39989010753,
+          39989010830,
+          39989010738
+        ]
+      }
+    ],
+    "negative_ci_history_preserved": [
+      {
+        "run": 39987563093,
+        "head": "20a7a7719720dffc500d78c9e645e53ba10ab1a8",
+        "conclusion": "failure",
+        "subsequently_corrected": "YES_AT_NEWER_PR_HEAD"
+      },
+      {
+        "run": 39988754740,
+        "head": "b5a20d8a8b62a02c3a3e9ee2b62f7782c5d26c6d",
+        "conclusion": "failure",
+        "subsequently_corrected": "YES_AT_NEWER_PR_HEAD"
+      },
+      {
+        "run": 39988916831,
+        "head": "d9be21706bdaa0c68a4651ae3c1a6cb488ba840f",
+        "conclusion": "failure",
+        "subsequently_corrected": "YES_AT_NEWER_PR_HEAD"
+      }
+    ],
+    "independent_check_scope": "GITHUB_REPO_SOURCE_PR_HEAD_AND_WORKFLOW_RUN_METADATA; NO_NEW_TEST_EXECUTION; NO_RUNTIME_NETWORK_VERIFICATION",
+    "old_active_book_authority": "ACTIVE_WRITE",
+    "catalog_authority": "FROZEN_MIGRATION_ONLY",
+    "original_verified_migration_units_20261023_unchanged": 75,
+    "prior_38_unchanged": true,
+    "marker_parity": "115/115_UNIQUE",
+    "new_historical_sections_moved": 0,
+    "protected_private_entries": [
+      "Entry596",
+      "Entry599/600"
+    ],
+    "protected_server": "SERVER-20261016-61",
+    "current_zero_google_customer_actions_live_retired": "0/9_VERIFIED_AS_RECORDED_IN_ACTIVE_MASTER_NOT_RECHECKED",
+    "open_cutover_requirements": [
+      "PRIVATE_DATA_OWNER_CUSTODY_APPROVAL",
+      "SERVER61_OWNER_PROTECTION",
+      "OWNER_FINAL_CUTOVER_APPROVAL",
+      "CLOUDFLARE_DEPLOYED_SHA",
+      "SINGLE_WRITER_BOOK24",
+      "GOOGLE_RETIREMENT_EVIDENCE",
+      "T12_TRUSTED_ACTOR_SEAL_HANDOFF_LOST_ACK",
+      "R2_COMPLETE_PRIVATE_FILE_PARITY",
+      "EASYSTORE_ACCOUNTING_STATEMENT_PARITY",
+      "EXACT_SHA_LIVE_E2E"
+    ],
+    "release_decision": "NO_GO",
+    "no_deploy": true,
+    "no_external_project_change": true,
+    "no_private_raw_data_copied": true
   }
 }
