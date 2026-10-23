@@ -18048,5 +18048,111 @@
       "PR_MERGE": 0,
       "REAL_CUSTOMER_DATA": 0
     }
+  },
+  "book_agent_20261024_entry692_security_read_guard_pr234_19mockcases_v1": {
+    "date": "2026-10-24",
+    "tag": "ENTRY692_SECURITY_READ_FIX_20261024_DRAFT_PR234",
+    "source_pr": 221,
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "isolated_repair_branch": "agent/security-read-guards-entry692-20261024",
+    "fix_commit": "417298488e3f5f0d999cdce0b0d5279a967cfb85",
+    "draft_pr": 234,
+    "pr_url": "https://github.com/fawakhry/TrendOs/pull/234",
+    "draft": true,
+    "active_book_head_before": "87ca8d1ad784c87d6a637088bbb5c5afe68a6ca2",
+    "files": [
+      {
+        "path": "cloudflare-d1/src/employee-comms-native-v1.mjs",
+        "source_blob": "f415d06ccd15ba241d679c61b7afeb6ec904e4b8",
+        "fix_blob": "75bad2ed7c4eef61e80d2061bee3beb9a43091b2",
+        "purpose": "auth bearer + x-employee-username before DB/R2, verified role/uploader, stored SHA256 before byte response, URLs routed via handler"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-content-native-v1.mjs",
+        "source_blob": "fab5eeeca0ecc9312380054b32f01a44639f4664",
+        "fix_blob": "4a85523667a7b8fb1effd09afafd04e860df790e",
+        "purpose": "active public marketing-only anonymous, otherwise uploader/admin/authorized inactive marketing manager; safe URLs"
+      },
+      {
+        "path": "cloudflare-d1/src/mirror-gate.mjs",
+        "source_blob": "d9321c3a9c1678fd7a53abc6a24df73dbee25ebc",
+        "fix_blob": "5f6707b4aac8b7fbab454ea41eec480a76d331ae",
+        "purpose": "GET requires separate server-side MIRROR_READ_SECRET and x-mirror-read-secret, never write authority"
+      },
+      {
+        "path": "cloudflare-d1/src/t12-read-overlay-handler.mjs",
+        "source_blob": "0fc291e51ee832a71bb39cb329e76e916a9ff894",
+        "fix_blob": "932b534d3587b79d59152ed8de0db7a88b99bdef",
+        "purpose": "screens empty or mismatched denies before order overlay read"
+      },
+      {
+        "path": "tests/entry692_private_read_guards.test.mjs",
+        "fix_blob": "271907ecffe3ab25fd1854b7c45d7236172499d5",
+        "purpose": "19-case standalone Node regression suite created, native Node execution not verified"
+      }
+    ],
+    "executed_behavioral_test_method": "Patched original JS module functions evaluated in isolated V8 JS mocks (mock Request headers, URL, Response, Headers, D1 SQL, R2 get/arrayBuffer, employee verifier, WebCrypto digest, Edge token); no network or live file/secret.",
+    "executed_test_names": [
+      "comms anonymous",
+      "comms revoked",
+      "comms mismatch identity",
+      "comms wrong file owner",
+      "comms no checksum",
+      "comms altered binary",
+      "comms owner valid checksum",
+      "content active public",
+      "content inactive public record denied",
+      "content private no login",
+      "content private uploader",
+      "content private not uploader",
+      "mirror missing read credential",
+      "mirror wrong read credential",
+      "mirror migration credential not sufficient",
+      "mirror read-only credential",
+      "T12 empty screens denied",
+      "T12 other screen denied",
+      "T12 allowed screen"
+    ],
+    "executed_mock_cases": 19,
+    "passed_mock_cases": 19,
+    "test_module_created": "tests/entry692_private_read_guards.test.mjs",
+    "test_module_node_executed": false,
+    "github_ci_run": false,
+    "stage_e2e": false,
+    "production_e2e": false,
+    "constraints": [
+      "Mirror formerly unauthenticated GET clients and 02CW mirror parity probes require a safe migration to server-to-server reader; never embed reader secret in browser code.",
+      "Private file <img src> cannot send Bearer/username headers; change authorized frontend download flow before enabling production patch.",
+      "Read-only inspect older public_url values and staging file digest parity before deploying; no raw customer file export to audit.",
+      "Service/admin full Comms file visibility and content collection authorization need owner policy review for least privilege and per-order assignment.",
+      "Content legacy files have no stored SHA256; do not misrepresent those as digest-verified; separate schema migration/provenance required.",
+      "Need execute native Node suite and inherited tests, staged E2E D1/R2 and Cloudflare active SHA binding attestation before GO.",
+      "Cloudflare workflow rollback/FILES binding and single-writer gates from preceding rounds remain open; not changed by this PR."
+    ],
+    "concurrent": {
+      "PR211_SHA": "b216e91bcb3e4e49b13f4b60eb6e20dc0afc780a",
+      "PR211_DRAFT": true,
+      "PR221_SHA": "fca5625e53815647addc6d183ebe4040990acdf5",
+      "PR221_DRAFT": true
+    },
+    "owner_gates": {
+      "MERGE": "NO_OWNER_APPROVAL_FOR_MERGE",
+      "DEPLOY": "NO",
+      "FINAL_CUTOVER": "NO_GO",
+      "CLOUDFLARE_DEPLOYED_SHA": "UNVERIFIED",
+      "MIRROR_READER_CONFIGURED": "NOT_ATTESTED",
+      "FILES_AUTHORIZED_POSITIVE_READ_STAGING": "NOT_TESTED",
+      "FINANCE_AUTHORITY": "EASYSTORE"
+    },
+    "preservation": {
+      "MASTER": "ACTIVE_WRITE",
+      "CATALOG": "FROZEN_MIGRATION_ONLY",
+      "ARCHIVE": "UNCHANGED",
+      "WHATS_AGENT_BOOK": "READ_ONLY",
+      "EASYSTORE_FINANCE_BOOK": "UNMODIFIED",
+      "PRODUCTION_MUTATIONS": 0,
+      "FINANCE_MUTATIONS": 0,
+      "CUSTOMER_MUTATIONS": 0
+    }
   }
 }

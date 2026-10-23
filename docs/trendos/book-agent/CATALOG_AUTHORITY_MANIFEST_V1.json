@@ -1109,5 +1109,37 @@
     "FINANCE": "EASYSTORE",
     "FINAL_CUTOVER": "NO_GO",
     "live_mutations": 0
+  },
+  "current_no_loss_gate_20261024_entry692_security_read_guard_no_deploy_v1": {
+    "date": "2026-10-24",
+    "crosswalk_key": "book_agent_20261024_entry692_security_read_guard_pr234_19mockcases_v1",
+    "PR": 234,
+    "PR_DRAFT": true,
+    "fix_branch": "agent/security-read-guards-entry692-20261024",
+    "fix_commit": "417298488e3f5f0d999cdce0b0d5279a967cfb85",
+    "source_SHA": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "FILES_ACCESS_BOUNDARY": "PATCHED_IN_DRAFT_NOT_DEPLOYED",
+    "CONTENT_ACCESS_BOUNDARY": "PATCHED_IN_DRAFT_NOT_DEPLOYED",
+    "MIRROR_READ_BOUNDARY": "PATCHED_IN_DRAFT_NOT_DEPLOYED",
+    "T12_SCREEN_ACL": "PATCHED_IN_DRAFT_NOT_DEPLOYED",
+    "MOCK_SOURCE_CASES": "19_OF_19",
+    "NATIVE_NODE_TESTS": "NOT_RUN",
+    "CI": "NOT_RUN",
+    "STAGE": "NOT_RUN",
+    "PRODUCTION": "NOT_RUN",
+    "DEPLOYED_SHA": "UNVERIFIED",
+    "OWNER_GATES": [
+      "Mirror formerly unauthenticated GET clients and 02CW mirror parity probes require a safe migration to server-to-server reader; never embed reader secret in browser code.",
+      "Private file <img src> cannot send Bearer/username headers; change authorized frontend download flow before enabling production patch.",
+      "Read-only inspect older public_url values and staging file digest parity before deploying; no raw customer file export to audit.",
+      "Service/admin full Comms file visibility and content collection authorization need owner policy review for least privilege and per-order assignment.",
+      "Content legacy files have no stored SHA256; do not misrepresent those as digest-verified; separate schema migration/provenance required.",
+      "Need execute native Node suite and inherited tests, staged E2E D1/R2 and Cloudflare active SHA binding attestation before GO.",
+      "Cloudflare workflow rollback/FILES binding and single-writer gates from preceding rounds remain open; not changed by this PR."
+    ],
+    "CUTOVER": "NO_GO",
+    "FINANCE_AUTHORITY": "EASYSTORE",
+    "PRODUCTION_MUTATIONS": 0,
+    "archival_loss": "NONE_IN_THIS_COMMIT"
   }
 }
