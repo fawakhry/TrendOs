@@ -30,8 +30,8 @@ FILES = [
 ]
 EXPECTED_TABLES = 22
 REQUIRED_FINAL_COLUMNS = {
-    "customer_party_id", "manual_cost", "credit_applied_cents",
-    "credit_issued_cents", "credit_request_key"
+    "customer_party_id", "manual_cost", "credit_applied",
+    "cash_received", "credit_created"
 }
 
 def assert_safe_sql(filename: str, source: str):
