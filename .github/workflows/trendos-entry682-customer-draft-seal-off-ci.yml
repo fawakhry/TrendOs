@@ -10,6 +10,9 @@ on:
       - 'cloudflare-d1/src/customer-portal-native-draft-seal-v0.mjs'
       - 'tests/entry682_customer_draft_immutable_seal_off.test.mjs'
       - 'tests/entry682_customer_draft_immutable_seal_sqlite.test.py'
+      - 'cloudflare-d1/src/customer-portal-native-seal-t12-link-read-v0.mjs'
+      - 'tests/entry683_customer_seal_t12_operational_link_off.test.mjs'
+      - 'tests/entry683_customer_seal_t12_operational_link_sqlite.test.py'
       - '.github/workflows/trendos-entry682-customer-draft-seal-off-ci.yml'
   workflow_dispatch:
 permissions:
@@ -35,16 +38,21 @@ jobs:
           set -euo pipefail
           node --check cloudflare-d1/src/customer-portal-native-draft-seal-v0.mjs
           node --test tests/entry682_customer_draft_immutable_seal_off.test.mjs
+          node --check cloudflare-d1/src/customer-portal-native-seal-t12-link-read-v0.mjs
+          node --test tests/entry683_customer_seal_t12_operational_link_off.test.mjs
       - name: Execute real migration triggers against disposable SQLite
         run: |
           set -euo pipefail
           python3 tests/entry682_customer_draft_immutable_seal_sqlite.test.py -v
+          python3 tests/entry683_customer_seal_t12_operational_link_sqlite.test.py -v
           python3 tests/entry679_customer_native_handoff_manifest_sqlite.test.py -v
       - name: Confirm strict owner release gate
         run: |
           echo 'D1_PRODUCTION_MIGRATION=NO'
           echo 'CUSTOMER_SEAL_HTTP_ROUTE=NONE'
           echo 'SOURCE_ONLY_SQL_CONTRACT=YES'
+          echo 'SEALED_DRAFT_TO_T12_OPERATIONAL_LINK_ONLY=YES'
+          echo 'ORDER_CUSTOMER_FINANCE_AUTHORITY=NO'
           echo 'AUTHORIZED_CUSTOMER_TO_T12_ORDER_SUBMISSION=NO'
           echo 'PRODUCTION_ORDER_CREATE=NO'
           echo 'R2_PRODUCTION_OPERATION=NO'
