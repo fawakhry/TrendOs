@@ -61,6 +61,24 @@ jobs:
           python3 -m py_compile tests/customer_stage_wrangle_local_real_d1_do_e2e.py
           node --check tests/customer_stage_browser_adapter_real_http_local.mjs
           node --check tests/customer_stage_chromium_real_browser_local.cjs
+      - name: Recheck existing customer Native source and isolated Stage contracts
+        run: |
+          set -euo pipefail
+          node --test tests/customer_isolated_stage_worker_off.test.mjs
+          node --test tests/customer_stage_durable_rate_limit_off.test.mjs
+          python3 tests/customer_stage_durable_rate_limit_sqlite.test.py -v
+          node --test tests/customer_native_browser_transport_off.test.mjs
+          node --test tests/customer_native_login_http_off.test.mjs
+          node --test tests/entry660_customer_native_orders_off.test.mjs
+          node --test tests/entry661_customer_native_logout_off.test.mjs
+          node --test tests/entry662_customer_native_login_off.test.mjs
+      - name: Qualify isolated Stage bundle with Wrangler dry-run only
+        working-directory: cloudflare-d1
+        run: |
+          set -euo pipefail
+          "$CUSTOMER_STAGE_LOCAL_WRANGLER" deploy --dry-run --config wrangler.customer-stage.toml --outdir "$RUNNER_TEMP/customer-stage-dry-run-only"
+          echo 'ISOLATED_STAGE_BUNDLE_DRY_RUN=PASS'
+          echo 'REAL_CLOUDFLARE_STAGE_DEPLOYED=NO'
       - name: Run REAL local Worker + D1 + SQLite DO, synthetic customers only
         run: |
           set -euo pipefail
