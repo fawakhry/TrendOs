@@ -1,0 +1,90 @@
+name: SERVER-96 Stage Access Header and Selected Token Metadata (GET-only)
+
+# Review exact worker-level Access application and service-token selector.
+# No service token secret, Worker code, Cloudflare writes, runtime invocations, or order data.
+on:
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+    paths:
+      - .github/workflows/server96-stage-access-header-policy-readonly.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ACCESS_API_TOKEN: ${{ secrets.CLOUDFLARE_ACCESS_API_TOKEN }}
+    steps:
+      - name: Read exact stage Access app and service-token policy (GET only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re
+          from urllib.request import Request,build_opener,HTTPSHandler,ProxyHandler,HTTPRedirectHandler
+          from urllib.error import HTTPError,URLError
+          acc=os.environ.get('CLOUDFLARE_ACCOUNT_ID','')
+          credential=os.environ.get('CLOUDFLARE_ACCESS_API_TOKEN','')
+          if not re.fullmatch(r'[0-9a-fA-F]{32}',acc) or len(credential)<16:
+              raise SystemExit('SERVER96_MISSING_READONLY_AUDIT_CREDENTIAL')
+          appid='28859297-b80f-47a7-98ed-78e00efc3204'
+          tokenid='dfb6dd02-42c5-4010-8e9e-b92f3fe2b59b'
+          base=f'https://api.cloudflare.com/client/v4/accounts/{acc}/access/apps/{appid}'
+          class NoRedirect(HTTPRedirectHandler):
+              def redirect_request(self,req,fp,code,msg,headers,newurl): return None
+          opener=build_opener(ProxyHandler({}),HTTPSHandler(),NoRedirect())
+          def fetch(url):
+              if url not in (base,base+'/policies'):
+                  raise SystemExit('SERVER96_INVALID_ALLOWLIST_REQUEST')
+              req=Request(url,method='GET',headers={'Authorization':'Bearer '+credential,'Accept':'application/json'})
+              try:
+                  with opener.open(req,timeout=12) as response:
+                      body=response.read(131073)
+                      if response.status!=200 or len(body)>131072:
+                          raise SystemExit('SERVER96_RESPONSE_SIZE_OR_STATUS_INVALID')
+              except (HTTPError,URLError,OSError,TimeoutError):
+                  raise SystemExit('SERVER96_ACCOUNT_ACCESS_READ_DENIED') from None
+              try: obj=json.loads(body)
+              except (ValueError,TypeError): raise SystemExit('SERVER96_RESPONSE_NOT_JSON') from None
+              if not isinstance(obj,dict) or obj.get('success') is not True:
+                  raise SystemExit('SERVER96_API_REPORTED_FAILURE')
+              return obj.get('result')
+          app=fetch(base)
+          if (not isinstance(app,dict) or app.get('id')!=appid or
+                  app.get('name')!='TrendOS isolated stage - DENY ALL - S87' or
+                  app.get('type')!='self_hosted'):
+              raise SystemExit('SERVER96_WRONG_STAGE_APP')
+          destinations=app.get('destinations')
+          if (not isinstance(destinations,list) or len(destinations)!=1 or
+                  destinations[0].get('type')!='worker'):
+              raise SystemExit('SERVER96_STAGE_DESTINATION_NOT_EXACT_ONE_WORKER')
+          override=app.get('read_service_tokens_from_header')
+          if override is None or override=='':
+              print('SERVER96_ACCESS_SERVICE_TOKEN_HEADER_MODE=DEFAULT_TWO_HEADERS')
+          elif isinstance(override,str):
+              print('SERVER96_ACCESS_SERVICE_TOKEN_HEADER_MODE=OVERRIDE_SINGLE_HEADER')
+          else:
+              raise SystemExit('SERVER96_SERVICE_HEADER_CONFIG_UNRECOGNIZED')
+          policies=fetch(base+'/policies')
+          if not isinstance(policies,list) or len(policies)!=2:
+              raise SystemExit('SERVER96_WRONG_POLICY_COUNT')
+          auth=[p for p in policies if isinstance(p,dict) and p.get('name')=='TrendOS Ubuntu Stage - Service Auth']
+          if len(auth)!=1 or auth[0].get('decision')!='non_identity':
+              raise SystemExit('SERVER96_SERVICE_AUTH_POLICY_MISSING')
+          inc=auth[0].get('include')
+          selected=None
+          if isinstance(inc,list) and len(inc)==1 and isinstance(inc[0],dict):
+              selected=inc[0].get('service_token')
+          if not isinstance(selected,dict) or selected.get('token_id')!=tokenid:
+              raise SystemExit('SERVER96_POLICY_SELECTED_TOKEN_ID_NOT_EXPECTED')
+          if auth[0].get('require') or auth[0].get('exclude'):
+              raise SystemExit('SERVER96_UNEXPECTED_ADDITIONAL_RULES')
+          print('SERVER96_POLICY_TARGET_TOKEN_ID=EXACT_MATCH')
+          print('SERVER96_POLICY_EXTRA_REQUIRE_EXCLUDE=NONE')
+          print('SERVER96_CLOUDFLARE_MODE=READ_ONLY_NO_WORKER_OR_ORDERS')
+          PY
