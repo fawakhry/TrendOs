@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import {webcrypto} from 'node:crypto';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {ACC235_ISOLATED_SCHEMA as OUTBOX_SCHEMA,ACC235_SIGNED_OUTBOX_POLICY as OUTBOX_POLICY,persistOriginalSignedFixtureOnly as persistSigned,reserveSignedFixtureForSimulatedRetry as reserveSigned,releaseUnconfirmedFixtureLease as releaseSigned,isolateDeadLetterFixtureOnly as deadSigned} from '../cloudflare-d1/src/t12-finance-signed-outbox-acc235-offline.mjs';
+
 import {
  buildT12SignedOrderCreatedSourceOnly as signOrder,
  verifyT12SignedOrderCreatedSourceOnly as verifyOrder,
@@ -576,6 +581,108 @@ test('ACC234 rejects future creation and ambiguous local timestamp values',()=>w
  assert.equal(future.code,'ORIGINAL_T12_CREATE_OUTSIDE_SIGNING_WINDOW');
  x.raw.exec("UPDATE t12_prod_orders SET created_at='2026-09-21T14:13:20Z'");
  assert.equal((await signed(x,key)).code,'ORIGINAL_T12_SOURCE_NOT_QUALIFIED');
+}));
+
+
+function acc235OfflineDb(filename=':memory:',initialize=true){
+ const raw=new DatabaseSync(filename);if(initialize)raw.exec(OUTBOX_SCHEMA);
+ const db={prepare(sql){const stmt=raw.prepare(sql);return {bind(...args){return {
+  async first(){return stmt.get(...args)||null},async run(){return stmt.run(...args)}
+ }}}}};
+ const row=()=>raw.prepare('SELECT * FROM acc235_signed_outbox_fixture').get();
+ return {raw,db,row,close(){raw.close()}};
+}
+const acc235Mode='ISOLATED_SQLITE_FIXTURE';
+const acc235Event='t12:order_created:'+ORDER_ID;
+const acc235Stage=(x,store,key,nowMs=SIGN_TIME,verifyKey=key)=>persistSigned({
+ sourceDb:x.db,outboxDb:store.db,orderId:ORDER_ID,expectedOfficialCustomerId:C,
+ signKey:key,verifyKey,keyId:FIXTURE_KEY_ID,nowMs,mode:acc235Mode});
+const acc235Reserve=(store,key,nowMs=SIGN_TIME+1000,leaseOwner='A')=>reserveSigned({
+ outboxDb:store.db,eventId:acc235Event,verifyKey:key,keyId:FIXTURE_KEY_ID,
+ nowMs,leaseOwner,mode:acc235Mode});
+test('ACC235-OUTBOX remains isolated OFF, signed bytes immutable, source D1 read-only',()=>withFixture(async x=>{
+ const store=acc235OfflineDb();try{
+  const key=await fakeSignKey(),before=x.raw.prepare('SELECT total_changes() n').get().n;
+  assert.equal(OUTBOX_POLICY.defaultMode,'OFF');
+  assert.equal(OUTBOX_POLICY.financialPostingAllowed,false);
+  assert.doesNotMatch(readFileSync('cloudflare-d1/src/index_v2.js','utf8'),/t12-finance-signed-outbox-acc235-offline/);
+  assert.equal((await persistSigned({sourceDb:x.db,outboxDb:store.db,orderId:ORDER_ID,
+   expectedOfficialCustomerId:C,signKey:key,verifyKey:key,keyId:FIXTURE_KEY_ID,
+   nowMs:SIGN_TIME})).code,'OUTBOX_DEFAULT_OFF');
+  const r=await acc235Stage(x,store,key);assert.equal(r.success,true,JSON.stringify(r));
+  assert.equal(r.connectorEventPublished,false);
+  assert.equal(x.raw.prepare('SELECT total_changes() n').get().n,before);
+  assert.equal(store.row().state,'PENDING');
+  assert.equal(JSON.parse(store.row().payload_json).envelope.event_type,'order_created');
+  assert.throws(()=>store.raw.exec("UPDATE acc235_signed_outbox_fixture SET payload_json='{}'"),/ACC235_SIGNED_BYTES_IMMUTABLE/);
+  assert.throws(()=>store.raw.exec('DELETE FROM acc235_signed_outbox_fixture'),/ACC235_SIGNED_OUTBOX_NO_DELETE/);
+ }finally{store.close()}
+}));
+test('ACC235-OUTBOX same order HMAC persisted only once across different retry seconds',()=>withFixture(async x=>{
+ const store=acc235OfflineDb();try{
+  const key=await fakeSignKey();assert.equal((await acc235Stage(x,store,key)).success,true);
+  const before=store.row();const r=await acc235Stage(x,store,key,SIGN_TIME+120000);
+  assert.equal(r.success,true,JSON.stringify(r));assert.deepEqual(store.row(),before);
+  assert.equal(store.raw.prepare('SELECT COUNT(*) n FROM acc235_signed_outbox_fixture').get().n,1);
+  assert.equal((await acc235Stage(x,store,key,SIGN_TIME+301000)).code,'ORIGINAL_SOURCE_NOT_SIGNABLE');
+ }finally{store.close()}
+}));
+test('ACC235-OUTBOX CAS lease excludes second sender and retries exact original bytes after crash',()=>withFixture(async x=>{
+ const store=acc235OfflineDb();try{
+  const key=await fakeSignKey();assert.equal((await acc235Stage(x,store,key)).success,true);
+  const original=store.row().payload_json;
+  const first=await acc235Reserve(store,key);assert.equal(first.success,true,JSON.stringify(first));
+  assert.equal((await acc235Reserve(store,key,SIGN_TIME+1000,'OTHER')).code,'OUTBOX_ALREADY_LEASED');
+  assert.equal((await releaseSigned({outboxDb:store.db,eventId:acc235Event,
+   leaseOwner:'OTHER',nowMs:SIGN_TIME+2000,mode:acc235Mode})).success,false);
+  const retry=await acc235Reserve(store,key,SIGN_TIME+17000,'OTHER');
+  assert.equal(retry.success,true,JSON.stringify(retry));
+  assert.equal(retry.attempts,2);
+  assert.equal(JSON.stringify(retry.originalSignedMessage),original);
+  assert.equal(first.consumerAcknowledged,false);
+ }finally{store.close()}
+}));
+test('ACC235-OUTBOX enforces max attempts, explicit dead letter and rejects re-stage of dead event',()=>withFixture(async x=>{
+ const store=acc235OfflineDb();try{
+  const key=await fakeSignKey();assert.equal((await acc235Stage(x,store,key)).success,true);
+  const a=await acc235Reserve(store,key);assert.equal(a.success,true);
+  assert.equal((await deadSigned({outboxDb:store.db,eventId:acc235Event,
+   nowMs:SIGN_TIME+2000,mode:acc235Mode})).success,false);
+  const b=await acc235Reserve(store,key,SIGN_TIME+17000,'B');assert.equal(b.success,true);
+  const c=await acc235Reserve(store,key,SIGN_TIME+33000,'C');assert.equal(c.success,true);
+  assert.equal((await acc235Reserve(store,key,SIGN_TIME+49000,'D')).code,'OUTBOX_RETRY_BUDGET_EXHAUSTED');
+  const dead=await deadSigned({outboxDb:store.db,eventId:acc235Event,
+   nowMs:SIGN_TIME+49000,mode:acc235Mode});
+  assert.equal(dead.success,true);assert.equal(dead.consumerAcknowledged,false);
+  assert.equal(store.row().state,'DEAD_LETTER');
+  assert.equal((await acc235Stage(x,store,key,SIGN_TIME+50000)).code,'OUTBOX_IMMUTABLE_EVENT_IDEMPOTENCY_CONFLICT');
+ }finally{store.close()}
+}));
+test('ACC235-OUTBOX verifies pinned signer, source cancellation and stale event before claiming',()=>withFixture(async x=>{
+ const store=acc235OfflineDb();try{
+  const key=await fakeSignKey(),wrong=await otherSignKey();
+  assert.equal((await acc235Stage(x,store,key,SIGN_TIME,wrong)).code,'OUTBOX_SIGNER_VERIFIER_UNMATCHED');
+  assert.equal((await acc235Stage(x,store,key)).success,true);
+  assert.equal((await acc235Reserve(store,wrong)).code,'OUTBOX_SIGNATURE_STALE_OR_UNVERIFIED');
+  assert.equal((await acc235Reserve(store,key,SIGN_TIME+301000)).code,'OUTBOX_SIGNATURE_STALE_OR_UNVERIFIED');
+  assert.equal(store.row().attempts,0);
+ }finally{store.close()}
+}));
+test('ACC235-OUTBOX survives close/reopen of disposable disk SQLite and concurrent claims are exclusive',()=>withFixture(async x=>{
+ const dir=mkdtempSync(join(tmpdir(),'trend-acc235-')),file=join(dir,'test.sqlite');
+ let store;try{
+  const key=await fakeSignKey();store=acc235OfflineDb(file);
+  assert.equal((await acc235Stage(x,store,key)).success,true);
+  const signed=store.row().payload_json;store.close();store=null;
+  store=acc235OfflineDb(file,false);
+  const [a,b]=await Promise.all([
+   acc235Reserve(store,key,SIGN_TIME+1000,'A'),
+   acc235Reserve(store,key,SIGN_TIME+1000,'B')
+  ]);
+  assert.equal([a,b].filter(v=>v.success).length,1,JSON.stringify([a,b]));
+  assert.equal(JSON.stringify((a.success?a:b).originalSignedMessage),signed);
+  assert.equal(store.row().attempts,1);
+ }finally{store?.close();rmSync(dir,{recursive:true,force:true})}
 }));
 
 test('without D1 batch, broken transaction or broken schema return generic fail closed',async()=>{
