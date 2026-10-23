@@ -16,8 +16,6 @@ import urllib.request
 _STAGE_APP_ID = "28859297-b80f-47a7-98ed-78e00efc3204"
 _STAGE_WORKER_NAME = "trendos-server68-isolated-stage"
 _ACCOUNT_RE = re.compile(r"^[a-fA-F0-9]{32}$")
-_PAGE_LIMIT = 5
-_PAGE_SIZE = 100
 _RESPONSE_LIMIT = 262144
 
 
@@ -47,10 +45,8 @@ def audit_stage_worker_binding(*, account_id: str, audit_token: str, opener=None
 
     prefix = f"https://api.cloudflare.com/client/v4/accounts/{account_id}"
     app_path = f"/access/apps/{_STAGE_APP_ID}"
-    workers_path = "/workers/workers"
-    safe_urls = {prefix + app_path}
-    safe_urls.update(prefix + workers_path + f"?page={page}&per_page={_PAGE_SIZE}"
-                     for page in range(1, _PAGE_LIMIT + 1))
+    workers_path = "/workers/workers/" + _STAGE_WORKER_NAME
+    safe_urls = {prefix + app_path, prefix + workers_path}
     transport = opener if opener is not None else _safe_opener()
 
     def get_json(url: str, *, source: str):
@@ -101,34 +97,17 @@ def audit_stage_worker_binding(*, account_id: str, audit_token: str, opener=None
         raise StageTargetAuditError("SERVER97_WORKER_DESTINATION_UNSAFE")
     app_worker_id = dest["worker_id"]
 
-    # Use Workers *immutable* ID, not script name or workers.dev hostname.
-    # The list endpoint requires a separate Workers Metadata Read Only scope.
-    for page in range(1, _PAGE_LIMIT + 1):
-        payload = get_json(prefix + workers_path + f"?page={page}&per_page={_PAGE_SIZE}",
-                           source="workers")
-        items = payload.get("result")
-        if type(items) is not list:
-            raise StageTargetAuditError("SERVER97_WORKERS_LIST_INVALID")
-        matched = [w for w in items if type(w) is dict and w.get("name") == _STAGE_WORKER_NAME]
-        if len(matched) > 1:
-            raise StageTargetAuditError("SERVER97_WORKER_NAME_DUPLICATE")
-        if matched:
-            worker_id = matched[0].get("id")
-            if type(worker_id) is not str or not worker_id:
-                raise StageTargetAuditError("SERVER97_WORKER_ID_MISSING")
-            if worker_id != app_worker_id:
-                raise StageTargetAuditError("SERVER97_ACCESS_BOUND_TO_DIFFERENT_WORKER")
-            return "SERVER97_ACCESS_WORKER_ID_EXACT_MATCH"
-        info = payload.get("result_info")
-        if type(info) is dict and type(info.get("total_pages")) is int:
-            total_pages = info["total_pages"]
-            if total_pages < page or total_pages > 10000:
-                raise StageTargetAuditError("SERVER97_WORKERS_PAGINATION_INVALID")
-            if page >= total_pages:
-                raise StageTargetAuditError("SERVER97_STAGE_WORKER_NOT_FOUND")
-        elif len(items) < _PAGE_SIZE:
-            raise StageTargetAuditError("SERVER97_STAGE_WORKER_NOT_FOUND")
-    raise StageTargetAuditError("SERVER97_WORKERS_PAGINATION_BOUNDED_UNVERIFIED")
+    # Fetch EXACT stage Worker by name; no account-wide Worker enumeration.
+    # Compare Cloudflare's immutable ID, not the script name/hostname.
+    worker = get_json(prefix + workers_path, source="workers").get("result")
+    if type(worker) is not dict or worker.get("name") != _STAGE_WORKER_NAME:
+        raise StageTargetAuditError("SERVER97_STAGE_WORKER_NOT_FOUND")
+    worker_id = worker.get("id")
+    if type(worker_id) is not str or not worker_id:
+        raise StageTargetAuditError("SERVER97_WORKER_ID_MISSING")
+    if worker_id != app_worker_id:
+        raise StageTargetAuditError("SERVER97_ACCESS_BOUND_TO_DIFFERENT_WORKER")
+    return "SERVER97_ACCESS_WORKER_ID_EXACT_MATCH"
 
 
 if __name__ == "__main__":
