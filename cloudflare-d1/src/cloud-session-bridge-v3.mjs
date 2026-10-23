@@ -1,4 +1,5 @@
 import { issueEdgeSessionToken } from './edge-gateway.mjs';
+import { employeeLegacyGoogleUpstreamDisabled } from './employee-legacy-google-cutover-guard-v1.mjs';
 import { issueOrdersEdgeToken } from './edge-orders-read-v1.mjs';
 import {
   cloudAuthShadowEnabled,
@@ -99,6 +100,13 @@ export function isCloudSessionBridgeV3Path(path) {
 }
 
 export async function verifyEmployeeSessionViaPost(username, employeeToken, env, lane = 'edge') {
+  // Entry Zero-Google: fail closed on any nonempty unknown Native-only flag.
+  // Do not call Apps Script even if this helper is invoked directly instead
+  // of through verifyEmployeeSessionCloudFirst().
+  if (employeeLegacyGoogleUpstreamDisabled(env)) {
+    return { ok: false, kind: 'auth', message: 'Employee session rejected',
+      authSource: 'd1-native-employee-v1' };
+  }
   const upstream = text(env.APPS_SCRIPT_API_URL);
   if (!upstream) throw new Error('APPS_SCRIPT_API_URL is not configured');
   if (!username || !employeeToken) return { ok: false, kind: 'input', message: 'username and token are required' };
@@ -161,7 +169,9 @@ export async function verifyEmployeeSessionCloudFirst(username, employeeToken, e
       shadowDiagnostic: { lookup: 'native-session-hit', store: 'not-needed' }
     };
   }
-  if (employeeAuthNativeOnlyEnabled(env)) {
+  // Deny Google fallback for 1/yes/on or malformed nonempty values as well
+  // as the original strict Native-only=true; existing native hits still work.
+  if (employeeAuthNativeOnlyEnabled(env) || employeeLegacyGoogleUpstreamDisabled(env)) {
     return {
       ok: false,
       kind: 'auth',

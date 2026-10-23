@@ -1,5 +1,5 @@
 import { cloudAuthShadowEnabled, lookupCloudAuthShadow, rememberCloudAuthShadow, revokeCloudAuthShadow } from './cloud-auth-shadow-v1.mjs';
-import { employeeAuthNativeOnlyEnabled } from './employee-auth-native-v1.mjs';
+import { employeeLegacyGoogleUpstreamDisabled } from './employee-legacy-google-cutover-guard-v1.mjs';
 /* Temporary transport only: Apps Script still authorizes legacy sessions/actions.
  * Fixed upstream from server config. Successful employee auth may seed/revoke only
  * the HMAC-fingerprinted D1 auth shadow; plaintext passwords/tokens are never stored.
@@ -58,7 +58,10 @@ export async function handleLegacyBrowserTransport(request, env) {
   // actions cannot recover Apps Script authority through the old browser proxy.
   // Customer-account sessions remain a distinct, explicitly scoped migration.
   // Deny BEFORE shadow verification or upstream creation, with no credentials echoed.
-  if (employeeAuthNativeOnlyEnabled(env) && !LEGACY_CUSTOMER_SESSION_ACTIONS.has(body.action)) {
+  // Unknown nonempty opt-in values must not re-enable Google employee traffic.
+  // This is only a transport deny; Native login remains separately gated.
+  if (employeeLegacyGoogleUpstreamDisabled(env) &&
+      !LEGACY_CUSTOMER_SESSION_ACTIONS.has(body.action)) {
     return reply({
       success: false,
       code: 'LEGACY_EMPLOYEE_UPSTREAM_RETIRED',

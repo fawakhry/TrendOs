@@ -22,12 +22,15 @@ assert.match(coordinator, /reason:'hidden'/);
 assert.match(coordinator, /reason:'min-interval'/);
 assert.match(coordinator, /coalesced/);
 
-// Working frontend must actually load the coordinator, while keeping Apps Script
-// as the current API authority and Edge Read V1 disabled/unloaded. Cache-buster
-// versions are intentionally not pinned here because production perf hotfixes may
-// rev a module URL without changing the polling/coalescing contract under test.
-assert.match(config, /trendPollCoordinatorV1Loader/);
-assert.match(config, /trendos-poll-coordinator-v1\.js\?v=[^'"\s]+/);
+// Entry603 boot isolation: the unauthenticated login must not eagerly load the
+// polling coordinator. Operations Hub installs it lazily (see ensurePollCoordinator
+// checks below). Keep checking the actual authenticated module boot contract.
+// Cache-buster versions are intentionally not pinned.
+assert.doesNotMatch(config, /trendPollCoordinatorV1Loader/);
+assert.match(config, /trendosLoadAuthenticatedCriticalV1/);
+assert.match(config, /TRENDOS_AUTH_DEFERRED_MODULES_V1\.forEach/);
+assert.match(config, /trendOperationsHubV1Loader['"],['"]operations-hub-v1\.js\?v=[^'"\s]+/);
+assert.match(config, /trendEdgeOrdersReadV1Loader['"],['"]trendos-edge-orders-read-v1\.js\?v=[^'"\s]+/);
 assert.match(config, /press-control-v1\.js\?v=[^'"\s]+/);
 assert.match(config, /customer-feedback-v1\.js\?v=[^'"\s]+/);
 assert.match(config, /employee-manager-strips-v2\.js\?v=[^'"\s]+/);
