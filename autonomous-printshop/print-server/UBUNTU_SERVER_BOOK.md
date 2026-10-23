@@ -1150,3 +1150,10 @@
 - The owner-visible form still defaults to `Account Resources: Include → All accounts` and `Token expiration: No expiration`. Both must be restricted to the one intended Cloudflare account and a short expiry before final token creation; the authorization is confined to account analytics read-only diagnosis of the isolated-stage CF-Ray.
 - **Next single owner UI action:** open the rightmost `Permissions` action dropdown (`Select...`) next to `Account Analytics` to inspect available `Read` choice. Do not submit/continue to summary, create tokens, or change existing secrets or Access policies.
 - `ACCOUNT_ANALYTICS_SELECTED=YES`; `READ_SELECTED=NO`; `ACCOUNT_SCOPE_RESTRICTED=NO`; `EXPIRY_SET=NO`; `TOKEN_CREATED=NO`; `CF_RAY=a4f30217e9ef9aca-MRS`; `HTTP403_ROOT_CAUSE=UNRESOLVED`; `PRODUCTION_UNTOUCHED=YES`.
+
+### SERVER-20261023-128 — Account Analytics action dropdown shows Read (owner UI screenshot, 2026-10-23 ~22:29 Africa/Cairo)
+
+- Owner opened the rightmost `Permissions` action dropdown in Cloudflare `Create Custom Token`. Category `Account`, permission `Account Analytics`; only menu option visible is **Read**. This verifies the exact least-privilege action is available, but the dropdown is still **open and not selected**.
+- The token name is `TrendOS Stage CF-Ray Readonly 20261023`. `Account Resources` still defaults to `Include → All accounts`, and Token expiration remains `No expiration`; both are pending explicit restriction before creation.
+- **Next single owner action:** click **Read** in the currently open dropdown, then send screenshot. Do not click Continue to summary, expose keys, or touch Worker/Access/production.
+- `READ_OPTION_VISIBLE=YES`; `READ_ACTION_SELECTED=NOT_YET`; `TOKEN_CREATED=NO`; `HTTP403_ROOT_CAUSE=UNRESOLVED`; `SECRET_EXPOSED=NO`; `PRODUCTION_UNCHANGED=YES`.
