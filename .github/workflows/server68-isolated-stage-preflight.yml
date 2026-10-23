@@ -44,6 +44,8 @@ on:
       - autonomous-printshop/print-server/tests/test_server85_access_readiness.py
       - autonomous-printshop/print-server/tools/server87_stage_access_denyall.py
       - autonomous-printshop/print-server/tests/test_server87_stage_access_denyall.py
+      - autonomous-printshop/print-server/src/stage_access_probe.py
+      - autonomous-printshop/print-server/tests/test_server95_stage_access_probe.py
       - tests/server33_trendosshop_service_orders_read.test.mjs
       - cloudflare-d1/src/trendosshop-service-orders-read-v1.mjs
       - tests/server67_purpose_scoped_mirror_service_read.test.mjs
@@ -143,6 +145,17 @@ jobs:
             -s autonomous-printshop/print-server/tests \
             -p 'test_server87_stage_access_denyall.py' -v
           echo 'SERVER87_OFFLINE_DENY_ALL_TESTED=YES; ACCESS_POST=NO'
+      - name: SERVER-95 stage-only Access probe security tests (NO network or credential)
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCESS_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server95_stage_access_probe.py' -v
+          echo 'SERVER95_STAGE_ACCESS_CLIENT=FAKE_TEST_PASS; PROD_HOST=REJECT; ACCESS_LIVE=OFF'
       - name: Validate isolated Worker bundle with Wrangler offline dry-run
         run: |
           set -euo pipefail
