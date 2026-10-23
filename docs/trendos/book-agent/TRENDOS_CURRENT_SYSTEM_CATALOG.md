@@ -36,15 +36,15 @@
 ## بيانات النسخة المعتمدة للتوثيق
 
 - **المستودع:** `fawakhry/TrendOs` — **فرع تأليف ومراجعة:** `agent/trendos-book-audit-v1-20261014`.
-- **المصدر المحافظ عليه:** [`TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md`](TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md)، Git blob SHA `acded3ba6729eb7f0a5fd8de560ae5091d630b88`، بجميع فصوله **31/31** وبلا حذف للأحكام أو أدلة المصدر أو المشكلات.
+- **المصدر المحافظ عليه:** [`TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md`](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md)، Git blob SHA `acded3ba6729eb7f0a5fd8de560ae5091d630b88`، بجميع فصوله **31/31** وبلا حذف للأحكام أو أدلة المصدر أو المشكلات.
 - **فحص الإنشاء:** 31 عنوان فصل رئيسي متسلسل من 1 إلى 31 دون تكرار؛ 11 رابطًا داخليًا نسبيًا تم فحصها وكانت 11/11 موجودة في شجرة فرع العمل وقت الترويج. هذه **سلامة بنية وثيقة فقط**، وليست فحص وظائف إنتاجية أو سلامة كل روابط الويب الخارجية.
 - **مرجع التاريخ والتغييرات:** [`TrendOS_MASTER_BOOK.md`](../../../TrendOS_MASTER_BOOK.md) (السجل الفني والقرارات/الإصدارات، وليس بديلًا عن كتالوج وظائف اليوم).
-- **أصل المنصة القديم:** [`TRENDOS_LEGACY_PRE_SPLIT_BOOK.md`](TRENDOS_LEGACY_PRE_SPLIT_BOOK.md) مع [`LEGACY_SOURCE_RECOVERY_REGISTER.md`](LEGACY_SOURCE_RECOVERY_REGISTER.md) و[`GITHUB_LEGACY_CLEANUP_PLAN.md`](GITHUB_LEGACY_CLEANUP_PLAN.md). لا تُدرج الأكواد القديمة كوظائف حية لمجرد وجودها.
+- **أصل المنصة القديم:** [`TRENDOS_LEGACY_PRE_SPLIT_BOOK.md`](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/docs/trendos/book-agent/TRENDOS_LEGACY_PRE_SPLIT_BOOK.md) مع [`LEGACY_SOURCE_RECOVERY_REGISTER.md`](LEGACY_SOURCE_RECOVERY_REGISTER.md) و[`GITHUB_LEGACY_CLEANUP_PLAN.md`](GITHUB_LEGACY_CLEANUP_PLAN.md). لا تُدرج الأكواد القديمة كوظائف حية لمجرد وجودها.
 - **كتالوج الاختبارات:** [`CURRENT_TEST_EVIDENCE_LEDGER.md`](CURRENT_TEST_EVIDENCE_LEDGER.md)، **قائمة التحقيق** [`TEST_EVIDENCE_QUEUE.md`](TEST_EVIDENCE_QUEUE.md)، و**الأخطاء** [`ISSUE_REGISTER.md`](ISSUE_REGISTER.md)، **السجل** [`AGENT_LOG.md`](AGENT_LOG.md).
 
 **تحديث 16 أكتوبر 2026:** أضيف الفصل **32** لأمان ملفات Cloudflare/R2 وخادم الطباعة المحلي، بتصنيف `SOURCE_ONLY` وربط البلاغات الموجودة لا مضاعفتها. أصبحت الفصول **1–32**؛ الـ31 فصلًا الأولى من المسودة المحفوظة دون فقد.
 
-**بوابة عدم فقد المعرفة عبر الكتب:** [الباب الواحد](TRENDOS_BOOKS_SINGLE_INDEX.md) و[سجل 66 Entry/165 عنوان قسم مفتوحين للمصالحة](BOOKS_NO_LOSS_CROSSWALK_V1.json). الفصول الـ31 المنقولة من المسودة محفوظة متطابقة نصيًا في نطاقها المشترك (213,981 حرفًا)؛ لا يعني ذلك مصالحة سجل التطوير أو اكتمال تغطية كل ملفات المنصة. لا يُسمح بوصف الكتالوج `FULLY_VERIFIED` حتى تُغلق الفجوات بالدليل.
+**بوابة عدم فقد المعرفة عبر الكتب:** [الباب الواحد](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/docs/trendos/book-agent/TRENDOS_BOOKS_SINGLE_INDEX.md) و[سجل 66 Entry/165 عنوان قسم مفتوحين للمصالحة](BOOKS_NO_LOSS_CROSSWALK_V1.json). الفصول الـ31 المنقولة من المسودة محفوظة متطابقة نصيًا في نطاقها المشترك (213,981 حرفًا)؛ لا يعني ذلك مصالحة سجل التطوير أو اكتمال تغطية كل ملفات المنصة. لا يُسمح بوصف الكتالوج `FULLY_VERIFIED` حتى تُغلق الفجوات بالدليل.
 
 ## قواعد الاعتماد على هذا الكتاب
 
@@ -1371,7 +1371,7 @@
 # ترند مول | TrendOS
 
 
-> **مرجع الأرشيف الجديد — 2026-10-16:** طلب المالك الآن جمع **النظام الأصلي قبل التقسيم**، بما في ذلك الأكواد القديمة/المتوقفة والمصادر الخارجية. الكتاب المنفصل [`TRENDOS_LEGACY_PRE_SPLIT_BOOK.md`](TRENDOS_LEGACY_PRE_SPLIT_BOOK.md) هو سجل الأرشيف التاريخي الجديد، ومعه [سجل مصادر الكود](LEGACY_SOURCE_RECOVERY_REGISTER.md) و[خطة التنظيف](GITHUB_LEGACY_CLEANUP_PLAN.md). **الفصول 1–31 أدناه محفوظة كما كُتبت** عن الحالة الحالية/المرصودة، ولا تُغيَّر أحكام `SOURCE_ONLY` إلى `LIVE` ولا تُحذف نسخ قديمة بسبب تبدل نطاق الكتاب.
+> **مرجع الأرشيف الجديد — 2026-10-16:** طلب المالك الآن جمع **النظام الأصلي قبل التقسيم**، بما في ذلك الأكواد القديمة/المتوقفة والمصادر الخارجية. الكتاب المنفصل [`TRENDOS_LEGACY_PRE_SPLIT_BOOK.md`](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/docs/trendos/book-agent/TRENDOS_LEGACY_PRE_SPLIT_BOOK.md) هو سجل الأرشيف التاريخي الجديد، ومعه [سجل مصادر الكود](LEGACY_SOURCE_RECOVERY_REGISTER.md) و[خطة التنظيف](GITHUB_LEGACY_CLEANUP_PLAN.md). **الفصول 1–31 أدناه محفوظة كما كُتبت** عن الحالة الحالية/المرصودة، ولا تُغيَّر أحكام `SOURCE_ONLY` إلى `LIVE` ولا تُحذف نسخ قديمة بسبب تبدل نطاق الكتاب.
 
 ## الكتالوج الفني الكامل للنظام الحالي
 ### Current System Technical Catalog — Working Edition
@@ -1406,8 +1406,8 @@
 |---|---|---|
 | **الكتاب الذي يُفتح أولًا دائمًا** | [كتالوج المنصة الحالية — 32 فصلًا](TRENDOS_CURRENT_SYSTEM_CATALOG.md) | وصف الوضع الحالي فقط مع إثبات للوظيفة، ومسارات الكود وبيئة النشر وحالة الاختبار. `PARTIALLY_VERIFIED` حتى استيفاء بوابات الأدلة. |
 | سجل التغييرات الهندسية والقرارات | [TrendOS_MASTER_BOOK.md](../../../TrendOS_MASTER_BOOK.md) | الأصل التاريخي لكل Entry والخطط والحوادث؛ لا يُمسح أو يُختصر إلى الكتالوج. لا يسبق أدلة التشغيل الحالية دون تحقق. |
-| أرشيف ما قبل تقسيم المشاريع | [TRENDOS_LEGACY_PRE_SPLIT_BOOK.md](TRENDOS_LEGACY_PRE_SPLIT_BOOK.md) | مصدر الأكواد الأصلية وخريطة هجرتها؛ لا ينقل وظائف قديمة إلى «LIVE» بالافتراض. |
-| المرجع المحفوظ قبل الترقية | [TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md](TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md) | `FROZEN / PRESERVED`؛ ممنوع تحديثه بالتوازي أو حذفه لمجرد وجود الكتاب الرسمي. |
+| أرشيف ما قبل تقسيم المشاريع | [TRENDOS_LEGACY_PRE_SPLIT_BOOK.md](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/docs/trendos/book-agent/TRENDOS_LEGACY_PRE_SPLIT_BOOK.md) | مصدر الأكواد الأصلية وخريطة هجرتها؛ لا ينقل وظائف قديمة إلى «LIVE» بالافتراض. |
+| المرجع المحفوظ قبل الترقية | [TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md) | `FROZEN / PRESERVED`؛ ممنوع تحديثه بالتوازي أو حذفه لمجرد وجود الكتاب الرسمي. |
 
 **مبدأ واحد:** نكتب الوظيفة الحالية في الكتالوج فقط؛ نربط قرارها وإصدارها بسجل التطوير، ونربط أصلها القديم بالأرشيف. التفاصيل الأصلية تظل في مصدرها، بدل نسخ عدة نسخ قابلة للتعارض.
 
@@ -1479,7 +1479,7 @@
 # TrendOS Current System Catalog — خطة إعادة بناء الكتاب بالكامل من الغلاف
 
 
-> **تحديث نطاق المالك — 2026-10-16:** هذا المخطط CURRENT_ONLY يحفظ تفاصيل مهمة التوثيق السابقة، **لكن صار تحت مهمة جديدة أعلى أولوية**: أرشفة الكود القديم قبل تقسيم المشاريع، بما في ذلك الكود المتوقف والمنقول، والتجميع من المصادر خارج المستودع، والتمهيد لتنظيف GitHub بعد أرشيف متحقق وموافقة المالك. انظر [كتاب النظام القديم](TRENDOS_LEGACY_PRE_SPLIT_BOOK.md) و[سجل المصادر](LEGACY_SOURCE_RECOVERY_REGISTER.md) و[خطة التنظيف](GITHUB_LEGACY_CLEANUP_PLAN.md). لا يعتبر باقي هذا المستند تصريحًا لحذف الكود القديم أو رفضه من كتاب الأرشيف؛ `CURRENT_ONLY` يظل صالحًا فقط لفهرس الحالة الحية السابق.
+> **تحديث نطاق المالك — 2026-10-16:** هذا المخطط CURRENT_ONLY يحفظ تفاصيل مهمة التوثيق السابقة، **لكن صار تحت مهمة جديدة أعلى أولوية**: أرشفة الكود القديم قبل تقسيم المشاريع، بما في ذلك الكود المتوقف والمنقول، والتجميع من المصادر خارج المستودع، والتمهيد لتنظيف GitHub بعد أرشيف متحقق وموافقة المالك. انظر [كتاب النظام القديم](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/docs/trendos/book-agent/TRENDOS_LEGACY_PRE_SPLIT_BOOK.md) و[سجل المصادر](LEGACY_SOURCE_RECOVERY_REGISTER.md) و[خطة التنظيف](GITHUB_LEGACY_CLEANUP_PLAN.md). لا يعتبر باقي هذا المستند تصريحًا لحذف الكود القديم أو رفضه من كتاب الأرشيف؛ `CURRENT_ONLY` يظل صالحًا فقط لفهرس الحالة الحية السابق.
 
 > OWNER SCOPE CHANGE · 2026-10-14 · `CURRENT_ONLY` · Draft PR #132. **هذه الوثيقة تلغي تصميم VNext السابق الذي خصص بابًا لتاريخ Zero-Google أو نقل المنصة.**
 
@@ -1536,7 +1536,7 @@
 
 ### سجل منع سقوط المعرفة بين الكتب — 2026-10-16
 
-مرجع انطلاق كل إيجنت هو [`TRENDOS_BOOKS_SINGLE_INDEX.md`](TRENDOS_BOOKS_SINGLE_INDEX.md). يحفظ [`BOOKS_NO_LOSS_CROSSWALK_V1.json`](BOOKS_NO_LOSS_CROSSWALK_V1.json) جميع 66 رقم Entry المكتشفة في `TrendOS_MASTER_BOOK.md` و165 عنوان قسم، وتظل جميعها `OPEN` للمطابقة مع 32 فصلًا حاليًا. تمت مقارنة متن الفصول الـ31 القديمة بدقة `EXACT_TEXT_MATCH` للنطاق المشترك بطول 213981 حرفًا، لكن لم تثبت تغطية Master كاملة. لا تسقط أي وظيفة أو قرار دون حسم CURRENT / HISTORICAL / SEPARATE PROJECT بدليل ثابت.
+مرجع انطلاق كل إيجنت هو [`TRENDOS_BOOKS_SINGLE_INDEX.md`](https://github.com/fawakhry/TrendOs/blob/b2788ecb4c187717e020321954a1ea449c1aa0d5/docs/trendos/book-agent/TRENDOS_BOOKS_SINGLE_INDEX.md). يحفظ [`BOOKS_NO_LOSS_CROSSWALK_V1.json`](BOOKS_NO_LOSS_CROSSWALK_V1.json) جميع 66 رقم Entry المكتشفة في `TrendOS_MASTER_BOOK.md` و165 عنوان قسم، وتظل جميعها `OPEN` للمطابقة مع 32 فصلًا حاليًا. تمت مقارنة متن الفصول الـ31 القديمة بدقة `EXACT_TEXT_MATCH` للنطاق المشترك بطول 213981 حرفًا، لكن لم تثبت تغطية Master كاملة. لا تسقط أي وظيفة أو قرار دون حسم CURRENT / HISTORICAL / SEPARATE PROJECT بدليل ثابت.
 <!-- END_TRANSFER_VERBATIM:INTERMEDIATE_OUTLINE -->
 
 ---
