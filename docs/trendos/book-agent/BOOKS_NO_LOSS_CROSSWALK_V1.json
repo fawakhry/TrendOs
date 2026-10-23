@@ -13198,5 +13198,124 @@
     "old_authority": "ACTIVE_WRITE",
     "new_authority": "FROZEN_MIGRATION_ONLY",
     "final_cutover": "NO_GO"
+  },
+  "migration_resumed_20261023_2_superseded_book_checkpoints": {
+    "date": "2026-10-23",
+    "branch": "agent/trendos-book-audit-v1-20261014",
+    "kind": "COPY_VERIFY_REMOVE_TWO_SUPERSEDED_HISTORICAL_BOOK_AGENT_CHECKPOINTS",
+    "source_pre_copy_blob": "220ccf455122390bc709c7596ac75a9b04fa735d",
+    "source_post_remove_blob": "7898501b25cd0abdd74e94a3f16e2d490e22d1ad",
+    "source_current_blob_with_concurrent_append_only_entries": "0ed09377dcfcb68c61583b14ca1c99e8eb972fca",
+    "target_copy_blob": "9e848e8b7be9d23e338869f5937c4bdd87a7eae3",
+    "copy_commit": "fbe36bd0730417eada207ae9aa05b69df7da9106",
+    "remove_commit": "c722c421b215abe79cf77837f51003445b6b00bf",
+    "two_units": [
+      {
+        "marker": "MASTER_BOOK_AGENT_20261023_CHECKPOINT_60",
+        "original_chars": 3455,
+        "independent_exact_source_destination": "PASS",
+        "deleted_source_after_verification": "PASS"
+      },
+      {
+        "marker": "MASTER_BOOK_AGENT_20261023_CHECKPOINT_67",
+        "original_chars": 3242,
+        "independent_exact_source_destination": "PASS",
+        "deleted_source_after_verification": "PASS"
+      }
+    ],
+    "total_chars": 6697,
+    "source_post_remove_reconstruction": "EXACT_PASS",
+    "concurrent_new_append_only_entries": [
+      "Entry670",
+      "Entry671"
+    ],
+    "entry669_already_active": true,
+    "source_master_new_writes_preserved": "APPEND_ONLY_VERIFIED_AGAINST_REMOVE_COMMIT",
+    "oct23_historical_transfer_units_before": 71,
+    "oct23_historical_transfer_units_after": 73,
+    "oct23_chars_after": 108178,
+    "prior_38_older_entry_migrations_separate": true,
+    "unique_catalog_marker_pairs": "113/113",
+    "remaining_active_sections_at_source_blob": [
+      {
+        "heading": "1. الحالة النشطة — Production baseline بعد Entry600",
+        "source_start_offset": 5861,
+        "source_end_offset": 5917,
+        "char_length": 56,
+        "classification": "CURRENT_EDITORIAL_AND_OWNER_WRITE_AUTHORITY_RETAIN"
+      },
+      {
+        "heading": "Entry596 — أوردرات Legacy قديمة ظاهرة Active رغم أنها مُسلّمة",
+        "source_start_offset": 5917,
+        "source_end_offset": 7474,
+        "char_length": 1557,
+        "classification": "PRIVATE_ORDER_CUSTOMER_CONTENT_RETAIN"
+      },
+      {
+        "heading": "Entry599/600 — إصلاح Production للأوردرات القديمة = CLOSED PASS",
+        "source_start_offset": 7474,
+        "source_end_offset": 9967,
+        "char_length": 2493,
+        "classification": "PRIVATE_ORDER_CUSTOMER_CONTENT_RETAIN"
+      },
+      {
+        "heading": "Owner Book Transition Progress — 2026-10-16 / OLD_WRITE_ACTIVE_AND_NEW_FROZEN",
+        "source_start_offset": 9967,
+        "source_end_offset": 11545,
+        "char_length": 1578,
+        "classification": "CURRENT_EDITORIAL_AND_OWNER_WRITE_AUTHORITY_RETAIN"
+      },
+      {
+        "heading": "SERVER-20261016-61 — customer-manager D1 bridge malformed-response fallback (2026-10-16)",
+        "source_start_offset": 11545,
+        "source_end_offset": 15452,
+        "char_length": 3907,
+        "classification": "OWNER_EXPRESS_DO_NOT_MOVE"
+      },
+      {
+        "heading": "2026-10-23 — Entry669 Zero Google finance safety (LIVE status: NO_GO)",
+        "source_start_offset": 15452,
+        "source_end_offset": 18788,
+        "char_length": 3336,
+        "classification": "CURRENT_OTHER_AGENT_ENGINEERING_WRITE_RETAIN"
+      },
+      {
+        "heading": "BOOK-AGENT-20261023-71-SAFE-TRANSFERS-FINAL-CURRENT-CHECKPOINT",
+        "source_start_offset": 18788,
+        "source_end_offset": 21235,
+        "char_length": 2447,
+        "classification": "ACTIVE_LATEST_AUDIT_CHECKPOINT_RETAIN"
+      },
+      {
+        "heading": "2026-10-23 — Entry670 T12 zero-loss draft preflight and PR chain audit",
+        "source_start_offset": 21235,
+        "source_end_offset": 25019,
+        "char_length": 3784,
+        "classification": "CURRENT_OTHER_AGENT_ENGINEERING_WRITE_RETAIN"
+      },
+      {
+        "heading": "2026-10-23 — Entry671 live T12 health read-only verification",
+        "source_start_offset": 25019,
+        "source_end_offset": 26523,
+        "char_length": 1504,
+        "classification": "CURRENT_OTHER_AGENT_ENGINEERING_WRITE_RETAIN"
+      },
+      {
+        "heading": "2026-10-23 — Entry672 legacy and operator-task source/runtime route audit",
+        "source_start_offset": 26523,
+        "source_end_offset": 28562,
+        "char_length": 2039,
+        "classification": "CURRENT_EDITORIAL_AND_OWNER_WRITE_AUTHORITY_RETAIN"
+      }
+    ],
+    "excluded_private_data": true,
+    "protected_owner_writer_rules": true,
+    "protected_SERVER61": true,
+    "privacy_owner_decision": "PENDING",
+    "owner_final_cutover": false,
+    "claim_level": "HISTORICAL_DOCUMENTATION_ONLY",
+    "catalog_state": "FROZEN_MIGRATION_ONLY",
+    "master_state": "ACTIVE_WRITE",
+    "decision": "NO_GO"
   }
 }
