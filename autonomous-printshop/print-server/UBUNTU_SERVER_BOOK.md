@@ -1079,3 +1079,10 @@
 - No token values, secret material, policy edits or production operations were performed.
 - Next owner action: inspect the existing build token's menu to reach its non-secret permission summary, without editing or rotating anything.
 - `CF_RAY_CAPTURED=YES`; `ACCOUNT_ANALYTICS_READ=UNVERIFIED`; `HTTP403_ROOT_CAUSE=UNRESOLVED`; `DEVICE_ACTIONS=OFF`.
+
+### SERVER-20261023-117 — owner opened build-token read-only menu (owner screenshot, 2026-10-23 ~22:11 Africa/Cairo)
+
+- Owner opened the right-hand three-dot menu on the **second row** of Cloudflare My Profile → User API Tokens, belonging to existing `trendos build token` (not the stage Access Service Token). Menu items visible: `View summary`, `Edit`, `Roll`, `Delete`. No menu action selected and no secret value displayed.
+- This stage establishes only correct menu navigation. It does **not** establish `Account Analytics: Read`, token identity in GitHub, or Cloudflare Access success. Continue read-only permissions inspection.
+- **Single next owner interaction:** click **View summary**, the top entry, and share a screenshot of permission names/scopes only. Do not click Edit/Roll/Delete, Global API Key View, or Create Token. No production/order access, Cloudflare mutation, stage probe, print or laser.
+- `BUILD_TOKEN_MENU_OPEN=YES`; `ACCOUNT_ANALYTICS_READ=UNVERIFIED`; `HTTP403_CAUSE=OPEN`; `PR190=DRAFT`; `NO_SECRETS_EXPOSED=YES`.
