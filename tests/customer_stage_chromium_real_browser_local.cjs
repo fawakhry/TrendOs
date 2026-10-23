@@ -18,6 +18,7 @@ if(process.env.CUSTOMER_STAGE_LOCAL_E2E!=='1'||
 const source=fs.readFileSync('config.js','utf8');
 assert.match(source,/TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED\s*=\s*false/);
 let external=0,actual=0,errors=[],requests=[];
+async function main(){
 const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
 try {
   const context=await browser.newContext({serviceWorkers:'block'});
@@ -108,3 +109,5 @@ try {
     await page.close();
   }finally { await context.close(); }
 }finally { await browser.close(); }
+}
+main().catch(error=>{console.error(error);process.exitCode=1;});
