@@ -1322,5 +1322,36 @@
     "finance_authority": "EASYSTORE",
     "final_cutover": "NO_GO",
     "owner_final_cutover_approval": "NOT_GRANTED"
+  },
+  "current_no_loss_gate_20261024_t12_edge_r2_replay_fixtures_v1": {
+    "date": "2026-10-24",
+    "crosswalk_key": "migration_20261024_2_t12_edge_r2_replay_fixtures_v1",
+    "source_commit": "916ebcfa8e628f6e6ab2d6591f27385c74a20b1e",
+    "copy_commit": "d97efd0bff899ae3bbfd0490c467bdcf7ed47809",
+    "copy_catalog_blob": "905c6d2731576b8fa8493fe0a9252631c87b6c20",
+    "unit_blobs": [
+      "bd4cd6b0d9694eb684eb6f60548a48c504afb8f5",
+      "018e6eb93c9cf78158237b0896b15373a6ddfa3e"
+    ],
+    "count": 2,
+    "characters": 5788,
+    "verified": "2/2_EXACT_COPY_BLOB_SOURCE",
+    "remove_commit": "THIS_DOCS_ONLY_ATOMIC_COMMIT",
+    "old_master_exact_except_receipt_and_ledger": true,
+    "entry694_preserved": true,
+    "open_deferred_gates": [
+      "T12-694-05",
+      "R2-694-01",
+      "T12-694-06"
+    ],
+    "archive_unchanged_sha": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "old_master": "ACTIVE_WRITE",
+    "new_catalog": "FROZEN_MIGRATION_ONLY",
+    "finance": "EASYSTORE",
+    "CI_new": "NOT_RUN",
+    "stage": "NOT_VERIFIED",
+    "production_deploy": "NO",
+    "final_cutover": "NO_GO",
+    "owner_approval": "NOT_GRANTED"
   }
 }

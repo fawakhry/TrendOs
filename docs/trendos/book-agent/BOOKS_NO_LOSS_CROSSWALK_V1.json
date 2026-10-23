@@ -18993,5 +18993,45 @@
       "production": 0,
       "github_pr_merges": 0
     }
+  },
+  "migration_20261024_2_t12_edge_r2_replay_fixtures_v1": {
+    "migration_id": "BOOK-MIGRATION-20261024-T12-EDGE-R2-REPLAY2-COPY-VERIFY-REMOVE",
+    "date": "2026-10-24",
+    "kind": "HISTORICAL_VERBATIM_COPY_VERIFY_REMOVE",
+    "source_commit": "916ebcfa8e628f6e6ab2d6591f27385c74a20b1e",
+    "source_master_blob": "addd5fc158308cb7d856a8c552e45418e4ce84cb",
+    "copy_commit": "d97efd0bff899ae3bbfd0490c467bdcf7ed47809",
+    "copy_catalog_blob": "905c6d2731576b8fa8493fe0a9252631c87b6c20",
+    "verified": "2/2_EXACT_SOURCE_TEXT_AND_GIT_BLOB",
+    "characters": 5788,
+    "source_unchanged_during_copy": true,
+    "remove_status": "EXECUTING_FINAL_ATOMIC_DOCS_ONLY_COMMIT",
+    "units": [
+      {
+        "id": "HIST-20261023-T12-EDGE-R2-12",
+        "sha": "bd4cd6b0d9694eb684eb6f60548a48c504afb8f5",
+        "characters": 3261
+      },
+      {
+        "id": "HIST-20261023-T12-REPLAY-4",
+        "sha": "018e6eb93c9cf78158237b0896b15373a6ddfa3e",
+        "characters": 2527
+      }
+    ],
+    "master_reconstruction": "EXACT_OLD_MINUS_TWO_STRINGS_PLUS_RECEIPT_AND_ENTRY694_EVENT_04",
+    "preserved_open_issues": [
+      "T12-694-05",
+      "R2-694-01",
+      "T12-694-06"
+    ],
+    "historical_test_evidence": "SOURCE_MOCK_ONLY_NOT_NATIVE_CI_OR_STAGE",
+    "archive_sha": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "old_master": "ACTIVE_WRITE",
+    "unified_catalog": "FROZEN_MIGRATION_ONLY",
+    "final_cutover": "NO_GO",
+    "owner_final_approval": "NOT_GRANTED",
+    "finance_authority": "EASYSTORE",
+    "stage": "NOT_VERIFIED",
+    "production": "NO_DEPLOY"
   }
 }
