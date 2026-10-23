@@ -22,6 +22,10 @@ import {
  T12_EMPLOYEE_INTAKE_RUNTIME_SQL as RUNTIME,
  T12_EMPLOYEE_FINANCE_INTAKE_POLICY as POLICY
 } from '../cloudflare-d1/src/t12-employee-order-finance-intake-sourceonly.mjs';
+import {
+ previewOriginalT12AccountingLineageACC242 as previewLineage,
+ ACC242_POLICY,ACC242_MAX_ACCOUNTING_ROWS
+} from '../cloudflare-d1/src/t12-easystore-dept-lineage-preview-acc242-sourceonly.mjs';
 const C='CUS-FAKE-228',ORDER_ID='4323',KEY='cld1_1800000000000_EMPLOYEE228_TEST0001';
 const A='service-actor-228';
 function fixture(lanes=2,skipCapture=false){
@@ -114,6 +118,145 @@ async function withFixture(fn,lanes=2,skipCapture=false){
  const x=fixture(lanes,skipCapture);try{return await fn(x);}finally{x.dispose();}
 }
 const request=x=>inspect({db:x.db,orderId:ORDER_ID,expectedOfficialCustomerId:C});
+// ACC242: the ORIGINAL T12 five-query inspector on one SQLite, and the
+// ORIGINAL finance migrations on a DIFFERENT disposable SQLite. These are
+// accounting-side approval row snapshots, NOT signed operational line events.
+function acc242FinanceFixture(orderId=ORDER_ID){
+ const raw=new DatabaseSync(':memory:');
+ const migrations=[
+   '0015_employee_accounting_zero_google_v1.sql',
+   '0020_employee_accounting_party_master_v1.sql',
+   '0021_employee_accounting_material_dimensions_v1.sql',
+   '0022_employee_accounting_day_ops_v1.sql',
+   '0023_employee_accounting_command_audit_v1.sql',
+   '0024_employee_accounting_party_balances_v1.sql',
+   '0025_employee_accounting_final_reversal_day_close_v1.sql',
+   '0026_employee_accounting_tx_guard_v1.sql',
+   '0027_employee_accounting_direct_sale_cost_v1.sql',
+   '0028_employee_accounting_write_canary_v1.sql',
+   '0029_employee_accounting_canary_mode_v1.sql',
+   '0030_employee_accounting_write_canary_budget_v1.sql',
+   '0031_employee_accounting_customer_advance_credit_v1.sql'
+ ];
+ for(const name of migrations)raw.exec(readFileSync('cloudflare-d1/migrations/'+name,'utf8'));
+ let reads=0;
+ const financeDb={prepare(sql){
+   assert.match(sql,/^SELECT accounting_line_id AS accountingLineId,/);
+   assert.match(sql,/FROM employee_accounting_dept_lines_v1 WHERE order_id=/);
+   assert.doesNotMatch(sql,/customer_name|sale_price|amount|password|session_token|raw_json|UPDATE|INSERT|DELETE/i);
+   reads++;
+   return {bind(...args){return {
+     async all(){return {results:raw.prepare(sql).all(...args)};}
+   };}};
+ }};
+ function add({accountingId='FAKE-ACC242-P-1',sourceLine=orderId+'-01',
+   dept='طباعة',order=orderId,status='معتمد من القسم',
+   actor='FAKE-WAEL',batch='FAKE-APPROVAL-BATCH',invoice='',
+   approvedAt=1800000500000}={}){
+   raw.prepare(`INSERT INTO employee_accounting_dept_lines_v1
+    (accounting_line_id,order_id,line_id,department,approval_status,approved_by,
+     approved_at_ms,approval_batch_id,stock_deducted,final_invoice_no,version)
+    VALUES(?,?,?,?,?,?,?,?,1,?,2)`)
+    .run(accountingId,order,sourceLine,dept,status,actor,approvedAt,batch,invoice);
+ }
+ return {raw,financeDb,add,reads:()=>reads,dispose:()=>raw.close()};
+}
+async function acc242WithBoth(fn,lanes=2){
+ return withFixture(async x=>{
+   const fin=acc242FinanceFixture();
+   try{return await fn(x,fin);}finally{fin.dispose();}
+ },lanes);
+}
+test('ACC242 original source + ORIGINAL isolated finance migrations match exact Print/Laser rows WITHOUT finance grant',()=>acc242WithBoth(async(x,fin)=>{
+ fin.add();fin.add({accountingId:'FAKE-ACC242-L-1',sourceLine:ORDER_ID+'-02',dept:'ليزر',actor:'FAKE-GABER'});
+ const source=await request(x);
+ const sourceChanges=x.raw.prepare('SELECT total_changes() AS n').get().n;
+ const financeChanges=fin.raw.prepare('SELECT total_changes() AS n').get().n;
+ const r=await previewLineage({sourceResponse:source,financeDb:fin.financeDb,
+   orderId:ORDER_ID,expectedOfficialCustomerId:C});
+ assert.equal(r.status,200,JSON.stringify(r));
+ assert.equal(r.originalSourceLineCount,2);
+ assert.equal(r.originalAccountingRowCount,2);
+ assert.equal(r.originalAccountingLineageShapeMatched,true);
+ assert.equal(r.nativeDepartmentApprovalRowsObserved,true);
+ for(const k of ['signedLineApprovalsVerified','ownerAttested','independentSourceAuthentication',
+   'customerIdentityFinanciallyVerified','canRequestInvoice','canPostCash','financeAuthorized','connectorEventPublished'])
+   assert.equal(r[k],false,k);
+ assert.equal(r.financeRelease,'NO_GO');
+ assert.equal(ACC242_POLICY.workerWired,false);
+ assert.equal(ACC242_POLICY.financeWrites,false);
+ assert.equal(ACC242_MAX_ACCOUNTING_ROWS,100);
+ assert.equal(fin.reads(),1);
+ assert.equal(x.raw.prepare('SELECT total_changes() AS n').get().n,sourceChanges);
+ assert.equal(fin.raw.prepare('SELECT total_changes() AS n').get().n,financeChanges);
+ assert.equal(fin.raw.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type='table' AND name='t12_customers'").get().n,0);
+ assert.equal(x.raw.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type='table' AND name='employee_accounting_dept_lines_v1'").get().n,0);
+ assert.doesNotMatch(JSON.stringify(r),/FAKE CLIENT|FAKE-WAEL|FAKE-GABER|01000000000/);
+}));
+test('ACC242 original 2 lanes permit multiple accounting rows per ONE exact source line, no money',()=>acc242WithBoth(async(x,fin)=>{
+ fin.add();fin.add({accountingId:'FAKE-ACC242-P-2'});
+ fin.add({accountingId:'FAKE-ACC242-L-1',sourceLine:ORDER_ID+'-02',dept:'ليزر'});
+ const r=await previewLineage({sourceResponse:await request(x),financeDb:fin.financeDb,
+   orderId:ORDER_ID,expectedOfficialCustomerId:C});
+ assert.equal(r.status,200,JSON.stringify(r));
+ assert.equal(r.originalAccountingRowCount,3);
+ assert.equal(r.canRequestInvoice,false);
+}));
+test('ACC242 refuses missing department and unmapped accounting source lines',()=>acc242WithBoth(async(x,fin)=>{
+ fin.add();
+ const src=await request(x);
+ const missing=await previewLineage({sourceResponse:src,financeDb:fin.financeDb,
+   orderId:ORDER_ID,expectedOfficialCustomerId:C});
+ assert.equal(missing.code,'FINANCE_APPROVAL_MISSING_FOR_SOURCE_LINE');
+ fin.add({accountingId:'FAKE-ACC242-X',sourceLine:'UNRELATED_LINE',dept:'ليزر'});
+ const extra=await previewLineage({sourceResponse:src,financeDb:fin.financeDb,
+   orderId:ORDER_ID,expectedOfficialCustomerId:C});
+ assert.equal(extra.code,'FINANCE_ROW_CROSS_ORDER_OR_LINEAGE_MISMATCH');
+}));
+test('ACC242 refuses swapped departments and another order borrowing same source line',()=>acc242WithBoth(async(x,fin)=>{
+ fin.add({dept:'ليزر'});
+ const src=await request(x);
+ assert.equal((await previewLineage({sourceResponse:src,financeDb:fin.financeDb,
+   orderId:ORDER_ID,expectedOfficialCustomerId:C})).code,
+  'FINANCE_ROW_CROSS_ORDER_OR_LINEAGE_MISMATCH');
+ fin.raw.exec('DELETE FROM employee_accounting_dept_lines_v1');
+ fin.add({order:'OTHER_ORDER'});
+ assert.equal((await previewLineage({sourceResponse:src,financeDb:fin.financeDb,
+   orderId:ORDER_ID,expectedOfficialCustomerId:C})).code,
+  'FINANCE_ROW_CROSS_ORDER_OR_LINEAGE_MISMATCH');
+}));
+test('ACC242 refuses unapproved, already invoiced, or unqualified department approval metadata',()=>acc242WithBoth(async(x,fin)=>{
+ fin.add();fin.add({accountingId:'FAKE-ACC242-L-1',sourceLine:ORDER_ID+'-02',dept:'ليزر'});
+ const src=await request(x);
+ const inspectFinance=()=>previewLineage({sourceResponse:src,financeDb:fin.financeDb,
+   orderId:ORDER_ID,expectedOfficialCustomerId:C});
+ const cases=[
+   ["UPDATE employee_accounting_dept_lines_v1 SET approval_status='قيد المراجعة' WHERE accounting_line_id='FAKE-ACC242-L-1'"],
+   ["UPDATE employee_accounting_dept_lines_v1 SET approval_status='معتمد من القسم',final_invoice_no='FAKE-INVOICE-9' WHERE accounting_line_id='FAKE-ACC242-L-1'"],
+   ["UPDATE employee_accounting_dept_lines_v1 SET final_invoice_no='',approved_by='' WHERE accounting_line_id='FAKE-ACC242-L-1'"],
+   ["UPDATE employee_accounting_dept_lines_v1 SET approved_by='FAKE-GABER',stock_deducted=0 WHERE accounting_line_id='FAKE-ACC242-L-1'"]
+ ];
+ for(const [sql] of cases){
+   fin.raw.exec(sql);
+   const r=await inspectFinance();
+   assert.equal(r.code,'FINANCE_LINE_NOT_NATIVE_APPROVED_OPEN',JSON.stringify(r));
+ }
+}));
+test('ACC242 blocks forged source claims, unexpected ID and finance database failures',()=>acc242WithBoth(async(x,fin)=>{
+ fin.add();fin.add({accountingId:'FAKE-ACC242-L-1',sourceLine:ORDER_ID+'-02',dept:'ليزر'});
+ const src=await request(x);
+ const read=(source,customer=C,db=fin.financeDb)=>previewLineage({sourceResponse:source,
+   financeDb:db,orderId:ORDER_ID,expectedOfficialCustomerId:customer});
+ assert.equal((await read(src,'WRONG-CUSTOMER')).code,'ORIGINAL_T12_SOURCE_PREVIEW_NOT_QUALIFIED');
+ assert.equal((await read({status:200,body:{...src.body,officialCustomerOwnershipAttested:true}})).code,
+  'ORIGINAL_T12_SOURCE_PREVIEW_NOT_QUALIFIED');
+ assert.equal((await read({status:200,body:{...src.body,canRequestInvoice:true}})).code,
+  'ORIGINAL_T12_SOURCE_PREVIEW_NOT_QUALIFIED');
+ assert.equal((await read(src,C,{prepare(){throw new Error('offline')}})).code,
+  'ORIGINAL_FINANCE_METADATA_READ_UNAVAILABLE');
+ assert.equal((await read(src,C,{prepare(){return {bind(){return {all:async()=>({results:{}})}}}}})).code,
+  'ORIGINAL_FINANCE_METADATA_READ_UNAVAILABLE');
+}));
 test('new source has no HTTP endpoint, T12/finance creation, or direct D1 finance link',()=>{
  const worker=readFileSync('cloudflare-d1/src/index_v2.js','utf8');
  const source=readFileSync('cloudflare-d1/src/t12-employee-order-finance-intake-sourceonly.mjs','utf8');
