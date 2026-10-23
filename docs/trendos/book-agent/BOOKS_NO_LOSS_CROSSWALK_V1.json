@@ -16558,5 +16558,81 @@
       "EasyStore": 0,
       "production": 0
     }
+  },
+  "book_agent_20261023_mirror_synthetic_get_post_gate_cases_v1": {
+    "date": "2026-10-23",
+    "book_head_before_write": "29c370c2980f5497851362b0c96695cfb6708744",
+    "pinned_source_commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "file": "cloudflare-d1/src/mirror-gate.mjs",
+    "blob": "d9321c3a9c1678fd7a53abc6a24df73dbee25ebc",
+    "source_lines": "L61-L74,L76-L191,L310-L389",
+    "prior_flag": "BOOK26-MIRROR-GET-ACL",
+    "novelty": "EXECUTED_OFFLINE_FAKED_HANDLER_BEHAVIOR_WITH_POST_NEGATIVE_CONTROLS_NOT_NEW_BUG_TICKET",
+    "harness": "Original handleMirrorRequest from immutable GitHub source, only import/export wrappers omitted; supplied local stub URL, Response, env.DB, request headers and dummy migration secret. Mock DB returned FAKE_PRIVATE_SHEET containing only SYNTHETIC_CELL. No network, no Worker runtime, no real Sheets or Cloudflare.",
+    "cases": [
+      {
+        "name": "GET_sheets_unsigned",
+        "http": 200,
+        "db_reads": 1,
+        "db_writes": 0,
+        "pass": true
+      },
+      {
+        "name": "GET_stats_unsigned",
+        "http": 200,
+        "db_reads": 1,
+        "db_writes": 0,
+        "pass": true
+      },
+      {
+        "name": "GET_capabilities_unsigned",
+        "http": 200,
+        "db_reads": 1,
+        "db_writes": 0,
+        "pass": true
+      },
+      {
+        "name": "GET_sheet_rows_unsigned",
+        "http": 200,
+        "db_reads": 2,
+        "db_writes": 0,
+        "fake_cell": "SYNTHETIC_CELL",
+        "pass": true
+      },
+      {
+        "name": "POST_heartbeat_unsigned",
+        "http": 401,
+        "db_reads": 0,
+        "db_writes": 0,
+        "pass": true
+      },
+      {
+        "name": "POST_import_unsigned",
+        "http": 401,
+        "db_reads": 0,
+        "db_writes": 0,
+        "pass": true
+      }
+    ],
+    "cases_run": 6,
+    "source_assertions_confirmed": 6,
+    "interpretation": "The mocked original handler makes SELECTs for four GET routes without checking migration secret or signed user, while two POST mutation paths reject missing secret before DB access. Existing concern corroborated with isolated execution, not evidence of private live sheet access or exploitability. Source-only routing graph known; deployed SHA/ingress controls remain unknown.",
+    "evidence_levels": {
+      "SOURCE_ONLY": "EXECUTED_FAKE_HANDLER",
+      "CI_VERIFIED": "NOT_GITHUB_ACTIONS",
+      "STAGING_VERIFIED": "NO",
+      "PRODUCTION_VERIFIED": "NO"
+    },
+    "owner_gate": "Confirm intended public Mirror fields vs private sheet row ACL; read-only deployment ingress/Worker SHA attestation under approval; synthetic real-framework auth tests in isolated staging only.",
+    "safe": {
+      "no_runtime_writes": true,
+      "no_production_requests": true,
+      "no_finance_access": true,
+      "no_customer_data": true,
+      "no_catalog_change": true,
+      "old_book": "ACTIVE_WRITE",
+      "new_book": "FROZEN_MIGRATION_ONLY",
+      "cutover": "NO_GO"
+    }
   }
 }
