@@ -81,6 +81,86 @@ class OfflineWrangler:
 
 
 class StageBootstrapTests(unittest.TestCase):
+    def test_readonly_stage_backup_verifies_local_restore_and_never_migrates(self):
+        with tempfile.TemporaryDirectory() as folder:
+            cli = OfflineWrangler(present=["_cf_KV"])
+            report = b.backup_verify_stage(cli, folder, b.STAGE_UUID)
+            self.assertEqual(report["result"], "STAGE_EXPORT_RESTORED_LOCALLY_ONLY")
+            self.assertEqual(report["target"]["uuid"], b.STAGE_UUID)
+            self.assertEqual(report["providerTableNames"], ["_cf_KV"])
+            self.assertEqual(report["userTables"], [])
+            self.assertEqual(report["backup"]["restoredTables"], 0)
+            self.assertEqual(report["privateLocalRestoreIntegrity"], "PASS")
+            self.assertEqual(report["independentSecondHostRestore"], "NOT_RUN")
+            self.assertFalse(report["cloudflareWrites"])
+            self.assertFalse(report["schemaApplied"])
+            self.assertFalse(report["mayApplyMigrations"])
+            self.assertEqual(report["financeWrites"], "OFF")
+            self.assertEqual(report["financeRelease"], "NO_GO")
+            self.assertEqual(cli.apply_files, [])
+            self.assertEqual(sum(c[:2] == ("d1", "export") for c in cli.commands), 1)
+            self.assertEqual(sum(c[:2] == ("d1", "execute") for c in cli.commands), 2)
+            self.assertTrue(all("--file" not in cmd for cmd in cli.commands))
+            export = Path(folder) / "stage_before_migration.sql"
+            proof = Path(folder) / "stage_backup_evidence.json"
+            self.assertEqual(export.stat().st_mode & 0o077, 0)
+            self.assertEqual(proof.stat().st_mode & 0o077, 0)
+            self.assertEqual(report["backup"]["sha256"], b.digest(export))
+            self.assertEqual(json.loads(proof.read_text()), report)
+
+    def test_readonly_backup_refuses_unsafe_prerequisites_before_export(self):
+        for present in (["orders"], ["_cf_KV", "t12_customers"],
+                        ["_cf_KV", "employee_accounting_control_v1"]):
+            with self.subTest(present=present), tempfile.TemporaryDirectory() as folder:
+                cli = OfflineWrangler(present=present)
+                with self.assertRaisesRegex(b.GateError, "STAGE_USER_TABLES_PRESENT"):
+                    b.backup_verify_stage(cli, folder, b.STAGE_UUID)
+                self.assertFalse(any(cmd[:2] == ("d1", "export")
+                                     for cmd in cli.commands))
+                self.assertEqual(cli.apply_files, [])
+        cli = OfflineWrangler()
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaisesRegex(b.GateError, "OWNER_STAGE_UUID_BACKUP_ACK_REQUIRED"):
+                b.backup_verify_stage(cli, folder, "wrong")
+            self.assertEqual(cli.commands, [])
+        with tempfile.TemporaryDirectory() as folder:
+            cli = OfflineWrangler(uuid="00000000-0000-0000-0000-000000000000")
+            with self.assertRaisesRegex(b.GateError, "CLOUDFLARE_EXACT_STAGE_UUID"):
+                b.backup_verify_stage(cli, folder, b.STAGE_UUID)
+            self.assertFalse(any(cmd[:2] == ("d1", "export")
+                                 for cmd in cli.commands))
+
+    def test_readonly_backup_bad_export_and_race_stop_without_schema_mutation(self):
+        with tempfile.TemporaryDirectory() as folder:
+            cli = OfflineWrangler(present=["_cf_KV"], bad_export=True)
+            with self.assertRaisesRegex(b.GateError, "REMOTE_SQL_EXPORT_LOCAL_RESTORE_FAILED"):
+                b.backup_verify_stage(cli, folder, b.STAGE_UUID)
+            self.assertEqual(cli.apply_files, [])
+            self.assertFalse((Path(folder) / "stage_backup_evidence.json").exists())
+        with tempfile.TemporaryDirectory() as folder:
+            cli = OfflineWrangler(present=["_cf_KV"], drift_on_second_read=True)
+            with self.assertRaisesRegex(b.GateError, "STAGE_CHANGED_DURING_BACKUP_STOP"):
+                b.backup_verify_stage(cli, folder, b.STAGE_UUID)
+            self.assertEqual(cli.apply_files, [])
+            self.assertFalse((Path(folder) / "stage_backup_evidence.json").exists())
+
+    def test_readonly_backup_preserves_reserved_table_from_valid_private_export(self):
+        class ExportWithCfTable(OfflineWrangler):
+            def run(self, *cmd):
+                if cmd[:2] == ("d1", "export"):
+                    self.commands.append(cmd)
+                    target = Path(cmd[cmd.index("--output") + 1])
+                    target.write_text("CREATE TABLE _cf_KV(key TEXT PRIMARY KEY, value BLOB);",
+                                      encoding="utf-8")
+                    return ""
+                return super().run(*cmd)
+        with tempfile.TemporaryDirectory() as folder:
+            cli = ExportWithCfTable(present=["_cf_KV"])
+            proof = b.backup_verify_stage(cli, folder, b.STAGE_UUID)
+            self.assertEqual(proof["backup"]["restoredReservedTables"], 1)
+            self.assertEqual(proof["backup"]["restoredTables"], 0)
+            self.assertEqual(cli.apply_files, [])
+
     def test_inspect_empty_has_no_false_positive_or_provider_write(self):
         cli = OfflineWrangler()
         report = b.inspect_stage(cli)
