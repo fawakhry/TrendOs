@@ -9523,3 +9523,73 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 
 <!-- END_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_005 -->
 
+
+
+## ملحق تاريخي — نقل ستة سجلات تدقيق Book Agent من الكتاب النشط إلى الأرشيف الموحد (2026-10-24)
+
+> **MIGRATION_ONLY / EXACT_HISTORICAL_SOURCE / DO_NOT_TREAT_AS_CURRENT_RUNTIME:** هذا النسخ مقصور على سجلات تدقيق تاريخية تمت مراجعة استقلالها عن القواعد الحية. **القديم `TrendOS_MASTER_BOOK.md` يظل ACTIVE_WRITE**، والكتالوج مجمد إلا لنقل هذه الوحدات حرفيًا. لا يشير النقل إلى صحة تشغيل إنتاج أو قبول CUTOVER. مصدر النص الأول `e12eb6a070910db4845a1bfde29a5bc866d6db3f`، وقُصد إجراء COPY ثم VERIFY مستقل ثم REMOVE في Commit تالٍ فقط بعد تطابق النص الحرفي وحفظ البصمات.
+
+<!-- BEGIN_EXACT_HISTORICAL_MIGRATION:20261024_6_BOOK_AUDIT_SECTIONS -->
+
+<!-- BEGIN_VERBATIM_UNIT:HIST-AUDIT-20261023-73;OLD_COMMIT:e12eb6a070910db4845a1bfde29a5bc866d6db3f;BLOB:e4318b0da8bb63d647f6305ab4f4439c9c1e57a2;CHARACTERS:2395 -->
+### BOOK-AGENT-20261023-73-EXACT-MIGRATIONS-AND-CONCURRENT-SOURCE-PRESERVATION
+
+- **Further exact safe migration:** retired intermediate Book Agent audit checkpoints 60 and 67 moved unchanged from the old master into the historical appendix of the frozen catalog. SOURCE original blob `220ccf455122390bc709c7596ac75a9b04fa735d`; COPY `fbe36bd0730417eada207ae9aa05b69df7da9106`; independent per-unit direct reads `2/2 EXACT` (`3,455 + 3,242 = 6,697` source characters). REMOVE `c722c421b215abe79cf77837f51003445b6b00bf` strictly after verification; the old master after removal exactly equals its preceding version minus only the two checkpoints. Latest 71-checkpoint was **retained**, not removed.
+- **Combined 2026-10-23 exact-copy historical notes:** `73` separately verified and removed old master sections, `108,178` original characters, **distinct from the earlier 38/38 verified historical Entry transfer units**. New catalog `113/113` unique aligned BEGIN/END migration markers, with no new relative Markdown links introduced in these two transferred notes. Audit recorded in Crosswalk `migration_resumed_20261023_2_superseded_book_checkpoints` commit `dae72d0abcd7cdef7a05f7344774b3a4b0468b08` and Manifest `current_no_loss_gate_checkpoint_20261023_after_73_sections` commit `c9a2222dda4fbb42a3206a6feee6495283834b8b`.
+- **Concurrent authoring protection:** new active source notes `Entry669`, `Entry670`, `Entry671` are preserved in this ACTIVE_WRITE master; these are NOT included in the 73 historical transfers or treated as deployed features by virtue of the book audit. Re-read current Git HEAD before further work; do not use an obsolete baseline to overwrite another agent's notes.
+- **Strictly held boundaries:** exact original `Entry596`, `Entry599/600` private order/customer records; `SERVER-20261016-61` explicit DO_NOT_MOVE; writer-transition policy and current checkpoint; deployed Cloudflare SHA / live Google customer actions / cross-service Single Writer / 256 test outcomes and customer finance+T12 boundaries still require independent evidence and explicit owner decisions.
+- **Unchanged authority:** `OLD_BOOK=ACTIVE_WRITE`; `CATALOG=FROZEN_MIGRATION_ONLY`; `FINAL_CUTOVER=NO_GO`. This Book Agent performed GitHub documentation edits only; no Production, customer data, Cloudflare, D1/R2, Apps Script, Google, EasyStore, Printshop, PR, CI, merge or deploy mutation.
+
+<!-- END_VERBATIM_UNIT:HIST-AUDIT-20261023-73 -->
+
+<!-- BEGIN_VERBATIM_UNIT:HIST-AUDIT-20261023-75;OLD_COMMIT:e12eb6a070910db4845a1bfde29a5bc866d6db3f;BLOB:09d8a7319a5a9f12181449e93d570f1d611bbc1e;CHARACTERS:1047 -->
+### BOOK-AGENT-20261023-75-EXACT-HISTORICAL-CHECKPOINT
+
+- Documentation-only COPY→VERIFY→REMOVE of two historical administrative receipts: MIGRATION UNIT 004 (961 chars) and UNIT 005 (816 chars). COPY commit `f1efe60cb04d531b8d80dd46cf25e8ff9a87a66a`; independent exact comparison 2/2 PASS; REMOVE commit `519078a2f717cdd0e3a3bfee910a49a707f8b23c`; pinned-source full reconstruction PASS.
+- Historical transfer count for 2026-10-23: **75 sections / 109,955 characters**; catalog markers **115/115** unique balanced. Prior 38 historical archival units are separate.
+- Crosswalk commit `f19012c1e2df796e256c78e1cbf29df2cc7045b2`; Manifest commit `2897e5184f791176711965c3016bde359ac69114`.
+- Active owner writing rules, protected SERVER-61, private Entry596/599/600, and new operational Entry669/670/671 all remain in the old book. Deployment, cloud identity, Google retirement, Single Writer, and test execution evidence are not certified by this migration.
+- Old `ACTIVE_WRITE`; new catalog `FROZEN_MIGRATION_ONLY`; final owner cutover `NO_GO`.
+
+
+<!-- END_VERBATIM_UNIT:HIST-AUDIT-20261023-75 -->
+
+<!-- BEGIN_VERBATIM_UNIT:HIST-AUDIT-20261023-URL-LINE;OLD_COMMIT:e12eb6a070910db4845a1bfde29a5bc866d6db3f;BLOB:1aacdcb01bacde7a2869c00dd68ddc8c6efec841;CHARACTERS:1761 -->
+### BOOK-AGENT-20261023-REMAINING-URL-AND-LINE-ANCHOR-VERIFY — 90 GitHub links & 10 anchor samples
+- Exact HEAD at write: `622b175316ceeaaceba25cdae72302f1f46a4c84`; frozen catalog blob `7c07ffcea93e776796e29a6e78e98ceb609c171c` remains unchanged. Earlier 578/578 pinned file paths and 11/11 branch blob paths were already recorded and not rechecked.
+- Independently resolved **90 remaining GitHub link occurrences / 76 distinct GitHub REST targets**: archive tree ref 2/2, Actions 26/26 unique from 32 links, PR 14/14 unique from 20 links, commit 34/34 unique from 36 links. Of these runs **22 COMPLETED/SUCCESS and 4 COMPLETED/FAILURE**, failed IDs: 38316884906, 39065826023, 38955408023, 38957780811. Of 14 PRs, 4 currently OPEN/DRAFT, 10 CLOSED/UNMERGED/DRAFT. This is URL/target/API result evidence, NOT live functionality.
+- **10 exact-SHA line-anchor samples:** 9/10 complete cited line ranges present; chapter 30 references `tests/entry652_employee_session_lifecycle_guard.test.mjs#L1-L55` at `e486fa6d47907ff0fd65f3cdaa6a03787ae7139f` but the file has **only 51 lines** (source blob `c6af484e1aa181764e13cd563d4f1ac27b375705`). Preserve frozen catalog for authorized later editorial correction; no silent rewrite.
+- 32/32 numbered chapters present; chapter 32 includes extensive historical appendices (8335/9526 catalog lines), a navigation-quality review item, not knowledge loss proof. No source/runtime, production, data, Google, Cloudflare, EasyStore, Printshop, archive or frozen catalog modifications. Crosswalk `book_agent_20261023_remaining_github_link_targets_and_anchor_sampling_v2`; Manifest `current_no_loss_gate_20261023_remaining_urls_anchor_quality_v2`. Old book ACTIVE_WRITE / new catalog FROZEN_MIGRATION_ONLY / owner cutover NO_GO.
+
+
+<!-- END_VERBATIM_UNIT:HIST-AUDIT-20261023-URL-LINE -->
+
+<!-- BEGIN_VERBATIM_UNIT:HIST-AUDIT-20261023-EXTERNAL-32;OLD_COMMIT:e12eb6a070910db4845a1bfde29a5bc866d6db3f;BLOB:85228e34848b920e3a7bb9045cbcb5b4f42e128c;CHARACTERS:1680 -->
+### BOOK-AGENT-20261023-EXTERNAL-REF-AND-32-CHAPTER-QUALITY — privacy-aware cross-repo & section triage
+- At HEAD `f7f9f22cc97c3cea814b2ec58f0af3da8e5fa1fd`, checked the **four** non-TrendOS GitHub links in frozen catalog: GitHub repository `fawakhry/Matbagy-OS` is PRIVATE (authorized connector can access but general readers may not); three historical paths at tree `577340d798ea89247434ae8047d1b500f81c35f2` were present in a non-truncated 196-entry tree: `MIGRATION_FROM_MATBAGY_DESIGN_WORKFLOW.md`, `MIGRATION_FILE_INVENTORY.json`, `ARCHIVE/source-history.bundle`. Binary bundle content/restore NOT tested. No private source contents copied.
+- 32/32 catalog headings remain numbered contiguously. Read-only lexical quality triage: 6 overview chapters without an exact-SHA `blob` citation in that chapter (1/4/5/6/7/9); 23 chapters lack explicit rollback/recovery words; these are **review flags only**, not evidence of missing functionality. Chapter 32 holds 8335 of 9526 catalog lines including historical appendices: navigation/organization review item, no permission to rewrite frozen catalog.
+- Active Entry669–682 (without a distinct Entry677 heading) remains preserved in old ACTIVE_WRITE; absence of separate heading is NOT proof of lost history. Crosswalk `book_agent_20261023_external_links_32_chapter_quality_triage_v1`, Manifest `current_no_loss_gate_20261023_external_links_and_catalog_quality_v1`. Outstanding: chapter30 out-of-range line anchor, semantic tests/job log proof, deployed SHA, T12/R2/EasyStore/Google/Single Writer/owner gates. New book FROZEN_MIGRATION_ONLY; owner cutover NO_GO. No production, apps, projects, archive, or catalog modification.
+
+
+<!-- END_VERBATIM_UNIT:HIST-AUDIT-20261023-EXTERNAL-32 -->
+
+<!-- BEGIN_VERBATIM_UNIT:HIST-AUDIT-20261023-LINE-EOF-40;OLD_COMMIT:e12eb6a070910db4845a1bfde29a5bc866d6db3f;BLOB:68999d1bb05790d32a676324092ff8c165993f0e;CHARACTERS:1919 -->
+### BOOK-AGENT-20261023-PINNED-LINE-EOF-SWEEP-40 — high-coverage historical line-fragment bounds
+- Exact frozen catalog blob `7c07ffcea93e776796e29a6e78e98ceb609c171c` contains **467** SHA-pinned line-anchored link occurrences across **174 distinct commit/path groups** (578 pinned file links total; 111 without line fragments). Audited 40 highest-reference-density exact commit/path groups, covering **286/467** anchored link occurrences by checking the highest requested line within each immutable file. Empty single-line responses were **never** treated as broken alone: fetched complete source for such cases to disambiguate blank lines versus EOF. **279/286** anchor occurrences fully in bounds; **7/286** overshoot EOF by exactly one line, all target files themselves exist. This does not re-run previous 578 path/tree checks or claim semantic content correctness.
+- Newly identified out-of-bounds frozen catalog locations: lines **580** (accounting 893>892), **623** (employee-core 392>391), **630** (operator-task 182>181), **744** (employee-content 283>282), **787** (employee-ops 296>295), **1052** (accounting 893>892), **1154** (Ubuntu book 150>149). Earlier ch30 entry652 anchor `#L1-L55` over EOF51 appears in **two** catalog lines (1097/1132), preserved from previous evidence and not counted in the new seven. **Combined known: nine link occurrences / eight unique target fragments**, all correction-queued; catalog unchanged under FROZEN_MIGRATION_ONLY.
+- 134 lower-density SHA/path groups (181 link occurrences) remain for exhaustive bound checking. Crosswalk `book_agent_20261023_pinned_line_bounds_high_density_40_sha_files_v1`, Manifest `current_no_loss_gate_20261023_line_bounds_high_density_40_v1` store exact SHA, link locations and proof limits. Zero source/code/runtime changes, migrations, removals, deployments, private-data copies or owner cutover. ACTIVE_WRITE old book retained; NO_GO.
+
+
+<!-- END_VERBATIM_UNIT:HIST-AUDIT-20261023-LINE-EOF-40 -->
+
+<!-- BEGIN_VERBATIM_UNIT:HIST-AUDIT-20261023-467-LINES;OLD_COMMIT:e12eb6a070910db4845a1bfde29a5bc866d6db3f;BLOB:3d3bd87f26bd4fc4b5576f77962e9f922dc37fad;CHARACTERS:2286 -->
+### BOOK-AGENT-20261023-EXHAUSTIVE-467-PINNED-LINE-BOUNDS — remaining 134 file groups completed / Entry683 kept active
+- At HEAD `63688cdef8bc75406b2bea9b4ccfdb1696a9c402`, frozen catalog `7c07ffcea93e776796e29a6e78e98ceb609c171c` unchanged. **All 467/467** historical `blob/<40-SHA>/<path>#L...` link occurrences now have exact-commit file EOF/range classification across 174 distinct SHA/path groups. Prior audited 40 groups / 286 occurrences reused without rechecking. This pass fetched all **134 remaining groups / 181 occurrences** with complete original source; **166 in-bounds, 15 out-of-bounds** (including **two already-known repeated Entry652 fragments**). Combined **445/467 range-in-bounds; 22 out-of-bounds occurrences / 21 unique fragment targets; 0 failed file fetches**. Historical FILE paths remain 578/578 from prior independent tree audit; out-of-bounds fragment end does not mean missing file, missing knowledge, or Production failure.
+- Of the remaining-pass 15 out-of-bounds occurrences, **13 newly identified**; catalog line numbers: 703, 712, 814, 907, 912, 925, 930, 1035, 1081, 1081, 1113, 1132, 1164. Exact path, SHA, start/end and actual EOF are indexed in Crosswalk `book_agent_20261023_all_467_pinned_line_anchor_eof_census_entry683_v1`; Manifest `current_no_loss_gate_20261023_all_467_line_anchor_bounds_entry683`. Old nine-known occurrences preserved; no frozen catalog edits or unauthorized correction.
+- Concurrent new **Entry683** preserved in old ACTIVE_WRITE journal and read independently against PR221 head `fca5625e53815647addc6d183ebe4040990acdf5` (OPEN DRAFT UNMERGED); new sealed-draft→original T12 source-only readback module plus two tests exist and exact-head Actions #40003868725 / #40003868719 report SUCCESS. Does NOT prove a real customer financial identity/FK, authorized EasyStore invoice, merged Worker, live deployment or full R2/item losslessness. EasyStore finance audit belongs to its separate original book; not replicated here.
+- Final cutover **NO_GO**. Protected Entry596/599/600 and SERVER61 retained; old master ACTIVE_WRITE, catalog FROZEN_MIGRATION_ONLY; existing 75 extra historical moves/115 markers and 38 former units unchanged; no removal, production, Google, Cloudflare, customer-data or other-project mutations.
+
+
+<!-- END_VERBATIM_UNIT:HIST-AUDIT-20261023-467-LINES -->
+
+<!-- END_EXACT_HISTORICAL_MIGRATION:20261024_6_BOOK_AUDIT_SECTIONS -->
