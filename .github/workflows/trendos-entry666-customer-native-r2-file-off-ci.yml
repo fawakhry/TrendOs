@@ -1,0 +1,72 @@
+name: TrendOS Entry666 Private Customer R2 File OFF — SQLite
+on:
+  push:
+    branches:
+      - feat/zero-google-native-customer-r2-draft-file-off-20261021
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/customer-portal-native-r2-pending-audit-v0.mjs'
+      - 'tests/entry675_customer_r2_pending_audit_off.test.mjs'
+      - 'tests/entry675_customer_r2_pending_audit_sqlite.test.py'
+      - 'cloudflare-d1/src/customer-portal-native-draft-file-r2-v0.mjs'
+      - 'cloudflare-d1/migrations/0038_customer_portal_native_draft_file_r2_v1.sql'
+      - 'tests/entry666_customer_native_r2_file_off.test.mjs'
+      - 'tests/entry666_customer_native_r2_file_sqlite.test.py'
+      - '.github/workflows/trendos-entry666-customer-native-r2-file-off-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  customer-private-r2-file-source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Node fake-R2, security boundaries and earlier native customer actions
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          OPENAI_API_KEY: ''
+          TRENDOS_CUSTOMER_PORTAL_SESSION_HMAC_SECRET: ''
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/customer-portal-native-draft-file-r2-v0.mjs
+          node --test tests/entry666_customer_native_r2_file_off.test.mjs
+          node --check cloudflare-d1/src/customer-portal-native-r2-pending-audit-v0.mjs
+          node --test tests/entry675_customer_r2_pending_audit_off.test.mjs
+          node --test tests/entry665_customer_native_draft_item_off.test.mjs
+          node --test tests/entry664_customer_native_draft_create_off.test.mjs
+          node --test tests/entry663_customer_native_change_password_off.test.mjs
+          node --test tests/entry662_customer_native_login_off.test.mjs
+          node --test tests/entry661_customer_native_logout_off.test.mjs
+          node --test tests/entry660_customer_native_orders_off.test.mjs
+      - name: Real SQL on disposable SQLite and previous six native modules
+        run: |
+          set -euo pipefail
+          python3 tests/entry666_customer_native_r2_file_sqlite.test.py -v
+          python3 tests/entry675_customer_r2_pending_audit_sqlite.test.py -v
+          python3 tests/entry665_customer_native_draft_item_sqlite.test.py -v
+          python3 tests/entry664_customer_native_draft_create_sqlite.test.py -v
+          python3 tests/entry663_customer_native_change_password_sqlite.test.py -v
+          python3 tests/entry662_customer_native_login_sqlite.test.py -v
+          python3 tests/entry661_customer_native_logout_sqlite.test.py -v
+          python3 tests/entry660_customer_native_orders_sqlite.test.py -v
+      - name: Existing legacy behavior regression
+        run: |
+          set -euo pipefail
+          node tests/entry653_zero_google_employee_legacy_proxy_retirement.test.mjs
+      - name: Confirm all live operations untouched
+        run: |
+          echo 'CUSTOMER_FILE_STORAGE=FAKE_R2_ONLY'
+          echo 'PUBLIC_FILE_URL=NO'
+          echo 'PRODUCTION_WORKER_R2_BINDING=NO'
+          echo 'PRODUCTION_R2_PUT=NO'
+          echo 'D1_PROD_MIGRATION=NO'
+          echo 'CUSTOMER_GOOGLE_LEGACY_ACTIONS_RETIRED=0_OF_9'
+          echo 'FINANCE_PRINTER_ORDER_WRITES=NO'
+          echo 'ZERO_GOOGLE_LIVE_COMPLETE=NO'
