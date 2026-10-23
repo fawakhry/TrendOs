@@ -4,6 +4,10 @@
 (function () {
   'use strict';
   var API_ORIGIN = 'https://trendos-d1-api.trendmall-contact.workers.dev';
+  // Native bearer stays ONLY in memory; old customer state stores a fake
+  // truthy marker, never the new bearer or password.
+  var nativeToken = '';
+  var nativeEpoch = 0;
   var ACTIONS = Object.freeze({
     customerLogin: 1, customerLogout: 1, changeCustomerPassword: 1,
     getCustomerOrders: 1, getCustomerPortalAccountsV1859: 1,
@@ -26,13 +30,75 @@
   }
   function nativeSessionBearer() {
     // The existing customer.token is a LEGACY Google credential, NOT Native.
-    // No native token issuer/callback is installed in production.
+    // Testing callback is a source-only seam; a real login always takes
+    // precedence through the in-memory token from the verified HTTP response.
     var issuer = window.trendosCustomerNativeBearerV0;
-    if (typeof issuer !== 'function') throw fail('CUSTOMER_NATIVE_SESSION_NOT_AVAILABLE');
-    var token = issuer();
+    var token = nativeToken || (typeof issuer === 'function' ? issuer() : '');
     if (typeof token !== 'string' || !/^[a-f0-9]{64}$/i.test(token))
       throw fail('CUSTOMER_NATIVE_SESSION_NOT_AVAILABLE');
     return token;
+  }
+  async function nativeLoginOnly(params) {
+    var origin = exactCloudOrigin();
+    var code = params && params.customerCode;
+    var password = params && params.password;
+    if (typeof code !== 'string' || !code.trim() ||
+        code.length > 80 || code !== code.trim() ||
+        typeof password !== 'string' || password.length < 12 ||
+        password.length > 128)
+      throw fail('CUSTOMER_NATIVE_LOGIN_INPUT_INVALID');
+    if (typeof window.fetch !== 'function')
+      throw fail('CUSTOMER_NATIVE_FETCH_UNAVAILABLE');
+    // A fresh login always replaces any prior native bearer; no old Google
+    // customer/password/token/identity fields are forwarded.
+    nativeToken = '';
+    var thisEpoch = ++nativeEpoch;
+    var controller = new AbortController();
+    var timeout = setTimeout(function () { controller.abort(); }, 15000);
+    var response;
+    try {
+      response = await window.fetch(origin + '/v1/customer/native/login', {
+        method: 'POST',
+        headers: { accept: 'application/json', 'content-type': 'application/json' },
+        body: JSON.stringify({ portalCode: code, password: password }),
+        credentials: 'omit', cache: 'no-store', redirect: 'error',
+        signal: controller.signal
+      });
+    } catch (_) { throw fail('CUSTOMER_NATIVE_LOGIN_NETWORK_UNAVAILABLE'); }
+    finally { clearTimeout(timeout); }
+    if (thisEpoch !== nativeEpoch)
+      throw fail('CUSTOMER_NATIVE_LOGIN_RACE_REJECTED');
+    if (!response || !response.ok || response.status !== 200)
+      throw fail('CUSTOMER_NATIVE_LOGIN_REJECTED');
+    var raw;
+    try { raw = await response.text(); }
+    catch (_) { throw fail('CUSTOMER_NATIVE_LOGIN_RESPONSE_INVALID'); }
+    if (typeof raw !== 'string' || raw.length > 4096)
+      throw fail('CUSTOMER_NATIVE_LOGIN_RESPONSE_INVALID');
+    var data;
+    try { data = JSON.parse(raw); }
+    catch (_) { throw fail('CUSTOMER_NATIVE_LOGIN_RESPONSE_INVALID'); }
+    if (!data || data.success !== true || data.customerSessionIssued !== true ||
+        data.source !== 'd1-native-customer-login-v0' ||
+        typeof data.token !== 'string' || !/^[a-f0-9]{64}$/i.test(data.token) ||
+        !Number.isSafeInteger(data.expiresAtMs) ||
+        data.expiresAtMs <= Date.now() || data.expiresAtMs > Date.now() + 28800000)
+      throw fail('CUSTOMER_NATIVE_LOGIN_RESPONSE_UNQUALIFIED');
+    if (thisEpoch !== nativeEpoch)
+      throw fail('CUSTOMER_NATIVE_LOGIN_RACE_REJECTED');
+    nativeToken = data.token.toLowerCase();
+    // Marker, never genuine Native session token, handed to legacy-shaped UI.
+    return {success:true,customer:{
+      customerCode:code,token:'NATIVE_SESSION_IN_MEMORY',nativeSession:true,
+      mustChange:false
+    }};
+  }
+  function nativeLocalLogoutOnly() {
+    if (!nativeToken) throw fail('CUSTOMER_NATIVE_SESSION_NOT_AVAILABLE');
+    ++nativeEpoch;
+    nativeToken = '';
+    return {success:true,source:'d1-native-client-memory-clear-v0',
+      serverSessionRevoked:false,forceRelogin:true};
   }
   function safeRow(row) {
     if (!row || Array.isArray(row) || typeof row !== 'object') return null;
@@ -94,12 +160,20 @@
   window.trendosCustomerNativeBrowserDispatchV0 = async function (action, params, downstream) {
     // Identity of the employee/original transport stays intact, including
     // all arguments and result. No employee action is intercepted.
-    if (!Object.prototype.hasOwnProperty.call(ACTIONS, action) || !nativeEnabled()) {
+    if (!Object.prototype.hasOwnProperty.call(ACTIONS, action)) {
       if (typeof downstream !== 'function') throw fail('CUSTOMER_LEGACY_TRANSPORT_MISSING');
       return downstream(action, params);
     }
-    // Fail CLOSED on all eight actions without qualified cloud HTTP handlers.
-    // No Google retry, even on failure, bad auth, malformed JSON or timeout.
+    if (!nativeEnabled()) {
+      // A mode flip must never send previously established native credentials
+      // or its marker to Google through the old browser transport.
+      if (nativeToken) throw fail('CUSTOMER_NATIVE_MODE_MISMATCH');
+      if (typeof downstream !== 'function') throw fail('CUSTOMER_LEGACY_TRANSPORT_MISSING');
+      return downstream(action, params);
+    }
+    if (action === 'customerLogin') return nativeLoginOnly(params);
+    if (action === 'customerLogout') return nativeLocalLogoutOnly();
+    // Remaining seven operations do not have approved live HTTP handlers.
     if (action !== 'getCustomerOrders')
       throw fail('CUSTOMER_NATIVE_ACTION_NOT_WIRED');
     // Ignore customerCode/token/ID in legacy caller params. Only server-side
@@ -109,6 +183,7 @@
   window.trendosCustomerNativeBrowserPolicyV0 = Object.freeze({
     sourceOnly: true, defaultOff: true, customerActions: Object.keys(ACTIONS).length,
     nativeHttpReadQualifiedForLive: false, customerLoginRouteReady: false,
+    nativeLoginSourceHandshakeOnly: true, nativeTokenNeverPersisted: true,
     googleFallbackWhenEnabled: false, customerMasterMigration: false,
     customerOrderWriterCreated: false, zeroGoogleComplete: false
   });
