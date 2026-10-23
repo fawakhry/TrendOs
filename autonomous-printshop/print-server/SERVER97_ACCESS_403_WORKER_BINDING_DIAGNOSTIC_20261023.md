@@ -50,3 +50,10 @@
 
 - Switched from the Worker-list GET to **one exact stage Worker GET** using the official Cloudflare `GET /accounts/{account_id}/workers/workers/{worker_id}` API (the path accepts Worker name or ID). The endpoint returns the immutable Worker ID. Existing audited authorization still lacks Worker metadata scope; no additional rights were granted. https://developers.cloudflare.com/api/resources/workers/subresources/beta/subresources/workers/methods/get/
 - Corresponding fake-only tests and dedicated workflow updated to prove the same matching invariant while never enumerating unrelated/production Workers. A CI result remains necessary for the updated version; no claim of live approval from source changes.
+
+## Final SERVER-97 scoped proof (exact Worker GET)
+
+- [Actions run 39996393864](https://github.com/fawakhry/TrendOs/actions/runs/39996393864) after direct exact-Worker GET revision: **7/7 synthetic tests PASS**.
+- Real configuration-read attempt: **fail-closed** `SERVER97_WORKERS_METADATA_READ_SCOPE_UNAVAILABLE` (`Access app GET` permitted; `Worker exact GET` not authorized). Not evidence of a staging service-token failure or misbinding.
+- Only next missing authorization: *individual stage Worker metadata read only* or an equivalent owner UI read-only proof. Existing CI credential must not be broadened automatically. Do not rerun a denied request with unchanged permissions.
+- Keep `HTTP_403_ROOT_CAUSE=UNRESOLVED`, `REAL_CLOUD_ACCESS_AUTH=NOT_PROVEN`, `WORKER_D1_MUTATIONS=0`, `PRODUCTION_TOUCHED=NO`.
