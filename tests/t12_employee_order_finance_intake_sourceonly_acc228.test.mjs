@@ -10,7 +10,7 @@ import {
 } from '../cloudflare-d1/src/t12-employee-order-finance-intake-sourceonly.mjs';
 const C='CUS-FAKE-228',ORDER_ID='4323',KEY='cld1_1800000000000_EMPLOYEE228_TEST0001';
 const A='service-actor-228';
-function fixture(lanes=2){
+function fixture(lanes=2,skipCapture=false){
  const raw=new DatabaseSync(':memory:');
  raw.exec('PRAGMA foreign_keys=ON');
  for(const file of ['0005_t12_production_create_canary.sql',
@@ -29,10 +29,13 @@ function fixture(lanes=2){
   raw.prepare("INSERT INTO t12_prod_lines (line_id,order_id,request_key,ordinal,department,assigned_to,item_name,qty,priority,status,heat_press,fly_print) VALUES (?,?,?,?,?,?,?,1,'عادي','طلب جديد',0,0)")
    .run(ORDER_ID+'-'+String(i+1).padStart(2,'0'),ORDER_ID,KEY,i+1,l.department,l.who,l.name);
  }
+ if(!skipCapture){
  raw.exec("UPDATE t12_order_customer_at_create_control_v1 SET mode='ISOLATED'");
  raw.prepare("INSERT INTO t12_order_customer_at_create_v1 (order_id,request_key,customer_id,external_customer_id,customer_version,actor_subject,evidence_ref,selector_role,selector_session_sha256,selector_issued_at,selector_expires_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
   .run(ORDER_ID,KEY,C,'999002',1,A,'FAKE_ACC228_SIGNED_SELECTOR_EVIDENCE',
       'service','a'.repeat(64),1800000000,1800000600);
+ }
+
  let batches=0;
  const db={
   prepare(sql){
@@ -51,8 +54,8 @@ function fixture(lanes=2){
  };
  return {raw,db,batches:()=>batches,dispose(){raw.close()}};
 }
-async function withFixture(fn,lanes=2){
- const x=fixture(lanes);try{return await fn(x);}finally{x.dispose();}
+async function withFixture(fn,lanes=2,skipCapture=false){
+ const x=fixture(lanes,skipCapture);try{return await fn(x);}finally{x.dispose();}
 }
 const request=x=>inspect({db:x.db,orderId:ORDER_ID,expectedOfficialCustomerId:C});
 test('new source has no HTTP endpoint, T12/finance creation, or direct D1 finance link',()=>{
@@ -94,9 +97,16 @@ test('single Print department source is valid, but still no finance release',()=
  assert.equal(r.body.lineCount,1);
  assert.equal(r.body.canRequestInvoice,false);
 },1));
-test('missing original ACC223 source capture cannot authorize owner by order name/phone',()=>withFixture(async x=>{
- x.raw.exec("DELETE FROM t12_order_customer_at_create_v1"); // trigger must prevent
-},1).then(()=>assert.fail('immutable trigger should reject delete')).catch(e=>assert.match(String(e),/ACC223_SOURCE_CAPTURE_IMMUTABLE/)));
+test('same-name committed T12 order without immutable customer capture is denied',()=>withFixture(async x=>{
+ const r=await request(x);
+ assert.equal(r.status,409);
+ assert.equal(r.body.code,'OFFICIAL_CUSTOMER_CAPTURE_NOT_MATCHING_OR_UNATTESTED');
+ assert.equal(r.body.financeAuthorized,false);
+},1,true));
+test('immutable T12 at-create source evidence cannot be removed or reassigned',()=>withFixture(async x=>{
+ assert.throws(()=>x.raw.exec("DELETE FROM t12_order_customer_at_create_v1"),/ACC223_SOURCE_CAPTURE_IMMUTABLE/);
+ assert.equal((await request(x)).status,200);
+},1));
 test('wrong exact customer ID, missing session-bound capture and wrong version fail closed',()=>withFixture(async x=>{
  assert.equal((await inspect({db:x.db,orderId:ORDER_ID,expectedOfficialCustomerId:'CUS-OTHER'})).status,409);
  x.raw.exec("UPDATE t12_customers SET version=2 WHERE customer_id='CUS-FAKE-228'");
