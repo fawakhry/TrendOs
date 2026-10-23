@@ -12579,5 +12579,292 @@
     "catalog_remains_migration_only": true,
     "zero_google_complete": "NOT_VERIFIED",
     "cutover": "NO_GO"
+  },
+  "migration_resumed_20261023_26_entry_transfer_receipts": {
+    "date": "2026-10-23",
+    "source_book": "TrendOS_MASTER_BOOK.md",
+    "destination_book": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+    "baseline_head": "b00555730a185a4508d039db19a658611ae976ac",
+    "baseline_source_blob": "a6240b30ff8760515cc49b538a4d22173d9af25c",
+    "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+    "copy_verified_independently_after_read": "PASS_26_OF_26",
+    "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+    "post_remove_source_blob": "484234b6ed272d8259deb23fb173f27af36ed5fb",
+    "preservation": "EXACT_VERBATIM_26_INDIVIDUAL_RECEIPTS",
+    "scope": "HISTORICAL_ADMINISTRATIVE_MIGRATION_RECEIPTS_NOT_A_SECOND_COPY_OF_ENTRY_FUNCTION_TEXT",
+    "units": [
+      {
+        "historical_id": "BOOK-MIGRATION-20261016-013",
+        "title": "## BOOK-MIGRATION-20261016-013 — Entry611 exact verified migration",
+        "source_characters": 943,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261016_013",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261016-014",
+        "title": "## BOOK-MIGRATION-20261016-014 — Entry612 exact verified migration",
+        "source_characters": 586,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261016_014",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261016-015",
+        "title": "## BOOK-MIGRATION-20261016-015 — Entry613 superseded canary historical transfer",
+        "source_characters": 634,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261016_015",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261016-016",
+        "title": "## BOOK-MIGRATION-20261016-016 — Entry614 two-chunk exact historical migration",
+        "source_characters": 686,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261016_016",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261017-017",
+        "title": "## BOOK-MIGRATION-20261017-017 — Entry616 historical copy verified",
+        "source_characters": 460,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261017_017",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261017-018",
+        "title": "## BOOK-MIGRATION-20261017-018 — Entry617 historical transfer",
+        "source_characters": 337,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261017_018",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261017-019",
+        "title": "## BOOK-MIGRATION-20261017-019 — Entry618 historical transfer",
+        "source_characters": 337,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261017_019",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261017-020",
+        "title": "## BOOK-MIGRATION-20261017-020 — Entry620",
+        "source_characters": 300,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261017_020",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261017-021",
+        "title": "## BOOK-MIGRATION-20261017-021 — Entry621",
+        "source_characters": 286,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261017_021",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261017-022",
+        "title": "## BOOK-MIGRATION-20261017-022 — Entry622",
+        "source_characters": 282,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261017_022",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261017-023",
+        "title": "## BOOK-MIGRATION-20261017-023 — Entry623 verified three-part historical transfer",
+        "source_characters": 565,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261017_023",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261017-024",
+        "title": "## BOOK-MIGRATION-20261017-024 — Entry624",
+        "source_characters": 240,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261017_024",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261017-025",
+        "title": "## BOOK-MIGRATION-20261017-025 — Entry625",
+        "source_characters": 231,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261017_025",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261017-026",
+        "title": "## BOOK-MIGRATION-20261017-026 — Entry626",
+        "source_characters": 231,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261017_026",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261018-027",
+        "title": "## BOOK-MIGRATION-20261018-027 — Entry627",
+        "source_characters": 330,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261018_027",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261018-028",
+        "title": "## BOOK-MIGRATION-20261018-028 — Entry630",
+        "source_characters": 264,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261018_028",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261018-029",
+        "title": "## BOOK-MIGRATION-20261018-029 — Entry631",
+        "source_characters": 283,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261018_029",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261018-030",
+        "title": "## BOOK-MIGRATION-20261018-030 — Entry632",
+        "source_characters": 318,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261018_030",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261018-031",
+        "title": "## BOOK-MIGRATION-20261018-031 — Entry633",
+        "source_characters": 299,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261018_031",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261018-032",
+        "title": "## BOOK-MIGRATION-20261018-032 — Entry634",
+        "source_characters": 275,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261018_032",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261018-033",
+        "title": "## BOOK-MIGRATION-20261018-033 — Entry635",
+        "source_characters": 275,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261018_033",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261018-034",
+        "title": "## BOOK-MIGRATION-20261018-034 — Entry636",
+        "source_characters": 275,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261018_034",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261018-035",
+        "title": "## BOOK-MIGRATION-20261018-035 — Entry619 Accounting historical transfer",
+        "source_characters": 762,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261018_035",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261018-036",
+        "title": "## BOOK-MIGRATION-20261018-036 — Entry615 privacy-reviewed exact history",
+        "source_characters": 723,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261018_036",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261018-037",
+        "title": "## BOOK-MIGRATION-20261018-037 — Entries637–652 contiguous history",
+        "source_characters": 914,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261018_037",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      },
+      {
+        "historical_id": "BOOK-MIGRATION-20261018-038",
+        "title": "## BOOK-MIGRATION-20261018-038 — Entries653–659 exact grouped historical transfer",
+        "source_characters": 742,
+        "catalog_marker": "MASTER_BOOK_MIGRATION_20261018_038",
+        "copy_commit": "dc382db43356c8919ea26662e78d3cff8c8bef7c",
+        "remove_commit": "116f747719cf3b876db780af4c6ce3292296eb1a",
+        "source_and_dest_full_payload_exact": "PASS",
+        "source_removed_after_independent_read": "PASS"
+      }
+    ],
+    "original_characters": 11578,
+    "all_26_individual_exact_match": "PASS",
+    "source_master_full_file_reconstruction_only_targeted_cut": "EXACT_PASS",
+    "begin_end_marker_pairs_after": 87,
+    "new_relative_markdown_links_from_batch": 0,
+    "raw_customer_identifiers_copied": false,
+    "protected_Entry596_599_600_left_old": true,
+    "protected_SERVER_20261016_61_left_old": true,
+    "evidence_limits": "26 historical receipts preserve previous transfer decisions and source proof links; historical receipt statements do not recertify original 38 unit payload comparisons or deployed runtime.",
+    "authority_old": "ACTIVE_WRITE",
+    "authority_new": "FROZEN_MIGRATION_ONLY",
+    "owner_cutover": "NO_GO"
   }
 }
