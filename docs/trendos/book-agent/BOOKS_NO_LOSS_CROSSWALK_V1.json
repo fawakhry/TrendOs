@@ -12418,5 +12418,166 @@
     "production_modifications": 0,
     "non_book_code_changes": 0,
     "private_customer_record_copies": 0
+  },
+  "migration_resumed_20261023_13_more_historical_server_sections": {
+    "date": "2026-10-23",
+    "original_book_pre_second_round": "149e335edb3a3bfaac7be5d7d8e24eae7daccd65",
+    "original_book_pre_second_round_blob": "8aab5aafc9fbd5ab1ee9a3a33c7511289b87e571",
+    "round_11": {
+      "copied_commit": "84f15e55797da180e99cf93749a9dc8c09202f17",
+      "removed_commit": "7c08f166b5d2611ad7f9b087cbc05f9daf4459bf",
+      "units": 11,
+      "characters": 27960
+    },
+    "round_2": {
+      "copied_commit": "7cbfe00f12e4ec399720f23fb8a95880eb444ef4",
+      "removed_commit": "0a07a069277204c58f7b20136ccac4879b28d7ad",
+      "units": 2,
+      "characters": 3028
+    },
+    "more_13_individually_verified_exact_at_copy": [
+      {
+        "historical_id": "SERVER-20261016-62",
+        "characters": 3242,
+        "catalog_marker": "MASTER_SERVER_20261016_62",
+        "matched_original_source_at_copy": "PASS",
+        "source_removed_after_independent_copy_verification": "PASS",
+        "classification": "HISTORICAL_POINT_IN_TIME_OR_SYNTHETIC_TEST_NOT_PRODUCTION_VERIFIED"
+      },
+      {
+        "historical_id": "SERVER-20261016-63",
+        "characters": 4942,
+        "catalog_marker": "MASTER_SERVER_20261016_63",
+        "matched_original_source_at_copy": "PASS",
+        "source_removed_after_independent_copy_verification": "PASS",
+        "classification": "HISTORICAL_POINT_IN_TIME_OR_SYNTHETIC_TEST_NOT_PRODUCTION_VERIFIED"
+      },
+      {
+        "historical_id": "SERVER-20261016-64",
+        "characters": 2471,
+        "catalog_marker": "MASTER_SERVER_20261016_64",
+        "matched_original_source_at_copy": "PASS",
+        "source_removed_after_independent_copy_verification": "PASS",
+        "classification": "HISTORICAL_POINT_IN_TIME_OR_SYNTHETIC_TEST_NOT_PRODUCTION_VERIFIED"
+      },
+      {
+        "historical_id": "SERVER-20261016-65",
+        "characters": 2791,
+        "catalog_marker": "MASTER_SERVER_20261016_65",
+        "matched_original_source_at_copy": "PASS",
+        "source_removed_after_independent_copy_verification": "PASS",
+        "classification": "HISTORICAL_POINT_IN_TIME_OR_SYNTHETIC_TEST_NOT_PRODUCTION_VERIFIED"
+      },
+      {
+        "historical_id": "SERVER-20261016-66",
+        "characters": 2511,
+        "catalog_marker": "MASTER_SERVER_20261016_66",
+        "matched_original_source_at_copy": "PASS",
+        "source_removed_after_independent_copy_verification": "PASS",
+        "classification": "HISTORICAL_POINT_IN_TIME_OR_SYNTHETIC_TEST_NOT_PRODUCTION_VERIFIED"
+      },
+      {
+        "historical_id": "SERVER-20261016-67",
+        "characters": 2063,
+        "catalog_marker": "MASTER_SERVER_20261016_67",
+        "matched_original_source_at_copy": "PASS",
+        "source_removed_after_independent_copy_verification": "PASS",
+        "classification": "HISTORICAL_POINT_IN_TIME_OR_SYNTHETIC_TEST_NOT_PRODUCTION_VERIFIED"
+      },
+      {
+        "historical_id": "SERVER-20261016-68",
+        "characters": 2349,
+        "catalog_marker": "MASTER_SERVER_20261016_68",
+        "matched_original_source_at_copy": "PASS",
+        "source_removed_after_independent_copy_verification": "PASS",
+        "classification": "HISTORICAL_POINT_IN_TIME_OR_SYNTHETIC_TEST_NOT_PRODUCTION_VERIFIED"
+      },
+      {
+        "historical_id": "SERVER-20261018-68J",
+        "characters": 1455,
+        "catalog_marker": "MASTER_SERVER_20261018_68J",
+        "matched_original_source_at_copy": "PASS",
+        "source_removed_after_independent_copy_verification": "PASS",
+        "classification": "HISTORICAL_POINT_IN_TIME_OR_SYNTHETIC_TEST_NOT_PRODUCTION_VERIFIED"
+      },
+      {
+        "historical_id": "SERVER-20261018-68K",
+        "characters": 1699,
+        "catalog_marker": "MASTER_SERVER_20261018_68K",
+        "matched_original_source_at_copy": "PASS",
+        "source_removed_after_independent_copy_verification": "PASS",
+        "classification": "HISTORICAL_POINT_IN_TIME_OR_SYNTHETIC_TEST_NOT_PRODUCTION_VERIFIED"
+      },
+      {
+        "historical_id": "SERVER-20261018-69A",
+        "characters": 1573,
+        "catalog_marker": "MASTER_SERVER_20261018_69A",
+        "matched_original_source_at_copy": "PASS",
+        "source_removed_after_independent_copy_verification": "PASS",
+        "classification": "HISTORICAL_POINT_IN_TIME_OR_SYNTHETIC_TEST_NOT_PRODUCTION_VERIFIED"
+      },
+      {
+        "historical_id": "SERVER-20261018-69BC",
+        "characters": 2351,
+        "catalog_marker": "MASTER_SERVER_20261018_69BC",
+        "matched_original_source_at_copy": "PASS",
+        "source_removed_after_independent_copy_verification": "PASS",
+        "classification": "HISTORICAL_POINT_IN_TIME_OR_SYNTHETIC_TEST_NOT_PRODUCTION_VERIFIED"
+      },
+      {
+        "historical_id": "SERVER-20261018-70A",
+        "characters": 1993,
+        "catalog_marker": "MASTER_SERVER_20261018_70A",
+        "matched_original_source_at_copy": "PASS",
+        "source_removed_after_independent_copy_verification": "PASS",
+        "classification": "HISTORICAL_POINT_IN_TIME_OR_SYNTHETIC_TEST_NOT_PRODUCTION_VERIFIED"
+      },
+      {
+        "historical_id": "SERVER-20261019-71A",
+        "characters": 1548,
+        "catalog_marker": "MASTER_SERVER_20261019_71A",
+        "matched_original_source_at_copy": "PASS",
+        "source_removed_after_independent_copy_verification": "PASS",
+        "classification": "HISTORICAL_POINT_IN_TIME_OR_SYNTHETIC_TEST_NOT_PRODUCTION_VERIFIED"
+      }
+    ],
+    "additional_13_total_characters": 30988,
+    "old_master_full_reconstruction_after_excluding_only_13_sections": "EXACT_PASS",
+    "old_master_verified_post_move_blob": "a9156b49c38f66543bc3819edc4428ec6916b4a9",
+    "combined_with_first_round": {
+      "first_round": 8,
+      "second_round": 13,
+      "total_sections_transferred_and_removed": 21,
+      "total_source_characters": 41298
+    },
+    "post_migration_reference_repair": {
+      "change_commit": "ca8956020aa0e3e9896951da6e28295f2fa803dd",
+      "affected_historical_id": "SERVER-20261016-66",
+      "issue": "Relative link inside previously exact-copied historical unit pointed to documentation file only on closed PR185 branch; missing in active Book branch",
+      "pinned_target_url": "https://github.com/fawakhry/TrendOs/blob/cab96755f781aff52af8b34172cb81e19e0d0297/autonomous-printshop/print-server/SERVER66_MIRROR_READ_CUTOVER_GATES.md",
+      "verified_target_blob": "e440781749ae77c0a0042e4af0072f61f82a3c86",
+      "original_unit_verbatim_copy_preserved_immutably_at": "84f15e55797da180e99cf93749a9dc8c09202f17",
+      "current_catalog_server66_payload_exact_to_original": false,
+      "non_link_text_preserved": true,
+      "only_link_normalized_after_copy": true
+    },
+    "current_catalog_begin_end_verbatim_migration_markers": 61,
+    "current_catalog_relative_markdown_missing_targets": 0,
+    "still_in_old_master_server_sections": [
+      {
+        "historical_id": "SERVER-20261016-61",
+        "status": "OWNER_TRANSITION_DO_NOT_MOVE_EXPLICIT",
+        "reason": "Original active Master paragraph explicitly forbids migration during owner TWO_BOOKS_WRITE transition. Don't override to make a perfect numeric counter."
+      }
+    ],
+    "source_sha_lineage_not_redeployed": true,
+    "test_runtime_certifications_added": 0,
+    "private_entry_596_599_600_migrated": false,
+    "privacy_custody_approved": false,
+    "final_book_owner_approval": false,
+    "old_master_still_active": true,
+    "catalog_remains_migration_only": true,
+    "zero_google_complete": "NOT_VERIFIED",
+    "cutover": "NO_GO"
   }
 }
