@@ -13048,5 +13048,92 @@
     "authority_old": "ACTIVE_WRITE",
     "authority_new": "FROZEN_MIGRATION_ONLY",
     "cutover": "NO_GO"
+  },
+  "migration_resumed_20261023_7_safe_remaining_master_chunks": {
+    "date": "2026-10-23",
+    "branch": "agent/trendos-book-audit-v1-20261014",
+    "starting_head": "ff24b3751edb572d5e139c77146443d871b68411",
+    "source": "TrendOS_MASTER_BOOK.md",
+    "destination": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+    "scope": "7 distinct remaining old-Master paragraphs; NO private Entry596/599/600 raw data and no OWNER_GATE/Server61 transfer",
+    "non_private_old_entry600_era_baseline": {
+      "source_blob": "fda148566da3acfb17efcc78ba9f3f2ebc716aca",
+      "copy_commit": "4d0acbfd7c127d20ebbc1022d858501dbf087a28",
+      "remove_commit": "231d84bf1e3378fc357b5dcda19b179f7cf18911",
+      "source_characters": 2471,
+      "proof": "INDIVIDUAL_EXACT_SOURCE_TO_DESTINATION_3_OF_3; FULL_OLD_MASTER_RECONSTRUCTION_EXACT",
+      "units": [
+        {
+          "marker": "MASTER_BASELINE_ENTRY600_1_FRONTEND",
+          "source_characters": 935,
+          "classification": "HISTORICAL_UNREVALIDATED_PRODUCTION_BASELINE_CLAIM"
+        },
+        {
+          "marker": "MASTER_BASELINE_ENTRY600_2_API_D1",
+          "source_characters": 746,
+          "classification": "HISTORICAL_UNREVALIDATED_PRODUCTION_BASELINE_CLAIM"
+        },
+        {
+          "marker": "MASTER_BASELINE_ENTRY600_3_ORDERS",
+          "source_characters": 790,
+          "classification": "HISTORICAL_UNREVALIDATED_PRODUCTION_BASELINE_CLAIM"
+        }
+      ],
+      "qualification": "The snapshot claimed deployment and D1 status at historical point in time; CURRENT_DEPLOYED_SHA_UNVERIFIED."
+    },
+    "initial_owner_transition_admin_receipts": {
+      "source_blob": "bb07f4561085382f5368b8d51503484f20ca465f",
+      "copy_commit": "2b9c715a845655c4228685d1d3ee28f877e78161",
+      "marker_only_normalization_commit": "7bdf5d899ecec8dccd9ae54a5ec6d87fcc1a6aa6",
+      "remove_commit": "2824fcc7cf1696da86cda759ad0c77404215862f",
+      "source_characters": 3437,
+      "proof": "INDIVIDUAL_EXACT_SOURCE_TO_DESTINATION_4_OF_4; FULL_OLD_MASTER_RECONSTRUCTION_EXACT",
+      "units": [
+        {
+          "marker": "MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_001",
+          "source_characters": 1063,
+          "classification": "HISTORICAL_MIGRATION_RECEIPT_ONLY"
+        },
+        {
+          "marker": "MASTER_OWNER_RECEIPT_20261016_MIGRATION_PRECHECK",
+          "source_characters": 608,
+          "classification": "PRIVACY_HOLD_ADMINISTRATIVE_RECEIPT_NO_RAW_VALUES"
+        },
+        {
+          "marker": "MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_002",
+          "source_characters": 906,
+          "classification": "HISTORICAL_MIGRATION_RECEIPT_ONLY"
+        },
+        {
+          "marker": "MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_003",
+          "source_characters": 860,
+          "classification": "HISTORICAL_MIGRATION_RECEIPT_ONLY"
+        }
+      ],
+      "qualification": "Administrative history only. One privacy precheck has no raw IDs, notes or contact data; raw private entries remain untouched."
+    },
+    "grand_total_this_session_units": 7,
+    "grand_total_this_session_original_characters": 5908,
+    "total_new_sections_in_20261023_migration_series": 67,
+    "total_original_source_characters_20261023_series": 100040,
+    "marker_begin_and_end_pair_count": 107,
+    "markers_unique": true,
+    "old_master_after_blob": "87a1fa48efb457fc92e60a3e974e7e1b78d2a961",
+    "new_catalog_blob": "c5d5ed7900b34a803c3b2c8423f35f99d0f9ca1f",
+    "remaining_master_review": {
+      "active_write_policy_and_reading_instructions": "KEEP_ACTIVE",
+      "old_baseline_heading": "PRESERVE_TEMPORARILY_OVER_PRIVATE_ENTRY596_599_600; NOT_CURRENT_DEPLOYED_CERTIFICATION",
+      "private_Entry596_599_600": "PRIVACY_OWNER_REVIEW_BLOCKED_NO_PUBLIC_RAW_COPY",
+      "owner_transition_authority": "KEEP_ACTIVE_UNTIL_OWNER_CUTOVER",
+      "SERVER_20261016_61": "EXPLICIT_NO_MOVE_HOLD_UNTIL_OWNER_RESOLUTION",
+      "current_book_agent_checkpoint": "ACTIVE_WRITE_CHECKPOINT_KEEP_UNTIL_SUCCESSOR_ARCHIVED_WITH_EXACT_PROOF",
+      "existing_git_archive": "DO_NOT_DELETE"
+    },
+    "excluded_independent_projects": true,
+    "production_changed": false,
+    "exact_sha_CI_reexecuted": false,
+    "all_256_test_outcomes_verified": false,
+    "final_owner_approval": false,
+    "cutover": "NO_GO"
   }
 }
