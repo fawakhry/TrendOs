@@ -1136,3 +1136,10 @@
 - No token has been created; Account Resources still defaulted to `All accounts`, and expiration still `No expiration` pending deliberate restriction. Do not submit, grant Access management/Edit, or reveal secret material.
 - Single next UI action: **scroll within the open Permissions dropdown** until `Account Analytics` appears, then send screenshot before selecting. Exact permission must be Account Analytics with Read only, not Access Audit Logs or unrelated permissions. Avoid interpreting Access identity login logs as non-identity proof.
 - `TOKEN_CREATED=NO`; `ACCOUNT_ANALYTICS_SELECT=NOT_YET`; `HTTP403_ROOT_CAUSE=UNRESOLVED`; `PRODUCTION_TOUCHED=NO`.
+
+### SERVER-20261023-126 — Account Analytics choice located but not yet committed (owner screenshot, 2026-10-23 ~22:27 Africa/Cairo)
+
+- In Cloudflare `Create Custom Token`, the draft name `TrendOS Stage CF-Ray Readonly 20261023` remains in place. Under `Permissions`, the left permission category is `Account`; the middle dropdown is OPEN and currently shows the search/selection text `Account Analytics`, with a matching **Account Analytics** menu option directly underneath. The rightmost permission action dropdown is still grey `Select...`.
+- The screenshot proves the correct permission option was **located**, not yet definitively selected/committed or granted; no claim that `Read` has been chosen. Account Resources still show `Include → All accounts` and expiry remains `No expiration`, so the form is **not safe to submit**.
+- **Next single owner action:** click the visible dropdown menu option **Account Analytics** (directly under the active field), then send screenshot before setting the rightmost action to Read. Do not click Continue to summary or create a token. No secret has been shown.
+- `TOKEN_CREATED=NO`; `ACCOUNT_ANALYTICS_OPTION_LOCATED=YES`; `ACCOUNT_ANALYTICS_ACTION_READ=NOT_YET_SET`; `ACCOUNT_SCOPE_AND_EXPIRY=NOT_YET_RESTRICTED`; `HTTP403_CAUSE=UNRESOLVED`; `PRODUCTION_UNTOUCHED=YES`.
