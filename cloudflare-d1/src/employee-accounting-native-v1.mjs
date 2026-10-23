@@ -292,7 +292,14 @@ async function parseBody(request){try{return {ok:true,body:await request.json()}
 async function authenticate(request,body,env){
   const h=text(request.headers.get('Authorization')),m=h.match(/^Bearer\s+(.+)$/i),username=text(body.username||body.name),token=text(m?m[1]:body.token);
   if(!username||!token)return {ok:false,status:401,message:'username and employee session token are required'};
-  const v=await verifyEmployeeSessionCloudFirst(username,token,env,'edge');
+  // ACC236 isolated finance uses the EXISTING verified native employee
+  // session source from operational TrendOS via signed private service, not
+  // operational user tables inside the EasyStore financial D1. No fallback
+  // to Google Apps Script or Cloud shadow in REMOTE_NATIVE_REQUIRED mode.
+  const v=text(env&&env.EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1)==='REMOTE_NATIVE_REQUIRED'
+    ? await (await import('./accounting-employee-session-bridge-v1.mjs'))
+        .verifyEmployeeSessionIsolatedV1(username,token,env)
+    : await verifyEmployeeSessionCloudFirst(username,token,env,'edge');
   if(!v||!v.ok)return {ok:false,status:401,message:text(v&&v.message)||'Employee session rejected'};
   const b=v.body||{},u=b.user||{},user={username:text(u.username||u.name||b.username||username),role:key(u.role||b.role||'service')||'service',department:text(u.department||b.department)};
   const verifiedUsername=text(u.username||u.name||b.username);
