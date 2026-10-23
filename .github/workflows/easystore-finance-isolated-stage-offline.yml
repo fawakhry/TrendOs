@@ -6,6 +6,7 @@ on:
       - 'cloudflare-d1/migrations/0015_employee_accounting_zero_google_v1.sql'
       - 'cloudflare-d1/migrations/00*_employee_accounting_*.sql'
       - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'cloudflare-d1/src/accounting-customer-facts-contract-v1.mjs'
       - '.github/workflows/easystore-finance-isolated-stage-offline.yml'
   push:
     branches:
@@ -15,6 +16,7 @@ on:
       - 'cloudflare-d1/migrations/0015_employee_accounting_zero_google_v1.sql'
       - 'cloudflare-d1/migrations/00*_employee_accounting_*.sql'
       - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - 'cloudflare-d1/src/accounting-customer-facts-contract-v1.mjs'
       - '.github/workflows/easystore-finance-isolated-stage-offline.yml'
   workflow_dispatch:
 permissions:
@@ -45,4 +47,13 @@ jobs:
           for bad in ['trendos-main','trendos-staging','5c4b92bf-e043-4f6e-bd6d-d514a92cd825','bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6','migrations_dir = "../migrations"']:
               assert bad not in t
           assert 'FINANCE_WRITES = "OFF"' in t
-          print('PASS: dedicated financial D1 binding, no production/operational D1 reference')
+          assert 'EASYSTORE_CUSTOMER_SOURCE_V1 = "REMOTE_REQUIRED"' in t
+          assert 'binding = "TRENDOS_CUSTOMER_FACTS"' in t
+          assert 'service = "trendos-customer-facts-stage-source"' in t
+          o=Path('cloudflare-d1/easystore-finance-stage/wrangler.trendos-customer-facts-source.toml').read_text()
+          assert 'workers_dev = false' in o
+          assert 'database_name = "trendos-staging"' in o
+          assert 'easystore-accounting-staging' not in o
+          assert '5c4b92bf-e043-4f6e-bd6d-d514a92cd825' not in o
+          assert 'TRENDOS_CUSTOMER_FACTS_SOURCE_V1 = "ENFORCE"' in o
+          print('PASS: private TrendOS source, signed service boundary, dedicated finance D1, writes OFF')
