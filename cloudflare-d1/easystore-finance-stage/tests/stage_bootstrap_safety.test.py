@@ -150,7 +150,7 @@ class StageBootstrapTests(unittest.TestCase):
                     target = Path(cmd[cmd.index("--output") + 1])
                     target.write_text(
                         "CREATE TABLE _cf_KV(key TEXT PRIMARY KEY, value BLOB)"
-                        " WITHOUT ROWID;\\n", encoding="utf-8")
+                        " WITHOUT ROWID;", encoding="utf-8")
                     return ""
                 return super().run(*cmd)
 
