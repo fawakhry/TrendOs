@@ -14605,5 +14605,261 @@
       "new": "FROZEN_MIGRATION_ONLY",
       "final_cutover": "NO_GO"
     }
+  },
+  "book_agent_20261023_semantic_anchor_sample_and_draft_route_parity_v1": {
+    "date": "2026-10-23",
+    "source_branch_head_before_write": "ece998bfad293d9de3132aace36994da7419835a",
+    "catalog_blob_unchanged": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "previously_checked": "578/578_PINNED_PATHS_11/11_BRANCH_PATHS_90/90_REMAINING_URLS_10_PREVIOUS_ANCHOR_SAMPLES_NOT_REPEATED",
+    "new_historical_anchor_samples": {
+      "count": 16,
+      "full_ranges_returned": 16,
+      "full_ranges_missing": 0,
+      "samples": [
+        {
+          "chapter": 10,
+          "path": "cloudflare-d1/src/t12-general-create-handler.mjs",
+          "exact_commit": "d8d3ee9963d9fa9b91742c21f89f673e1f8e7dde",
+          "fragment": "L91-L153",
+          "range_present": true,
+          "scope": "AUTH_THEN_OFF_CANARY_GENERAL_GATE_SOURCE",
+          "evidence_level": "EXACT_SHA_TARGET_RANGE_PLUS_TARGETED_SOURCE_PREDICATE_READ_ONLY",
+          "runtime_evidence": false
+        },
+        {
+          "chapter": 10,
+          "path": "cloudflare-d1/src/t12-general-create.mjs",
+          "exact_commit": "d8d3ee9963d9fa9b91742c21f89f673e1f8e7dde",
+          "fragment": "L210-L281",
+          "range_present": true,
+          "scope": "D1_BATCH_T12_LEDGER_LINES_OUTBOX_COMMIT_WITH_REPLAY_HANDLING_SOURCE",
+          "evidence_level": "EXACT_SHA_TARGET_RANGE_PLUS_TARGETED_SOURCE_PREDICATE_READ_ONLY",
+          "runtime_evidence": false
+        },
+        {
+          "chapter": 14,
+          "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+          "exact_commit": "8f29bbc570634ed499303ab426874d6302ee4997",
+          "fragment": "L451-L540",
+          "range_present": true,
+          "scope": "FINGERPRINT_AND_EXPIRY_REVOCATION_SESSION_VERSION_CHECK_SOURCE",
+          "evidence_level": "EXACT_SHA_TARGET_RANGE_PLUS_TARGETED_SOURCE_PREDICATE_READ_ONLY",
+          "runtime_evidence": false
+        },
+        {
+          "chapter": 16,
+          "path": "cloudflare-d1/src/customer-portal-native-readiness-v0.mjs",
+          "exact_commit": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+          "fragment": "L1-L37",
+          "range_present": true,
+          "scope": "SOURCE_ONLY_NO_GO_WITHOUT_LIVE_CUSTOMER_RELEASE",
+          "evidence_level": "EXACT_SHA_TARGET_RANGE_PLUS_TARGETED_SOURCE_PREDICATE_READ_ONLY",
+          "runtime_evidence": false
+        },
+        {
+          "chapter": 17,
+          "path": "cloudflare-d1/src/employee-comms-native-v1.mjs",
+          "exact_commit": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+          "fragment": "L305-L339",
+          "range_present": true,
+          "scope": "GET_FILE_SERVE_BEFORE_EMPLOYEE_AUTH_GUARD_IN_HANDLER_SOURCE",
+          "evidence_level": "EXACT_SHA_TARGET_RANGE_PLUS_TARGETED_SOURCE_PREDICATE_READ_ONLY",
+          "runtime_evidence": false
+        },
+        {
+          "chapter": 18,
+          "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+          "exact_commit": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+          "fragment": "L817-L857",
+          "range_present": true,
+          "scope": "FINAL_INVOICE_D1_BATCH_AND_POST_BATCH_PARTY_LEDGER_NOT_ATOMIC_WITH_INVOICE",
+          "evidence_level": "EXACT_SHA_TARGET_RANGE_PLUS_TARGETED_SOURCE_PREDICATE_READ_ONLY",
+          "runtime_evidence": false
+        },
+        {
+          "chapter": 20,
+          "path": "cloudflare-d1/src/employee-comms-native-v1.mjs",
+          "exact_commit": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+          "fragment": "L207-L230",
+          "range_present": true,
+          "scope": "R2_PUT_THEN_MESSAGE_AND_D1_METADATA_INSERT_ORPHAN_RISK",
+          "evidence_level": "EXACT_SHA_TARGET_RANGE_PLUS_TARGETED_SOURCE_PREDICATE_READ_ONLY",
+          "runtime_evidence": false
+        },
+        {
+          "chapter": 18,
+          "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+          "exact_commit": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+          "fragment": "L167-L221",
+          "range_present": true,
+          "scope": "IDENTITY_MISMATCH_NAME_LOOKUP_VS_EXACT_CUSTOMER_ID_READ",
+          "evidence_level": "EXACT_SHA_TARGET_RANGE_PLUS_TARGETED_SOURCE_PREDICATE_READ_ONLY",
+          "runtime_evidence": false
+        },
+        {
+          "chapter": 26,
+          "path": "cloudflare-d1/src/mirror-gate.mjs",
+          "exact_commit": "4580ff5cb278d18434e4410f5be386fbc2ecd2c9",
+          "fragment": "L307-L363",
+          "range_present": true,
+          "scope": "MIRROR_GET_SELECT_IN_HANDLER_BEFORE_POST_ONLY_MIGRATION_AUTH",
+          "evidence_level": "EXACT_SHA_TARGET_RANGE_PLUS_TARGETED_SOURCE_PREDICATE_READ_ONLY",
+          "runtime_evidence": false
+        },
+        {
+          "chapter": 26,
+          "path": "cloudflare-d1/src/normalized-import-gate.mjs",
+          "exact_commit": "4580ff5cb278d18434e4410f5be386fbc2ecd2c9",
+          "fragment": "L55-L60",
+          "range_present": true,
+          "scope": "IMPORT_POST_MIGRATION_SECRET_AUTH_SOURCE",
+          "evidence_level": "EXACT_SHA_TARGET_RANGE_PLUS_TARGETED_SOURCE_PREDICATE_READ_ONLY",
+          "runtime_evidence": false
+        },
+        {
+          "chapter": 29,
+          "path": "app.js",
+          "exact_commit": "fbff27ea5d7d597e7f61ff28f048ad91b1a8b80b",
+          "fragment": "L1320-L1365",
+          "range_present": true,
+          "scope": "UI_FINAL_INVOICE_SEND_NO_REQUEST_ID",
+          "evidence_level": "EXACT_SHA_TARGET_RANGE_PLUS_TARGETED_SOURCE_PREDICATE_READ_ONLY",
+          "runtime_evidence": false
+        },
+        {
+          "chapter": 29,
+          "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+          "exact_commit": "fbff27ea5d7d597e7f61ff28f048ad91b1a8b80b",
+          "fragment": "L815-L823",
+          "range_present": true,
+          "scope": "D1_FINAL_INVOICE_REQUIRES_REQUEST_ID",
+          "evidence_level": "EXACT_SHA_TARGET_RANGE_PLUS_TARGETED_SOURCE_PREDICATE_READ_ONLY",
+          "runtime_evidence": false
+        },
+        {
+          "chapter": 29,
+          "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+          "exact_commit": "fbff27ea5d7d597e7f61ff28f048ad91b1a8b80b",
+          "fragment": "L607-L621",
+          "range_present": true,
+          "scope": "D1_CONSUMES_MATERIAL_CONSUMPTION_NOT_UI_MATERIAL_QTY",
+          "evidence_level": "EXACT_SHA_TARGET_RANGE_PLUS_TARGETED_SOURCE_PREDICATE_READ_ONLY",
+          "runtime_evidence": false
+        },
+        {
+          "chapter": 30,
+          "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+          "exact_commit": "e486fa6d47907ff0fd65f3cdaa6a03787ae7139f",
+          "fragment": "L777-L864",
+          "range_present": true,
+          "scope": "PASSWORD_UPDATE_AND_SESSION_REVOCATION_SEPARATE_DB_CALLS",
+          "evidence_level": "EXACT_SHA_TARGET_RANGE_PLUS_TARGETED_SOURCE_PREDICATE_READ_ONLY",
+          "runtime_evidence": false
+        },
+        {
+          "chapter": 32,
+          "path": "cloudflare-d1/src/employee-content-native-v1.mjs",
+          "exact_commit": "69e1eae80b06ad9a5d5f6e39f86c6e32291c10f0",
+          "fragment": "L258-L275",
+          "range_present": true,
+          "scope": "R2_CONTENT_GET_BEFORE_EMPLOYEE_AUTH_AFTER_ORIGIN_GATE",
+          "evidence_level": "EXACT_SHA_TARGET_RANGE_PLUS_TARGETED_SOURCE_PREDICATE_READ_ONLY",
+          "runtime_evidence": false
+        },
+        {
+          "chapter": 29,
+          "path": "app.js",
+          "exact_commit": "fbff27ea5d7d597e7f61ff28f048ad91b1a8b80b",
+          "fragment": "L1224-L1270",
+          "range_present": true,
+          "scope": "UI_SENDS_MATERIAL_QTY_AND_LABOR_COST_NOT_D1_MATERIAL_CONSUMPTION",
+          "evidence_level": "EXACT_SHA_TARGET_RANGE_PLUS_TARGETED_SOURCE_PREDICATE_READ_ONLY",
+          "runtime_evidence": false
+        }
+      ],
+      "evidence_limit": "Manual spot-reading of specified source predicates; cannot prove comprehensive execution, product correctness, code freshness or production."
+    },
+    "draft_source_parity": {
+      "PR220": {
+        "sha": "19f7164f4da1aff7e613f94977de7e726fefb352",
+        "status": "OPEN_DRAFT_UNMERGED_OBSERVED",
+        "source_sampled_at_head": true
+      },
+      "PR221": {
+        "sha": "98d4f34beb614776249f24b354cfc1552e1595d9",
+        "status": "OPEN_DRAFT_UNMERGED_OBSERVED",
+        "source_sampled_at_head": true
+      },
+      "identical_source_blobs_both_pr_heads": [
+        {
+          "path": "cloudflare-d1/src/employee-comms-native-v1.mjs",
+          "blob": "f415d06ccd15ba241d679c61b7afeb6ec904e4b8"
+        },
+        {
+          "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+          "blob": "66440daa0c737966221f5b279a210b4211144d2c"
+        },
+        {
+          "path": "cloudflare-d1/src/mirror-gate.mjs",
+          "blob": "d9321c3a9c1678fd7a53abc6a24df73dbee25ebc"
+        },
+        {
+          "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+          "blob": "c01156a965e7de60e7a70d44d86b41b59eb83ded"
+        },
+        {
+          "path": "app.js",
+          "blob": "9d90b5b1a1fc5c1ad2058cc29e97530c68c1a875"
+        }
+      ],
+      "PR221_source_entrypoint": {
+        "wrangler_blob": "579b06e4918a9ed965be183e69742205f03cdc74",
+        "wrangler_main": "production-shadow/index.js",
+        "production_shadow_blob": "cabf0237c3aea2479b56ab237eeb9877c86254a4",
+        "production_shadow_core_import": "../src/index_v2.js",
+        "index_v2_blob": "4a555efb4b3f44ba371549d5cec055cc7ce1777f",
+        "linked_handlers": [
+          "handleEmployeeCommsNativeRequest",
+          "handleEmployeeContentNativeRequest",
+          "handleMirrorRequest",
+          "handleEmployeeAccountingNativeRequest",
+          "handleT12GeneralCreateRequest"
+        ],
+        "classification": "SOURCE_IMPORT_DISPATCH_GRAPH_PRESENT_NOT_DEPLOYED_SHA_OR_RUNTIME"
+      }
+    },
+    "confirmed_previous_issues_without_duplicate_ticket": [
+      "BOOK20_R2_FILE_AUTH_HANDLER_GET_PRE_AUTH_SOURCE",
+      "BOOK22_CONTENT_R2_ACL_GET_PRE_AUTH_SOURCE",
+      "BOOK29_FINAL_INVOICE_REQUEST_ID_UI_D1_MISMATCH",
+      "BOOK29_DEPT_LINE_FIELD_NAME_PARITY",
+      "BOOK18_LEDGER_POST_INVOICE_NON_ATOMIC",
+      "BOOK18_SAME_NAME_CUSTOMER_BALANCE_AMBIGUITY",
+      "BOOK26_MIRROR_GET_NO_VISIBLE_EMPLOYEE_AUTH_IN_HANDLER",
+      "EMPLOYEE_AUTH_PASSWORD_CHANGE_TWO_SEPARATE_WRITES",
+      "R2_PUT_BEFORE_D1_METADATA_ORPHAN_RISK"
+    ],
+    "independent_evidence_needed": [
+      "VERIFY_DEPLOYED_SHA_AND_RUNTIME_ROUTE_BEFORE_ANY_LIVE_VULNERABILITY_CLAIM",
+      "AUTHORIZE_SOURCE_PATCHES_VIA_INDEPENDENT_ENGINEERING_PR_NOT_BOOK_AGENT",
+      "VERIFY_R2_BINARY_BYTES_AND_T12_DURABLE_COMMITTED_ORDER",
+      "VERIFY_EASYSTORE_EXACT_ID_FINANCE_AND_BOOK24_SINGLE_WRITER",
+      "RETAIN_PRIOR_KNOWN_OUT_OF_BOUNDS_CH30_L55_GT_EOF51",
+      "NO_INFERENCE_FROM_GITHUB_CI_TO_PRODUCTION"
+    ],
+    "owner_gate": {
+      "old": "ACTIVE_WRITE",
+      "new": "FROZEN_MIGRATION_ONLY",
+      "final_cutover": "NO_GO"
+    },
+    "changes": {
+      "historical_migration_copy": 0,
+      "historical_migration_remove": 0,
+      "frozen_catalog_edit": false,
+      "archive_edit": false,
+      "runtime_mutation": false,
+      "independent_project_edit": false,
+      "private_data_republication": false
+    }
   }
 }
