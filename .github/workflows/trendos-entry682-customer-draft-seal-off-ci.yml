@@ -1,0 +1,54 @@
+name: TrendOS Entry682 Immutable Customer Draft Seal OFF
+on:
+  push:
+    branches:
+      - feat/zero-google-customer-submit-t12-handoff-preflight-off-20261021
+      - feat/zero-google-customer-finance-easystore-id-read-off-20261021
+  pull_request:
+    paths:
+      - 'cloudflare-d1/migrations/0039_customer_portal_native_draft_seal_v1.sql'
+      - 'cloudflare-d1/src/customer-portal-native-draft-seal-v0.mjs'
+      - 'tests/entry682_customer_draft_immutable_seal_off.test.mjs'
+      - 'tests/entry682_customer_draft_immutable_seal_sqlite.test.py'
+      - '.github/workflows/trendos-entry682-customer-draft-seal-off-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  immutable-customer-draft-seal-source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static deny new public route or duplicate T12 writer
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          TRENDOS_CUSTOMER_PORTAL_SESSION_HMAC_SECRET: ''
+          OPENAI_API_KEY: ''
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/customer-portal-native-draft-seal-v0.mjs
+          node --test tests/entry682_customer_draft_immutable_seal_off.test.mjs
+      - name: Execute real migration triggers against disposable SQLite
+        run: |
+          set -euo pipefail
+          python3 tests/entry682_customer_draft_immutable_seal_sqlite.test.py -v
+          python3 tests/entry681_customer_draft_submit_preflight_sqlite.test.py -v || test ! -f tests/entry681_customer_draft_submit_preflight_sqlite.test.py
+          python3 tests/entry679_customer_native_handoff_manifest_sqlite.test.py -v
+      - name: Confirm strict owner release gate
+        run: |
+          echo 'D1_PRODUCTION_MIGRATION=NO'
+          echo 'CUSTOMER_SEAL_HTTP_ROUTE=NONE'
+          echo 'SOURCE_ONLY_SQL_CONTRACT=YES'
+          echo 'AUTHORIZED_CUSTOMER_TO_T12_ORDER_SUBMISSION=NO'
+          echo 'PRODUCTION_ORDER_CREATE=NO'
+          echo 'R2_PRODUCTION_OPERATION=NO'
+          echo 'EASYSTORE_FINANCE_MUTATION=NO'
+          echo 'CUSTOMER_GOOGLE_ACTIONS_RETIRED=0_OF_9_VERIFIED'
+          echo 'RELEASE_GO=NO'
