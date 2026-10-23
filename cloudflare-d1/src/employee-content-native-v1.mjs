@@ -3,6 +3,9 @@ import { verifyEmployeeSessionCloudFirst } from './cloud-session-bridge-v3.mjs';
 const ROOT='/v1/employee/content';
 const HEALTH='/v1/employee/content/health';
 const FILE_PREFIX='/v1/employee/content/file/';
+const PUBLIC_CONTENT_FILE_COLLECTIONS=new Set(['platform_sections','platform_ads','marketplace_vendors','marketplace_products']);
+const PUBLIC_IMAGE_MIME_TYPES=new Set(['image/png','image/jpeg','image/webp','image/gif','image/avif']);
+
 const DEFAULT_ORIGINS=[
   'https://fawakhry.github.io',
   'https://trendos-ui.trendmall-contact.workers.dev',
@@ -91,20 +94,48 @@ async function uploadPublicFile(env,collection,ownerRecordId,user,payload,defaul
   const bytes=b64Bytes(payload.base64), mime=text(payload.mimeType)||'application/octet-stream';
   if(!bytes||!bytes.length) throw Object.assign(new Error('Invalid base64 file'),{code:'invalid-file'});
   if(bytes.length>25*1024*1024) throw Object.assign(new Error('File exceeds 25MB'),{code:'file-too-large'});
+  // Public domain links skip all D1 visibility checks and cannot be revoked
+  // by this Worker. Do not write MORE R2 objects while such a base is enabled.
+  if(text(env.FILES_PUBLIC_BASE_URL))throw Object.assign(
+    new Error('Public R2 domain must be disabled before Content upload'),
+    {code:'content-public-r2-domain-unsafe'});
+  if(!PUBLIC_CONTENT_FILE_COLLECTIONS.has(collection)||!PUBLIC_IMAGE_MIME_TYPES.has(key(mime)))
+    throw Object.assign(new Error('Only explicitly public image collections are supported'),{code:'content-upload-policy-denied'});
   const fileId='FILE-'+crypto.randomUUID(), name=text(payload.fileName)||defaultName||'file.bin';
   const r2Key=`employee-content/${collection}/${fileId}/${name.replace(/[^A-Za-z0-9._-]+/g,'_')}`;
   await env.FILES.put(r2Key,bytes,{httpMetadata:{contentType:mime}});
-  const base=text(env.FILES_PUBLIC_BASE_URL).replace(/\/+$/,'');
-  const publicUrl=base?base+'/'+r2Key:FILE_PREFIX+encodeURIComponent(fileId);
+  const publicUrl=FILE_PREFIX+encodeURIComponent(fileId);
   await env.DB.prepare("INSERT INTO employee_content_files_v1(file_id,collection,owner_record_id,r2_key,file_name,mime_type,size_bytes,public_url,uploaded_by) VALUES(?,?,?,?,?,?,?,?,?)")
     .bind(fileId,collection,ownerRecordId,r2Key,name,mime,bytes.length,publicUrl,user.username).run();
   return {fileId,fileName:name,mimeType:mime,size:bytes.length,fileUrl:publicUrl,thumbnailUrl:publicUrl};
 }
 async function serveFile(env,fileId){
-  const meta=await env.DB.prepare("SELECT r2_key,mime_type FROM employee_content_files_v1 WHERE file_id=?").bind(fileId).first();
-  if(!meta||!env.FILES)return new Response('Not found',{status:404});
-  const obj=await env.FILES.get(meta.r2_key); if(!obj)return new Response('Not found',{status:404});
-  const headers=new Headers(); headers.set('content-type',text(meta.mime_type)||'application/octet-stream'); headers.set('cache-control','public,max-age=3600');
+  const absent=()=>new Response('Not found',{status:404,headers:{'cache-control':'no-store'}});
+  if(!/^FILE-[0-9a-f-]{36}$/i.test(fileId)||!env.FILES)return absent();
+  const meta=await env.DB.prepare(
+    "SELECT r2_key,mime_type,collection,owner_record_id FROM employee_content_files_v1 WHERE file_id=?"
+  ).bind(fileId).first();
+  if(!meta)return absent();
+  // Anonymous reads are allowed ONLY for explicitly public CMS image types.
+  // Inactive/unpublished owner records and other collections must not touch R2.
+  const collection=text(meta.collection),mime=key(meta.mime_type),ownerId=text(meta.owner_record_id);
+  if(!PUBLIC_CONTENT_FILE_COLLECTIONS.has(collection)||!PUBLIC_IMAGE_MIME_TYPES.has(mime)||
+     !ownerId||!text(meta.r2_key).startsWith('employee-content/'+collection+'/'+fileId+'/'))return absent();
+  const owner=await env.DB.prepare(
+    "SELECT active,record_json FROM employee_content_records_v1 WHERE collection=? AND record_id=?"
+  ).bind(collection,ownerId).first();
+  if(!owner||Number(owner.active)!==1)return absent();
+  const data=safeJson(owner.record_json,{});
+  if(data&&typeof data==='object'&&(
+    data.public===false||data.published===false||yes(data.hidden)||
+    ['private','hidden','مخفي'].includes(key(data.visibility))||
+    ['private','hidden','مخفي'].includes(key(data.customerVisibility))||
+    key(data.active)==='لا'))return absent();
+  const obj=await env.FILES.get(meta.r2_key); if(!obj)return absent();
+  const headers=new Headers();
+  headers.set('content-type',mime); headers.set('cache-control','no-store');
+  headers.set('x-content-type-options','nosniff');
+  headers.set('content-security-policy',"default-src 'none'; sandbox");
   return new Response(obj.body,{status:200,headers});
 }
 function codeFor(prefix,value){return id(prefix,value).slice(0,32);}
@@ -259,7 +290,10 @@ export async function handleEmployeeContentNativeRequest(request,env){
   const h=cors(request,env); if(request.method==='OPTIONS')return new Response(null,{status:204,headers:h});
   if(!allowed(request,env))return json({success:false,code:'origin-not-allowed'},403,h);
   const path=new URL(request.url).pathname.replace(/\/+$/,'')||'/';
-  if(path.startsWith(FILE_PREFIX)&&request.method==='GET')return serveFile(env,decodeURIComponent(path.slice(FILE_PREFIX.length)));
+  if(path.startsWith(FILE_PREFIX)&&request.method==='GET'){
+    let fileId='';try{fileId=decodeURIComponent(path.slice(FILE_PREFIX.length));}catch{}
+    return serveFile(env,fileId);
+  }
   if(path===HEALTH){
     if(request.method!=='GET')return json({success:false,code:'method-not-allowed'},405,h);
     const c=await control(env); const tables=await env.DB.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('employee_content_records_v1','employee_content_files_v1','employee_content_events_v1')").first();
@@ -277,6 +311,7 @@ export async function handleEmployeeContentNativeRequest(request,env){
     const out=await action(request,env,body,au.user);
     return json({...out,authority:'d1-employee-content-v1',authSource:au.authSource},out&&out.success===false?400:200,h);
   }catch(err){
-    return json({success:false,code:text(err&&err.code)||'employee-content-failed',message:text(err&&err.message)||'Employee content failed',authority:'d1-employee-content-v1'},err&&err.code==='r2-files-not-configured'?503:500,h);
+    return json({success:false,code:text(err&&err.code)||'employee-content-failed',message:text(err&&err.message)||'Employee content failed',authority:'d1-employee-content-v1'},['r2-files-not-configured','content-public-r2-domain-unsafe'].includes(err&&err.code)?503:
+      err&&err.code==='content-upload-policy-denied'?400:500,h);
   }
 }
