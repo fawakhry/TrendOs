@@ -125,7 +125,7 @@ export const T12_EMPLOYEE_FINANCE_INTAKE_POLICY=Object.freeze({
 // SQLite CURRENT_TIMESTAMP is UTC; reject malformed/ambiguous sources rather
 // than treating local timezone or an independently chosen retry time as truth.
 function sourceUtcSeconds(x){
- if(typeof x!=='string'||!/^(\\d{4})-(\\d{2})-(\\d{2}) (\\d{2}):(\\d{2}):(\\d{2})$/.test(x))
+ if(typeof x!=='string'||!/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.test(x))
   return null;
  const iso=x.replace(' ','T')+'Z',parsed=Date.parse(iso);
  if(!Number.isSafeInteger(parsed)||parsed<=0||
