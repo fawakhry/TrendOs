@@ -3801,6 +3801,19 @@ Trend Mall`;
   }
 
   function renderOrderAttachmentCard(file) {
+    // R2 employee conversation attachments are fetched with a real session;
+    // never place credentials in href/src and never expose an R2 public URL.
+    const protectedId = text(file && file.fileId);
+    if (/^OCF-[0-9a-fA-F-]{36}$/.test(protectedId)) {
+      const attr = ' data-secure-order-file="' + escapeHtml(protectedId) + '"';
+      const name = escapeHtml(attachmentName(file));
+      if (isImageAttachment(file)) {
+        return '<a class="order-image-card"' + attr + ' aria-label="' + name + '">' +
+          '<img alt="' + name + '" loading="lazy"><b>' + name + '</b><span>ملف خاص — جاري التحقق...</span></a>';
+      }
+      return '<a class="order-file-card"' + attr + '><b>' + fileKindIcon(file) + ' ' + name +
+        '</b><span>ملف خاص — جاري التحقق...</span></a>';
+    }
     const isFolder = file && file.recordType === "بند";
     if (isFolder) {
       return '<a class="order-file-card" href="' + escapeHtml(attachmentUrl(file) || "#") + '" target="_blank" rel="noopener">' +
@@ -5323,7 +5336,56 @@ Trend Mall`;
 
   /*********************** V1845 - محادثة الأوردر للموظف ***********************/
 
+  function clearProtectedOrderConversationFileUrls() {
+    (state.orderConversationBlobUrls || []).forEach(function (url) {
+      try { URL.revokeObjectURL(url); } catch (e) {}
+    });
+    state.orderConversationBlobUrls = [];
+  }
+
+  async function hydrateProtectedOrderConversationFiles(body) {
+    const items = Array.prototype.slice.call(body.querySelectorAll('[data-secure-order-file]'));
+    if (!items.length) return;
+    const user = state.user || {};
+    const username = text(user.username || user.name);
+    const token = text(user.token);
+    const base = text(window.MATBAGY_EMPLOYEE_API_URL || window.MATBAGY_EDGE_ORDERS_API_URL).replace(/\/+$/, '');
+    if (!username || !token || !(/^https:\/\//i.test(base) || /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(base))) return;
+    await Promise.all(items.map(async function (element) {
+      let objectUrl = '';
+      try {
+        const fileId = text(element.getAttribute('data-secure-order-file'));
+        if (!/^OCF-[0-9a-fA-F-]{36}$/.test(fileId)) return;
+        const response = await fetch(base + '/v1/employee/comms/file/' + encodeURIComponent(fileId), {
+          method: 'GET', credentials: 'omit', cache: 'no-store', redirect: 'error',
+          headers: { Authorization: 'Bearer ' + token, 'X-Employee-Username': username }
+        });
+        if (!response.ok) throw new Error('Not authorized to fetch file');
+        const blob = await response.blob();
+        objectUrl = URL.createObjectURL(blob);
+        if (state.user !== user || text(state.user.token) !== token || !state.orderConversationRow || !element.isConnected) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+        state.orderConversationBlobUrls = state.orderConversationBlobUrls || [];
+        state.orderConversationBlobUrls.push(objectUrl);
+        element.href = objectUrl;
+        element.target = '_blank';
+        element.rel = 'noopener';
+        const img = element.querySelector('img');
+        if (img) img.src = objectUrl;
+        const info = element.querySelector('span');
+        if (info) info.textContent = 'ملف محمي — متاح للموظف المصرح له';
+      } catch (e) {
+        element.removeAttribute('href');
+        const info = element.querySelector('span');
+        if (info) info.textContent = 'تعذر فتح الملف — تحقق من صلاحيتك';
+      }
+    }));
+  }
+
   function closeOrderConversationModal() {
+    clearProtectedOrderConversationFileUrls();
     const modal = $("orderConversationModal");
     if (modal) modal.classList.add("hidden");
     state.orderConversationRow = null;
@@ -5371,6 +5433,7 @@ Trend Mall`;
   }
 
   function renderOrderConversation() {
+    clearProtectedOrderConversationFileUrls();
     const data = state.orderConversation || {};
     const body = $("orderConversationBody");
     if (!body) return;
@@ -5418,6 +5481,8 @@ Trend Mall`;
 
     html += '</div></div>';
     body.innerHTML = html;
+    // Authorized blob URLs are local to this modal and revoked on close/rerender.
+    hydrateProtectedOrderConversationFiles(body).catch(function () {});
     const wall = body.querySelector(".staff-wa-wall");
     if (wall) wall.scrollTop = wall.scrollHeight;
   }
