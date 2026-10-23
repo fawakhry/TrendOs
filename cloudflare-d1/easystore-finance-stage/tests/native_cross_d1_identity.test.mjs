@@ -106,7 +106,8 @@ try{
    assert.ok(financeQueries.every(x=>!/\bt12_/i.test(x)));
    assert.ok(sourceQueries.every(x=>/\bSELECT\b/i.test(x)&&!/\b(?:INSERT|UPDATE|DELETE)\b/i.test(x)));
  });
-}finally{
- // Disposable databases contain only fake records and cannot reach Cloudflare.
- financeDB.close();operationalDB.close();
+  test.after(()=>{
+    // Close only AFTER all Node test callbacks run.
+    financeDB.close();operationalDB.close();
+  });
 }
