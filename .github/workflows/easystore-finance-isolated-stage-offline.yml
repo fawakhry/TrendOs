@@ -51,6 +51,8 @@ jobs:
           for bad in ['trendos-main','trendos-staging','5c4b92bf-e043-4f6e-bd6d-d514a92cd825','bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6','migrations_dir = "../migrations"']:
               assert bad not in t
           assert 'FINANCE_WRITES = "OFF"' in t
+          assert 'workers_dev = false' in t
+          assert 'ACCOUNTING_FINANCE_GRANTS_V1 = "{\\\"version\\\":1,\\\"grants\\\":[]}"' in t or 'grants' in t
           assert 'EASYSTORE_CUSTOMER_SOURCE_V1 = "REMOTE_REQUIRED"' in t
           assert 'binding = "TRENDOS_CUSTOMER_FACTS"' in t
           assert 'service = "trendos-customer-facts-stage-source"' in t
