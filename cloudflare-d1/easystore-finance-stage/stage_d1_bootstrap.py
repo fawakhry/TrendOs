@@ -30,6 +30,10 @@ HERE = Path(__file__).resolve().parent
 CONFIG = HERE / "wrangler.toml"
 ROOT = HERE.parents[1]  # repository root
 STAGE_PREFIX = "employee_accounting_"
+# Cloudflare documents exactly _cf_KV as a reserved D1 storage table.
+# Exempt this EXACT name from application schema comparison only; never query,
+# remove, migrate, or treat any lookalike/prefix as a reserved system table.
+D1_RESERVED_STORAGE_TABLES = frozenset({"_cf_KV"})
 READ_TABLES = (
     "SELECT name FROM sqlite_master WHERE type='table' "
     "AND name NOT LIKE 'sqlite_%' ORDER BY name"
@@ -163,6 +167,12 @@ def remote_names(cli):
     return sorted(values)
 
 
+def application_table_names(names):
+    # Names were read verbatim from sqlite_master. Do not use startswith('_cf_')
+    # because a similarly named user/application table must still STOP.
+    return sorted(n for n in names if n not in D1_RESERVED_STORAGE_TABLES)
+
+
 def restore_private_export(filepath, should_be_empty):
     if not filepath.is_file() or filepath.stat().st_size == 0:
         stop("REMOTE_EXPORT_EMPTY_OR_ABSENT")
@@ -172,13 +182,15 @@ def restore_private_export(filepath, should_be_empty):
     try:
         db.executescript(filepath.read_text(encoding="utf-8"))
         names = sorted(x[0] for x in db.execute(READ_TABLES))
+        user_names = application_table_names(names)
         if db.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
             stop("BACKUP_RESTORE_INTEGRITY_FAILED")
         if db.execute("PRAGMA foreign_key_check").fetchall():
             stop("BACKUP_RESTORE_FK_FAILED")
-        if should_be_empty and names:
+        if should_be_empty and user_names:
             stop("REMOTE_BACKUP_NOT_EMPTY_STAGE")
-        return {"sha256": digest(filepath), "restoredTables": len(names)}
+        return {"sha256": digest(filepath), "restoredTables": len(user_names),
+                "restoredReservedTables": len(names) - len(user_names)}
     except sqlite3.DatabaseError:
         stop("REMOTE_SQL_EXPORT_LOCAL_RESTORE_FAILED")
     finally:
@@ -186,7 +198,7 @@ def restore_private_export(filepath, should_be_empty):
 
 
 def ensure_baseline(cli, expected_names):
-    names = remote_names(cli)
+    names = application_table_names(remote_names(cli))
     if names != expected_names:
         stop("STAGE_SCHEMA_DRIFT_OR_UNEXPECTED_TABLES")
     ctrl = rows(cli, CONTROL_SQL)
@@ -216,13 +228,16 @@ def inspect_stage(cli):
     """
     identity = list_identity(cli)
     names = remote_names(cli)
+    user_names = application_table_names(names)
     report = {
-        "target": identity, "tables": names, "readOnly": True,
+        "target": identity, "tables": names, "userTables": user_names,
+        "reservedStorageTables": sorted(set(names) & D1_RESERVED_STORAGE_TABLES),
+        "readOnly": True,
         "schemaApplied": False, "financeRelease": "NO_GO",
         "financeWrites": "OFF", "mayApplyMigrations": False,
         "backupAndRestoreVerified": False,
     }
-    if not names:
+    if not user_names:
         report["inspectState"] = "EMPTY_STAGE_UNMIGRATED"
         return report
 
@@ -238,7 +253,7 @@ def inspect_stage(cli):
         db.close()
     if len(expected) != EXPECTED_TABLES:
         stop("LOCAL_EXPECTED_TABLE_SET_NOT_22")
-    if names != expected:
+    if user_names != expected:
         report["inspectState"] = "NONEMPTY_SCHEMA_UNQUALIFIED_STOP"
         return report
 
@@ -265,7 +280,8 @@ def apply_stage(cli, destination, confirmation, exclusive):
     check_config()
     folder = safe_output_dir(destination)
     identity = list_identity(cli)
-    if remote_names(cli) != []:
+    pre_export_tables = remote_names(cli)
+    if application_table_names(pre_export_tables):
         stop("EXISTING_STAGE_HAS_TABLES_STOP_NO_REAPPLY")
     # Export BEFORE any remote SQL modification, including one supposedly empty
     # D1. A locally tested SQL restore and private SHA256 are mandatory.
@@ -277,7 +293,7 @@ def apply_stage(cli, destination, confirmation, exclusive):
     backup.chmod(0o600)
     proof = restore_private_export(backup, should_be_empty=True)
     # Avoid quietly rewriting an intermediate state changed by another agent.
-    if remote_names(cli) != []:
+    if remote_names(cli) != pre_export_tables:
         stop("STAGE_CHANGED_DURING_BACKUP_STOP")
     statement_names = []
     try:
