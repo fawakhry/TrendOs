@@ -292,12 +292,6 @@ BUSINESS_CREATE_TEST_SENT=NO
 - `EXACT_VERBATIM_MATCH=PASS` (1,983 chars) verified current source + archival snapshot + copied appendix; COPY `0af73bf95cf494d2ff0259880357205b48a4d0d4`, archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`, removal recorded in Crosswalk.
 
 
-### SERVER-20261018-68J — user-supplied existing staging code exposes unauthenticated legacy read paths (offline proof)
-- Owner provided ~240KB compiled `trendos-d1-staging` code, containing unguarded legacy order, customer, message, inbox, and mirror GET handlers reachable via index dispatcher; newer edge/customer-manager/orders paths validate bearer session. A Node VM with fake D1 (zero remote calls) verified anonymous `/v1/orders`, `/v1/inbox`, `/v1/mirror/sheets` -> HTTP 200 synthetic arrays, while unauthenticated `/v1/edge/orders/page` -> HTTP 401. **No real Cloudflare data was queried, no real breach proven**. Deployed version `99e823b2` binary/source identity not cryptographically established.
-- `trendos-d1-staging` workers.dev enabled and no Worker-specific Access app (as evidenced by owner UI); account/hostname Access and WAF remain unverified. Stage D1 `trendos-staging` is non-production but has existing tables; source-only remediation in Draft PRs #185/#187/#190 still requires consumer compatibility (R5 expects legacy Mirror HTTP 200), synthetic remote stage, explicit approval and rollback. **DO NOT overwrite existing stage or turn off routes without consumer review.**
-- Detailed audit on draft PR #190 at `autonomous-printshop/print-server/SERVER68_EXISTING_STAGE_BUNDLE_AUTH_AUDIT_20261018.md`. `SEC-AP303-02=OPEN_HIGH`; `STAGE_AUTH_REVIEW=HIGH_RISK`; `REMOTE_STAGE=NOT_DEPLOYED`; `PRODUCTION_CHANGE=NO`; `UBUNTU_LIVE=OFF`.
-
-
 ## BOOK-MIGRATION-20261018-030 — Entry632
 - `EXACT_VERBATIM_MATCH=PASS` for 1,911 characters from old book and archive into appendix. COPY `17e1bc528b57212bf333139afa0cba5e22e38a69`, source blob `df8e12d19f34ea99e0ed7c8704b43330f205140f`, archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; REMOVE SHA in Crosswalk.
 
@@ -330,12 +324,6 @@ BUSINESS_CREATE_TEST_SENT=NO
 - Privacy scoped review: one historical operational publisher contact address already present in same public repository, no detected raw secret or customer email; no new public endpoint or file exposed.
 - COPY commits `2c77c18481ae02906a3f50c3f4941f14d5427297`, `1360b57898387700eb0e41ad37ac593b37a7f21a`, `186464f6e1015ddb115589d3fa27b56421921f7f`.
 - Archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source blob `7c67a8122700de36692a5147fbff91af3562a592`; REMOVE SHA recorded in Crosswalk. No Production or customer data changes.
-
-
-### SERVER-20261018-69A — Ubuntu machine-reader API proven via local Workerd, PR #195 left independent
-- User requested this agent continue specifically Cloudflare security, R5 and Ubuntu link, while separate agent owns local manager/orders UI [Draft PR #195](https://github.com/fawakhry/TrendOs/pull/195). Existing SERVER-33 machine read endpoint reused; fixed SERVER-67 `DurableObjectNamespace.idFromName(authenticated.principal)` bug to use `authenticated.scope`, adding strict role-based scope ID assertions to regression tests.
-- Synthetic localhost Workerd + temp SQLite D1 fixture now includes qualified `بنود الأوردرات` and fake native T12 print/laser line items. Authorized short-lived dedicated machine bearer returned 200 with minimal `orderId,lineId,screen,serviceCode,status,quantity` only; anonymous/wrong-token/Origin/other-screen/other-page/POST denied. [CI 39072053257](https://github.com/fawakhry/TrendOs/actions/runs/39072053257) **173/173 PASS** + dry-run + replay DO + actual localhost HTTP. This is NOT Ubuntu device, Cloudflare hosted Stage, or production D1.
-- Full doc [SERVER69_OFFLINE_PRINTSHOP_READER_20261018.md](https://github.com/fawakhry/TrendOs/blob/release/server68-staging-qualification-20261016/autonomous-printshop/print-server/SERVER69_OFFLINE_PRINTSHOP_READER_20261018.md) on [Draft PR #190](https://github.com/fawakhry/TrendOs/pull/190). Source-only. `SEC-AP303-02=OPEN_HIGH`, R5 old workflow unchanged, no production deployment, no real Ubuntu printer/laser. `SERVER69_API_LOCAL=PASS`; `SERVER69_UBUNTU_LIVE=OFF`; `PR195=UNCHANGED`.
 
 
 ## BOOK-MIGRATION-20261018-037 — Entries637–652 contiguous history
