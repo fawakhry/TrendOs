@@ -68,9 +68,12 @@ class TestProbe(unittest.TestCase):
         self.assertEqual(report["readServiceTokenInventory"], "PERMISSION_NOT_VERIFIED")
         self.assertFalse(report["stageGo"])
 
-    def test_incomplete_page_fails_closed(self):
-        with self.assertRaisesRegex(s.Blocked, "PAGINATION_INCOMPLETE"):
-            s.get_status(ACCOUNT, FAKE, FakeOpener(page=2))
+    def test_multi_page_inventory_does_not_claim_complete_or_usable_identity(self):
+        report = s.get_status(ACCOUNT, FAKE, FakeOpener(page=2))
+        self.assertEqual(report["readServiceTokenInventory"], "GET_OK")
+        self.assertFalse(report["inventoryComplete"])
+        self.assertFalse(report["existingMachineTokenQualified"])
+        self.assertFalse(report["stageGo"])
 
     def test_invalid_credentials_before_network(self):
         with self.assertRaises(s.Blocked):
