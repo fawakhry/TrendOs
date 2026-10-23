@@ -16,7 +16,7 @@ function canonical(intent,actor,epoch,sourceCapture=null){
   // Unchanged byte-for-byte for all legacy creates; optional capture is
   // intentionally part of idempotent replay identity, not a mutable add-on.
   if(sourceCapture)base.sourceCapture={customerId:sourceCapture.customerId,
-    customerVersion:sourceCapture.customerVersion,evidenceRef:sourceCapture.evidenceRef};
+    externalCustomerId:sourceCapture.externalCustomerId,customerVersion:sourceCapture.customerVersion,evidenceRef:sourceCapture.evidenceRef};
   return JSON.stringify(base);
 }
 function businessCanonical(intent){
@@ -82,8 +82,8 @@ async function verifiedRead(db,intent,canonicalJson,actor,epoch,sourceCapture=nu
     lineIds.push(x.lineId);
   }
   if(sourceCapture){
-    const captured=await row(db.prepare('SELECT customer_id AS customerId,customer_version AS customerVersion,actor_subject AS actorSubject,evidence_ref AS evidenceRef,capture_status AS captureStatus,finance_authorized AS financeAuthorized,delivery_authorized AS deliveryAuthorized FROM t12_order_customer_at_create_v1 WHERE order_id=? AND request_key=? LIMIT 1').bind(l.orderId,key));
-    if(!captured||captured.customerId!==sourceCapture.customerId||
+    const captured=await row(db.prepare('SELECT customer_id AS customerId,external_customer_id AS externalCustomerId,customer_version AS customerVersion,actor_subject AS actorSubject,evidence_ref AS evidenceRef,capture_status AS captureStatus,finance_authorized AS financeAuthorized,delivery_authorized AS deliveryAuthorized FROM t12_order_customer_at_create_v1 WHERE order_id=? AND request_key=? LIMIT 1').bind(l.orderId,key));
+    if(!captured||captured.customerId!==sourceCapture.customerId||captured.externalCustomerId!==sourceCapture.externalCustomerId||
       Number(captured.customerVersion)!==sourceCapture.customerVersion||
       captured.actorSubject!==actor||captured.evidenceRef!==sourceCapture.evidenceRef||
       captured.captureStatus!=='SOURCE_ONLY_NOT_ATTESTED'||
@@ -135,7 +135,7 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
        options.mode!=='isolated-source-only'||options.allowSourceCapture!==true||
        isCanary)return fail('source-capture-not-qualified');
     const customerId=text(link.customerId),evidenceRef=text(link.evidenceRef);
-    if(!customerId||customerId!==intent.identity.externalCustomerId||
+    if(!customerId||!/^\d{3,180}$/.test(intent.identity.externalCustomerId)||
        customerId.length>160||customerId.normalize('NFC')!==customerId||
        /[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069]/u.test(customerId)||
        evidenceRef.length<12||evidenceRef.length>180||
@@ -148,7 +148,7 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
       if(!customer||customer.customerId!==customerId||customer.active!=='نعم'||
          !Number.isSafeInteger(Number(customer.version))||Number(customer.version)<1)
         return fail('source-capture-customer-unavailable-or-inactive');
-      sourceCapture={customerId,customerVersion:Number(customer.version),evidenceRef};
+      sourceCapture={customerId,externalCustomerId:intent.identity.externalCustomerId,customerVersion:Number(customer.version),evidenceRef};
     }catch{return fail('source-capture-evidence-read-unavailable');}
   }
   const epoch=text(control.policyEpoch),canonicalJson=canonical(intent,safeActor,epoch,sourceCapture);
@@ -206,8 +206,8 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
   if(sourceCapture){
     // Direct VALUES INSERT + trigger RAISE(ABORT), not SELECT/IGNORE:
     // absent/mutated customer or ledger MUST abort the entire D1 batch.
-    s.push(stmt(db,'INSERT INTO t12_order_customer_at_create_v1 (order_id,request_key,customer_id,customer_version,actor_subject,evidence_ref) VALUES (?,?,?,?,?,?)',
-      orderId,intent.requestKey,sourceCapture.customerId,sourceCapture.customerVersion,safeActor,sourceCapture.evidenceRef));
+    s.push(stmt(db,'INSERT INTO t12_order_customer_at_create_v1 (order_id,request_key,customer_id,external_customer_id,customer_version,actor_subject,evidence_ref) VALUES (?,?,?,?,?,?,?)',
+      orderId,intent.requestKey,sourceCapture.customerId,sourceCapture.externalCustomerId,sourceCapture.customerVersion,safeActor,sourceCapture.evidenceRef));
   }
   s.push(stmt(db,'UPDATE t12_prod_duplicate_order_guard SET order_id=(SELECT order_id FROM t12_prod_request_ledger WHERE request_key=?),updated_at=CURRENT_TIMESTAMP WHERE fingerprint=? AND request_key=?',
     intent.requestKey,duplicateFingerprint,intent.requestKey));
