@@ -61,7 +61,7 @@ export async function handleT12ReadOverlayRequest(request, env) {
   const allowed = Array.isArray(verified.payload && verified.payload.screens)
     ? verified.payload.screens.map(text)
     : [];
-  if (allowed.length && !allowed.includes(screen)) {
+  if (!allowed.length || !allowed.includes(screen)) {
     return json({ success:false, code:'screen-forbidden', message:'غير مصرح لك بعرض أوردرات هذا القسم.' }, 403, request, env);
   }
 

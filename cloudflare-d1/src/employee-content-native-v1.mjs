@@ -23,7 +23,7 @@ function yes(v){return v===true||['true','1','yes','نعم'].includes(key(v));}
 function safeJson(v,f={}){try{return typeof v==='string'?JSON.parse(v):v&&typeof v==='object'?v:f;}catch{return f;}}
 function json(data,status=200,headers={}){return new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store',...headers}});}
 function origins(env){const a=String(env&&env.CORS_ORIGINS||'').split(',').map(text).filter(Boolean);return a.length?a:DEFAULT_ORIGINS;}
-function cors(request,env){const o=text(request.headers.get('Origin')),a=origins(env);return {'access-control-allow-origin':o&&a.includes(o)?o:a[0],'access-control-allow-methods':'GET,POST,OPTIONS','access-control-allow-headers':'content-type,authorization','access-control-max-age':'86400',vary:'Origin'};}
+function cors(request,env){const o=text(request.headers.get('Origin')),a=origins(env);return {'access-control-allow-origin':o&&a.includes(o)?o:a[0],'access-control-allow-methods':'GET,POST,OPTIONS','access-control-allow-headers':'content-type,authorization,x-employee-username','access-control-max-age':'86400',vary:'Origin'};}
 function allowed(request,env){const o=text(request.headers.get('Origin'));return !o||origins(env).includes(o);}
 function slug(v){const s=text(v).replace(/[^A-Za-z0-9\u0600-\u06FF]+/g,'-').replace(/^-+|-+$/g,'').toUpperCase();return s.slice(0,24);}
 function id(prefix,v){return prefix+'-'+(slug(v)||crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase());}
@@ -94,18 +94,38 @@ async function uploadPublicFile(env,collection,ownerRecordId,user,payload,defaul
   const fileId='FILE-'+crypto.randomUUID(), name=text(payload.fileName)||defaultName||'file.bin';
   const r2Key=`employee-content/${collection}/${fileId}/${name.replace(/[^A-Za-z0-9._-]+/g,'_')}`;
   await env.FILES.put(r2Key,bytes,{httpMetadata:{contentType:mime}});
-  const base=text(env.FILES_PUBLIC_BASE_URL).replace(/\/+$/,'');
-  const publicUrl=base?base+'/'+r2Key:FILE_PREFIX+encodeURIComponent(fileId);
+  const publicUrl=FILE_PREFIX+encodeURIComponent(fileId); // Guarded Worker read
   await env.DB.prepare("INSERT INTO employee_content_files_v1(file_id,collection,owner_record_id,r2_key,file_name,mime_type,size_bytes,public_url,uploaded_by) VALUES(?,?,?,?,?,?,?,?,?)")
     .bind(fileId,collection,ownerRecordId,r2Key,name,mime,bytes.length,publicUrl,user.username).run();
   return {fileId,fileName:name,mimeType:mime,size:bytes.length,fileUrl:publicUrl,thumbnailUrl:publicUrl};
 }
-async function serveFile(env,fileId){
-  const meta=await env.DB.prepare("SELECT r2_key,mime_type FROM employee_content_files_v1 WHERE file_id=?").bind(fileId).first();
-  if(!meta||!env.FILES)return new Response('Not found',{status:404});
-  const obj=await env.FILES.get(meta.r2_key); if(!obj)return new Response('Not found',{status:404});
-  const headers=new Headers(); headers.set('content-type',text(meta.mime_type)||'application/octet-stream'); headers.set('cache-control','public,max-age=3600');
-  return new Response(obj.body,{status:200,headers});
+async function verifiedFileEmployee(request,env){
+  const username=text(request.headers.get('x-employee-username'));
+  const match=text(request.headers.get('Authorization')).match(/^Bearer\s+(\S+)$/i);
+  if(!username||!match)return null;
+  const result=await verifyEmployeeSessionCloudFirst(username,match[1],env,'edge');
+  const claims=result&&result.body||{},employee=claims.user||{};
+  const actual=text(employee.username||employee.name||claims.username),role=key(employee.role||claims.role);
+  return result&&result.ok&&actual&&key(actual)===key(username)&&role?{username:actual,role}:null;
+}
+async function serveFile(env,fileId,request){
+  const meta=await env.DB.prepare(`SELECT f.r2_key,f.mime_type,f.collection,f.uploaded_by,r.active AS owner_active
+    FROM employee_content_files_v1 f LEFT JOIN employee_content_records_v1 r
+      ON r.collection=f.collection AND r.record_id=f.owner_record_id WHERE f.file_id=?`).bind(fileId).first();
+  if(!meta||!env.FILES)return new Response('Not found',{status:404,headers:{'cache-control':'no-store'}});
+  const isPublic=['platform_ads','marketplace_products','marketplace_vendors'].includes(text(meta.collection))&&Number(meta.owner_active)===1;
+  if(!isPublic){
+    const user=await verifiedFileEmployee(request,env);
+    if(!user)return new Response('Unauthorized',{status:401,headers:{'cache-control':'no-store'}});
+    if(!(user.role==='admin'||key(meta.uploaded_by)===key(user.username)||(['platform_ads','marketplace_products','marketplace_vendors'].includes(text(meta.collection))&&canManage(user,text(meta.collection)))))
+      return new Response('Forbidden',{status:403,headers:{'cache-control':'no-store'}});
+  }
+  const file=await env.FILES.get(meta.r2_key);
+  if(!file)return new Response('Not found',{status:404,headers:{'cache-control':'no-store'}});
+  const headers=new Headers();headers.set('content-type',text(meta.mime_type)||'application/octet-stream');
+  headers.set('cache-control',isPublic?'public,max-age=300':'private,no-store');
+  headers.set('x-content-type-options','nosniff');
+  return new Response(file.body,{status:200,headers});
 }
 function codeFor(prefix,value){return id(prefix,value).slice(0,32);}
 function cleanRecordBody(body,drop=[]){
@@ -259,7 +279,7 @@ export async function handleEmployeeContentNativeRequest(request,env){
   const h=cors(request,env); if(request.method==='OPTIONS')return new Response(null,{status:204,headers:h});
   if(!allowed(request,env))return json({success:false,code:'origin-not-allowed'},403,h);
   const path=new URL(request.url).pathname.replace(/\/+$/,'')||'/';
-  if(path.startsWith(FILE_PREFIX)&&request.method==='GET')return serveFile(env,decodeURIComponent(path.slice(FILE_PREFIX.length)));
+  if(path.startsWith(FILE_PREFIX)&&request.method==='GET')return serveFile(env,decodeURIComponent(path.slice(FILE_PREFIX.length)),request);
   if(path===HEALTH){
     if(request.method!=='GET')return json({success:false,code:'method-not-allowed'},405,h);
     const c=await control(env); const tables=await env.DB.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('employee_content_records_v1','employee_content_files_v1','employee_content_events_v1')").first();

@@ -16,7 +16,7 @@ function key(v){return text(v).toLowerCase();}
 function num(v,f=0){const n=Number(v);return Number.isFinite(n)?n:f;}
 function json(data,status=200,headers={}){return new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store',...headers}});}
 function origins(env){const a=String(env&&env.CORS_ORIGINS||'').split(',').map(text).filter(Boolean);return a.length?a:DEFAULT_ORIGINS;}
-function cors(request,env){const o=text(request.headers.get('Origin')),a=origins(env);return {'access-control-allow-origin':o&&a.includes(o)?o:a[0],'access-control-allow-methods':'GET,POST,OPTIONS','access-control-allow-headers':'content-type,authorization','access-control-max-age':'86400',vary:'Origin'};}
+function cors(request,env){const o=text(request.headers.get('Origin')),a=origins(env);return {'access-control-allow-origin':o&&a.includes(o)?o:a[0],'access-control-allow-methods':'GET,POST,OPTIONS','access-control-allow-headers':'content-type,authorization,x-employee-username','access-control-max-age':'86400',vary:'Origin'};}
 function originAllowed(request,env){const o=text(request.headers.get('Origin'));return !o||origins(env).includes(o);}
 function cleanPhone(v){let d=text(v).replace(/\D/g,'');if(d.startsWith('0020'))d='0'+d.slice(4);else if(d.startsWith('20')&&d.length>=12)d='0'+d.slice(2);else if(d.startsWith('1')&&d.length===10)d='0'+d;return d;}
 function metaPhone(v){const d=cleanPhone(v);return d.startsWith('0')?'20'+d.slice(1):d;}
@@ -213,17 +213,35 @@ async function uploadOrderFile(env,user,body){
   const fileId='OCF-'+crypto.randomUUID(),r2Key=`order-conversations/${orderId}/${lineId||'general'}/${fileId}/${name.replace(/[^A-Za-z0-9._-]+/g,'_')}`;
   const contentSha256=await sha256HexV1(bytes);
   await env.FILES.put(r2Key,bytes,{httpMetadata:{contentType:mime},customMetadata:{sha256:contentSha256}});
-  const base=text(env.FILES_PUBLIC_BASE_URL).replace(/\/+$/,''),url=base?base+'/'+r2Key:FILE_PREFIX+encodeURIComponent(fileId);
+  const url=FILE_PREFIX+encodeURIComponent(fileId); // Never reveal private R2 object keys
   const messageId=await appendMessage(env,{phone:cleanPhone(ctx.phone),customerName:ctx.customerName,orderId,direction:'out',text:text(body.message||body.text)||'تم رفع ملف/بروفة من الموظف.',source:'TrendOS Order Conversation',sendStatus:'محفوظ',by:user.username,at:new Date().toISOString(),raw:{lineId,fileId}});
   await env.DB.prepare("INSERT INTO employee_order_conversation_files_v1(file_id,order_id,line_id,message_id,r2_key,file_name,mime_type,size_bytes,public_url,visible_to_customer,uploaded_by,content_sha256) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
     .bind(fileId,orderId,lineId,messageId,r2Key,name,mime,bytes.length,url,text(body.visibleToCustomer)==='لا'?0:1,user.username,contentSha256).run();
   return {success:true,message:'تم رفع الملف وحفظه في محادثة الأوردر.',fileUrl:url,fileId,fileName:name,mimeType:mime,contentSha256,thumbnailUrl:url};
 }
-async function serveFile(env,fileId){
-  const row=await env.DB.prepare("SELECT r2_key,mime_type FROM employee_order_conversation_files_v1 WHERE file_id=?").bind(fileId).first();
-  if(!row||!env.FILES)return new Response('Not found',{status:404});
-  const obj=await env.FILES.get(row.r2_key);if(!obj)return new Response('Not found',{status:404});
-  return new Response(obj.body,{status:200,headers:{'content-type':text(row.mime_type)||'application/octet-stream','cache-control':'private,max-age=3600'}});
+async function verifiedFileEmployee(request,env){
+  const username=text(request.headers.get('x-employee-username'));
+  const match=text(request.headers.get('Authorization')).match(/^Bearer\s+(\S+)$/i);
+  if(!username||!match)return null;
+  const result=await verifyEmployeeSessionCloudFirst(username,match[1],env,'edge');
+  const claims=result&&result.body||{},employee=claims.user||{};
+  const actual=text(employee.username||employee.name||claims.username),role=key(employee.role||claims.role);
+  return result&&result.ok&&actual&&key(actual)===key(username)&&role?{username:actual,role}:null;
+}
+async function serveFile(env,fileId,request){
+  const user=await verifiedFileEmployee(request,env);
+  if(!user)return new Response('Unauthorized',{status:401,headers:{'cache-control':'no-store'}});
+  const meta=await env.DB.prepare("SELECT r2_key,mime_type,content_sha256,uploaded_by FROM employee_order_conversation_files_v1 WHERE file_id=?").bind(fileId).first();
+  if(!meta||!env.FILES)return new Response('Not found',{status:404,headers:{'cache-control':'no-store'}});
+  if(!(['admin','service'].includes(user.role)||key(meta.uploaded_by)===key(user.username)))
+    return new Response('Forbidden',{status:403,headers:{'cache-control':'no-store'}});
+  const expected=key(meta.content_sha256);
+  if(!/^[a-f0-9]{64}$/.test(expected))return new Response('Unverified SHA256',{status:409,headers:{'cache-control':'no-store'}});
+  const file=await env.FILES.get(meta.r2_key);
+  if(!file)return new Response('Not found',{status:404,headers:{'cache-control':'no-store'}});
+  const bytes=await file.arrayBuffer();
+  if(await sha256HexV1(bytes)!==expected)return new Response('Digest mismatch',{status:502,headers:{'cache-control':'no-store'}});
+  return new Response(bytes,{status:200,headers:{'content-type':text(meta.mime_type)||'application/octet-stream','cache-control':'private,no-store','x-content-type-options':'nosniff'}});
 }
 async function goLiveContext(env,orderId){
   const ctx=await latestOrderContext(env,orderId),lines=await env.DB.prepare(`
@@ -309,9 +327,9 @@ export function isEmployeeCommsNativePath(path){
 export async function handleEmployeeCommsNativeRequest(request,env){
   const path=new URL(request.url).pathname.replace(/\/+$/,'')||'/';
   if(path===WEBHOOK)return webhook(env,request);
-  if(path.startsWith(FILE_PREFIX)&&request.method==='GET')return serveFile(env,decodeURIComponent(path.slice(FILE_PREFIX.length)));
   const h=cors(request,env);if(request.method==='OPTIONS')return new Response(null,{status:204,headers:h});
   if(!originAllowed(request,env))return json({success:false,code:'origin-not-allowed'},403,h);
+  if(path.startsWith(FILE_PREFIX)&&request.method==='GET')return serveFile(env,decodeURIComponent(path.slice(FILE_PREFIX.length)),request);
   if(path===HEALTH){
     if(request.method!=='GET')return json({success:false,code:'method-not-allowed'},405,h);
     const c=await control(env),tables=await env.DB.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('employee_feedback_requests_v1','employee_go_live_drafts_v1','employee_order_conversation_files_v1','employee_comms_events_v1')").first();
