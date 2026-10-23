@@ -733,5 +733,34 @@
     "cutover": "NO_GO",
     "production_mutation": 0,
     "finance_authority": "EASYSTORE"
+  },
+  "current_no_loss_gate_20261023_synthetic_r2_and_t12_source_execution_v1": {
+    "date": "2026-10-23",
+    "crosswalk_key": "book_agent_20261023_synthetic_20_source_runtime_cases_v1",
+    "source_commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "book_head_read": "774b8daeef6b963598d208c77b68d882540b2cc2",
+    "evidence_level": "SOURCE_FUNCTIONS_EXECUTED_IN_STUBBED_V8_ISOLATE",
+    "synthetic_assertions": 20,
+    "matched_expected": 20,
+    "T12_cases": 16,
+    "R2_file_read_cases": 4,
+    "R2_unauthenticated_source_HTTP_200": "COMMS_AND_CONTENT_WITH_FAKE_FILE_FIXTURE",
+    "R2_disallowed_origin": "COMMS_200_CONTENT_403_IN_FAKE_HANDLER_SIMULATION",
+    "CI_VERIFIED": "NOT_RUN_FOR_THESE_CASES",
+    "STAGING_VERIFIED": "NO",
+    "PRODUCTION_VERIFIED": "NO",
+    "deployed_sha": "UNVERIFIED",
+    "r2_binary_provenance": "UNVERIFIED",
+    "owner_decisions": [
+      "R2_FILE_ACCESS_ACL",
+      "CLOUD_KEY_SERVER_ISSUANCE_AND_TIMESTAMP_POLICY",
+      "T12_HISTORICAL_SAME_NAME_LANE_COLLISION_POLICY"
+    ],
+    "old_book": "ACTIVE_WRITE",
+    "new_catalog": "FROZEN_MIGRATION_ONLY",
+    "cutover": "NO_GO",
+    "finance_authority": "EASYSTORE",
+    "production_mutations": 0,
+    "archive_unchanged": true
   }
 }
