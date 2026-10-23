@@ -5,6 +5,9 @@ on:
       - feat/zero-google-customer-submit-t12-handoff-preflight-off-20261021
   pull_request:
     paths:
+      - 'cloudflare-d1/src/customer-portal-native-handoff-manifest-v0.mjs'
+      - 'tests/entry679_customer_native_handoff_manifest_off.test.mjs'
+      - 'tests/entry679_customer_native_handoff_manifest_sqlite.test.py'
       - 'cloudflare-d1/src/customer-portal-native-r2-pending-audit-v0.mjs'
       - 'tests/entry675_customer_r2_pending_audit_off.test.mjs'
       - 'tests/entry675_customer_r2_pending_audit_sqlite.test.py'
@@ -38,6 +41,8 @@ jobs:
           node --test tests/entry666_customer_native_r2_file_off.test.mjs
           node --check cloudflare-d1/src/customer-portal-native-r2-pending-audit-v0.mjs
           node --test tests/entry675_customer_r2_pending_audit_off.test.mjs
+          node --check cloudflare-d1/src/customer-portal-native-handoff-manifest-v0.mjs
+          node --test tests/entry679_customer_native_handoff_manifest_off.test.mjs
           node --test tests/entry665_customer_native_draft_item_off.test.mjs
           node --test tests/entry664_customer_native_draft_create_off.test.mjs
       - name: Real schema on fake-memory D1 SQLite no official T12 transaction
@@ -45,6 +50,7 @@ jobs:
           set -euo pipefail
           python3 tests/entry667_customer_draft_submit_preflight_sqlite.test.py -v
           python3 tests/entry675_customer_r2_pending_audit_sqlite.test.py -v
+          python3 tests/entry679_customer_native_handoff_manifest_sqlite.test.py -v
           python3 tests/entry666_customer_native_r2_file_sqlite.test.py -v
           python3 tests/entry665_customer_native_draft_item_sqlite.test.py -v
           python3 tests/entry664_customer_native_draft_create_sqlite.test.py -v
