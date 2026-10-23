@@ -526,5 +526,25 @@
     "server61": "KEEP_OLD",
     "catalog_edit": false,
     "no_external_mutations": true
+  },
+  "current_no_loss_gate_20261023_external_links_and_catalog_quality_v1": {
+    "date": "2026-10-23",
+    "crosswalk_key": "book_agent_20261023_external_links_32_chapter_quality_triage_v1",
+    "head_before_checkpoint": "f7f9f22cc97c3cea814b2ec58f0af3da8e5fa1fd",
+    "private_external_repository": "Matbagy-OS_4_OF_4_LINK_TARGETS_RESOLVE_FOR_AUTHORIZED_READER_ONLY",
+    "pinned_targets": "3_OF_3_BLOBS_IN_NON_TRUNCATED_HISTORIC_TREE",
+    "bundle_recovery_verified": false,
+    "numbered_chapters": "32_32_CONTIGUOUS",
+    "static_link_density_flag": "6_CHAPTERS_HAVE_NO_EXACT_SHA_BLOB_REFERENCES_LEXICAL_ONLY",
+    "recovery_documentation_flag": "23_CHAPTERS_NO_EXPLICIT_RECOVERY_TERMS_LEXICAL_ONLY",
+    "large_historical_appendix": "CHAPTER32_8335_OF_9526_LINES",
+    "modern_entries": "669_TO_682_EXCEPT_DISTINCT_677_HEADING",
+    "cutover_proof": "NOT_ESTABLISHED",
+    "old": "ACTIVE_WRITE",
+    "new": "FROZEN_MIGRATION_ONLY",
+    "final_cutover": "NO_GO",
+    "catalog_write": false,
+    "private_info_copy": false,
+    "no_runtime_mutation": true
   }
 }
