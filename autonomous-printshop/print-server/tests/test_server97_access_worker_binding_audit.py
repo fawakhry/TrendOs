@@ -16,7 +16,7 @@ APPID = "28859297-b80f-47a7-98ed-78e00efc3204"
 STAGE = "trendos-server68-isolated-stage"
 WORKER_ID = "fake-immutable-stage-worker-id"
 APP_URL = f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/access/apps/{APPID}"
-WORKERS_URL = f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/workers/workers?page=1&per_page=100"
+WORKERS_URL = f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT}/workers/workers/{STAGE}"
 
 
 class Response:
@@ -41,11 +41,8 @@ def app(*, worker_id=WORKER_ID, overrides=None):
     }}
 
 
-def workers(*, name=STAGE, id=WORKER_ID, more=False):
-    item = {"name": name, "id": id}
-    return {"success": True, "result": [item], "result_info": {
-        "page": 1, "total_pages": 2 if more else 1,
-    }}
+def workers(*, name=STAGE, id=WORKER_ID):
+    return {"success": True, "result": {"name": name, "id": id}}
 
 
 class FakeOpener:
@@ -113,7 +110,7 @@ class Stage97BindingTests(unittest.TestCase):
         self.assertNotIn(API_KEY, str(raised.exception))
         self.assertNotIn(ACCOUNT, str(raised.exception))
 
-    def test_fake_missing_worker_no_unbounded_scan(self):
+    def test_exact_stage_missing_worker_fails_closed(self):
         fake = FakeOpener(worker_payload=workers(name="some-other-worker"))
         with self.assertRaisesRegex(mod.StageTargetAuditError, "STAGE_WORKER_NOT_FOUND"):
             audit(fake)
@@ -130,13 +127,11 @@ class Stage97BindingTests(unittest.TestCase):
                                                audit_token=token, opener=fake)
         self.assertEqual(len(fake.requests), 0)
 
-    def test_reject_response_shape_and_duplicate_targets(self):
+    def test_reject_response_shape_and_missing_worker_id(self):
         for payload, expected in [
-            ({"success": True, "result": {}}, "WORKERS_LIST_INVALID"),
-            ({"success": True, "result": [
-                {"name": STAGE, "id": WORKER_ID},
-                {"name": STAGE, "id": WORKER_ID},
-            ]}, "WORKER_NAME_DUPLICATE"),
+            ({"success": True, "result": []}, "STAGE_WORKER_NOT_FOUND"),
+            ({"success": True, "result": {"name": STAGE, "id": None}},
+             "WORKER_ID_MISSING"),
         ]:
             with self.subTest(expected=expected):
                 fake = FakeOpener(worker_payload=payload)
