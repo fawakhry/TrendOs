@@ -129,3 +129,11 @@ This is a supplemental Ubuntu server-book entry, preserving existing book histor
 - On owner screenshot success, separately pin `71eaac9d9290b6201c210f46a868c83468deed89`; then local `--help`; then (after review/owner approval) a single scoped read-only GraphQL call. Do not rerun SERVER-95 or older checks, do not replace existing secret or change production/policies.
 
 `SERVER146_SCHEMA_NAMES=PASS`; `SERVER141_GRAPHQL_QUERY=ERRORS_UNEXPLAINED`; `SERVER150_FAKE_CI=PASS_16`; `SERVER150_LIVE=NOT_RUN`; `STAGE_ACCESS_HTTP403=UNRESOLVED`; `PR190=OPEN_DRAFT`; `PRODUCTION_AND_DEVICES=UNTOUCHED`.
+
+## SERVER-152 — owner Ubuntu fetch-only success for qualified SERVER-150 (owner screenshot 2026-10-23 ~23:45 Africa/Cairo)
+
+- Owner executed `git -C "$HOME/TrendOs-stage-access-sandbox" fetch --no-tags origin refs/heads/release/server68-staging-qualification-20261016` inside isolated sandbox; terminal reported `Receiving objects: 100% (2275/2275)`, `Resolving deltas: 100% (1628/1628)`, and `* branch release/server68-staging-qualification-20261016 -> FETCH_HEAD`, then returned to prompt without errors.
+- Git fetch downloads objects and updates FETCH_HEAD; it **does not** move the checked-out detached HEAD or execute the stage probe, read a private token, or touch Cloudflare. The previously verified local sandbox HEAD remains `704870913bc38a8bfbcc0293a46c0958a0cb2a0c` unless separately changed by owner.
+- On GitHub, pinned SERVER-150 revision `71eaac9d9290b6201c210f46a868c83468deed89` contains the isolated `src/server150_stage_app_graphql_diagnostic.py` and `.github/workflows/server150-stage-app-graphql-offline.yml`. Workflow 40021488713 previously passed **16/16 fake-only** tests, no Cloudflare requests. PR #190 is still open/draft.
+- **Next single owner action**: `git -C "$HOME/TrendOs-stage-access-sandbox" switch --detach 71eaac9d9290b6201c210f46a868c83468deed89` — only isolated sandbox, never primary repository; do not use `--force` or `reset` if local modifications prevent checkout. This command does not launch Python/Worker/Cloudflare or use the token.
+- `SERVER152_FETCH=SUCCESS`; `SERVER150_SANDBOX_SWITCH=PENDING`; `SERVER150_LIVE_GRAPHQL=NOT_RUN`; `SERVER141_GRAPHQL_ERROR=UNRESOLVED`; `STAGE_HTTP403_ROOT_CAUSE=UNRESOLVED`; `PRODUCTION_UNTOUCHED=YES`; `DEVICES=OFF`.
