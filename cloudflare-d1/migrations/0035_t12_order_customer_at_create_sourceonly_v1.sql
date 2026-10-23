@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS t12_order_customer_at_create_v1 (
    REFERENCES t12_prod_request_ledger(request_key) ON DELETE RESTRICT,
  customer_id TEXT NOT NULL
    REFERENCES t12_customers(customer_id) ON DELETE RESTRICT,
+ external_customer_id TEXT NOT NULL CHECK(length(external_customer_id) BETWEEN 3 AND 180),
  customer_version INTEGER NOT NULL CHECK(customer_version>=1),
  actor_subject TEXT NOT NULL CHECK(length(trim(actor_subject)) BETWEEN 3 AND 140),
  evidence_ref TEXT NOT NULL CHECK(length(trim(evidence_ref)) BETWEEN 12 AND 180),
@@ -49,7 +50,7 @@ BEGIN
    WHERE o.order_id=NEW.order_id AND o.request_key=NEW.request_key
      AND o.actor=NEW.actor_subject AND l.actor=NEW.actor_subject
      AND l.status='COMMITTED'
-     AND o.external_customer_id=NEW.customer_id
+     AND o.external_customer_id=NEW.external_customer_id
  ) THEN RAISE(ABORT,'ACC223_ORDER_COMMIT_ACTOR_AND_INPUT_MISMATCH') END;
  SELECT CASE WHEN NOT EXISTS(
    SELECT 1 FROM t12_customers c WHERE c.customer_id=NEW.customer_id
