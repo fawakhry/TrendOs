@@ -169,9 +169,15 @@ test('missing/extra/cross-order/incorrectly assigned Print+Laser lines fail clos
  x.raw.exec("UPDATE t12_prod_lines SET assigned_to='دخيل' WHERE line_id='4323-02'");
  assert.equal((await request(x)).body.code,'T12_SOURCE_LINE_SET_INCOMPLETE_OR_UNSUPPORTED');
  x.raw.exec("UPDATE t12_prod_lines SET assigned_to='جابر' WHERE line_id='4323-02'");
+ // The original outbox FK protects lines; remove only its fake dependent
+ // record first to model a truly partial/contradictory disposable database.
+ x.raw.exec("DELETE FROM t12_prod_outbox WHERE event_key='queue:01'");
  x.raw.exec("DELETE FROM t12_prod_lines WHERE line_id='4323-01'");
  assert.equal((await request(x)).body.code,'T12_SOURCE_LINE_SET_INCOMPLETE_OR_UNSUPPORTED');
  x.raw.prepare("INSERT INTO t12_prod_lines (line_id,order_id,request_key,ordinal,department,assigned_to,item_name,qty,priority,status,heat_press,fly_print) VALUES ('4323-01',?,?,1,'طباعة','وائل','FAKE MUG - طباعة',1,'عادي','طلب جديد',0,0)").run(ORDER_ID,KEY);
+ const original=JSON.parse(x.raw.prepare('SELECT canonical_json AS c FROM t12_prod_request_ledger WHERE request_key=?').get(KEY).c);
+ x.raw.prepare("INSERT INTO t12_prod_outbox (request_key,event_key,order_id,line_id,event_type,status,payload_json) VALUES (?,'queue:01',?,?,'trend-master-status-intent','pending',?)")
+  .run(KEY,ORDER_ID,ORDER_ID+'-01',JSON.stringify(original.queuePlans[0]));
  assert.equal((await request(x)).status,200);
  x.raw.prepare("INSERT INTO t12_prod_lines (line_id,order_id,request_key,ordinal,department,assigned_to,item_name,qty,priority,status,heat_press,fly_print) VALUES ('4323-03',?,?,3,'ليزر','جابر','UNEXPECTED',1,'عادي','طلب جديد',0,0)").run(ORDER_ID,KEY);
  assert.equal((await request(x)).body.code,'T12_SOURCE_LINE_SET_INCOMPLETE_OR_UNSUPPORTED');
