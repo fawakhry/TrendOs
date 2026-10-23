@@ -11,7 +11,14 @@ function boolInt(v){return text(v).toLowerCase()==='نعم'?1:0;}
 function row(stmt){return stmt&&typeof stmt.first==='function'?stmt.first():null;}
 function stmt(db,sql,...params){return db.prepare(sql).bind(...params);}
 function fail(reason,extra={}){return {success:false,cloudNative:true,retryAutomatically:false,version:T12_GENERAL_CREATE_VERSION,reason,...extra};}
-function canonical(intent,actor,epoch){return JSON.stringify({actor,policyEpoch:epoch,requestKey:intent.requestKey,identity:intent.identity,order:intent.order,lines:intent.lines,activityPlan:intent.activityPlan,queuePlans:intent.queuePlans});}
+function canonical(intent,actor,epoch,sourceCapture=null){
+  const base={actor,policyEpoch:epoch,requestKey:intent.requestKey,identity:intent.identity,order:intent.order,lines:intent.lines,activityPlan:intent.activityPlan,queuePlans:intent.queuePlans};
+  // Unchanged byte-for-byte for all legacy creates; optional capture is
+  // intentionally part of idempotent replay identity, not a mutable add-on.
+  if(sourceCapture)base.sourceCapture={customerId:sourceCapture.customerId,
+    customerVersion:sourceCapture.customerVersion,evidenceRef:sourceCapture.evidenceRef};
+  return JSON.stringify(base);
+}
 function businessCanonical(intent){
   return JSON.stringify({
     identity:intent.identity,
@@ -59,7 +66,7 @@ function duplicateBlocked(guard,nowMs){
   });
 }
 
-async function verifiedRead(db,intent,canonicalJson,actor,epoch){
+async function verifiedRead(db,intent,canonicalJson,actor,epoch,sourceCapture=null){
   const key=intent.requestKey;
   const l=await row(db.prepare('SELECT actor,policy_epoch AS policyEpoch,canonical_json AS canonicalJson,order_id AS orderId,status,response_json AS responseJson FROM t12_prod_request_ledger WHERE request_key=? LIMIT 1').bind(key));
   if(!l)return {kind:'MISSING'};
@@ -74,7 +81,17 @@ async function verifiedRead(db,intent,canonicalJson,actor,epoch){
     if(!x||x.lineId!==expectedId||x.orderId!==l.orderId||Number(x.ordinal)!==expected.ordinal||x.department!==expected.department||x.assignedTo!==expected.assignedTo||x.itemName!==expected.itemName||Number(x.qty)!==Number(expected.qty)||x.priority!==expected.priority||x.status!=='طلب جديد'||Number(x.heatPress)!==boolInt(expected.heatPress)||Number(x.flyPrint)!==boolInt(expected.flyPrint))return {kind:'INDETERMINATE'};
     lineIds.push(x.lineId);
   }
-  return {kind:'VERIFIED',response:{success:true,cloudNative:true,orderId:String(l.orderId),lineId:lineIds[0]||'',lineIds}};
+  if(sourceCapture){
+    const captured=await row(db.prepare('SELECT customer_id AS customerId,customer_version AS customerVersion,actor_subject AS actorSubject,evidence_ref AS evidenceRef,capture_status AS captureStatus,finance_authorized AS financeAuthorized,delivery_authorized AS deliveryAuthorized FROM t12_order_customer_at_create_v1 WHERE order_id=? AND request_key=? LIMIT 1').bind(l.orderId,key));
+    if(!captured||captured.customerId!==sourceCapture.customerId||
+      Number(captured.customerVersion)!==sourceCapture.customerVersion||
+      captured.actorSubject!==actor||captured.evidenceRef!==sourceCapture.evidenceRef||
+      captured.captureStatus!=='SOURCE_ONLY_NOT_ATTESTED'||
+      Number(captured.financeAuthorized)!==0||Number(captured.deliveryAuthorized)!==0)
+      return {kind:'INDETERMINATE'};
+  }
+  return {kind:'VERIFIED',response:{success:true,cloudNative:true,orderId:String(l.orderId),lineId:lineIds[0]||'',lineIds,
+    ...(sourceCapture?{sourceCaptureRecorded:true,customerOwnershipAttested:false,financeAuthorized:false}:{})}};
 }
 
 export async function createT12GeneralOrder(db,input={},actor='',options={}){
@@ -108,9 +125,35 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
   // Idempotent replay must be resolved before checking a one-shot canary budget.
   // A lost/late ACK after the budget is consumed must return the already-committed
   // order rather than looking like a second create attempt.
-  const epoch=text(control.policyEpoch),canonicalJson=canonical(intent,safeActor,epoch);
+  // ACC223 is reachable ONLY by a caller explicitly passed server-side
+  // options in isolated source qualification; the live HTTP route passes
+  // only {canary} and cannot activate this path via request-body fields.
+  let sourceCapture=null;
+  if(Object.prototype.hasOwnProperty.call(options,'officialCustomerLink')){
+    const link=options.officialCustomerLink;
+    if(!link||typeof link!=='object'||Array.isArray(link)||
+       options.mode!=='isolated-source-only'||options.allowSourceCapture!==true||
+       isCanary)return fail('source-capture-not-qualified');
+    const customerId=text(link.customerId),evidenceRef=text(link.evidenceRef);
+    if(!customerId||customerId!==intent.identity.externalCustomerId||
+       customerId.length>160||customerId.normalize('NFC')!==customerId||
+       /[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069]/u.test(customerId)||
+       evidenceRef.length<12||evidenceRef.length>180||
+       /[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069]/u.test(evidenceRef))
+      return fail('source-capture-identity-untrusted-or-invalid');
+    try{
+      const gate=await row(db.prepare("SELECT mode FROM t12_order_customer_at_create_control_v1 WHERE singleton=1 AND marker='ACC223_ORDER_CUSTOMER_SOURCE_CAPTURE_V1' LIMIT 1"));
+      if(!gate||gate.mode!=='ISOLATED')return fail('source-capture-control-off');
+      const customer=await row(db.prepare('SELECT customer_id AS customerId,active,version FROM t12_customers WHERE customer_id=? LIMIT 1').bind(customerId));
+      if(!customer||customer.customerId!==customerId||customer.active!=='نعم'||
+         !Number.isSafeInteger(Number(customer.version))||Number(customer.version)<1)
+        return fail('source-capture-customer-unavailable-or-inactive');
+      sourceCapture={customerId,customerVersion:Number(customer.version),evidenceRef};
+    }catch{return fail('source-capture-evidence-read-unavailable');}
+  }
+  const epoch=text(control.policyEpoch),canonicalJson=canonical(intent,safeActor,epoch,sourceCapture);
   let existing;
-  try{existing=await verifiedRead(db,intent,canonicalJson,safeActor,epoch);}catch{return fail('ledger-read-unavailable-no-retry');}
+  try{existing=await verifiedRead(db,intent,canonicalJson,safeActor,epoch,sourceCapture);}catch{return fail('ledger-read-unavailable-no-retry');}
   if(existing.kind==='VERIFIED')return {...existing.response,stored:false,idempotent:true,version:T12_GENERAL_CREATE_VERSION};
   if(existing.kind==='CONFLICT')return fail('same-key-actor-payload-or-policy-conflict');
   if(existing.kind==='INDETERMINATE')return fail('existing-transaction-incomplete-no-retry');
@@ -160,6 +203,12 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
       'queue:'+String(line.ordinal).padStart(2,'0'),JSON.stringify(q),line.ordinal,intent.requestKey));
   }
   s.push(stmt(db,"UPDATE t12_prod_request_ledger SET status='COMMITTED',response_json=json_object('success',json('true'),'cloudNative',json('true'),'orderId',order_id) WHERE request_key=? AND status='PREPARED'",intent.requestKey));
+  if(sourceCapture){
+    // Direct VALUES INSERT + trigger RAISE(ABORT), not SELECT/IGNORE:
+    // absent/mutated customer or ledger MUST abort the entire D1 batch.
+    s.push(stmt(db,'INSERT INTO t12_order_customer_at_create_v1 (order_id,request_key,customer_id,customer_version,actor_subject,evidence_ref) VALUES (?,?,?,?,?,?)',
+      orderId,intent.requestKey,sourceCapture.customerId,sourceCapture.customerVersion,safeActor,sourceCapture.evidenceRef));
+  }
   s.push(stmt(db,'UPDATE t12_prod_duplicate_order_guard SET order_id=(SELECT order_id FROM t12_prod_request_ledger WHERE request_key=?),updated_at=CURRENT_TIMESTAMP WHERE fingerprint=? AND request_key=?',
     intent.requestKey,duplicateFingerprint,intent.requestKey));
   if(isCanary){
@@ -167,7 +216,7 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
   }
 
   try{await db.batch(s);}catch{
-    let recovered;try{recovered=await verifiedRead(db,intent,canonicalJson,safeActor,epoch);}catch{return fail('transaction-outcome-unknown-no-retry');}
+    let recovered;try{recovered=await verifiedRead(db,intent,canonicalJson,safeActor,epoch,sourceCapture);}catch{return fail('transaction-outcome-unknown-no-retry');}
     if(recovered.kind==='VERIFIED')return {...recovered.response,stored:false,idempotent:true,ambiguousAckRecovered:true,version:T12_GENERAL_CREATE_VERSION};
     if(recovered.kind==='CONFLICT')return fail('same-key-actor-payload-or-policy-conflict');
     try{
@@ -177,7 +226,7 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
     return fail('transaction-outcome-unknown-no-retry');
   }
 
-  let confirmed;try{confirmed=await verifiedRead(db,intent,canonicalJson,safeActor,epoch);}catch{return fail('committed-data-not-verified-no-retry');}
+  let confirmed;try{confirmed=await verifiedRead(db,intent,canonicalJson,safeActor,epoch,sourceCapture);}catch{return fail('committed-data-not-verified-no-retry');}
   if(confirmed.kind!=='VERIFIED')return fail('allocation-race-or-commit-not-verified-no-retry',{expectedOrderId:orderId});
   return {...confirmed.response,stored:true,idempotent:false,canary:isCanary,version:T12_GENERAL_CREATE_VERSION};
 }
