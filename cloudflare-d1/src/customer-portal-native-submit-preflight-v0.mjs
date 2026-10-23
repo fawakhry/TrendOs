@@ -7,6 +7,7 @@
 import { fingerprintCustomerSessionV0 } from './customer-portal-native-orders-v0.mjs';
 import { buildT12OrderCreateShadowIntent } from './t12-order-create-shadow-intent.mjs';
 import { classifyT12ClientRequestKey } from './t12-cloud-client-key-admission.mjs';
+import { customerLaneIdentityMaterial } from './t12-customer-lane-policy.mjs';
 
 export const CUSTOMER_DRAFT_SUBMIT_PREFLIGHT_VERSION_V0='ENTRY667_CUSTOMER_DRAFT_SUBMIT_PREFLIGHT_OFF_V0';
 const hex64=x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x);
@@ -51,6 +52,11 @@ SELECT i.item_id AS itemId,i.ordinal AS ordinal,
  WHERE i.draft_id=?
  ORDER BY i.ordinal ASC
  LIMIT 51
+`;
+// Same immutable Cloud request key as the canonical T12 writer. An existing
+// PREPARED/COMMITTED request is never eligible for another customer submit.
+export const CUSTOMER_DRAFT_SUBMIT_EXISTING_T12_REQUEST_SQL_V0=`
+SELECT status AS status FROM t12_prod_request_ledger WHERE request_key=? LIMIT 1
 `;
 export const CUSTOMER_DRAFT_SUBMIT_FILES_SQL_V0=`
 SELECT COUNT(*) AS fileCount,
@@ -136,6 +142,20 @@ export async function preflightNativeCustomerDraftSubmitV0({db,token,secret,draf
        intent.order.source!=='customer-native-draft'||
        Number(intent.lines[0].qty)!==Number(item.qty))
       return deny('T12_CANONICAL_CREATE_CONTRACT_REFUSED');
+    // T12's real writer requires a strong registered customer-lane identity.
+    // Its earlier input normalizer permits weak phones; avoid false-positive
+    // preflight for an identity that the actual single writer would refuse.
+    let laneIdentity;
+    try{laneIdentity=customerLaneIdentityMaterial(intent.identity);}
+    catch{return deny('T12_CUSTOMER_STRONG_IDENTITY_REQUIRED');}
+    if(!laneIdentity.startsWith('registered:'))
+      return deny('T12_CUSTOMER_STRONG_IDENTITY_REQUIRED');
+    // T12 request ledger is the existing idempotency authority. A request
+    // whose outcome may already have committed requires trusted readback;
+    // never advise the client to create again (including PREPARED/unknown).
+    const prior=await db.prepare(CUSTOMER_DRAFT_SUBMIT_EXISTING_T12_REQUEST_SQL_V0)
+      .bind(requestKey).first();
+    if(prior)return deny('T12_EXISTING_REQUEST_REQUIRES_TRUSTED_RECONCILIATION');
     // No candidate payload/PII sent to the browser. A future trusted
     // delegated actor must recheck all records in one authoritative
     // transaction before create; this preflight is NOT that transaction.
