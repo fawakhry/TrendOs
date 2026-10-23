@@ -40,7 +40,7 @@ function harness(opts = {}) {
       (() => NATIVE),
     fetch: async (url, init) => {
       nativeCalls.push({ url, init });
-      if (opts.rejectFetch) throw new Error('network');
+      if (opts.rejectFetch || (opts.rejectLogoutFetch && url.endsWith('/logout'))) throw new Error('network');
       if (opts.responseStatus) {
         return { ok: false, status: opts.responseStatus, text: async () => '{}' };
       }
@@ -315,7 +315,7 @@ test('native source-only app.js save/load functions do not persist or restore na
 
 test('Native logout fails CLOSED on network/401/503/fake-success response, clears local bearer immediately',async()=>{
   const variants=[
-    [{rejectFetch:true},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
+    [{rejectLogoutFetch:true},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
     [{responseStatus:401},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
     [{responseStatus:503},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
     [{rawResponse:'not JSON'},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
