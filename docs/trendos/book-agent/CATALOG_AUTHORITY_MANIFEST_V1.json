@@ -978,5 +978,32 @@
     "cutover": "NO_GO",
     "finance": "EASYSTORE",
     "real_changes": 0
+  },
+  "current_no_loss_gate_20261023_entry645_settings_rollback_active_version_recheck_v1": {
+    "date": "2026-10-23",
+    "crosswalk_key": "book_agent_20261023_entry645_settings_ack_rollback_fault_injection_8cases_v1",
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "source_workflow_blob": "d075e30894d84fc99f492dec863fded94b55d096",
+    "book_sha_read": "3c79f5ac7e2cc378d0f7fe35c5d954ae9ad66bd0",
+    "synthetic_patch_cases": 5,
+    "synthetic_rollback_cases": 3,
+    "matched_source_predicates": 8,
+    "new_tests": 8,
+    "source_marker_after_PATCH_ack": "YES",
+    "simulated_commit_then_500_skips_rollback": "YES_CONDITIONAL",
+    "rollback_positive_response_without_active_recheck": "YES_SOURCE",
+    "actual_cloudflare_failures_proven": false,
+    "actual_deployed_sha": "UNVERIFIED",
+    "actual_R2_binding": "UNVERIFIED",
+    "next_owner_proof": "DURABLE_PATCH_ACK_RECONCILIATION_AND_REQUERY_DEPLOYMENT_AFTER_ROLLBACK_IN_ISOLATED_STAGE",
+    "GITHUB_ACTIONS_NEW": "NO",
+    "CI_NEW": "NOT_RUN",
+    "STAGING": "NO",
+    "PRODUCTION": "NO",
+    "old_book": "ACTIVE_WRITE",
+    "catalog": "FROZEN_MIGRATION_ONLY",
+    "cutover": "NO_GO",
+    "finance": "EASYSTORE",
+    "live_mutations": 0
   }
 }

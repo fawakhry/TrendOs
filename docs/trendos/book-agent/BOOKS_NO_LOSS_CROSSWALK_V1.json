@@ -17537,5 +17537,122 @@
       "code_changes": 0,
       "production_mutations": 0
     }
+  },
+  "book_agent_20261023_entry645_settings_ack_rollback_fault_injection_8cases_v1": {
+    "date": "2026-10-23",
+    "book_sha_before_commit": "3c79f5ac7e2cc378d0f7fe35c5d954ae9ad66bd0",
+    "original_code_commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "source_path": ".github/workflows/trendos-entry645-content-r2-foundation-controlled.yml",
+    "source_blob": "d075e30894d84fc99f492dec863fded94b55d096",
+    "source_ranges": {
+      "patch": "L98-L176",
+      "patch_mark": "L165-L166 AFTER await PATCH",
+      "rollback_condition": "L271-L284",
+      "rollback_api": "L285-L298"
+    },
+    "harness": "Executed literal original inline Node patch script L103-L176 and rollback helper L286-L298 inside a tool V8 isolate; only ending IIFE catch instrumented to collect exception instead of process.exit. Fake require('fs'), process.env, Cloudflare API fetch and FormData/Blob. Mock remote-state transitions deliberately distinguish API ACK from server commit and API reply from actual active-deployment convergence. Bash rollback predicate is derived exactly from L271-L284 but not executed by a shell. No real cloud, keys, token, customer or network.",
+    "executed_cases": [
+      {
+        "case": "normal_patch_200_then_new_version",
+        "remote_settings_changed": true,
+        "patch_ack": "200_SUCCESS",
+        "marker_written": true,
+        "rollback_guard_eligible": true,
+        "match": true
+      },
+      {
+        "case": "patch_500_after_synthetic_remote_commit",
+        "remote_settings_changed": true,
+        "patch_ack": "500_AFTER_COMMIT",
+        "marker_written": false,
+        "rollback_guard_eligible": false,
+        "match": true
+      },
+      {
+        "case": "patch_success_false_after_synthetic_remote_commit",
+        "remote_settings_changed": true,
+        "patch_ack": "200_BODY_SUCCESS_FALSE_AFTER_COMMIT",
+        "marker_written": false,
+        "rollback_guard_eligible": false,
+        "match": true
+      },
+      {
+        "case": "patch_500_without_synthetic_remote_commit",
+        "remote_settings_changed": false,
+        "patch_ack": "500_NO_COMMIT",
+        "marker_written": false,
+        "rollback_guard_eligible": false,
+        "match": true
+      },
+      {
+        "case": "patch_200_but_new_version_not_listed",
+        "remote_settings_changed": true,
+        "patch_ack": "200_SUCCESS",
+        "version_listing": "NEW_VERSION_NOT_VISIBLE",
+        "marker_written": true,
+        "rollback_guard_eligible": true,
+        "match": true
+      },
+      {
+        "case": "rollback_success_response_and_active_pre",
+        "ack": "200_SUCCESS",
+        "mock_active": "PRE",
+        "requery_active_version": false,
+        "logs_success": true,
+        "match": true
+      },
+      {
+        "case": "rollback_success_response_but_active_still_new",
+        "ack": "200_SUCCESS",
+        "mock_active": "NEW",
+        "requery_active_version": false,
+        "logs_success": true,
+        "match": true
+      },
+      {
+        "case": "rollback_api_fails_500",
+        "ack": "500_ERROR",
+        "mock_active": "NEW",
+        "requery_active_version": false,
+        "logs_success": false,
+        "match": true
+      }
+    ],
+    "patch_cases": 5,
+    "rollback_cases": 3,
+    "total_new": 8,
+    "match_expected": 8,
+    "source_predicates": [
+      "Workflow writes pre-version before PATCH, but sets /tmp/entry645-settings-patched ONLY AFTER successful Cloudflare PATCH response. A simulated side effect+500 or success:false yields no marker, so if failure() branch runs its guard concludes PRE_PATCH_FAILURE and does not request rollback.",
+      "After simulated successful PATCH but new-version listing missing, the marker is present and its rollback guard would attempt reverting; behavior differs from ambiguous ACK.",
+      "Actual rollback source POSTs prior version to /deployments and trusts success:true HTTP response; it DOES NOT re-read deployments and confirm active 100%-prior-version before logging rollback success. Simulated 200 + delayed/not-applied deployment is logged as success.",
+      "Code etag equality check for a new settings version in next activation step DOES NOT establish the actual public URL works, any file-level ACL, or exact GitHub SHA tied to active production bundle."
+    ],
+    "interpretation": "Both counterexamples are fault-injection conditionals. It is NOT established that Cloudflare settings PATCH can commit and return HTTP500, or that a successful Cloudflare deployment API response does not eventually activate requested version. No assertion of real production drift/rollback failure. Owner should define ambiguous-response reconciliation, active version readback, CAS/exact lineage, and durable rollback witness before any controlled Cloudflare action.",
+    "owner_gates": [
+      "SETTINGS_PATCH_AMBIGUOUS_ACK_RECONCILIATION_BEFORE_SKIP",
+      "ROLLBACK_RECHECK_ACTIVE_DEPLOYMENT_VERSION_100_PERCENT",
+      "CLOUDFLARE_SOURCE_SHA_ETAG_SETTINGS_PROVENANCE",
+      "NONPRODUCTION_DISPOSABLE_R2_ROUNDTRIP_AND_PRIVATE_ACL"
+    ],
+    "proof_level": {
+      "SOURCE_ONLY_OFFLINE_FAULT_INJECTION": "8_OF_8_EXPECTED_PREDICATES",
+      "ACTUAL_CLOUDFLARE_API": "NOT_CALLED",
+      "CI_NEW": "NOT_RUN",
+      "STAGING": "NO",
+      "PRODUCTION": "NO",
+      "DEPL_SHA": "UNVERIFIED",
+      "R2_BINARY": "UNVERIFIED"
+    },
+    "scope": {
+      "master": "ACTIVE_WRITE",
+      "catalog": "FROZEN_MIGRATION_ONLY",
+      "cutover": "NO_GO",
+      "accounting": "EASYSTORE_ONLY",
+      "production_mutations": 0,
+      "code_mutations": 0,
+      "workflows_triggered": 0
+    },
+    "duplicate_issue": false
   }
 }
