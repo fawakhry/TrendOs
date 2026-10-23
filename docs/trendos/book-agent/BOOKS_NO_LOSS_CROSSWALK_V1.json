@@ -16323,5 +16323,71 @@
       "cloudflare_deployed_sha": "UNVERIFIED",
       "zero_google_customer_actions": "0/9 VERIFIED"
     }
+  },
+  "book_agent_20261023_t12_client_key_and_customer_lane_identity_delta_v1": {
+    "date": "2026-10-23",
+    "read_book_head": "5c80f007b3634090919e5074aad72e65b0f17cbc",
+    "exact_source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "evidence_level": "SOURCE_ONLY_NEW_TESTS_NOT_EXECUTED",
+    "notes": "Delta-only addendum to existing T12 role, duplicate guard, and financial customer identity boundaries; not another incident/ticket.",
+    "findings": [
+      {
+        "id": "T12-CLIENT-KEY-NAMESPACE-VS-ISSUANCE",
+        "type": "AUTHENTICATED_CREATE_IDEMPOTENCY_POLICY",
+        "source": [
+          {
+            "path": "cloudflare-d1/src/t12-cloud-client-key-admission.mjs",
+            "blob": "ae407895ba6c63692402b0877e4a331a35b8f00e",
+            "lines": "L1-L36"
+          },
+          {
+            "path": "cloudflare-d1/src/t12-general-create.mjs",
+            "blob": "06ab0dfee6db7c0480f37d3445da564853ed036d",
+            "lines": "L130-L188"
+          },
+          {
+            "path": "cloudflare-d1/src/t12-general-create-handler.mjs",
+            "blob": "d8bd8d13f6e69b55839822ddb5e473585e6d8842",
+            "lines": "L29-L38;L116-L147"
+          }
+        ],
+        "observed": "Request creates require a single raw string clientRequestId, strict cld1_<13 decimal digits>_<16..80 URL-safe chars> namespace, time numeric threshold >= 1500000000000, no legacy co_ key. classifyT12ClientRequestKey returns CLOUD_SYNTHETIC_ELIGIBLE with createAuthorized:false and comment explicitly requires trusted server binding to cutover epoch/session and persistence through retry/browser reload. Writer checks kind and binds actor+epoch+canonical payload at ledger commit; it does not demand separate issue/attestation for the key or future age upper bound. Signed Edge actor check in handler remains necessary; this is NOT an unauthenticated create finding.",
+        "pending": "Owner policy for server-issued/session-bound cloud key and retry persistence; synthetic replay with same key/actor/epoch, different payload, fresh epoch and stale/future key; verify application lifecycle; no production orders."
+      },
+      {
+        "id": "T12-CUSTOMER-LANE-IDENTITY-NOT-FINANCE-FK",
+        "type": "DUPLICATE_GUARD_AND_FINANCE_SEPARATION",
+        "source": [
+          {
+            "path": "cloudflare-d1/src/t12-customer-lane-policy.mjs",
+            "blob": "951b6760284eec2a7ffc5de31e308077a9f42635",
+            "lines": "L18-L58;L59-L108"
+          },
+          {
+            "path": "cloudflare-d1/src/t12-general-create.mjs",
+            "blob": "06ab0dfee6db7c0480f37d3445da564853ed036d",
+            "lines": "L165-L215"
+          }
+        ],
+        "observed": "Operational lane identity uses registered phone or external numeric customer ID, not official EasyStore customer ID. For registered rows sameCustomerIdentity compares full normalized customer NAME if either phone is unavailable, while requested lane claim material separately requires >=10-digit phone; a historical row with missing phone but same name can affect duplicate lane admission despite no proven official shared customer identity. External mode uses matching external ID if both set else matching phone. These are source-only operational conflict heuristics, not legal or financial order→customer ownership. D1 lane claim + 120-second business fingerprint guard complement but do not replace official customer ownership attestation.",
+        "pending": "Disposable tests for same-name different-phone legacy rows, missing phone/ID, Arabic digits and partially blocked Print/Laser lanes; owner policy on blocking and false positives; finance ownership remains EasyStore separate validated ID."
+      }
+    ],
+    "levels": {
+      "SOURCE_ONLY": true,
+      "CI_VERIFIED_FOR_NEW_CASES": false,
+      "STAGING_VERIFIED": false,
+      "PRODUCTION_VERIFIED": false
+    },
+    "unchanged": {
+      "T12_CUSTOMER_OWNERSHIP_ATTESTED": "NO",
+      "FINANCE_AUTHORITY": "EASYSTORE",
+      "OLD_BOOK": "ACTIVE_WRITE",
+      "NEW_BOOK": "FROZEN_MIGRATION_ONLY",
+      "FINAL_CUTOVER": "NO_GO",
+      "PRODUCTION_MUTATIONS": 0,
+      "PR211_PR221_COMBINED": false
+    },
+    "prior_completed_unchanged": "Existing Entry683–687, 14 semantic matrix, R2 and EOF inventories not rerun"
   }
 }
