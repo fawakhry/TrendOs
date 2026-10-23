@@ -19074,5 +19074,81 @@
     "catalog": "FROZEN_MIGRATION_ONLY",
     "cutover": "NO_GO",
     "finance": "EASYSTORE"
+  },
+  "migration_20261024_7_r2_entry645_offline_audit_exact_v1": {
+    "migration_id": "BOOK-MIGRATION-20261024-R2-ENTRY645-SEVEN-HISTORY-COPY-VERIFY-REMOVE",
+    "date": "2026-10-24",
+    "authority": "OWNER_LARGER_SAFE_HISTORICAL_BATCH",
+    "operation": "COPY_VERIFY_REMOVE",
+    "source_commit": "d781312cee82e540d6f40cb7461a1cd23f977d86",
+    "source_master_blob": "5c67b98941008779bb14e02c01224c81a46c5330",
+    "copy_commit": "3ad622e13deafe16e7bc76711c90b3f815b12117",
+    "copy_catalog_blob": "e076df5f089fbdac2c1649a43490491e0a27a625",
+    "verified": "7_OF_7_EXACT_FULL_TEXT_AND_GIT_BLOB",
+    "original_characters": 24319,
+    "units": [
+      {
+        "id": "HIST-20261023-ENTRY645-R2-RAW-URL-4",
+        "sha": "f52483d3b6bef4bed10c0123cf4f25cd15157935",
+        "characters": 2976
+      },
+      {
+        "id": "HIST-20261023-ENTRY645-POSTFLIGHT-7",
+        "sha": "e38f988d21c3ab3e70bb24626fe16a7761f8396e",
+        "characters": 3499
+      },
+      {
+        "id": "HIST-20261023-R2-HEALTH-404-8",
+        "sha": "5c02b16d89fcd6bc1b42016bbaa5c91fb2c757a9",
+        "characters": 2686
+      },
+      {
+        "id": "HIST-20261023-ENTRY645-ROLLBACK-ACK-8",
+        "sha": "1153f0601644c787beb4a0f4cefe831dfd8e9cfa",
+        "characters": 3460
+      },
+      {
+        "id": "HIST-20261023-ENTRY645-ACTIVATE-TOCTOU-6",
+        "sha": "45869537eabcbe6ae96ebae8dade62f15a34db92",
+        "characters": 3287
+      },
+      {
+        "id": "HIST-20261024-ENTRY645-THIRDPARTY-FILES-15",
+        "sha": "ee82e0f52f361452d76ce5991b7a051e22caa4d3",
+        "characters": 4391
+      },
+      {
+        "id": "HIST-20261024-ENTRY645-INHERIT-DUPLICATE-8",
+        "sha": "443bf1e5068727374a124f0beacd7073b1dcf3da",
+        "characters": 4020
+      }
+    ],
+    "master_unchanged_during_copy": true,
+    "expected_after_remove": "EXACT_MASTER_MINUS_SEVEN_VERBATIM_UNITS_PLUS_RECEIPT_AND_ENTRY694_EVENT_06",
+    "archive_sha": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "historical_test_scope": "ORIGINAL_PR221_SOURCE_MOCKS_ONLY",
+    "active_issues_preserved": [
+      "FILES-692-05",
+      "SEC-692-01",
+      "SEC-692-02",
+      "SEC-692-03",
+      "CFL-693-01",
+      "CFL-693-02",
+      "CFL-693-03",
+      "CFL-693-04",
+      "CFL-693-05",
+      "PROOF-694-01",
+      "INTEG-694-01",
+      "TEST-694-01"
+    ],
+    "prior_ci_run": "40029164984_19_PLUS_10_MOCK_TESTS_ONLY",
+    "old_master": "ACTIVE_WRITE",
+    "catalog": "FROZEN_MIGRATION_ONLY",
+    "finance": "EASYSTORE",
+    "stage": "NOT_VERIFIED",
+    "production": "NO",
+    "deployed_sha": "UNVERIFIED",
+    "final_cutover": "NO_GO",
+    "owner_approval": "NOT_GIVEN"
   }
 }

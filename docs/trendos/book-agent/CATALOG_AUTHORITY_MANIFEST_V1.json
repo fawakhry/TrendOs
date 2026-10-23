@@ -1381,5 +1381,30 @@
     "production_deploy": "NO",
     "final_cutover": "NO_GO",
     "owner_final_approval": "NOT_GRANTED"
+  },
+  "current_no_loss_gate_20261024_7_r2_entry645_audits_v1": {
+    "date": "2026-10-24",
+    "crosswalk_key": "migration_20261024_7_r2_entry645_offline_audit_exact_v1",
+    "source_commit": "d781312cee82e540d6f40cb7461a1cd23f977d86",
+    "copy_commit": "3ad622e13deafe16e7bc76711c90b3f815b12117",
+    "copy_catalog_blob": "e076df5f089fbdac2c1649a43490491e0a27a625",
+    "unit_count": 7,
+    "original_characters": 24319,
+    "copy_verify": "7/7_EXACT_ORIGINAL_TEXT_GIT_BLOB",
+    "remove_scope": "ONLY_7_VERIFIED_HISTORICAL_STRINGS",
+    "master_reconstruction": "SOURCE_MINUS_SEVEN_PLUS_RECEIPT_AND_ENTRY694_EVENT_06",
+    "entry694_preserved": true,
+    "entry694_new_event": "ENTRY694-LEDGER-EVENT-20261024-06",
+    "archive_unchanged_sha": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "source_tests": "HISTORICAL_MOCK_ONLY",
+    "new_ci": "NOT_RUN",
+    "stage": "NOT_VERIFIED",
+    "production": "NO",
+    "deployed_sha": "UNVERIFIED",
+    "active_master": "ACTIVE_WRITE",
+    "frozen_catalog": "FROZEN_MIGRATION_ONLY",
+    "finance_authority": "EASYSTORE",
+    "final_cutover": "NO_GO",
+    "owner_cutover_approval": "NOT_GRANTED"
   }
 }
