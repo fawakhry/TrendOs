@@ -569,5 +569,25 @@
     "archive_unchanged": true,
     "private_source_untouched": true,
     "external_runtime_untouched": true
+  },
+  "current_no_loss_gate_20261023_line_bounds_high_density_40_v1": {
+    "date": "2026-10-23",
+    "crosswalk_key": "book_agent_20261023_pinned_line_bounds_high_density_40_sha_files_v1",
+    "book_head_before_commit": "41f666dec085235992314b3cbc79f076aa296814",
+    "catalog_blob": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "exact_sha_line_anchors_in_catalog": 467,
+    "exact_sha_path_groups": 174,
+    "high_density_line_bounds_checked": "40_GROUPS_286_OCCURRENCES",
+    "checked_line_ranges": "279_COMPLETE_7_EOF_OVERRUN_ONE_LINE",
+    "prior_known_duplicate_entry652_bad": "2_OCCURRENCES_LINE55_GREATER_THAN_EOF51_NOT_RESWEPT",
+    "combined_out_of_range": "9_OCCURRENCES_8_UNIQUE_FRAGMENT_TARGETS",
+    "remaining_groups_for_exhaustive_bounds": 134,
+    "remaining_occurrences": 181,
+    "evidence_level": "PINNED_COMMIT_SOURCE_LINE_BOUNDS_ONLY_NOT_SEMANTICS_NOT_LIVE",
+    "catalog_edit": false,
+    "old_book": "ACTIVE_WRITE",
+    "new_book": "FROZEN_MIGRATION_ONLY",
+    "final_cutover": "NO_GO",
+    "no_private_or_runtime_mutations": true
   }
 }

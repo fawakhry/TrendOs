@@ -14861,5 +14861,217 @@
       "independent_project_edit": false,
       "private_data_republication": false
     }
+  },
+  "book_agent_20261023_pinned_line_bounds_high_density_40_sha_files_v1": {
+    "date": "2026-10-23",
+    "catalog_blob": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "book_head_before_commit": "41f666dec085235992314b3cbc79f076aa296814",
+    "anchor_universe": {
+      "exact_sha_anchored_occurrences": 467,
+      "distinct_exact_sha_path_groups": 174,
+      "not_line_anchored_pinned_links": "111_OF_578"
+    },
+    "new_ranked_max_end_line_sweep": {
+      "unique_exact_sha_file_groups_checked": 40,
+      "rank": "DESC_BY_ANCHOR_OCCURRENCES",
+      "covered_link_occurrences": 286,
+      "in_range_occurrences": 279,
+      "out_of_bounds_occurrences": 7,
+      "validation": "RETRIEVED_TARGET_MAX_ANCHOR_LINE_USING_GITHUB_FETCH_FILE; WHEN_EMPTY_FETCHED_COMPLETE_SOURCE_TO_DISTINGUISH_EMPTY_LINE_FROM_EOF; COMPARED_LINE_COUNT_TO_ALL_GROUP_ANCHORS",
+      "rechecked_exact_sha_tree_file_path_inventory": false,
+      "range_order_violations_in_all_467": 0,
+      "found_broken_links": [
+        {
+          "catalog_line": 580,
+          "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+          "sha": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+          "from": 881,
+          "to": 893,
+          "actual_EOF": 892,
+          "overhang": 1
+        },
+        {
+          "catalog_line": 623,
+          "path": "cloudflare-d1/src/employee-core-native-v1.mjs",
+          "sha": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+          "from": 331,
+          "to": 392,
+          "actual_EOF": 391,
+          "overhang": 1
+        },
+        {
+          "catalog_line": 630,
+          "path": "cloudflare-d1/src/operator-task-edge-v2.mjs",
+          "sha": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+          "from": 144,
+          "to": 182,
+          "actual_EOF": 181,
+          "overhang": 1
+        },
+        {
+          "catalog_line": 744,
+          "path": "cloudflare-d1/src/employee-content-native-v1.mjs",
+          "sha": "70a839ba79897e55e0d4e49b2b412f2cbaa6ba50",
+          "from": 250,
+          "to": 283,
+          "actual_EOF": 282,
+          "overhang": 1
+        },
+        {
+          "catalog_line": 787,
+          "path": "cloudflare-d1/src/employee-ops-native-v1.mjs",
+          "sha": "70a839ba79897e55e0d4e49b2b412f2cbaa6ba50",
+          "from": 261,
+          "to": 296,
+          "actual_EOF": 295,
+          "overhang": 1
+        },
+        {
+          "catalog_line": 1052,
+          "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+          "sha": "fbff27ea5d7d597e7f61ff28f048ad91b1a8b80b",
+          "from": 875,
+          "to": 893,
+          "actual_EOF": 892,
+          "overhang": 1
+        },
+        {
+          "catalog_line": 1154,
+          "path": "autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md",
+          "sha": "899481050a690951288f2e0e88917554e1798ad6",
+          "from": 124,
+          "to": 150,
+          "actual_EOF": 149,
+          "overhang": 1
+        }
+      ]
+    },
+    "previously_found_out_of_bounds_not_double_counted": {
+      "occurrences": 2,
+      "paths": [
+        {
+          "catalog_line": 1097,
+          "path": "tests/entry652_employee_session_lifecycle_guard.test.mjs",
+          "sha": "e486fa6d47907ff0fd65f3cdaa6a03787ae7139f",
+          "from": 1,
+          "to": 55,
+          "actual_EOF": 51,
+          "overhang": 4
+        },
+        {
+          "catalog_line": 1132,
+          "path": "tests/entry652_employee_session_lifecycle_guard.test.mjs",
+          "sha": "e486fa6d47907ff0fd65f3cdaa6a03787ae7139f",
+          "from": 1,
+          "to": 55,
+          "actual_EOF": 51,
+          "overhang": 4
+        }
+      ],
+      "source": "PRIOR_10_ANCHOR_SAMPLE_RECORD; SAME_LINK_APPEARS_TWICE_IN_FROZEN_CATALOG"
+    },
+    "combined_known_out_of_bounds": {
+      "occurrences": 9,
+      "distinct_target_fragments": 8,
+      "records": [
+        {
+          "catalog_line": 580,
+          "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+          "sha": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+          "from": 881,
+          "to": 893,
+          "actual_EOF": 892,
+          "overhang": 1
+        },
+        {
+          "catalog_line": 623,
+          "path": "cloudflare-d1/src/employee-core-native-v1.mjs",
+          "sha": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+          "from": 331,
+          "to": 392,
+          "actual_EOF": 391,
+          "overhang": 1
+        },
+        {
+          "catalog_line": 630,
+          "path": "cloudflare-d1/src/operator-task-edge-v2.mjs",
+          "sha": "88a45e3f63f2498fd58d933d954313bba8d2ee1e",
+          "from": 144,
+          "to": 182,
+          "actual_EOF": 181,
+          "overhang": 1
+        },
+        {
+          "catalog_line": 744,
+          "path": "cloudflare-d1/src/employee-content-native-v1.mjs",
+          "sha": "70a839ba79897e55e0d4e49b2b412f2cbaa6ba50",
+          "from": 250,
+          "to": 283,
+          "actual_EOF": 282,
+          "overhang": 1
+        },
+        {
+          "catalog_line": 787,
+          "path": "cloudflare-d1/src/employee-ops-native-v1.mjs",
+          "sha": "70a839ba79897e55e0d4e49b2b412f2cbaa6ba50",
+          "from": 261,
+          "to": 296,
+          "actual_EOF": 295,
+          "overhang": 1
+        },
+        {
+          "catalog_line": 1052,
+          "path": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+          "sha": "fbff27ea5d7d597e7f61ff28f048ad91b1a8b80b",
+          "from": 875,
+          "to": 893,
+          "actual_EOF": 892,
+          "overhang": 1
+        },
+        {
+          "catalog_line": 1097,
+          "path": "tests/entry652_employee_session_lifecycle_guard.test.mjs",
+          "sha": "e486fa6d47907ff0fd65f3cdaa6a03787ae7139f",
+          "from": 1,
+          "to": 55,
+          "actual_EOF": 51,
+          "overhang": 4
+        },
+        {
+          "catalog_line": 1132,
+          "path": "tests/entry652_employee_session_lifecycle_guard.test.mjs",
+          "sha": "e486fa6d47907ff0fd65f3cdaa6a03787ae7139f",
+          "from": 1,
+          "to": 55,
+          "actual_EOF": 51,
+          "overhang": 4
+        },
+        {
+          "catalog_line": 1154,
+          "path": "autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md",
+          "sha": "899481050a690951288f2e0e88917554e1798ad6",
+          "from": 124,
+          "to": 150,
+          "actual_EOF": 149,
+          "overhang": 1
+        }
+      ],
+      "interpretation": "OUT_OF_RANGE_FRAGMENT_END_ONLY; TARGET_FILES_EXIST; THIS DOES_NOT_SHOW_MISSING_HISTORICAL_CONTENT_OR_BROKEN_CODE"
+    },
+    "remaining_for_complete_line_bounds": {
+      "distinct_exact_sha_path_groups": 134,
+      "anchored_occurrences": 181,
+      "note": "Two of these 181 belong to already known entry652 fragment from prior checkpoint; do not count as new."
+    },
+    "catalog_correction_policy": "DO_NOT_EDIT_FROZEN_CATALOG; REQUIRE_OWNER_AUTHORIZED_MIGRATION_OR_LATER_EDITORIAL_THAW; CORRECT_TARGET_LINE_FRAGMENTS_ONLY_WITH_EXACT_COMMIT_EOF_AND_CONTENT_REVIEW",
+    "owner_authority": {
+      "old": "ACTIVE_WRITE",
+      "new": "FROZEN_MIGRATION_ONLY",
+      "cutover": "NO_GO"
+    },
+    "no_migration_copy_or_remove": true,
+    "no_archive_edit": true,
+    "no_runtime_mutation": true,
+    "no_private_data_republication": true
   }
 }
