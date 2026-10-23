@@ -28,7 +28,7 @@ function fake({account=owner,items=lines,files={fileCount:0,notReady:0},
    kind,
    async first(){throw Error('NON_TRANSACTIONAL_FIRST_FORBIDDEN');},
    async all(){throw Error('NON_TRANSACTIONAL_ALL_FORBIDDEN');}
-  }};
+  };
  }},
  async batch(stmts){
   calls.push({kind:'transaction',phase:'batch',count:stmts.length});
