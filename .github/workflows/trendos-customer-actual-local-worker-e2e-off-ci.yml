@@ -1,0 +1,61 @@
+name: TrendOS Customer Actual Local Worker D1 DO E2E OFF
+on:
+  push:
+    branches:
+      - test/customer-portal-actual-local-worker-d1-do-e2e-off-20261024
+  pull_request:
+    paths:
+      - 'tests/customer_stage_wrangle_local_real_d1_do_e2e.py'
+      - '.github/workflows/trendos-customer-actual-local-worker-e2e-off-ci.yml'
+      - 'cloudflare-d1/customer-stage/**'
+      - 'cloudflare-d1/wrangler.customer-stage.toml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  local-wrangler-real-sqlite-d1-durable-object:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+      OPENAI_API_KEY: ''
+      CUSTOMER_STAGE_LOCAL_E2E: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Guard checked-in Stage and Production configs are separate and OFF
+        run: |
+          set -euo pipefail
+          grep -Eq 'TRENDOS_CUSTOMER_PORTAL_STAGING_ENABLED[[:space:]]*=[[:space:]]*"false"' cloudflare-d1/wrangler.customer-stage.toml
+          ! grep -Eq 'database_id|\[\[d1_databases\]\]|routes[[:space:]]*=' cloudflare-d1/wrangler.customer-stage.toml
+          grep -q 'main = "production-shadow/index.js"' cloudflare-d1/wrangler.toml
+          ! grep -q 'customer-stage' cloudflare-d1/production-shadow/index.js
+          ! grep -q 'customer-stage' cloudflare-d1/src/index_v2.js
+      - name: Install disposable local Wrangler binary (no Cloudflare login)
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/customer-wrangler-tools" --no-save --no-audit --no-fund wrangler@4
+          echo "CUSTOMER_STAGE_LOCAL_WRANGLER=$RUNNER_TEMP/customer-wrangler-tools/node_modules/.bin/wrangler" >> "$GITHUB_ENV"
+      - name: Python local E2E syntax check
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tests/customer_stage_wrangle_local_real_d1_do_e2e.py
+      - name: Run REAL local Worker + D1 + SQLite DO, synthetic customers only
+        run: |
+          set -euo pipefail
+          python3 tests/customer_stage_wrangle_local_real_d1_do_e2e.py
+      - name: Never deploy or create Cloudflare remote resources
+        run: |
+          set -euo pipefail
+          test ! -f cloudflare-d1/.wrangler-customer-local-e2e-ci.toml
+          echo 'LOCAL_WRANGLER_DEV_ONLY=YES'
+          echo 'SYNTHETIC_LOCAL_D1_ONLY=YES'
+          echo 'CLOUDFLARE_REMOTE_CALLS=NO'
+          echo 'PRODUCTION_CHANGED=NO'
+          echo 'LIVE_CUSTOMER_GOOGLE_RETIRED=0/9'
