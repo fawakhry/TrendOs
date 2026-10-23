@@ -30,6 +30,10 @@ import {
  verifyACC243FakeSignedLineApprovals as verifyFakeLineApprovals,
  ACC243_POLICY
 } from '../cloudflare-d1/src/t12-finance-line-approved-acc243-fixture-verify.mjs';
+import {
+ storeACC244FakeLineApprovals as storeFakeApprovals,
+ ACC244_FIXTURE_SCHEMA,ACC244_POLICY
+} from '../cloudflare-d1/src/t12-finance-approval-inbox-acc244-fixture.mjs';
 const C='CUS-FAKE-228',ORDER_ID='4323',KEY='cld1_1800000000000_EMPLOYEE228_TEST0001';
 const A='service-actor-228';
 function fixture(lanes=2,skipCapture=false){
@@ -410,6 +414,109 @@ test('ACC243 rejects forged ACC242 success and untrusted key',()=>acc242WithBoth
  assert.equal((await ctx.run({sourceResponse:{...ctx.source,body:{...ctx.source.body,
   officialCustomerOwnershipAttested:true}}})).code,
   'ACC242_ORIGINAL_LINEAGE_PREVIEW_NOT_QUALIFIED');
+}));
+// ACC244: disposable fake ONLY consumer, separate from BOTH T12 and
+// original accounting databases. A persisted record is NOT a finance write.
+function acc244Db(path=':memory:'){
+ const db=new DatabaseSync(path);
+ db.exec(ACC244_FIXTURE_SCHEMA);
+ return db;
+}
+async function acc244Context(x,fin,db){
+ const a=await acc243Context(x,fin);
+ return {a,db,store:(changes={})=>storeFakeApprovals({
+  sourceResponse:a.source,lineagePreview:a.lineage,messages:a.messages,
+  verifyKey:a.key,expectedKeyId:ACC243_KEY_ID,nowMs:ACC243_NOW,
+  mode:'ISOLATED_FAKE_SQLITE_INBOX',fakeDb:db,...changes
+ })};
+}
+test('ACC244 isolated inbox inserts fake approvals once and same retry changes ZERO rows',()=>acc242WithBoth(async(x,fin)=>{
+ const db=acc244Db();
+ try{
+  const {store}=await acc244Context(x,fin,db);
+  const sourceBefore=x.raw.prepare('SELECT total_changes() AS n').get().n;
+  const financeBefore=fin.raw.prepare('SELECT total_changes() AS n').get().n;
+  const first=await store();
+  assert.equal(first.success,true,JSON.stringify(first));
+  assert.equal(first.newFakeRows,2);
+  assert.equal(first.deduplicatedFakeRows,0);
+  assert.equal(first.canPostInvoice,false);
+  assert.equal(first.canPostCash,false);
+  assert.equal(first.consumerAcknowledged,false);
+  assert.equal(first.productionRelease,'NO_GO');
+  const second=await store();
+  assert.equal(second.success,true,JSON.stringify(second));
+  assert.equal(second.newFakeRows,0);
+  assert.equal(second.deduplicatedFakeRows,2);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM acc244_fake_line_approval_inbox').get().n,2);
+  assert.equal(x.raw.prepare('SELECT total_changes() AS n').get().n,sourceBefore);
+  assert.equal(fin.raw.prepare('SELECT total_changes() AS n').get().n,financeBefore);
+  assert.equal(ACC244_POLICY.workerWired,false);
+  assert.equal(ACC244_POLICY.realD1Touched,false);
+  assert.equal(ACC244_POLICY.mode,'OFF');
+ }finally{db.close();}
+}));
+test('ACC244 persistent fake inbox survives close/reopen without duplicate rows',()=>acc242WithBoth(async(x,fin)=>{
+ const dir=mkdtempSync(join(tmpdir(),'acc244-fake-inbox-')),file=join(dir,'fixture-only.sqlite');
+ let db;
+ try{
+  db=acc244Db(file);
+  const ctx=await acc244Context(x,fin,db);
+  assert.equal((await ctx.store()).newFakeRows,2);
+  db.close();db=new DatabaseSync(file);
+  const repeat=await ctx.store({fakeDb:db});
+  assert.equal(repeat.success,true,JSON.stringify(repeat));
+  assert.equal(repeat.newFakeRows,0);
+  assert.equal(repeat.deduplicatedFakeRows,2);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM acc244_fake_line_approval_inbox').get().n,2);
+ }finally{try{db?.close();}catch{}rmSync(dir,{recursive:true,force:true});}
+}));
+test('ACC244 fixture signed bytes are immutable and cannot be deleted after insert',()=>acc242WithBoth(async(x,fin)=>{
+ const db=acc244Db();
+ try{
+  const ctx=await acc244Context(x,fin,db);
+  assert.equal((await ctx.store()).success,true);
+  assert.throws(()=>db.exec("UPDATE acc244_fake_line_approval_inbox SET message_json='{}'"),
+   /ACC244_FAKE_SIGNED_BYTES_IMMUTABLE/);
+  assert.throws(()=>db.exec('DELETE FROM acc244_fake_line_approval_inbox'),
+   /ACC244_FAKE_INBOX_NO_DELETE/);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM acc244_fake_line_approval_inbox').get().n,2);
+ }finally{db.close();}
+}));
+test('ACC244 fake inbox rollback is atomic when a source line ID conflicts with stored bytes',()=>acc242WithBoth(async(x,fin)=>{
+ const db=acc244Db();
+ try{
+  const ctx=await acc244Context(x,fin,db);
+  // Prepare malicious conflicting accounting-inbox record for second line
+  // only. The first line would be new; failure MUST roll it back.
+  const conflicting=ctx.a.messages[1],e=conflicting.envelope,p=e.payload;
+  db.prepare(`INSERT INTO acc244_fake_line_approval_inbox
+    (event_id,idempotency_key,order_id,line_id,customer_id,department,
+     message_json,sha256,state,created_at_ms)
+    VALUES (?,?,?,?,?,?,?,?,?,?)`).run(
+    'OTHER_EVENT_FOR_SAME_SOURCE_LINE','OTHER_IDEMPOTENCY_KEY',p.order_id,
+    p.line_id,p.customer_id,p.department,'{}','0'.repeat(64),
+    'FAKE_STORED_NO_POST',ACC243_NOW);
+  const beforeChanges=db.prepare('SELECT COUNT(*) n FROM acc244_fake_line_approval_inbox').get().n;
+  const result=await ctx.store();
+  assert.equal(result.success,false);
+  assert.equal(result.code,'ACC244_FAKE_INBOX_CONFLICT_OR_TX_FAILED');
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM acc244_fake_line_approval_inbox').get().n,beforeChanges);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM acc244_fake_line_approval_inbox WHERE line_id=?')
+    .get(ORDER_ID+'-01').n,0);
+ }finally{db.close();}
+}));
+test('ACC244 fake inbox never accepts unverified HMAC or unknown databases/modes',()=>acc242WithBoth(async(x,fin)=>{
+ const db=acc244Db(),other=new DatabaseSync(':memory:');
+ try{
+  const ctx=await acc244Context(x,fin,db);
+  assert.equal((await ctx.store({mode:undefined})).code,'ACC244_DEFAULT_OFF');
+  assert.equal((await ctx.store({fakeDb:other})).code,'ACC244_FAKE_SQLITE_MARKER_MISSING');
+  const forged=clone243(ctx.a.messages);
+  forged[0].envelope.payload.actor_ref='FAKE-OTHER-ACTOR';
+  assert.equal((await ctx.store({messages:forged})).code,'ACC243_FAKE_SIGNED_SET_REJECTED');
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM acc244_fake_line_approval_inbox').get().n,0);
+ }finally{db.close();other.close();}
 }));
 test('new source has no HTTP endpoint, T12/finance creation, or direct D1 finance link',()=>{
  const worker=readFileSync('cloudflare-d1/src/index_v2.js','utf8');
