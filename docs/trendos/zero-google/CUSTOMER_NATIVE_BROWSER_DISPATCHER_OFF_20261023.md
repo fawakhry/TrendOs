@@ -1,0 +1,34 @@
+# Customer portal native browser transport V0 — SOURCE ONLY / DEFAULT OFF
+
+Date 2026-10-23. PREPARE. User scope: **existing customers already Cloudflare, only finish their platform**. This is not another customer data migration.
+
+## Pinned upstream
+
+Parent TrendOS customer Draft #221 `fca5625e53815647addc6d183ebe4040990acdf5` (OPEN DRAFT). Existing `index.html` embeds `config.js`, `browser-api-transport-v1.js`, `app.js`, then `employee-api-dispatcher-v1.js`; frontend `app.js` currently passes all actions through `window.trendosSecureApiV1922` which forwards to `window.trendosLegacyApiTransportV1` by default. Employee wrapper preserves the downstream customer path.
+
+## Proposed exact safe unit
+
+Add a separate `customer-native-browser-transport-v0.js` loaded *between* browser legacy transport and original app.js, add `window.TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED = false` to frontend `config.js`, route **only** nine customer actions via a narrow gate in the existing app.js secure API. All other employee and existing orders calls use their unchanged downstream. OFF returns original legacy result. ON **never falls back to Google for customer actions**.
+
+Only `getCustomerOrders` has an existing source-only native HTTP handler contract (Entry660). The adapter must require an **independent native session bearer** (64 hex, not legacy customer token), send only HTTPS `GET /v1/customer/native/orders` to the existing exact Cloudflare API origin with Authorization header and bounded page, and adapt line records to the current UI's order cards. The other eight actions, including login, must explicitly fail closed when ON because corresponding real HTTP routes are NOT qualified; turning ON is prohibited and would block login. Not a release-ready flip. Underlying actual Worker Entry660 remains NOT IMPORTED and feature flag remains OFF.
+
+No customer record, Cloudflare secret, D1 migration, SMS, R2 object, Apps Script, EasyStore/finance, employee session, T12 writer, production flag/asset or live service changed.
+
+## Verification and recording plan
+
+Offline Node VM tests for all nine: OFF unchanged, non-customer untouched even when ON, native route rejects missing/wrong bearer and wrong API host, legacy params never forwarded as native customer authorization, no silent Google fallback on any error, no redirects, truncated/malformed response fail-closed, safe rendering shape. Verify exact `index.html` script order and app.js integration anchors. GitHub Actions source-only workflow, no deploy. Update THIS doc RESULT and append observed evidence to **old ACTIVE_WRITE book** in companion review branch based on its latest HEAD; never write frozen catalog or auto merge. Distinguish final exact-head Actions from any intermediate failures.
+
+**PREPARE:** `CUSTOMER_MASTER_REBUILD=NO`; `CUSTOMER_PLATFORM_ONLY=YES`; `SOURCE_ONLY=YES`; `FEATURE_FLAG=OFF`; `LIVE_CUSTOMER_GOOGLE_RETIRED=0/9`; `PRODUCTION_CHANGE=NO`.
+
+## RESULT — source implementation verified without live operation (23 Oct 2026)
+
+- Original source parent **unchanged**: PR #221 `fca5625e53815647addc6d183ebe4040990acdf5`; new isolated stacked Draft [PR #224](https://github.com/fawakhry/TrendOs/pull/224). Owner scope review remains separate Draft #223.
+- Created `customer-native-browser-transport-v0.js` (first implementation commit `3d49e81ab64593532de970d30355ffcf2df01ab5`), exact OFF toggle only in `config.js`, script loading after original `browser-api-transport-v1.js` and before existing `app.js`, and a 12-line integration hook under original `window.trendosSecureApiV1922`. The employee dispatcher `employee-api-dispatcher-v1.js` remains untouched and keeps original downstream.
+- When OFF, all 9 current customer actions + employee actions pass unchanged to the old Cloud browser transport. When flag is exactly boolean `true`, **only** source-contract `getCustomerOrders` can use pinned HTTPS Cloudflare `GET /v1/customer/native/orders?limit=40&offset=0` with an **independent 64-hex Native bearer callback**, never the old browser `customerCode` or Google token. The eight other customer actions fail closed before any network call (especially customerLogin, because its source-side PBKDF2 function has NO Worker HTTP handler). Any failed/malformed/native data/partial page also fails CLOSED with no Google fallback. The readback maps bounded, minimal order lines into existing order-card properties only; rejects `hasMore=true` until pagination and order parity are designed. It shows a source-only preview; DOES NOT assert full legacy order list parity, owner mapping or real route readiness.
+- Node VM tests `tests/customer_native_browser_transport_off.test.mjs` cover OFF, employee isolation, all nine dispatch actions, bad Native bearer, invalid origins, credential stripping, no retry on network/HTTP/schema failures, truncated pages, and actual extracted original app.js secure API assignment callback. Source-only CI workflow `.github/workflows/trendos-customer-native-browser-transport-off-ci.yml` executes these plus original Entry660 source/SQLite regressions. It has **no deploy, secrets, DB or cloud API call**.
+- **Exact tested code HEAD `85c1ef63f9b2939f15ac8cb050a4d3466c6bd843`:** [new customer browser CI #40021252614](https://github.com/fawakhry/TrendOs/actions/runs/40021252614) SUCCESS; duplicate push [#40021248891](https://github.com/fawakhry/TrendOs/actions/runs/40021248891) SUCCESS; original [A61 browser transport CI #40021252649](https://github.com/fawakhry/TrendOs/actions/runs/40021252649) SUCCESS.
+- **Unrelated inherited legacy test failure, NOT hidden:** [V1931 Resilience CI #40021252762](https://github.com/fawakhry/TrendOs/actions/runs/40021252762) FAIL expected original `MATBAGY_EDGE_ORDERS_READ_V1_ENABLED=false`; original PR221 parent `config.js` already has `true`, which this source branch preserved. Do NOT silently switch existing employee/Orders mode to make a stale historical assertion pass. Qualify that legacy test against current runtime separately with owner.
+- Separate Cloudflare Worker build checks may report failure on Draft commits; their actual build cause is NOT attested by these offline tests; no production deployment follows from any green source workflow.
+- **Pending pre-PROD:** native customer login HTTP/session issuer + securely owner-bound OTP, independently verified order ownership/historical order parity, response pagination, staging, rollback, security gates and owner deployment authorization. Only after these would client flag be eligible for a restricted staged canary. Existing employee and T12 writers unchanged.
+
+`CUSTOMER_NATIVE_BROWSER_DISPATCH=SOURCE_TESTED_DEFAULT_OFF`; `NATIVE_CUSTOMER_LOGIN_HTTP_ROUTE=NOT_AVAILABLE`; `NATIVE_CUSTOMER_ORDERS_PROD_ROUTE=NOT_DEPLOYED`; `PROVEN_GOOGLE_CUSTOMER_ACTIONS_RETIRED=0/9`; `PROD=NO_CHANGE`; `ZERO_GOOGLE_COMPLETE=NO`.
