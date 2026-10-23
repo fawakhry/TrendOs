@@ -22,7 +22,7 @@ function adapter(sqlite,record,denyOperationalInFinance=false){
  }};
 }
 const financeDB=new DatabaseSync(':memory:'),operationalDB=new DatabaseSync(':memory:');
-try{
+{
  const migrations=[
   '0015_employee_accounting_zero_google_v1.sql',
   ...[20,21,22,23,24,25,26,27,28,29,30,31].map(n=>{
