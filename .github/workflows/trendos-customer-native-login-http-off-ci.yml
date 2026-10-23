@@ -1,0 +1,52 @@
+name: TrendOS Customer Native Login HTTP Source OFF
+on:
+  push:
+    branches:
+      - feat/zero-google-customer-native-login-http-sourceoff-20261023
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/customer-portal-native-login-http-off-v0.mjs'
+      - 'tests/customer_native_login_http_off.test.mjs'
+      - '.github/workflows/trendos-customer-native-login-http-off-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  customer-native-login-http-offline-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Source syntax check
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/customer-portal-native-login-http-off-v0.mjs
+          node --check tests/customer_native_login_http_off.test.mjs
+      - name: Synthetic HTTP+PBKDF2+D1+durable-gate contract only; no live services
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          OPENAI_API_KEY: ''
+          TRENDOS_CUSTOMER_PORTAL_SESSION_HMAC_SECRET: ''
+          TRENDOS_CUSTOMER_PORTAL_THROTTLE_HMAC_SECRET: ''
+        run: |
+          set -euo pipefail
+          node --test tests/customer_native_login_http_off.test.mjs
+      - name: Assert no production customer login route
+        run: |
+          set -euo pipefail
+          if grep -q 'customer-portal-native-login-http-off-v0' cloudflare-d1/src/index_v2.js; then
+            echo 'ERROR: customer Native login imported into live Worker'; exit 1
+          fi
+          grep -Eq 'TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED[[:space:]]*=[[:space:]]*false' config.js
+          echo 'SOURCE_ONLY_OFF=YES'
+          echo 'HTTP_ROUTE_DEPLOYED=NO'
+          echo 'GLOBAL_THROTTLE_PROVIDER_DEPLOYED=NO'
+          echo 'CUSTOMER_MASTER_REBUILD=NO'
+          echo 'GOOGLE_CUSTOMER_ACTIONS_RETIRED=0_OF_9'
+          echo 'CLOUDFLARE_DEPLOY=NO'
