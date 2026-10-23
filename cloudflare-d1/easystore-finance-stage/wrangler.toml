@@ -16,11 +16,16 @@ ACCOUNTING_FINANCE_GRANTS_MODE_V1 = "ENFORCE"
 ACCOUNTING_FINANCE_GRANTS_V1 = "{\"version\":1,\"grants\":[]}"
 EASYSTORE_CUSTOMER_CREDIT_V1 = "OFF"
 EASYSTORE_CUSTOMER_SOURCE_V1 = "REMOTE_REQUIRED"
+EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1 = "REMOTE_NATIVE_REQUIRED"
 
 # Internal read-only operational source via Worker service binding.
 [[services]]
 binding = "TRENDOS_CUSTOMER_FACTS"
 service = "trendos-customer-facts-stage-source"
+
+[[services]]
+binding = "TRENDOS_EMPLOYEE_SESSION"
+service = "trendos-native-session-stage-source"
 
 [[d1_databases]]
 binding = "DB"
