@@ -1129,3 +1129,10 @@
 - **No API token has been created, no credential displayed, and no change has been submitted.** Scope is NOT yet safe to create because `All accounts` and `No expiration` are still defaults.
 - Next single owner UI action: click the **middle Permissions dropdown displaying `Select...`** beside `Account` to inspect available permissions (no selection yet), so the next action can choose specifically `Account Analytics: Read`. Do not use preset tokens, Save/Continue, or any existing key.
 - `TOKEN_NAME_ENTERED=YES`; `TOKEN_CREATED=NO`; `ANALYTICS_READ_PERMISSION=NOT_YET_SET`; `ACCOUNT_RESOURCE_RESTRICTED=NO`; `EXPIRY_RESTRICTED=NO`; `HTTP403_CAUSE=UNRESOLVED`; `PRODUCTION_UNCHANGED=YES`.
+
+### SERVER-20261023-125 — owner opened Account permission choices (owner screenshot ~22:26 Cairo)
+
+- Owner opened the **Permissions** product selector on Cloudflare `Create Custom Token`; type remains `Account`, token draft display name remains `TrendOS Stage CF-Ray Readonly 20261023`. Dropdown currently shows the alphabetically early Access permissions, e.g. `Access: Apps`, `Access: Apps and Policies`, `Access: Audit Logs`, `Access: Device Posture`, and similar; `Account Analytics` has NOT yet been selected or located in visible portion.
+- No token has been created; Account Resources still defaulted to `All accounts`, and expiration still `No expiration` pending deliberate restriction. Do not submit, grant Access management/Edit, or reveal secret material.
+- Single next UI action: **scroll within the open Permissions dropdown** until `Account Analytics` appears, then send screenshot before selecting. Exact permission must be Account Analytics with Read only, not Access Audit Logs or unrelated permissions. Avoid interpreting Access identity login logs as non-identity proof.
+- `TOKEN_CREATED=NO`; `ACCOUNT_ANALYTICS_SELECT=NOT_YET`; `HTTP403_ROOT_CAUSE=UNRESOLVED`; `PRODUCTION_TOUCHED=NO`.
