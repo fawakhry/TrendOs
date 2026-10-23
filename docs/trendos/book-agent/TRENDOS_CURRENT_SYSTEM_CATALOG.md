@@ -9507,3 +9507,19 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 
 <!-- END_VERBATIM_MIGRATION:MASTER_BOOK_AGENT_20261023_CHECKPOINT_67 -->
 
+## ملحق تاريخي — سجلا إثبات الترحيل 004 و005 (2026-10-16)
+
+> These two prior migration receipts were embedded **after** the protected SERVER-61 note. Only the standalone receipts are copied. The SERVER-61 body and explicit owner's no-transfer instruction remain in the active Master unchanged. Historical archival evidence, not active production certification.
+
+<!-- BOOK_AGENT_20261023: exact old source blob 0b82bc5f0917b1d0335de5da073e617c14726c74; historical administrative receipt, NOT SERVER-61 protected payload. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_004 -->
+- **MIGRATION UNIT 004 / §§8–8A archive navigation / 2026-10-16:** فهرس الأرشيف وقواعد منع تضخم الكتاب (2617 حرفًا) رُحّلا تاريخيًا إلى الملحق «ط» في [copy commit 506b74bf3d4e](https://github.com/fawakhry/TrendOs/commit/506b74bf3d4e48427458e30e0827153283175775)، مع أولوية سياسة التعايش الجديدة. تحقق `EXACT_VERBATIM_MATCH=PASS (2617/2617)` من الكتاب القديم والموحد والأرشيف `b2788ecb4c187717e020321954a1ea449c1aa0d5` (blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`). المصدر السابق للنسخ `168b0bec04da6910fa9f27860a7348d377ada79d`، والكتاب القديم عند حذف الوحدة HEAD `fe21d102e259942ee9340ee3a3de349d95d6ded4` / blob `e0f693c8f7b5a4f79fc0c832493a41d22ff72e49`. حُذف القسمان §8 و§8A والفرع التاريخي `قواعد منع تضخم الكتاب` فقط. **تم الحفاظ على إضافة إيجنت السيرفر SERVER-20261016-61 المسجلة بالتوازي في commit `fe21d102e259942ee9340ee3a3de349d95d6ded4`** دون أي تعديل بها. الكتاب القديم `ACTIVE_WRITE` والجديد `FROZEN / MIGRATION_ONLY`. `NO_RUNTIME_MUTATION`.
+
+<!-- END_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_004 -->
+
+<!-- BOOK_AGENT_20261023: exact old source blob 0b82bc5f0917b1d0335de5da073e617c14726c74; historical administrative receipt, NOT SERVER-61 protected payload. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_005 -->
+- **MIGRATION UNIT 005 / §9 Entry595 baseline handoff / 2026-10-16:** كُتلة `MASTER_BOOK_BASELINE=ENTRY595` القديمة (508 حرفًا) محفوظة حرفيًا بالملحق التاريخي «ي» في الموحد [copy commit f19d127c0070](https://github.com/fawakhry/TrendOs/commit/f19d127c00701b813ec96e8546204fe2312ef7d0)؛ `EXACT_VERBATIM_MATCH=PASS (508/508)` مع الأصل والأرشيف عند `b2788ecb4c187717e020321954a1ea449c1aa0d5` (blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`). المصدر قبل النسخ `e18818a007ec2f59ac29799b6c7cbff040fb6511` blob `220a246698aec558da8d2066af4fdf107677bbd8`؛ قيم ACTIVE_VERSION والـGoogle/Customer rows **تاريخية** وليست حالة Production الحالية. بعد إعادة القراءة والتحقق حُذف قسم §9 فقط من القديم، وبقيت خارطة الطريق §11، كل Entries الجديدة، وإضافة `SERVER-20261016-61` و`ACTIVE_WRITE`. `NO_DEPLOY` / `NO_RUNTIME_MUTATION`.
+
+<!-- END_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_005 -->
+
