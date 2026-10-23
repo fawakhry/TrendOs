@@ -317,5 +317,27 @@
     "old_book_writer": "ACTIVE_WRITE",
     "unified_book_writer": "FROZEN_MIGRATION_ONLY",
     "decision": "NO_GO"
+  },
+  "current_no_loss_gate_checkpoint_20261023_after_71_sections": {
+    "date": "2026-10-23",
+    "supersedes_counter": "current_no_loss_gate_checkpoint_20261023_after_67_sections",
+    "further_four_receipts_copy_commit": "0fea71f07964bb83aa4ce1fbe27d27d94899512d",
+    "further_four_receipts_remove_commit": "d2ca422fcd181c6a922e023682323c6099e70c66",
+    "crosswalk_commit": "ae112a16a17e43a8ceb2917b7a313e7973c6d34d",
+    "total_sections_migrated_oct23_series": 71,
+    "total_source_characters_preserved_oct23_series": 101481,
+    "earlier_38_archived_transfer_units_separate": true,
+    "marker_parity": "111/111_UNIQUE_EXACT",
+    "source_four_receipts_reconstruction": "PASS",
+    "source_latest_blob": "1edfabe003fd2e19ba88741b436c6b150464956e",
+    "catalog_latest_blob": "90160292e6cf1e00380cf97973de249abd487fa0",
+    "protected_owner_writing_rules": true,
+    "private_Entry596_599_600_migration_approved": false,
+    "server61_migration_approved": false,
+    "runtime_ci_and_deployment_certified": false,
+    "owner_final_cutover_approval": false,
+    "old_book": "ACTIVE_WRITE",
+    "new_catalog": "FROZEN_MIGRATION_ONLY",
+    "cutover": "NO_GO"
   }
 }
