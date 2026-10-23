@@ -65,3 +65,14 @@
 - The stated initial issue specifically referred to Cloudflare Access **when using Microsoft Entra ID**; the bulletin does **not** state that Access Service Token credentials were impacted.
 - Therefore this incident **cannot be used as evidence for the SERVER-95 Ubuntu machine-token HTTP 403**, and re-running the identical probe just because the incident resolved is not justified.
 - `CF_ACCESS_INCIDENT=RESOLVED_ENTRA_ID_SCOPED_NOTICE`; `SERVICE_TOKEN_INCIDENT_CAUSATION=NOT_ESTABLISHED`; `ACCESS_POLICY_CHANGED=NO`; `UBUNTU_OR_PRODUCTION_TOUCHED=NO`.
+
+## OWNER-UI reconciliation — stage destination, policy precedence and Service Auth failure (2026-10-23, 21:26 Cairo)
+
+- The owner navigated Cloudflare Worker `trendos-server68-isolated-stage` → **Access** and opened the linked application `TrendOS isolated stage - DENY ALL - S87`. Worker All traffic is protected, with both Block Everyone and `TrendOS Ubuntu Stage - Service Auth` displayed.
+- In the **actual Access application Destinations editor**, Worker Scope is `trendos-server68-isolated-stage`, Type `A Worker's production and preview URLs`. The Access Applications list independently displays the same Worker destination. The Preview widget's `No destinations assigned` text does **not** disprove this configured destination.
+- GUI name match resolves the concern that **no stage Worker destination is assigned**, but **immutable UUID equality** is still `UNVERIFIED` because the existing read-only audit credential cannot read exact Workers metadata. No new API permissions should be granted merely to repeat the UI-proven name binding.
+- Cloudflare says Service Auth is evaluated before Block. So policy list order is **not** an identified cause of 403.
+- Under `Additional settings → Service Auth failure`, `Return 401 Response` is **OFF**; owner left via **Cancel** without saving. This response-mode choice is not itself evidence of the HTTP403 root cause.
+- User API-token summary `TrendOS Access Stage` shows **Access: Apps and Policies: Edit**, no Workers metadata read, expiry 2026-10-30. Dashboard token name is **not cryptographic proof** it is the exact token bound in GitHub Actions. No Client Secret was displayed, copied or rotated.
+- The owner supplied 28 UI checkpoints in conversation; canonical roll-up: `autonomous-printshop/MASTER_BOOK.md` SERVER-20261023-99; line-by-line history: `autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md` SERVER-20261023-99. Original screenshot files remain in conversation, not GitHub.
+- **Next evidence:** non-identity machine-auth rejection logs or a protected stage-only CF-Ray correlation when safely available; never Access Bypass, policies/Secret changes, real orders or printer/laser. `HTTP403_ROOT_CAUSE=UNRESOLVED`, `REAL_UBUNTU_ACCESS=NOT_VERIFIED`, `OWNER_CLOUDFLARE_EDIT_SAVED=NO_EVIDENCE`, `PR190=DRAFT`.
