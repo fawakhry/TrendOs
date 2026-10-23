@@ -167,6 +167,22 @@ class PrivateNativeFileSqlite(unittest.TestCase):
             self.db.execute(
                 "UPDATE customer_portal_native_draft_files_v1 SET state='PUBLISHED'"
             )
+    def test_13_duplicate_customer_code_emerging_after_reservation_blocks_readback_and_finalize(self):
+        self.assertEqual(self.reserve(),1)
+        self.assertEqual(self.readback()["state"],"PENDING")
+        # Another active customer later claims the same portal code.
+        self.db.execute("UPDATE t12_customers SET legacy_chat_code='PC-C1' WHERE customer_id='C2'")
+        self.assertIsNone(self.readback())
+        self.assertEqual(self.finalize(),0)
+        self.assertEqual(self.db.execute(
+            "SELECT state FROM customer_portal_native_draft_files_v1"
+        ).fetchone()["state"],"PENDING")
+        # Once the ambiguity is resolved, the same owner can finalize,
+        # without creating an extra file row or public file URL.
+        self.db.execute("UPDATE t12_customers SET legacy_chat_code='PC-C2' WHERE customer_id='C2'")
+        self.assertEqual(self.finalize(),1)
+        self.assertEqual(self.readback()["state"],"READY")
+        self.assertEqual(self.rows(),1)
     def test_12_must_change_flag_and_duplicate_customer_code_block(self):
         self.db.execute(
             "UPDATE customer_portal_native_accounts_v1 SET must_change=1 WHERE customer_id='C1'"
