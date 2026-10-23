@@ -5,6 +5,7 @@ on:
     branches:
       - agent/security-read-guards-entry692-20261024
       - agent/cloudflare-rollback-files-guard-entry693-20261024
+      - agent/entry694-security-integration-test-20261024
     paths:
       - '.github/workflows/trendos-entry694-draft-security-regression.yml'
       - 'tests/entry692_private_read_guards.test.mjs'
