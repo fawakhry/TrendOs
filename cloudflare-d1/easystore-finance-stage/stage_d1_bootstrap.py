@@ -317,7 +317,7 @@ def backup_verify_stage(cli, destination, confirmation):
     fd = os.open(evidence_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as handle:
         json.dump(evidence, handle, ensure_ascii=False, indent=2)
-        handle.write("\\n")
+        handle.write("\n")
     return evidence
 
 
