@@ -1157,3 +1157,10 @@
 - The token name is `TrendOS Stage CF-Ray Readonly 20261023`. `Account Resources` still defaults to `Include → All accounts`, and Token expiration remains `No expiration`; both are pending explicit restriction before creation.
 - **Next single owner action:** click **Read** in the currently open dropdown, then send screenshot. Do not click Continue to summary, expose keys, or touch Worker/Access/production.
 - `READ_OPTION_VISIBLE=YES`; `READ_ACTION_SELECTED=NOT_YET`; `TOKEN_CREATED=NO`; `HTTP403_ROOT_CAUSE=UNRESOLVED`; `SECRET_EXPOSED=NO`; `PRODUCTION_UNCHANGED=YES`.
+
+### SERVER-20261023-129 — Account Analytics Read selected in token draft (owner screenshot, 2026-10-23 ~22:33 Cairo)
+
+- In owner-provided Cloudflare `Create Custom Token` screenshot, the token draft `TrendOS Stage CF-Ray Readonly 20261023` has exactly one visible permissions row: **Account → Account Analytics → Read**. No additional permission row is present.
+- The Account Resources still show **Include → All accounts** and expiration appears to remain **No expiration**, so no token should be submitted yet. No token value is displayed; no network request or production order/device operation is associated with this UI step.
+- **Next one owner action:** open the `All accounts` Account Resources dropdown, inspect account-scoping choices, then share screenshot without selecting or saving yet.
+- `ANALYTICS_PERMISSION_READ_SELECTED=YES`; `ACCOUNT_SCOPE_PENDING=YES`; `EXPIRY_PENDING=YES`; `TOKEN_CREATED=NO`; `HTTP403_UNRESOLVED=YES`; `PRODUCTION_UNTOUCHED=YES`.
