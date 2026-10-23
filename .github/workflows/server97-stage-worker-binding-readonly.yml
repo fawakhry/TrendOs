@@ -1,0 +1,56 @@
+name: SERVER-97 Exact Cloudflare Access Worker Binding (GET-only)
+
+# New identity-boundary proof only. No repeated SERVER-95 tests.
+# Never connects to a Worker URL, reads customer orders, or writes Cloudflare.
+on:
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+    paths:
+      - .github/workflows/server97-stage-worker-binding-readonly.yml
+      - autonomous-printshop/print-server/tools/server97_access_worker_binding_audit.py
+      - autonomous-printshop/print-server/tests/test_server97_access_worker_binding_audit.py
+
+permissions:
+  contents: read
+
+jobs:
+  fake-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ''
+      CLOUDFLARE_ACCESS_API_TOKEN: ''
+      CF_ACCESS_CLIENT_ID: ''
+      CF_ACCESS_CLIENT_SECRET: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: New SERVER-97 fake-only Worker immutable-ID checks
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server97_access_worker_binding_audit.py' -v
+          echo 'SERVER97_FAKE_BINDING_TESTS=PASS; REMOTE_HTTP=NONE; PRODUCTION=NO'
+
+  cloudflare-readonly-config:
+    needs: fake-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ACCESS_API_TOKEN: ${{ secrets.CLOUDFLARE_ACCESS_API_TOKEN }}
+      CF_ACCESS_CLIENT_ID: ''
+      CF_ACCESS_CLIENT_SECRET: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Read exact Access app and list Worker immutable IDs (GET only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 \
+            autonomous-printshop/print-server/tools/server97_access_worker_binding_audit.py
