@@ -1,6 +1,6 @@
 # SERVER-182 — Cloudflare Access / Worker Edge HTTP 403 decision packet
 
-**Status:** READY FOR OWNER-INITIATED VENDOR ESCALATION; **NOT SUBMITTED**  
+**Status:** SUBMITTED by owner 2026-10-24 ~01:13 Cairo; Cloudflare case **#02394197**; awaiting support response  
 **Prepared:** 2026-10-24 (Africa/Cairo)  
 **Evidence mode:** Existing screenshots and GitHub source only. **No new live Worker/GraphQL requests.**  
 **Tracking:** `SERVER139_UBUNTU_SANDBOX_PINNED_20261023.md` records SERVER-162 to SERVER-181.  
@@ -122,6 +122,6 @@ Official references (checked 2026-10-24):
 
 ## F. Submission gate and privacy
 
-**Status:** Prepared locally as source documentation on the release review branch; **not posted to Cloudflare** and no vendor response has been obtained. Do not store screenshots revealing current Client ID in GitHub; no credentials are in this packet. Only an owner-authorized support submission after choosing the appropriate support route should change the submission status. The owner is not being asked to run any additional Ubuntu command or Cloudflare test at this stage.
+**Status update (SERVER-185):** Owner screenshot confirms Cloudflare case **#02394197** was submitted successfully on 2026-10-24 ~01:13 Cairo. No Cloudflare technical diagnosis/reply is yet known. The earlier prepared text and evidence ledger are preserved as a reference; the submission confirmation screenshot alone does **not** verify the complete final case body. Do not store screenshots revealing the current Client ID in GitHub; no credentials are in this packet. Do not run any additional Ubuntu command or Cloudflare test merely because the case was submitted.
 
-`SERVER182_PACKET=PREPARED`; `NEW_LIVE_REQUESTS=0`; `ACCESS_HTTP403_ROOT_CAUSE=UNRESOLVED`; `SUPPORT_CASE_SUBMITTED=NO`; `PR190=OPEN_DRAFT`; `PRODUCTION_AND_DEVICES_UNTOUCHED=YES`.
+`SERVER182_PACKET=PREPARED`; `SERVER185_CLOUDFARE_CASE=02394197`; `SUPPORT_CASE_SUBMITTED=YES_OWNER_SCREENSHOT`; `SUPPORT_REPLY=PENDING`; `NEW_LIVE_REQUESTS=0`; `ACCESS_HTTP403_ROOT_CAUSE=UNRESOLVED`; `PR190=OPEN_DRAFT`; `PRODUCTION_AND_DEVICES_UNTOUCHED=YES`.
