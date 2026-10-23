@@ -23,7 +23,6 @@ import {createCustomerStageDurableRateGateV0}
 export {CustomerLoginThrottleStageV0}
   from './login-throttle-v0.mjs';
 
-export const CUSTOMER_STAGE_WORKER_SOURCE_VERSION_V0='CUSTOMER_STAGE_WORKER_OFF_V0_20261024';
 const PATHS=Object.freeze([
   CUSTOMER_NATIVE_LOGIN_HTTP_PATH_V0,
   '/v1/customer/native/logout',
@@ -43,7 +42,7 @@ function originAllowed(request,env){
   // No wildcard or default production browser origin.
   return origins.length>0&&origins.includes(origin);
 }
-export function isCustomerStagePathV0(path){
+function isCustomerStagePathV0(path){
   return PATHS.includes(path);
 }
 export default {
@@ -91,10 +90,3 @@ export default {
   }
 };
 
-export const CUSTOMER_STAGE_POLICY_V0=Object.freeze({
-  sourceOnly:true,defaultEnabled:false,independentWorker:true,
-  productionEntrypointChanged:false,productionDbBinding:false,
-  stagedIdentityProvisioned:false,customerLoginRateGateBound:false,
-  deployed:false,googleFallback:false,customerMasterMigration:false,
-  customerOrderWriterCreated:false,liveGoogleRetiredCount:0
-});
