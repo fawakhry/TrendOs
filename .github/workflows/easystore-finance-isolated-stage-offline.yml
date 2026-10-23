@@ -42,7 +42,7 @@ jobs:
       - name: Verify stage-only D1 bootstrap gates and offline backup restore
         run: |
           python cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py plan > /tmp/acc237-plan.json
-          python -m unittest discover -s cloudflare-d1/easystore-finance-stage/tests -p 'stage_bootstrap_safety.test.py' -v
+          python cloudflare-d1/easystore-finance-stage/tests/stage_bootstrap_safety.test.py -v
       - name: Check independent original-native Worker fails closed
         run: node --test cloudflare-d1/easystore-finance-stage/tests/*.test.mjs
       - name: Check isolated stage binding has no operational or production database
