@@ -59,14 +59,17 @@ def get_status(account, token, opener=None):
     rows = result.get("result")
     if not isinstance(rows, list) or len(rows) >= 100 or not all(isinstance(x, dict) for x in rows):
         raise Blocked("SERVER93_SERVICE_TOKENS_PAGE_INCOMPLETE_OR_INVALID")
+    # Permission capability only: a single successful GET is sufficient.
+    # Never classify service tokens across the account from a partial page.
     pages = result.get("result_info", {}).get("total_pages") if isinstance(result.get("result_info"), dict) else None
-    if pages is not None and (not isinstance(pages, int) or pages != 1):
-        raise Blocked("SERVER93_SERVICE_TOKENS_PAGINATION_INCOMPLETE")
+    inventory_complete = pages == 1 if type(pages) is int else False
     return {
         "schema": "trendos.server93.service-token-scope-probe.v1",
         "readServiceTokenInventory": "GET_OK",
         "missingReadPrivilegeLikely": False,
         "serviceTokenMetadataVisible": True,
+        "inventoryComplete": inventory_complete,
+        "existingMachineTokenQualified": False,
         "existingServiceTokenNamesAndSecretsNotPrinted": True,
         "machineServiceTokenCreated": False,
         "newServiceTokenWritePermissionProven": False,
