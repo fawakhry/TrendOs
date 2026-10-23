@@ -17024,5 +17024,161 @@
     "production_mutations": 0,
     "code_mutations": 0,
     "no_duplicate_ticket": true
+  },
+  "book_agent_20261023_edge_real_webcrypto_iat_and_session_exchange_query_v1": {
+    "date": "2026-10-23",
+    "previous_book_head": "cf4a1622973010fcd14c733de0dd6586457b659d",
+    "pinned_pr": 221,
+    "pinned_source_commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "source_file": "cloudflare-d1/src/edge-orders-read-v1.mjs",
+    "source_blob": "540cca2143e7da940b96d6f990a8951e3b5c87ab",
+    "execution": {
+      "webcrypto": "Node.js v22.16.0 LOCAL offline; code lines 16-20 and 60-128 manually transcribed from pinned source, same issuer/verifier bodies and actual built-in crypto.subtle HMAC SHA-256. Not a byte-for-byte complete-module source execution; no full-file automatic source mount; no real issuer or secret. No R2/D1/Cloudflare.",
+      "local_fixture_sha256": "607ca97ad20b0d950d234e9fedb8c9ce7325ddaa75414ffe7c0d62d62752b18e",
+      "local_file": "/tmp/trend_edge_hmac_real_fixture_20261023.mjs (ephemeral container file, not committed or linked as downloadable artifact)",
+      "exchange": "V8 isolate executes EXACT pinned original exchangeSession + handleEdgeOrdersReadRequest + verifyOrdersEdgeToken bodies with fake URL/Response/fetch/AbortController and toy signer; NO live Apps Script endpoint, redirects, browser logging or real credential."
+    },
+    "cryptographic_cases": [
+      {
+        "case": "real_HMAC_valid_ttl_600",
+        "pass": true,
+        "ok": true,
+        "ttl": 600
+      },
+      {
+        "case": "future_iat_1d_still_accepted",
+        "pass": true,
+        "ok": true,
+        "iat_seconds_ahead": 86400,
+        "ttl": 600
+      },
+      {
+        "case": "missing_role_claim_accepted_with_valid_signature",
+        "pass": true,
+        "ok": true,
+        "role": ""
+      },
+      {
+        "case": "missing_department_accepted_with_valid_signature",
+        "pass": true,
+        "ok": true,
+        "department": ""
+      },
+      {
+        "case": "unknown_role_accepted_with_valid_signature",
+        "pass": true,
+        "ok": true,
+        "role": "observer"
+      },
+      {
+        "case": "zero_screens_accepted",
+        "pass": true,
+        "ok": true,
+        "screens": []
+      },
+      {
+        "case": "changed_claim_signature_invalid",
+        "pass": true,
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      {
+        "case": "wrong_signing_secret_invalid",
+        "pass": true,
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      {
+        "case": "expiry_1s_after_ttl",
+        "pass": true,
+        "ok": false,
+        "reason": "expired"
+      },
+      {
+        "case": "expiry_exact_ttl",
+        "pass": true,
+        "ok": false,
+        "reason": "expired"
+      },
+      {
+        "case": "issuer_max_ttl_clamps_to_900",
+        "pass": true,
+        "ok": true,
+        "ttl": 900
+      },
+      {
+        "case": "secret_missing_fails_closed",
+        "pass": true,
+        "ok": false,
+        "reason": "edge-auth-not-configured"
+      }
+    ],
+    "session_exchange_cases": [
+      {
+        "case": "mock_apps_script_verified_unknown_role_signed",
+        "pass": true,
+        "edge_role": "observer",
+        "http": 200
+      },
+      {
+        "case": "session_token_sent_in_query_of_get_with_redirect_follow",
+        "pass": true,
+        "method": "GET",
+        "query_params": [
+          "username",
+          "token",
+          "_edgeOrders",
+          "_ts"
+        ],
+        "redirect": "follow",
+        "token": "FAKE_SESSION_ONLY"
+      },
+      {
+        "case": "mock_apps_script_rejection_no_edge_token",
+        "pass": true,
+        "http": 401
+      },
+      {
+        "case": "missing_token_blocks_fetch",
+        "pass": true,
+        "http": 400,
+        "upstream_calls": 0
+      },
+      {
+        "case": "disallowed_origin_blocks_exchange",
+        "pass": true,
+        "http": 403,
+        "upstream_calls": 0
+      }
+    ],
+    "tests_new": 17,
+    "observations_as_expected": 17,
+    "novel_findings": [
+      "HMAC SHA-256 signature/tamper, invalid key, expiry and maximum 900-second TTL validated with local actual WebCrypto. Valid tokens with signed iat +86400 seconds are ACCEPTED before issuance; verifier tests exp expiry and exp-iat <=900 but never requires iat<=now+clock_skew. No actual actor can forge signed tokens without secret; this is a policy/source time-validation weakness conditional on trusted signer or clock drift.",
+      "Signed empty role, unknown role, empty department and empty screens pass bare Edge token verification; least privilege must be enforced at specific endpoints and issuer. Original exchange handler signs a verified upstream user role without locally requiring an allowlist; real upstream role validation not tested.",
+      "Original Apps Script verification uses HTTP GET with username and bearer-like legacy session token in URL query, redirect:'follow'. This exposes a conditional query-string credential-in-logs/redirect handling design risk, NOT evidence of observed leaks, production redirects, or plaintext HTTP. Wire currently depends on Apps Script, contrary to a verified ZERO_GOOGLE transition.",
+      "Missing credentials, disallowed browser Origin and upstream session reject fail closed in isolated source cases; these negative controls do not eliminate secret-in-GET and endpoint authorizations."
+    ],
+    "owner_policy_required": [
+      "EDGE_ISSUED_AT_NOT_BEFORE_AND_ALLOWED_CLOCK_SKEW",
+      "EDGE_ROLE_SCREEN_DEPARTMENT_WHITELIST_AND_ORDER_ACL",
+      "EDGE_SESSION_ISSUER_LINEAGE_REVOCATION_AND_TTL",
+      "APPS_SCRIPT_SESSION_VERIFY_TRANSPORT_NO_CREDENTIALS_IN_URL_REDIRECT_DISABLE",
+      "EDGE_DEPLOYED_SHA_AND_INGRESS_ROUTE_ATTESTATION"
+    ],
+    "status": {
+      "SOURCE_WEBCRYPTO_TRANSPOSITION": "12/12_MATCHED",
+      "SOURCE_ORIGINAL_EXCHANGE_WITH_MOCK_FETCH": "5/5_MATCHED",
+      "NEW_GITHUB_ACTIONS": "NOT_RUN",
+      "STAGING": "NOT_TESTED",
+      "PRODUCTION": "NOT_TESTED",
+      "REAL_SESSION_OR_SECRET": "NOT_USED",
+      "CLOUDFLARE_DEPLOYED_SHA": "UNVERIFIED",
+      "FINAL_CUTOVER": "NO_GO",
+      "CATALOG": "FROZEN_MIGRATION_ONLY",
+      "FINANCE": "EASYSTORE",
+      "REAL_DATA_MUTATIONS": 0
+    },
+    "nonduplicate_to": "book_agent_20261023_edge_native_revocation_r2_checksum_synthetic_cases_v1"
   }
 }

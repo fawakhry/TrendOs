@@ -871,5 +871,37 @@
     "cutover": "NO_GO",
     "finance_authority": "EASYSTORE",
     "production_mutations": 0
+  },
+  "current_no_loss_gate_20261023_edge_crypto_issued_at_and_session_exchange_url_v1": {
+    "date": "2026-10-23",
+    "crosswalk": "book_agent_20261023_edge_real_webcrypto_iat_and_session_exchange_query_v1",
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "book_head_prepared_at": "cf4a1622973010fcd14c733de0dd6586457b659d",
+    "new_cases": 17,
+    "expected_observations": 17,
+    "real_HMAC_local_transcribed_source_cases": 12,
+    "original_exchange_mock_fetch_cases": 5,
+    "crypto_real": "LOCAL_WEBCRYPTO_SHA256_NOT_CLOUDFLARE_WORKER",
+    "future_iat_acceptance": "SOURCE_VERIFIER_ACCEPTS_VALID_SIGNATURE_WITH_IAT_NOW_PLUS_86400",
+    "unknown_or_blank_role": "SIGNATURE_VALIDATION_ONLY_DOES_NOT_ENFORCE_ALLOWLIST",
+    "session_verification_transport": "APPS_SCRIPT_GET_URL_QUERY_TOKEN_AND_REDIRECT_FOLLOW",
+    "credential_leak_proven": "NO",
+    "upstream_redirect_tested": "NO",
+    "user_actually_forged_token": "NO",
+    "new_github_ci": "NOT_RUN",
+    "staging": "NO",
+    "production": "NO",
+    "DEPLOYED_SHA": "UNVERIFIED",
+    "owner_must_approve": [
+      "CLOCK_SKEW_AND_ROLE_ATTESTATION",
+      "AUTHORITY_ISSUER_REVOCATION",
+      "QUERY_STRING_SESSION_CREDENTIAL_TRANSPORT_MITIGATION",
+      "DEPLOYED_SHA"
+    ],
+    "old_book": "ACTIVE_WRITE",
+    "frozen_catalog": "FROZEN_MIGRATION_ONLY",
+    "final_cutover": "NO_GO",
+    "finance_authority": "EASYSTORE",
+    "prod_mutations": 0
   }
 }
