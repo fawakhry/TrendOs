@@ -18,6 +18,11 @@ import {
   handleCustomerNativeLoginHttpV0
 } from '../src/customer-portal-native-login-http-off-v0.mjs';
 
+import {createCustomerStageDurableRateGateV0}
+  from './login-throttle-v0.mjs';
+export {CustomerLoginThrottleStageV0}
+  from './login-throttle-v0.mjs';
+
 export const CUSTOMER_STAGE_WORKER_SOURCE_VERSION_V0='CUSTOMER_STAGE_WORKER_OFF_V0_20261024';
 const PATHS=Object.freeze([
   CUSTOMER_NATIVE_LOGIN_HTTP_PATH_V0,
@@ -68,8 +73,14 @@ export default {
     // D1/secret/bearer/origin evidence, so an accidental single-flag enable
     // still cannot allow public login or mutation.
     try{
-      if (path===CUSTOMER_NATIVE_LOGIN_HTTP_PATH_V0)
-        return await handleCustomerNativeLoginHttpV0(request,env);
+      if (path===CUSTOMER_NATIVE_LOGIN_HTTP_PATH_V0) {
+        // Authoritative Stage binding only. Never trust an injected fake
+        // env.CUSTOMER_NATIVE_LOGIN_RATE_GATE_V0 in a deployed Worker.
+        const rateGate=createCustomerStageDurableRateGateV0(env);
+        return await handleCustomerNativeLoginHttpV0(request,{
+          ...env,CUSTOMER_NATIVE_LOGIN_RATE_GATE_V0:rateGate
+        });
+      }
       if (isCustomerNativeLogoutPathV0(path))
         return await handleCustomerNativeLogoutV0(request,env);
       return await handleCustomerNativeOrdersReadV0(request,env);
