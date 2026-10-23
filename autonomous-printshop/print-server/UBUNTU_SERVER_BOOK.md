@@ -1108,3 +1108,9 @@
 - Owner approval for narrowly-scoped, temporary Account Analytics Read diagnostic is already logged under SERVER-119; current screenshot only verifies navigation. No values/secrets exposed or modifications observed.
 - Next single UI action: click **Create Token** at top right to view available creation paths, then pause for review of scope, expiration, and account restrictions before creation. Do not touch existing API tokens or Global API Key.
 - `CREDENTIAL_CREATED=NO`; `PRODUCTION_MODIFIED=NO`; `HTTP403_CAUSE=UNRESOLVED`.
+
+### SERVER-20261023-122 — Cloudflare Create API Token option selection (owner UI screenshot ~22:22 Africa/Cairo)
+
+- Owner opened Cloudflare My Profile → User API Tokens → Create Token. Visible top option `Create Custom Token` with `Get started` button. Below it several presets, including `Read analytics and logs`, `Edit Cloudflare Workers` and `Read all resources`. No custom form completed, no credential created or exposed.
+- User has already authorized only a separate, short-lived, account-scoped `Account Analytics: Read` credential for one isolated-stage CF-Ray Access authentication diagnosis. A broad template could include extra permissions, so the recommended **single next click** is top `Create Custom Token` → `Get started`, **not** a preset. Review exact permission, one account, expiry and restrictions in later separate owner-screen steps before any final Create.
+- Stage diagnostic remains `HTTP403`, CF-Ray `a4f30217e9ef9aca-MRS`. No new Cloudflare Access request, deployment, production/order access or print/laser commands. `DIAGNOSTIC_TOKEN_CREATED=NO`; `SECRET_EXPOSED=NO`; `PR190=DRAFT`.
