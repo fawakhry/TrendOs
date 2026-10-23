@@ -53,7 +53,7 @@ jobs:
               if suffix not in fixed[typ]:
                   if typ!='access' or not (
                     re.fullmatch(re.escape(b)+r'/access/apps/[0-9a-fA-F-]{32,36}(/policies)?',suffix)
-                    or re.fullmatch(re.escape(b)+r'/access/service_tokens[?]page=[1-9][0-9]{0,1}&per_page=100',suffix)
+                    or re.fullmatch(re.escape(b)+r'/access/service_tokens/[0-9a-fA-F-]{32,36}',suffix)
                   ):
                       raise SystemExit('SERVER94_FORBIDDEN_ENDPOINT')
               req=Request('https://api.cloudflare.com/client/v4'+suffix,method='GET',
@@ -120,29 +120,22 @@ jobs:
               raise SystemExit('SERVER94_SERVICE_AUTH_MISSING_TOKEN')
           if stage_auth[0].get('exclude') or stage_auth[0].get('require'):
               raise SystemExit('SERVER94_SERVICE_AUTH_ADDITIONAL_SELECTORS_UNREVIEWED')
-          found_tokens=[]
-          for page in range(1,11):
-              p=get(b+f'/access/service_tokens?page={page}&per_page=100','access')
-              items=p.get('result')
-              if type(items) is not list or len(items)>100:
-                  raise SystemExit('SERVER94_SERVICE_TOKEN_PAGE_INVALID')
-              for t in items:
-                  if type(t) is dict and t.get('name')==tokenname:
-                      found_tokens.append(t)
-              info=p.get('result_info')
-              if type(info) is dict and type(info.get('total_pages')) is int:
-                  if page>=info['total_pages']: break
-              elif len(items)<100: break
-          else: raise SystemExit('SERVER94_TOKEN_PAGINATION_OVER_LIMIT')
-          if len(found_tokens)!=1 or found_tokens[0].get('id')!=selected_token_id:
-              # Report only aggregate/schema booleans; never values, IDs or names.
-              exact=len(found_tokens)
-              print('SERVER94_SAFE_DIAG_NAME_MATCH_COUNT='+('0' if exact==0 else '1' if exact==1 else 'MANY'))
-              print('SERVER94_SAFE_DIAG_ID_EQUALS='+str(exact==1 and found_tokens[0].get('id')==selected_token_id).upper())
-              print('SERVER94_SAFE_DIAG_CLIENT_ID_EQUALS='+str(exact==1 and found_tokens[0].get('client_id')==selected_token_id).upper())
-              print('SERVER94_SAFE_DIAG_ID_TYPE='+('STRING' if exact==1 and type(found_tokens[0].get('id')) is str else 'OTHER'))
-              print('SERVER94_SAFE_DIAG_INCLUDE_TOKEN_ID_TYPE='+('STRING' if type(selected_token_id) is str else 'OTHER'))
-              raise SystemExit('SERVER94_POLICY_TOKEN_NAME_MISMATCH')
+          # Read the SINGLE policy-selected token from Cloudflare by ID,
+          # rather than depending on list pagination or enumerating other tokens.
+          if not re.fullmatch('[0-9a-fA-F-]{32,36}',selected_token_id):
+              raise SystemExit('SERVER94_SELECTED_TOKEN_UUID_INVALID')
+          metadata=get(b+'/access/service_tokens/'+selected_token_id,'access')['result']
+          if (type(metadata) is not dict or metadata.get('id')!=selected_token_id
+                  or metadata.get('name')!=tokenname or metadata.get('enabled') is False):
+              raise SystemExit('SERVER94_POLICY_TOKEN_IDENTITY_MISMATCH')
+          from datetime import datetime, timezone, timedelta
+          try:
+              expires=datetime.fromisoformat(metadata['expires_at'].replace('Z','+00:00'))
+          except (KeyError,AttributeError,TypeError,ValueError):
+              raise SystemExit('SERVER94_TOKEN_EXPIRY_UNVERIFIED') from None
+          remaining=expires-datetime.now(timezone.utc)
+          if not (timedelta(seconds=0)<remaining<timedelta(days=8)):
+              raise SystemExit('SERVER94_TOKEN_NOT_SHORT_LIVED_ACTIVE')
           print('SERVER94_LIVE_STAGE_ACCESS_POLICY=DENY_EVERYONE_PLUS_SINGLE_UBUNTU_TOKEN_SERVICE_AUTH_VERIFIED')
           print('SERVER94_STAGE_WORKERS_DEV=OFF;PREVIEW=OFF;SERVICE_READER=OFF')
           print('SERVER94_UBUNTU_CONNECTIVITY=NOT_YET_TESTED;PRODUCTION_CHANGES=NONE')
