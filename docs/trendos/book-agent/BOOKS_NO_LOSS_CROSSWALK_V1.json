@@ -16139,5 +16139,105 @@
     "new_book": "FROZEN_MIGRATION_ONLY",
     "cutover": "NO_GO",
     "live_production_assertion": false
+  },
+  "book_agent_20261023_t12_ack_and_edge_revocation_source_delta_v1": {
+    "date": "2026-10-23",
+    "book_head_at_read": "16973c4db843468ca6ff7bfb44403826f2331e82",
+    "source_exact_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "source_evidence": "SOURCE_ONLY",
+    "prior_semantic_matrix": "book_agent_20261023_risk_ranked_semantic_source_boundary_matrix_v1",
+    "scope": "NEW_CROSS_MODULE_PREDICATES_ONLY_NO_CENSUS_OR_CI_RERUN",
+    "findings": [
+      {
+        "id": "T12-ACK-CHILD-PARITY-DELTA",
+        "priority": "P1_INTEGRITY_REVIEW",
+        "new": "VERIFIEDREAD_NARROWER_THAN_ENTRY686_INDEPENDENT_READ",
+        "source": [
+          {
+            "path": "cloudflare-d1/src/t12-general-create.mjs",
+            "sha": "06ab0dfee6db7c0480f37d3445da564853ed036d",
+            "lines": "L80-L128;L230-L294"
+          },
+          {
+            "path": "cloudflare-d1/src/t12-general-create-handler.mjs",
+            "sha": "d8bd8d13f6e69b55839822ddb5e473585e6d8842",
+            "lines": "L60-L90;L116-L151"
+          }
+        ],
+        "observed": "GENERAL writer inserts activity event and per-line outbox within db.batch; verifiedRead for idempotent replay/ambiguous ACK/postcommit checks ledger/order/line but does not select activity or outbox. Entry686 original intake's distinct four-SELECT operational parity does not run on GENERAL route. This is a source-level predicate distinction, NOT evidence that an atomic D1 transaction failed.",
+        "evidence_levels": {
+          "SOURCE_ONLY": "CONFIRMED_BY_EXACT_CODE",
+          "CI_VERIFIED": "NO_NEW_FAULT_INJECTION_TEST",
+          "STAGING_VERIFIED": "NO",
+          "PRODUCTION_VERIFIED": "NO"
+        },
+        "gate": "Controlled disposable D1/SQLite fault test for committed ledger with missing/changed activity/outbox; owner ACK/replay policy. Never replay production orders."
+      },
+      {
+        "id": "ORDERS-EDGE-REVOCATION-SESSION-BOUNDARY",
+        "priority": "P1_AUTH_LIFECYCLE_REVIEW",
+        "new": "CROSS_MODULE_EXACT_ACTOR_SESSION_LINEAGE",
+        "source": [
+          {
+            "path": "cloudflare-d1/src/edge-orders-read-v1.mjs",
+            "sha": "540cca2143e7da940b96d6f990a8951e3b5c87ab",
+            "lines": "L87-L162"
+          },
+          {
+            "path": "cloudflare-d1/src/t12-general-create-handler.mjs",
+            "sha": "d8bd8d13f6e69b55839822ddb5e473585e6d8842",
+            "lines": "L27-L38;L116-L144"
+          },
+          {
+            "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+            "sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded",
+            "lines": "L451-L540;L790-L870"
+          }
+        ],
+        "observed": "Edge token minted after Apps Script verifyEmployeeSession with default 600s and max 900s HMAC validity. verifyOrdersEdgeToken checks HMAC/exp/aud/sub/TTL, but performs no D1 revocation/session_version, current-role or per-order lookup. GENERAL accepts signed non-customer/non-client actor except admin-only CANARY; READBACK returns order, lines and customer fields on signed token alone. Native logout/password/session_version invalidation is separate; an already-issued valid Edge token may remain usable until its independent expiry. No production claim.",
+        "evidence_levels": {
+          "SOURCE_ONLY": "CONFIRMED_BY_EXACT_CODE",
+          "CI_VERIFIED": "NO_NEW_TOKEN_REVOCATION_TEST",
+          "STAGING_VERIFIED": "NO",
+          "PRODUCTION_VERIFIED": "NO"
+        },
+        "prior_gates": "Extends existing T12 role/readback and ZERO_GOOGLE Edge/Apps Script gates, no duplicate issue.",
+        "gate": "Owner signoff on role/read ACL and acceptable Edge revocation delay; disposable issuance→logout/password/deactivation/role-change denial tests; do not create live orders."
+      }
+    ],
+    "constraints": {
+      "OLD_BOOK": "ACTIVE_WRITE",
+      "NEW_BOOK": "FROZEN_MIGRATION_ONLY",
+      "FINAL_CUTOVER": "NO_GO",
+      "PRODUCTION_MUTATION": "ZERO",
+      "FINANCE_AUTHORITY": "EASYSTORE",
+      "T12_CUSTOMER_OWNERSHIP_ATTESTED": "NO",
+      "ZERO_GOOGLE_LIVE_CUSTOMER_ACTIONS_RETIRED": "0/9 VERIFIED",
+      "CLOUDFLARE_DEPLOYED_SHA": "UNVERIFIED",
+      "R2_BINARY_PROVENANCE": "UNVERIFIED",
+      "SINGLE_WRITER_GATE": "OPEN"
+    },
+    "independent_prs": {
+      "PR211": "2af8a110b677bb36d5ecc6579f50af30e71327eb",
+      "PR221": "fca5625e53815647addc6d183ebe4040990acdf5",
+      "combined_tested_worker": false
+    },
+    "checks_not_repeated": [
+      "578_sha_links",
+      "467_line_bounds",
+      "115_migration_marker_pairs",
+      "32_chapters",
+      "existing_Entry686_17_test_CI"
+    ],
+    "mutations": {
+      "production": 0,
+      "cloudflare": 0,
+      "finance": 0,
+      "code": 0,
+      "test": 0,
+      "catalog": 0,
+      "archive": 0,
+      "migration": 0
+    }
   }
 }

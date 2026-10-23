@@ -663,5 +663,27 @@
     "catalog_authority": "FROZEN_MIGRATION_ONLY",
     "cutover": "NO_GO",
     "production_mutations": 0
+  },
+  "current_no_loss_gate_20261023_t12_ack_edge_source_delta_v1": {
+    "date": "2026-10-23",
+    "crosswalk_key": "book_agent_20261023_t12_ack_and_edge_revocation_source_delta_v1",
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "base_book_head": "16973c4db843468ca6ff7bfb44403826f2331e82",
+    "predicates_added": 2,
+    "evidence": "SOURCE_ONLY_NEW_TESTS_NOT_RUN",
+    "CI_VERIFIED": "NO_FOR_NEW_PREDICATES",
+    "STAGING_VERIFIED": "NO",
+    "PRODUCTION_VERIFIED": "NO",
+    "original_ack_activity_outbox_parity": "NOT_CHECKED_BY_GENERAL_VERIFIEDREAD",
+    "edge_session_revocation": "INDEPENDENT_EDGE_TTL_PENDING_OWNER_POLICY",
+    "production_deployed_sha": "UNVERIFIED",
+    "catalog_sha": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "old_book": "ACTIVE_WRITE",
+    "new_book": "FROZEN_MIGRATION_ONLY",
+    "final_cutover": "NO_GO",
+    "finance_authority": "EASYSTORE",
+    "prod_mutation": 0,
+    "privacy_protected_entries": "PRESERVED",
+    "pr211_pr221_not_combined": true
   }
 }
