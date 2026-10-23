@@ -99,7 +99,7 @@ const orders=await call('getCustomerOrders',{
 });
 assert.equal(orders.success,true);
 assert.equal(orders.source,'customer-d1-native-read-v0');
-assert.deepEqual(orders.orders.map(x=>x.orderId),['LOCAL-ORDER-LOCAL-C1']);
+assert.deepEqual(Array.from(orders.orders,x=>x.orderId),['LOCAL-ORDER-LOCAL-C1']);
 assert.equal(orders.orders[0].itemName,'FAKE PRINT REQUEST');
 assert.ok(!JSON.stringify(orders).includes('LOCAL_FAKE_PHONE'));
 await assert.rejects(()=>call('submitCustomerDraft',{
