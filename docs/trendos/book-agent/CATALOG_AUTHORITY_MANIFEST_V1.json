@@ -1281,5 +1281,46 @@
     "CI_new": "NOT_RUN",
     "stage": "NOT_RUN",
     "production": "NOT_DEPLOYED"
+  },
+  "current_no_loss_gate_20261024_six_source_audits_verified_v1": {
+    "date": "2026-10-24",
+    "crosswalk_key": "migration_20261024_6_source_security_and_audit_chapters_exact_v1",
+    "source": "69145432b8acec1726e9d0347152e52dff2f6ad1",
+    "copy": "b80c73d02fb4fa0ea6110a49bb7c0cf51ab62d71",
+    "verified_no_loss": "6/6_VERBATIM_BEFORE_REMOVE",
+    "original_characters": 14583,
+    "copy_git_diff": "CATALOG_ONLY_PLUS_69_MINUS_0",
+    "old_master_unchanged_on_copy": true,
+    "historical_citation_source_only": true,
+    "old_mock_test_source_only": true,
+    "unified_catalog": "FROZEN_MIGRATION_ONLY",
+    "active_master": "ACTIVE_WRITE",
+    "moved_units": [
+      "HIST-20261023-PINNED-LINKS-ENTRY682",
+      "HIST-20261023-SEMANTIC-ANCHOR",
+      "HIST-20261023-SEMANTIC-MATRIX",
+      "HIST-20261023-22-ANCHOR-QUEUE",
+      "HIST-20261023-SYNTHETIC-20",
+      "HIST-20261023-MIRROR-SYNTHETIC-6"
+    ],
+    "old_master_reconstruction_expected": "EXACT_MINUS_THESE_6_PLUS_RECEIPTS",
+    "entry694_preserved": true,
+    "new_open_questions": [
+      "T12-694-04",
+      "T12-694-05"
+    ],
+    "previous_open_questions": [
+      "SEC-692-01",
+      "SEC-692-03",
+      "DOC-694-02"
+    ],
+    "migration_receipt_count_note": "81_HISTORICAL_OLD_RECEIPTS_PLUS_6_EQUALS_87_INDICATIVE",
+    "archive_sha": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "native_ci_prior_combined": "29/29_MOCKED_NODE_CASES_GITHUB_ACTIONS_40029164984",
+    "no_actual_staging_test": true,
+    "no_production_test": true,
+    "finance_authority": "EASYSTORE",
+    "final_cutover": "NO_GO",
+    "owner_final_cutover_approval": "NOT_GRANTED"
   }
 }

@@ -18917,5 +18917,81 @@
     "cutover": "NO_GO",
     "deploy": "NO",
     "finance": "EASYSTORE"
+  },
+  "migration_20261024_6_source_security_and_audit_chapters_exact_v1": {
+    "migration_id": "BOOK-MIGRATION-20261024-HISTORICAL-AUDITS-SOURCE6-COPY-VERIFY-REMOVE",
+    "date": "2026-10-24",
+    "authority": "OWNER_CONTINUE_BOOK_TRANSFER",
+    "kind": "HISTORICAL_VERBATIM_COPY_VERIFY_REMOVE",
+    "source_commit": "69145432b8acec1726e9d0347152e52dff2f6ad1",
+    "source_master_blob": "96b1abffa83c1effc1d80fd7c06906758f022eb4",
+    "copy_commit": "b80c73d02fb4fa0ea6110a49bb7c0cf51ab62d71",
+    "copy_catalog_blob": "23477879e35320f45b88a9c35c6e7c0a57fc4c47",
+    "verified": "6/6 EXACT_SOURCE_TEXT_WITH_RECORDED_GIT_BLOBS",
+    "original_characters": 14583,
+    "verified_copy_has_only_catalog_additions": "ONE_FILE_PLUS_69_MINUS_0",
+    "master_unchanged_on_copy": true,
+    "archive_unchanged": true,
+    "units": [
+      {
+        "id": "HIST-20261023-PINNED-LINKS-ENTRY682",
+        "sha": "63df44b02ed69a0534fcf3d55546fb4193f8abaf",
+        "characters": 2065
+      },
+      {
+        "id": "HIST-20261023-SEMANTIC-ANCHOR",
+        "sha": "e80f22a707337fec730fe6890a05995e4222bdf1",
+        "characters": 2273
+      },
+      {
+        "id": "HIST-20261023-SEMANTIC-MATRIX",
+        "sha": "e6f90111d3fa5fcd5b7d15f8048b19c5f11cc710",
+        "characters": 3444
+      },
+      {
+        "id": "HIST-20261023-22-ANCHOR-QUEUE",
+        "sha": "056ec0e6ba14a6f55dab174eb1038dcadc165027",
+        "characters": 1566
+      },
+      {
+        "id": "HIST-20261023-SYNTHETIC-20",
+        "sha": "e1e4d9639b4cf33e6fc429a14ef437f29b344c9c",
+        "characters": 3374
+      },
+      {
+        "id": "HIST-20261023-MIRROR-SYNTHETIC-6",
+        "sha": "1f5d0f0eab4b47314e239d7ecd001aeac6a10e96",
+        "characters": 1861
+      }
+    ],
+    "after_copy_remove": "EXACT_ONLY_SIX_OLD_MASTER_STRINGS_PLUS_RECEIPT_AND_ENTRY694_LEDGER_EVENT_03",
+    "historical_migration_tally_before": 81,
+    "historical_migration_tally_including_batch": 87,
+    "deferred_issues_preserved": [
+      "T12-694-04",
+      "T12-694-05",
+      "SEC-692-01",
+      "SEC-692-03",
+      "DOC-694-02"
+    ],
+    "synthetic_case_history": [
+      "20 old source cases not current CI",
+      "6 old source Mirror cases not current CI"
+    ],
+    "current_ci_pinned": "40029164984_29_MOCK_CASES_PASS_BUT_NOT_STAGE",
+    "owner_gates": {
+      "old_master": "ACTIVE_WRITE",
+      "new_catalog": "FROZEN_MIGRATION_ONLY",
+      "final_cutover": "NO_GO",
+      "all_old_sections_migrated": "NO",
+      "owner_final_approval": "NOT_GIVEN"
+    },
+    "side_effects": {
+      "customer_data": 0,
+      "finance": 0,
+      "deploy": 0,
+      "production": 0,
+      "github_pr_merges": 0
+    }
   }
 }
