@@ -12297,5 +12297,126 @@
       "Check deployed runtime parity with read-only evidence, Task single writer and customer Google dependencies without production mutation.",
       "Reconcile all 256 test outcomes at exact tested SHA; distinguish source CI from live proof, then final owner signoff."
     ]
+  },
+  "migration_resumed_20261023_8_historical_staging_sections": {
+    "date": "2026-10-23",
+    "scope": "One-book preservation / migration-executor historical COPY-VERIFY-REMOVE only. No live behavior or authorization modifications.",
+    "baseline_head": "4428027687a35501377793d0d6a5e421bba7092a",
+    "baseline_master_blob": "949de605ee6a96a01efc94f9f6ec0df43fddc5a2",
+    "archive_commit_before_original_history": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "original_source_snapshot": "GitHub immutable commit 4428027687a35501377793d0d6a5e421bba7092a; stage sections 68B-I not assumed to predate archive commit",
+    "catalog_copy_first_commit": "36c046c697ff35ed1ff9fac6e16b9d0e965c8233",
+    "old_first_remove_commit": "eb1a2ddc184a586a191e6b79cdad51085ac56687",
+    "archived_book_link_repair_commit": "b66886684f838ed78ed2bdd15122fb51d76d2fe6",
+    "catalog_copy_seven_commit": "a833e2c64fb86eba790fb1a34133a46e087d3300",
+    "old_remove_seven_commit": "f79c12deaf6e0b78d966d2692caa5aa33dfa2dc3",
+    "catalog_verified_blob": "6599b04d6ec87003cc39f3face13efd87f62c29d",
+    "old_master_verified_post_remove_blob": "194104f6dded83f0dc0cf3f1995808459cb853db",
+    "units": [
+      {
+        "id": "SERVER-20261017-68B",
+        "characters": 2414,
+        "source_original_blob": "949de605ee6a96a01efc94f9f6ec0df43fddc5a2",
+        "catalog_marker": "MASTER_SERVER_20261017_68B",
+        "exact_character_match": "PASS",
+        "source_removed_only_after_verified": "PASS",
+        "safe_historical_scope": "STAGING_OWNER_SCREENSHOT_POINT_IN_TIME_SOURCE_NOT_LIVE"
+      },
+      {
+        "id": "SERVER-20261017-68C",
+        "characters": 1098,
+        "source_original_blob": "949de605ee6a96a01efc94f9f6ec0df43fddc5a2",
+        "catalog_marker": "MASTER_SERVER_20261017_68C",
+        "exact_character_match": "PASS",
+        "source_removed_only_after_verified": "PASS",
+        "safe_historical_scope": "STAGING_OWNER_SCREENSHOT_POINT_IN_TIME_SOURCE_NOT_LIVE"
+      },
+      {
+        "id": "SERVER-20261017-68D",
+        "characters": 1097,
+        "source_original_blob": "949de605ee6a96a01efc94f9f6ec0df43fddc5a2",
+        "catalog_marker": "MASTER_SERVER_20261017_68D",
+        "exact_character_match": "PASS",
+        "source_removed_only_after_verified": "PASS",
+        "safe_historical_scope": "STAGING_OWNER_SCREENSHOT_POINT_IN_TIME_SOURCE_NOT_LIVE"
+      },
+      {
+        "id": "SERVER-20261017-68E",
+        "characters": 965,
+        "source_original_blob": "949de605ee6a96a01efc94f9f6ec0df43fddc5a2",
+        "catalog_marker": "MASTER_SERVER_20261017_68E",
+        "exact_character_match": "PASS",
+        "source_removed_only_after_verified": "PASS",
+        "safe_historical_scope": "STAGING_OWNER_SCREENSHOT_POINT_IN_TIME_SOURCE_NOT_LIVE"
+      },
+      {
+        "id": "SERVER-20261017-68F",
+        "characters": 1111,
+        "source_original_blob": "949de605ee6a96a01efc94f9f6ec0df43fddc5a2",
+        "catalog_marker": "MASTER_SERVER_20261017_68F",
+        "exact_character_match": "PASS",
+        "source_removed_only_after_verified": "PASS",
+        "safe_historical_scope": "STAGING_OWNER_SCREENSHOT_POINT_IN_TIME_SOURCE_NOT_LIVE"
+      },
+      {
+        "id": "SERVER-20261017-68G",
+        "characters": 1073,
+        "source_original_blob": "949de605ee6a96a01efc94f9f6ec0df43fddc5a2",
+        "catalog_marker": "MASTER_SERVER_20261017_68G",
+        "exact_character_match": "PASS",
+        "source_removed_only_after_verified": "PASS",
+        "safe_historical_scope": "STAGING_OWNER_SCREENSHOT_POINT_IN_TIME_SOURCE_NOT_LIVE"
+      },
+      {
+        "id": "SERVER-20261018-68H",
+        "characters": 1382,
+        "source_original_blob": "949de605ee6a96a01efc94f9f6ec0df43fddc5a2",
+        "catalog_marker": "MASTER_SERVER_20261018_68H",
+        "exact_character_match": "PASS",
+        "source_removed_only_after_verified": "PASS",
+        "safe_historical_scope": "STAGING_OWNER_SCREENSHOT_POINT_IN_TIME_SOURCE_NOT_LIVE"
+      },
+      {
+        "id": "SERVER-20261018-68I",
+        "characters": 1170,
+        "source_original_blob": "949de605ee6a96a01efc94f9f6ec0df43fddc5a2",
+        "catalog_marker": "MASTER_SERVER_20261018_68I",
+        "exact_character_match": "PASS",
+        "source_removed_only_after_verified": "PASS",
+        "safe_historical_scope": "STAGING_OWNER_SCREENSHOT_POINT_IN_TIME_SOURCE_NOT_LIVE"
+      }
+    ],
+    "verified_exact_migration_units_added": 8,
+    "verified_unit_characters_total": 10310,
+    "old_master_full_file_reconstruction_by_exact_section_removal": "PASS: reconstituted original Master minus exactly eight recognized section ranges = current Master byte-identical",
+    "catalog_new_migration_marker_count": 48,
+    "catalog_begin_end_marker_parity": "48/48 UNIQUE_BALANCED_PASS",
+    "old_original_historical_unit_count": "38 previous archival source units, not re-run or re-counted as these 8",
+    "catalog_broken_relative_links_before": 3,
+    "catalog_broken_relative_links_after": 0,
+    "stale_archived_book_links_redirected": {
+      "distinct_targets": 3,
+      "occurrences": 8,
+      "archive_pinned_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+      "targets": [
+        "TRENDOS_CURRENT_SYSTEM_CATALOG_DRAFT.md",
+        "TRENDOS_LEGACY_PRE_SPLIT_BOOK.md",
+        "TRENDOS_BOOKS_SINGLE_INDEX.md"
+      ],
+      "all_target_paths_exist_on_pinned_archive": true,
+      "all_links_outside_verbatim_migration_sections": true
+    },
+    "remaining_owner_gates": [
+      "Entry596 and Entries599/600 privacy-safe custody/PII retention and archival handling",
+      "Other still-active old Master sections not exact-migrated",
+      "Exact-SHA test outcome + LIVE deployed version verification; Zero-Google runtime and single writer unresolved",
+      "Final owner approval of one-book cutover and removal of old Master"
+    ],
+    "catalog_status": "FROZEN_FOR_CURRENT_WORK_MIGRATION_EXCEPTION_ONLY",
+    "master_status": "ACTIVE_WRITE",
+    "book_cutover": "NO_GO",
+    "production_modifications": 0,
+    "non_book_code_changes": 0,
+    "private_customer_record_copies": 0
   }
 }
