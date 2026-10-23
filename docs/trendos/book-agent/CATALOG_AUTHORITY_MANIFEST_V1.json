@@ -190,5 +190,36 @@
       "Explicit owner signoff before final book deletion/write-authority flip"
     ],
     "cutover": "NO_GO"
+  },
+  "current_no_loss_gate_checkpoint_20261023": {
+    "date": "2026-10-23",
+    "authority": "Old Master remains sole ACTIVE_WRITE; unified catalog frozen except exact copy-verify-remove migration; no cutover.",
+    "prior_checkpoint": "current_no_loss_gate_checkpoint_20261021",
+    "artifact_crosswalk": "docs/trendos/book-agent/BOOKS_NO_LOSS_CROSSWALK_V1.json#migration_resumed_20261023_8_historical_staging_sections",
+    "historical_8_sections": {
+      "copied_exact_and_removed": 8,
+      "characters": 10310,
+      "source_snapshot": "4428027687a35501377793d0d6a5e421bba7092a",
+      "old_master_full_content_reconstruction": "PASS",
+      "new_catalog_marker_pairs": "48/48 unique balanced"
+    },
+    "relative_links": {
+      "broken_unique_targets": 0,
+      "archived_old_targets_repaired": 3,
+      "occurrences_repaired": 8,
+      "archive_commit": "b2788ecb4c187717e020321954a1ea449c1aa0d5"
+    },
+    "gates_current": {
+      "historical_66_individually_classified": true,
+      "catalog_original_entry_ids_literal": 65,
+      "privacy_Entry600": "BLOCKED_OWNER_APPROVAL",
+      "master_current_sections_complete": false,
+      "all_test_outcomes_reconciled": false,
+      "all_production_owners_and_google_writers_verified": false,
+      "final_owner_cutover_permission": false
+    },
+    "transition_status": "NO_GO_NOT_FINAL_BOOK",
+    "production_changed": false,
+    "private_customer_records_copied": false
   }
 }
