@@ -32,6 +32,12 @@ jobs:
           node --check cloudflare-d1/src/t12-order-customer-finance-fence-sourceonly.mjs
           node --check tests/t12_order_customer_finance_fence_sourceonly.test.mjs
           node --test tests/t12_order_customer_finance_fence_sourceonly.test.mjs
+          node --check cloudflare-d1/src/t12-general-create.mjs
+          node --check tests/t12_general_create.test.mjs
+          node --test tests/t12_general_create.test.mjs
+          echo 'ACC223_ISOLATED_TRANSACTIONAL_AT_CREATE_CUSTOMER_CAPTURE=TESTED'
+          echo 'ACC223_REAL_CUSTOMER_OWNER_ATTESTATION=NOT_VERIFIED'
+          echo 'ACC223_NEW_PRODUCTION_ROUTE_OR_DEPLOY=NONE'
           echo 'ACC222_T12_NATIVE_ORDER_CUSTOMER_FK_ATTESTED=NO'
           echo 'ACC222_FINANCE_RELEASE=NO_GO'
           echo 'ACC213_REAL_WORKER_DISPOSABLE_SQLITE_ONLY=YES'
