@@ -685,5 +685,30 @@
     "prod_mutation": 0,
     "privacy_protected_entries": "PRESERVED",
     "pr211_pr221_not_combined": true
+  },
+  "current_no_loss_gate_20261023_r2_delivery_provenance_delta_v1": {
+    "date": "2026-10-23",
+    "crosswalk_key": "book_agent_20261023_r2_file_delivery_provenance_source_delta_v1",
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "book_head_read": "97a4a04fd5d64fb8f75b2968905e6c39ec93f143",
+    "new_r2_provenance_deltas": 3,
+    "source_only": true,
+    "ci_for_new_scenarios": "NOT_RUN",
+    "staging_verified": false,
+    "production_verified": false,
+    "r2_bin_provenance": "UNVERIFIED",
+    "wrangler_source_files_binding": "NO_R2_DECLARATION_IN_THIS_SNAPSHOT_NOT_DEPLOY_PROOF",
+    "customer_file_acl": "SOURCE_HANDLER_PREAUTH_KNOWN_NEEDS_OWNER_POLICY",
+    "catalog": "FROZEN_MIGRATION_ONLY",
+    "catalog_sha": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "old_book": "ACTIVE_WRITE",
+    "cutover": "NO_GO",
+    "mutations": {
+      "production": 0,
+      "cloudflare": 0,
+      "source_code": 0,
+      "finance": 0
+    },
+    "duplicate_issue": false
   }
 }
