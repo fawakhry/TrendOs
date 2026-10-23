@@ -56,7 +56,11 @@ SELECT i.item_id AS itemId,i.ordinal AS ordinal,
 // Same immutable Cloud request key as the canonical T12 writer. An existing
 // PREPARED/COMMITTED request is never eligible for another customer submit.
 export const CUSTOMER_DRAFT_SUBMIT_EXISTING_T12_REQUEST_SQL_V0=`
-SELECT status AS status FROM t12_prod_request_ledger WHERE request_key=? LIMIT 1
+SELECT l.status AS status
+  FROM customer_portal_native_drafts_v1 d
+  JOIN t12_prod_request_ledger l
+    ON l.request_key=('cld1_' || CAST(d.created_at_ms AS TEXT) || '_' || substr(d.draft_id,5))
+ WHERE d.draft_id=? LIMIT 1
 `;
 export const CUSTOMER_DRAFT_SUBMIT_FILES_SQL_V0=`
 SELECT COUNT(*) AS fileCount,
@@ -69,24 +73,40 @@ SELECT COUNT(*) AS fileCount,
 // accept 1 or 2 lanes, but its 2-lane expansion refers to one item mirrored
 // across print/laser, NOT two independent customer items. Avoid silent loss.
 export async function preflightNativeCustomerDraftSubmitV0({db,token,secret,draftId,nowMs}={}){
-  if(!db||typeof db.prepare!=='function'||typeof secret!=='string'||secret.length<32||
+  if(!db||typeof db.prepare!=='function'||typeof db.batch!=='function'||
+     typeof secret!=='string'||secret.length<32||
      !Number.isSafeInteger(nowMs)||nowMs<1500000000000)
     return deny('SUBMIT_PREFLIGHT_BACKEND_UNAVAILABLE',503);
   if(!hex64(token))return deny('CUSTOMER_SESSION_REJECTED',401);
   if(!draftValid(draftId))return deny('INVALID_DRAFT_REFERENCE',400);
   try{
     const mac=await fingerprintCustomerSessionV0(token,secret);
-    const owner=await db.prepare(CUSTOMER_DRAFT_SUBMIT_SCOPED_SQL_V0)
-      .bind(draftId,mac,nowMs,nowMs).first();
+    // One read-only D1 transaction prevents a false-positive preflight from
+    // cross-query draft/file/ledger changes. T12 ledger key is constructed
+    // INSIDE SQLite from the same authoritative draft creation timestamp.
+    // Preflight still does not freeze rows after this transaction.
+    const batch=await db.batch([
+      db.prepare(CUSTOMER_DRAFT_SUBMIT_SCOPED_SQL_V0)
+        .bind(draftId,mac,nowMs,nowMs),
+      db.prepare(CUSTOMER_DRAFT_SUBMIT_ITEMS_SQL_V0).bind(draftId),
+      db.prepare(CUSTOMER_DRAFT_SUBMIT_FILES_SQL_V0).bind(draftId),
+      db.prepare(CUSTOMER_DRAFT_SUBMIT_EXISTING_T12_REQUEST_SQL_V0)
+        .bind(draftId)
+    ]);
+    if(!Array.isArray(batch)||batch.length!==4||
+       batch.some(r=>!r||r.success!==true||!Array.isArray(r.results)))
+      return deny('SUBMIT_PREFLIGHT_TRANSACTION_UNVERIFIED',503);
+    const owners=batch[0].results;
+    if(owners.length!==1)return deny('CUSTOMER_DRAFT_NOT_AUTHORIZED_OR_NOT_OPEN',404);
+    const owner=owners[0];
     if(!owner||owner.draftId!==draftId||!owner.customerId)
       return deny('CUSTOMER_DRAFT_NOT_AUTHORIZED_OR_NOT_OPEN',404);
-    const rows=await db.prepare(CUSTOMER_DRAFT_SUBMIT_ITEMS_SQL_V0)
-      .bind(draftId).all();
-    if(!rows||!Array.isArray(rows.results))return deny('DRAFT_ITEMS_UNAVAILABLE',503);
-    if(rows.results.length!==1)
+    const itemRows=batch[1].results;
+    if(itemRows.length!==1)
       return deny('T12_CUSTOMER_MULTI_ITEM_SUBMIT_NOT_YET_SUPPORTED');
-    const files=await db.prepare(CUSTOMER_DRAFT_SUBMIT_FILES_SQL_V0)
-      .bind(draftId).first();
+    const fileRows=batch[2].results;
+    if(fileRows.length!==1)return deny('DRAFT_FILE_READINESS_UNKNOWN',503);
+    const files=fileRows[0];
     if(!files||files.fileCount==null||files.notReady==null||
        !Number.isSafeInteger(Number(files.fileCount))||
        !Number.isSafeInteger(Number(files.notReady))||
@@ -96,7 +116,7 @@ export async function preflightNativeCustomerDraftSubmitV0({db,token,secret,draf
     // ANY attachment, including READY, instead of silently discarding it.
     if(Number(files.fileCount)!==0||Number(files.notReady)!==0)
       return deny('T12_CUSTOMER_FILE_HANDOFF_NOT_YET_SUPPORTED');
-    const item=rows.results[0];
+    const item=itemRows[0];
     if(!item||!/^CDI-[a-f0-9]{32}$/.test(String(item.itemId))||
        Number(item.ordinal)!==1||
        !['طباعة','ليزر'].includes(item.department)||
@@ -153,15 +173,15 @@ export async function preflightNativeCustomerDraftSubmitV0({db,token,secret,draf
     // T12 request ledger is the existing idempotency authority. A request
     // whose outcome may already have committed requires trusted readback;
     // never advise the client to create again (including PREPARED/unknown).
-    const prior=await db.prepare(CUSTOMER_DRAFT_SUBMIT_EXISTING_T12_REQUEST_SQL_V0)
-      .bind(requestKey).first();
-    if(prior)return deny('T12_EXISTING_REQUEST_REQUIRES_TRUSTED_RECONCILIATION');
+    if(batch[3].results.length!==0)
+      return deny('T12_EXISTING_REQUEST_REQUIRES_TRUSTED_RECONCILIATION');
     // No candidate payload/PII sent to the browser. A future trusted
     // delegated actor must recheck all records in one authoritative
     // transaction before create; this preflight is NOT that transaction.
     return {status:200,body:{
       success:true,version:CUSTOMER_DRAFT_SUBMIT_PREFLIGHT_VERSION_V0,
       source:'t12-canonical-shadow-preflight',readOnly:true,
+      transactionalReadBatch:true,snapshotSealed:false,
       preflightEligible:true,eligibleItemCount:1,
       needsTrustedEmployeeDelegate:true,
       needsSingleWriterFinanceProof:true,
@@ -172,7 +192,8 @@ export async function preflightNativeCustomerDraftSubmitV0({db,token,secret,draf
 export const CUSTOMER_DRAFT_SUBMIT_PREFLIGHT_POLICY_V0=Object.freeze({
   sourceOnly:true,workerEntryWired:false,httpRouteAvailable:false,
   officialOrderCreatorCalled:false,productionOrderCreated:false,
-  maxCompatibleItems:1,filesAllowed:0,googleFallback:false,
+  maxCompatibleItems:1,filesAllowed:0,readOnlyD1Batch:true,
+  snapshotSealed:false,googleFallback:false,
   financeAuthorityGranted:false,employeeCreateDelegationAvailable:false,
   productionRelease:'NO_GO',zeroGoogleComplete:false
 });
