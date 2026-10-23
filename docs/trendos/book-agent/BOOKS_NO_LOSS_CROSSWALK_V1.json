@@ -18714,5 +18714,157 @@
       }
     },
     "next_writer_contract": "Append dated ENTRY694-LEDGER-EVENT addenda + AGENT_LOG + new Crosswalk and Manifest keys; no overwrite and no closed-state promotion without evidence."
+  },
+  "book_agent_20261024_entry694_native_node_ci_mirror_regression_integration_v1": {
+    "id": "ENTRY694-LEDGER-EVENT-20261024-01",
+    "date": "2026-10-24",
+    "summary": "Execute genuine GitHub Actions Node on pinned draft patches and combined integration tree; fix regression fixture for intentionally protected Mirror GET",
+    "owner": "TrendOS Security/QA Book Agent; EasyStore accounting independent",
+    "issue_ids": [
+      "SEC-692-01",
+      "SEC-692-02",
+      "SEC-692-03",
+      "SEC-692-04",
+      "CFL-693-01",
+      "CFL-693-02",
+      "TEST-694-01",
+      "INTEG-694-01"
+    ],
+    "source_book_head": "b586877c84984d89fc79964d7881349e4020fd24",
+    "code_baselines": {
+      "pr221": "fca5625e53815647addc6d183ebe4040990acdf5",
+      "pr234_before": "417298488e3f5f0d999cdce0b0d5279a967cfb85",
+      "pr236_before": "596ec59b0ace0beecdfa4d601dd80860a9a239d1"
+    },
+    "new_commits": [
+      {
+        "sha": "06158fb0d1890708ff60889edf52ec869df62945",
+        "branch": "agent/security-read-guards-entry692-20261024",
+        "description": "add no-deploy CI workflow for Node source/security regression; initial run exposed old Mirror fixture mismatch"
+      },
+      {
+        "sha": "560cb1f296aec1b7423f15ee3721eda80f930933",
+        "branch": "agent/cloudflare-rollback-files-guard-entry693-20261024",
+        "description": "add identical no-deploy CI workflow; Node Entry693 suite and old contracts passed"
+      },
+      {
+        "sha": "4019f90446d8e9b01af46cbf1724da94ab5e5102",
+        "branch": "agent/security-read-guards-entry692-20261024",
+        "description": "modify tests/cloudflare_mirror_safety_v1.test.mjs to send dedicated test reader key for allowed GET; add 4 negative denied-before-DB cases"
+      },
+      {
+        "sha": "06960eec18fc0b745c0ad7be9e4a3dda8ddbb5bc",
+        "branch": "agent/entry694-security-integration-test-20261024",
+        "description": "separate offline integration branch takes PR234 fixes+Mirror test and PR236 workflow source+rollback test; no PR merge or deploy"
+      }
+    ],
+    "changed_paths": {
+      "pr234": [
+        ".github/workflows/trendos-entry694-draft-security-regression.yml",
+        "tests/cloudflare_mirror_safety_v1.test.mjs"
+      ],
+      "pr236": [
+        ".github/workflows/trendos-entry694-draft-security-regression.yml"
+      ],
+      "integration": [
+        ".github/workflows/trendos-entry645-content-r2-foundation-controlled.yml",
+        ".github/workflows/trendos-entry642-deploy-resilient-auth-hardening.yml",
+        ".github/workflows/trendos-02cw-worker-codeonly-deploy-temp.yml",
+        "tests/entry693_cloudflare_guard_source.test.mjs",
+        ".github/workflows/trendos-entry694-draft-security-regression.yml"
+      ]
+    },
+    "runs": {
+      "CI_PR234_INITIAL_FAIL": {
+        "id": 40028920391,
+        "job": 120671990470,
+        "sha": "06158fb0d1890708ff60889edf52ec869df62945",
+        "result": "FAIL",
+        "step": "Original offline module contracts",
+        "error": "tests/cloudflare_mirror_safety_v1.test.mjs:130 expected 200, got 401",
+        "new_test_step": "PASS",
+        "reason": "old test anonymous Mirror GET conflicted with intentionally added dedicated reader secret"
+      },
+      "CI_PR234_PASS": {
+        "id": 40029078890,
+        "job": 120672520197,
+        "sha": "4019f90446d8e9b01af46cbf1724da94ab5e5102",
+        "result": "PASS",
+        "entry692": "19/19",
+        "inherited": [
+          "entry614 Comms",
+          "entry614 Content",
+          "T12 Overlay",
+          "Mirror read-only+denial"
+        ]
+      },
+      "CI_PR236_PASS": {
+        "id": 40028947323,
+        "job": 120672080488,
+        "sha": "560cb1f296aec1b7423f15ee3721eda80f930933",
+        "result": "PASS",
+        "entry693": "10/10",
+        "inherited": [
+          "entry614 Comms",
+          "entry614 Content",
+          "T12 Overlay",
+          "Mirror previous baseline"
+        ]
+      },
+      "CI_INTEGRATED_PASS": {
+        "id": 40029164984,
+        "job": 120672804476,
+        "sha": "06960eec18fc0b745c0ad7be9e4a3dda8ddbb5bc",
+        "result": "PASS",
+        "entry692": "19/19",
+        "entry693": "10/10",
+        "NATIVE_TEST_MODULES": 2,
+        "inherited": "4/4 selected PASS",
+        "purpose": "offline combination of PR234 and PR236 on independent integration test branch",
+        "trigger": "push",
+        "release": false
+      }
+    },
+    "new_native_source_fixtures": {
+      "entry692": "NATIVE_NODE_CI_19_19",
+      "entry693": "NATIVE_NODE_CI_10_10",
+      "combined": "29_29_AT_SAME_INTEGRATION_SHA"
+    },
+    "old_selected_suite": "ENTRY614_COMMS+CONTENT, T12_READ_OVERLAY, CLOUDFLARE_MIRROR_SAFETY pass; entire repository-wide suite NOT claimed",
+    "ci_security": "contents:read, checkout persist-credentials:false, no Secrets, no cloud deploy, no live data",
+    "tests_state_changes": {
+      "NODE_692": "CI_PASS_GITHUB_RUN_40029078890_AT_4019f904",
+      "NODE_693": "CI_PASS_GITHUB_RUN_40028947323_AT_560cb1f",
+      "EXISTING_REGRESSION_SUITE": "SELECTED_4_PASS_NOT_FULL_SUITE",
+      "CI_YAML": "ACTUAL_CI_WORKFLOW_EXECUTED_PASS_NOT_FULL_REPO_LINT",
+      "INTEGRATED_OFFLINE": "CI_PASS_GITHUB_RUN_40029164984_AT_06960eec",
+      "STAGE_R2_ACL_SHA": "NOT_RUN",
+      "FRONTEND_AUTH_DOWNLOAD": "NOT_RUN",
+      "MIRROR_READER_CLIENT_MIGRATION": "NOT_RUN",
+      "STAGE_CLOUDFLARE_FAILURE_MATRIX": "NOT_RUN",
+      "GLOBAL_SINGLE_WRITER_CAS": "NOT_PROVEN",
+      "PRODUCTION": "NOT_DEPLOYED"
+    },
+    "failed_test_preserved": "Original Mirror fixture expected public anonymous GET 200 and failed with 401 in run 40028920391; protected handler behavior was correct. Updated test fixture and added negative security checks rather than reintroducing anonymous mirror access.",
+    "remaining": [
+      "Fixes remain Draft PR234/PR236; no combination merged into PR221 or any live branch.",
+      "Both Node tests still use entirely synthetic D1/R2/auth/Cloudflare fetch mocks even though executed in native Node runner; not Stage or production E2E.",
+      "PR234 changes may break existing protected-file <img> and anonymous Mirror consumers; frontend/remote clients migration not executed.",
+      "PR236 does not provide external Cloudflare writer CAS and 02CW blocks until FILES binding config/actual active Worker attested.",
+      "R2 old public URLs, missing Content SHA metadata, ownership per order and live deployed source lineage remain unresolved.",
+      "Source/frozen catalogs remain independent and archive is immutable; EasyStore accounting handled only by its agent."
+    ],
+    "release": {
+      "PR234": "OPEN_DRAFT",
+      "PR236": "OPEN_DRAFT",
+      "MERGE": "NO",
+      "DEPLOY": "NO",
+      "STAGE": "NO",
+      "PRODUCTION": "NO",
+      "CLOUDFLARE_ACTIVE_SHA": "UNVERIFIED",
+      "R2_ACTIVE_BINDING": "UNVERIFIED",
+      "FINANCE_AUTHORITY": "EASYSTORE",
+      "FINAL_CUTOVER": "NO_GO"
+    }
   }
 }

@@ -1233,5 +1233,37 @@
     "archive": "PRESERVE",
     "production_mutations": 0,
     "owner_scope": "TRENDOS_MASTER_ONLY"
+  },
+  "current_no_loss_gate_20261024_entry694_node_ci_offline_repair_29_29_v1": {
+    "date": "2026-10-24",
+    "ledger_event": "ENTRY694-LEDGER-EVENT-20261024-01",
+    "crosswalk_key": "book_agent_20261024_entry694_native_node_ci_mirror_regression_integration_v1",
+    "owner_rule": "ENTRY694_APPEND_ONLY",
+    "PR234_SHA": "4019f90446d8e9b01af46cbf1724da94ab5e5102",
+    "PR236_SHA": "560cb1f296aec1b7423f15ee3721eda80f930933",
+    "integrated_sha": "06960eec18fc0b745c0ad7be9e4a3dda8ddbb5bc",
+    "CI_initial_Mirror_fail": 40028920391,
+    "CI_PR234_pass": 40029078890,
+    "CI_PR236_pass": 40028947323,
+    "CI_combined_pass": 40029164984,
+    "NODE_692": "CI_PASS_19/19",
+    "NODE_693": "CI_PASS_10/10",
+    "SELECTED_LEGACY_CONTRACTS": "CI_PASS_4",
+    "MERGE": "NO",
+    "STAGE": "NOT_RUN",
+    "PRODUCTION": "NOT_DEPLOYED",
+    "LIVE_ACTIVE_SHA": "UNVERIFIED",
+    "LIVE_R2_BINDING": "UNVERIFIED",
+    "FINANCE_AUTHORITY": "EASYSTORE",
+    "CUTOVER": "NO_GO",
+    "needs": [
+      "MIRROR_READER_CLIENT_MIGRATION",
+      "FRONTEND_AUTH_DOWNLOAD",
+      "DISPOSABLE_STAGE",
+      "CLOUDFLARE_LIVE_BINDINGS_READONLY",
+      "GLOBAL_SINGLE_WRITER_CAS",
+      "BUNDLE_SHA256_PROVENANCE",
+      "OWNER_APPROVAL_TO_DEPLOY"
+    ]
   }
 }
