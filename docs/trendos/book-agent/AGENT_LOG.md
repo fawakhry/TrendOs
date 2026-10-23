@@ -474,3 +474,14 @@
 - **Safe next:** do not redo 66-entry inventory, 38 old text comparisons or current 256 test path inventory; continue source-to-chapter mapping with exact SHAs and privacy-reviewed Entry600 retention; only migration executor may edit frozen catalog under full COPY-VERIFY-REMOVE policy; no owner cutover/delete without explicit new consent.
 - No Production, Customer, Worker, Cloudflare, D1, Apps Script, R2, Secrets, external project books, PR states or runtime source changed. Old Master ACTIVE_WRITE, unified Catalog FROZEN_MIGRATION_ONLY.
 
+
+## 2026-10-23 / 8 exact book migrations + repair 8 stale archived-book links
+
+- Book branch began `4428027687a35501377793d0d6a5e421bba7092a`. Migrated eight safe, historical Cloudflare staging record sections from old Master: `SERVER-20261017-68B`, `68C`, `68D`, `68E`, `68F`, `68G`, `SERVER-20261018-68H`, `68I`—**10,310 source characters** in total. Source old Master blob `949de605ee6a96a01efc94f9f6ec0df43fddc5a2`.
+- Explicit COPY commits: `36c046c697ff35ed1ff9fac6e16b9d0e965c8233` (68F) and `a833e2c64fb86eba790fb1a34133a46e087d3300` (remaining seven). Independently fetched old Master and new catalog after each COPY; every marker payload matched source exactly, one pair per section. REMOVE commits only after this test: `eb1a2ddc184a586a191e6b79cdad51085ac56687` (68F) and `f79c12deaf6e0b78d966d2692caa5aa33dfa2dc3` (remaining seven).
+- Full-file source safety validation: **original old Master minus exactly the eight targeted section ranges == post-removal old Master byte-for-byte**. Source section claims about staging are historical 2026-10-17/18 evidence; not new production telemetry.
+- Historical reference fix commit `b66886684f838ed78ed2bdd15122fb51d76d2fe6`: 8 Markdown links to 3 removed intermediate books changed to SHA-pinned archive snapshots at `b2788ecb4c187717e020321954a1ea449c1aa0d5`; no verbatim historic payloads altered. **Relative link audit after = zero broken targets; 48 distinct balanced BEGIN/END markers**. Archived sources retained, no third book revived.
+- Proof stored in Crosswalk `migration_resumed_20261023_8_historical_staging_sections`, commit `73eb498789445a49ec8db90c4f60b01b8fe3b9b3`; active Master checkpoint commit `149e335edb3a3bfaac7be5d7d8e24eae7daccd65`; authority manifest checkpoint commit `880289842b36a9cd5a1203a0b3719f9d417ea01c`.
+- `NEXT_RESUME_POINT`: Avoid redo of 8 migrations and archive link fixes. Continue evaluating safe historical sections in active old Master; exclude private Entries596/599/600 without owner-approved handling. Before any final one-book cutover, complete remaining COPY–VERIFY–REMOVE, reconcile exact SHA test/deployed runtime and identify Google/SaaS writers, obtain owner's express approval. No prod/cloud/DB/Google/EasyStore/Printshop mutation.
+- **Authority remains unchanged:** OLD `TrendOS_MASTER_BOOK.md=ACTIVE_WRITE`; unified catalog `FROZEN_MIGRATION_ONLY`; no delete of old book and `FINAL_CUTOVER=NO_GO`.
+
