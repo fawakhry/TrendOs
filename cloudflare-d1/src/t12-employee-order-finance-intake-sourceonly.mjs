@@ -65,14 +65,16 @@ export const T12_EMPLOYEE_INTAKE_ACTIVITY_SQL=`
 SELECT event_key AS eventKey,request_key AS requestKey,order_id AS orderId,
  event_type AS eventType,payload_json AS payloadJson
  FROM t12_prod_events
- WHERE request_key=? AND event_key='activity' LIMIT 2
+ WHERE request_key=(SELECT request_key FROM t12_prod_orders WHERE order_id=?)
+   AND event_key='activity' LIMIT 2
 `;
 export const T12_EMPLOYEE_INTAKE_OUTBOX_SQL=`
 SELECT event_key AS eventKey,request_key AS requestKey,order_id AS orderId,
  line_id AS lineId,event_type AS eventType,status AS deliveryStatus,
  payload_json AS payloadJson
  FROM t12_prod_outbox
- WHERE request_key=? ORDER BY event_key ASC LIMIT 3
+ WHERE request_key=(SELECT request_key FROM t12_prod_orders WHERE order_id=?)
+ ORDER BY event_key ASC LIMIT 3
 `;
 export const T12_EMPLOYEE_FINANCE_INTAKE_POLICY=Object.freeze({
  sourceOnly:true,workerEntryWired:false,httpRouteAvailable:false,
