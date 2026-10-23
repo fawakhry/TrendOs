@@ -4,7 +4,7 @@
 name = "easystore-accounting-staging-api"
 main = "./index.mjs"
 compatibility_date = "2026-10-23"
-workers_dev = true
+workers_dev = false
 
 [vars]
 FINANCE_RELEASE = "NO_GO"
