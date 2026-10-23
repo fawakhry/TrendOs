@@ -26,6 +26,10 @@ import {
  previewOriginalT12AccountingLineageACC242 as previewLineage,
  ACC242_POLICY,ACC242_MAX_ACCOUNTING_ROWS
 } from '../cloudflare-d1/src/t12-easystore-dept-lineage-preview-acc242-sourceonly.mjs';
+import {
+ verifyACC243FakeSignedLineApprovals as verifyFakeLineApprovals,
+ ACC243_POLICY
+} from '../cloudflare-d1/src/t12-finance-line-approved-acc243-fixture-verify.mjs';
 const C='CUS-FAKE-228',ORDER_ID='4323',KEY='cld1_1800000000000_EMPLOYEE228_TEST0001';
 const A='service-actor-228';
 function fixture(lanes=2,skipCapture=false){
@@ -256,6 +260,156 @@ test('ACC242 blocks forged source claims, unexpected ID and finance database fai
   'ORIGINAL_FINANCE_METADATA_READ_UNAVAILABLE');
  assert.equal((await read(src,C,{prepare(){return {bind(){return {all:async()=>({results:{}})}}}}})).code,
   'ORIGINAL_FINANCE_METADATA_READ_UNAVAILABLE');
+}));
+// ACC243: Fake signer lives ONLY inside the test. It is NOT Wael/Gaber's
+// operational approver or financial authority. Distinct fake HMAC key.
+const ACC243_NOW=1800000700000,ACC243_KEY_ID='ACC243_FAKE_SIGNER_ONLY';
+function acc243Canonical(v){
+ if(Array.isArray(v))return '['+v.map(acc243Canonical).join(',')+']';
+ if(v&&typeof v==='object')return '{'+Object.keys(v).sort().map(k=>
+  JSON.stringify(k)+':'+acc243Canonical(v[k])).join(',')+'}';
+ return JSON.stringify(v);
+}
+async function acc243FakeKey(){
+ return webcrypto.subtle.importKey('raw',new TextEncoder().encode(
+  'FAKE_ACC243_NOT_AN_OPERATIONAL_SIGNER_'.repeat(3)),{
+  name:'HMAC',hash:'SHA-256'},false,['sign','verify']);
+}
+async function acc243FakeMessage({lineId,dept,actor,approvalRef,
+ orderId=ORDER_ID,customerId=C,key,when=ACC243_NOW}){
+ const envelope={
+  contract_version:'ACCOUNTING_CONNECTOR_CONTRACT_V1',
+  event_id:'t12:order_line_approved:'+lineId+':'+approvalRef,
+  event_type:'order_line_approved',
+  occurred_at:new Date(when).toISOString().slice(0,19)+'Z',
+  source_system:'TrendOS',source_entity_type:'line',source_entity_id:lineId,
+  correlation_id:orderId,
+  idempotency_key:'t12:order_line_approved:'+lineId+':'+approvalRef,
+  evidence_refs:['acc243:fake-approval:'+approvalRef],
+  payload:{order_id:orderId,line_id:lineId,customer_id:customerId,
+   department:dept,approval_ref:approvalRef,actor_ref:actor,
+   fixture_only:true,financial_authority:false}
+ };
+ const signed=await webcrypto.subtle.sign('HMAC',key,
+  new TextEncoder().encode(acc243Canonical(envelope)));
+ return {key_id:ACC243_KEY_ID,algorithm:'HMAC-SHA256',envelope,
+  signature:Buffer.from(signed).toString('base64url')};
+}
+async function acc243Context(x,fin){
+ fin.add();fin.add({accountingId:'FAKE-ACC242-L-1',sourceLine:ORDER_ID+'-02',
+  dept:'ليزر',actor:'FAKE-GABER'});
+ const source=await request(x);
+ const lineage=await previewLineage({sourceResponse:source,financeDb:fin.financeDb,
+  orderId:ORDER_ID,expectedOfficialCustomerId:C});
+ assert.equal(lineage.status,200,JSON.stringify(lineage));
+ const key=await acc243FakeKey();
+ const messages=[
+  await acc243FakeMessage({lineId:ORDER_ID+'-01',dept:'طباعة',
+   actor:'FAKE-WAEL',approvalRef:'FAKE-APPROVAL-PRINT-001',key}),
+  await acc243FakeMessage({lineId:ORDER_ID+'-02',dept:'ليزر',
+   actor:'FAKE-GABER',approvalRef:'FAKE-APPROVAL-LASER-001',key})
+ ];
+ const run=(changes={})=>verifyFakeLineApprovals({
+  sourceResponse:source,lineagePreview:lineage,messages,verifyKey:key,
+  expectedKeyId:ACC243_KEY_ID,nowMs:ACC243_NOW,
+  mode:'ISOLATED_FAKE_APPROVAL_FIXTURE',...changes
+ });
+ return {key,source,lineage,messages,run};
+}
+const clone243=v=>structuredClone(v);
+test('ACC243 signed fake Print/Laser V1 messages pass crypto but never grant real finance authority',()=>acc242WithBoth(async(x,fin)=>{
+ const ctx=await acc243Context(x,fin);
+ const t12Changes=x.raw.prepare('SELECT total_changes() AS n').get().n;
+ const financeChanges=fin.raw.prepare('SELECT total_changes() AS n').get().n;
+ const r=await ctx.run();
+ assert.equal(r.success,true,JSON.stringify(r));
+ assert.equal(r.fixtureSignaturesVerified,true);
+ assert.equal(r.syntheticSignedLineCount,2);
+ assert.equal(r.contractVersion,'ACCOUNTING_CONNECTOR_CONTRACT_V1');
+ for(const k of ['independentSignerVerified','realSignedLineApprovalsVerified',
+  'ownerAttested','independentEmployeeGrantsVerified','consumerReplayLedgerVerified',
+  'financeAuthorized','canRequestInvoice','canPostCash','connectorEventPublished'])
+   assert.equal(r[k],false,k);
+ assert.equal(r.financeRelease,'NO_GO');
+ assert.equal(ACC243_POLICY.workerWired,false);
+ assert.equal(ACC243_POLICY.sourceRuntimeApprovalAvailable,false);
+ assert.equal(x.raw.prepare('SELECT total_changes() AS n').get().n,t12Changes);
+ assert.equal(fin.raw.prepare('SELECT total_changes() AS n').get().n,financeChanges);
+ assert.doesNotMatch(JSON.stringify(r),/FAKE-WAEL|FAKE-GABER|FAKE-APPROVAL-|FAKE CLIENT/);
+}));
+test('ACC243 rejects signature tampering and valid signature with cross-order or wrong customer',()=>acc242WithBoth(async(x,fin)=>{
+ const ctx=await acc243Context(x,fin);
+ const changed=clone243(ctx.messages);
+ changed[0].envelope.payload.department='ليزر';
+ assert.equal((await ctx.run({messages:changed})).code,'ORDER_CUSTOMER_DEPARTMENT_SOURCE_BINDING_MISMATCH');
+ const switched=clone243(ctx.messages);
+ switched[0].envelope.payload.actor_ref='FORGED-WAEL';
+ assert.equal((await ctx.run({messages:switched})).code,'ACC243_SIGNATURE_TAMPERED');
+ const fakeForeign=await acc243FakeMessage({lineId:ORDER_ID+'-01',dept:'طباعة',
+  actor:'FAKE-WAEL',approvalRef:'FAKE-APPROVAL-PRINT-001',
+  orderId:'ANOTHER_ORDER',key:ctx.key});
+ assert.equal((await ctx.run({messages:[fakeForeign,ctx.messages[1]]})).code,
+  'ORDER_CUSTOMER_DEPARTMENT_SOURCE_BINDING_MISMATCH');
+ const fakeOtherCustomer=await acc243FakeMessage({lineId:ORDER_ID+'-01',dept:'طباعة',
+  actor:'FAKE-WAEL',approvalRef:'FAKE-APPROVAL-PRINT-001',
+  customerId:'CUS-OTHER',key:ctx.key});
+ assert.equal((await ctx.run({messages:[fakeOtherCustomer,ctx.messages[1]]})).code,
+  'ORDER_CUSTOMER_DEPARTMENT_SOURCE_BINDING_MISMATCH');
+}));
+test('ACC243 refuses duplicate line, duplicate approval reference and missing department',()=>acc242WithBoth(async(x,fin)=>{
+ const ctx=await acc243Context(x,fin);
+ assert.equal((await ctx.run({messages:[ctx.messages[0],ctx.messages[0]]})).code,
+  'DUPLICATED_LINE_OR_APPROVAL_IDEMPOTENCY_KEY');
+ assert.equal((await ctx.run({messages:[ctx.messages[0]]})).code,
+  'ACC242_ORIGINAL_LINEAGE_PREVIEW_NOT_QUALIFIED');
+ const sameApproval=await acc243FakeMessage({lineId:ORDER_ID+'-02',dept:'ليزر',
+  actor:'FAKE-GABER',approvalRef:'FAKE-APPROVAL-PRINT-001',key:ctx.key});
+ assert.equal((await ctx.run({messages:[ctx.messages[0],sameApproval]})).code,
+  'DUPLICATED_LINE_OR_APPROVAL_IDEMPOTENCY_KEY');
+}));
+test('ACC243 rejects unsigned, unknown fields, invoice prices and nonfixture claims',()=>acc242WithBoth(async(x,fin)=>{
+ const ctx=await acc243Context(x,fin);
+ for(const altered of [
+  m=>{m[0].signature='invalid';},
+  m=>{m[0].algorithm='none';},
+  m=>{m[0].envelope.payload.price=99999;},
+  m=>{m[0].envelope.payload.financial_authority=true;},
+  m=>{m[0].envelope.payload.fixture_only=false;},
+  m=>{m[0].envelope.event_type='order_created';},
+  m=>{m[0].envelope.evidence_refs=['t12:fake-masquerading-real-approval'];},
+  m=>{m[0].envelope.password='fake-password';},
+  m=>{m[0].key_id='untrusted-key';}
+ ]){
+  const bad=clone243(ctx.messages);altered(bad);
+  assert.equal((await ctx.run({messages:bad})).success,false);
+ }
+}));
+test('ACC243 enforces 5m clock window and fixture mode OFF by default',()=>acc242WithBoth(async(x,fin)=>{
+ const ctx=await acc243Context(x,fin);
+ assert.equal((await ctx.run({mode:undefined})).code,'ACC243_DEFAULT_OFF');
+ assert.equal((await ctx.run({nowMs:ACC243_NOW+301000})).code,
+  'ACC243_FIXTURE_ENVELOPE_UNTRUSTED');
+ assert.equal((await ctx.run({nowMs:ACC243_NOW-61000})).code,
+  'ACC243_FIXTURE_ENVELOPE_UNTRUSTED');
+ const old=await acc243FakeMessage({lineId:ORDER_ID+'-01',dept:'طباعة',
+  actor:'FAKE-WAEL',approvalRef:'FAKE-APPROVAL-PRINT-001',
+  key:ctx.key,when:ACC243_NOW-301000});
+ assert.equal((await ctx.run({messages:[old,ctx.messages[1]]})).code,
+  'ACC243_FIXTURE_ENVELOPE_UNTRUSTED');
+}));
+test('ACC243 rejects forged ACC242 success and untrusted key',()=>acc242WithBoth(async(x,fin)=>{
+ const ctx=await acc243Context(x,fin);
+ assert.equal((await ctx.run({lineagePreview:{...ctx.lineage,ownerAttested:true}})).code,
+  'ACC242_ORIGINAL_LINEAGE_PREVIEW_NOT_QUALIFIED');
+ assert.equal((await ctx.run({lineagePreview:{...ctx.lineage,financeAuthorized:true}})).code,
+  'ACC242_ORIGINAL_LINEAGE_PREVIEW_NOT_QUALIFIED');
+ const wrongKey=await webcrypto.subtle.importKey('raw',
+  new TextEncoder().encode('DIFFERENT_FAKE_ACC243_KEY_'.repeat(3)),
+  {name:'HMAC',hash:'SHA-256'},false,['sign','verify']);
+ assert.equal((await ctx.run({verifyKey:wrongKey})).code,'ACC243_SIGNATURE_TAMPERED');
+ assert.equal((await ctx.run({sourceResponse:{...ctx.source,body:{...ctx.source.body,
+  officialCustomerOwnershipAttested:true}}})).code,
+  'ACC242_ORIGINAL_LINEAGE_PREVIEW_NOT_QUALIFIED');
 }));
 test('new source has no HTTP endpoint, T12/finance creation, or direct D1 finance link',()=>{
  const worker=readFileSync('cloudflare-d1/src/index_v2.js','utf8');
