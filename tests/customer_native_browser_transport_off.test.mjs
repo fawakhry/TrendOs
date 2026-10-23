@@ -279,23 +279,25 @@ test('native source-only app.js save/load functions do not persist or restore na
   const anchor='  function saveCustomerSession() {';
   const start=appSource.indexOf(anchor),end=appSource.indexOf('  function clearCustomerSession() {',start);
   assert.ok(start>=0&&end>start);
-  const map=new Map();
-  const storage={
+  const sessionMap=new Map(),localMap=new Map();
+  const storage=(map)=>({
     setItem(k,v){map.set(k,v);},
     removeItem(k){map.delete(k);},
     getItem(k){return map.get(k)??null;}
-  };
+  });
   const window={TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED:true};
   const state={customer:{customerCode:'PC-FAKE-1',token:'NATIVE_SESSION_IN_MEMORY',
     nativeSession:true}};
-  const context=vm.createContext({state,sessionStorage:storage,localStorage:storage,window});
+  const context=vm.createContext({state,sessionStorage:storage(sessionMap),
+    localStorage:storage(localMap),window});
   vm.runInContext(appSource.slice(start,end),context);
   vm.runInContext('saveCustomerSession()',context);
-  assert.equal(map.size,0,'native sessions never persisted');
+  assert.equal(sessionMap.size,0,'native sessions never persisted to sessionStorage');
+  assert.equal(localMap.size,0,'native sessions never persisted to localStorage');
   assert.equal(vm.runInContext('loadCustomerSession()',context),false,'native mode never reloads legacy session');
   state.customer={customerCode:'PC-LEGACY',token:'OLD_GOOGLE_TOKEN'};
   window.TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED=false;
   vm.runInContext('saveCustomerSession()',context);
-  assert.equal(map.has('matbagy_platform_customer_session'),true,'OFF legacy behavior preserved');
+  assert.equal(sessionMap.has('matbagy_platform_customer_session'),true,'OFF legacy behavior preserved');
   assert.equal(vm.runInContext('loadCustomerSession()',context),true,'legacy restore unchanged OFF');
 });
