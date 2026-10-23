@@ -17,18 +17,27 @@ const owner={draftId:DRAFT,createdAtMs:NOW-60000,draftState:'DRAFT',
 const lines=[{itemId:ITEM,ordinal:1,department:'طباعة',itemName:'مج طباعة',qty:2,
  notes:'',heatPress:0,flyPrint:0}];
 let calls=[];
-function fake({account=owner,items=lines,files={fileCount:0,notReady:0},prior=null,broken=false}={}){
+function fake({account=owner,items=lines,files={fileCount:0,notReady:0},
+ prior=null,broken=false,invalidBatch=false}={}){
  return{prepare(sql){
   const kind=sql.includes('SELECT d.draft_id AS draftId')?'scope':
     sql.includes('SELECT i.item_id AS itemId')?'items':
     sql.includes('FROM t12_prod_request_ledger')?'ledger':'files';
   calls.push({kind,phase:'prepare'});
-  return{bind(...args){calls.push({kind,phase:'bind',args});
-   return{
-     async first(){if(broken)throw Error('FAKE_PRIVATE_SQL');return kind==='scope'?account:kind==='ledger'?prior:files;},
-     async all(){if(broken)throw Error('FAKE_PRIVATE_SQL');return{results:items};}
-   };
+  return{bind(...args){calls.push({kind,phase:'bind',args});return{
+   kind,
+   async first(){throw Error('NON_TRANSACTIONAL_FIRST_FORBIDDEN');},
+   async all(){throw Error('NON_TRANSACTIONAL_ALL_FORBIDDEN');}
   }};
+ }},
+ async batch(stmts){
+  calls.push({kind:'transaction',phase:'batch',count:stmts.length});
+  if(broken)throw Error('FAKE_PRIVATE_SQL');
+  if(invalidBatch)return [{success:true,results:[account]},{success:false,results:items},
+   {success:true,results:[files]},{success:true,results:[]}];
+  return stmts.map(s=>({success:true,results:
+   s.kind==='scope'?(account?[account]:[]):
+   s.kind==='items'?items:s.kind==='files'?[files]:prior?[prior]:[]}));
  }};
 }
 const run=(db=fake(),options={})=>preflightNativeCustomerDraftSubmitV0({
@@ -39,12 +48,14 @@ test('no separate official order writer, no new order or customer HTTP route',()
  assert.doesNotMatch(index,/customer-portal-native-submit-preflight-v0/);
  const source=readFileSync('cloudflare-d1/src/customer-portal-native-submit-preflight-v0.mjs','utf8');
  const statements=source.split('\n').filter(line=>!/^\s*(?:\*|\/\*|\/\/)/.test(line)).join('\n');
- assert.doesNotMatch(statements,/createT12GeneralOrder\s*\(|INSERT INTO t12_prod_orders|db\.batch\s*\(/);
+ assert.doesNotMatch(statements,/createT12GeneralOrder\\s*\\(|INSERT INTO t12_prod_orders/);
+ assert.match(source,/db\\.batch\\s*\\(/);
  assert.doesNotMatch(source,/APPS_SCRIPT_API_URL|script\.google\.com|fetch\s*\(/);
  assert.equal(CUSTOMER_DRAFT_SUBMIT_PREFLIGHT_POLICY_V0.officialOrderCreatorCalled,false);
  assert.equal(CUSTOMER_DRAFT_SUBMIT_PREFLIGHT_POLICY_V0.workerEntryWired,false);
  assert.equal(CUSTOMER_DRAFT_SUBMIT_PREFLIGHT_POLICY_V0.maxCompatibleItems,1);
  assert.equal(CUSTOMER_DRAFT_SUBMIT_PREFLIGHT_POLICY_V0.filesAllowed,0);
+ assert.equal(CUSTOMER_DRAFT_SUBMIT_PREFLIGHT_POLICY_V0.readOnlyD1Batch,true);
  assert.equal(CUSTOMER_DRAFT_SUBMIT_PREFLIGHT_POLICY_V0.productionRelease,'NO_GO');
  for(const sql of [CUSTOMER_DRAFT_SUBMIT_SCOPED_SQL_V0,
   CUSTOMER_DRAFT_SUBMIT_ITEMS_SQL_V0,CUSTOMER_DRAFT_SUBMIT_FILES_SQL_V0,
@@ -64,6 +75,9 @@ test('one exact owner-verified eligible item uses canonical T12 without any writ
  assert.equal(value.body.needsTrustedEmployeeDelegate,true);
  assert.deepEqual(calls.filter(x=>x.phase==='prepare').map(x=>x.kind),['scope','items','files','ledger']);
  assert.equal(calls.filter(x=>x.phase==='bind').length,4);
+ assert.deepEqual(calls.filter(x=>x.phase==='batch').map(x=>x.count),[4]);
+ assert.equal(value.body.transactionalReadBatch,true);
+ assert.equal(value.body.snapshotSealed,false);
  const raw=JSON.stringify(value);
  assert.equal(raw.includes('01012345678'),false);
  assert.equal(raw.includes('عميل وهمي'),false);
@@ -78,27 +92,36 @@ test('existing T12 request key, whether PREPARED or COMMITTED, always requires t
   assert.equal(res.body.code,'T12_EXISTING_REQUEST_REQUIRES_TRUSTED_RECONCILIATION');
   assert.equal(res.body.officialOrderCreated,false);
   assert.equal(calls.filter(x=>x.kind==='ledger'&&x.phase==='bind').length,1);
-  const key='cld1_'+(NOW-60000)+'_'+DRAFT.slice(4);
-  assert.equal(calls.filter(x=>x.kind==='ledger'&&x.phase==='bind')[0].args[0],key);
+  assert.equal(calls.filter(x=>x.kind==='ledger'&&x.phase==='bind')[0].args[0],DRAFT);
   assert.doesNotMatch(JSON.stringify(res),/customerId|requestKey|orderId/);
  }
 });
-test('short registered phone fails T12 writer identity before reading its request ledger',async()=>{
+test('short registered phone fails T12 writer identity within the read transaction',async()=>{
  calls=[];
  const res=await run(fake({account:{...owner,customerPhone:'123'}}));
  assert.equal(res.status,409);
  assert.equal(res.body.code,'T12_CUSTOMER_STRONG_IDENTITY_REQUIRED');
- assert.equal(calls.some(x=>x.kind==='ledger'),false);
+ assert.deepEqual(calls.filter(x=>x.phase==='batch').map(x=>x.count),[4]);
 });
-test('owner and session failures refuse before inspecting item list',async()=>{
+test('owner and session failures refuse even with four batched reads',async()=>{
  for(const x of [null,{...owner,draftId:'CDR-'+'44'.repeat(16)}]){
   calls=[];const res=await run(fake({account:x}));
   assert.equal(res.status,404);
-  assert.equal(calls.filter(v=>v.kind==='items').length,0);
+  assert.deepEqual(calls.filter(v=>v.phase==='batch').map(v=>v.count),[4]);
  }
  assert.equal((await run(fake(),{token:'bad'})).status,401);
  assert.equal((await run(fake(),{draftId:'bad'})).status,400);
  assert.equal((await run(fake(),{secret:'short'})).status,503);
+});
+test('missing transaction capability or unsuccessful batch fails closed',async()=>{
+ const adapter=fake();delete adapter.batch;
+ const absent=await run(adapter);
+ assert.equal(absent.status,503);
+ const partial=await run(fake({invalidBatch:true}));
+ assert.equal(partial.status,503);
+ assert.equal(partial.body.code,'SUBMIT_PREFLIGHT_TRANSACTION_UNVERIFIED');
+ assert.equal(partial.body.officialOrderCreated,false);
+ assert.equal(partial.body.preflightEligible,undefined);
 });
 test('zero, two, or more than two independent items cannot silently submit',async()=>{
  for(const items of [[],[...lines,...lines],[...lines,...lines,...lines]]){
