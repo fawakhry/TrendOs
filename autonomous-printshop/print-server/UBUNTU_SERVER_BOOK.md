@@ -1172,3 +1172,10 @@
 - Only the one TrendMall Cloudflare account should be selected for the approved bounded stage diagnostic. `Token expiration` still appears `No expiration`; do not issue the token until short expiry is configured and review is complete.
 - **Next one owner action:** select the existing named TrendMall account option in the open Account Resources dropdown, not `All accounts`. Then send screenshot before touching expiry.
 - `RESOURCE_OPTION_DISCOVERED=YES`; `RESOURCE_SELECTED=NOT_YET`; `ANALYTICS_READ=SELECTED`; `EXPIRY_SET=NO`; `TOKEN_CREATED=NO`; `ACCESS_403_CAUSE=UNRESOLVED`; `PRODUCTION_TOUCHED=NO`.
+
+### SERVER-20261023-131 — Analytics token draft scoped to one TrendMall account (owner screenshot, 2026-10-23 ~22:53 Africa/Cairo)
+
+- Owner selected the existing **Trendmall.contact@gmail.com's Account** in `Account Resources → Include`, replacing `All accounts` on the pending `Create Custom Token` page. One permissions row remains `Account → Account Analytics → Read` with no additional permissions. Draft display name `TrendOS Stage CF-Ray Readonly 20261023` remains unchanged.
+- The screen still shows the expiration controls with **No expiration** apparently active; `7 days` is an available option. Token has NOT been submitted or generated; no secret was shown.
+- **Next single owner action:** click `7 days` under Token expiration. After inspecting the newly selected expiration and the final summary, do not create until verified account scope, read-only privilege and 2026-10-30 expiry. Do not modify existing Cloudflare tokens or access policy.
+- `ANALYTICS_PERMISSION=ACCOUNT_READ`; `ACCOUNT_RESOURCE=ONE_TRENDMALL_ACCOUNT`; `TOKEN_EXPIRATION=NOT_YET_RESTRICTED`; `TOKEN_CREATED=NO`; `CF_RAY=a4f30217e9ef9aca-MRS`; `HTTP403_ROOT_CAUSE=UNRESOLVED`; `PRODUCTION_ORDERS_AND_DEVICES=UNTOUCHED`.
