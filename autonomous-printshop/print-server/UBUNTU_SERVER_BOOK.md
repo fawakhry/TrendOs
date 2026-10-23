@@ -1101,3 +1101,10 @@
 - At time of owner's approval the current Cloudflare UI screenshot was the read-only `trendos build token` View summary page, with **Back** at bottom-left. **Next one user action:** click `Back` to return to user API token list; do not create token until controlled custom-token form with exact scopes/expiration is reviewed step by step.
 - No API token has actually been created yet, and no credential value should ever enter ChatGPT or GitHub. Once created, keep the value solely in a local protected location and use it only for an explicitly approved narrow graph query correlating `CF-Ray=a4f30217e9ef9aca-MRS`; GraphQL returning zero rows does not by itself prove layer attribution.
 - `TOKEN_CREATE_APPROVAL=YES_LIMITED`; `TOKEN_CREATED=NO`; `ACCOUNT_ANALYTICS_SCOPE=READ_ONLY_PLANNED`; `HTTP403_ROOT_CAUSE=UNRESOLVED`; `CLOUDFLARE_PRODUCTION_UNCHANGED=YES`; `ORDERS_OR_PHYSICAL_DEVICES_TOUCHED=NO`; `PR190_DRAFT=TRUE`.
+
+### SERVER-20261023-121 — Existing token list reopened before analytics token setup (owner screenshot, ~22:21 Cairo)
+
+- Owner reopened Cloudflare My Profile → User API Tokens listing. The existing four tokens remain visible; the new short-lived Analytics Read credential has **not** been created yet.
+- Owner approval for narrowly-scoped, temporary Account Analytics Read diagnostic is already logged under SERVER-119; current screenshot only verifies navigation. No values/secrets exposed or modifications observed.
+- Next single UI action: click **Create Token** at top right to view available creation paths, then pause for review of scope, expiration, and account restrictions before creation. Do not touch existing API tokens or Global API Key.
+- `CREDENTIAL_CREATED=NO`; `PRODUCTION_MODIFIED=NO`; `HTTP403_CAUSE=UNRESOLVED`.
