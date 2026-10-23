@@ -43,7 +43,7 @@ export function newEnvelope(operation, {customerId='',name='',query='',limit=100
 }
 async function keyFor(secret) {
   if (typeof secret!=='string' || secret.length<32) throw new Error('customer-facts-secret-not-configured');
-  return crypto.subtle.importKey('raw',enc.encode(secret),'HMAC',{name:'HMAC',hash:'SHA-256'},false,['sign','verify']);
+  return crypto.subtle.importKey('raw',enc.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign','verify']);
 }
 export async function signBody(secret, body) {
   const k=await keyFor(secret);
