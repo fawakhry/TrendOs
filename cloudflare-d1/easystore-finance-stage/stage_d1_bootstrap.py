@@ -28,7 +28,7 @@ STAGE_NAME = "easystore-accounting-staging"
 STAGE_UUID = "c2fe1a54-90f5-4e6f-9d51-80ce23e21328"
 HERE = Path(__file__).resolve().parent
 CONFIG = HERE / "wrangler.toml"
-ROOT = HERE.parents[2]  # repository root
+ROOT = HERE.parents[1]  # repository root
 STAGE_PREFIX = "employee_accounting_"
 READ_TABLES = (
     "SELECT name FROM sqlite_master WHERE type='table' "
@@ -133,7 +133,8 @@ def list_identity(cli):
         stop("D1_PROVIDER_LIST_INVALID")
     matches = [x for x in items if isinstance(x, dict) and
                x.get("name") == STAGE_NAME]
-    if len(matches) != 1 or matches[0].get("uuid", "").lower() != STAGE_UUID:
+    if (len(matches) != 1 or not isinstance(matches[0].get("uuid"), str) or
+            matches[0]["uuid"].lower() != STAGE_UUID):
         stop("CLOUDFLARE_EXACT_STAGE_UUID_NOT_VERIFIED")
     return {"name": STAGE_NAME, "uuid": STAGE_UUID}
 
