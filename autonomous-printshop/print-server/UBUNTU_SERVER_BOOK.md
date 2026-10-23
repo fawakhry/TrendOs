@@ -1114,3 +1114,11 @@
 - Owner opened Cloudflare My Profile → User API Tokens → Create Token. Visible top option `Create Custom Token` with `Get started` button. Below it several presets, including `Read analytics and logs`, `Edit Cloudflare Workers` and `Read all resources`. No custom form completed, no credential created or exposed.
 - User has already authorized only a separate, short-lived, account-scoped `Account Analytics: Read` credential for one isolated-stage CF-Ray Access authentication diagnosis. A broad template could include extra permissions, so the recommended **single next click** is top `Create Custom Token` → `Get started`, **not** a preset. Review exact permission, one account, expiry and restrictions in later separate owner-screen steps before any final Create.
 - Stage diagnostic remains `HTTP403`, CF-Ray `a4f30217e9ef9aca-MRS`. No new Cloudflare Access request, deployment, production/order access or print/laser commands. `DIAGNOSTIC_TOKEN_CREATED=NO`; `SECRET_EXPOSED=NO`; `PR190=DRAFT`.
+
+
+### SERVER-20261023-123 — owner opened Cloudflare Custom Token form (owner screenshot, 2026-10-23 22:23 Cairo)
+
+- Owner opened Cloudflare User API Tokens > Create Custom Token (top custom entry) but has not submitted a new token. Screenshot shows token name empty, Permissions category Account with permission/value unselected, Account Resources Include All accounts, Token expiration No expiration, and an empty optional Client IP filter.
+- Safety gaps in initial defaults: All accounts and No expiration exceed the explicitly authorized stage CF-Ray diagnostic scope. Before Create, restrict to the one existing TrendMall Cloudflare account, permission Account Analytics Read only, seven-day expiry (or shorter), and verify summary. Do not copy any token secret into GitHub or chat.
+- One next owner UI action: enter the name `TrendOS Stage CF-Ray Readonly 20261023` in Token name only. Then inspect next field in a separate turn. No modifications have been saved yet.
+- `CF_RAY=a4f30217e9ef9aca-MRS`; `ACCOUNT_ANALYTICS_READ_APPROVED=YES`; `TOKEN_CREATED=NO`; `HTTP403_CAUSE=UNRESOLVED`; `PRODUCTION_AND_DEVICES_UNTOUCHED=YES`.
