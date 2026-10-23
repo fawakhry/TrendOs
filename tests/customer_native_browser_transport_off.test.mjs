@@ -172,6 +172,31 @@ test('no Google retry on network error, 401/500, bad JSON, unexpected or incompl
   }
 });
 
+test('actual app.js secure API assignment invokes adapter while keeping employee downstream exact', async () => {
+  const h = harness({enabled:false});
+  const start = appSource.indexOf('window.trendosSecureApiV1922 = async function(action, params)');
+  const end = appSource.indexOf('\n  function api(action, params)', start);
+  assert.ok(start > 0 && end > start, 'exact integration assignment present');
+  h.window.trendosLegacyApiTransportV1 = h.downstream;
+  vm.runInNewContext(appSource.slice(start, end), {window:h.window});
+  const a = await h.window.trendosSecureApiV1922('getCustomerOrders',GOOGLE_LEGACY);
+  assert.deepEqual(a,{success:true,from:'legacy'});
+  assert.equal(h.downstreamCalls.length,1);
+  h.window.TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED = true;
+  await assert.rejects(
+    () => h.window.trendosSecureApiV1922('customerLogin',{password:'PRIVATE'}),
+    {code:'CUSTOMER_NATIVE_ACTION_NOT_WIRED'}
+  );
+  const b = await h.window.trendosSecureApiV1922('getCustomerOrders',GOOGLE_LEGACY);
+  assert.equal(b.success,true);
+  assert.equal(b.orders.length,1);
+  assert.equal(h.downstreamCalls.length,1,'ON never passed customer credentials to legacy');
+  const c = await h.window.trendosSecureApiV1922('getRows',{employeeToken:'EMPLOYEE'});
+  assert.deepEqual(c,{success:true,from:'legacy'});
+  assert.equal(h.downstreamCalls.length,2,'employee route unchanged');
+  assert.equal(h.downstreamCalls[1][1].employeeToken,'EMPLOYEE');
+});
+
 test('native mode is strict boolean true; truthy strings cannot flip OFF', async () => {
   const h = harness({enabled:false});
   for (const value of ['true',1,'yes',{},null,undefined]) {
