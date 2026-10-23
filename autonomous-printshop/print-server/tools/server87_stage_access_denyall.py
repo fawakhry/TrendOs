@@ -44,12 +44,18 @@ def exact_deny_payload(worker_id):
 
 
 class API:
-    def __init__(self, acct, token, opener=None):
+    def __init__(self, acct, token, opener=None, worker_read_token=None):
         if type(acct) is not str or not HEX32.fullmatch(acct):
             raise StageDenied("SERVER87_ACCOUNT_DENIED")
         if type(token) is not str or len(token) < 16:
             raise StageDenied("SERVER87_TOKEN_DENIED")
+        if worker_read_token is not None and (type(worker_read_token) is not str
+                                              or len(worker_read_token) < 16):
+            raise StageDenied("SERVER87_WORKER_METADATA_TOKEN_DENIED")
+        # Access-only WRITE token must never be used for broad Worker scripts.
+        # Old existing token stays READ-only inside this Access workflow.
         self.acct, self.token = acct, token
+        self.worker_read_token = worker_read_token if worker_read_token else token
         self.opener = opener or build_opener(
             ProxyHandler({}), HTTPSHandler(), NoRedirect())
 
@@ -71,11 +77,14 @@ class API:
                     and type(body) is dict and body.get("name") == APP_NAME
                     and body.get("type") == "self_hosted")):
             raise StageDenied("SERVER87_ENDPOINT_OR_METHOD_DENIED")
+        is_worker_get = (method == "GET" and (suffix.startswith(
+            f"{base}/workers/scripts/{STAGE}/") or suffix == f"{base}/workers/workers"))
         request = Request(
             "https://api.cloudflare.com/client/v4" + suffix, method=method,
             data=json.dumps(body).encode() if body is not None else None,
             headers={
-                "Authorization": "Bearer " + self.token,
+                "Authorization": "Bearer " + (
+                    self.worker_read_token if is_worker_get else self.token),
                 "Accept": "application/json",
                 "Content-Type": "application/json",
             }
@@ -189,7 +198,8 @@ def main(args=None, environ=None):
         return 2
     try:
         api = API(env.get("CLOUDFLARE_ACCOUNT_ID", ""),
-                  env.get("CLOUDFLARE_API_TOKEN", ""))
+                  env.get("CLOUDFLARE_ACCESS_API_TOKEN", ""),
+                  worker_read_token=env.get("CLOUDFLARE_API_TOKEN", ""))
         api.create_and_verify()
         print("SERVER87_STAGE_ONLY_ACCESS_DENY_ALL=VERIFIED")
         print("SERVER87_STAGE_PUBLICATION=OFF;PRODUCTION_TOUCHED=NO;UBUNTU=OFF")
