@@ -37,6 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           node --test tests/customer_isolated_stage_worker_off.test.mjs
+          node --test tests/customer_stage_durable_rate_limit_off.test.mjs
       - name: Recheck original server logout/read/login without production DB
         run: |
           set -euo pipefail
