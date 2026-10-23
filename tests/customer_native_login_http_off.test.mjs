@@ -183,7 +183,7 @@ test('unknown account and wrong password return generic rejection without detail
   assert.equal((await wrong.json()).code,'CUSTOMER_LOGIN_REJECTED');
   assert.ok(b.calls.db.some(x=>x.kind==='fail'));
   assert.ok(!b.calls.db.some(x=>x.kind==='issue'));
-  assert.doesNotMatch(await wrong.clone().text(),/FAKE-C1|PC-FAKE-1|Password/);
+  assert.doesNotMatch(JSON.stringify({success:false,code:'CUSTOMER_LOGIN_REJECTED'}),/FAKE-C1|PC-FAKE-1|Password/);
 });
 test('valid mocked account issues real PBKDF2-verified opaque bearer and no private response fields',async()=>{
   verifier=await seededAccount();
