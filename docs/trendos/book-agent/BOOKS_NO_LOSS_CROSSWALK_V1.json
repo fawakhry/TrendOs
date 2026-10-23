@@ -18154,5 +18154,94 @@
       "FINANCE_MUTATIONS": 0,
       "CUSTOMER_MUTATIONS": 0
     }
+  },
+  "book_agent_20261024_entry693_safe_rollback_files_config_draft_pr236_v1": {
+    "date": "2026-10-24",
+    "id": "ENTRY693_CLOUDFLARE_SAFE_ROLLBACK_FILES_PREDEPLOY_20261024",
+    "book_head_before": "de681be110e1cf5d01a6b8371342fd2109425221",
+    "source_pr": 221,
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "repair_branch": "agent/cloudflare-rollback-files-guard-entry693-20261024",
+    "repair_commit": "596ec59b0ace0beecdfa4d601dd80860a9a239d1",
+    "draft_pr_number": 236,
+    "draft_pr_url": "https://github.com/fawakhry/TrendOs/pull/236",
+    "files": [
+      {
+        "path": ".github/workflows/trendos-entry645-content-r2-foundation-controlled.yml",
+        "old_blob": "d075e30894d84fc99f492dec863fded94b55d096",
+        "new_blob": "a4c4e69b45fe4ef4ca66beb8bc5e8cd6b4034d90",
+        "impact": "shared concurrency group, duplicate binding/URL collision gate, intent pre PATCH, rollback own-active guard + PRE readback"
+      },
+      {
+        "path": ".github/workflows/trendos-entry642-deploy-resilient-auth-hardening.yml",
+        "old_blob": "02b1dffd6d7d7f034d784f22b0e631f3d03e2bb2",
+        "new_blob": "7b616573bf58175dee6c27d54e8d4d838b0e10ce",
+        "impact": "same lock, intent pre PATCH, own-active rollback guard + PRE readback"
+      },
+      {
+        "path": ".github/workflows/trendos-02cw-worker-codeonly-deploy-temp.yml",
+        "old_blob": "b3037c872886bb37b6f0effee65e2a0ac8dce379",
+        "new_blob": "eb29a88fb398f0f5fa1b87f71fea212317f2c546",
+        "impact": "same lock, fail closed until Wrangler declares exact FILES R2 bucket and DB"
+      },
+      {
+        "path": "tests/entry693_cloudflare_guard_source.test.mjs",
+        "new_blob": "70238e3786ac65b81a45a55f877765800bdb6441",
+        "impact": "10-case dedicated source-only rollback fixture file, native Node execution still unverified"
+      }
+    ],
+    "tests": {
+      "executed_isolated_modified_rollback_cases": 10,
+      "matched_expected": 10,
+      "group_and_config_static_checks": 4,
+      "node_file_created": true,
+      "node_file_native_run": false,
+      "ci_run": false,
+      "staging_run": false,
+      "cloudflare_api_calls": 0
+    },
+    "simulation": [
+      "Rollback original modified Node helpers fake FRESH->PRE success and positive readback",
+      "Fake unrelated THIRD active denied before POST",
+      "PRE already active => no POST",
+      "Fake HTTP 200 but still FRESH after POST => fail readback",
+      "Fake rollback HTTP failure => fail"
+    ],
+    "limits": [
+      "Existing Cloudflare latest-vs-deployed inheritance and GET->POST atomicity are NOT solved by GitHub concurrency groups or one active read.",
+      "Other GitHub Workflows or external operators can still write same worker. Owner-only technical single-writer/CAS is not proven.",
+      "Entry645/642 ambiguous PATCH ACK now blocks automatic rollback and demands read-only reconciliation. It cannot undo a remote operation whose identity is unknown.",
+      "Code-only 02CW currently fails new preflight because Wrangler source blob 579b06e... has DB but no FILES; do not force deploy or secretly enable R2 public access.",
+      "Actual Cloudflare code etag/deployed SHA, FILES effective binding and postdeploy R2 roundtrip still unverified.",
+      "PR234 code-reader changes are separate Draft PR and not deployed; mirror clients/authorized downloads compatibility not established.",
+      "Cloudflare workflows contain production mutation commands but are NOT executed, merged or triggered by this work."
+    ],
+    "owner_release_gates": [
+      "OWNER_APPROVAL_BEFORE_ANY_PROD_ACTION",
+      "NODE_CI_AND_YAML_VALIDATION",
+      "FULL_WORKER_SINGLE_WRITER_INCLUDING_EXTERNAL_WRITERS",
+      "CLOUDFLARE_ACTIVE_VERSION_AND_BINDINGS_READONLY_ATTESTATION",
+      "DISPOSABLE_STAGE_PATCH_LOST_ACK_AND_ROLLBACK_EXERCISE",
+      "WRANGLER_SOURCE_R2_FILES_AND_DB_PARITY_BEFORE_DEPLOY",
+      "REPRODUCIBLE_BUNDLE_SHA256_TO_ACTIVE_CODE",
+      "AUTHORIZED_R2_FILE_READ_SHA256_AND_DENY_BEFORE_GET"
+    ],
+    "concurrent": {
+      "pr211_head": "b216e91bcb3e4e49b13f4b60eb6e20dc0afc780a",
+      "pr211_draft": true,
+      "pr221_head": "fca5625e53815647addc6d183ebe4040990acdf5",
+      "pr221_draft": true,
+      "pr234_draft": true
+    },
+    "authorities": {
+      "master": "ACTIVE_WRITE",
+      "catalog": "FROZEN_MIGRATION_ONLY",
+      "finance": "EASYSTORE",
+      "final_cutover": "NO_GO",
+      "production_mutations": 0,
+      "ci_actions_triggered": 0,
+      "merge": 0,
+      "private_customer_file_read": 0
+    }
   }
 }

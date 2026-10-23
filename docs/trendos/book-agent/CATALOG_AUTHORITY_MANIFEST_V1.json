@@ -1141,5 +1141,38 @@
     "FINANCE_AUTHORITY": "EASYSTORE",
     "PRODUCTION_MUTATIONS": 0,
     "archival_loss": "NONE_IN_THIS_COMMIT"
+  },
+  "current_no_loss_gate_20261024_entry693_rollback_guard_predeploy_pr236_v1": {
+    "date": "2026-10-24",
+    "crosswalk_key": "book_agent_20261024_entry693_safe_rollback_files_config_draft_pr236_v1",
+    "PR": 236,
+    "PR_DRAFT": true,
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "fix_commit": "596ec59b0ace0beecdfa4d601dd80860a9a239d1",
+    "rollbacks_guards": "PATCHED_DRAFT_ONLY",
+    "shared_worker_actions_group": "PATCHED_3_WORKFLOWS_NOT_GLOBAL_CAS",
+    "FILES_WRANGLER_PREDEPLOY": "BLOCKS_CURRENT_CONFIG",
+    "simulated_rollback": "10_OF_10_EXPECTED",
+    "native_node": "NOT_RUN",
+    "CI": "NOT_RUN",
+    "CLOUDFLARE": "NOT_CALLED",
+    "STAGING": "NO",
+    "PRODUCTION": "NO",
+    "SHARED_EXTERNAL_WRITER_GATE": "OPEN",
+    "CURRENT_DEPLOYED_SHA": "UNVERIFIED",
+    "FILES_R2_ACTIVE": "UNVERIFIED",
+    "PROD_MUTATIONS": 0,
+    "CUTOVER": "NO_GO",
+    "FINANCE_AUTHORITY": "EASYSTORE",
+    "requires": [
+      "OWNER_APPROVAL_BEFORE_ANY_PROD_ACTION",
+      "NODE_CI_AND_YAML_VALIDATION",
+      "FULL_WORKER_SINGLE_WRITER_INCLUDING_EXTERNAL_WRITERS",
+      "CLOUDFLARE_ACTIVE_VERSION_AND_BINDINGS_READONLY_ATTESTATION",
+      "DISPOSABLE_STAGE_PATCH_LOST_ACK_AND_ROLLBACK_EXERCISE",
+      "WRANGLER_SOURCE_R2_FILES_AND_DB_PARITY_BEFORE_DEPLOY",
+      "REPRODUCIBLE_BUNDLE_SHA256_TO_ACTIVE_CODE",
+      "AUTHORIZED_R2_FILE_READ_SHA256_AND_DENY_BEFORE_GET"
+    ]
   }
 }
