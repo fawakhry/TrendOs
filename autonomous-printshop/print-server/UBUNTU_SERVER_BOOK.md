@@ -1122,3 +1122,10 @@
 - Safety gaps in initial defaults: All accounts and No expiration exceed the explicitly authorized stage CF-Ray diagnostic scope. Before Create, restrict to the one existing TrendMall Cloudflare account, permission Account Analytics Read only, seven-day expiry (or shorter), and verify summary. Do not copy any token secret into GitHub or chat.
 - One next owner UI action: enter the name `TrendOS Stage CF-Ray Readonly 20261023` in Token name only. Then inspect next field in a separate turn. No modifications have been saved yet.
 - `CF_RAY=a4f30217e9ef9aca-MRS`; `ACCOUNT_ANALYTICS_READ_APPROVED=YES`; `TOKEN_CREATED=NO`; `HTTP403_CAUSE=UNRESOLVED`; `PRODUCTION_AND_DEVICES_UNTOUCHED=YES`.
+
+### SERVER-20261023-124 — Temporary Analytics token draft named (owner Cloudflare screenshot, 2026-10-23 ~22:25 Cairo)
+
+- On Cloudflare **Create Custom Token** form, owner entered the proposed non-secret token display name exactly: `TrendOS Stage CF-Ray Readonly 20261023`. Screenshot confirms the permissions category is `Account`, permission and access-level dropdowns still unselected, Account Resources still `Include → All accounts`, expiration still `No expiration`, and optional client-IP rule empty.
+- **No API token has been created, no credential displayed, and no change has been submitted.** Scope is NOT yet safe to create because `All accounts` and `No expiration` are still defaults.
+- Next single owner UI action: click the **middle Permissions dropdown displaying `Select...`** beside `Account` to inspect available permissions (no selection yet), so the next action can choose specifically `Account Analytics: Read`. Do not use preset tokens, Save/Continue, or any existing key.
+- `TOKEN_NAME_ENTERED=YES`; `TOKEN_CREATED=NO`; `ANALYTICS_READ_PERMISSION=NOT_YET_SET`; `ACCOUNT_RESOURCE_RESTRICTED=NO`; `EXPIRY_RESTRICTED=NO`; `HTTP403_CAUSE=UNRESOLVED`; `PRODUCTION_UNCHANGED=YES`.
