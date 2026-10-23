@@ -266,5 +266,29 @@
     "owner_cutover_approval": false,
     "final_cutover": "NO_GO",
     "runtime_or_customer_changes": false
+  },
+  "current_no_loss_gate_checkpoint_20261023_after_60_sections": {
+    "date": "2026-10-23",
+    "precedence": "Supersedes current_no_loss_gate_checkpoint_20261023_after_26_receipts for current counts. Historical snapshots retained unchanged.",
+    "crosswalk_commit": "6aedd8cbceb934e1ec173d95472200a2dfaa54de",
+    "catalog_latest_verified_blob": "ec5710b20e0fc3319a70e6e193497e39628a7e9b",
+    "old_book_post_removal_blob": "0d00566f0c836940efde73ab69cb3d1701016fae",
+    "oct23_21_historical_SERVER_sections": 21,
+    "oct23_26_historical_migration_receipts": 26,
+    "oct23_13_audit_checkpoints": 13,
+    "oct23_total_additional_moved_sections": 60,
+    "oct23_total_original_characters_transferred": 94132,
+    "archived_38_historical_units_not_repeated": 38,
+    "unique_begin_end_migration_markers": "100/100",
+    "full_old_book_reconstruction_for_26_and_13": "PASS",
+    "two_relative_doc_links_verified_and_normalized": true,
+    "old_book_remaining_active_sections": "PREFACE_CURRENT_BASELINE_PRIVACY_596_599_600_OWNER_TRANSITION_AND_SERVER61",
+    "private_customer_records_moved": false,
+    "owner_privacy_approval": false,
+    "production_runtime_ci_recertified": false,
+    "old_book_writer": "ACTIVE_WRITE",
+    "unified_book_writer": "FROZEN_MIGRATION_ONLY",
+    "owner_final_cutover_approval": false,
+    "decision": "NO_GO_CUTOVER"
   }
 }
