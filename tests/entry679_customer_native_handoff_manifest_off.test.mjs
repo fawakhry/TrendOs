@@ -96,7 +96,10 @@ test('missing ordinal, duplicate item ID, invalid quantity and flags fail closed
   [{...items[0],itemName:'bad '}]]){
   queries=[];const r=await run(fake({lines,attachments:[]}));
   assert.equal(r.status,409);
-  assert.equal(queries.some(x=>x.kind==='files'),false);
+  // D1 transactional batch must stage all 3 SELECTs; invalid items still
+  // fail closed before returning a file manifest or digest.
+  assert.deepEqual(queries.filter(x=>x.phase==='batch').map(x=>x.count),[3]);
+  assert.equal(r.body.manifestDigest,undefined);
  }
 });
 test('pending, misplaced, wrongly owned, malformed, duplicate files rejected',async()=>{
