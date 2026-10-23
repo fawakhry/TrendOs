@@ -41,7 +41,14 @@ export default {
       const tables = await env.DB.prepare(
         "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name LIKE 'employee_accounting_%'"
       ).first();
-      if (!stage || stage.mode !== 'OFF' || Number(tables?.n) !== TABLE_COUNT)
+      // ACC236: even 22 correct finance tables are NOT sufficient if a
+      // mixed TrendOS/employee D1 was accidentally bound to finance Stage.
+      const forbidden = await env.DB.prepare(
+        "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND "+
+        "(name LIKE 't12_%' OR name LIKE 'employee_auth_%' OR "+
+        "name IN ('orders','customers','messages'))"
+      ).first();
+      if (!stage || stage.mode !== 'OFF' || Number(tables?.n) !== TABLE_COUNT || Number(forbidden?.n) !== 0)
         return reply('isolated-accounting-stage-schema-or-mode-not-ready');
       const native = await handleEmployeeAccountingNativeRequest(request, env);
       if (!native.ok) return reply('native-accounting-health-failed');
