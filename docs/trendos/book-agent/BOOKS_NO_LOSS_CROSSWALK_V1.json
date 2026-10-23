@@ -13135,5 +13135,68 @@
     "all_256_test_outcomes_verified": false,
     "final_owner_approval": false,
     "cutover": "NO_GO"
+  },
+  "migration_resumed_20261023_4_extra_owner_transition_receipts": {
+    "date": "2026-10-23",
+    "source": "TrendOS_MASTER_BOOK.md",
+    "destination": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+    "source_blob_before": "35b322d4b3ec194ef202474104e2a981118d9168",
+    "source_blob_after": "1edfabe003fd2e19ba88741b436c6b150464956e",
+    "catalog_blob_after": "90160292e6cf1e00380cf97973de249abd487fa0",
+    "copy_commit": "0fea71f07964bb83aa4ce1fbe27d27d94899512d",
+    "remove_commit": "d2ca422fcd181c6a922e023682323c6099e70c66",
+    "units": [
+      {
+        "original_section": "MIGRATED EARLIER",
+        "marker": "MASTER_OWNER_TRANSITION_20261016_MIGRATED_EARLIER",
+        "characters": 377,
+        "independent_source_copy_match": "PASS",
+        "source_removed_only_after_copy_verify": "PASS",
+        "classification": "HISTORICAL_ADMINISTRATIVE_RECORD_NOT_NEW_RUNTIME_PROOF"
+      },
+      {
+        "original_section": "MIGRATED THIS PASS",
+        "marker": "MASTER_OWNER_TRANSITION_20261016_MIGRATED_THIS_PASS",
+        "characters": 555,
+        "independent_source_copy_match": "PASS",
+        "source_removed_only_after_copy_verify": "PASS",
+        "classification": "HISTORICAL_ADMINISTRATIVE_RECORD_NOT_NEW_RUNTIME_PROOF"
+      },
+      {
+        "original_section": "NO-LOSS CHECK",
+        "marker": "MASTER_OWNER_TRANSITION_20261016_NO_LOSS_CHECK",
+        "characters": 394,
+        "independent_source_copy_match": "PASS",
+        "source_removed_only_after_copy_verify": "PASS",
+        "classification": "HISTORICAL_ADMINISTRATIVE_RECORD_NOT_NEW_RUNTIME_PROOF"
+      },
+      {
+        "original_section": "OPERATIONS",
+        "marker": "MASTER_OWNER_TRANSITION_20261016_OPERATIONS",
+        "characters": 115,
+        "independent_source_copy_match": "PASS",
+        "source_removed_only_after_copy_verify": "PASS",
+        "classification": "HISTORICAL_ADMINISTRATIVE_RECORD_NOT_NEW_RUNTIME_PROOF"
+      }
+    ],
+    "original_characters": 1441,
+    "verified_units": 4,
+    "full_file_original_excluding_only_four_exact": "PASS",
+    "markdown_link_changes": 0,
+    "no_private_entry_migrated": true,
+    "all_remaining_owner_rule_and_archive_controls_preserved": true,
+    "running_series_prior_count": 67,
+    "running_series_current_count": 71,
+    "running_series_total_characters": 101481,
+    "catalog_unique_begin_end_pairs": 111,
+    "still_restricted": [
+      "Entry596",
+      "Entry599/600",
+      "SERVER-20261016-61",
+      "OWNER_WRITER_GATE"
+    ],
+    "old_authority": "ACTIVE_WRITE",
+    "new_authority": "FROZEN_MIGRATION_ONLY",
+    "final_cutover": "NO_GO"
   }
 }
