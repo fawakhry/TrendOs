@@ -207,6 +207,49 @@ def ensure_baseline(cli, expected_names):
     return True
 
 
+def inspect_stage(cli):
+    """Read-only provider inventory with STRICT original-schema qualification.
+
+    An arbitrary single table is NOT proof that all native accounting
+    migrations applied, and a populated stage is NEVER safe to reapply.
+    This is provider metadata only, not release or backup certification.
+    """
+    identity = list_identity(cli)
+    names = remote_names(cli)
+    report = {
+        "target": identity, "tables": names, "readOnly": True,
+        "schemaApplied": False, "financeRelease": "NO_GO",
+        "financeWrites": "OFF", "mayApplyMigrations": False,
+        "backupAndRestoreVerified": False,
+    }
+    if not names:
+        report["inspectState"] = "EMPTY_STAGE_UNMIGRATED"
+        return report
+
+    # Compare the COMPLETE live table set to a fresh reconstruction of the
+    # ORIGINAL thirteen checked-in files, without modifying the provider.
+    artifacts = migration_files()
+    db = sqlite3.connect(":memory:")
+    try:
+        for name, _ in artifacts:
+            db.executescript((MIGRATIONS / name).read_text(encoding="utf-8"))
+        expected = sorted(x[0] for x in db.execute(READ_TABLES))
+    finally:
+        db.close()
+    if len(expected) != EXPECTED_TABLES:
+        stop("LOCAL_EXPECTED_TABLE_SET_NOT_22")
+    if names != expected:
+        report["inspectState"] = "NONEMPTY_SCHEMA_UNQUALIFIED_STOP"
+        return report
+
+    # Even 22 matching tables could have unauthorized finance control flags
+    # or a missing native 0031 invoice column. Require OFF + deny canary.
+    ensure_baseline(cli, expected)
+    report["inspectState"] = "NATIVE_SCHEMA_VERIFIED_WRITES_OFF"
+    report["schemaApplied"] = True
+    return report
+
+
 def plan():
     check_config()
     artifacts = migration_files()
@@ -301,11 +344,7 @@ def main():
             check_config()
             cli = Wrangler(args.wrangler)
             if args.action == "inspect":
-                identity = list_identity(cli)
-                names = remote_names(cli)
-                result = {"target": identity, "tables": names, "readOnly": True,
-                          "schemaApplied": names != [],
-                          "financeRelease": "NO_GO"}
+                result = inspect_stage(cli)
             else:
                 if os.environ.get("CI", "").lower() == "true" or os.environ.get("GITHUB_ACTIONS"):
                     stop("LIVE_D1_APPLY_FORBIDDEN_FROM_CI")
