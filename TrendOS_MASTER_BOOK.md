@@ -330,14 +330,6 @@ BUSINESS_CREATE_TEST_SENT=NO
 - Copy `cd7454cb8e3b7bc60608933d9114e826604e18ee` — Archive `b2788ecb4c187717e020321954a1ea449c1aa0d5` — REMOVE SHA in Crosswalk.
 
 
-### SERVER-20261017-68B — localhost workerd synthetic D1/DO runtime validated (2026-10-17)
-- **User approved continuing `go`, source-only / no Production:** [Draft PR #190](https://github.com/fawakhry/TrendOs/pull/190) on `release/server68-staging-qualification-20261016` now contains `wrangler.server68-local-runtime.toml` with separate fake D1 UUID, `server68_local_mirror_fixture.sql` fake order, and `server68_wrangle_local_runtime_smoke.mjs` launching a real **local** Wrangler worker + local SQLite D1 + local Durable Object. No production secrets/account/routes or live orders were accessed.
-- **Runtime CI evidence:** first [run 39065826023](https://github.com/fawakhry/TrendOs/actions/runs/39065826023) ran the 147 offline tests and dry-run successfully but local workerd did not support fixture compatibility_date 2026-10-16 (binary supported through 2026-10-13). Fixture-only date corrected; neither default stage nor production config changed. [run 39065882866](https://github.com/fawakhry/TrendOs/actions/runs/39065882866) then **SUCCESS 147/147 + actual local Worker**. Log: `SERVER68_LOCAL_REAL_WORKER=PASS; SQLITE_D1_SYNTHETIC=PASS; DO_NONCE_REPLAY=PASS; AUTH_DENY=PASS; NO_REMOTE_DEPLOY=TRUE`. Signed fake GET and fake row, unauthorized/expired/role/Origin/legacy deny, atomic repeated nonce 409. A61, SERVER-67, printshop policy CI also SUCCESS.
-- **Strict qualification limits:** local Workerd run is not Cloudflare-hosted Stage, not a remote Durable Object migration or proof of production Worker `trendos` security; active source version `803aa6a2` unchanged. `SEC-AP303-02=OPEN_HIGH`. R5 deploy workflow pinned to historical SHA still expects unprotected `/v1/mirror/sheets`=200; external consumer compatibility and real Apps Script deployment are not verified. Do not merge/deploy or run existing R5 production workflow.
-- **Cross-agent detail:** `autonomous-printshop/print-server/SERVER68_LOCAL_RUNTIME_20261017.md` plus `UBUNTU_SERVER_BOOK.md` SERVER-20261017-68B commit `ec9f4df813480e90cb32839854077d5145e15825`.
-- **Next authorization boundary:** explicit owner-controlled isolated Cloudflare non-production Worker+Durable Object+synthetic D1 provisioning (no `trendos-main`), then remote stage canary and consumer/R5 safe transition before separate production release and Ubuntu live-order approval. `REMOTE_STAGE=NOT_DEPLOYED` / `CLOUDFLARE_PRODUCTION_CHANGE=NO` / `UBUNTU_REAL=OFF`.
-
-
 ## BOOK-MIGRATION-20261017-023 — Entry623 verified three-part historical transfer
 - `EXACT_VERBATIM_MATCH=PASS` for **28,807** characters from active source, archived original, and three concatenated copy commits.
 - COPY commits: `48388199cb7ef9532307981fd15a4006a440780b`, `e2568963c4c0b4815a5ec2406c99c61932ca26f6`, `5c0b0698db086aa5303601d625449f62edddc7bf`.
@@ -354,42 +346,6 @@ BUSINESS_CREATE_TEST_SENT=NO
 
 ## BOOK-MIGRATION-20261017-026 — Entry626
 - `EXACT_VERBATIM_MATCH=PASS` (3227 chars), historical only; COPY `fc737d6340bd03863bfa550a338534cfafc1eada`, archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; REMOVE SHA in Crosswalk.
-
-
-### SERVER-20261017-68C — existing staging D1 ID confirmed separate (READ-ONLY)
-- Owner screenshots show `trendos-d1-staging` bound to `DB→trendos-staging`, UUID `bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6`; distinct from `trendos-main` UUID `5c4b92bf-e043-4f6e-bd6d-d514a92cd825`. D1 overview 11 tables/184 KB; dashboard 0 reads/writes in the displayed last 24h only; does not prove empty or unused. Worker `TRENDOS_CLOUD_WRITE` setting visually `true`; no mutation performed.
-- **Security/compatibility gate:** Existing staging DB cannot be treated as disposable. Review deployment/version, triggers, consumers and existing test content before changing bindings or seeding. SERVER-68 actual local Worker + fake D1/DO already PASS 147/147 in [run 39065882866](https://github.com/fawakhry/TrendOs/actions/runs/39065882866); Cloudflare hosted stage, DO migration, production protection and Ubuntu live link remain NOT DONE. Preserve separate `trendos` production and no production changes. Detailed reference `autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md` SERVER-20261017-68C on PR #190 branch.
-
-
-### SERVER-20261017-68D — staging Worker rollout history, continued release safety check
-- Owner Cloudflare `trendos-d1-staging` rollout history screenshot: latest `99e823b2`, `Wrangler`, `Manually deployed`, about one month earlier, shows 100% for its historical rollout. Older versions each show 100% **at their respective rollout**; this is not evidence multiple concurrent active versions. Active deployment screenshot previously displayed same prefix but `0%`, so current traffic/allocation remains uncertain, not assumed.
-- Existing staging D1 UUID `bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6` is separate from prod, but has 11 preexisting tables, and a Worker write-enabled variable. Thus **do not repurpose this Worker or staging DB before checking current triggers and consumers**, and no remote stage provisioning has occurred. Existing SERVER-68 local runtime smoke 147/147 PASS only. Detailed state in `UBUNTU_SERVER_BOOK.md` SERVER-68D on draft PR #190.
-- `STAGING_ROLLOUT_VERIFIED=YES`; `CURRENT_TRAFFIC=UNVERIFIED`; `CLOUDFLARE_CHANGE=NO`; `SEC-AP303-02=OPEN_HIGH`; `UBUNTU_CONNECTED=NO`.
-
-
-### SERVER-20261017-68E — staging Worker trigger inventory (owner Cloudflare screenshot)
-- `trendos-d1-staging` Settings → Trigger events shows **no Cron triggers, no Queue consumers, and no Email routing rules**. This excludes only the three named trigger types; it does **not** prove there are no HTTP/custom-route or service-binding consumers.
-- Existing staging DB `trendos-staging` is distinct from `trendos-main` but contains 11 tables; staging write variable was visually ON in earlier owner screenshot. Do not reuse, mutate or deploy over the worker until Metrics/HTTP consumers are checked and explicit stage change authorized. Source-only SERVER-68 local Workerd/synthetic D1/DO tests previously passed; hosted staging remains untouched.
-- Next step: Metrics over approximately the last 30 days, then routes/bindings if needed. No Cloudflare changes. Detail: `autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md` SERVER-20261017-68E on PR #190 branch.
-
-
-### SERVER-20261017-68G — staging Domains/Access pending, preserve Worker (owner screenshot)
-- Cloudflare `trendos-d1-staging → Production → Domains` screenshot shows production workers.dev URL `trendos-d1-staging.trendmall-contact.workers.dev` and preview wildcard enabled; `Custom Domains and Routes` table says `No custom domains`. Both URL rows say `Checking access...`; do not assume a protected or unprotected endpoint without Access/policy check. Production here is staging Worker's own environment, not `trendos` or `trendos-d1-api`.
-- Staging DB `trendos-staging` remains a separate UUID but with 11 pre-existing tables and cloud-write variable ON. Metrics in selected Oct 1–17 showed 0 invocations, not permanent inactivity. No Cloudflare changes, data reads, probes or deployment.
-- Follow up with **read-only Access tab**; keep stage reuse decision BLOCKED pending effective hostname protection and consumer inventory. Reference `autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md` SERVER-68G on PR #190 branch. `SEC-AP303-02=OPEN_HIGH`; `UBUNTU_REAL=OFF`.
-
-
-### SERVER-20261018-68H — staging Worker-specific Cloudflare Access absent (owner screenshot)
-- Owner Cloudflare `trendos-d1-staging → Production → Access` screenshot explicitly displays `This Worker is not protected by Access`, `No Worker-specific policy is configured. Traffic remains public unless a hostname or account policy applies.` No settings were changed. **Only Worker-specific Access absence is proven**; account/hostname policy, Worker code authorization and actual customer data exposure not determined.
-- Staging workers.dev endpoint is enabled; linked `trendos-staging` D1 separate from prod but contains 11 preexisting tables and stage write variable displayed ON. Therefore **do not repurpose stage, click Protect, or deploy blanket 403** before enumerating other clients and access layers. Existing secure-read code remains stacked Draft PRs #185/#187/#190, with 147/147 local CI + synthetic Workerd D1/DO proof; Cloudflare hosted stage not qualified.
-- Followup: read-only Cloudflare Zero Trust → Access → Applications / account hostname policies, then verify authorization in installed bundle and traffic consumers; avoid customer-bearing HTTP probes. Print-server evidence in `UBUNTU_SERVER_BOOK.md` SERVER-20261018-68H.
-- `WORKER_ACCESS_POLICY=NONE`; `HOSTNAME_ACCOUNT_ACCESS=UNKNOWN`; `SEC-AP303-02=OPEN_HIGH`; `PRODUCTION_CHANGE=NO`; `UBUNTU_LIVE_LINK=OFF`.
-
-
-### SERVER-20261018-68I — Zero Trust application list confirms no staging Access app
-- Owner screenshot of Cloudflare Zero Trust `Access → Applications` shows exactly 1 listed application, `matbagy-evaluations-pilot - Cloudflare Workers` with `Cloudflare account members` policy; **no app** for `trendos-d1-staging`. Prior staging Worker-specific Access tab explicitly says not protected by Access. This excludes a dedicated staging Cloudflare Access app, **not** hypothetical account/hostname-wide rules, WAF, or authorization built into installed Worker code; sensitive data exposure unproven.
-- Existing staging database `trendos-staging` has 11 tables / separate D1 UUID, Worker has writes flag ON and workers.dev URLs enabled. Hold reuse/deploy; continue with code/provenance/consumer assessment read-only before Access changes or remote stage use. Synthetic local server-68 CI previously passed 147/147; remote Cloudflare Stage and Ubuntu live link remain untested. See `UBUNTU_SERVER_BOOK.md` SERVER-68I on #190 branch.
-- `ZERO_TRUST_STAGE_APP=ABSENT_CONFIRMED`; `STAGING_CUSTOM_AUTH=UNKNOWN`; `SEC-AP303-02=OPEN_HIGH`; `PRODUCTION_CHANGED=NO`; `UBUNTU_LINK=OFF`.
 
 
 ## BOOK-MIGRATION-20261018-027 — Entry627
