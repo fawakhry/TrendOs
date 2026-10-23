@@ -646,5 +646,22 @@
       "entry685_original_tested_source_sha": "b64fe1d4574fb9b5360e7ec51c837a5be1399805",
       "note": "PR211 d17008e source snapshot in semantic matrix preceded concurrent Entry685/ACC229 work. It is retained as exact-commit historical evidence, not a claim about the latest PR211 head. Entry685/ACC229 source and EasyStore finance coverage belong to their independent agents/books. No repeated test or finance analysis."
     }
+  },
+  "current_no_loss_gate_20261023_22_anchor_editorial_patch_proposal_v1": {
+    "crosswalk_key": "book_agent_20261023_22_out_of_bounds_citation_editorial_patch_candidates_v1",
+    "date": "2026-10-23",
+    "catalog_sha": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "source_head": "748664dde452492cc2de27411da309568bb4882f",
+    "patches": "22_PAIRS_PROPOSED_NOT_APPLIED",
+    "large_semantic_signoff": 8,
+    "minor": 14,
+    "distinct_catalog_lines": 20,
+    "hypothetical_link_count": "467_OF_467_RETAINED",
+    "hypothetical_known_bounds": "ZERO_OVERRUN",
+    "actual_catalog_frozen": true,
+    "book_active": "OLD_MASTER",
+    "catalog_authority": "FROZEN_MIGRATION_ONLY",
+    "cutover": "NO_GO",
+    "production_mutations": 0
   }
 }
