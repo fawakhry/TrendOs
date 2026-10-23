@@ -986,3 +986,10 @@
 - Evidence boundary: this proves the service-auth-specific dashboard view is empty **for the selected window**, not that the Access Service Token never reached the edge or that Access/Worker generated the previous HTTP 403. No timestamps/Ray IDs of old requests were correlated; known-token failures, unknown token IDs and default logging behavior may differ. Do not re-run Ubuntu 403 unchanged or infer success/failure from aggregate counters.
 - Next owner single read-only action: open the **date/time range dropdown** displaying `Oct 23, 09:37 → Oct 23, 21:37` to inspect available wider intervals; do not select/change any interval until choices are visible. No Export to CSV, production requests, credentials, Cloudflare config mutations or physical machine activity.
 - `SERVICE_AUTH_LOG_FILTER=SHOW`; `LOG_RESULTS_IN_12H=NONE`; `HTTP403_CAUSE=UNRESOLVED`; `ACCESS_AUTHENTICATED=NOT_PROVEN`; `CLOUDFLARE_CONFIG_WRITE=NO`; `PR190=DRAFT`.
+
+### SERVER-20261023-106 — Service Auth log date-range choices (owner screenshot, 2026-10-23 ~21:44 Cairo)
+
+- Owner opened the read-only time-range dropdown on **Access authentication logs**, after selecting `Show service auth logs` (non-identity true). Current absolute window is `2026-10-23 09:37 AM → 2026-10-23 09:37 PM` Cairo.
+- Available options shown: Last 30 minutes, Last 1 hour, Last 6 hours, Last 12 hours, **Last 24 hours**; `Last 72 hours` and `Last week` are greyed out in the screenshot. Absolute time-range From/To fields and Apply button also present; NO timeframe change performed yet.
+- Single next owner action: click `Last 24 hours` (available) to extend service-auth log inspection backward without changing Access policy or sending a new Ubuntu request. Ask for results screenshot. If no records, keep HTTP403 cause unresolved and examine logging limits before any action.
+- `SHOW_SERVICE_AUTH_LOGS=YES`; `TIME_WINDOW_WIDENING=PROPOSED_NOT_YET_APPLIED`; `HTTP403_CAUSE=UNRESOLVED`; `CLOUDFLARE_CONFIGURATION_CHANGED=NO`; `PRODUCTION_TOUCHED=NO`.
