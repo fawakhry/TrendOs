@@ -290,5 +290,32 @@
     "unified_book_writer": "FROZEN_MIGRATION_ONLY",
     "owner_final_cutover_approval": false,
     "decision": "NO_GO_CUTOVER"
+  },
+  "current_no_loss_gate_checkpoint_20261023_after_67_sections": {
+    "date": "2026-10-23",
+    "replaces_current_counts_of": "current_no_loss_gate_checkpoint_20261023_after_60_sections",
+    "crosswalk_commit": "986ea0a16c99ffa4e50b56100e9875c4a19c0cde",
+    "prior_SERVER_sections": 21,
+    "prior_historical_entry_receipts": 26,
+    "prior_audit_checkpoints": 13,
+    "now_migrated_baseline_snapshots": 3,
+    "now_migrated_initial_owner_receipts": 4,
+    "total_sections_transferred_oct23": 67,
+    "total_source_characters_transferred_oct23": 100040,
+    "older_38_historical_unit_scope_separate": true,
+    "current_catalog_migration_marker_parity": "107/107_UNIQUE_BALANCED",
+    "old_master_reconstruction_for_latest_7": "PASS_BOTH_BATCHES",
+    "old_book_current_remaining_blob": "87a1fa48efb457fc92e60a3e974e7e1b78d2a961",
+    "catalog_current_blob": "c5d5ed7900b34a803c3b2c8423f35f99d0f9ca1f",
+    "owner_gate_still_active": true,
+    "SERVER61_explicit_owner_hold": true,
+    "Entries596_599_600_privacy_block": true,
+    "current_Cloudflare_SHA_verified": false,
+    "Google_single_writer_runtime_verified": false,
+    "all_256_test_outcomes_reconciled": false,
+    "owner_approved_cutover": false,
+    "old_book_writer": "ACTIVE_WRITE",
+    "unified_book_writer": "FROZEN_MIGRATION_ONLY",
+    "decision": "NO_GO"
   }
 }
