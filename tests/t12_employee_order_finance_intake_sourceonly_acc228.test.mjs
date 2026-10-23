@@ -82,6 +82,11 @@ function fixture(lanes=2,skipCapture=false){
    .run(KEY,'queue:'+String(i+1).padStart(2,'0'),ORDER_ID,
     ORDER_ID+'-'+String(i+1).padStart(2,'0'),JSON.stringify(canonical.queuePlans[i]));
  }
+ // ACC234: fixed original create-time in disposable SQLite test fixture.
+ for(const table of ['t12_prod_request_ledger','t12_prod_orders',
+  't12_prod_lines','t12_prod_events','t12_prod_outbox']){
+  raw.exec("UPDATE "+table+" SET created_at='2026-09-21 14:13:20'");
+ }
  let batches=0;
  const db={
   prepare(sql){
@@ -115,6 +120,7 @@ test('new source has no HTTP endpoint, T12/finance creation, or direct D1 financ
  assert.equal(POLICY.departmentApprovalsVerified,false);
  assert.equal(POLICY.comparesOriginalT12ActivityAndOutbox,true);
  assert.equal(POLICY.comparesCurrentT12RuntimeAndLastMutation,true);
+ assert.equal(POLICY.validatesOriginalCreateTimestamps,true);
  assert.equal(POLICY.financeWriteAuthorized,false);
  assert.equal(POLICY.productionRelease,'NO_GO');
 });
@@ -126,6 +132,7 @@ test('committed employee T12 with immutable at-create source and 2 full lanes yi
  assert.equal(res.body.officialCustomerId,C);
  assert.equal(res.body.orderId,ORDER_ID);
  assert.equal(res.body.lineCount,2);
+ assert.equal(res.body.sourceCreatedAt,'2026-09-21T14:13:20Z');
  assert.deepEqual(res.body.lines.map(l=>l.department),['طباعة','ليزر']);
  assert.deepEqual(res.body.lines.map(l=>l.lineId),['4323-01','4323-02']);
  assert.equal(res.body.officialCustomerOwnershipAttested,false);
@@ -184,9 +191,11 @@ test('missing/extra/cross-order/incorrectly assigned Print+Laser lines fail clos
  x.raw.exec("DELETE FROM t12_prod_lines WHERE line_id='4323-01'");
  assert.equal((await request(x)).body.code,'T12_SOURCE_LINE_SET_INCOMPLETE_OR_UNSUPPORTED');
  x.raw.prepare("INSERT INTO t12_prod_lines (line_id,order_id,request_key,ordinal,department,assigned_to,item_name,qty,priority,status,heat_press,fly_print) VALUES ('4323-01',?,?,1,'طباعة','وائل','FAKE MUG - طباعة',1,'عادي','طلب جديد',0,0)").run(ORDER_ID,KEY);
+ x.raw.exec("UPDATE t12_prod_lines SET created_at='2026-09-21 14:13:20' WHERE line_id='4323-01'");
  const original=JSON.parse(x.raw.prepare('SELECT canonical_json AS c FROM t12_prod_request_ledger WHERE request_key=?').get(KEY).c);
  x.raw.prepare("INSERT INTO t12_prod_outbox (request_key,event_key,order_id,line_id,event_type,status,payload_json) VALUES (?,'queue:01',?,?,'trend-master-status-intent','pending',?)")
   .run(KEY,ORDER_ID,ORDER_ID+'-01',JSON.stringify(original.queuePlans[0]));
+ x.raw.exec("UPDATE t12_prod_outbox SET created_at='2026-09-21 14:13:20' WHERE event_key='queue:01'");
  assert.equal((await request(x)).status,200);
  x.raw.prepare("INSERT INTO t12_prod_lines (line_id,order_id,request_key,ordinal,department,assigned_to,item_name,qty,priority,status,heat_press,fly_print) VALUES ('4323-03',?,?,3,'ليزر','جابر','UNEXPECTED',1,'عادي','طلب جديد',0,0)").run(ORDER_ID,KEY);
  assert.equal((await request(x)).body.code,'T12_SOURCE_LINE_SET_INCOMPLETE_OR_UNSUPPORTED');
@@ -276,6 +285,7 @@ test('ACC230 rejects missing or extra queue event per original Print and Laser s
  const original=JSON.parse(x.raw.prepare('SELECT canonical_json AS c FROM t12_prod_request_ledger').get().c);
  x.raw.prepare("INSERT INTO t12_prod_outbox (request_key,event_key,order_id,line_id,event_type,status,payload_json) VALUES (?, 'queue:02', ?, ?,'trend-master-status-intent','pending',?)")
   .run(KEY,ORDER_ID,ORDER_ID+'-02',JSON.stringify(original.queuePlans[1]));
+ x.raw.exec("UPDATE t12_prod_outbox SET created_at='2026-09-21 14:13:20' WHERE event_key='queue:02'");
  assert.equal((await request(x)).status,200);
  x.raw.prepare("INSERT INTO t12_prod_outbox (request_key,event_key,order_id,line_id,event_type,status,payload_json) VALUES (?, 'queue:03', ?, ?,'trend-master-status-intent','pending',?)")
   .run(KEY,ORDER_ID,ORDER_ID+'-01',JSON.stringify(original.queuePlans[0]));
@@ -415,6 +425,8 @@ test('ACC233 signs EXACT source-owned T12 order_created V1 envelope with no pers
  assert.equal(x.raw.prepare('SELECT total_changes() n').get().n,before);
  assert.equal(r.message.envelope.event_type,'order_created');
  assert.equal(r.message.envelope.contract_version,'ACCOUNTING_CONNECTOR_CONTRACT_V1');
+ assert.equal(r.message.envelope.occurred_at,'2026-09-21T14:13:20Z');
+ assert.equal(SIGNER_POLICY.timestampAnchoredToOriginalT12Create,true);
  assert.equal(r.message.envelope.payload.expected_line_count,2);
  assert.deepEqual(r.message.envelope.payload.lines.map(l=>l.department),['طباعة','ليزر']);
  assert.equal(r.message.envelope.payload.customer_id,C);
@@ -433,7 +445,11 @@ test('ACC233 signs EXACT source-owned T12 order_created V1 envelope with no pers
 }));
 test('ACC233 deterministic event identity/signature for retries but no replay ledger attested',()=>withFixture(async x=>{
  const key=await fakeSignKey();
- const a=await signed(x,key),b=await signed(x,key);
+ const a=await signed(x,key),b=await signOrder({
+  db:x.db,orderId:ORDER_ID,expectedOfficialCustomerId:C,
+  signKey:key,keyId:FIXTURE_KEY_ID,mode:'ISOLATED_SOURCE_ONLY',
+  nowMs:SIGN_TIME+120000
+ });
  assert.equal(a.success,true);assert.equal(b.success,true);
  assert.deepEqual(a.message,b.message);
  assert.equal(a.message.envelope.event_id,'t12:order_created:'+ORDER_ID);
@@ -505,6 +521,62 @@ test('ACC233 no absent capture, changed original item, or forged runtime signatu
  const r=await signed(x,key);
  assert.equal(r.code,'ORIGINAL_T12_SOURCE_NOT_QUALIFIED');
 },2));
+
+
+test('ACC234 original event timestamp stabilizes retries but unsigned history has a five-minute limit',()=>withFixture(async x=>{
+ const key=await fakeSignKey();
+ const a=await signed(x,key);
+ const b=await signOrder({db:x.db,orderId:ORDER_ID,expectedOfficialCustomerId:C,
+  signKey:key,keyId:FIXTURE_KEY_ID,mode:'ISOLATED_SOURCE_ONLY',
+  nowMs:SIGN_TIME+300000});
+ assert.equal(a.success,true);
+ assert.equal(b.success,true);
+ assert.deepEqual(a.message,b.message);
+ assert.equal(a.message.envelope.occurred_at,'2026-09-21T14:13:20Z');
+ const old=await signOrder({db:x.db,orderId:ORDER_ID,
+  expectedOfficialCustomerId:C,signKey:key,keyId:FIXTURE_KEY_ID,
+  mode:'ISOLATED_SOURCE_ONLY',nowMs:SIGN_TIME+300001});
+ assert.equal(old.code,'ORIGINAL_T12_CREATE_OUTSIDE_SIGNING_WINDOW');
+ assert.equal(old.connectorEventPublished,false);
+ assert.equal((await verifyOrder({message:a.message,verifyKey:key,
+  expectedKeyId:FIXTURE_KEY_ID,nowMs:SIGN_TIME+300001})).code,
+  'EXPIRED_OR_FUTURE_SOURCE_EVENT');
+}));
+test('ACC234 source time cannot be borrowed from changed ledger, order or line',()=>withFixture(async x=>{
+ for(const table of ['t12_prod_request_ledger','t12_prod_orders','t12_prod_lines']){
+  const where=table==='t12_prod_lines'?" WHERE line_id='4323-02'":'';
+  x.raw.exec("UPDATE "+table+" SET created_at='2026-09-21 14:15:30'"+where);
+  const r=await request(x);
+  assert.equal(r.status,409,table);
+  assert.equal(r.body.code,'T12_ORIGINAL_CREATE_TIMESTAMP_MISSING_OR_DRIFTED',table);
+  x.raw.exec("UPDATE "+table+" SET created_at='2026-09-21 14:13:20'"+where);
+  assert.equal((await request(x)).status,200,table);
+ }
+}));
+test('ACC234 activity/outbox creation timestamps cannot come from retry wall-clock',()=>withFixture(async x=>{
+ const key=await fakeSignKey();
+ for(const [table,where] of [
+  ['t12_prod_events'," WHERE event_key='activity'"],
+  ['t12_prod_outbox'," WHERE event_key='queue:02'"]
+ ]){
+  x.raw.exec("UPDATE "+table+" SET created_at='1970-01-01 00:00:00'"+where);
+  const r=await signed(x,key);
+  assert.equal(r.code,'ORIGINAL_T12_SOURCE_NOT_QUALIFIED',table);
+  x.raw.exec("UPDATE "+table+" SET created_at='2026-09-21 14:13:20'"+where);
+  assert.equal((await signed(x,key)).success,true,table);
+ }
+ x.raw.exec("UPDATE t12_prod_events SET created_at='2026-02-30 14:13:20' WHERE event_key='activity'");
+ assert.equal((await request(x)).body.code,'T12_ORIGINAL_CREATE_TIMESTAMP_MISSING_OR_DRIFTED');
+}));
+test('ACC234 rejects future creation and ambiguous local timestamp values',()=>withFixture(async x=>{
+ const key=await fakeSignKey();
+ const future=await signOrder({db:x.db,orderId:ORDER_ID,expectedOfficialCustomerId:C,
+  signKey:key,keyId:FIXTURE_KEY_ID,mode:'ISOLATED_SOURCE_ONLY',
+  nowMs:SIGN_TIME-61000});
+ assert.equal(future.code,'ORIGINAL_T12_CREATE_OUTSIDE_SIGNING_WINDOW');
+ x.raw.exec("UPDATE t12_prod_orders SET created_at='2026-09-21T14:13:20Z'");
+ assert.equal((await signed(x,key)).code,'ORIGINAL_T12_SOURCE_NOT_QUALIFIED');
+}));
 
 test('without D1 batch, broken transaction or broken schema return generic fail closed',async()=>{
  const lacking=await inspect({db:{prepare(){}},orderId:ORDER_ID,expectedOfficialCustomerId:C});
