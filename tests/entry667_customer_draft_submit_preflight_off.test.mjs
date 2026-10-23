@@ -92,6 +92,27 @@ test('any attached file including READY refuses T12 handoff, never loses R2 file
   assert.equal(x.body.officialOrderCreated,false);
  }
 });
+test('T12 preflight never silently drops laser print flags or source notes',async()=>{
+ for(const item of [
+  {...lines[0],department:'ليزر',heatPress:1},
+  {...lines[0],department:'ليزر',flyPrint:1},
+  {...lines[0],heatPress:2},
+  {...lines[0],flyPrint:-1},
+  {...lines[0],notes:'ملاحظة مهمة  '}
+ ]){
+  const x=await run(fake({items:[item]}));
+  assert.equal(x.status,409,JSON.stringify(item));
+  assert.equal(x.body.officialOrderCreated,false);
+ }
+ for(const item of [
+  {...lines[0],department:'ليزر',heatPress:0,flyPrint:0},
+  {...lines[0],department:'طباعة',heatPress:1,flyPrint:1,notes:'ملاحظة مهمة'}
+ ]){
+  const x=await run(fake({items:[item]}));
+  assert.equal(x.status,200,JSON.stringify(item));
+  assert.equal(x.body.officialOrderCreated,false);
+ }
+});
 test('bad source customer data, unsupported line and fake D1 failure fail shut',async()=>{
  for(const account of [
   {...owner,createdAtMs:10},
