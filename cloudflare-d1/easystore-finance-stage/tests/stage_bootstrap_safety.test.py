@@ -72,7 +72,10 @@ class OfflineWrangler:
                 raise b.GateError("SIMULATED_MIGRATION_APPLY_FAILURE")
             self.apply_files.append(name)
             if len(self.apply_files) == len(b.FILES):
-                self.present = expected_tables()
+                # D1's reserved storage table persists independently of the
+                # original EasyStore finance schema migrations.
+                self.present = sorted(set(expected_tables()) |
+                                      (set(self.present) & b.D1_RESERVED_STORAGE_TABLES))
             return '[{"success":true,"results":[]}]'
         raise AssertionError("UNRECOGNIZED_FAKE_WRANGLER_COMMAND")
 
@@ -89,6 +92,78 @@ class StageBootstrapTests(unittest.TestCase):
         self.assertEqual(report["financeWrites"], "OFF")
         self.assertFalse(any(c[:2] == ("d1", "export") or "--file" in c
                              for c in cli.commands))
+
+    def test_inspect_exact_cloudflare_storage_table_is_not_finance_schema(self):
+        cli = OfflineWrangler(present=["_cf_KV"])
+        report = b.inspect_stage(cli)
+        self.assertEqual(report["target"]["uuid"], b.STAGE_UUID)
+        self.assertEqual(report["tables"], ["_cf_KV"])
+        self.assertEqual(report["reservedStorageTables"], ["_cf_KV"])
+        self.assertEqual(report["userTables"], [])
+        self.assertEqual(report["inspectState"], "EMPTY_STAGE_UNMIGRATED")
+        self.assertFalse(report["schemaApplied"])
+        self.assertFalse(report["mayApplyMigrations"])
+        self.assertFalse(report["backupAndRestoreVerified"])
+        self.assertEqual(report["financeWrites"], "OFF")
+        self.assertEqual(report["financeRelease"], "NO_GO")
+        self.assertFalse(any("export" in c or "--file" in c
+                             for cmd in cli.commands for c in cmd))
+
+    def test_only_exact_cf_reserved_spelling_is_exempted(self):
+        for name in ("_cf_kv", "_cf_KV_backup", "_cf_KV2", "_cf_OTHER",
+                     "trendos_customer", "employee_accounting_unexpected"):
+            with self.subTest(name=name):
+                cli = OfflineWrangler(present=["_cf_KV", name])
+                report = b.inspect_stage(cli)
+                self.assertEqual(report["inspectState"],
+                                 "NONEMPTY_SCHEMA_UNQUALIFIED_STOP")
+                self.assertEqual(report["userTables"], [name])
+                self.assertFalse(report["schemaApplied"])
+                self.assertFalse(report["mayApplyMigrations"])
+                with tempfile.TemporaryDirectory() as folder:
+                    rejected = OfflineWrangler(present=["_cf_KV", name])
+                    with self.assertRaisesRegex(b.GateError, "EXISTING_STAGE_HAS_TABLES"):
+                        b.apply_stage(rejected, folder, b.STAGE_UUID,
+                                      "EXCLUSIVE_STAGE_CHANGE_WINDOW")
+                    self.assertEqual(rejected.apply_files, [])
+                    self.assertFalse(any(cmd[:2] == ("d1", "export")
+                                         for cmd in rejected.commands))
+
+    def test_native_schema_plus_cf_reserved_still_checks_canary_off(self):
+        cli = OfflineWrangler(present=["_cf_KV", *expected_tables()])
+        report = b.inspect_stage(cli)
+        self.assertTrue(report["schemaApplied"])
+        self.assertEqual(report["inspectState"], "NATIVE_SCHEMA_VERIFIED_WRITES_OFF")
+        self.assertEqual(report["reservedStorageTables"], ["_cf_KV"])
+        self.assertEqual(len(report["userTables"]), 22)
+        self.assertFalse(report["mayApplyMigrations"])
+        self.assertFalse(report["backupAndRestoreVerified"])
+
+    def test_synthetic_stage_apply_with_cf_storage_reservation_keeps_preflight(self):
+        # Offline FakeWrangler only, exercising the pre-existing owner gate,
+        # private export+restore, recheck and all original migrations.
+        # This is NOT a grant or a remote migration.
+        class ExportWithCfTable(OfflineWrangler):
+            def run(self, *cmd):
+                if cmd[:2] == ("d1", "export"):
+                    self.commands.append(cmd)
+                    target = Path(cmd[cmd.index("--output") + 1])
+                    target.write_text(
+                        "CREATE TABLE _cf_KV(key TEXT PRIMARY KEY, value BLOB)"
+                        " WITHOUT ROWID;\\n", encoding="utf-8")
+                    return ""
+                return super().run(*cmd)
+
+        with tempfile.TemporaryDirectory() as folder:
+            cli = ExportWithCfTable(present=["_cf_KV"])
+            evidence = b.apply_stage(cli, folder, b.STAGE_UUID,
+                                     "EXCLUSIVE_STAGE_CHANGE_WINDOW")
+            self.assertEqual(cli.apply_files, b.FILES)
+            self.assertEqual(evidence["backup"]["restoredTables"], 0)
+            self.assertEqual(evidence["backup"]["restoredReservedTables"], 1)
+            self.assertEqual(evidence["remoteFinanceWrites"], "OFF")
+            self.assertIn("_cf_KV", cli.present)
+            self.assertEqual(len(b.application_table_names(cli.present)), 22)
 
     def test_inspect_partial_or_mixed_schema_never_certified(self):
         native = expected_tables()
