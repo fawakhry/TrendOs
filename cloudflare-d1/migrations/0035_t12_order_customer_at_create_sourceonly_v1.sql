@@ -24,6 +24,12 @@ CREATE TABLE IF NOT EXISTS t12_order_customer_at_create_v1 (
  customer_version INTEGER NOT NULL CHECK(customer_version>=1),
  actor_subject TEXT NOT NULL CHECK(length(trim(actor_subject)) BETWEEN 3 AND 140),
  evidence_ref TEXT NOT NULL CHECK(length(trim(evidence_ref)) BETWEEN 12 AND 180),
+ -- Existing Orders Edge employee-session audit ONLY; neither account identity
+ -- nor customer ownership is attested by these source-only selectors.
+ selector_role TEXT NOT NULL CHECK(selector_role IN ('admin','service')),
+ selector_session_sha256 TEXT NOT NULL CHECK(length(selector_session_sha256)=64),
+ selector_issued_at INTEGER NOT NULL CHECK(selector_issued_at>0),
+ selector_expires_at INTEGER NOT NULL CHECK(selector_expires_at>selector_issued_at),
  capture_status TEXT NOT NULL DEFAULT 'SOURCE_ONLY_NOT_ATTESTED'
    CHECK(capture_status='SOURCE_ONLY_NOT_ATTESTED'),
  finance_authorized INTEGER NOT NULL DEFAULT 0 CHECK(finance_authorized=0),
