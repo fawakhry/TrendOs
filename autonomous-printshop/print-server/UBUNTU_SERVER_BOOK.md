@@ -946,3 +946,11 @@
 - Owner-provided Cloudflare screenshot: Cloudflare Access Applications list visible; Zero Trust → **Insights & Logs** navigation menu expanded and **Logs** subitem visible (alongside Overview, Dashboards, Digital experience). This is navigation only, no authentication logs queried or results observed yet.
 - Next single owner action: click **Logs**, then provide screenshot before selecting any log type/filter or claiming a Service Token rejection cause.
 - No Access policy, token, Worker, D1, Ubuntu, production, customer order, print or laser changes. `HTTP403_ROOT_CAUSE=UNRESOLVED`; `AUTH_LOGS_READ=NOT_YET`.
+
+
+### SERVER-20261023-101 — Cloudflare One Logs catalog read-only screenshot (2026-10-23 ~21:36 Cairo)
+
+- Evidence type: OWNER_SCREENSHOT (Cloudflare One > Zero Trust > Insights & Logs > Logs). The visible *log-category catalog* includes **Admin activity logs**, **Access authentication logs** (Access/Applications), **DNS query logs**, **Network logs**, **HTTP request logs** (Gateway), **SSH command logs**, SCIM, Posture and Cloud & SaaS policy logs.
+- **No entries or authentication attempts were actually queried or seen** at this checkpoint. These categories must not be conflated: Gateway HTTP request logs are not automatically inbound Access-authentication attempts; Admin activity logs are configuration events, not proof of machine identity. Cloudflare Access UI authentication logs can focus on identity login events; service-token/non-identity diagnostics may require Analytics GraphQL. An empty or non-applicable UI list is **not proof** the machine was never seen by Access.
+- Next single owner action: click the **Access authentication logs** card (top row, middle) for read-only inspection, avoiding any export or sharing credentials or customer data. Record what the page actually shows before reasoning about the 403.
+- Existing access policy and Worker remain unchanged; `HTTP403_CAUSE=UNRESOLVED`, `SERVICE_TOKEN_AUTHENTICATED=NOT_PROVEN`, `UBUNTU_CHANGED=NO`, `PRODUCTION_TOUCHED=NO`, `DEVICE_EXECUTION=OFF`.
