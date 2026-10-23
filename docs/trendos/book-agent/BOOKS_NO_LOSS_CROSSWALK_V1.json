@@ -16389,5 +16389,174 @@
       "PR211_PR221_COMBINED": false
     },
     "prior_completed_unchanged": "Existing Entry683–687, 14 semantic matrix, R2 and EOF inventories not rerun"
+  },
+  "book_agent_20261023_synthetic_20_source_runtime_cases_v1": {
+    "date": "2026-10-23",
+    "source_commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "book_head_before_record": "45a05048b0702bc0fd716d086f70525062c5fa75",
+    "evidence_level": "ISOLATED_SYNTHETIC_SOURCE_FUNCTION_EXECUTION_ONLY",
+    "CI_VERIFIED": "NOT_RUN_FOR_THIS_NEW_SET",
+    "STAGING_VERIFIED": "NO",
+    "PRODUCTION_VERIFIED": "NO",
+    "harness": "In a fresh tool V8 isolate fetched pinned original UTF-8 modules from GitHub, removed import/export syntactic wrappers without changing function bodies, supplied offline stub dependencies/URL/Headers/Response/DB/R2, invoked original functions and request handlers. All phones/order IDs/blob bytes are fabricated. Does not run native Cloudflare runtime, production configs, full-module integration, Cloudflare Actions or deployed Worker.",
+    "source_files": [
+      {
+        "path": "cloudflare-d1/src/t12-customer-lane-policy.mjs",
+        "blob": "951b6760284eec2a7ffc5de31e308077a9f42635",
+        "functions": [
+          "sameCustomerIdentity",
+          "customerLaneIdentityMaterial",
+          "partitionCustomerLanes"
+        ]
+      },
+      {
+        "path": "cloudflare-d1/src/t12-cloud-client-key-admission.mjs",
+        "blob": "ae407895ba6c63692402b0877e4a331a35b8f00e",
+        "functions": [
+          "classifyT12ClientRequestKey"
+        ]
+      },
+      {
+        "path": "cloudflare-d1/src/employee-comms-native-v1.mjs",
+        "blob": "f415d06ccd15ba241d679c61b7afeb6ec904e4b8",
+        "handler": "handleEmployeeCommsNativeRequest"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-content-native-v1.mjs",
+        "blob": "fab5eeeca0ecc9312380054b32f01a44639f4664",
+        "handler": "handleEmployeeContentNativeRequest"
+      }
+    ],
+    "t12_cases": [
+      {
+        "case": "registered_phones_equal",
+        "observed_matches_expected": true
+      },
+      {
+        "case": "same_name_missing_old_phone",
+        "observed_matches_expected": true
+      },
+      {
+        "case": "same_name_different_known_phones",
+        "observed_matches_expected": true
+      },
+      {
+        "case": "arabic_digit_phone_normalization",
+        "observed_matches_expected": true
+      },
+      {
+        "case": "external_same_external_id_different_phone",
+        "observed_matches_expected": true
+      },
+      {
+        "case": "external_missing_legacy_id_phone_fallback",
+        "observed_matches_expected": true
+      },
+      {
+        "case": "registered_external_cross_mode_rejected",
+        "observed_matches_expected": true
+      },
+      {
+        "case": "lane_same_name_missing_phone_blocks_print",
+        "observed_matches_expected": true
+      },
+      {
+        "case": "lane_closed_status_not_blocked",
+        "observed_matches_expected": true
+      },
+      {
+        "case": "phone_claim_material_requires_10_digits",
+        "observed_matches_expected": true
+      },
+      {
+        "case": "external_id_3_digits_admitted_operationally",
+        "observed_matches_expected": true
+      },
+      {
+        "case": "valid_key_namespace_not_authorization",
+        "observed_matches_expected": true
+      },
+      {
+        "case": "far_future_key_accepted_by_namespace",
+        "observed_matches_expected": true
+      },
+      {
+        "case": "legacy_key_never_create_authorized",
+        "observed_matches_expected": true
+      },
+      {
+        "case": "short_suffix_refused",
+        "observed_matches_expected": true
+      },
+      {
+        "case": "key_whitespace_refused",
+        "observed_matches_expected": true
+      }
+    ],
+    "r2_cases": [
+      {
+        "case": "comms_file_get_without_token_origin_allowed_visibility_zero_fixture",
+        "status": 200,
+        "r2_get_calls": 1,
+        "employee_auth_calls": 0,
+        "bytes": "FAKE_SYNTHETIC_ONLY",
+        "expected_source_behavior_confirmed": true
+      },
+      {
+        "case": "comms_file_get_without_token_disallowed_origin",
+        "status": 200,
+        "r2_get_calls_cumulative": 2,
+        "employee_auth_calls": 0,
+        "expected_source_behavior_confirmed": true
+      },
+      {
+        "case": "content_file_get_without_token_origin_allowed_visibility_zero_fixture",
+        "status": 200,
+        "r2_get_calls": 1,
+        "employee_auth_calls": 0,
+        "expected_source_behavior_confirmed": true
+      },
+      {
+        "case": "content_file_get_without_token_disallowed_origin",
+        "status": 403,
+        "r2_get_calls_cumulative": 1,
+        "employee_auth_calls": 0,
+        "expected_source_behavior_confirmed": true
+      }
+    ],
+    "count": 20,
+    "observed_predicates_confirmed": 20,
+    "unexpected_test_outcomes": 0,
+    "interpretation": "PASS means the observed behavior matched the SOURCE-level expectation. HTTP 200 absent authorization is a failed security requirement for private resources IF that handler is deployed and object is private. A passing reproduction is NOT evidence of security or a proven production incident. CORS Origin blocking is not sufficient file ACL.",
+    "observations": [
+      "If historical registered-row phone is missing, normalized name alone matched and blocked PRINT while LASER remained allowed, even though that is not official finance customer ownership.",
+      "Valid cloud request namespace and far-future timestamp qualified syntactically, but classifier returned createAuthorized=false; issuance/session ownership is not implied.",
+      "When synthetic D1 returned R2 metadata for nonexistent real IDs and FILES mock returned fake bytes, both handlers performed R2.get before an employee session check. Comms handler accepted disallowed-origin file request, Content rejected it before R2.get."
+    ],
+    "pending_owner_gates": [
+      "PRIVATE_R2_FILE_ACL_AND_DEPLOYED_SHA",
+      "R2_VISIBILITY_TO_CUSTOMER",
+      "T12_NAME_FALLBACK_ADMISSION_POLICY",
+      "REQUEST_KEY_TRUSTED_ISSUER_AND_CLOCK_SKEW_POLICY"
+    ],
+    "protected_authority": {
+      "old": "ACTIVE_WRITE",
+      "new": "FROZEN_MIGRATION_ONLY",
+      "cutover": "NO_GO",
+      "finance": "EASYSTORE",
+      "deployed_sha": "UNVERIFIED",
+      "r2_binary": "UNVERIFIED",
+      "ownership": "NO",
+      "google_live_customer_actions": "0/9 VERIFIED"
+    },
+    "mutations": {
+      "GitHub_code": 0,
+      "CI_workflow_runs_started": 0,
+      "D1": 0,
+      "R2": 0,
+      "Cloudflare_deploy": 0,
+      "EasyStore": 0,
+      "production": 0
+    }
   }
 }
