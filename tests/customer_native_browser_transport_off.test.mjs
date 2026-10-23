@@ -25,6 +25,10 @@ const goodBody = {
   success: true, readOnly: true, source: 'customer-d1-native-read-v0',
   lines: [goodLine], hasMore: false
 };
+const goodLogin = {
+  success:true,customerSessionIssued:true,source:'d1-native-customer-login-v0',
+  token:'e'.repeat(64),expiresAtMs:Date.now()+600000
+};
 function harness(opts = {}) {
   const downstreamCalls = [], nativeCalls = [];
   let response = opts.response ?? goodBody;
@@ -41,11 +45,11 @@ function harness(opts = {}) {
       }
       return {
         ok: true, status: 200, text: async () =>
-          opts.rawResponse ?? JSON.stringify(response)
+          opts.rawResponse ?? JSON.stringify(url.endsWith('/login') ? (opts.loginResponse ?? goodLogin) : response)
       };
     }
   };
-  vm.runInNewContext(source, { window }, { filename: 'customer-native-browser-transport-v0.js' });
+  vm.runInNewContext(source, { window, AbortController, setTimeout, clearTimeout }, { filename: 'customer-native-browser-transport-v0.js' });
   const downstream = (...args) => {
     downstreamCalls.push(args);
     return opts.legacyResult ?? { success: true, from: 'legacy' };
@@ -96,9 +100,9 @@ test('employee and noncustomer paths always bypass adapter, even if customer fla
   assert.equal(h.nativeCalls.length, 0);
 });
 
-test('enabled customer route blocks eight unwired customer actions with no Google fallback', async () => {
+test('enabled customer route blocks seven unwired customer actions with no Google fallback', async () => {
   const h = harness({ enabled: true });
-  for (const action of ACTIONS.filter(x => x !== 'getCustomerOrders')) {
+  for (const action of ACTIONS.filter(x => !['getCustomerOrders','customerLogin','customerLogout'].includes(x))) {
     await assert.rejects(() => h.call(action, {password:'PRIVATE',...GOOGLE_LEGACY}),
       { code: 'CUSTOMER_NATIVE_ACTION_NOT_WIRED' });
   }
@@ -185,7 +189,7 @@ test('actual app.js secure API assignment invokes adapter while keeping employee
   h.window.TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED = true;
   await assert.rejects(
     () => h.window.trendosSecureApiV1922('customerLogin',{password:'PRIVATE'}),
-    {code:'CUSTOMER_NATIVE_ACTION_NOT_WIRED'}
+    {code:'CUSTOMER_NATIVE_LOGIN_INPUT_INVALID'}
   );
   const b = await h.window.trendosSecureApiV1922('getCustomerOrders',GOOGLE_LEGACY);
   assert.equal(b.success,true);
@@ -205,4 +209,95 @@ test('native mode is strict boolean true; truthy strings cannot flip OFF', async
   }
   assert.equal(h.nativeCalls.length, 0);
   assert.equal(h.downstreamCalls.length, 6);
+});
+
+test('ON Native login POST maps only verified synthetic response and keeps bearer in-memory',async()=>{
+  const h=harness({enabled:true,issuer:null});
+  delete h.window.trendosCustomerNativeBearerV0;
+  const result=await h.call('customerLogin',{
+    customerCode:'PC-FAKE-1',password:'FAKE-Password-NotReal-2026!',
+    legacyGoogleToken:'LEGACY_PRIVATE'
+  });
+  assert.equal(result.success,true);
+  assert.equal(result.customer.customerCode,'PC-FAKE-1');
+  assert.equal(result.customer.token,'NATIVE_SESSION_IN_MEMORY');
+  assert.equal(result.customer.nativeSession,true);
+  assert.doesNotMatch(JSON.stringify(result),/'e'{64}|LEGACY_PRIVATE/);
+  assert.equal(h.nativeCalls.length,1);
+  const request=h.nativeCalls[0];
+  assert.equal(request.url,HOST+'/v1/customer/native/login');
+  assert.equal(request.init.method,'POST');
+  assert.equal(request.init.redirect,'error');
+  assert.equal(request.init.credentials,'omit');
+  const sent=JSON.parse(request.init.body);
+  assert.deepEqual(sent,{portalCode:'PC-FAKE-1',password:'FAKE-Password-NotReal-2026!'});
+  assert.ok(!request.init.headers.authorization,'login does not use Google session');
+  assert.doesNotMatch(JSON.stringify(request),/LEGACY_PRIVATE/);
+  const orders=await h.call('getCustomerOrders',GOOGLE_LEGACY);
+  assert.equal(orders.success,true);
+  assert.equal(h.nativeCalls[1].init.headers.authorization,'Bearer '+'e'.repeat(64));
+  assert.equal(h.downstreamCalls.length,0);
+});
+test('after Native login, flag OFF fails closed for customer while employee stays unchanged',async()=>{
+  const h=harness({enabled:true});
+  await h.call('customerLogin',{customerCode:'PC-FAKE-1',password:'FAKE-Password-NotReal-2026!'});
+  h.window.TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED=false;
+  await assert.rejects(()=>h.call('getCustomerOrders'),{code:'CUSTOMER_NATIVE_MODE_MISMATCH'});
+  await assert.rejects(()=>h.call('customerLogout'),{code:'CUSTOMER_NATIVE_MODE_MISMATCH'});
+  assert.equal(h.downstreamCalls.length,0);
+  assert.deepEqual(await h.call('getRows',{username:'EMPLOYEE'}),{success:true,from:'legacy'});
+  assert.equal(h.downstreamCalls.length,1);
+});
+test('Native logout drops in-memory bearer without forwarding to Google or pretending server revoked',async()=>{
+  const h=harness({enabled:true});
+  await h.call('customerLogin',{customerCode:'PC-FAKE-1',password:'FAKE-Password-NotReal-2026!'});
+  const result=await h.call('customerLogout',GOOGLE_LEGACY);
+  assert.equal(result.success,true);
+  assert.equal(result.serverSessionRevoked,false);
+  assert.equal(h.nativeCalls.length,1);
+  assert.equal(h.downstreamCalls.length,0);
+  await assert.rejects(()=>h.call('getCustomerOrders'),{code:'CUSTOMER_NATIVE_SESSION_NOT_AVAILABLE'});
+});
+test('Native login fails closed for unqualified response and never sends password to Google',async()=>{
+  const variants=[
+    [{responseStatus:401},'CUSTOMER_NATIVE_LOGIN_REJECTED'],
+    [{responseStatus:503},'CUSTOMER_NATIVE_LOGIN_REJECTED'],
+    [{rejectFetch:true},'CUSTOMER_NATIVE_LOGIN_NETWORK_UNAVAILABLE'],
+    [{rawResponse:'not json'},'CUSTOMER_NATIVE_LOGIN_RESPONSE_INVALID'],
+    [{loginResponse:{...goodLogin,source:'legacy-google'}},'CUSTOMER_NATIVE_LOGIN_RESPONSE_UNQUALIFIED'],
+    [{loginResponse:{...goodLogin,token:'BAD'}},'CUSTOMER_NATIVE_LOGIN_RESPONSE_UNQUALIFIED'],
+    [{loginResponse:{...goodLogin,expiresAtMs:Date.now()-10000}},'CUSTOMER_NATIVE_LOGIN_RESPONSE_UNQUALIFIED']
+  ];
+  for(const [opts,code] of variants){
+    const h=harness({enabled:true,...opts});
+    await assert.rejects(()=>h.call('customerLogin',{customerCode:'PC-FAKE-1',
+      password:'FAKE-Password-NotReal-2026!'}),{code});
+    assert.equal(h.downstreamCalls.length,0);
+  }
+});
+test('native source-only app.js save/load functions do not persist or restore native bearer',()=>{
+  const anchor='  function saveCustomerSession() {';
+  const start=appSource.indexOf(anchor),end=appSource.indexOf('  function clearCustomerSession() {',start);
+  assert.ok(start>=0&&end>start);
+  const sessionMap=new Map(),localMap=new Map();
+  const storage=(map)=>({
+    setItem(k,v){map.set(k,v);},
+    removeItem(k){map.delete(k);},
+    getItem(k){return map.get(k)??null;}
+  });
+  const window={TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED:true};
+  const state={customer:{customerCode:'PC-FAKE-1',token:'NATIVE_SESSION_IN_MEMORY',
+    nativeSession:true}};
+  const context=vm.createContext({state,sessionStorage:storage(sessionMap),
+    localStorage:storage(localMap),window});
+  vm.runInContext(appSource.slice(start,end),context);
+  vm.runInContext('saveCustomerSession()',context);
+  assert.equal(sessionMap.size,0,'native sessions never persisted to sessionStorage');
+  assert.equal(localMap.size,0,'native sessions never persisted to localStorage');
+  assert.equal(vm.runInContext('loadCustomerSession()',context),false,'native mode never reloads legacy session');
+  state.customer={customerCode:'PC-LEGACY',token:'OLD_GOOGLE_TOKEN'};
+  window.TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED=false;
+  vm.runInContext('saveCustomerSession()',context);
+  assert.equal(sessionMap.has('matbagy_platform_customer_session'),true,'OFF legacy behavior preserved');
+  assert.equal(vm.runInContext('loadCustomerSession()',context),true,'legacy restore unchanged OFF');
 });

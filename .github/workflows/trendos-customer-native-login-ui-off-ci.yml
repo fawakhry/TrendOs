@@ -1,0 +1,48 @@
+name: TrendOS Customer Native Login UI Handshake OFF
+on:
+  push:
+    branches:
+      - feat/zero-google-customer-native-login-ui-handshake-off-20261023
+  pull_request:
+    paths:
+      - 'customer-native-browser-transport-v0.js'
+      - 'app.js'
+      - 'tests/customer_native_browser_transport_off.test.mjs'
+      - '.github/workflows/trendos-customer-native-login-ui-off-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  customer-ui-login-source-off:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Browser adapter syntax and exact source-only UI tests
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          OPENAI_API_KEY: ''
+        run: |
+          set -euo pipefail
+          node --check customer-native-browser-transport-v0.js
+          node --check app.js
+          node --test tests/customer_native_browser_transport_off.test.mjs
+      - name: Original isolated Native login server contract regressions
+        run: |
+          node --test tests/customer_native_login_http_off.test.mjs
+      - name: Prove no live customer change
+        run: |
+          grep -Eq 'TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED[[:space:]]*=[[:space:]]*false' config.js
+          if grep -q 'customer-portal-native-login-http-off-v0' cloudflare-d1/src/index_v2.js; then
+            echo 'ERROR: Source-only customer Native login was imported into Worker'; exit 1
+          fi
+          echo 'CUSTOMER_PLATFORM_UI_SOURCE_ONLY=YES'
+          echo 'NATIVE_CUSTOMER_BEARER_PERSISTENCE=DISABLED'
+          echo 'SOURCE_HTTP_LOGIN_NOT_DEPLOYED=YES'
+          echo 'ZERO_GOOGLE_LIVE_CUSTOMER_RETIRED=0_OF_9'
