@@ -36,10 +36,19 @@ ONLY the safe identity/table-name metadata, not backup contents or tokens.
 python3 cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py inspect
 ```
 
-Interpretation (ACC238 strict read-only provider proof):
-- `EMPTY_STAGE_UNMIGRATED`: exact UUID confirmed and no user tables; NOT
-  authorization to apply. Owner-confirmed exclusive window and private backup
-  restore are still required.
+Interpretation (ACC238/ACC240 strict read-only provider proof):
+Cloudflare D1 documents the exact table name `_cf_KV` as a RESERVED storage
+table (https://developers.cloudflare.com/d1/best-practices/import-export-data/).
+Do NOT query, modify, drop, or export its contents separately. The script
+reports it in `tables` / `reservedStorageTables`, excludes ONLY this exact
+name from `userTables`, and refuses every other unknown table name (even a
+lookalike starting `_cf_`). The owner's authenticated 2026-10-24 read-only
+inspection of UUID `c2fe1a54-90f5-4e6f-9d51-80ce23e21328` returned
+`tables=["_cf_KV"]`; this is NO native finance schema yet.
+
+- `EMPTY_STAGE_UNMIGRATED`: exact UUID confirmed, no application/user tables
+  beyond Cloudflare's exact reserved `_cf_KV`; NOT authorization to apply.
+  Owner-confirmed exclusive window and private backup restore are still required.
 - `NONEMPTY_SCHEMA_UNQUALIFIED_STOP`: unexpected, missing, or mixed tables;
   `schemaApplied=false`. STOP — no reapply, drops, or guessed repairs.
 - `NATIVE_SCHEMA_VERIFIED_WRITES_OFF`: all 22 original native table names
