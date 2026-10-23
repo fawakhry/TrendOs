@@ -120,6 +120,28 @@ test('untrusted IDs / missing source or SQL read failure never become authority'
    noGo(broken);assert.equal(broken.code,'OFFICIAL_SOURCE_READ_UNAVAILABLE');
  }finally{db.close()}
 });
+test('asynchronous Cloudflare D1 style {results} / Promise first remains NO_GO',async t=>{
+ const {db,wrapper}=dbSource();t.after(()=>db.close());
+ db.exec('ALTER TABLE t12_prod_orders ADD COLUMN customer_id TEXT REFERENCES t12_customers(customer_id)');
+ db.prepare('UPDATE t12_prod_orders SET customer_id=? WHERE order_id=?').run('CUS-FAKE-1','FAKE-ORDER-1');
+ const asyncD1={
+   prepare(sql){
+     const original=wrapper.prepare(sql);
+     return {
+       all:async()=>({results:original.all()}),
+       first:async()=>original.first(),
+       bind(...args){
+         const bound=original.bind(...args);
+         return {all:async()=>({results:bound.all()}),first:async()=>bound.first()};
+       }
+     };
+   }
+ };
+ const result=await inspectOfficialT12OrderCustomerShape(asyncD1,proof());
+ noGo(result);
+ assert.equal(result.code,'RELATIONAL_SHAPE_ONLY_UNATTESTED');
+ assert.equal(result.sourceShapeQualified,true);
+});
 test('ACC222 source-only tests are not owner deployment approval',()=>{
  console.log('ACC222_OFFICIAL_CORE_CUSTOMER_FK_EXISTING=ABSENT');
  console.log('ACC222_EXTERNAL_CUSTOMER_ID_NOT_A_FINANCE_FK=PASS');
