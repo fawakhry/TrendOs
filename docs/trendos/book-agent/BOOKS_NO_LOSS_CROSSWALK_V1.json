@@ -14047,5 +14047,146 @@
     "no_deploy": true,
     "no_external_project_change": true,
     "no_private_raw_data_copied": true
+  },
+  "book_agent_20261023_all_pinned_catalog_links_and_entry682_provenance": {
+    "date": "2026-10-23",
+    "pinned_repository_head_before_checkpoint": "d7c12dcfb92ea1bde6cd02f110ff622f477cc98f",
+    "old_master_blob_before_checkpoint": "480fff69a81c82049bab6a29cf57bff7c8d6a055",
+    "catalog_frozen_blob": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "evidence_method": "EXACT_SHA_LINK_PATH_IN_58_RESOLVED_COMMIT_TREES_FROM_GITHUB; ALL_UNTRUNCATED; TARGET_FILE_BLOB_EXISTS; NOT_FULL_CONTENT_OR_LINE_ANCHOR_CHECK",
+    "catalog_url_family_counts": {
+      "pinned_blob": 578,
+      "branch_blob": 11,
+      "tree": 2,
+      "actions": 32,
+      "pr": 20,
+      "commit": 36,
+      "other": 0
+    },
+    "pinned_file_urls": {
+      "occurrences": 578,
+      "distinct_target_urls": 523,
+      "distinct_commit_refs": 58,
+      "valid_path_targets": 578,
+      "broken_path_targets": 0,
+      "source": "58 Git trees at respective immutable SHA",
+      "tree_truncated_count": 0
+    },
+    "branch_blob_urls": {
+      "occurrences": 11,
+      "valid_path_targets": 11,
+      "broken_path_targets": 0,
+      "pin_trees": [
+        {
+          "branch": "agent/trendos-book-audit-v1-20261014",
+          "head_at_link_check": "d7c12dcfb92ea1bde6cd02f110ff622f477cc98f",
+          "checked": 2
+        },
+        {
+          "branch": "archive/trendos-books-before-single-book-20261016",
+          "head_at_link_check": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+          "checked": 3
+        },
+        {
+          "branch": "release/server68-staging-qualification-20261016",
+          "head_at_link_check": "250f06c3994d8edde631f23ea7ee2e76050fda25",
+          "checked": 6
+        }
+      ]
+    },
+    "archive_recovery_branches": [
+      "archive/trendos-books-before-single-book-20261016",
+      "archive/trendos-before-legacy-cleanup-20261016"
+    ],
+    "catalog_local_relative_paths": {
+      "previously_checked": 40,
+      "broken": 0,
+      "proof_scope": "CURRENT_TREE_PATH_ONLY_PRIOR_BOOK_AGENT_CHECKPOINT"
+    },
+    "unverified_scope": [
+      "LINE_NUMBER_FRAGMENT_EXISTS_AND_MATCHES_CONTENT",
+      "OTHER_GITHUB_ACTIONS_LINK_TARGETS_EXCEPT_SELECTED_ENTRY682",
+      "OTHER_PULL_REQUEST_LINK_TARGETS_EXCEPT_PR220_AND_PR221",
+      "OTHER_COMMIT_LINK_TARGETS",
+      "SEMANTIC_CODE_CALL_GRAPH",
+      "STAGING_DEPLOYED_SHA",
+      "PRODUCTION_BUSINESS_FLOW"
+    ],
+    "active_new_entry": {
+      "entry": 682,
+      "source": "TrendOS_MASTER_BOOK.md ACTIVE_WRITE",
+      "status": "SOURCE_ONLY_OFF_NOT_APPLIED",
+      "classification": "ACTIVE_ENGINEERING_NOTE_KEEP_OLD",
+      "targeted_catalog_chapters": [
+        10,
+        16,
+        20,
+        21,
+        32
+      ],
+      "pr_pins": [
+        {
+          "pr": 220,
+          "head": "19f7164f4da1aff7e613f94977de7e726fefb352",
+          "state": "OPEN_DRAFT_UNMERGED",
+          "completed_success_runs": [
+            39995214951,
+            39995215037,
+            39995215128,
+            39995215055
+          ]
+        },
+        {
+          "pr": 221,
+          "head": "98d4f34beb614776249f24b354cfc1552e1595d9",
+          "state": "OPEN_DRAFT_UNMERGED",
+          "completed_success_runs": [
+            39995222974,
+            39995222997,
+            39995223108,
+            39995222884,
+            39995222921
+          ]
+        }
+      ],
+      "evidence_files_at_pr220": [
+        {
+          "path": "cloudflare-d1/migrations/0039_customer_portal_native_draft_seal_v1.sql",
+          "blob": "66cadcb3dc3518bd5bf3fe1b69e0e8aab3aa0713",
+          "observed_trigger_definitions": 10
+        },
+        {
+          "path": "cloudflare-d1/src/customer-portal-native-draft-seal-v0.mjs",
+          "blob": "08dd38c35b09e15a8671a1da2c2c07e09d7455fd"
+        },
+        {
+          "path": "tests/entry682_customer_draft_immutable_seal_off.test.mjs",
+          "blob": "7c90778f36a29290c99aae873df22d59b97e41c8"
+        },
+        {
+          "path": "tests/entry682_customer_draft_immutable_seal_sqlite.test.py",
+          "blob": "5c99eae1b3ef1eeb6f42a3b2486935d506b46ef9"
+        }
+      ],
+      "selected_exact_head_ci": "9/9_COMPLETED_SUCCESS_NOT_REEXECUTED_BY_BOOK_AGENT",
+      "owner_gates": [
+        "NO_APPROVED_MIGRATION",
+        "NO_DEPLOYED_OR_LIVE_D1_SEAL",
+        "NO_R2_BINARY_VERIFICATION",
+        "NO_TRUSTED_T12_ACTOR",
+        "NO_LOST_ACK_DUPLICATE_ORDER_RECONCILIATION",
+        "NO_GOOGLE_LIVE_RETIREMENT"
+      ]
+    },
+    "old_authority": "ACTIVE_WRITE",
+    "new_authority": "FROZEN_MIGRATION_ONLY",
+    "old_protected_private_orders": "UNCHANGED",
+    "SERVER61": "PRESERVED_OWNER_HOLD",
+    "historic_migration_counts": "75_SAFE_SECTIONS_UNCHANGED_115_115_MARKERS_AND_38_PRIOR_UNITS",
+    "new_copy_remove_actions": 0,
+    "source_only_to_production_promotion": false,
+    "owner_final_cutover": "NO_GO",
+    "no_runtime_mutation": true,
+    "no_private_data_republication": true
   }
 }
