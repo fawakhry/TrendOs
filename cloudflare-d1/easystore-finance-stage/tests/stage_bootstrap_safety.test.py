@@ -78,6 +78,61 @@ class OfflineWrangler:
 
 
 class StageBootstrapTests(unittest.TestCase):
+    def test_inspect_empty_has_no_false_positive_or_provider_write(self):
+        cli = OfflineWrangler()
+        report = b.inspect_stage(cli)
+        self.assertEqual(report["inspectState"], "EMPTY_STAGE_UNMIGRATED")
+        self.assertFalse(report["schemaApplied"])
+        self.assertFalse(report["mayApplyMigrations"])
+        self.assertFalse(report["backupAndRestoreVerified"])
+        self.assertEqual(report["financeRelease"], "NO_GO")
+        self.assertEqual(report["financeWrites"], "OFF")
+        self.assertFalse(any(c[:2] == ("d1", "export") or "--file" in c
+                             for c in cli.commands))
+
+    def test_inspect_partial_or_mixed_schema_never_certified(self):
+        native = expected_tables()
+        for tables in ([native[0]], native[:-1],
+                       native + ["t12_customers"], ["t12_prod_orders"]):
+            with self.subTest(count=len(tables)):
+                cli = OfflineWrangler(present=tables)
+                report = b.inspect_stage(cli)
+                self.assertEqual(report["inspectState"],
+                                 "NONEMPTY_SCHEMA_UNQUALIFIED_STOP")
+                self.assertFalse(report["schemaApplied"])
+                self.assertFalse(report["mayApplyMigrations"])
+                self.assertFalse(any(c[:2] == ("d1", "export") or
+                                     "--file" in c for c in cli.commands))
+
+    def test_inspect_exact_native_schema_requires_off_and_canary(self):
+        cli = OfflineWrangler(present=expected_tables())
+        report = b.inspect_stage(cli)
+        self.assertEqual(report["inspectState"], "NATIVE_SCHEMA_VERIFIED_WRITES_OFF")
+        self.assertTrue(report["schemaApplied"])
+        self.assertFalse(report["mayApplyMigrations"])
+        self.assertFalse(report["backupAndRestoreVerified"])
+        self.assertEqual(report["financeRelease"], "NO_GO")
+        self.assertFalse(any(c[:2] == ("d1", "export") or
+                             "--file" in c for c in cli.commands))
+
+        class UnsafeCanary(OfflineWrangler):
+            def run(self, *cmd):
+                if "--command" in cmd and cmd[cmd.index("--command") + 1] == b.CANARY_SQL:
+                    return json.dumps([{"success": True, "results": [
+                        {"enabled": 1, "max_commands": 1, "commands_started": 0}
+                    ]}])
+                return super().run(*cmd)
+
+        with self.assertRaisesRegex(b.GateError, "STAGE_CANARY_NOT_DENY_DEFAULT"):
+            b.inspect_stage(UnsafeCanary(present=expected_tables()))
+
+    def test_inspect_wrong_provider_uuid_fails_before_any_query(self):
+        cli = OfflineWrangler(uuid="00000000-0000-0000-0000-000000000000")
+        with self.assertRaisesRegex(b.GateError, "UUID_NOT_VERIFIED"):
+            b.inspect_stage(cli)
+        self.assertEqual(len(cli.commands), 1)
+        self.assertEqual(cli.commands[0][:2], ("d1", "list"))
+
     def test_plan_is_offline_and_schema_untouched(self):
         plan = b.plan()
         self.assertFalse(plan["remoteContacted"])
