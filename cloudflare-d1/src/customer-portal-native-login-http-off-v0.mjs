@@ -12,7 +12,7 @@ import { issueNativeCustomerSessionFromPasswordV0 }
   from './customer-portal-native-login-v0.mjs';
 
 export const CUSTOMER_NATIVE_LOGIN_HTTP_PATH_V0='/v1/customer/native/login';
-export const CUSTOMER_NATIVE_LOGIN_HTTP_VERSION_V0='ENTRY691_CUSTOMER_LOGIN_HTTP_OFF_V0';
+export const CUSTOMER_NATIVE_LOGIN_HTTP_VERSION_V0='CUSTOMER_NATIVE_LOGIN_HTTP_SOURCEOFF_V0_20261023';
 const MAX_BODY_BYTES=2048;
 const text=x=>typeof x==='string'?x.trim():'';
 const asciiIp=x=>typeof x==='string'&&x.length>=3&&x.length<=45&&
