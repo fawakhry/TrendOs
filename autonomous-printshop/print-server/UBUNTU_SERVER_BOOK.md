@@ -970,3 +970,11 @@
 - Correction to SERVER-102 interpretation: **Service Auth logs were excluded by the UI filter**. Therefore `No results found` and `Allowed 0 / Blocked 0` from this view do NOT measure Access Service Token attempts. This is a **log-inspection filter issue**, not confirmed root cause of Ubuntu HTTP 403.
 - Next action is UI-only: open the current `Hide service auth logs` value dropdown and inspect available choices before selecting; prefer explicit `Show service auth logs` (or equivalent) with no token/headers, no CSV export and no Cloudflare Access security-policy changes.
 - `SERVICE_AUTH_LOGS_PREVIOUSLY_HIDDEN=YES`; `REAL_HTTP403_ROOT_CAUSE=UNRESOLVED`; `ACCESS_OR_WORKER_CONFIG_MUTATED=NO`; `ORDERS_READ=NO`; `PRINTER_LASER=OFF`.
+
+
+### SERVER-20261023-104 — Service Auth log filter dropdown choices (owner screenshot, 2026-10-23 ~21:40 Cairo)
+
+- Owner opened `Access authentication logs` → `Filters` → `Service auth logs` selector. Visible choices are `All`, `Hide service auth logs` (currently selected), `Show service auth logs` (available but NOT yet selected).
+- Exact significance: earlier `No results found` excluded service-auth records by design. The filter must be changed to `Show service auth logs` for a meaningful UI inspection, and the original `Last 12 hours` window remains a separate coverage limitation.
+- Next single owner interaction: select **Show service auth logs**, inspect read-only table; do not export, adjust policies/tokens, issue Ubuntu requests or view customer data. No claim yet that any logs exist or HTTP403 is fixed.
+- `SERVICE_AUTH_LOG_FILTER_OPTIONS_CONFIRMED=YES`; `SHOW_SERVICE_AUTH_SELECTED=NOT_YET`; `HTTP403_CAUSE=UNRESOLVED`; `PRODUCTION_CHANGED=NO`.
