@@ -45,3 +45,11 @@ This is a supplemental Ubuntu server-book entry, preserving existing book histor
 - Confirmed on GitHub that the tested SERVER-141 script and dedicated fake-only workflow both exist at commit `aa2846f4cde7b771172f464d8777033ee60c8ec0`, with 12/12 fake-only tests passed in run 40018659172. Do not chase later documentation-only HEAD, rerun SERVER-95, or expose stored token.
 - **Next one-step owner action**: `git -C "$HOME/TrendOs-stage-access-sandbox" switch --detach aa2846f4cde7b771172f464d8777033ee60c8ec0`. This must operate on sandbox only; if Git refuses due to local modifications, do not force/reset.
 - `SERVER143_FETCH=SUCCESS`; `SERVER141_CHECKOUT=PENDING`; `REAL_SERVER141_GRAPHQL=NOT_RUN`; `HTTP403_ROOT_CAUSE=UNKNOWN`; `PRODUCTION_AND_DEVICES=UNTOUCHED`.
+
+## SERVER-144 — owner pinned SERVER-141 stage sandbox release (owner Ubuntu screenshot, 2026-10-23 ~23:26 Africa/Cairo)
+
+- Owner successfully executed `git -C "$HOME/TrendOs-stage-access-sandbox" switch --detach aa2846f4cde7b771172f464d8777033ee60c8ec0` **inside the isolated stage test checkout**. Terminal confirmed `Previous HEAD position was e599835 ...` and `HEAD is now at aa2846f ci(server141): isolated fake-only Access app query qualification`. No Git errors appeared.
+- The pinned SHA was verified on GitHub to include `autonomous-printshop/print-server/src/server141_stage_app_access_events.py`. 12/12 offline fake-only tests passed in GitHub Actions run 40018659172 prior to owner checkout. PR #190 remains open and draft.
+- Stage-only checkout is distinct from primary `~/TrendOs` and the order reader; `git switch --detach` did not run Python, make Cloudflare API calls, read local credential or execute printer/laser commands.
+- **Next one owner action:** `python3 "$HOME/TrendOs-stage-access-sandbox/autonomous-printshop/print-server/src/server141_stage_app_access_events.py" --help`. This displays CLI argument options, requires no credential access, and cannot send a request or touch production. Verify local help output before permitting the first live, owner-approved, stage-only GraphQL query.
+- `SANDBOX_HEAD=aa2846f4cde7b771172f464d8777033ee60c8ec0`; `SERVER141_INSTALLED=YES`; `SERVER141_HELP=PENDING`; `REAL_SERVER141_GRAPHQL=NOT_RUN`; `HTTP403_ROOT_CAUSE=UNRESOLVED`; `PRODUCTION_AND_DEVICES=UNTOUCHED`.
