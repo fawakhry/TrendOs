@@ -115,7 +115,7 @@ def stop_dev(proc):
     try:proc.stderr.close()
     except Exception:pass
 
-def serve_browser_fixture():
+def serve_browser_fixture(port=8000):
     """Same-origin LOCAL fixture for Chromium; never serve production files."""
     fixture=(ROOT/"tests/fixtures/customer-stage-browser-local.html").read_bytes()
     native=(ROOT/"customer-native-browser-transport-v0.js").read_bytes()
@@ -137,7 +137,7 @@ def serve_browser_fixture():
             self.wfile.write(body)
         def log_message(self,*args):
             pass
-    server=ThreadingHTTPServer(("127.0.0.1",8000),Handler)
+    server=ThreadingHTTPServer(("127.0.0.1",port),Handler)
     thread=Thread(target=server.serve_forever,daemon=True)
     thread.start()
     return server,thread
@@ -231,6 +231,15 @@ def main():
             status,forbid=request(port,paths["orders"],origin="https://evil.test")
             check(status==403 and forbid.get("code")=="CUSTOMER_STAGE_ORIGIN_FORBIDDEN",
                   "Origin not rejected")
+            # Prove the Worker itself rejects a login from Chromium's
+            # second (untrusted) loopback Origin, without issuing any bearer.
+            status,foreign_login=request(port,paths["login"],method="POST",
+                payload={"portalCode":CODE,"password":PASSWORD},
+                origin="http://127.0.0.1:8001")
+            check(status==403 and foreign_login.get("code")==
+                  "CUSTOMER_STAGE_ORIGIN_FORBIDDEN" and
+                  not foreign_login.get("token"),
+                  "Untrusted browser Origin unexpectedly issued a session")
             status,unknown=request(port,"/v1/legacy-api")
             check(status==404 and unknown.get("code")=="CUSTOMER_STAGE_ROUTE_NOT_FOUND",
                   "Legacy/employee path must not exist in standalone Stage")
@@ -285,7 +294,10 @@ def main():
             # REAL Chromium browser loads original Native adapter from an
             # isolated loopback origin and performs browser-enforced CORS.
             # Third C1 login leaves TWO wrong attempts before DO 5/15m cap.
-            local_browser,thread=serve_browser_fixture()
+            local_browser,thread=serve_browser_fixture(8000)
+            # Deliberately unauthorized browser Origin for negative Chromium
+            # CORS testing. Only HTTP loopback; never a public origin.
+            hostile_browser,hostile_thread=serve_browser_fixture(8001)
             try:
                 browser=subprocess.run(
                     ["node",str(ROOT/"tests/customer_stage_chromium_real_browser_local.cjs")],
@@ -304,6 +316,9 @@ def main():
                 local_browser.shutdown()
                 local_browser.server_close()
                 thread.join(timeout=5)
+                hostile_browser.shutdown()
+                hostile_browser.server_close()
+                hostile_thread.join(timeout=5)
             # C1 now performed three valid logins (Python+VM+Chromium).
             for i in range(2):
                 status,wrong=request(port,paths["login"],method="POST",

@@ -10,6 +10,7 @@ const {chromium}=playwright;
 
 const port=Number(process.env.CUSTOMER_STAGE_LOCAL_PORT);
 const frontend='http://127.0.0.1:8000';
+const untrustedFrontend='http://127.0.0.1:8001';
 const worker='http://127.0.0.1:'+port;
 const pinned='https://trendos-d1-api.trendmall-contact.workers.dev';
 if(process.env.CUSTOMER_STAGE_LOCAL_E2E!=='1'||
@@ -27,7 +28,7 @@ try {
     // Chromium itself handles CORS preflight; no mocked/synthetic OPTIONS.
     await context.route('**/*', async route=>{
       const r=route.request(),url=new URL(r.url());
-      if(url.origin!==frontend&&url.origin!==worker){
+      if(url.origin!==frontend&&url.origin!==untrustedFrontend&&url.origin!==worker){
         external++;
         return route.abort('blockedbyclient');
       }
@@ -81,6 +82,30 @@ try {
     assert.equal(await page.locator('#order-list').textContent(),'LOCAL-ORDER-LOCAL-C1');
     assert.ok(!(await page.locator('body').textContent()).includes('LOCAL-ORDER-LOCAL-C2'));
     assert.ok(!(await page.locator('body').textContent()).includes('LOCAL_FAKE_PHONE'));
+    // The six NOT-YET-WIRED customer features must fail closed inside the
+    // ORIGINAL customer adapter: no Google, no Worker POST and no downgrade.
+    const pendingActions = [
+      'changeCustomerPassword', 'getCustomerPortalAccountsV1859',
+      'createCustomerDraft', 'addCustomerDraftItem',
+      'submitCustomerDraft', 'uploadCustomerDraftFile'
+    ];
+    const beforePending = requests.length;
+    for (const action of pendingActions) {
+      const outcome = await page.evaluate(async name => {
+        try {
+          await window.customerStageBrowserFixtureV0.call(name, {
+            customerId:'LOCAL-C2', token:'LOCAL_FAKE_GOOGLE_TOKEN'
+          });
+          return 'UNEXPECTED_SUCCESS';
+        } catch (error) { return error.code || 'UNKNOWN_ERROR'; }
+      }, action);
+      assert.equal(outcome, 'CUSTOMER_NATIVE_ACTION_NOT_WIRED',
+        'Pending customer feature must fail closed: ' + action);
+    }
+    assert.equal(requests.length, beforePending,
+      'Pending customer actions must never call the Worker or Google');
+    assert.equal(await page.evaluate(
+      () => window.customerStageBrowserFixtureV0.legacyCalls), 0);
     await page.locator('#logout').click();
     await page.waitForFunction(()=>document.querySelector('#status').textContent==='logout-ok',
       null,{timeout:18000});
@@ -96,15 +121,48 @@ try {
     assert.deepEqual(storage.session,[]);
     assert.equal(errors.length,0,'Chrome page errors: '+errors.join(', '));
     assert.equal(external,0,'Browser attempted an external production/Google request');
+    // A separate loopback HTTP origin is intentionally NOT in Stage CORS
+    // allowlist. A genuine browser must not obtain a Native session.
+    const hostilePage = await context.newPage();
+    try {
+      await hostilePage.goto(untrustedFrontend+'/', {waitUntil:'load',timeout:20000});
+      const beforeHostileRequests = requests.length;
+      const badOriginResult = await hostilePage.evaluate(async () => {
+        try {
+          await window.customerStageBrowserFixtureV0.call('customerLogin',{
+            customerCode:'LOCAL-FIXTURE-PC-C1',
+            password:'LOCAL_ONLY_SAMPLE_PASSWORD_2026_NOT_REAL!'
+          });
+          return 'UNEXPECTED_SUCCESS';
+        } catch (error) {return error.code || 'UNKNOWN_ERROR';}
+      });
+      assert.equal(badOriginResult, 'CUSTOMER_NATIVE_LOGIN_NETWORK_UNAVAILABLE',
+        'Chromium must enforce refusal of an unauthorized CORS Origin');
+      // Chromium/Playwright can surface an attempted POST at the routing
+      // layer even when the Worker rejects its Origin with HTTP 403 or CORS
+      // blocks the response. Counting routed POSTs is NOT proof of issuance.
+      assert.equal(await hostilePage.evaluate(
+        () => window.customerStageBrowserFixtureV0.customer), null,
+        'Unauthorized browser Origin must not establish any customer session');
+      assert.equal(await hostilePage.evaluate(
+        () => window.customerStageBrowserFixtureV0.legacyCalls), 0);
+      assert.ok(requests.slice(beforeHostileRequests).some(
+        x=>x.path==='/v1/customer/native/login'),
+        'Negative CORS probe must actually reach the local Worker network');
+    } finally {await hostilePage.close();}
     const posts=requests.filter(x=>x.method==='POST');
     const gets=requests.filter(x=>x.method==='GET');
-    assert.equal(posts.filter(x=>x.path.endsWith('/login')).length,1);
+    // Count only the approved UI origin; the negative Origin intentionally
+    // makes a routed login attempt which the Stage Worker must reject.
+    assert.equal(posts.filter(x=>x.path.endsWith('/login') &&
+      x.origin===frontend).length,1);
     assert.equal(posts.filter(x=>x.path.endsWith('/logout')).length,1);
     assert.ok(gets.some(x=>x.path.endsWith('/orders')));
     // Native POST content-type and Bearer GET/POST are non-simple browser
     // requests: Chromium enforces real CORS authorization before JS receives
     // the actual responses. Browser network-layer edge metadata is test-only.
     console.log('PASS: actual Chromium browser DOM customer login → scoped D1 orders → D1 CAS logout → replay denied, automatic CORS and no Google fallback');
+    console.log('PASS: Chromium cross-origin denied from unauthorized local UI, six pending customer actions fail closed without Google/Worker calls');
     console.log('REAL_BROWSER_ENGINE=CHROMIUM; EXTERNAL_NETWORK_REQUESTS=0; PROD_NATIVE_FLAG=OFF; CLOUD_DEPLOY=NO');
     await page.close();
   }finally { await context.close(); }
