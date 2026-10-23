@@ -894,3 +894,48 @@
 - **Fresh result:** [GitHub Actions run 39996393864](https://github.com/fawakhry/TrendOs/actions/runs/39996393864): `fake-contract=SUCCESS`, **7/7**; `cloudflare-readonly-config=FAIL CLOSED` with `SERVER97_WORKERS_METADATA_READ_SCOPE_UNAVAILABLE` on exact Worker GET. Existing Access API token can read the selected Access app but cannot read Workers metadata.
 - **Important:** Do not turn this missing audit permission into claimed proof of real Service Token failure or wrong Worker identity. No additional permission, token rotation, Ubuntu/Access/Worker configuration, D1, order or printer changes. Next gate requires a stage-scoped metadata-read permission explicitly approved by owner, or equivalent trustworthy owner UI/Cloudflare evidence.
 - **Detailed source:** `SERVER97_ACCESS_403_WORKER_BINDING_DIAGNOSTIC_20261023.md`. `HTTP403_CAUSE=NOT_YET_ESTABLISHED`; `NEW_SOURCE_TESTS=7_PASS`; `REVIEW_PR190=DRAFT`; `PRODUCTION_TOUCHED=NO`.
+
+### SERVER-20261023-99 — Cloudflare Access stage UI sequence 01–28 (owner evidence, 2026-10-23 20:40–21:26 Cairo)
+
+**Authority:** owner-provided Cloudflare Dashboard and status-page screenshots in this project conversation (not remote model control). This is the detailed Ubuntu-server log; Autonomous Printshop MASTER_BOOK.md is the canonical project-level summary, and TrendOS_MASTER_BOOK.md is *not* a destination for printshop entries. Screenshots stay in chat; no secret values/keys/PII are stored in GitHub.
+
+| UI step | Action and observed result |
+| --- | --- |
+| 01 | Opened Cloudflare account home; correct Trend Mall account shown. |
+| 02 | Expanded Manage account menu; navigation only. |
+| 03 | Opened Account API tokens; navigation only. |
+| 04 | Opened three-dot menu for account token trendos-github-actions-cloudflare-preview; no mutation. |
+| 05 | Viewed account token summary: D1 Write, Workers Scripts Write, Account Settings Read; broad token must not be expanded for this audit. GitHub secret identity unproven. |
+| 06 | Opened Cloudflare profile menu; navigation only. |
+| 07 | Opened My Profile; navigation only. |
+| 08 | Opened User API Tokens list; navigation only. |
+| 09 | Opened three-dot menu for TrendOS Access Stage; no key displayed. |
+| 10 | Viewed TrendOS Access Stage summary: Access Apps and Policies Edit; expiration 2026-10-30, one account. GitHub secret identity not independently verified; no Workers read permission shown. |
+| 11 | Clicked Back to profile; no mutation. |
+| 12 | Reopened User API Tokens; no mutation. |
+| 13 | Opened Edit for TrendOS Access Stage; edit screen only. |
+| 14 | Clicked Add more (permissions): an unsaved empty row was displayed. |
+| 15 | Scrolled permissions categories to Workers; category inspected but NOT chosen. |
+| 16 | Clicked Back and exited edit without saving; no permission update evidenced. |
+| 17 | Returned via My Profile back arrow to Cloudflare Account home rather than unrelated browser tab. |
+| 18 | Opened stage Worker trendos-server68-isolated-stage; workers.dev production URL shown, synthetic D1 + DO bindings, Ready stage deployments, Worker Logs/Traces disabled and 24h invocation count 0; no live artifact provenance verified. |
+| 19 | Opened stage Worker Access; All traffic protected by Block Everyone plus TrendOS Ubuntu Stage Service Auth; Access app values shown. |
+| 20 | Used Manage Access app; same selected existing stage application. Service Auth evaluated before Block per UI; policy order alone does not explain HTTP403. |
+| 21 | Selected yellow Cloudflare outage status link; navigation only. |
+| 22 | Switched to official Cloudflare status page, correcting unrelated browser tab confusion. |
+| 23 | Opened Access Availability Issues official incident: 2026-10-23 12:01–12:22 Cairo; bulletin focused on Microsoft Entra ID, not proven relevant to machine service token. |
+| 24 | Returned to Access edit Preview; rendered No destinations assigned, which is not conclusive about actual config. |
+| 25 | Opened actual Destinations: Workers Scope trendos-server68-isolated-stage, Type A Worker's production and preview URLs. Confirms stage destination by UI name; immutable Worker ID still unverified. No Add Workers/Save. |
+| 26 | Opened Additional settings; navigation only. |
+| 27 | Opened Service Auth failure section: Return 401 Response OFF. Not changed; not proven HTTP403 root cause. |
+| 28 | Clicked Cancel without Save; returned to Access Applications list showing stage app and its policies/destination. No Access mutation observed. |
+
+**Evidence classification and boundaries:**
+- OWNER_UI_STAGE_APP_DESTINATION=EXPECTED_WORKER_NAME: Access destination explicitly selected Workers / trendos-server68-isolated-stage / production and preview URLs; the preview widget No destinations assigned was not authoritative. SERVER-97 immutable Worker ID match still unverified: missing GET-only Workers metadata permission.
+- OWNER_UI_ACCESS_POLICIES=BLOCK_EVERYONE_PLUS_SERVICE_AUTH: service-auth checked before block as Cloudflare UI says. SERVER-96 CI already verified the selected token UUID and standard two headers; do not repeat.
+- OWNER_UI_RETURN_401_RESPONSE=OFF (observed, NOT switched); no causal inference for Ubuntu HTTP403.
+- CF_ACCESS_INCIDENT=2026-10-23_12:01_TO_12:22_CAIRO_RESOLVED; official Microsoft Entra ID sign-in issue, NOT shown to affect service tokens. https://www.cloudflarestatus.com/incidents/t0p23w62n13j
+- OWNER_UI_STAGE_WORKER: Ready deployment and stage-only synthetic D1/DO bindings shown, active workers.dev URL shown, Worker invocations 0 over shown window. No production/order read or positive Access authentication proved.
+- USER_CANCELED_ACCESS_EDIT=YES; NO_CLOUDFLARE_SETTINGS_SAVED_OBSERVED; NO_TOKEN_VALUES_EXPOSED; UBUNTU_UNCHANGED; PRODUCTION_UNCHANGED; PR190_DRAFT=YES; SERVER95_403_ROOT_CAUSE=UNRESOLVED.
+
+**Next authorized one-step diagnostic:** prioritize read-only inspection of Cloudflare Access machine/non-identity auth logs or safely correlating a single stage CF-Ray (no token, cookies, request body or order data). Do NOT expand API-token rights, change Service Auth/Block policy, request another secret rotation, or rerun the unchanged Ubuntu 403 request. Distinguish config audit logs from authentication logs. All devices OFF and D01–D06 release gates preserved.
