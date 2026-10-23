@@ -185,3 +185,12 @@ This is a supplemental Ubuntu server-book entry, preserving existing book histor
 - No Cloudflare mutations, server token changes, Worker/D1/order reads, or devices. PR #190 remains draft. No cause for HTTP403 declared.
 
 `SERVER157_TOKEN_NAME=CONFIRMED`; `SERVER157_ENABLED=YES`; `SERVER157_CREATED=2026-10-23_16:25_UI`; `SERVER157_EXPIRES=2026-10-30_15:25_UI`; `SERVER157_LAST_SEEN=NOT_SEEN_YET`; `UBUNTU_CREDENTIAL_MATCH=UNVERIFIED`; `STAGE_HTTP403_ROOT_CAUSE=UNRESOLVED`; `PRODUCTION_UNTOUCHED=YES`.
+
+## SERVER-158 — Cloudflare Service Token details page UI runtime error (owner screenshot 2026-10-23 ~23:58 Africa/Cairo)
+
+- Owner clicked `TrendOS Ubuntu Synthetic Stage` in `Zero Trust > Access controls > Service credentials > Service Tokens` as planned. URL navigated to the existing service-token details path `/access-controls/service-credentials/service-tokens/<existing-id>`.
+- Instead of details, the **Cloudflare dashboard front end crashed**, displaying `Looks like the app ran into an error.` and JavaScript runtime message `can't access property "match", e.duration is undefined`. The page suggested refreshing or using the sidebar. No secret values were visible.
+- **Assessment:** client-side page-render/runtime failure. Does not indicate the token itself is expired or broken and does not identify the source of stage HTTP403. The previous visible list row remains the last reliable status: enabled, expiry Oct 30, 2026, `Last Seen: Not Seen Yet`. Do not manufacture Client ID comparison from this error.
+- Cloudflare official service token documentation https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/ says the Client Secret is only displayed at creation, while service token listing shows lifecycle data; no need to rotate, regenerate or edit to diagnose this display error.
+- **Next single owner step**: On the crashed Firefox page press `Ctrl+Shift+R` once to hard-refresh the Cloudflare details view (read-only browser action). If the error remains, do not repeatedly refresh; return to the Service Tokens list and report it. If details open, hide any full Client ID / Client Secret before sharing screenshot. No edits, API keys, secrets or policy changes.
+- `SERVER158_DETAILS_UI=RUNTIME_ERROR`; `TOKEN_STATUS_FROM_LIST=ENABLED_UNEXPIRED`; `TOKEN_DETAILS=NOT_RETRIEVED`; `SERVICE_AUTH_HEADER_MATCH=UNVERIFIED`; `STAGE_HTTP403_ROOT_CAUSE=UNRESOLVED`; `PRODUCTION_WORKER_AND_D1_UNTOUCHED=YES`; `DEVICES=OFF`.
