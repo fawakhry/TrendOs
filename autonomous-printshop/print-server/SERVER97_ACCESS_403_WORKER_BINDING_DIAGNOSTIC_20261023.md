@@ -33,3 +33,15 @@
 5. Remain on stage synthetic-only. **No production orders, D1 production, printer/laser automation, deploy, Access bypass, token rotation or approval inference.** D01–D06 / release GO gates remain intact.
 
 `SERVER97_SOURCE_AUDIT=CREATED`; `SERVER97_CI_RESULT=PENDING_AS_OF_INITIAL_RECORD`; `CLOUDFLARE_MUTATIONS=NO`; `PRODUCTION_TOUCHED=NO`; `REAL_UBUNTU_ACCESS_PROVEN=NO`.
+
+
+## Observed GitHub Actions evidence — after initial record
+
+**Run:** https://github.com/fawakhry/TrendOs/actions/runs/39995584666
+
+- New fake-only `fake-contract` job: **SUCCESS**, `Ran 7 tests`, all OK.
+- New `cloudflare-readonly-config` job: **FAIL CLOSED**, precise sanitized diagnosis `SERVER97_WORKERS_METADATA_READ_SCOPE_UNAVAILABLE`. Existing GitHub Cloudflare audit API credential could read Access app metadata (SERVER-96) but does **not** have the independent Worker metadata read permission. No Cloudflare write and no Worker request occurred.
+- This result is a **permission gap in the diagnostic reader**, *not* a proven Access service-token failure, wrong Worker binding, broken deployment, or production event.
+- Owner approval is required before any expanded credential or live infrastructure change. Do not rerun the same CI credential read unchanged and expect different evidence.
+
+`SERVER97_CI_OFFLINE=PASS_7_7`; `SERVER97_CF_READONLY_BINDING=UNVERIFIED_PERMISSION_DENIED`; `SERVER97_BRANCH_DOCUMENTED=YES`; `REAL_STAGE_ACCESS_RESULT=STILL_403_LAST_OWNER_EVIDENCE`.
