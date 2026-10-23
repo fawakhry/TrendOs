@@ -16239,5 +16239,89 @@
       "archive": 0,
       "migration": 0
     }
+  },
+  "book_agent_20261023_r2_file_delivery_provenance_source_delta_v1": {
+    "date": "2026-10-23",
+    "book_head_at_read": "97a4a04fd5d64fb8f75b2968905e6c39ec93f143",
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "evidence_levels": {
+      "SOURCE_ONLY": "CONFIRMED_STATIC_SOURCE",
+      "CI_VERIFIED": "NOT_EXECUTED_FOR_NEW_PROVENANCE_CASES",
+      "STAGING_VERIFIED": "NO",
+      "PRODUCTION_VERIFIED": "NO"
+    },
+    "findings": [
+      {
+        "id": "R2-COMMS-PROVENANCE-CHAIN",
+        "relationship": "ENHANCES_EXISTING_BOOK20_R2_ACL_AND_ORPHAN_RISK_NO_DUPLICATE_REPORT",
+        "priority": "P1_PRIVATE_BINARY_HANDOFF",
+        "source": "cloudflare-d1/src/employee-comms-native-v1.mjs",
+        "blob": "f415d06ccd15ba241d679c61b7afeb6ec904e4b8",
+        "lines": "L207-L227,L307-L329",
+        "observed": "After latestOrderContext order-existence only, upload computes content SHA, R2 FILES.put (with R2 customMetadata sha256), then D1 appendMessage (multiple calls), then D1 file row with visible_to_customer=0/1. No apparent compensation, durable pending-upload journal, idempotency key or FILES.delete if append or insert fails. serveFile reads only r2_key and MIME and GETs bytes, does not enforce order/actor visibility or verify sha256 on delivery. A hash on upload is not end-to-end binary proof.",
+        "gate": "Synthetic R2 PUT success + D1 append/insert failure and orphan cleanup, deny-before-R2-get test for private file, SHA corruption detection/read-verification, customer ownership and ACL policy. No production access test."
+      },
+      {
+        "id": "R2-CONTENT-TWO_STAGE_PUBLIC_BASE",
+        "relationship": "ENHANCES_EXISTING_BOOK22_R2_ACL_NOT_SECOND_REPORT",
+        "priority": "P1_PUBLIC_PRIVATE_COLLECTION_BOUNDARY",
+        "source": "cloudflare-d1/src/employee-content-native-v1.mjs",
+        "blob": "fab5eeeca0ecc9312380054b32f01a44639f4664",
+        "lines": "L88-L109,L150-L152,L192-L194,L220-L223,L256-L280",
+        "observed": "uploadPublicFile writes FILES.put before D1 employee_content_files_v1 insert; some calls subsequently upsert employee_content_records_v1, so metadata/record mismatch possible on later failure; no FILES.delete or transaction spanning R2/D1. FILES_PUBLIC_BASE_URL if nonempty makes direct base + R2 key link; absent base falls back to /v1/employee/content/file/<id>. serveFile does R2 GET before session authentication/collection ACL and sets public 1h Cache-Control. Collection 'public' naming does not certify that every object is authorized public.",
+        "gate": "Owner per-collection public/private classification; deny-before-FILES.get synthetic test, deterministic safe rollback or retry journal, verify external base URL access controls. No attempt to fetch real files."
+      },
+      {
+        "id": "R2-WRANGLER-SOURCE-BINDING-NONATTESTATION",
+        "relationship": "NEW_CONFIG_VS_HANDLER_LINEAGE_DISTINCTION",
+        "priority": "P1_DEPLOYMENT_EVIDENCE",
+        "source": "cloudflare-d1/wrangler.toml",
+        "blob": "579b06e4918a9ed965be183e69742205f03cdc74",
+        "lines": "L1-L41",
+        "observed": "At pinned PR221 source SHA, Wrangler main=production-shadow/index.js, declares D1 DB binding, but no [[r2_buckets]] FILES stanza or FILES_PUBLIC_BASE_URL var in this source config. Other Cloudflare deployment settings/overrides may exist; this is a negative declaration only for this particular committed config, not proof that deployed env lacks R2 or has a public bucket.",
+        "gate": "Read-only, owner-approved Cloudflare deployed SHA/bindings/public-domain provenance, restore and binary SHA verification; do not infer R2 production availability or change bindings."
+      }
+    ],
+    "crossmodule_routes": [
+      {
+        "path": "cloudflare-d1/production-shadow/index.js",
+        "blob": "pinned_source",
+        "observation": "Falls back to src/index_v2.js; no global employee auth inserted for these routes in wrapper."
+      },
+      {
+        "path": "cloudflare-d1/src/index_v2.js",
+        "blob": "4a555efb4b3f44ba371549d5cec055cc7ce1777f",
+        "lines": "L51-L71",
+        "observation": "Pass-through to content/comms handlers; their file-GET branches precede POST authentication."
+      }
+    ],
+    "prior_matrix": "book_agent_20261023_risk_ranked_semantic_source_boundary_matrix_v1",
+    "owner_decisions_pending": [
+      "R2_OBJECT_CLASSIFICATION_AND_CUSTOMER_VISIBILITY",
+      "R2_PUBLIC_BASE_URL_ACCESS_POLICY",
+      "R2_BLOB_SHA_AND_METADATA_ATTESTATION",
+      "R2_PARTIAL_WRITE_RETRY_OR_COMPENSATION",
+      "CLOUDFLARE_DEPLOYED_BINDING_AND_SHA"
+    ],
+    "no_mutations": {
+      "code": 0,
+      "tests": 0,
+      "github_actions": 0,
+      "production": 0,
+      "r2": 0,
+      "d1": 0,
+      "easystore": 0,
+      "books_catalog": 0,
+      "archive": 0
+    },
+    "gates": {
+      "old_book": "ACTIVE_WRITE",
+      "new_book": "FROZEN_MIGRATION_ONLY",
+      "cutover": "NO_GO",
+      "finance": "EASYSTORE",
+      "r2_binary": "UNVERIFIED",
+      "cloudflare_deployed_sha": "UNVERIFIED",
+      "zero_google_customer_actions": "0/9 VERIFIED"
+    }
   }
 }
