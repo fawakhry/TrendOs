@@ -390,5 +390,29 @@
     "old_book": "ACTIVE_WRITE",
     "new_catalog": "FROZEN_MIGRATION_ONLY",
     "decision": "NO_GO"
+  },
+  "current_no_loss_gate_checkpoint_20261023_after_75_readonly_remaining_entry679": {
+    "date": "2026-10-23",
+    "pinned_head_before_document_only_commit": "b600a79c2b08e6c7cfe39036686dc4c916d456c0",
+    "source_blob_at_audit": "0449bf98d79ee870356b487c0e3a6414e5576918",
+    "catalog_blob_unchanged": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "previous_checkpoint": "current_no_loss_gate_checkpoint_20261023_after_75_sections",
+    "current_count_original_sections_moved": 75,
+    "cumulative_original_characters_moved": 109955,
+    "prior_38_units_separate": true,
+    "additional_safe_sections_discovered": 0,
+    "copy_verify_remove_not_invoked": "NO_NEW_ELIGIBLE_SECTION",
+    "old_remaining_sections_classified": 22,
+    "crosswalk_new_checkpoint_key": "book_agent_remaining_old_source_readonly_gate_20261023_after_entry679",
+    "structural_integrity": "32/32 chapters; 115/115 unique migration pairs; 40/40 relative targets within Git tree",
+    "protected_private_sections": "Entry596 Entry599/600 unchanged in source; private records excluded from public catalog",
+    "server61": "PRESERVED_NO_MOVE",
+    "active_notes": "Entry669–Entry679 left ACTIVE_WRITE (Entry677 heading absent in reviewed old master, no lost-record inference)",
+    "old_book_authority": "ACTIVE_WRITE",
+    "catalog_authority": "FROZEN_MIGRATION_ONLY",
+    "owner_approvals_pending": true,
+    "final_cutover": "NO_GO",
+    "runtime_status": "NOT_REVALIDATED_BY_BOOK_AGENT",
+    "verification_scope": "REPO_SOURCE_DOC_STRUCTURE_ONLY; NO_TESTS_RERUN; NO_PRODUCTION_ACCESS; NO_NEW_CATALOG_WRITES"
   }
 }
