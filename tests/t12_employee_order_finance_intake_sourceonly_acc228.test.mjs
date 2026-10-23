@@ -8,6 +8,7 @@ import {
  T12_EMPLOYEE_INTAKE_LINES_SQL as LINES,
  T12_EMPLOYEE_INTAKE_ACTIVITY_SQL as ACTIVITY,
  T12_EMPLOYEE_INTAKE_OUTBOX_SQL as OUTBOX,
+ T12_EMPLOYEE_INTAKE_RUNTIME_SQL as RUNTIME,
  T12_EMPLOYEE_FINANCE_INTAKE_POLICY as POLICY
 } from '../cloudflare-d1/src/t12-employee-order-finance-intake-sourceonly.mjs';
 const C='CUS-FAKE-228',ORDER_ID='4323',KEY='cld1_1800000000000_EMPLOYEE228_TEST0001';
@@ -16,6 +17,7 @@ function fixture(lanes=2,skipCapture=false){
  const raw=new DatabaseSync(':memory:');
  raw.exec('PRAGMA foreign_keys=ON');
  for(const file of ['0005_t12_production_create_canary.sql',
+    '0006_t12_operational_runtime.sql',
     '0008_t12_customer_master.sql',
     '0035_t12_order_customer_at_create_sourceonly_v1.sql']){
   raw.exec(readFileSync('cloudflare-d1/migrations/'+file,'utf8'));
@@ -77,7 +79,7 @@ function fixture(lanes=2,skipCapture=false){
  let batches=0;
  const db={
   prepare(sql){
-   assert.ok([ORDER,LINES,ACTIVITY,OUTBOX].includes(sql),'no arbitrary SQL');
+   assert.ok([ORDER,LINES,ACTIVITY,OUTBOX,RUNTIME].includes(sql),'no arbitrary SQL');
    return {bind(...args){
     return {kind:sql,params:args,first(){throw Error('UNSAFE_SEPARATE_FIRST')},
       all(){throw Error('UNSAFE_SEPARATE_ALL')}};
@@ -106,6 +108,7 @@ test('new source has no HTTP endpoint, T12/finance creation, or direct D1 financ
  assert.equal(POLICY.usesOfficialNativeCustomerId,true);
  assert.equal(POLICY.departmentApprovalsVerified,false);
  assert.equal(POLICY.comparesOriginalT12ActivityAndOutbox,true);
+ assert.equal(POLICY.comparesCurrentT12RuntimeAndLastMutation,true);
  assert.equal(POLICY.financeWriteAuthorized,false);
  assert.equal(POLICY.productionRelease,'NO_GO');
 });
@@ -305,6 +308,72 @@ test('ACC230 no extra finance event or orders generated from initial T12 outbox'
  assert.equal(x.raw.prepare("SELECT COUNT(*) AS n FROM t12_prod_events").get().n,1);
  assert.equal(inspected.body.departmentApprovalsVerified,false);
  assert.equal(inspected.body.canRequestInvoice,false);
+}));
+// ACC232 current runtime is a source safety veto, NEVER a line approval.
+function runtimeState(x,lineId,status,actor='wael-synthetic',version=1){
+ x.raw.prepare(`INSERT INTO t12_prod_line_runtime
+  (line_id,order_id,status,notes,updated_by,version)
+  VALUES (?, ?, ?, '', ?, ?)`).run(lineId,ORDER_ID,status,actor,version);
+}
+function runtimeEvent(x,lineId,oldStatus,newStatus,actor='wael-synthetic',type='line-update'){
+ x.raw.prepare(`INSERT INTO t12_prod_runtime_events
+  (order_id,line_id,event_type,old_status,new_status,actor,payload_json)
+  VALUES (?,?,?,?,?,?, '{}')`).run(ORDER_ID,lineId,type,oldStatus,newStatus,actor);
+}
+test('ACC232 current runtime cancels, blocks or duplicates any source line without changing finance authority',()=>withFixture(async x=>{
+ assert.equal((await request(x)).status,200);
+ const before=x.raw.prepare('SELECT total_changes() n').get().n;
+ assert.equal((await request(x)).status,200);
+ assert.equal(x.raw.prepare('SELECT total_changes() n').get().n,before);
+ for(const blocked of ['ملغى','مكرر','متوقف']){
+  runtimeState(x,'4323-02',blocked,'jaber-synthetic');
+  runtimeEvent(x,'4323-02','طلب جديد',blocked,'jaber-synthetic');
+  const r=await request(x);
+  assert.equal(r.status,409,blocked);
+  assert.equal(r.body.code,'T12_RUNTIME_LINE_CANCELLED_DUPLICATE_OR_STOPPED',blocked);
+  assert.equal(r.body.financeAuthorized,false);
+  x.raw.exec("DELETE FROM t12_prod_runtime_events WHERE line_id='4323-02'");
+  x.raw.exec("DELETE FROM t12_prod_line_runtime WHERE line_id='4323-02'");
+ }
+}));
+test('ACC232 healthy runtime and WhatsApp status do not confer Wail/Gaber financial approval',()=>withFixture(async x=>{
+ runtimeState(x,'4323-01','جاهز للاستلام');
+ runtimeEvent(x,'4323-01','طلب جديد','جاهز للاستلام');
+ let r=await request(x);
+ assert.equal(r.status,200,JSON.stringify(r));
+ assert.equal(r.body.departmentApprovalsVerified,false);
+ assert.equal(r.body.canRequestInvoice,false);
+ x.raw.exec("UPDATE t12_prod_line_runtime SET version=2 WHERE line_id='4323-01'");
+ runtimeEvent(x,'4323-01','جاهز للاستلام','جاهز للاستلام','wael-synthetic','whatsapp-ready_notify');
+ r=await request(x);
+ assert.equal(r.status,200,JSON.stringify(r));
+ assert.equal(r.body.connectorEventPublished,false);
+ assert.equal(r.body.canRequestInvoice,false);
+}));
+test('ACC232 missing last runtime event, altered actor/status/version or orphan event fails closed',()=>withFixture(async x=>{
+ runtimeState(x,'4323-01','بدأ التنفيذ');
+ let r=await request(x);
+ assert.equal(r.body.code,'T12_RUNTIME_STATUS_EVENT_OR_ACTOR_DRIFT');
+ runtimeEvent(x,'4323-01','طلب جديد','بدأ التنفيذ');
+ assert.equal((await request(x)).status,200);
+ x.raw.exec("UPDATE t12_prod_line_runtime SET version=2 WHERE line_id='4323-01'");
+ assert.equal((await request(x)).body.code,'T12_RUNTIME_STATUS_EVENT_OR_ACTOR_DRIFT');
+ x.raw.exec("UPDATE t12_prod_line_runtime SET version=1,updated_by='FORGED' WHERE line_id='4323-01'");
+ assert.equal((await request(x)).body.code,'T12_RUNTIME_STATUS_EVENT_OR_ACTOR_DRIFT');
+ x.raw.exec("UPDATE t12_prod_line_runtime SET updated_by='wael-synthetic',status='جاهز للاستلام' WHERE line_id='4323-01'");
+ assert.equal((await request(x)).body.code,'T12_RUNTIME_STATUS_EVENT_OR_ACTOR_DRIFT');
+ x.raw.exec("DELETE FROM t12_prod_line_runtime WHERE line_id='4323-01'");
+ assert.equal((await request(x)).body.code,'T12_RUNTIME_EVENT_WITHOUT_STATE');
+}));
+test('ACC232 original unmodified create and current runtime remain a single read-only D1 batch',()=>withFixture(async x=>{
+ const before=x.raw.prepare('SELECT total_changes() n').get().n;
+ const r=await request(x);
+ assert.equal(r.status,200);
+ assert.equal(x.batches(),1);
+ assert.equal(x.raw.prepare('SELECT total_changes() n').get().n,before);
+ assert.equal(r.body.sourceOnly,true);
+ assert.equal(r.body.readOnly,true);
+ assert.equal(r.body.officialCustomerOwnershipAttested,false);
 }));
 test('without D1 batch, broken transaction or broken schema return generic fail closed',async()=>{
  const lacking=await inspect({db:{prepare(){}},orderId:ORDER_ID,expectedOfficialCustomerId:C});
