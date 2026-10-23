@@ -8692,3 +8692,12 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - **Blocking before GO:** customer phone and SMS recipient ownership, consent, phone-sharing/reassignment resolution, provider and delivery integrity, anti-enumeration and rate enforcement, trusted OTP-success-bound ticket issuance, real D1 atomic/load canary, CSRF and customer session expiry/revoke, D1 customer-owned Orders, Drive→R2 files/drafts, EasyStore finance authority and independent Cloudflare Worker build diagnosis. `CUSTOMER_OTP_SMS_SENT=NO`; `CUSTOMER_ACCOUNT_ACTIVATED=NO`; `ZERO_GOOGLE_COMPLETE=NO`.
 
 <!-- END_VERBATIM_MIGRATION:MASTER_ENTRY653_TO_659 -->
+
+
+<!-- BOOK_MIGRATION_NEW_UNIT_20261023: Historic staging screenshot evidence only. No current Cloudflare deployment or traffic inference. Source ACTIVE TrendOS_MASTER_BOOK.md blob 949de605ee6a96a01efc94f9f6ec0df43fddc5a2. No production mutation. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_SERVER_20261017_68F -->
+### SERVER-20261017-68F — staging invocations zero in selected Cloudflare metrics period
+- Owner screenshot `trendos-d1-staging` → Metrics → `All deployed versions` → `Oct 1 – Today (GMT+3)` as of 2026-10-17: `Invocations=0`, `Subrequests=0`, `Errors=0`, `CPU Time=0ms`, no host data. Active deployment section shows `99e823b2` and `Traffic%=0%` while historical rollout page shows 100% at prior rollout; do not conflate historical rollouts with current traffic, or conclude zero historical/all future use.
+- Existing stage D1 `trendos-staging` UUID `bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6` is not prod, but has 11 tables and write-enabled Worker variable; Cron/Queues/Email triggers absent, HTTP consumers and Domains/routes not yet audited. Continue safe UI read-only Domains check before deciding reuse. Local SERVER-68 workerd/DO synthetic tests PASSED; Cloudflare-hosted stage still not deployed; `SEC-AP303-02` still open high, Ubuntu live not linked.
+- Detail recorded in `autonomous-printshop/print-server/UBUNTU_SERVER_BOOK.md` on draft PR #190 branch as SERVER-20261017-68F. No Cloudflare modifications.
+<!-- END_VERBATIM_MIGRATION:MASTER_SERVER_20261017_68F -->
