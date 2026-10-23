@@ -17412,5 +17412,130 @@
     "new_code_changes": 0,
     "production_mutations": 0,
     "duplicate_issue": false
+  },
+  "book_agent_20261023_r2_truthiness_and_missing_file_8_original_handlers_v1": {
+    "date": "2026-10-23",
+    "book_parent": "7029eac2102d910bed2a08804aa7a3129dd9df94",
+    "pinned_pr221": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "source_files": [
+      {
+        "path": "cloudflare-d1/src/employee-content-native-v1.mjs",
+        "blob": "fab5eeeca0ecc9312380054b32f01a44639f4664",
+        "lines": "L103-L108,L258-L267"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-comms-native-v1.mjs",
+        "blob": "f415d06ccd15ba241d679c61b7afeb6ec904e4b8",
+        "lines": "L222-L226,L309-L318"
+      }
+    ],
+    "harness": "Ran exact original handleEmployeeContentNativeRequest/handleEmployeeCommsNativeRequest in isolated V8. Fake D1 returns READONLY control+schema-ready counts; for nonexistent metadata returns NULL. Fake FILES object throws on GET/PUT; other variant FILES absent. Web URL/Response/Headers stubbed. No whole Worker, actual D1, R2, GitHub CI, source mutation or live customer files.",
+    "cases": [
+      {
+        "case": "content_health_files_throws",
+        "http": 200,
+        "r2Ready": true,
+        "FILES_binding": true,
+        "mock_FILES_get_calls": 0,
+        "D1_sql_queries": 2,
+        "observed_expected": true
+      },
+      {
+        "case": "content_health_no_FILES",
+        "http": 200,
+        "r2Ready": false,
+        "FILES_binding": false,
+        "mock_FILES_get_calls": 0,
+        "D1_sql_queries": 2,
+        "observed_expected": true
+      },
+      {
+        "case": "content_missing_file_no_FILES",
+        "http": 404,
+        "r2Ready": null,
+        "FILES_binding": false,
+        "mock_FILES_get_calls": 0,
+        "D1_sql_queries": 1,
+        "observed_expected": true
+      },
+      {
+        "case": "content_missing_file_FILES_throws",
+        "http": 404,
+        "r2Ready": null,
+        "FILES_binding": true,
+        "mock_FILES_get_calls": 0,
+        "D1_sql_queries": 1,
+        "observed_expected": true
+      },
+      {
+        "case": "comms_health_files_throws",
+        "http": 200,
+        "r2Ready": true,
+        "FILES_binding": true,
+        "mock_FILES_get_calls": 0,
+        "D1_sql_queries": 2,
+        "observed_expected": true
+      },
+      {
+        "case": "comms_health_no_FILES",
+        "http": 200,
+        "r2Ready": false,
+        "FILES_binding": false,
+        "mock_FILES_get_calls": 0,
+        "D1_sql_queries": 2,
+        "observed_expected": true
+      },
+      {
+        "case": "comms_missing_file_no_FILES",
+        "http": 404,
+        "r2Ready": null,
+        "FILES_binding": false,
+        "mock_FILES_get_calls": 0,
+        "D1_sql_queries": 1,
+        "observed_expected": true
+      },
+      {
+        "case": "comms_missing_file_FILES_throws",
+        "http": 404,
+        "r2Ready": null,
+        "FILES_binding": true,
+        "mock_FILES_get_calls": 0,
+        "D1_sql_queries": 1,
+        "observed_expected": true
+      }
+    ],
+    "count": 8,
+    "expected_source_behavior_count": 8,
+    "observed": "Both native Health responses use r2Ready:!!env.FILES without calling put/get/head; a present but malfunctioning R2 mock yields r2Ready:true and HTTP 200. Both nonexistent file GET handlers first SELECT metadata, then 404 on missing row independent of env.FILES, never invoking R2.get. Thus source 404 for nonexistent ID cannot distinguish absent/broken/present R2. The earlier Entry645 workflow's ready+404 postflight subgate is insufficient to prove functioning file I/O or authorized positive delivery. Not a claim that Cloudflare R2 is broken or absent in Production.",
+    "relationship": {
+      "prior_link_fixture": "book_agent_20261023_entry645_r2_binding_raw_url_route_fixture_v1",
+      "prior_workflow_gate": "book_agent_20261023_entry645_r2_postflight_false_green_subgate_7cases_v1",
+      "novel": "ACTUAL_ORIGINAL_CONTENT_COMMS_ROUTER_EXECUTION_WITH_MOCK_R2_FAILURE_AND_NULL_ROW",
+      "duplicate_ticket": false
+    },
+    "required_owner_proof": [
+      "read-only actual deployed version/blob SHA and effective FILES binding",
+      "non-production disposable authorized real write/read and SHA256 roundtrip plus exact returned link path",
+      "non-production private Comms authorization deny before FILES.get",
+      "effective bucket privacy/CDN domain and binding persistence through controlled deploy"
+    ],
+    "test_levels": {
+      "SOURCE_HANDLER_SYNTHETIC": "8_OF_8_PREDICATES_REPRODUCED",
+      "GITHUB_ACTIONS_NEW": "NONE",
+      "STAGING": "NOT_VERIFIED",
+      "PRODUCTION": "NOT_VERIFIED",
+      "R2_BINARY": "UNVERIFIED",
+      "ACTIVE_SHA": "UNVERIFIED"
+    },
+    "guard": {
+      "master": "ACTIVE_WRITE",
+      "catalog": "FROZEN_MIGRATION_ONLY",
+      "cutover": "NO_GO",
+      "finance": "EASYSTORE",
+      "real_files": 0,
+      "Cloudflare_changes": 0,
+      "code_changes": 0,
+      "production_mutations": 0
+    }
   }
 }

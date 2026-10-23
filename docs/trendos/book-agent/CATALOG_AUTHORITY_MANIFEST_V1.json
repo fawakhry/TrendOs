@@ -953,5 +953,30 @@
     "cutover": "NO_GO",
     "finance_authority": "EASYSTORE",
     "live_mutations": 0
+  },
+  "current_no_loss_gate_20261023_r2_health_and_nonexistent_404_not_io_proof_v1": {
+    "date": "2026-10-23",
+    "crosswalk_key": "book_agent_20261023_r2_truthiness_and_missing_file_8_original_handlers_v1",
+    "book_head_read": "7029eac2102d910bed2a08804aa7a3129dd9df94",
+    "source_commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "source_cases": 8,
+    "observed_expected": 8,
+    "actual_original_handlers": "YES_WITH_FAKE_IO",
+    "health_r2_ready_boolean_presence_only": "YES",
+    "health_real_file_io": "NOT_CHECKED",
+    "missing_file_404_requires_FILES": "NO",
+    "missing_file_404_R2_get_calls": 0,
+    "source_claim_not_production": "YES",
+    "owner_gate": "POSITIVE_NONPRODUCTION_R2_ROUNDTRIP_AND_PRIVATE_DENY_BEFORE_FILES_GET_PLUS_ACTIVE_SHA_ATTESTATION",
+    "CI_RUN": "NO",
+    "staging": "NO",
+    "production": "NO",
+    "deployed_sha": "UNVERIFIED",
+    "r2_binary": "UNVERIFIED",
+    "master": "ACTIVE_WRITE",
+    "frozen_catalog": "FROZEN_MIGRATION_ONLY",
+    "cutover": "NO_GO",
+    "finance": "EASYSTORE",
+    "real_changes": 0
   }
 }
