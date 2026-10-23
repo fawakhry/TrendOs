@@ -1,4 +1,5 @@
 import { verifyEmployeeSessionCloudFirst } from './cloud-session-bridge-v3.mjs';
+import { readOfficialCustomersV1 } from './accounting-customer-facts-contract-v1.mjs';
 
 const ROOT='/v1/employee/accounting';
 const HEALTH='/v1/employee/accounting/health';
@@ -370,7 +371,44 @@ async function getAccounting(env,auth){
   return {success:true,permissions:permissions(auth),materials:mats,templates:temps,deptLines:dlines,finalInvoices:invoices,sales:[],purchases:[],dailyPurchases:[],custodyEntries:[],custodySummary:[],departmentDayCloses:[],unclassifiedRows:[],wasteLines:[],stockMoves:[],summary:await summary(env,auth),version:'ENTRY614_D1_ACCOUNTING_V1'};
 }
 
+// ACC235: source-of-truth official customer records are only fetched from
+// TrendOS over a signed internal Worker service in the isolated EasyStore lane.
+// The legacy shared-D1 path remains unchanged when REMOTE_REQUIRED is absent;
+// isolated Stage must set REMOTE_REQUIRED and CANNOT fall back to local T12.
+function isolatedOfficialCustomerSourceV1(env){
+  return text(env&&env.EASYSTORE_CUSTOMER_SOURCE_V1)==='REMOTE_REQUIRED';
+}
+async function remoteCustomerDirectoryV1(env,auth,query){
+  const people=await readOfficialCustomersV1(env,query);
+  if(!['full','final'].includes(auth.mode))
+    return people.map(c=>scopedCustomerViewV1(c,auth));
+  const balanceById=new Map(),creditById=new Map();
+  // Bounded IN queries only against EasyStore's FINANCIAL D1, never TrendOS.
+  for(let i=0;i<people.length;i+=70){
+    const slice=people.slice(i,i+70),ids=slice.map(c=>c.customer_id);
+    if(!ids.length)continue;
+    const placeholders=ids.map(()=>'?').join(',');
+    for(const b of await rows(env,
+      "SELECT party_id,balance FROM employee_accounting_party_balances_v1 "+
+      "WHERE party_type='customer' AND party_id IN ("+placeholders+")",ids))
+      balanceById.set(text(b.party_id),num(b.balance));
+    if(customerCreditEnabledV1(env)){
+      for(const c of await rows(env,
+        "SELECT customer_id,credit_cents FROM employee_accounting_customer_credits_v1 "+
+        "WHERE customer_id IN ("+placeholders+")",ids))
+        creditById.set(text(c.customer_id),num(c.credit_cents));
+    }
+  }
+  return people.map(c=>customerViewV1({...c,
+    current_balance:balanceById.get(c.customer_id)||0,
+    credit_cents:creditById.get(c.customer_id)||0}));
+}
 async function customerBalanceByName(env,name){
+  if(isolatedOfficialCustomerSourceV1(env)){
+    const matches=await readOfficialCustomersV1(env,{operation:'EXACT_NAME',name:text(name)});
+    if(matches.length!==1)throw commandErrorV1('official-customer-name-unresolved','لا يمكن ربط رصيد عميل بالاسم بدون معرف رسمي واحد.');
+    return partyBalanceV1(env,'customer',matches[0].customer_id);
+  }
   const c=await env.DB.prepare("SELECT customer_id AS customerId FROM t12_customers WHERE lower(customer_name)=lower(?) ORDER BY updated_at DESC LIMIT 1").bind(text(name)).first();
   if(!c)return 0;
   return partyBalanceV1(env,'customer',text(c.customerId));
@@ -394,6 +432,10 @@ function scopedCustomerViewV1(r,auth){
 }
 async function getEasyStoreCustomersV1(env,auth,b){
   const limit=Math.max(1,Math.min(Math.trunc((b.limit==null||b.limit==='')?500:num(b.limit,500)),1000));
+  if(isolatedOfficialCustomerSourceV1(env)){
+    const customers=await remoteCustomerDirectoryV1(env,auth,{operation:'LIST_ACTIVE',limit:Math.min(500,limit)});
+    return {success:true,customers,version:'A1_D1_READ_MODEL_V1',identitySource:'TRENDOS_SIGNED_INTERNAL'};
+  }
   const creditColumn=customerCreditEnabledV1(env)
     ? "COALESCE((SELECT cc.credit_cents FROM employee_accounting_customer_credits_v1 cc WHERE cc.customer_id=c.customer_id),0)" : "0";
   const list=await rows(env,`
@@ -411,6 +453,12 @@ async function getEasyStoreCustomersV1(env,auth,b){
 async function searchCustomersV1(env,auth,b){
   const q=key(b.q);
   if(!q)return {success:true,customers:[],version:'A1_D1_READ_MODEL_V1'};
+  if(isolatedOfficialCustomerSourceV1(env)){
+    // Search names only; the independent finance service never delegates
+    // arbitrary contact/phone enumeration to the operational source.
+    const customers=await remoteCustomerDirectoryV1(env,auth,{operation:'SEARCH_NAME',query:q,limit:12});
+    return {success:true,customers,version:'A1_D1_READ_MODEL_V1',identitySource:'TRENDOS_SIGNED_INTERNAL'};
+  }
   const like='%'+q+'%';
   const financeReader=auth.mode==='full'||auth.mode==='final';
   const searchableFields=financeReader
@@ -461,7 +509,13 @@ async function getCustomerAccountV1915V1(env,auth,b){
   const customerId=text(b.customerId),requestedName=text(b.customerName||b.partyName||b.name);
   if(!customerId&&!requestedName)return {success:false,message:'اختر العميل أولًا.'};
   let customer;
-  if(customerId){
+  if(isolatedOfficialCustomerSourceV1(env)){
+    const matches=await readOfficialCustomersV1(env,
+      customerId?{operation:'BY_ID',customerId}:{operation:'EXACT_NAME',name:requestedName});
+    if(!customerId&&matches.length>1)return {success:false,code:'accounting-customer-name-ambiguous',
+      message:'يوجد أكثر من عميل بنفس الاسم. اختر العميل بمعرفه من القائمة.'};
+    customer=matches[0];
+  }else if(customerId){
     // Explicit identifiers must NEVER fall back to a matching person's name.
     customer=await env.DB.prepare(`
       SELECT customer_id,customer_name,manager,phone,extra_phone,customer_type,active
@@ -1085,11 +1139,20 @@ async function resolvePartyV1(env,type,b){
   const partyId=text(b.partyId||b.customerId||b.supplierId),requested=text(b.partyName||b.customerName||b.supplierName||b.name);
   if(type==='customer'){
     let r;
-    if(partyId)r=await env.DB.prepare("SELECT customer_id AS partyId,customer_name AS partyName FROM t12_customers WHERE customer_id=? AND active='نعم' LIMIT 1").bind(partyId).first();
-    else if(requested){
-      const matches=await rows(env,"SELECT customer_id AS partyId,customer_name AS partyName FROM t12_customers WHERE lower(customer_name)=lower(?) AND active='نعم' ORDER BY updated_at DESC LIMIT 2",[requested]);
-      if(matches.length>1)throw commandErrorV1('accounting-customer-name-ambiguous','يوجد أكثر من عميل بنفس الاسم. اختر العميل بمعرفه من القائمة.');
-      r=matches[0];
+    if(isolatedOfficialCustomerSourceV1(env)){
+      const matches=await readOfficialCustomersV1(env,partyId?
+        {operation:'BY_ID',customerId:partyId}:
+        {operation:'EXACT_NAME',name:requested});
+      if(!partyId&&matches.length>1)throw commandErrorV1('accounting-customer-name-ambiguous','يوجد أكثر من عميل بنفس الاسم. اختر العميل بمعرفه من القائمة.');
+      const match=matches[0];
+      if(match&&match.active==='نعم')r={partyId:match.customer_id,partyName:match.customer_name};
+    }else{
+      if(partyId)r=await env.DB.prepare("SELECT customer_id AS partyId,customer_name AS partyName FROM t12_customers WHERE customer_id=? AND active='نعم' LIMIT 1").bind(partyId).first();
+      else if(requested){
+        const matches=await rows(env,"SELECT customer_id AS partyId,customer_name AS partyName FROM t12_customers WHERE lower(customer_name)=lower(?) AND active='نعم' ORDER BY updated_at DESC LIMIT 2",[requested]);
+        if(matches.length>1)throw commandErrorV1('accounting-customer-name-ambiguous','يوجد أكثر من عميل بنفس الاسم. اختر العميل من القائمة.');
+        r=matches[0];
+      }
     }
     if(!r)throw commandErrorV1('accounting-customer-not-found','العميل غير موجود في سجل العملاء. اختر العميل من القائمة.');
     return {partyId:text(r.partyId),partyName:text(r.partyName)};
@@ -2300,9 +2363,11 @@ async function previewCustomerCreditLiabilityAuditV1(env,auth,b){
   if(!/^[\p{L}\p{N}_:.\-]{3,180}$/u.test(customerId))
     return deny('credit-liability-official-customer-id-required','مطلوب معرف العميل الرسمي؛ لا يتم الربط بالاسم أو التليفون.');
   try{
-    const person=await env.DB.prepare(
-      "SELECT customer_id FROM t12_customers WHERE customer_id=? LIMIT 1"
-    ).bind(customerId).first();
+    const person=isolatedOfficialCustomerSourceV1(env)
+      ? (await readOfficialCustomersV1(env,{operation:'BY_ID',customerId}))[0]
+      : await env.DB.prepare(
+        "SELECT customer_id FROM t12_customers WHERE customer_id=? LIMIT 1"
+      ).bind(customerId).first();
     if(!person)return deny('credit-liability-customer-id-not-found',
       'معرف العميل الرسمي غير موجود في مصدر العملاء.');
     const credit=await env.DB.prepare(
