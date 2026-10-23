@@ -97,10 +97,12 @@ class MockStatement {
 class MockDB {
   constructor(presentTables = ATOMIC_TABLES) {
     this.writeOps = 0;
+    this.readOps = 0;
     this.presentTables = presentTables.slice();
   }
 
   prepare(sql) {
+    this.readOps += 1;
     return new MockStatement(this, sql);
   }
 
@@ -115,6 +117,7 @@ function env(overrides = {}) {
     DB: new MockDB(),
     CORS_ORIGINS: 'https://fawakhry.github.io',
     MIGRATION_SECRET: 'migration-secret',
+    MIRROR_READ_SECRET: 'mock-readonly-secret',
     ...overrides
   };
 }
@@ -123,7 +126,7 @@ async function testStatsReadOnly() {
   const e = env();
   const response = await handleMirrorRequest(
     new Request('https://preview.test/v1/mirror/stats', {
-      headers: { Origin: 'https://fawakhry.github.io' }
+      headers: { Origin: 'https://fawakhry.github.io', 'x-mirror-read-secret': 'mock-readonly-secret' }
     }),
     e
   );
@@ -140,7 +143,7 @@ async function testCapabilitiesReadOnlyAndAtomicReady() {
   const e = env();
   const response = await handleMirrorRequest(
     new Request('https://preview.test/v1/mirror/capabilities', {
-      headers: { Origin: 'https://fawakhry.github.io' }
+      headers: { Origin: 'https://fawakhry.github.io', 'x-mirror-read-secret': 'mock-readonly-secret' }
     }),
     e
   );
@@ -157,7 +160,7 @@ async function testCapabilitiesReadOnlyAndAtomicReady() {
 async function testCapabilitiesFailClosedWithoutStagingTables() {
   const e = env({ DB: new MockDB(['sheet_catalog', 'sheet_rows']) });
   const response = await handleMirrorRequest(
-    new Request('https://preview.test/v1/mirror/capabilities'),
+    new Request('https://preview.test/v1/mirror/capabilities', {headers: {'x-mirror-read-secret': 'mock-readonly-secret'}}),
     e
   );
   assert.equal(response.status, 200);
@@ -173,7 +176,7 @@ async function testSheetReadOnly() {
   const e = env();
   const response = await handleMirrorRequest(
     new Request('https://preview.test/v1/mirror/sheet?name=%D8%A8%D9%86%D9%88%D8%AF%20%D8%A7%D9%84%D8%A3%D9%88%D8%B1%D8%AF%D8%B1%D8%A7%D8%AA&limit=1', {
-      headers: { Origin: 'https://fawakhry.github.io' }
+      headers: { Origin: 'https://fawakhry.github.io', 'x-mirror-read-secret': 'mock-readonly-secret' }
     }),
     e
   );
@@ -184,6 +187,29 @@ async function testSheetReadOnly() {
   assert.equal(body.sheet.schemaMutationFree, true);
   assert.equal(body.sheet.rowCount, 242);
   assert.equal(e.DB.writeOps, 0);
+}
+
+async function testMirrorReadRequiresDedicatedSecretBeforeDB() {
+  for(const headers of [
+    {},
+    {'x-mirror-read-secret': 'wrong-reader-key'},
+    {'x-migration-secret': 'migration-secret'}
+  ]) {
+    const e=env();
+    const response=await handleMirrorRequest(new Request('https://preview.test/v1/mirror/sheet?name=orders',{headers}),e);
+    assert.equal(response.status,401,'Mirror GET must refuse missing/wrong/write-only reader');
+    const body=await response.json();
+    assert.equal(body.success,false);
+    assert.equal(body.code,'mirror-read-unauthorized');
+    assert.equal(e.DB.readOps,0,'Mirror must deny before D1 reads');
+    assert.equal(e.DB.writeOps,0,'Mirror may not write to D1');
+  }
+  const e=env({MIRROR_READ_SECRET:''});
+  const response=await handleMirrorRequest(new Request('https://preview.test/v1/mirror/stats',{
+    headers:{'x-mirror-read-secret':'mock-readonly-secret'}
+  }),e);
+  assert.equal(response.status,401,'unset reader secret must fail closed');
+  assert.equal(e.DB.readOps,0);
 }
 
 async function testUnauthorizedImportCannotInitializeSchema() {
@@ -219,6 +245,7 @@ await testStatsReadOnly();
 await testCapabilitiesReadOnlyAndAtomicReady();
 await testCapabilitiesFailClosedWithoutStagingTables();
 await testSheetReadOnly();
+await testMirrorReadRequiresDedicatedSecretBeforeDB();
 await testUnauthorizedImportCannotInitializeSchema();
 testEntryContract();
 
