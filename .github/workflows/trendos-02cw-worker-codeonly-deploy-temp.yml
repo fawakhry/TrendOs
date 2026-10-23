@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: trendos-02cw-worker-codeonly-deploy
+  group: trendos-d1-api-production-mutator
   cancel-in-progress: false
 
 jobs:
@@ -63,6 +63,20 @@ jobs:
           ! grep -Eq '^[[:space:]]+(npx[[:space:]]+)?wrangler[[:space:]]+d1[[:space:]]+migrations[[:space:]]+apply' "$wf"
           ! grep -Eq '^[[:space:]]+(npx[[:space:]]+)?wrangler[[:space:]]+secret[[:space:]]+put' "$wf"
           echo '02CW_CODE_ONLY_NO_SECRET_NO_MIGRATION_PASS'
+          # A code-only Wrangler deploy is NOT safe if an existing settings-only FILES binding
+          # would be silently changed. Require an explicit, matching R2 binding in the config.
+          python3 - <<'PY'
+          from pathlib import Path
+          import tomllib
+          c = tomllib.loads(Path('cloudflare-d1/wrangler.toml').read_text())
+          bindings = [b for b in c.get('r2_buckets', []) if b.get('binding') == 'FILES']
+          assert len(bindings) == 1, 'BLOCK_DEPLOY: FILES R2 binding absent or duplicated'
+          assert bindings[0].get('bucket_name') == 'trendos-employee-content-files', 'BLOCK_DEPLOY: incorrect FILES bucket'
+          assert c.get('name') == 'trendos-d1-api', 'BLOCK_DEPLOY: wrong worker target'
+          assert any(d.get('binding') == 'DB' for d in c.get('d1_databases', [])), 'BLOCK_DEPLOY: DB binding missing'
+          print('02CW_FILES_BINDING_CONFIG_PROVEN=YES')
+          PY
+
 
       - name: Install pinned Wrangler
         run: npm install --no-save wrangler@4.33.2

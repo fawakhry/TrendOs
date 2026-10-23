@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: trendos-entry642-deploy-resilient-auth-hardening
+  group: trendos-d1-api-production-mutator
   cancel-in-progress: false
 
 jobs:
@@ -185,6 +185,7 @@ jobs:
               bindings:next,
               annotations:{'workers/message':'Entry642 deploy-resilient Native auth hardening'}
             })],{type:'application/json'}),'settings.json');
+            fs.writeFileSync('/tmp/entry642-patch-intent','1'); // written before uncertain PATCH response
             await cf('/settings',{method:'PATCH',body:form});
             fs.writeFileSync('/tmp/entry642-settings-patched','1');
 
@@ -357,9 +358,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [ -f /tmp/entry642-patch-intent ] && [ ! -f /tmp/entry642-settings-patched ]; then
+            echo ENTRY642_PATCH_AMBIGUOUS_ACK=READONLY_RECONCILIATION_REQUIRED
+            exit 1
+          fi
           if [ ! -f /tmp/entry642-settings-patched ]; then
             echo ENTRY642_ROLLBACK_NOT_NEEDED=PRE_PATCH_FAILURE
             exit 0
+          fi
+          if [ ! -f /tmp/entry642-new-version.txt ]; then
+            echo ENTRY642_ROLLBACK_NO_OWN_VERSION=READONLY_RECONCILIATION_REQUIRED
+            exit 1
           fi
           if [ -f /tmp/entry642-production-proven ]; then
             echo ENTRY642_ROLLBACK_NOT_RUN=PRODUCTION_ALREADY_PROVEN
@@ -370,14 +379,29 @@ jobs:
           const fs=require('fs');
           const token=process.env.CLOUDFLARE_API_TOKEN,account=process.env.CLOUDFLARE_ACCOUNT_ID,worker=process.env.API_WORKER;
           const pre=fs.readFileSync('/tmp/entry642-pre-version.txt','utf8').trim();
-          const base='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/'+worker;
+          const own=fs.readFileSync('/tmp/entry642-new-version.txt','utf8').trim();
+          const url='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/'+worker+'/deployments';
+          async function active(){
+            const r=await fetch(url,{headers:{authorization:'Bearer '+token}});
+            const b=await r.json();
+            if(!r.ok||b.success!==true) throw new Error('rollback readback failed');
+            const ds=Array.isArray(b.result&&b.result.deployments)?b.result.deployments:Array.isArray(b.result)?b.result:[];
+            const deployments=ds.slice().sort((a,b)=>Date.parse(b.created_on||b.created_at||0)-Date.parse(a.created_on||a.created_at||0));
+            const full=((deployments[0]||{}).versions||[]).filter(v=>Number(v.percentage||0)===100);
+            if(full.length!==1)throw new Error('rollback active deployment shape');
+            return String(full[0].version_id||full[0].id||'');
+          }
           (async()=>{
-            const r=await fetch(base+'/deployments',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({
+            const current=await active();
+            if(current===pre){console.log('ENTRY642_CF_ROLLBACK_ALREADY_PRE');return;}
+            if(current!==own)throw new Error('concurrent version changed; refusing rollback');
+            const r=await fetch(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({
               strategy:'percentage',versions:[{version_id:pre,percentage:100}]
             })});
             const b=await r.json();
             if(!r.ok||b.success!==true) throw new Error('rollback API failed');
-            console.log('ENTRY642_CF_ROLLBACK_DEPLOYED_PRE_VERSION='+pre);
+            if(await active()!==pre)throw new Error('rollback not active at 100 percent');
+            console.log('ENTRY642_CF_ROLLBACK_VERIFIED_PRE_VERSION='+pre);
           })().catch(e=>{console.error(String(e&&e.message||e));process.exit(1);});
           NODE
           OK=0
