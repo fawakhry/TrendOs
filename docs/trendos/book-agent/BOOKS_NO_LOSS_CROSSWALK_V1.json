@@ -18866,5 +18866,56 @@
       "FINANCE_AUTHORITY": "EASYSTORE",
       "FINAL_CUTOVER": "NO_GO"
     }
+  },
+  "migration_20261024_6_historical_audit_receipts_exact_v1": {
+    "round": "BOOK-MIGRATION-20261024-SIX-HISTORICAL-AUDITS-RECEIPT",
+    "original_master_commit": "e12eb6a070910db4845a1bfde29a5bc866d6db3f",
+    "copy_commit": "ac70c5a6d12ac869873f121da7d31b09b4e7214b",
+    "unit_count": 6,
+    "unit_blobs": [
+      {
+        "id": "HIST-AUDIT-20261023-73",
+        "blob": "e4318b0da8bb63d647f6305ab4f4439c9c1e57a2",
+        "chars": 2395
+      },
+      {
+        "id": "HIST-AUDIT-20261023-75",
+        "blob": "09d8a7319a5a9f12181449e93d570f1d611bbc1e",
+        "chars": 1047
+      },
+      {
+        "id": "HIST-AUDIT-20261023-URL-LINE",
+        "blob": "1aacdcb01bacde7a2869c00dd68ddc8c6efec841",
+        "chars": 1761
+      },
+      {
+        "id": "HIST-AUDIT-20261023-EXTERNAL-32",
+        "blob": "85228e34848b920e3a7bb9045cbcb5b4f42e128c",
+        "chars": 1680
+      },
+      {
+        "id": "HIST-AUDIT-20261023-LINE-EOF-40",
+        "blob": "68999d1bb05790d32a676324092ff8c165993f0e",
+        "chars": 1919
+      },
+      {
+        "id": "HIST-AUDIT-20261023-467-LINES",
+        "blob": "3d3bd87f26bd4fc4b5576f77962e9f922dc37fad",
+        "chars": 2286
+      }
+    ],
+    "exact_6_of_6": true,
+    "total_original_characters": 11088,
+    "archive_pinned": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "report_prior_sections": 75,
+    "reported_new_sum": 81,
+    "operational_entries_remain": true,
+    "issues_open": [
+      "DOC-694-02",
+      "DOC-694-03"
+    ],
+    "cutover": "NO_GO",
+    "deploy": "NO",
+    "finance": "EASYSTORE"
   }
 }

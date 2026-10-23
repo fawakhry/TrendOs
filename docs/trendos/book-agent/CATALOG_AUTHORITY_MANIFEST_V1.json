@@ -1265,5 +1265,21 @@
       "BUNDLE_SHA256_PROVENANCE",
       "OWNER_APPROVAL_TO_DEPLOY"
     ]
+  },
+  "current_no_loss_gate_20261024_six_historical_audits_verified_v1": {
+    "date": "2026-10-24",
+    "crosswalk_key": "migration_20261024_6_historical_audit_receipts_exact_v1",
+    "source_commit": "e12eb6a070910db4845a1bfde29a5bc866d6db3f",
+    "copy_commit": "ac70c5a6d12ac869873f121da7d31b09b4e7214b",
+    "verified_git_blob_and_text": "6/6",
+    "chars": 11088,
+    "active_master_preserved_except_exact_6": true,
+    "ledger_event": "ENTRY694-LEDGER-EVENT-20261024-02",
+    "frozen_book": "MIGRATION_ONLY",
+    "active_master": "ACTIVE_WRITE",
+    "cutover": "NO_GO",
+    "CI_new": "NOT_RUN",
+    "stage": "NOT_RUN",
+    "production": "NOT_DEPLOYED"
   }
 }
