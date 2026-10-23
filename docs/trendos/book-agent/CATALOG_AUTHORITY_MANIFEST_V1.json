@@ -1406,5 +1406,29 @@
     "finance_authority": "EASYSTORE",
     "final_cutover": "NO_GO",
     "owner_cutover_approval": "NOT_GRANTED"
+  },
+  "current_no_loss_gate_20261024_3_t12_r2_identity_source_delta_v1": {
+    "date": "2026-10-24",
+    "crosswalk_key": "migration_20261024_3_t12_edge_r2_identity_source_delta_v1",
+    "source_commit": "4984909c534ef2b26528c7e5bd5245fdc9efce64",
+    "copy_commit": "50b845a3db3f8ee662b054f647436f6e6b53a72f",
+    "copy_catalog_blob": "37adb793f4c230d17e7f4fc056bcad9806b52e09",
+    "verified": "3/3_EXACT_VERBATIM_GIT_BLOB",
+    "units": 3,
+    "original_characters": 6987,
+    "remove_only_migrated_original_text": true,
+    "master_reconstruction": "ORIGINAL_MINUS_3_PLUS_RECEIPT_AND_ENTRY694_EVENT_07",
+    "entry694_preserved": true,
+    "new_issue": "T12-694-07_OPEN",
+    "archive_unchanged_sha": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "source_only": true,
+    "stage": "NOT_VERIFIED",
+    "deployed_worker_sha": "UNVERIFIED",
+    "production": "NO",
+    "old_master": "ACTIVE_WRITE",
+    "catalog": "FROZEN_MIGRATION_ONLY",
+    "finance": "EASYSTORE",
+    "final_cutover": "NO_GO",
+    "owner_cutover_approval": "NOT_GRANTED"
   }
 }

@@ -19150,5 +19150,55 @@
     "deployed_sha": "UNVERIFIED",
     "final_cutover": "NO_GO",
     "owner_approval": "NOT_GIVEN"
+  },
+  "migration_20261024_3_t12_edge_r2_identity_source_delta_v1": {
+    "migration_id": "BOOK-MIGRATION-20261024-T12-R2-IDENTITY-THREE-HISTORY-COPY-VERIFY-REMOVE",
+    "date": "2026-10-24",
+    "source_commit": "4984909c534ef2b26528c7e5bd5245fdc9efce64",
+    "source_master_blob": "870a49efae16102a15dc239ab7c8ebfa56444aac",
+    "copy_commit": "50b845a3db3f8ee662b054f647436f6e6b53a72f",
+    "copy_catalog_blob": "37adb793f4c230d17e7f4fc056bcad9806b52e09",
+    "verified": "3/3_EXACT_GIT_BLOBS_TEXT_AND_LENGTH",
+    "characters": 6987,
+    "units": [
+      {
+        "id": "HIST-20261023-T12-ACK-EDGE-DELTA",
+        "sha": "8ec9595fe766e0c2862fe31dbe735ef84c979db3",
+        "characters": 2297
+      },
+      {
+        "id": "HIST-20261023-R2-PROVENANCE-DELTA",
+        "sha": "64137edcaab1b4ca6f991cb2e4743460b3b7f8df",
+        "characters": 2633
+      },
+      {
+        "id": "HIST-20261023-T12-KEY-CUSTOMER-IDENTITY-DELTA",
+        "sha": "34b62fd9807823763320a245dfea6c28ffce777d",
+        "characters": 2057
+      }
+    ],
+    "source_master_unchanged_during_copy": true,
+    "after_remove": "EXACT_MASTER_MINUS_3_SOURCE_ONLY_STRINGS_PLUS_RECEIPT_AND_ENTRY694_EVENT_07",
+    "unresolved_issue_ids": [
+      "T12-694-04",
+      "T12-694-05",
+      "T12-694-06",
+      "T12-694-07",
+      "EDGE-694-01",
+      "EDGE-694-02",
+      "R2-694-01",
+      "R2-694-02",
+      "FILES-692-05",
+      "FIN-694-01"
+    ],
+    "archive": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "old_master": "ACTIVE_WRITE",
+    "unified_book": "FROZEN_MIGRATION_ONLY",
+    "original_tests": "SOURCE_ONLY_NOT_NEW_NATIVE_CI",
+    "stage": "NOT_VERIFIED",
+    "production": "NO",
+    "finance": "EASYSTORE",
+    "final_cutover": "NO_GO",
+    "owner_approval": "NOT_GIVEN"
   }
 }
