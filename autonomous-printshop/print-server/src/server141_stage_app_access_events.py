@@ -11,7 +11,7 @@ import json
 import re
 from pathlib import Path
 
-from server136_access_ray_graphql import _read_private_token, _send_graphql, _TOKEN_PATH, _RAY
+from server136_access_ray_graphql import GuardRejected, _read_private_token, _send_graphql, _TOKEN_PATH, _RAY
 
 # Obtained from owner-verified isolated-stage Access application UI URL.
 _STAGE_APP = "28859297-b80f-47a7-98ed-78e00efc3204"
@@ -122,7 +122,7 @@ def main(argv=None, *, opener=None, token_path=None) -> int:
         return 2
     try:
         token = _read_private_token(Path(token_path) if token_path else _TOKEN_PATH)
-    except (OSError, ValueError):
+    except (GuardRejected, OSError, ValueError):
         print("SERVER141_PRIVATE_TOKEN_NOT_READABLE_OR_UNSAFE")
         return 2
     # No user input can alter appId, one-hour time interval, API endpoint or the LIMIT.
