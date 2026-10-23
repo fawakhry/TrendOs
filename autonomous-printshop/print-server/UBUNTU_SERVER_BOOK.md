@@ -963,3 +963,10 @@
 - **One next owner action:** Click **Filters** (badge 1) to inspect exact applied filter without modifying it, then provide screenshot. Keep secrets, request headers, cookies, and customer/business data out of the conversation. No Export to CSV, Save, policy edit, new request to Ubuntu/Worker, D1 or printer/laser action.
 - **Trace markers:** `ACCESS_LOG_UI_FILTER=SERVICE_AUTH_LOGS`; `ACCESS_LOG_UI_WINDOW=LAST_12_HOURS`; `ACCESS_LOG_TABLE_RESULT=NONE_WITH_CURRENT_FILTER`; `CHART_SERVICE_AUTH_COVERAGE=NO`; `HTTP403_ROOT_CAUSE=UNRESOLVED`; `CLOUDFLARE_MUTATION=NO`.
 
+
+### SERVER-20261023-103 — Access log filter was hiding Service Auth attempts (owner screenshot, 2026-10-23 ~21:39 Cairo)
+
+- Evidence: the owner expanded Filters on Cloudflare One / Access authentication logs. The single existing filter is explicitly `Service auth logs` **equals `Hide service auth logs`**; applied window `Last 12 hours`, table `No results found`, and dashboard warning `The chart does not show your selected filters: Service auth logs`.
+- Correction to SERVER-102 interpretation: **Service Auth logs were excluded by the UI filter**. Therefore `No results found` and `Allowed 0 / Blocked 0` from this view do NOT measure Access Service Token attempts. This is a **log-inspection filter issue**, not confirmed root cause of Ubuntu HTTP 403.
+- Next action is UI-only: open the current `Hide service auth logs` value dropdown and inspect available choices before selecting; prefer explicit `Show service auth logs` (or equivalent) with no token/headers, no CSV export and no Cloudflare Access security-policy changes.
+- `SERVICE_AUTH_LOGS_PREVIOUSLY_HIDDEN=YES`; `REAL_HTTP403_ROOT_CAUSE=UNRESOLVED`; `ACCESS_OR_WORKER_CONFIG_MUTATED=NO`; `ORDERS_READ=NO`; `PRINTER_LASER=OFF`.
