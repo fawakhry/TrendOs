@@ -6,6 +6,8 @@ import {
  inspectT12EmployeeOrderFinanceCandidate as inspect,
  T12_EMPLOYEE_INTAKE_ORDER_SQL as ORDER,
  T12_EMPLOYEE_INTAKE_LINES_SQL as LINES,
+ T12_EMPLOYEE_INTAKE_ACTIVITY_SQL as ACTIVITY,
+ T12_EMPLOYEE_INTAKE_OUTBOX_SQL as OUTBOX,
  T12_EMPLOYEE_FINANCE_INTAKE_POLICY as POLICY
 } from '../cloudflare-d1/src/t12-employee-order-finance-intake-sourceonly.mjs';
 const C='CUS-FAKE-228',ORDER_ID='4323',KEY='cld1_1800000000000_EMPLOYEE228_TEST0001';
@@ -63,10 +65,19 @@ function fixture(lanes=2,skipCapture=false){
  raw.prepare('UPDATE t12_prod_request_ledger SET canonical_json=? WHERE request_key=?')
   .run(JSON.stringify(canonical),KEY);
 
+ // The ORIGINAL T12 writer inserts one matching operational activity and
+ // one per-line outbox row within its existing atomic create transaction.
+ raw.prepare("INSERT INTO t12_prod_events (request_key,event_key,order_id,event_type,payload_json) VALUES (?,'activity',?,'order-create',?)")
+  .run(KEY,ORDER_ID,JSON.stringify(canonical.activityPlan));
+ for(let i=0;i<lanes;i++){
+  raw.prepare("INSERT INTO t12_prod_outbox (request_key,event_key,order_id,line_id,event_type,status,payload_json) VALUES (?,?,? ,?,'trend-master-status-intent','pending',?)")
+   .run(KEY,'queue:'+String(i+1).padStart(2,'0'),ORDER_ID,
+    ORDER_ID+'-'+String(i+1).padStart(2,'0'),JSON.stringify(canonical.queuePlans[i]));
+ }
  let batches=0;
  const db={
   prepare(sql){
-   assert.ok(sql===ORDER||sql===LINES,'no arbitrary SQL');
+   assert.ok([ORDER,LINES,ACTIVITY,OUTBOX].includes(sql),'no arbitrary SQL');
    return {bind(...args){
     return {kind:sql,params:args,first(){throw Error('UNSAFE_SEPARATE_FIRST')},
       all(){throw Error('UNSAFE_SEPARATE_ALL')}};
@@ -94,6 +105,7 @@ test('new source has no HTTP endpoint, T12/finance creation, or direct D1 financ
  assert.equal(POLICY.httpRouteAvailable,false);
  assert.equal(POLICY.usesOfficialNativeCustomerId,true);
  assert.equal(POLICY.departmentApprovalsVerified,false);
+ assert.equal(POLICY.comparesOriginalT12ActivityAndOutbox,true);
  assert.equal(POLICY.financeWriteAuthorized,false);
  assert.equal(POLICY.productionRelease,'NO_GO');
 });
@@ -230,6 +242,63 @@ test('ACC229 policy epoch drift and wrong original queue plan do not qualify sou
  x.raw.prepare('UPDATE t12_prod_request_ledger SET canonical_json=? WHERE request_key=?')
    .run(JSON.stringify(canonical),KEY);
  assert.equal((await request(x)).body.code,'T12_SOURCE_LINE_SET_INCOMPLETE_OR_UNSUPPORTED');
+}));
+test('ACC230 original activity event missing, corrupted or wrong type stops operational finance candidate',()=>withFixture(async x=>{
+ const before=x.raw.prepare("SELECT payload_json AS p FROM t12_prod_events WHERE event_key='activity'").get().p;
+ x.raw.exec("UPDATE t12_prod_events SET payload_json='{}' WHERE event_key='activity'");
+ assert.equal((await request(x)).body.code,'T12_ORIGINAL_ACTIVITY_EVENT_DRIFT');
+ x.raw.prepare("UPDATE t12_prod_events SET payload_json=? WHERE event_key='activity'").run(before);
+ assert.equal((await request(x)).status,200);
+ x.raw.exec("UPDATE t12_prod_events SET event_type='finance-post' WHERE event_key='activity'");
+ assert.equal((await request(x)).body.code,'T12_ORIGINAL_ACTIVITY_EVENT_DRIFT');
+ x.raw.exec("UPDATE t12_prod_events SET event_type='order-create' WHERE event_key='activity'");
+ x.raw.exec("DELETE FROM t12_prod_events WHERE event_key='activity'");
+ assert.equal((await request(x)).body.code,'T12_ACTIVITY_EVENT_MISSING_OR_AMBIGUOUS');
+}));
+test('ACC230 rejects missing or extra queue event per original Print and Laser source line',()=>withFixture(async x=>{
+ x.raw.exec("DELETE FROM t12_prod_outbox WHERE event_key='queue:02'");
+ assert.equal((await request(x)).body.code,'T12_ORIGINAL_OUTBOX_LINES_MISSING_OR_EXTRA');
+ const original=JSON.parse(x.raw.prepare('SELECT canonical_json AS c FROM t12_prod_request_ledger').get().c);
+ x.raw.prepare("INSERT INTO t12_prod_outbox (request_key,event_key,order_id,line_id,event_type,status,payload_json) VALUES (?, 'queue:02', ?, ?,'trend-master-status-intent','pending',?)")
+  .run(KEY,ORDER_ID,ORDER_ID+'-02',JSON.stringify(original.queuePlans[1]));
+ assert.equal((await request(x)).status,200);
+ x.raw.prepare("INSERT INTO t12_prod_outbox (request_key,event_key,order_id,line_id,event_type,status,payload_json) VALUES (?, 'queue:03', ?, ?,'trend-master-status-intent','pending',?)")
+  .run(KEY,ORDER_ID,ORDER_ID+'-01',JSON.stringify(original.queuePlans[0]));
+ assert.equal((await request(x)).body.code,'T12_ORIGINAL_OUTBOX_LINES_MISSING_OR_EXTRA');
+}));
+test('ACC230 rejects wrong outbox line, wrong type, failed delivery, missing or corrupt payload',()=>withFixture(async x=>{
+ for(const [change,undo,code] of [
+  ["UPDATE t12_prod_outbox SET line_id='4323-01' WHERE event_key='queue:02'",
+   "UPDATE t12_prod_outbox SET line_id='4323-02' WHERE event_key='queue:02'",'T12_ORIGINAL_OUTBOX_ROW_INVALID_OR_FAILED'],
+  ["UPDATE t12_prod_outbox SET event_type='invoice-post' WHERE event_key='queue:02'",
+   "UPDATE t12_prod_outbox SET event_type='trend-master-status-intent' WHERE event_key='queue:02'",'T12_ORIGINAL_OUTBOX_ROW_INVALID_OR_FAILED'],
+  ["UPDATE t12_prod_outbox SET status='failed' WHERE event_key='queue:02'",
+   "UPDATE t12_prod_outbox SET status='pending' WHERE event_key='queue:02'",'T12_ORIGINAL_OUTBOX_ROW_INVALID_OR_FAILED'],
+  ["UPDATE t12_prod_outbox SET payload_json='{}' WHERE event_key='queue:02'",
+   null,'T12_ORIGINAL_OUTBOX_PAYLOAD_DRIFT']
+ ]){
+  const original=x.raw.prepare("SELECT payload_json AS p FROM t12_prod_outbox WHERE event_key='queue:02'").get().p;
+  x.raw.exec(change);
+  assert.equal((await request(x)).body.code,code,change);
+  if(undo)x.raw.exec(undo);
+  else x.raw.prepare("UPDATE t12_prod_outbox SET payload_json=? WHERE event_key='queue:02'").run(original);
+  assert.equal((await request(x)).status,200);
+ }
+ x.raw.exec("UPDATE t12_prod_outbox SET status='done' WHERE event_key='queue:02'");
+ const done=await request(x);
+ assert.equal(done.status,200);
+ assert.equal(done.body.financeAuthorized,false);
+ assert.equal(done.body.connectorEventPublished,false);
+}));
+test('ACC230 no extra finance event or orders generated from initial T12 outbox',()=>withFixture(async x=>{
+ const prior=x.raw.prepare("SELECT total_changes() AS n").get().n;
+ const inspected=await request(x);
+ assert.equal(inspected.status,200);
+ assert.equal(x.raw.prepare("SELECT total_changes() AS n").get().n,prior);
+ assert.equal(x.raw.prepare("SELECT COUNT(*) AS n FROM t12_prod_outbox").get().n,2);
+ assert.equal(x.raw.prepare("SELECT COUNT(*) AS n FROM t12_prod_events").get().n,1);
+ assert.equal(inspected.body.departmentApprovalsVerified,false);
+ assert.equal(inspected.body.canRequestInvoice,false);
 }));
 test('without D1 batch, broken transaction or broken schema return generic fail closed',async()=>{
  const lacking=await inspect({db:{prepare(){}},orderId:ORDER_ID,expectedOfficialCustomerId:C});
