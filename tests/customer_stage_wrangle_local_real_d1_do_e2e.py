@@ -15,6 +15,8 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
 
 ROOT=Path(__file__).resolve().parents[1]
 CF=ROOT/"cloudflare-d1"
@@ -112,6 +114,33 @@ def stop_dev(proc):
             proc.kill();proc.wait(timeout=5)
     try:proc.stderr.close()
     except Exception:pass
+
+def serve_browser_fixture():
+    """Same-origin LOCAL fixture for Chromium; never serve production files."""
+    fixture=(ROOT/"tests/fixtures/customer-stage-browser-local.html").read_bytes()
+    native=(ROOT/"customer-native-browser-transport-v0.js").read_bytes()
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path in ("/","/index.html"):
+                body,content_type=fixture,"text/html; charset=utf-8"
+            elif self.path=="/customer-native-browser-transport-v0.js":
+                body,content_type=native,"text/javascript; charset=utf-8"
+            else:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type",content_type)
+            self.send_header("Content-Length",str(len(body)))
+            self.send_header("Cache-Control","no-store")
+            self.send_header("X-Content-Type-Options","nosniff")
+            self.end_headers()
+            self.wfile.write(body)
+        def log_message(self,*args):
+            pass
+    server=ThreadingHTTPServer(("127.0.0.1",8000),Handler)
+    thread=Thread(target=server.serve_forever,daemon=True)
+    thread.start()
+    return server,thread
 
 def seed_sql():
     statements=[
@@ -253,9 +282,30 @@ def main():
             check("PASS: source customer browser adapter" in bridge.stdout,
                   "Browser adapter did not attest local preflight")
             print(bridge.stdout.strip())
-            # C1 already made TWO successful logins: Python + Node VM. Three
-            # wrong attempts reach 5; the following attempt must be 429.
-            for i in range(3):
+            # REAL Chromium browser loads original Native adapter from an
+            # isolated loopback origin and performs browser-enforced CORS.
+            # Third C1 login leaves TWO wrong attempts before DO 5/15m cap.
+            local_browser,thread=serve_browser_fixture()
+            try:
+                browser=subprocess.run(
+                    ["node",str(ROOT/"tests/customer_stage_chromium_real_browser_local.cjs")],
+                    cwd=ROOT,text=True,capture_output=True,timeout=100,
+                    env={**os.environ,"CUSTOMER_STAGE_LOCAL_PORT":str(port),
+                         "CLOUDFLARE_API_TOKEN":"","CLOUDFLARE_ACCOUNT_ID":""}
+                )
+                if browser.returncode:
+                    raise AssertionError("Real Chromium portal bridge failed: "+
+                                         browser.stderr[-5000:]+
+                                         "\\nBROWSER_STDOUT:"+browser.stdout[-1500:])
+                check("PASS: actual Chromium browser DOM customer login" in browser.stdout,
+                      "Real browser did not confirm local D1/DO portal flow")
+                print(browser.stdout.strip())
+            finally:
+                local_browser.shutdown()
+                local_browser.server_close()
+                thread.join(timeout=5)
+            # C1 now performed three valid logins (Python+VM+Chromium).
+            for i in range(2):
                 status,wrong=request(port,paths["login"],method="POST",
                     payload={"portalCode":CODE,"password":"LOCAL-WRONG-PASSWORD-"+str(i)+"-NOT_REAL"})
                 check(status==401,"Expected generic rejection for bad local password")
@@ -272,7 +322,7 @@ def main():
             status,otherafter=request(port,paths["orders"],token=token2)
             check(status==200 and len(otherafter.get("lines",[]))==1,
                   "D1 owner read did not survive local Worker restart")
-            print("PASS: Wrangler local real D1+SQLite Durable Object + original browser adapter CORS: 2-tenant login, scoped orders, CAS revoke, preflight, replay denial, 5/15m rate and restart persistence")
+            print("PASS: Wrangler local D1+SQLite Durable Object + original Node VM adapter + REAL Chromium browser: owner-isolated login/orders, CAS revoke, browser-native CORS, 5/15m and restart persistence")
             print("NO_DEPLOY=YES; CLOUD_CUSTOMER_DB_UNTOUCHED=YES; STAGE_REMOTE_UNPROVISIONED=YES")
         finally:
             stop_dev(proc)

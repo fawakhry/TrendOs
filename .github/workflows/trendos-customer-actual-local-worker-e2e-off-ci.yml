@@ -4,10 +4,13 @@ on:
     branches:
       - test/customer-portal-actual-local-worker-d1-do-e2e-off-20261024
       - test/customer-portal-real-browser-transport-preflight-off-20261024
+      - test/customer-portal-chromium-local-worker-e2e-off-20261024
   pull_request:
     paths:
       - 'tests/customer_stage_wrangle_local_real_d1_do_e2e.py'
       - 'tests/customer_stage_browser_adapter_real_http_local.mjs'
+      - 'tests/customer_stage_chromium_real_browser_local.cjs'
+      - 'tests/fixtures/customer-stage-browser-local.html'
       - '.github/workflows/trendos-customer-actual-local-worker-e2e-off-ci.yml'
       - 'cloudflare-d1/customer-stage/**'
       - 'cloudflare-d1/wrangler.customer-stage.toml'
@@ -17,7 +20,7 @@ permissions:
 jobs:
   local-wrangler-real-sqlite-d1-durable-object:
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 20
     env:
       CLOUDFLARE_API_TOKEN: ''
       CLOUDFLARE_ACCOUNT_ID: ''
@@ -44,11 +47,20 @@ jobs:
           set -euo pipefail
           npm install --prefix "$RUNNER_TEMP/customer-wrangler-tools" --no-save --no-audit --no-fund wrangler@4
           echo "CUSTOMER_STAGE_LOCAL_WRANGLER=$RUNNER_TEMP/customer-wrangler-tools/node_modules/.bin/wrangler" >> "$GITHUB_ENV"
+      - name: Install isolated headless Chromium (test runner only)
+        run: |
+          set -euo pipefail
+          export PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/customer-chromium-local-only"
+          echo "PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
+          npm install --prefix "$RUNNER_TEMP/customer-browser-tools" --no-save --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/customer-browser-tools/node_modules/.bin/playwright" install --with-deps chromium --only-shell
+          echo "CUSTOMER_STAGE_LOCAL_PLAYWRIGHT_MODULE=$RUNNER_TEMP/customer-browser-tools/node_modules/playwright" >> "$GITHUB_ENV"
       - name: Local Python and original browser JS syntax checks
         run: |
           set -euo pipefail
           python3 -m py_compile tests/customer_stage_wrangle_local_real_d1_do_e2e.py
           node --check tests/customer_stage_browser_adapter_real_http_local.mjs
+          node --check tests/customer_stage_chromium_real_browser_local.cjs
       - name: Run REAL local Worker + D1 + SQLite DO, synthetic customers only
         run: |
           set -euo pipefail
