@@ -3,9 +3,11 @@ on:
   push:
     branches:
       - test/customer-portal-actual-local-worker-d1-do-e2e-off-20261024
+      - test/customer-portal-real-browser-transport-preflight-off-20261024
   pull_request:
     paths:
       - 'tests/customer_stage_wrangle_local_real_d1_do_e2e.py'
+      - 'tests/customer_stage_browser_adapter_real_http_local.mjs'
       - '.github/workflows/trendos-customer-actual-local-worker-e2e-off-ci.yml'
       - 'cloudflare-d1/customer-stage/**'
       - 'cloudflare-d1/wrangler.customer-stage.toml'
@@ -42,10 +44,11 @@ jobs:
           set -euo pipefail
           npm install --prefix "$RUNNER_TEMP/customer-wrangler-tools" --no-save --no-audit --no-fund wrangler@4
           echo "CUSTOMER_STAGE_LOCAL_WRANGLER=$RUNNER_TEMP/customer-wrangler-tools/node_modules/.bin/wrangler" >> "$GITHUB_ENV"
-      - name: Python local E2E syntax check
+      - name: Local Python and original browser JS syntax checks
         run: |
           set -euo pipefail
           python3 -m py_compile tests/customer_stage_wrangle_local_real_d1_do_e2e.py
+          node --check tests/customer_stage_browser_adapter_real_http_local.mjs
       - name: Run REAL local Worker + D1 + SQLite DO, synthetic customers only
         run: |
           set -euo pipefail
