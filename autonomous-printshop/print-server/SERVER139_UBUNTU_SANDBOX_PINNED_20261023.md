@@ -405,3 +405,11 @@ This is a supplemental Ubuntu server-book entry, preserving existing book histor
 - **No next user command at this stage**. Preserve the last exact Ray/time for vendor-side correlation. Do not reactivate recurring 403 probes, re-read Last Seen, rotate credentials, weaken Access Block, deploy Worker/prod or read orders. If owner later authorizes a specific vendor case/response-sharing step, act once with the vetted packet and record real provider findings before any changes.
 - GitHub PR #190 still OPEN/DRAFT with no merge. Only documentation-only changes are made.
 - `SERVER182_VENDOR_PACKET=PREPARED_VERIFIED`; `SUPPORT_CASE_SENT=NO`; `NO_NEW_LIVE_TESTS=YES`; `HTTP403_ROOT_CAUSE=UNRESOLVED`; `PRODUCTION_AND_ORDERS_UNTOUCHED=YES`; `PR190=OPEN_DRAFT`.
+
+## SERVER-183 — Cloudflare support form opened (owner screenshot 2026-10-24 01:08 Cairo)
+
+- Owner reached Cloudflare Support Portal > Open a case > Submit a support case; the form displays issue description, business-impact priority (default P4 General questions), attachments, affected zones, optional email and Submit Case. No case has been submitted and account technical-support entitlement is not independently established.
+- Next single owner step: paste the no-secret SERVER-182 edge-decision incident summary into the issue-description field, keep P4 for isolated staging (no production outage reported), and provide a screenshot before submission. Do not upload screenshots displaying credentials, paste any Client ID/Secret, or select an unrelated zone as affected.
+- No new Ubuntu or Worker testing, policy change or token rotation. PR #190 remains Open/Draft. HTTP403 root cause unresolved.
+
+`SERVER183_SUPPORT_FORM=OPEN`; `SUPPORT_CASE_SUBMITTED=NO`; `NEXT_STEP=PASTE_DESCRIPTION_ONLY`; `PR190=OPEN_DRAFT`.
