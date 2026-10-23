@@ -201,7 +201,7 @@ const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456',qty=1)=>({
 const acc223Link={customerId:'CUS-FAKE-1',evidenceRef:'ACC223_STAGING_UNATTESTED_001'};
 const acc223Opts={canary:false,mode:'isolated-source-only',allowSourceCapture:true,officialCustomerLink:acc223Link};
 const acc223Input=(key='cld1_1800000700000_ACC223_1234567890123456')=>({
-  ...input(key),externalCustomerId:'CUS-FAKE-1'
+  ...input(key) // Legacy T12 external ID 999002 stays numeric and independent
 });
 const installFakeCustomer=db=>{
   db.raw.prepare("INSERT INTO t12_customers (customer_id,customer_name,customer_name_key,source) VALUES (?,?,?,?)")
@@ -236,6 +236,7 @@ const armIsolated=db=>db.raw.prepare("UPDATE t12_order_customer_at_create_contro
   assert.equal(db.count('t12_order_customer_at_create_v1'),1);
   const capture=db.raw.prepare('SELECT * FROM t12_order_customer_at_create_v1').get();
   assert.equal(capture.customer_id,'CUS-FAKE-1');
+  assert.equal(capture.external_customer_id,'999002');
   assert.equal(capture.customer_version,1);
   assert.equal(capture.actor_subject,actor);
   assert.equal(capture.capture_status,'SOURCE_ONLY_NOT_ATTESTED');
