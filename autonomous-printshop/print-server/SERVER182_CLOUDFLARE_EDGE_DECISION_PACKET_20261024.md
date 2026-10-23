@@ -125,3 +125,7 @@ Official references (checked 2026-10-24):
 **Status update (SERVER-185):** Owner screenshot confirms Cloudflare case **#02394197** was submitted successfully on 2026-10-24 ~01:13 Cairo. No Cloudflare technical diagnosis/reply is yet known. The earlier prepared text and evidence ledger are preserved as a reference; the submission confirmation screenshot alone does **not** verify the complete final case body. Do not store screenshots revealing the current Client ID in GitHub; no credentials are in this packet. Do not run any additional Ubuntu command or Cloudflare test merely because the case was submitted.
 
 `SERVER182_PACKET=PREPARED`; `SERVER185_CLOUDFARE_CASE=02394197`; `SUPPORT_CASE_SUBMITTED=YES_OWNER_SCREENSHOT`; `SUPPORT_REPLY=PENDING`; `NEW_LIVE_REQUESTS=0`; `ACCESS_HTTP403_ROOT_CAUSE=UNRESOLVED`; `PR190=OPEN_DRAFT`; `PRODUCTION_AND_DEVICES_UNTOUCHED=YES`.
+
+## G. Owner email acknowledgment verified — 2026-10-24
+
+Owner-provided Cloudflare acknowledgment email explicitly confirms creation of support case `02394197` and reproduces the full issue description. The 01:15 Cairo case UI screenshot displayed `New` and `Low` with only automated creation in the feed. **There is no substantive engineering reply yet.** This supersedes the earlier uncertainty about whether the complete description was accepted. Full details and safety constraints: `SERVER186_CLOUDFLARE_SUPPORT_CASE_CONFIRMATION_20261024.md`. Keep this dossier as already submitted; await support findings before any new live tests or configuration changes.
