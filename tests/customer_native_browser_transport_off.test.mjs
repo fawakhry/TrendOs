@@ -25,6 +25,7 @@ const goodBody = {
   success: true, readOnly: true, source: 'customer-d1-native-read-v0',
   lines: [goodLine], hasMore: false
 };
+const goodLogout = {success:true,sessionRevoked:true,source:'customer-d1-native-logout-v0'};
 const goodLogin = {
   success:true,customerSessionIssued:true,source:'d1-native-customer-login-v0',
   token:'e'.repeat(64),expiresAtMs:Date.now()+600000
@@ -45,7 +46,7 @@ function harness(opts = {}) {
       }
       return {
         ok: true, status: 200, text: async () =>
-          opts.rawResponse ?? JSON.stringify(url.endsWith('/login') ? (opts.loginResponse ?? goodLogin) : response)
+          opts.rawResponse ?? JSON.stringify(url.endsWith('/login') ? (opts.loginResponse ?? goodLogin) : url.endsWith('/logout') ? (opts.logoutResponse ?? goodLogout) : response)
       };
     }
   };
@@ -243,18 +244,28 @@ test('after Native login, flag OFF fails closed for customer while employee stay
   await h.call('customerLogin',{customerCode:'PC-FAKE-1',password:'FAKE-Password-NotReal-2026!'});
   h.window.TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED=false;
   await assert.rejects(()=>h.call('getCustomerOrders'),{code:'CUSTOMER_NATIVE_MODE_MISMATCH'});
-  await assert.rejects(()=>h.call('customerLogout'),{code:'CUSTOMER_NATIVE_MODE_MISMATCH'});
+  const logout=await h.call('customerLogout');
+  assert.equal(logout.serverSessionRevoked,true,'existing D1 CAS route still used even after flag flip');
+  assert.equal(h.nativeCalls[1].url,HOST+'/v1/customer/native/logout');
   assert.equal(h.downstreamCalls.length,0);
   assert.deepEqual(await h.call('getRows',{username:'EMPLOYEE'}),{success:true,from:'legacy'});
   assert.equal(h.downstreamCalls.length,1);
 });
-test('Native logout drops in-memory bearer without forwarding to Google or pretending server revoked',async()=>{
+test('Native logout POST requires original verified D1 CAS acknowledgement, no Google fallback',async()=>{
   const h=harness({enabled:true});
   await h.call('customerLogin',{customerCode:'PC-FAKE-1',password:'FAKE-Password-NotReal-2026!'});
   const result=await h.call('customerLogout',GOOGLE_LEGACY);
   assert.equal(result.success,true);
-  assert.equal(result.serverSessionRevoked,false);
-  assert.equal(h.nativeCalls.length,1);
+  assert.equal(result.serverSessionRevoked,true);
+  assert.equal(result.sessionRevoked,true);
+  assert.equal(result.source,'customer-d1-native-logout-v0');
+  assert.equal(h.nativeCalls.length,2);
+  assert.equal(h.nativeCalls[1].url,HOST+'/v1/customer/native/logout');
+  assert.equal(h.nativeCalls[1].init.method,'POST');
+  assert.equal(h.nativeCalls[1].init.headers.authorization,'Bearer '+'e'.repeat(64));
+  assert.equal(h.nativeCalls[1].init.credentials,'omit');
+  assert.equal(h.nativeCalls[1].init.redirect,'error');
+  assert.doesNotMatch(JSON.stringify(h.nativeCalls[1]),/LEGACY_PRIVATE|GOOGLE_LEGACY/);
   assert.equal(h.downstreamCalls.length,0);
   await assert.rejects(()=>h.call('getCustomerOrders'),{code:'CUSTOMER_NATIVE_SESSION_NOT_AVAILABLE'});
 });
@@ -300,4 +311,48 @@ test('native source-only app.js save/load functions do not persist or restore na
   vm.runInContext('saveCustomerSession()',context);
   assert.equal(sessionMap.has('matbagy_platform_customer_session'),true,'OFF legacy behavior preserved');
   assert.equal(vm.runInContext('loadCustomerSession()',context),true,'legacy restore unchanged OFF');
+});
+
+test('Native logout fails CLOSED on network/401/503/fake-success response, clears local bearer immediately',async()=>{
+  const variants=[
+    [{rejectFetch:true},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
+    [{responseStatus:401},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
+    [{responseStatus:503},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
+    [{rawResponse:'not JSON'},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
+    [{logoutResponse:{...goodLogout,sessionRevoked:false}},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
+    [{logoutResponse:{...goodLogout,source:'google-bridge'}},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
+    [{logoutResponse:{success:true,sessionRevoked:true}},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED']
+  ];
+  for(const [o,code] of variants){
+    const h=harness({enabled:true,...o});
+    await h.call('customerLogin',{customerCode:'PC-FAKE-1',password:'FAKE-Password-NotReal-2026!'});
+    await assert.rejects(()=>h.call('customerLogout',GOOGLE_LEGACY),{code});
+    assert.equal(h.downstreamCalls.length,0);
+    await assert.rejects(()=>h.call('getCustomerOrders'),{code:'CUSTOMER_NATIVE_SESSION_NOT_AVAILABLE'});
+    await assert.rejects(()=>h.call('customerLogout'),{code:'CUSTOMER_NATIVE_SESSION_NOT_AVAILABLE'});
+  }
+});
+test('Native in-memory marker is NEVER forwarded to legacy after local logout or flag OFF',async()=>{
+  const h=harness({enabled:true});
+  await h.call('customerLogin',{customerCode:'PC-FAKE-1',password:'FAKE-Password-NotReal-2026!'});
+  await h.call('customerLogout');
+  h.window.TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED=false;
+  for (const action of ['getCustomerOrders','customerLogout','getCustomerPortalAccountsV1859']) {
+    await assert.rejects(()=>h.call(action,{
+      customerCode:'PC-FAKE-1',token:'NATIVE_SESSION_IN_MEMORY'
+    }),{code:'CUSTOMER_NATIVE_MODE_MISMATCH'});
+  }
+  assert.equal(h.downstreamCalls.length,0);
+  assert.deepEqual(await h.call('getRows',{username:'EMPLOYEE'}),{success:true,from:'legacy'});
+  assert.equal(h.downstreamCalls.length,1);
+});
+test('customer logout UI reports server revocation failure for Native only, keeps legacy logout behavior',()=>{
+  const start=appSource.indexOf('  function customerLogout() {');
+  const end=appSource.indexOf('\n  function canOpenVisitorPreview()',start);
+  assert.ok(start>0&&end>start);
+  const body=appSource.slice(start,end);
+  assert.match(body,/result\.serverSessionRevoked !== true/);
+  assert.match(body,/c\.nativeSession === true/);
+  assert.match(body,/clearCustomerSession\(\)/);
+  assert.match(body,/showEntryChoice\(\)/);
 });
