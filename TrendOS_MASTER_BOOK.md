@@ -631,3 +631,105 @@ Owner concurrent assignment: a different accounting agent is preparing the **ind
 - **Rollback guarded:** Both helpers now GET latest active 100% Worker version, no-op when already PRE, reject if active != own new-version before POST, POST PRE only with matching local ownership and re-GET active 100% PRE before success. **Executed 10 new modified-original Node-helper source-only fake control-plane cases, 10/10 expected**: two workflows × normal PRE return, third-party veto, already PRE no-op, nonconvergent ACK rejection and failed POST rejection. Static checks confirm three group matches, source uniqueness/intent and 02CW FILES preflight. Fake cloud state, no real Cloudflare semantics or atomic GET→POST guarantees.
 - **FILES predeploy:** historical 02CW source now refuses code-only Wrangler deploy if `cloudflare-d1/wrangler.toml` lacks exactly one `FILES` R2 binding to `trendos-employee-content-files`, same target Worker and DB. Current source Wrangler `579b06e4918a9ed965be183e69742205f03cdc74` lacks FILES, so this draft gate deliberately BLOCKS deploy until owner-approved config reconciliation, not a statement live FILES is absent. New Node test file `tests/entry693_cloudflare_guard_source.test.mjs` created, **not yet executed natively / no new CI**.
 - **Outstanding:** external concurrent writers and GET–POST race remain open, source-versus-active SHA/ETag and FILES bindings unverified, manual Stage fault-testing + rollback witness required. Owner must not merge/deploy until source/CI/Stage/remote attestation. Entry692 Draft PR234 remains separate. Crosswalk `book_agent_20261024_entry693_safe_rollback_files_config_draft_pr236_v1`, Manifest `current_no_loss_gate_20261024_entry693_rollback_guard_predeploy_pr236_v1`, AGENT_LOG recorded. Finance EasyStore exclusive, old MASTER ACTIVE_WRITE, frozen catalog/archive unchanged, `FINAL_CUTOVER=NO_GO`.
+
+
+## ENTRY694 — الفصل الدائم للمشاكل والاختبارات المؤجلة | سجل العيوب والإصلاحات والتجارب | TRENDOS_ISSUE_TEST_LEDGER_V1 (أمر المالك 2026-10-24)
+
+> **OWNER RULE — إلزامي لكل شات/إيجنت جديد يعمل على TrendOS:** قبل كتابة كود أو اقتراح إصلاح أو إعادة اختبار، اقرأ هذا الفصل وآخر إضافاته التي تبدأ `ENTRY694-LEDGER-EVENT`، ثم سجل هنا **فورًا** كل مشكلة أو احتمال خلل أو اختبار فاشل أو مؤجل أو إصلاح تم، حتى لو ظهر أثناء الكتابة فقط. **لا تُغلق مشكلة لمجرد كتابة الإصلاح أو نجاح المحاكاة.** سجل أين توقفنا وما هو الدليل التالي اللازم. يسري الأمر على جميع محادثات المستقبل داخل حدود سلطة المشروع، وليس على كتب المشاريع المستقلة.
+>
+> **مكان الكتابة الوحيد الآن:** هذا `TrendOS_MASTER_BOOK.md` على `agent/trendos-book-audit-v1-20261014` = `ACTIVE_WRITE`. الكتاب الموحّد `docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md` = `FROZEN_MIGRATION_ONLY`، ممنوع التعديل المباشر فيه. سجل AGENT_LOG + مفاتيح Crosswalk/Manifest الجديدة بالتوازي؛ الأرشيف محفوظ ولا تُحذف الفصول القديمة.
+>
+> **حالة الدليل لا تُترقى بالتخمين:** `REPO/SOURCE < MOCK < NATIVE_NODE < CI < STAGING < DEPLOYED < VERIFIED_PRODUCTION`، مع التنبيه أن هذه مراحل إثبات مختلفة وليست بدائل متساوية. حالة `FIX_IN_DRAFT` ليست `FIX_DEPLOYED`؛ حالة `19/19` أو `10/10` هنا **اختبارات محاكاة فقط**، لا تعني نجاح CI أو Stage أو حماية Production.
+
+### ENTRY694-A — بروتوكول التسجيل والمتابعة الملزم
+
+1. **قبل البدء:** اقرأ HEAD الحالي، هذا الفصل والإضافات الأحدث، كتاب كل جزء في نطاقه، PRs النشطة، والاختبارات الموثقة؛ لا تعيد اختبار حالة سبق إثباتها بلا تغيير في المصدر أو هدف واضح. احتفظ بسجل ما فشل أيضًا.
+2. **عند أي اكتشاف:** امنحه ID دائمًا (مثل `SEC-692-01` أو `CFL-693-03`). سجل: التاريخ، العنوان والاسم العربي/المرادفات، المسار/المكوّن، درجة الخطورة (مبدئية أو مثبتة)، إعادة الإنتاج ببيانات وهمية فقط، الأثر المتوقع مقابل ما ثبُت حيًا، السبب أو الفرضية، صاحب القرار، الرابط وcommit/blob/run الدقيق. لا تسرد أسرارًا أو معلومات عميل.
+3. **عند الإصلاح:** سجل `NOT_STARTED → FIX_IN_DRAFT → CI → STAGE → DEPLOYED → VERIFIED` مع روابط كل دليل؛ لا تغيّر `PRODUCTION` إلى PASS إلا بدليل النسخة المنشورة والاختبارات المصرح بها. إذا ظهر فشل جديد، سجل حادثة/إضافة جديدة بدل طمس النتيجة القديمة.
+4. **الاختبارات المؤجلة:** كل حالة لها ID ومعيار قبول وبيئة/مسؤول وحالة `NOT_RUN`، وتظل مفتوحة لحد نتيجة حقيقية موثقة. اختبارات رفض الوصول **قبل** R2/D1 والتكامل بالواجهة لا تُستبدل بفحص Health.
+5. **كيف تسجل لاحقًا بدون فقد:** أضف في **نهاية الكتاب** عنوان `### ENTRY694-LEDGER-EVENT-YYYYMMDD-N — [issue ID / update]` بحقول `Issue | discovery/fix | evidence | tests run/results | tests not run | blocked | owner | next | status | SHA`. لا تعدّل أو تمسح هذا الفصل/نتائج التاريخ. أضف AGENT_LOG وCrosswalk وManifest بمفاتيح جديدة، واكتب فقط على HEAD الذي قرأته باستخدام `expected_sha`.
+6. **قاعدة الإغلاق:** `CLOSED_WITH_PROOF` فقط عند وجود اختبار مناسب لنطاق المشكلة، وإثبات النسخة/الصلاحيات والـrollback عند تعلقها بالإنتاج، وموافقة المالك على أي نشر. إذا لا يوجد نشر فلا تضع `CLOSED_IN_PRODUCTION`. ملكية حسابات EasyStore لوكيل الحسابات، ولا ينقل هذا الفصل سلطة مالية.
+7. **التحقق من التسجيل نفسه:** مقارنة GitHub تظهر الملفات الأربعة فقط وإضافات بلا حذف؛ Blob الكتاب المجمّد وفرع الأرشيف لم يتغيرا. أي تعارض كتابات يُعاد من HEAD الجديد؛ لا قوة إجبارية أو overwrites.
+
+### ENTRY694-B — سجل المشكلات الحالي (Snapshot 2026-10-24، لا يعتبر شهادة Production)
+
+| ID | المشكلة / الاسم العربي | الحالة الحقيقية المسجلة | دليل الكود/الاختبار | الخطوة المطلوبة قبل الإغلاق |
+|---|---|---|---|---|
+| `SEC-692-01` | Comms / ملفات محادثة الأوردر: قراءة بروفة أو ملف محادثة بدون جلسة/صلاحية أو بدون إثبات سلامة bytes | `FIX_IN_DRAFT_LIVE_UNVERIFIED` | 19/19 isolated suite includes anonymous/invalid/other-uploader/tamper/positive; NOT native CI | `NODE_692`, `STAGE_R2_ACL_SHA`, `PER_ORDER_OWNERSHIP_POLICY`, `FRONTEND_AUTH_DOWNLOAD` |
+| `SEC-692-02` | Content / إعلانات وملفات داخلية: الوصول إلى ملفات محتوى داخلي بحجة نشر صور التسويق | `FIX_IN_DRAFT_LIVE_UNVERIFIED` | synthetic active public, inactive, anonymous notes, owner/cross-uploader checks | `NODE_692`, `STAGE_CONTENT_PUBLIC_PRIVATE`, `FRONTEND_IMAGE_COMPAT`, `CONTENT_DIGEST_PROVENANCE` |
+| `SEC-692-03` | Mirror / بيانات الشيت والأوردرات: مسار GET يعرض مرآة بيانات دون اعتماد قارئ مستقل | `FIX_IN_DRAFT_LIVE_UNVERIFIED` | fake GET verified negative-before-D1 and fake positive | `NODE_692`, `MIRROR_READER_CLIENT_MIGRATION`, `SERVER_SIDE_SECRET_SETUP`, `MIRROR_E2E` |
+| `SEC-692-04` | T12 / فلترة أقسام الأوردر: قائمة screens الفارغة كانت تعني غياب قيد القسم | `FIX_IN_DRAFT_LIVE_UNVERIFIED` | synthetic three positive/negative section tests | `NODE_692`, `EDGE_T12_STAGE_ROLE_MATRIX` |
+| `FILES-692-05` | روابط R2 القديمة وحالة الملفات: سجلات public_url القديمة أو ملف content بلا SHA-256 | `OPEN_MIGRATION_NOT_EXECUTED` | repo-only source and isolated checks; NO actual R2 rows read | `LEGACY_PUBLIC_URL_READONLY_INVENTORY`, `CONTENT_DIGEST_SCHEMA_PROVENANCE`, `FRONTEND_AUTH_DOWNLOAD`, `STAGE_R2_ACL_SHA` |
+| `CFL-693-01` | Cloudflare / تراجع النشر: Rollback قد يتراجع فوق نسخة وضعها طرف آخر؛ ACK وحده لا يكفي | `FIX_IN_DRAFT_LIVE_UNVERIFIED` | 10/10 fake modified Node cases across Entry645/Entry642; no real CF API | `NODE_693`, `STAGE_CLOUDFLARE_FAILURE_MATRIX`, `GLOBAL_SINGLE_WRITER_CAS`, `REAL_DEPLOY_READBACK` |
+| `CFL-693-02` | Wrangler / سلامة FILES وDB: 02CW لا يثبت FILES R2 binding قبل النشر؛ المصدر المثبت بلا FILES | `FIX_DRAFT_FAIL_CLOSED_DEPLOY_BLOCKED` | static source + original earlier mock guard tests; no real Wrangler | `WRANGLER_R2_SOURCE_PARITY`, `CLOUDFLARE_LIVE_BINDINGS_READONLY`, `STAGE_CODEONLY_R2_PERSISTENCE` |
+| `CFL-693-03` | Cloudflare / وراثة latest: type:inherit version_id:latest قد لا يدل على النسخة النشطة؛ GET/PATCH race | `OPEN_NOT_FIXED` | 8/8 earlier fake PATCH construction scenarios | `SUPPORTED_CLOUDFLARE_API_VERSION_TARGET`, `STAGE_CLOUDFLARE_FAILURE_MATRIX`, `GLOBAL_SINGLE_WRITER_CAS` |
+| `CFL-693-04` | Cloudflare / أسماء Bindings: FILES_PUBLIC_BASE_URL أو DB مكرر يمكن أن يتكون في JSON عند PATCH | `PARTIAL_FIX_IN_DRAFT` | original 8 mock PATCH cases + source static guard; no Cloudflare acceptance proof | `NODE_693`, `STAGE_SETTINGS_DUPLICATES`, `CLOUDFLARE_LIVE_BINDINGS_READONLY` |
+| `CFL-693-05` | قفل النشر / concurrent agents: Workflows أخرى وعمليات CLI خارج GitHub غير مشمولة بقفل الثلاثة | `OPEN_PARTIAL_LOCK_DRAFT` | three source group checks, no real cross-workflow simulation | `REPO_WORKER_WRITER_INVENTORY`, `GLOBAL_SINGLE_WRITER_CAS`, `STAGE_CONCURRENT_DEPLOY` |
+| `PROOF-694-01` | Source→Bundle→Active Worker / إثبات النشر: لا يوجد شاهد SHA مطابق للكود المنشور ولا ربط فعلي لـFILES | `OPEN_UNVERIFIED` | historical Entry498 artifact != current PR221 bundle; CF active deployed SHA/etag unknown | `BUNDLE_SHA256_PROVENANCE`, `CLOUDFLARE_LIVE_BINDINGS_READONLY`, `STAGE_R2_ACL_SHA`, `POSTDEPLOY_READONLY_WITNESS` |
+| `INTEG-694-01` | الواجهة والمتعاملون مع Mirror/الصور: PR234 قد يكسر <img src> للملف المحمي ومسارات Mirror القديمة والـ02CW parity check | `OPEN_COMPATIBILITY_NOT_TESTED` | source analysis only; no browser E2E | `FRONTEND_AUTH_DOWNLOAD`, `MIRROR_READER_CLIENT_MIGRATION`, `MIRROR_E2E`, `FRONTEND_IMAGE_COMPAT` |
+| `TEST-694-01` | الاختبارات الحقيقية: الاعتماد على المحاكاة فقط رغم وجود اختبارات Node مضافة | `OPEN_EXECUTION_GAP` | PR234 isolated 19/19; PR236 isolated 10/10; historical tests do not count as new CI | `NODE_692`, `NODE_693`, `EXISTING_REGRESSION_SUITE`, `CI_YAML` |
+| `FIN-694-01` | EasyStore / الحسابات: حدود سلطة العملاء والفواتير المالية قبل cutover | `INDEPENDENT_OWNER_NO_RELEASE_CLAIM` | PR211 Draft SHA observed; no production accounting acceptance claimed | `ACCOUNTING_OWNER_ATTESTATION` |
+
+**مراجع الإصلاحات المثبتة:** [PR #234](https://github.com/fawakhry/TrendOs/pull/234) Draft HEAD `417298488e3f5f0d999cdce0b0d5279a967cfb85` = إصلاح صلاحيات Comms/Content/Mirror/T12 + ملف اختبارات `tests/entry692_private_read_guards.test.mjs`؛ [PR #236](https://github.com/fawakhry/TrendOs/pull/236) Draft HEAD `596ec59b0ace0beecdfa4d601dd80860a9a239d1` = حماية Rollback وWorkflow Bindings + ملف اختبارات `tests/entry693_cloudflare_guard_source.test.mjs`. كلاهما موجه إلى فرع PR #221، **Draft، غير مدموج وغير منشور**. اختبار Comms/Content/Mirror/T12 المعزول `19/19`، واختبار rollback المعزول `10/10`، مجموع **29 سيناريو محاكاة** لا تُخلط مع CI. خلال اختبار الصلاحيات الأول ظهر فشل cross-uploader لملاحظات Content فتم تضييق الشرط داخل PR #234 ثم أعيدت المحاكاة ونجحت؛ **الفشل الأول محفوظ في سجل Entry692 ولا يُحذف**.
+
+**حدود مهمة لا تُسقطها عبارة «الإصلاح اتعمل»:** بعض روابط الملفات القديمة قد تحتوي مسار R2 مباشر ولا يغيرها كود رفع الملف الجديد؛ ملفات Content القديمة لا تحمل SHA256 مثبتة؛ `<img src>` لا يرسل Bearer تلقائيًا؛ عملاء Mirror الحاليون و02CW parity سيحتاجون تكييفًا آمنًا قبل حجب GET؛ مفتاح `MIRROR_READ_SECRET` لا يضاف للواجهة؛ PR #236 لا يمنع الكتابة خارج GitHub أو يحول GET→POST إلى CAS ذري؛ ملف Wrangler الحالي بلا FILES رغم أن القيد الجديد يطلبه، فيجب إبقاء النشر محظورًا حتى إثبات إعدادات Cloudflare فعلًا. لا يُستنتج من غياب FILES في المستودع غيابه من Worker المنشور.
+
+### ENTRY694-C — قائمة اختبارات «لازم تتعمل بعدين» ومعيار النجاح (مفتوحة)
+
+| Test ID | أين وماذا؟ | معيار النجاح الذي يسجل عند التنفيذ | وضعها الآن |
+|---|---|---|---|
+| `NODE_692` | tests/entry692_private_read_guards.test.mjs | Execute native Node against PR234 tree and receive passing assertions; preserve full logs + commit SHA | `NOT_RUN` |
+| `NODE_693` | tests/entry693_cloudflare_guard_source.test.mjs | Execute native Node against PR236 tree, 10/10 negative/positive cases with trace | `NOT_RUN` |
+| `EXISTING_REGRESSION_SUITE` | Entry614 Comms/Content, Entry629/630 dispatch, T12 overlay, Mirror gate | All relevant old tests pass after code changes; no accidental change of unrelated paths | `NOT_RUN` |
+| `CI_YAML` | PR234 + PR236 check suites and workflows | GitHub CI jobs pass from exact PR SHAs and YAML correctly parsed; no workflows touching production invoked | `NOT_RUN` |
+| `STAGE_R2_ACL_SHA` | synthetic Stage R2 bucket and D1 | authorized matching bytes/hash 200; revoked/other employee denied before FILES.get; missing/mismatch digest rejects; zero public exposure | `NOT_RUN` |
+| `STAGE_CONTENT_PUBLIC_PRIVATE` | Stage Content active/inactive/notes | public ad works anonymously; inactive/private deny; uploader/admin authorized; cache headers correct | `NOT_RUN` |
+| `FRONTEND_AUTH_DOWNLOAD` | protected proof download and preview UI | Bearer + employee identity sent via fetch, not query string; no token leakage to browser URL; explicit safe object URL lifecycle | `NOT_RUN` |
+| `FRONTEND_IMAGE_COMPAT` | public marketplace/ad images and internal content | normal public marketing images render; private assets cannot render anonymously; old content UX reviewed | `NOT_RUN` |
+| `MIRROR_READER_CLIENT_MIGRATION` | read-only mirror consumers incl. health/parity | inventory and migrate server-to-server consumers; never embed MIRROR_READ_SECRET in frontend; default-deny for missing config | `NOT_RUN` |
+| `MIRROR_E2E` | Stage Mirror GET/POST | unauthorized GET ->401 without DB read, authorized read-only GET works, migration secret alone not valid for read, POST remains separately protected | `NOT_RUN` |
+| `EDGE_T12_STAGE_ROLE_MATRIX` | T12 orders / Edge roles | empty and mismatched screen forbidden; matching role/screen allowed; expired/revoked sessions characterized with native validator | `NOT_RUN` |
+| `LEGACY_PUBLIC_URL_READONLY_INVENTORY` | legacy file metadata only | owner-approved read-only number of raw R2 URL records, no customer objects/binaries copied or publicized | `NOT_RUN` |
+| `CONTENT_DIGEST_SCHEMA_PROVENANCE` | Content file legacy SHA metadata | tracked schema and hashing migration strategy with positive/negative fixture, no implied digest for old Content files | `NOT_RUN` |
+| `WRANGLER_R2_SOURCE_PARITY` | cloudflare-d1/wrangler.toml and effective live Worker config | owner-reviewed target Worker, DB, exact FILES bucket before enabling deploy; no guessed bucket string treated as live proof | `NOT_RUN` |
+| `CLOUDFLARE_LIVE_BINDINGS_READONLY` | Cloudflare read-only API after owner permission | capture active deployment version/script etag and effective FILES+DB binding without revealing secrets; confirm correct account/target | `NOT_RUN` |
+| `STAGE_CODEONLY_R2_PERSISTENCE` | disposable isolated Worker | FILES remains bound after approved code-only Wrangler deploy, positive authorized object roundtrip, negative private-object denial | `NOT_RUN` |
+| `STAGE_CLOUDFLARE_FAILURE_MATRIX` | Entry645/642 synthetic Stage | lost ACK, no own new version, third-party interleave, post-ACK non-convergence, rollback readback all fail closed without unrelated rollback | `NOT_RUN` |
+| `SUPPORTED_CLOUDFLARE_API_VERSION_TARGET` | Cloudflare version/settings contract | prove API support for explicit version lineage or enforce validated lock; never replace latest blindly | `NOT_RUN` |
+| `GLOBAL_SINGLE_WRITER_CAS` | all Worker deploy writers | owner-enforced exclusive writer including external CLI/GitHub actions, or CAS equivalent that rejects stale writer before mutation | `NOT_RUN` |
+| `REPO_WORKER_WRITER_INVENTORY` | all GitHub actions, scripts and manual deploys | complete target-worker writer inventory, owning agent and required lock, no source-only omission | `NOT_RUN` |
+| `STAGE_CONCURRENT_DEPLOY` | disposable Worker | simulate two writers and prove safe rejection/lock; no active third-party overwrite | `NOT_RUN` |
+| `STAGE_SETTINGS_DUPLICATES` | disposable Worker settings | duplicate input names and FILES URL collisions reject before API PATCH; source and actual Cloudflare staging behavior separated | `NOT_RUN` |
+| `BUNDLE_SHA256_PROVENANCE` | build source→artifact→active Worker | pinned SHA, reproducible bundle, SHA256 hash, active Cloudflare code/ETag matched with same pipeline | `NOT_RUN` |
+| `POSTDEPLOY_READONLY_WITNESS` | authorized production post-deploy | after owner-approved deployment only: signed redacted read-only witness, health/ACL/binding parity and rollback gate | `NOT_RUN` |
+| `DISPOSABLE_STAGE` | entire proposed repair set on disposable Worker and fake data | all functional and security suites pass with no customer/finance records accessed | `NOT_RUN` |
+| `CLOUD_LIVE_VERIFICATION` | live Worker active source/route | read-only evidence only with owner's permissions; distinguish from CI and Stage | `NOT_RUN` |
+| `ACCOUNTING_OWNER_ATTESTATION` | EasyStore separate owner book | independent owner signs customer/accounting provenance and release; never assume finance enabled from TrendOS repair | `INDEPENDENT_OWNER_PENDING` |
+
+**أولوية العمل عند الاستئناف:** أولًا اختبارات Node/الموجودة وYAML على نسخ PR SHA، ثم حصر العملاء المتأثرين بالواجهة/Mirror دون قراءة بيانات حساسة، ثم بيئة Stage صناعية مفصولة تثبت positive/negative للملفات والأذونات وربط R2/التراجع، ثم إثبات نسخة Worker وإعداداتها قراءةً فقط، وأخيرًا طلب موافقة المالك على أي نشر وتحقيق لاحق. لا تستخدم إنتاج العميل كبيئة اختبار.
+
+### ENTRY694-D — بطاقة الإدخال التي يلتزم بها أي شات لاحق
+
+```text
+ENTRY694-LEDGER-EVENT-YYYYMMDD-N
+Issue-ID / Parent-ID:
+المشكلة / المرادفات:
+Owner / scope (TrendOS or independent owner):
+Date / HEAD / source blob / PR / exact run:
+درجة الخطورة وهل الأثر حي مثبت أم فرضية:
+إعادة الإنتاج (اصطناعية بلا PII):
+الإصلاح المنفذ (إن وجد) + commit + DRAFT/MERGED/DEPLOYED:
+الاختبارات التي نُفذت: الاسم والعدد والفشل والبيئة ومستوى الدليل:
+الاختبارات التي لم تنفذ: Test IDs من ENTRY694-C أو IDs جديدة:
+النتيجة والاعتمادات والبوابات المفتوحة:
+Status (لا يجوز CLOSED بدون إثبات):
+الخطوة القادمة / المسؤول / معيار الإغلاق:
+تأكيد تحديث AGENT_LOG + Crosswalk + Manifest:
+```
+
+### ENTRY694-E — نقاط الاستكمال وسلطة المشروع
+
+- **آخر مشروعات حارسة:** PR #221 (Zero Google) Draft `fca5625e53815647addc6d183ebe4040990acdf5`؛ PR #211 (EasyStore) Draft `682aa00181697ae241b6c9ede1ee854b80eca105` عند القراءة فقط؛ إصلاحات الأمن PR #234 وCloudflare PR #236 كلاهما Draft. أي تقدم جديد في PR211 يملكه إيجنت EasyStore ويُراجع من مصدره الأحدث؛ ممنوع تغيير الحسابات أو اعتبار Finance RELEASE=GO.
+- **منع ضياع التعليمات الجديدة:** كل محادثة لاحقة تبدأ بقراءة أول صفحة من الكتاب النشط **و** البحث عن `ENTRY694` والإضافات الأحدث، ثم تعيد بناء قائمة `OPEN` من آخر حدث لكل ID. هذه القاعدة **إلزام توثيقي في Git** وليست ميزة آلية أو حماية GitHub Ruleset؛ لا يمكن ضمان التزام محادثة لا تقرأ الكتاب. الكتاب هو وسيلة الإرجاع المتفق عليها.
+- **بواباتنا الصريحة الآن:** `PR234=FIX_IN_DRAFT`، `PR236=FIX_IN_DRAFT`، `ISOLATED_MOCKS=29/29`، `NATIVE_NODE_NEW=NOT_RUN`، `CI=NOT_RUN`، `STAGE=NOT_RUN`، `PRODUCTION_FIX_DEPLOYED=NO`، `CLOUDFLARE_DEPLOYED_SHA=UNVERIFIED`، `R2_ACTIVE_BINDING=UNVERIFIED`، `FINAL_CUTOVER=NO_GO`، `FINANCE_AUTHORITY=EASYSTORE`.
+- **ممنوع فقد مرجع:** السجل القديم Entry645/692/693 يحتفظ بالتفاصيل الأصلية والأدلة الدقيقة؛ هذا الفصل مؤشر تشغيل دائم **وليس بديلاً** عن سجلات الحوادث أو كتاب واتس إيجنت أو كتب المطبعة المستقلة.

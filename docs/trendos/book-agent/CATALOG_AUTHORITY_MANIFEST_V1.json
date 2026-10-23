@@ -1174,5 +1174,64 @@
       "REPRODUCIBLE_BUNDLE_SHA256_TO_ACTIVE_CODE",
       "AUTHORIZED_R2_FILE_READ_SHA256_AND_DENY_BEFORE_GET"
     ]
+  },
+  "current_no_loss_gate_20261024_entry694_permanent_issue_test_chapter_policy_v1": {
+    "date": "2026-10-24",
+    "rule_id": "ENTRY694_ISSUE_TEST_LEDGER_OWNER_RULE_20261024",
+    "policy": "OWNER_MANDATORY_FOR_ALL_FUTURE_TRENDOS_AGENTS",
+    "chapter": "TrendOS_MASTER_BOOK.md#ENTRY694",
+    "chapter_search_terms": [
+      "ENTRY694",
+      "سجل المشكلات",
+      "الفصل الدائم للمشاكل والاختبارات المؤجلة",
+      "مشاكل أثناء الكتابة والاختبارات",
+      "TRENDOS_ISSUE_TEST_LEDGER_V1"
+    ],
+    "linked_crosswalk_key": "book_agent_20261024_entry694_permanent_issue_test_ledger_owner_rule_v1",
+    "book_head_before": "cbb5f8cfebfc445fb13a1f9e63a896289988b8f1",
+    "append_only_event_prefix": "ENTRY694-LEDGER-EVENT-",
+    "required_updates": [
+      "TrendOS_MASTER_BOOK.md",
+      "docs/trendos/book-agent/AGENT_LOG.md",
+      "docs/trendos/book-agent/BOOKS_NO_LOSS_CROSSWALK_V1.json",
+      "docs/trendos/book-agent/CATALOG_AUTHORITY_MANIFEST_V1.json"
+    ],
+    "issue_count": 14,
+    "planned_test_count": 27,
+    "issues_open": [
+      "SEC-692-01",
+      "SEC-692-02",
+      "SEC-692-03",
+      "SEC-692-04",
+      "FILES-692-05",
+      "CFL-693-01",
+      "CFL-693-02",
+      "CFL-693-03",
+      "CFL-693-04",
+      "CFL-693-05",
+      "PROOF-694-01",
+      "INTEG-694-01",
+      "TEST-694-01",
+      "FIN-694-01"
+    ],
+    "tests_unrun": [],
+    "closure_rule": "Never mark an issue CLOSED from source code commit, synthetic 19/19 or 10/10, Draft PR, CI alone, health-only or stale deployed SHA. A production issue may close only with qualified deployed-version witness, correct authorized positive+negative checks, recorded scope, rollback outcome and owner acceptance. If deployment unauthorized, leave pending. Tests that belong only to repo may close after native CI when clearly marked 'source-only issue' and no production claim.",
+    "evidence_levels": "SOURCE_ONLY / MOCK / NATIVE_NODE / CI / STAGE / DEPLOYED / VERIFIED_PRODUCTION",
+    "existing_mock_results": "19_19_PLUS_10_10_SOURCE_ISOLATED",
+    "native_tests": "NOT_RUN",
+    "CI": "NOT_RUN",
+    "stage": "NOT_RUN",
+    "production": "NO",
+    "CLOUDFLARE_DEPLOYED_SHA": "UNVERIFIED",
+    "R2_ACTIVE_BINDING": "UNVERIFIED",
+    "PR234": "DRAFT_ONLY",
+    "PR236": "DRAFT_ONLY",
+    "PR211_OWNER": "EASYSTORE",
+    "FINANCE_RELEASE": "NO_GO",
+    "FINAL_CUTOVER": "NO_GO",
+    "frozen_catalog": "DO_NOT_WRITE",
+    "archive": "PRESERVE",
+    "production_mutations": 0,
+    "owner_scope": "TRENDOS_MASTER_ONLY"
   }
 }

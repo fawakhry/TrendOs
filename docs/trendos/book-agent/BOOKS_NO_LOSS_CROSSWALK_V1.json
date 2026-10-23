@@ -18243,5 +18243,476 @@
       "merge": 0,
       "private_customer_file_read": 0
     }
+  },
+  "book_agent_20261024_entry694_permanent_issue_test_ledger_owner_rule_v1": {
+    "entry_id": "ENTRY694_ISSUE_TEST_LEDGER_OWNER_RULE_20261024",
+    "day": "2026-10-24",
+    "authority": "OWNER_REQUESTED_MANDATORY_PERMANENT_CHAPTER",
+    "canonical_heading": "ENTRY694 — الفصل الدائم للمشاكل والاختبارات المؤجلة",
+    "master_path": "TrendOS_MASTER_BOOK.md",
+    "book_head_before": "cbb5f8cfebfc445fb13a1f9e63a896289988b8f1",
+    "read_order_rule": [
+      "TrendOS_MASTER_BOOK.md transitional write authority",
+      "ENTRY694 chapter + all later ENTRY694-LEDGER-EVENT addenda",
+      "AGENT_LOG current tails",
+      "Crosswalk+Manifest entries and relevant independent owner book"
+    ],
+    "rule": {
+      "id": "ENTRY694_ISSUE_TEST_LEDGER_OWNER_RULE_20261024",
+      "version": "V1_20261024",
+      "date": "2026-10-24",
+      "authority": "USER_ORDER_FOR_ALL_FUTURE_CHATS_AND_AGENTS",
+      "canonical_chapter_heading": "## ENTRY694 — الفصل الدائم للمشاكل والاختبارات المؤجلة",
+      "canonical_path": "TrendOS_MASTER_BOOK.md",
+      "active_write_branch": "agent/trendos-book-audit-v1-20261014",
+      "append_only": true,
+      "read_first_before_any_task": [
+        "TrendOS_MASTER_BOOK.md transitional write authority",
+        "ENTRY694 chapter + all later ENTRY694-LEDGER-EVENT addenda",
+        "AGENT_LOG current tails",
+        "Crosswalk+Manifest entries and relevant independent owner book"
+      ],
+      "must_record_when": [
+        "problem found while writing/implementing/reviewing",
+        "failed or incomplete test including false-green test",
+        "new risk or unclear validation scope",
+        "fix committed/PR opened/CI run/stage tested/deployed",
+        "blocked dependency or owner decision",
+        "rollback and post-deploy verification"
+      ],
+      "required_entry_fields": [
+        "unique issue ID and parent ID",
+        "local and absolute date",
+        "area/owner and affected routes/files",
+        "repro steps without secrets/client PII",
+        "evidence type SOURCE_ONLY/MOCK/NATIVE_NODE/CI/STAGE/DEPLOYED/PRODUCTION",
+        "exact commit/blob/PR/run/job refs",
+        "severity and production impact actual vs hypothetical",
+        "fix status",
+        "test cases attempted including failed cases and never-run cases",
+        "regression and pending acceptance criteria",
+        "blocking dependencies + next owner action",
+        "closure proof and owner approval when applicable"
+      ],
+      "status_model": [
+        "FOUND_UNVERIFIED",
+        "REPRODUCED_SOURCE",
+        "FIX_IN_DRAFT",
+        "MOCK_PASS_ONLY",
+        "NODE_CI_PASS",
+        "STAGE_PASS",
+        "DEPLOYED_UNVERIFIED",
+        "PRODUCTION_VERIFIED",
+        "CLOSED_WITH_PROOF",
+        "BLOCKED_OWNER",
+        "NOT_APPLICABLE_WITH_REASON"
+      ],
+      "closure_policy": "Never mark an issue CLOSED from source code commit, synthetic 19/19 or 10/10, Draft PR, CI alone, health-only or stale deployed SHA. A production issue may close only with qualified deployed-version witness, correct authorized positive+negative checks, recorded scope, rollback outcome and owner acceptance. If deployment unauthorized, leave pending. Tests that belong only to repo may close after native CI when clearly marked 'source-only issue' and no production claim.",
+      "no_loss_write_protocol": "Append new findings as immutable ENTRY694-LEDGER-EVENT-YYYYMMDD-N issue updates at EOF of ACTIVE Master; don't rewrite original Entry694 snapshot, delete old lines or modify frozen catalog. Append AGENT_LOG + new unique structured keys in BOOKS_NO_LOSS_CROSSWALK_V1.json and CATALOG_AUTHORITY_MANIFEST_V1.json with HEAD/CAS. Never duplicate tests, always consult existing result SHAs first.",
+      "boundary": "TrendOS book only; independent Whats Agent/printshop/EasyStore books are read-only from this agent. The relevant independent owner logs in their own authoritative book, and this ledger contains redacted cross-reference only.",
+      "privacy_and_release": "No customer PII, raw order datasets, customer files, tokens or secrets; never mutate live Cloudflare/D1/R2, merge or deploy without owner release gates."
+    },
+    "seeded_issue_count": 14,
+    "seeded_test_count": 27,
+    "issues": [
+      {
+        "id": "SEC-692-01",
+        "area": "Comms / ملفات محادثة الأوردر",
+        "risk": "قراءة بروفة أو ملف محادثة بدون جلسة/صلاحية أو بدون إثبات سلامة bytes",
+        "status": "FIX_IN_DRAFT_LIVE_UNVERIFIED",
+        "fix": "PR234: Bearer+employee username/verified principal, uploader/service/admin, SHA-256 before return, no raw R2 key",
+        "proof": "19/19 isolated suite includes anonymous/invalid/other-uploader/tamper/positive; NOT native CI",
+        "pending": [
+          "NODE_692",
+          "STAGE_R2_ACL_SHA",
+          "PER_ORDER_OWNERSHIP_POLICY",
+          "FRONTEND_AUTH_DOWNLOAD",
+          "OLD_URL_AUDIT"
+        ],
+        "owner": "TrendOS Comms; product-owner policy"
+      },
+      {
+        "id": "SEC-692-02",
+        "area": "Content / إعلانات وملفات داخلية",
+        "risk": "الوصول إلى ملفات محتوى داخلي بحجة نشر صور التسويق",
+        "status": "FIX_IN_DRAFT_LIVE_UNVERIFIED",
+        "fix": "PR234: anonymous only active ads/marketplace public records; others verified uploader/admin or authorized inactive-marketing manager",
+        "proof": "synthetic active public, inactive, anonymous notes, owner/cross-uploader checks",
+        "pending": [
+          "NODE_692",
+          "STAGE_CONTENT_PUBLIC_PRIVATE",
+          "FRONTEND_IMAGE_COMPAT",
+          "CONTENT_DIGEST_PROVENANCE"
+        ],
+        "owner": "TrendOS Content"
+      },
+      {
+        "id": "SEC-692-03",
+        "area": "Mirror / بيانات الشيت والأوردرات",
+        "risk": "مسار GET يعرض مرآة بيانات دون اعتماد قارئ مستقل",
+        "status": "FIX_IN_DRAFT_LIVE_UNVERIFIED",
+        "fix": "PR234: dedicated MIRROR_READ_SECRET server-to-server; rejects anonymous, incorrect and write-only credential",
+        "proof": "fake GET verified negative-before-D1 and fake positive",
+        "pending": [
+          "NODE_692",
+          "MIRROR_READER_CLIENT_MIGRATION",
+          "SERVER_SIDE_SECRET_SETUP",
+          "MIRROR_E2E"
+        ],
+        "owner": "TrendOS API + authorized reader clients"
+      },
+      {
+        "id": "SEC-692-04",
+        "area": "T12 / فلترة أقسام الأوردر",
+        "risk": "قائمة screens الفارغة كانت تعني غياب قيد القسم",
+        "status": "FIX_IN_DRAFT_LIVE_UNVERIFIED",
+        "fix": "PR234: deny empty or mismatched screens",
+        "proof": "synthetic three positive/negative section tests",
+        "pending": [
+          "NODE_692",
+          "EDGE_T12_STAGE_ROLE_MATRIX"
+        ],
+        "owner": "TrendOS Orders Edge"
+      },
+      {
+        "id": "FILES-692-05",
+        "area": "روابط R2 القديمة وحالة الملفات",
+        "risk": "سجلات public_url القديمة أو ملف content بلا SHA-256",
+        "status": "OPEN_MIGRATION_NOT_EXECUTED",
+        "fix": "PR234 modifies only generation of new guarded URLs; historical rows untouched; Comms requires digest, Content historic digest absent",
+        "proof": "repo-only source and isolated checks; NO actual R2 rows read",
+        "pending": [
+          "LEGACY_PUBLIC_URL_READONLY_INVENTORY",
+          "CONTENT_DIGEST_SCHEMA_PROVENANCE",
+          "FRONTEND_AUTH_DOWNLOAD",
+          "STAGE_R2_ACL_SHA"
+        ],
+        "owner": "TrendOS Files; no public bucket workaround"
+      },
+      {
+        "id": "CFL-693-01",
+        "area": "Cloudflare / تراجع النشر",
+        "risk": "Rollback قد يتراجع فوق نسخة وضعها طرف آخر؛ ACK وحده لا يكفي",
+        "status": "FIX_IN_DRAFT_LIVE_UNVERIFIED",
+        "fix": "PR236: pre-read active version, reject THIRD, skip PRE, post-read PRE at 100%; PATCH intent ambiguous => no auto rollback",
+        "proof": "10/10 fake modified Node cases across Entry645/Entry642; no real CF API",
+        "pending": [
+          "NODE_693",
+          "STAGE_CLOUDFLARE_FAILURE_MATRIX",
+          "GLOBAL_SINGLE_WRITER_CAS",
+          "REAL_DEPLOY_READBACK"
+        ],
+        "owner": "TrendOS Cloudflare Deploy"
+      },
+      {
+        "id": "CFL-693-02",
+        "area": "Wrangler / سلامة FILES وDB",
+        "risk": "02CW لا يثبت FILES R2 binding قبل النشر؛ المصدر المثبت بلا FILES",
+        "status": "FIX_DRAFT_FAIL_CLOSED_DEPLOY_BLOCKED",
+        "fix": "PR236: 02CW preflight checks source FILES, bucket expectation and DB; remains BLOCKED on current Wrangler config",
+        "proof": "static source + original earlier mock guard tests; no real Wrangler",
+        "pending": [
+          "WRANGLER_R2_SOURCE_PARITY",
+          "CLOUDFLARE_LIVE_BINDINGS_READONLY",
+          "STAGE_CODEONLY_R2_PERSISTENCE"
+        ],
+        "owner": "TrendOS Cloudflare Deploy"
+      },
+      {
+        "id": "CFL-693-03",
+        "area": "Cloudflare / وراثة latest",
+        "risk": "type:inherit version_id:latest قد لا يدل على النسخة النشطة؛ GET/PATCH race",
+        "status": "OPEN_NOT_FIXED",
+        "fix": "Entry645 draft validates duplicate names but latest inheritance/atomic CAS not resolved; do not blindly set explicit version ID on unsupported API",
+        "proof": "8/8 earlier fake PATCH construction scenarios",
+        "pending": [
+          "SUPPORTED_CLOUDFLARE_API_VERSION_TARGET",
+          "STAGE_CLOUDFLARE_FAILURE_MATRIX",
+          "GLOBAL_SINGLE_WRITER_CAS"
+        ],
+        "owner": "TrendOS Cloudflare Deploy"
+      },
+      {
+        "id": "CFL-693-04",
+        "area": "Cloudflare / أسماء Bindings",
+        "risk": "FILES_PUBLIC_BASE_URL أو DB مكرر يمكن أن يتكون في JSON عند PATCH",
+        "status": "PARTIAL_FIX_IN_DRAFT",
+        "fix": "PR236 Entry645 rejects duplicate/empty original binding names and existing URL collision; do not claim generic Entry642 or live validation fully covered",
+        "proof": "original 8 mock PATCH cases + source static guard; no Cloudflare acceptance proof",
+        "pending": [
+          "NODE_693",
+          "STAGE_SETTINGS_DUPLICATES",
+          "CLOUDFLARE_LIVE_BINDINGS_READONLY"
+        ],
+        "owner": "TrendOS Cloudflare Deploy"
+      },
+      {
+        "id": "CFL-693-05",
+        "area": "قفل النشر / concurrent agents",
+        "risk": "Workflows أخرى وعمليات CLI خارج GitHub غير مشمولة بقفل الثلاثة",
+        "status": "OPEN_PARTIAL_LOCK_DRAFT",
+        "fix": "PR236 shares one GitHub Actions concurrency group for Entry645/Entry642/02CW only",
+        "proof": "three source group checks, no real cross-workflow simulation",
+        "pending": [
+          "REPO_WORKER_WRITER_INVENTORY",
+          "GLOBAL_SINGLE_WRITER_CAS",
+          "STAGE_CONCURRENT_DEPLOY"
+        ],
+        "owner": "TrendOS platform owner"
+      },
+      {
+        "id": "PROOF-694-01",
+        "area": "Source→Bundle→Active Worker / إثبات النشر",
+        "risk": "لا يوجد شاهد SHA مطابق للكود المنشور ولا ربط فعلي لـFILES",
+        "status": "OPEN_UNVERIFIED",
+        "fix": "no live code or R2 changes performed",
+        "proof": "historical Entry498 artifact != current PR221 bundle; CF active deployed SHA/etag unknown",
+        "pending": [
+          "BUNDLE_SHA256_PROVENANCE",
+          "CLOUDFLARE_LIVE_BINDINGS_READONLY",
+          "STAGE_R2_ACL_SHA",
+          "POSTDEPLOY_READONLY_WITNESS"
+        ],
+        "owner": "TrendOS release owner"
+      },
+      {
+        "id": "INTEG-694-01",
+        "area": "الواجهة والمتعاملون مع Mirror/الصور",
+        "risk": "PR234 قد يكسر <img src> للملف المحمي ومسارات Mirror القديمة والـ02CW parity check",
+        "status": "OPEN_COMPATIBILITY_NOT_TESTED",
+        "fix": "no frontend callers migrated yet; hold merge and deploy",
+        "proof": "source analysis only; no browser E2E",
+        "pending": [
+          "FRONTEND_AUTH_DOWNLOAD",
+          "MIRROR_READER_CLIENT_MIGRATION",
+          "MIRROR_E2E",
+          "FRONTEND_IMAGE_COMPAT"
+        ],
+        "owner": "TrendOS Frontend + API"
+      },
+      {
+        "id": "TEST-694-01",
+        "area": "الاختبارات الحقيقية",
+        "risk": "الاعتماد على المحاكاة فقط رغم وجود اختبارات Node مضافة",
+        "status": "OPEN_EXECUTION_GAP",
+        "fix": "two native Node test files created under PR234/PR236 but NOT run natively in this session",
+        "proof": "PR234 isolated 19/19; PR236 isolated 10/10; historical tests do not count as new CI",
+        "pending": [
+          "NODE_692",
+          "NODE_693",
+          "EXISTING_REGRESSION_SUITE",
+          "CI_YAML",
+          "DISPOSABLE_STAGE",
+          "CLOUD_LIVE_VERIFICATION"
+        ],
+        "owner": "TrendOS QA/Release"
+      },
+      {
+        "id": "FIN-694-01",
+        "area": "EasyStore / الحسابات",
+        "risk": "حدود سلطة العملاء والفواتير المالية قبل cutover",
+        "status": "INDEPENDENT_OWNER_NO_RELEASE_CLAIM",
+        "fix": "PR211 handled by independent accounting agent, no finance mutation or release from book agent",
+        "proof": "PR211 Draft SHA observed; no production accounting acceptance claimed",
+        "pending": [
+          "ACCOUNTING_OWNER_ATTESTATION"
+        ],
+        "owner": "EasyStore accounting agent only"
+      }
+    ],
+    "tests": [
+      {
+        "id": "NODE_692",
+        "target": "tests/entry692_private_read_guards.test.mjs",
+        "acceptance": "Execute native Node against PR234 tree and receive passing assertions; preserve full logs + commit SHA",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "NODE_693",
+        "target": "tests/entry693_cloudflare_guard_source.test.mjs",
+        "acceptance": "Execute native Node against PR236 tree, 10/10 negative/positive cases with trace",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "EXISTING_REGRESSION_SUITE",
+        "target": "Entry614 Comms/Content, Entry629/630 dispatch, T12 overlay, Mirror gate",
+        "acceptance": "All relevant old tests pass after code changes; no accidental change of unrelated paths",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "CI_YAML",
+        "target": "PR234 + PR236 check suites and workflows",
+        "acceptance": "GitHub CI jobs pass from exact PR SHAs and YAML correctly parsed; no workflows touching production invoked",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "STAGE_R2_ACL_SHA",
+        "target": "synthetic Stage R2 bucket and D1",
+        "acceptance": "authorized matching bytes/hash 200; revoked/other employee denied before FILES.get; missing/mismatch digest rejects; zero public exposure",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "STAGE_CONTENT_PUBLIC_PRIVATE",
+        "target": "Stage Content active/inactive/notes",
+        "acceptance": "public ad works anonymously; inactive/private deny; uploader/admin authorized; cache headers correct",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "FRONTEND_AUTH_DOWNLOAD",
+        "target": "protected proof download and preview UI",
+        "acceptance": "Bearer + employee identity sent via fetch, not query string; no token leakage to browser URL; explicit safe object URL lifecycle",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "FRONTEND_IMAGE_COMPAT",
+        "target": "public marketplace/ad images and internal content",
+        "acceptance": "normal public marketing images render; private assets cannot render anonymously; old content UX reviewed",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "MIRROR_READER_CLIENT_MIGRATION",
+        "target": "read-only mirror consumers incl. health/parity",
+        "acceptance": "inventory and migrate server-to-server consumers; never embed MIRROR_READ_SECRET in frontend; default-deny for missing config",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "MIRROR_E2E",
+        "target": "Stage Mirror GET/POST",
+        "acceptance": "unauthorized GET ->401 without DB read, authorized read-only GET works, migration secret alone not valid for read, POST remains separately protected",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "EDGE_T12_STAGE_ROLE_MATRIX",
+        "target": "T12 orders / Edge roles",
+        "acceptance": "empty and mismatched screen forbidden; matching role/screen allowed; expired/revoked sessions characterized with native validator",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "LEGACY_PUBLIC_URL_READONLY_INVENTORY",
+        "target": "legacy file metadata only",
+        "acceptance": "owner-approved read-only number of raw R2 URL records, no customer objects/binaries copied or publicized",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "CONTENT_DIGEST_SCHEMA_PROVENANCE",
+        "target": "Content file legacy SHA metadata",
+        "acceptance": "tracked schema and hashing migration strategy with positive/negative fixture, no implied digest for old Content files",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "WRANGLER_R2_SOURCE_PARITY",
+        "target": "cloudflare-d1/wrangler.toml and effective live Worker config",
+        "acceptance": "owner-reviewed target Worker, DB, exact FILES bucket before enabling deploy; no guessed bucket string treated as live proof",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "CLOUDFLARE_LIVE_BINDINGS_READONLY",
+        "target": "Cloudflare read-only API after owner permission",
+        "acceptance": "capture active deployment version/script etag and effective FILES+DB binding without revealing secrets; confirm correct account/target",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "STAGE_CODEONLY_R2_PERSISTENCE",
+        "target": "disposable isolated Worker",
+        "acceptance": "FILES remains bound after approved code-only Wrangler deploy, positive authorized object roundtrip, negative private-object denial",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "STAGE_CLOUDFLARE_FAILURE_MATRIX",
+        "target": "Entry645/642 synthetic Stage",
+        "acceptance": "lost ACK, no own new version, third-party interleave, post-ACK non-convergence, rollback readback all fail closed without unrelated rollback",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "SUPPORTED_CLOUDFLARE_API_VERSION_TARGET",
+        "target": "Cloudflare version/settings contract",
+        "acceptance": "prove API support for explicit version lineage or enforce validated lock; never replace latest blindly",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "GLOBAL_SINGLE_WRITER_CAS",
+        "target": "all Worker deploy writers",
+        "acceptance": "owner-enforced exclusive writer including external CLI/GitHub actions, or CAS equivalent that rejects stale writer before mutation",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "REPO_WORKER_WRITER_INVENTORY",
+        "target": "all GitHub actions, scripts and manual deploys",
+        "acceptance": "complete target-worker writer inventory, owning agent and required lock, no source-only omission",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "STAGE_CONCURRENT_DEPLOY",
+        "target": "disposable Worker",
+        "acceptance": "simulate two writers and prove safe rejection/lock; no active third-party overwrite",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "STAGE_SETTINGS_DUPLICATES",
+        "target": "disposable Worker settings",
+        "acceptance": "duplicate input names and FILES URL collisions reject before API PATCH; source and actual Cloudflare staging behavior separated",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "BUNDLE_SHA256_PROVENANCE",
+        "target": "build source→artifact→active Worker",
+        "acceptance": "pinned SHA, reproducible bundle, SHA256 hash, active Cloudflare code/ETag matched with same pipeline",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "POSTDEPLOY_READONLY_WITNESS",
+        "target": "authorized production post-deploy",
+        "acceptance": "after owner-approved deployment only: signed redacted read-only witness, health/ACL/binding parity and rollback gate",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "DISPOSABLE_STAGE",
+        "target": "entire proposed repair set on disposable Worker and fake data",
+        "acceptance": "all functional and security suites pass with no customer/finance records accessed",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "CLOUD_LIVE_VERIFICATION",
+        "target": "live Worker active source/route",
+        "acceptance": "read-only evidence only with owner's permissions; distinguish from CI and Stage",
+        "level": "NOT_RUN"
+      },
+      {
+        "id": "ACCOUNTING_OWNER_ATTESTATION",
+        "target": "EasyStore separate owner book",
+        "acceptance": "independent owner signs customer/accounting provenance and release; never assume finance enabled from TrendOS repair",
+        "level": "INDEPENDENT_OWNER_PENDING"
+      }
+    ],
+    "evidence_snapshot": {
+      "mock_private_read": "19/19",
+      "mock_rollbacks": "10/10",
+      "total_mock": "29/29",
+      "new_node_native": "NOT_RUN",
+      "CI": "NOT_RUN",
+      "Stage": "NOT_RUN",
+      "Production": "NO",
+      "pr234": {
+        "number": 234,
+        "head": "417298488e3f5f0d999cdce0b0d5279a967cfb85",
+        "draft": true
+      },
+      "pr236": {
+        "number": 236,
+        "head": "596ec59b0ace0beecdfa4d601dd80860a9a239d1",
+        "draft": true
+      },
+      "pr221": {
+        "number": 221,
+        "head": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "draft": true
+      },
+      "pr211": {
+        "number": 211,
+        "head": "682aa00181697ae241b6c9ede1ee854b80eca105",
+        "draft": true
+      }
+    },
+    "next_writer_contract": "Append dated ENTRY694-LEDGER-EVENT addenda + AGENT_LOG + new Crosswalk and Manifest keys; no overwrite and no closed-state promotion without evidence."
   }
 }
