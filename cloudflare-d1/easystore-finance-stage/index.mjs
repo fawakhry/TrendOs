@@ -32,6 +32,8 @@ export default {
     if (!env || !env.DB) return reply('isolated-accounting-d1-binding-missing');
     if (env.EASYSTORE_CUSTOMER_SOURCE_V1!=='REMOTE_REQUIRED')
       return reply('isolated-official-customer-source-not-enforced');
+    if (env.EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1!=='REMOTE_NATIVE_REQUIRED')
+      return reply('isolated-native-employee-session-not-enforced');
     try {
       const stage = await env.DB.prepare(
         "SELECT mode FROM employee_accounting_control_v1 WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1'"
