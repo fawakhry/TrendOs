@@ -15564,5 +15564,282 @@
     "no_copy_remove_actions": true,
     "no_private_data_copy": true,
     "no_runtime_or_independent_project_mutation": true
+  },
+  "book_agent_20261023_risk_ranked_semantic_source_boundary_matrix_v1": {
+    "date": "2026-10-23",
+    "book_head_before_commit": "de94414337b14abf7d994baee71f7cc48d71adb1",
+    "catalog_sha": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "scope": "TARGETED_CLAIM_TO_EXACT_SOURCE_SEMANTIC_REVIEW_NOT_A_467_LINK_SEMANTICS_EXHAUSTIVE_CENSUS",
+    "checks": 14,
+    "findings": [
+      {
+        "id": "SEC-COMMS-FILE-READ",
+        "priority": "P0_REVIEW_SOURCE",
+        "source": "cloudflare-d1/src/employee-comms-native-v1.mjs",
+        "commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "blob": "f415d06ccd15ba241d679c61b7afeb6ec904e4b8",
+        "lines": "L226-L230,L305-L326",
+        "observed": "FILE_PREFIX GET dispatch precedes originAllowed, OFF/READONLY and authenticate; serveFile reads R2 metadata/bytes without owner/visible_to_customer check in function.",
+        "assessment": "SOURCE_HANDLER_ORDER_CONFIRMED_LIVE_EXPOSURE_NOT_PROVEN",
+        "existing_catalog_flags": [
+          "BOOK20-R2-FILE-AUTH",
+          "BOOK32-R2-FILE-AUTH"
+        ],
+        "owner_gate": "Authenticated file ACL and public R2 URL policy, synthetic deny-before-FILES.get test and independently verified deployed SHA; no duplicate ticket."
+      },
+      {
+        "id": "SEC-CONTENT-FILE-READ",
+        "priority": "P0_REVIEW_SOURCE",
+        "source": "cloudflare-d1/src/employee-content-native-v1.mjs",
+        "commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "blob": "fab5eeeca0ecc9312380054b32f01a44639f4664",
+        "lines": "L103-L108,L258-L275",
+        "observed": "Origin allowed() check precedes FILE_PREFIX GET, but employee auth and OFF/READONLY checks are after GET; serveFile returns R2 bytes with public cache-control. Do not conflate origin allowlist with session ACL.",
+        "assessment": "SOURCE_HANDLER_ORDER_CONFIRMED_LIVE_EXPOSURE_NOT_PROVEN",
+        "existing_catalog_flags": [
+          "BOOK22-CONTENT-R2-ACL",
+          "BOOK32-CONTENT-R2-ACL"
+        ],
+        "owner_gate": "Owner-approved public/private collection classification, employee authorization on restricted items and deployed SHA."
+      },
+      {
+        "id": "SEC-MIRROR-ROW-GET",
+        "priority": "P0_REVIEW_SOURCE",
+        "source": "cloudflare-d1/src/mirror-gate.mjs",
+        "commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "blob": "d9321c3a9c1678fd7a53abc6a24df73dbee25ebc",
+        "lines": "L309-L352",
+        "observed": "GET read-only mirror branch returns sheets/stats/capabilities/sheet without visible per-employee or migration secret auth; POST heartbeat checks migrationAuthorized. index_v2 dispatches isMirrorPath to handler.",
+        "assessment": "SOURCE_ROUTE_GUARD_REVIEW_NOT_LIVE_ACCESS_PROOF",
+        "existing_catalog_flags": [
+          "BOOK26-MIRROR-GET-ACL"
+        ],
+        "owner_gate": "Define which GET endpoints are public and which require actor and row-level permissions; no production probes."
+      },
+      {
+        "id": "SEC-T12-ROLE-ALLOWLIST",
+        "priority": "P1_REVIEW_SOURCE",
+        "source": "cloudflare-d1/src/t12-general-create-handler.mjs",
+        "commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "blob": "d8bd8d13f6e69b55839822ddb5e473585e6d8842",
+        "lines": "L29-L38,L125-L141",
+        "observed": "Verifies signed exp-bearing Edge token and non-empty sub; only explicitly rejects customer/client role in auth(), while CANARY separately requires admin and GENERAL delegates signed non-client actor. Explicit GENERAL role allowlist not present within this handler.",
+        "assessment": "ROLE_POLICY_NOT_COMPLETE_SOURCE_ONLY",
+        "existing_catalog_flags": [
+          "BOOK10-ROLE-GUARD-REVIEW"
+        ],
+        "owner_gate": "Owner employee role policy + deny testing of non-authorized signed roles, no live create requests."
+      },
+      {
+        "id": "SEC-T12-HEALTH-METADATA",
+        "priority": "P1_NEW_POLICY_TRIAGE_ONLY",
+        "source": "cloudflare-d1/src/t12-general-create-handler.mjs",
+        "commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "blob": "d8bd8d13f6e69b55839822ddb5e473585e6d8842",
+        "lines": "L91-L117",
+        "observed": "GET /health resolves before bearer auth, returns source mode, nextOrderNumber, canaryRemaining, policyEpoch and schema flags when ready; whether these fields are intended public diagnostics is owner policy not established.",
+        "assessment": "SOURCE_PREAUTH_METADATA_CONFIRMED_DEPLOYMENT_UNKNOWN_NOT_A_LIVE_VULNERABILITY_CLAIM",
+        "existing_catalog_flags": [
+          "BOOK10-HEALTH-SOURCE_ONLY"
+        ],
+        "owner_gate": "Explicit approved health disclosure policy / access matrix; don't label endpoint exploitable without deployment evidence."
+      },
+      {
+        "id": "SEC-T12-READBACK-SCOPE",
+        "priority": "P1_NEW_POLICY_TRIAGE_ONLY",
+        "source": "cloudflare-d1/src/t12-general-create-handler.mjs",
+        "commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "blob": "d8bd8d13f6e69b55839822ddb5e473585e6d8842",
+        "lines": "L61-L90,L117-L122",
+        "observed": "Readback GET executes after generic signed Edge employee auth and queries by orderId. The sampled handler does not visibly check whether this particular employee may read this particular order; broad staff read may be intentional.",
+        "assessment": "ORDER_LEVEL_READ_AUTHZ_NOT_ESTABLISHED_FROM_HANDLER_SOURCE",
+        "existing_catalog_flags": [
+          "BOOK10-ROLE-GUARD-REVIEW"
+        ],
+        "owner_gate": "Owner policy for all-staff vs department-specific readback; no customer production order read attempted."
+      },
+      {
+        "id": "T12-LEDGER-DURABLE",
+        "priority": "P1_INTEGRITY_GATE",
+        "source": "cloudflare-d1/src/t12-general-create.mjs",
+        "commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "blob": "06ab0dfee6db7c0480f37d3445da564853ed036d",
+        "lines": "L131-L201,L210-L281",
+        "observed": "Writer contains D1 db.batch for counter, ledger, order, independent lines, events and outbox; COMMITTED outcome uses verifiedRead and ambiguous-ACK no-retry/error logic; lane partial outcome can be intentional and must never silently lose customer-draft items.",
+        "assessment": "SOURCE_ATOMIC_WRITER_INTENT_SUPPORTED_FULL_E2E_NOT_ESTABLISHED",
+        "existing_catalog_flags": [
+          "BOOK10-TRANSACTION",
+          "ENTRY682/683_PARTIAL_LANE"
+        ],
+        "owner_gate": "Source PR, exact D1 test results, durable binary manifest, full item parity, duplicate/ACK recovery, deployed actor authorization."
+      },
+      {
+        "id": "ZERO-GOOGLE-EDGE-EXCHANGE",
+        "priority": "P1_MIGRATION_GATE",
+        "source": "cloudflare-d1/src/edge-orders-read-v1.mjs",
+        "commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "blob": "540cca2143e7da940b96d6f990a8951e3b5c87ab",
+        "lines": "L130-L162",
+        "observed": "exchangeSession calls verifyEmployeeSession via APPS_SCRIPT_API_URL before minting Orders Edge token. Native employee login alone is not evidence of zero-Google edge auth.",
+        "assessment": "SOURCE_LEGACY_DEPENDENCY_CONFIRMED_NO_LIVE_RETIREMENT_PROOF",
+        "existing_catalog_flags": [
+          "BOOK14-EDGE-EMPLOYEE-SESSION",
+          "ZERO_GOOGLE_0_OF_9"
+        ],
+        "owner_gate": "Controlled replacement path and 0/9 retirement evidence per customer action; no Google production mutations."
+      },
+      {
+        "id": "FINANCE-CUSTOMER-ID",
+        "priority": "P1_INTEGRITY_GATE",
+        "source": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+        "commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "blob": "66440daa0c737966221f5b279a210b4211144d2c",
+        "lines": "L167-L213",
+        "observed": "Customer list joins balance via customer_id; searchCustomersV1 joins latest balance via party_name, and customerBalanceByName chooses one same-name customer by updated_at. These are non-equivalent identity semantics.",
+        "assessment": "SOURCE_PARTY_PARITY_RISK_EXISTING",
+        "existing_catalog_flags": [
+          "BOOK18-CUSTOMER-IDENTITY",
+          "BOOK29-CUSTOMER-ID"
+        ],
+        "owner_gate": "Exact native customer ID financial read and approval under EasyStore canonical authority; duplicates/no customer name matching."
+      },
+      {
+        "id": "FINANCE-INVOICE-COMMIT-ORDER",
+        "priority": "P1_INTEGRITY_GATE",
+        "source": "cloudflare-d1/src/employee-accounting-native-v1.mjs",
+        "commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "blob": "66440daa0c737966221f5b279a210b4211144d2c",
+        "lines": "L815-L855",
+        "observed": "Invoice and approved department line update are one db.batch AFTER separate PREPARED row; later independent partyLedger invoice/payment calls occur outside that batch and ledger COMMITTED update occurs afterwards.",
+        "assessment": "SOURCE_NON_ATOMIC_FULL_FINANCE_CHAIN_EXISTING",
+        "existing_catalog_flags": [
+          "BOOK18-FINANCE-LEDGER-ATOMICITY",
+          "BOOK29-FINAL-INVOICE-REQUESTID"
+        ],
+        "owner_gate": "EasyStore own invoice/receipt reconciliation and one-invoice guarantee, no Book Agent financial replay."
+      },
+      {
+        "id": "CUSTOMER-SEALED-DRAFT-683",
+        "priority": "P1_BOUNDARY_PROOF",
+        "source": "cloudflare-d1/src/customer-portal-native-seal-t12-link-read-v0.mjs",
+        "commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "blob": "ff5c71408d9af8c66f5407f23304e818cea65342",
+        "lines": "L1-L138",
+        "observed": "Exact sealed T12 request read-only D1 candidate on PR221; original order FK to authenticated native customer, owner consent, finance authorization and lossless multi-item/R2 handoff are explicitly not proved. Module is not imported by index_v2.js or production-shadow/index.js in PR221 snapshot.",
+        "assessment": "SOURCE_ONLY_OFF_NO_CUSTOMER_FINANCE_AUTHORITY",
+        "existing_catalog_flags": [
+          "ENTRY683"
+        ],
+        "owner_gate": "No runtime, merge, finance authorization or connector invoice asserted."
+      },
+      {
+        "id": "EMPLOYEE-FINANCE-INTAKE-684-DRIFT",
+        "priority": "P1_PROVENANCE_GATE",
+        "source": "cloudflare-d1/src/t12-employee-order-finance-intake-sourceonly.mjs",
+        "commit": "d17008e86413972735b0c0dd554c778275e28cd9",
+        "blob": "fc7c97c2ae545aaaf3c30d0188701939d6ccb896",
+        "lines": "L1-L220",
+        "observed": "ACC228 pinned historical source blob b3e48... at SHA 94b739.. is not the latest inspected source blob fc7c97... at SHA d17008.., and the test has changed. The latest observed PR211 HEAD has 17 completed SUCCESS workflow results by commit lookup; both remain source-only (no Worker import). PR211 and PR221 are separate draft refs, not one integrated tested Worker binary.",
+        "assessment": "BRANCH_DRIFT_CLASSIFIED_WITH_EXACT_HEAD_CI_NO_DEPLOY",
+        "existing_catalog_flags": [
+          "ENTRY684",
+          "ENTRY683"
+        ],
+        "owner_gate": "Combine only with approved integration PR, exact-sha tests, owner provenance, signed separate EasyStore finance, no fabricated merge."
+      },
+      {
+        "id": "WORKER-ROUTE-SOURCE-CHAIN",
+        "priority": "P1_DEPLOY_LINEAGE_GATE",
+        "source": "cloudflare-d1/src/index_v2.js",
+        "commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "blob": "4a555efb4b3f44ba371549d5cec055cc7ce1777f",
+        "lines": "L38-L80,L148-L152,L182-L194",
+        "observed": "Current PR221 Wrangler→production-shadow→index_v2 source dispatches Comms, Content, Mirror, T12, Employee Accounting; verifies code routing only. Neither seal link Entry683 nor finance intake Entry684 is present as an index route/import.",
+        "assessment": "CODE_ROUTE_PRESENT_PRODUCTION_DEPLOYED_SHA_UNKNOWN",
+        "existing_catalog_flags": [
+          "BOOK26-DEPLOY-LINEAGE",
+          "ENTRY683",
+          "ENTRY684"
+        ],
+        "owner_gate": "Verify deployed Cloudflare Worker build SHA + D1 controls under explicit owner read-only approval before any live exploitability/operation claim."
+      },
+      {
+        "id": "EMPLOYEE-SESSION-REVOKE",
+        "priority": "P1_AUTH_INTEGRITY",
+        "source": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+        "commit": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "blob": "c01156a965e7de60e7a70d44d86b41b59eb83ded",
+        "lines": "L451-L540,L816-L870",
+        "observed": "Native employee session checks active/expiry/fingerprint/session_version; password change updates user password/version and later sessions revoked using separate DB statements (not a single transaction).",
+        "assessment": "PARTIAL_SOURCE_DEFENSE_AND_PARTIAL_FAILURE_RISK_ALREADY_BOOK14",
+        "existing_catalog_flags": [
+          "BOOK14-EMPLOYEE-AUTH"
+        ],
+        "owner_gate": "Synthetic fault injection and version invalidation checks; no credentials or production mutations."
+      }
+    ],
+    "verified_src_prs": {
+      "PR221": {
+        "head": "fca5625e53815647addc6d183ebe4040990acdf5",
+        "status": "OPEN_DRAFT_UNMERGED",
+        "entry683_source_blob": "ff5c71408d9af8c66f5407f23304e818cea65342"
+      },
+      "PR211": {
+        "entry684_initial_tested_head": "94b7395605349e6ad5807d5f283132356d38c575",
+        "initial_source_blob": "b3e48bab0fea94394d5cd836fdd4723b739eb78c",
+        "later_observed_head": "d17008e86413972735b0c0dd554c778275e28cd9",
+        "later_source_blob": "fc7c97c2ae545aaaf3c30d0188701939d6ccb896",
+        "later_head_ci": {
+          "workflow_runs_reported": 17,
+          "completed_success": 17,
+          "failed": 0
+        },
+        "note": "Heads observed at read time; do not presume current if ref advances again."
+      }
+    },
+    "newly_separated_policy_questions": [
+      "T12_GENERAL_CREATE_HEALTH_PREAUTH_DIAGNOSTIC_FIELDS_INTENDED_PUBLIC?",
+      "T12_ORDER_READBACK_AUTH_EMPLOYEE_PER_ORDER_OR_GENERAL_STAFF_ACCESS?"
+    ],
+    "preexisting_evidence_reused": "No rerun of 578 pinned path or 467 range bounds. Refs classified source-only and mapped to previously-documented issues wherever possible; no duplicate GitHub issues.",
+    "outstanding": [
+      "PROD_SHA_UNKNOWN",
+      "FINANCE_OWNER_ATTESTATION_UNPROVEN",
+      "T12_CANONICAL_WRITER_LOSSLESS_MULTI_ITEM_R2_UNPROVEN",
+      "R2_PRIVATE_GET_AUTHORITY_UNPROVEN",
+      "GOOGLE_CUSTOMER_9_ACTIONS_ZERO_RETIRED",
+      "BOOK24_SINGLE_WRITER_UNPROVEN",
+      "CLOSED_OWNER_GATES_MISSING"
+    ],
+    "preserve": {
+      "old": "ACTIVE_WRITE",
+      "catalog": "FROZEN_MIGRATION_ONLY",
+      "cutover": "NO_GO",
+      "entry683": true,
+      "entry684": true,
+      "private_entries": [
+        "596",
+        "599",
+        "600",
+        "SERVER61"
+      ],
+      "archive_preserved": true
+    },
+    "mutations": {
+      "code": 0,
+      "production": 0,
+      "cloudflare": 0,
+      "google": 0,
+      "easystore": 0,
+      "files_or_customer_data": 0,
+      "catalog": 0,
+      "archive": 0,
+      "migration_remove": 0
+    },
+    "concurrent_entry685_source_provenance": {
+      "concurrent_entry685": "PRESERVED_FROM_HEAD_190c1d2",
+      "entry685_original_tested_source_sha": "b64fe1d4574fb9b5360e7ec51c837a5be1399805",
+      "note": "PR211 d17008e source snapshot in semantic matrix preceded concurrent Entry685/ACC229 work. It is retained as exact-commit historical evidence, not a claim about the latest PR211 head. Entry685/ACC229 source and EasyStore finance coverage belong to their independent agents/books. No repeated test or finance analysis."
+    }
   }
 }

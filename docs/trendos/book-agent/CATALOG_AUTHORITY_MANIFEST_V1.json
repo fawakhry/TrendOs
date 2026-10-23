@@ -609,5 +609,42 @@
     "protected_entries": "UNCHANGED",
     "no_frozen_catalog_change": true,
     "no_independent_project_or_runtime_mutation": true
+  },
+  "current_no_loss_gate_20261023_semantic_source_boundary_matrix_v1": {
+    "date": "2026-10-23",
+    "crosswalk_key": "book_agent_20261023_risk_ranked_semantic_source_boundary_matrix_v1",
+    "book_head_before_commit": "de94414337b14abf7d994baee71f7cc48d71adb1",
+    "catalog_blob": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "checks": 14,
+    "classification": "TARGETED_SOURCE_PREDICATE_AND_ROUTING_VERIFICATION_NONEXHAUSTIVE",
+    "newly_open_policy_questions": [
+      "HEALTH_PREAUTH_DISCLOSURE_POLICY",
+      "T12_READBACK_ORDER_SCOPE_POLICY"
+    ],
+    "critical_known_gaps_reread_no_duplicate_issue": [
+      "COMMS_AND_CONTENT_FILE_GET_ACL",
+      "MIRROR_READ_AUTHZ",
+      "FINANCE_CUSTOMER_ID",
+      "INVOICE_ATOMICITY",
+      "T12_GENERAL_ROLE_AUTH",
+      "ZERO_GOOGLE_EDGE_SESSION"
+    ],
+    "latest_observed_PR211_head": "d17008e86413972735b0c0dd554c778275e28cd9",
+    "latest_PR211_workflows_17_of_17_success": true,
+    "PR221_head": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "entry683_and_entry684_distinct_unmerged_source_branches": true,
+    "entry684_original_CI_and_later_current_CI_not_conflated": true,
+    "last_complete_line_bound_census": "467/467 445_IN_BOUNDS 22_EOF_OVERRUN_UNCHANGED",
+    "protected_evidence_preserved": true,
+    "new_catalog": "FROZEN_MIGRATION_ONLY",
+    "old_book": "ACTIVE_WRITE",
+    "cutover": "NO_GO",
+    "production_evidence": "NOT_VERIFIED",
+    "no_runtime_mutations": true,
+    "concurrent_entry685_source_provenance": {
+      "concurrent_entry685": "PRESERVED_FROM_HEAD_190c1d2",
+      "entry685_original_tested_source_sha": "b64fe1d4574fb9b5360e7ec51c837a5be1399805",
+      "note": "PR211 d17008e source snapshot in semantic matrix preceded concurrent Entry685/ACC229 work. It is retained as exact-commit historical evidence, not a claim about the latest PR211 head. Entry685/ACC229 source and EasyStore finance coverage belong to their independent agents/books. No repeated test or finance analysis."
+    }
   }
 }
