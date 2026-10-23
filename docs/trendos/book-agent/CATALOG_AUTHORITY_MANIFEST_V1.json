@@ -365,5 +365,30 @@
     "cloudflare_google_production_deployment_not_certified_by_book_action": true,
     "owner_final_cutover_approved": false,
     "decision": "NO_GO"
+  },
+  "current_no_loss_gate_checkpoint_20261023_after_75_sections": {
+    "date": "2026-10-23",
+    "supersedes_counter": "current_no_loss_gate_checkpoint_20261023_after_73_sections",
+    "crosswalk_commit": "f19012c1e2df796e256c78e1cbf29df2cc7045b2",
+    "prior_cumulative_units": 73,
+    "new_independent_receipt_units": 2,
+    "oct23_verified_old_source_sections": 75,
+    "original_source_characters_preserved": 109955,
+    "prior_38_historical_units_not_double_counted": true,
+    "new_copy_commit": "f1efe60cb04d531b8d80dd46cf25e8ff9a87a66a",
+    "new_remove_commit": "519078a2f717cdd0e3a3bfee910a49a707f8b23c",
+    "source_pinned_head_full_file_reconstruction": "PASS",
+    "catalog_migration_marker_pairs": "115/115_UNIQUE_MATCHING",
+    "source_current_blob": "f54de08884ff016e55f077877c192803b30be1b0",
+    "unified_catalog_current_blob": "7c07ffcea93e776796e29a6e78e98ceb609c171c",
+    "protected_SERVER61_body_excluded_from_migration": true,
+    "private_Entry596_599_600_custody": "PENDING_OWNER_DECISION",
+    "active_entries_669_670_671": "PRESERVE_ACTIVE_OLD_WRITE",
+    "runtime_deployment_certification_by_this_task": false,
+    "test_execution_result_completeness": false,
+    "owner_approved_final_cutover": false,
+    "old_book": "ACTIVE_WRITE",
+    "new_catalog": "FROZEN_MIGRATION_ONLY",
+    "decision": "NO_GO"
   }
 }
