@@ -273,6 +273,54 @@ def plan():
             "remoteContacted": False, "writes": False}
 
 
+def backup_verify_stage(cli, destination, confirmation):
+    """Owner-run, READ-ONLY provider export and offline SQLite restore.
+
+    No remote schema DDL, no Worker route, no financial writes or release.
+    This is NOT a test of independent second-machine disaster recovery.
+    """
+    if confirmation != STAGE_UUID:
+        stop("OWNER_STAGE_UUID_BACKUP_ACK_REQUIRED")
+    check_config()
+    folder = safe_output_dir(destination)
+    identity = list_identity(cli)
+    initial_names = remote_names(cli)
+    if application_table_names(initial_names):
+        stop("STAGE_USER_TABLES_PRESENT_BACKUP_ONLY_GATE_STOP")
+    backup = folder / "stage_before_migration.sql"
+    # Wrangler creates the file; preserve private permissions from its first
+    # byte. A chmod after export alone is too late if process umask was 0022.
+    old_umask = os.umask(0o077)
+    try:
+        cli.run("d1", "export", STAGE_NAME, "--remote",
+                "--output", str(backup), "--skip-confirmation")
+    finally:
+        os.umask(old_umask)
+    if backup.is_symlink() or not backup.is_file():
+        stop("PRIVATE_STAGE_EXPORT_NOT_A_REGULAR_FILE")
+    backup.chmod(0o600)
+    proof = restore_private_export(backup, should_be_empty=True)
+    if remote_names(cli) != initial_names:
+        stop("STAGE_CHANGED_DURING_BACKUP_STOP")
+    evidence = {
+        "result": "STAGE_EXPORT_RESTORED_LOCALLY_ONLY",
+        "target": identity, "providerTableNames": initial_names,
+        "userTables": application_table_names(initial_names),
+        "backup": {"localFile": backup.name, **proof},
+        "privateLocalRestoreIntegrity": "PASS",
+        "independentSecondHostRestore": "NOT_RUN",
+        "schemaApplied": False, "mayApplyMigrations": False,
+        "financeRelease": "NO_GO", "financeWrites": "OFF",
+        "cloudflareWrites": False, "workerDeployed": False
+    }
+    evidence_path = folder / "stage_backup_evidence.json"
+    fd = os.open(evidence_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        json.dump(evidence, handle, ensure_ascii=False, indent=2)
+        handle.write("\\n")
+    return evidence
+
+
 def apply_stage(cli, destination, confirmation, exclusive):
     if confirmation != STAGE_UUID or exclusive != "EXCLUSIVE_STAGE_CHANGE_WINDOW":
         stop("OWNER_STAGE_UUID_AND_EXCLUSIVE_WINDOW_ACK_REQUIRED")
@@ -347,7 +395,7 @@ def apply_stage(cli, destination, confirmation, exclusive):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["plan", "inspect", "apply"])
+    parser.add_argument("action", choices=["plan", "inspect", "backup-verify", "apply"])
     parser.add_argument("--private-backup-dir")
     parser.add_argument("--confirm-stage-uuid", default="")
     parser.add_argument("--exclusive-stage-window", default="")
@@ -361,6 +409,11 @@ def main():
             cli = Wrangler(args.wrangler)
             if args.action == "inspect":
                 result = inspect_stage(cli)
+            elif args.action == "backup-verify":
+                if os.environ.get("CI", "").lower() == "true" or os.environ.get("GITHUB_ACTIONS"):
+                    stop("LIVE_D1_BACKUP_FORBIDDEN_FROM_CI")
+                result = backup_verify_stage(cli, args.private_backup_dir,
+                                             args.confirm_stage_uuid)
             else:
                 if os.environ.get("CI", "").lower() == "true" or os.environ.get("GITHUB_ACTIONS"):
                     stop("LIVE_D1_APPLY_FORBIDDEN_FROM_CI")
