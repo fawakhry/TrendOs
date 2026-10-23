@@ -8895,3 +8895,251 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - Synthetic localhost Workerd + temp SQLite D1 fixture now includes qualified `بنود الأوردرات` and fake native T12 print/laser line items. Authorized short-lived dedicated machine bearer returned 200 with minimal `orderId,lineId,screen,serviceCode,status,quantity` only; anonymous/wrong-token/Origin/other-screen/other-page/POST denied. [CI 39072053257](https://github.com/fawakhry/TrendOs/actions/runs/39072053257) **173/173 PASS** + dry-run + replay DO + actual localhost HTTP. This is NOT Ubuntu device, Cloudflare hosted Stage, or production D1.
 - Full doc [SERVER69_OFFLINE_PRINTSHOP_READER_20261018.md](https://github.com/fawakhry/TrendOs/blob/release/server68-staging-qualification-20261016/autonomous-printshop/print-server/SERVER69_OFFLINE_PRINTSHOP_READER_20261018.md) on [Draft PR #190](https://github.com/fawakhry/TrendOs/pull/190). Source-only. `SEC-AP303-02=OPEN_HIGH`, R5 old workflow unchanged, no production deployment, no real Ubuntu printer/laser. `SERVER69_API_LOCAL=PASS`; `SERVER69_UBUNTU_LIVE=OFF`; `PR195=UNCHANGED`.
 <!-- END_VERBATIM_MIGRATION:MASTER_SERVER_20261018_69A -->
+
+## ملحق استرجاع تاريخي — سجلات إثبات ترحيل Entry611–659 (2026-10-16 إلى 2026-10-18)
+
+> Historical administrative COPY/VERIFY/REMOVE receipts from the pre-cutover ACTIVE_WRITE old Master. These are **past transaction evidence**, not a new source test, production deployment attestation or owner approval. See Crosswalk for source commit and current migration verification.
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261016_013 -->
+## BOOK-MIGRATION-20261016-013 — Entry611 exact verified migration
+- الحالة: `COPY_VERIFIED_OLD_SECTION_REMOVED` (ترحيل تاريخي فقط؛ القديم ما زال `ACTIVE_WRITE`، والجديد `FROZEN_MIGRATION_ONLY`).
+- النطاق: `Entry611 — Native Auth canary routing default-OFF` فقط؛ لم يتم حذف Entry612 أو ملاحظات SERVER-64/65/66 أو أي معلومات تخص المشاريع المستقلة.
+- النص المطابق حرفيًا: **8,136 حرفًا** من المصدر الحي والأرشيف إلى الملحق التاريخي «ق» في الكتاب الموحد؛ `EXACT_VERBATIM_MATCH=PASS` قبل إزالة المصدر.
+- Git archive restore: `b2788ecb4c187717e020321954a1ea449c1aa0d5`، source archive blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`، original active blob `c7dd30d2ea094e65b70e19b07c8398018f6b3383`.
+- COPY commit: `b25d1dffa893123f0583e461afd5dd26b09e2faa`.
+- REMOVE commit: هذا الـCommit (سجل Crosswalk يحفظ SHA الفعلي).
+- التصنيف: `HISTORICAL / REPO_ONLY_CI_RECORDED / NOT_CURRENT_PRODUCTION_PROOF`؛ مراجع Entry611 ما زالت تحتاج مصالحة مستقلة.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261016_013 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261016_014 -->
+## BOOK-MIGRATION-20261016-014 — Entry612 exact verified migration
+- الحالة: `COPY_VERIFIED_OLD_SECTION_REMOVED`، نقل نص Entry612 فقط (5,200 حرفًا) إلى الملحق «ر» في الموحد بعد `EXACT_VERBATIM_MATCH=PASS` على المصدر والأرشيف والوجهة.
+- COPY commit: `71288432bb7f344f6c28b236ed403bc0ef2b92e0`؛ Archive: `b2788ecb4c187717e020321954a1ea449c1aa0d5`؛ source blob: `dbe5c9bdcc298a7a97dcd7d6466832d02aa03382`.
+- REMOVE commit: هذا الـCommit، يسجل SHA النهائي في Crosswalk؛ لا نشر ولا تفعيل Production.
+- `TrendOS_MASTER_BOOK.md` باقٍ `ACTIVE_WRITE`، وكل سجلات SERVER محفوظة، وEntry613 باقٍ.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261016_014 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261016_015 -->
+## BOOK-MIGRATION-20261016-015 — Entry613 superseded canary historical transfer
+- الحالة: `COPY_VERIFIED_OLD_SECTION_REMOVED`، 3,856 حرفًا تطابقت حرفيًا بين النص الأصلي وأرشيفه والملحق «ش»؛ `EXACT_VERBATIM_MATCH=PASS`.
+- **تنبيه ملزم:** تصريح Canary المذكور في هذا السجل **ملغى تاريخيًا** بقرار Zero-Google-first؛ ليس موافقة Production سارية.
+- COPY commit: `6254784f1ecd2762f6b2f4d9b31a65d576820d45`؛ Archive: `b2788ecb4c187717e020321954a1ea449c1aa0d5`؛ source blob: `5664d6013c26a56dde5aba23af55cfa26e2b0ffb`.
+- REMOVE commit: هذا الـCommit، SHA الفعلي يثبت في Crosswalk. الكتاب القديم يستمر ACTIVE_WRITE وكل سجلات SERVER محفوظة.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261016_015 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261016_016 -->
+## BOOK-MIGRATION-20261016-016 — Entry614 two-chunk exact historical migration
+- `EXACT_VERBATIM_MATCH=PASS`: 16,708 حرفًا تطابقت من المصدر الحي والنسخة المؤرشفة مع النص المعاد جمعه من جزأين في الملحق «ت»؛ لا حذف قبل نجاح المقارنة.
+- COPY commits: `fca2d6544e84f115e54b643faa98dec61fffdd5b`، `11f02351f195411e7c0c231a5ad1ea6f814f1a24`.
+- Archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`، المصدر قبل النقل blob `891df6327d4e4daae46bed6c0cd6dc1249f0474c`.
+- REMOVE commit: هذا الـCommit (SHA النهائي في Crosswalk)؛ لا تغيير إنتاجي؛ سجل القديم لا يزال `ACTIVE_WRITE` وسجلات SERVER-64/65/66/67 سليمة.
+- التصنيف: `HISTORICAL`، الاختبارات Repo-only تاريخية، لا تعني backfill أو نشر حالي.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261016_016 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_017 -->
+## BOOK-MIGRATION-20261017-017 — Entry616 historical copy verified
+- `EXACT_VERBATIM_MATCH=PASS` for 3,953 chars; historical deployed backend (all family controls OFF) not current live proof.
+- COPY `8420e3552e0297c6af4c0b2066ff60944f7ce0ed`; archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source blob `0f3b11ecdc57ba115c4b5f78c67b848c22f8cd05`.
+- REMOVE commit: this commit, actual SHA in Crosswalk; old book remains ACTIVE_WRITE; SERVER history kept.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_017 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_018 -->
+## BOOK-MIGRATION-20261017-018 — Entry617 historical transfer
+- 4,539 chars `EXACT_VERBATIM_MATCH=PASS` across archive, old book, destination. COPY `b90286d1e782fc00339fa5fbf6dbd0d63fdbeedb`; archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`.
+- REMOVE SHA recorded in Crosswalk; no Production mutation; old MASTER still ACTIVE_WRITE.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_018 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_019 -->
+## BOOK-MIGRATION-20261017-019 — Entry618 historical transfer
+- 5,532 chars `EXACT_VERBATIM_MATCH=PASS` across archive, old book, destination. COPY `9fd45ab8fe7b19e000c6fc7dbbd484c891475f95`; archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`.
+- REMOVE SHA recorded in Crosswalk; no Production mutation; old MASTER still ACTIVE_WRITE.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_019 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_020 -->
+## BOOK-MIGRATION-20261017-020 — Entry620
+- `EXACT_VERBATIM_MATCH=PASS` (3,367 chars), copied as historical Attendance/UI hotfix evidence; live version not reverified.
+- Copy `201211f0af52b3adf70f252abbc132bd8367eb8d` — Archive `b2788ecb4c187717e020321954a1ea449c1aa0d5` — REMOVE SHA in Crosswalk.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_020 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_021 -->
+## BOOK-MIGRATION-20261017-021 — Entry621
+- `EXACT_VERBATIM_MATCH=PASS` (3,948 chars), historical scope/auth review, no live recheck.
+- Copy `1da9e10fda02c0e3f11b716e80b8fd94c301246b` — Archive `b2788ecb4c187717e020321954a1ea449c1aa0d5` — REMOVE SHA in Crosswalk; no EasyStore write.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_021 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_022 -->
+## BOOK-MIGRATION-20261017-022 — Entry622
+- `EXACT_VERBATIM_MATCH=PASS` (5,051 chars), historical Bridge gate only; not a live activation permission.
+- Copy `cd7454cb8e3b7bc60608933d9114e826604e18ee` — Archive `b2788ecb4c187717e020321954a1ea449c1aa0d5` — REMOVE SHA in Crosswalk.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_022 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_023 -->
+## BOOK-MIGRATION-20261017-023 — Entry623 verified three-part historical transfer
+- `EXACT_VERBATIM_MATCH=PASS` for **28,807** characters from active source, archived original, and three concatenated copy commits.
+- COPY commits: `48388199cb7ef9532307981fd15a4006a440780b`, `e2568963c4c0b4815a5ec2406c99c61932ca26f6`, `5c0b0698db086aa5303601d625449f62edddc7bf`.
+- Archive b2788ecb4c187717e020321954a1ea449c1aa0d5, source blob d89bb7203acc18ec8cc94736023d5d750499a2ed; REMOVE SHA in Crosswalk; no Prod mutation, historical approvals do not authorize action today.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_023 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_024 -->
+## BOOK-MIGRATION-20261017-024 — Entry624
+- `EXACT_VERBATIM_MATCH=PASS` (5145 chars), historical evidence only; COPY `974e860a7f7349a136383635c8f91744842f0d9d`, archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; REMOVE SHA in Crosswalk.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_024 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_025 -->
+## BOOK-MIGRATION-20261017-025 — Entry625
+- `EXACT_VERBATIM_MATCH=PASS` (3123 chars), historical only; COPY `cb0e7f659af6c3b86d04dcb6571ec22a668c5639`, archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; REMOVE SHA in Crosswalk.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_025 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_026 -->
+## BOOK-MIGRATION-20261017-026 — Entry626
+- `EXACT_VERBATIM_MATCH=PASS` (3227 chars), historical only; COPY `fc737d6340bd03863bfa550a338534cfafc1eada`, archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; REMOVE SHA in Crosswalk.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261017_026 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_027 -->
+## BOOK-MIGRATION-20261018-027 — Entry627
+- `EXACT_VERBATIM_MATCH=PASS` for 4197 chars, COPY `f2ecdf599e87ff9af5485d00fb79c0c44f624cc5`, archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source SHA `41b998412878262c1cae9c1c257f34a9ff2f8370` and REMOVE commit captured by Crosswalk. All SERVER-68I and prior changes preserved.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_027 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_028 -->
+## BOOK-MIGRATION-20261018-028 — Entry630
+- `EXACT_VERBATIM_MATCH=PASS` (2024 chars), source/archive/appendix identical, COPY `dfd9eb4d8deae0a953b551baf6d8580c5e94db7e`, archived master `b2788ecb4c187717e020321954a1ea449c1aa0d5`, remove SHA logged in Crosswalk.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_028 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_029 -->
+## BOOK-MIGRATION-20261018-029 — Entry631
+- `EXACT_VERBATIM_MATCH=PASS` (1,983 chars) verified current source + archival snapshot + copied appendix; COPY `0af73bf95cf494d2ff0259880357205b48a4d0d4`, archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`, removal recorded in Crosswalk.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_029 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_030 -->
+## BOOK-MIGRATION-20261018-030 — Entry632
+- `EXACT_VERBATIM_MATCH=PASS` for 1,911 characters from old book and archive into appendix. COPY `17e1bc528b57212bf333139afa0cba5e22e38a69`, source blob `df8e12d19f34ea99e0ed7c8704b43330f205140f`, archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; REMOVE SHA in Crosswalk.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_030 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_031 -->
+## BOOK-MIGRATION-20261018-031 — Entry633
+- `EXACT_VERBATIM_MATCH=PASS` (1415 characters) old/archive/destination, copy `2e60cc1857c6a5c3fb2aed23b0090d0f60fc1243`; archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source blob `e654f66f6c13b6093ef28ccb13496c0a77d3a036`. Remove SHA in Crosswalk.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_031 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_032 -->
+## BOOK-MIGRATION-20261018-032 — Entry634
+- `EXACT_VERBATIM_MATCH=PASS` (1790 characters), copy `a3a7ad9d0120b3c18ce7684c9a39504a1c5cc832`; archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source blob `fcd7a2ddc238ab7cb27360f52f4c043474f57d63`. Remove SHA in Crosswalk.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_032 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_033 -->
+## BOOK-MIGRATION-20261018-033 — Entry635
+- `EXACT_VERBATIM_MATCH=PASS` (2734 characters), copy `f6f5dd042313b153176e26350d9c7bbe658ac1b2`; archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source blob `662140476b3f3bc3fe0c8ae4364c0a135cd7133f`. Remove SHA in Crosswalk.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_033 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_034 -->
+## BOOK-MIGRATION-20261018-034 — Entry636
+- `EXACT_VERBATIM_MATCH=PASS` (2787 characters), copy `a45257469b39a15488e9a90fb96de2aa1d477faa`; archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source blob `af61569b0ecef3ed1c6f19ae75fd7e0f35c32b9f`. Remove SHA in Crosswalk.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_034 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_035 -->
+## BOOK-MIGRATION-20261018-035 — Entry619 Accounting historical transfer
+- `EXACT_VERBATIM_MATCH=PASS`: active-source remainder 30,976 chars exactly matches the concatenated three-part destination.
+- `NORMALIZED_ARCHIVE_EXACT_MATCH=PASS`: original archive 34,720 chars minus separately migrated units 004 (2,617), 005 (508), 001 (619), including boundary newlines = 30,976 chars identical to source/destination.
+- COPY commits: `8abe9e419ff90175c1fa0ee5c9b090b1acd8ad2b`, `90ef398e112368fdffaed710a7f91402896e1024`, `26216d5946964dba4d785cbc6c1d145c65231e0b`.
+- Archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; original old source blob `dd09a7eb1f93568bd9696341a8eec60afae0cac0`; REMOVE commit SHA in Crosswalk. No EasyStore changes or Production mutation.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_035 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_036 -->
+## BOOK-MIGRATION-20261018-036 — Entry615 privacy-reviewed exact history
+- `EXACT_VERBATIM_MATCH=PASS`: 28,210 chars matched source, archived original, reconstructed 3-piece destination.
+- Privacy scoped review: one historical operational publisher contact address already present in same public repository, no detected raw secret or customer email; no new public endpoint or file exposed.
+- COPY commits `2c77c18481ae02906a3f50c3f4941f14d5427297`, `1360b57898387700eb0e41ad37ac593b37a7f21a`, `186464f6e1015ddb115589d3fa27b56421921f7f`.
+- Archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source blob `7c67a8122700de36692a5147fbff91af3562a592`; REMOVE SHA recorded in Crosswalk. No Production or customer data changes.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_036 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_037 -->
+## BOOK-MIGRATION-20261018-037 — Entries637–652 contiguous history
+- `EXACT_VERBATIM_MATCH=PASS`: 82,654 characters from archived original, active master, and nine verified copy parts. All nested Entry637–652 headings retained in order.
+- COPY commits: `87d5d9611b8560da5e09f9af88cbbcd4d2c4a5d4`, `4b1034f3a1a6e2f89f97d3ac3410ef3cc79376dd`, `1608b1b8a158a8221deb7ba11133abdd29855f5c`, `eb0c936d725a788ca4d928da01a69bf0b0f194c2`, `2678e0066292d720ce18cb703f83109d0e42a69e`, `06bf505d1f1e57aa42a17677054d53b71a3d83e7`, `52a8803be78c79424b249bccc9e281bb3dc97353`, `f3ea595ed642f6de4d5db63b47a8b183e10a0b98`, `3f59315474cbe160aeabff2489f1dd329dc102bf`.
+- Archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`; source blob `fc48b4459afe79e79d9a6771bd70edb85a336c78`. REMOVE commit SHA recorded in Crosswalk. Historical runtime is not current proof. Concurrent SERVER-20261018-69A and all prior server changes preserved.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_037 -->
+
+<!-- BOOK_AGENT_20261023: prior archived migration-receipt record; source b00555730a185a4508d039db19a658611ae976ac, historical provenance only; not runtime proof. -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_038 -->
+## BOOK-MIGRATION-20261018-038 — Entries653–659 exact grouped historical transfer
+- `EXACT_VERBATIM_MATCH=PASS`: 23,502 characters copied as three chunks and compared directly with active source and the complete corresponding archive prefix. The archive has one extra trailing newline boundary, not part of the active live section.
+- COPY commits: `05d3801c99298de5156e98ccbfc3a3b456d83c5b`, `df80b91b27db1fe093ad3aff1992103cbd2e7b51`, `6f4e5b831db4544682329c3e714cba0a7361d8ef`.
+- Archive `b2788ecb4c187717e020321954a1ea449c1aa0d5`, source blob `b99ccbbc2f2749c1030c7d445397b3458a55bcbe`; REMOVE commit = this commit (actual SHA logged in Crosswalk). No Production deploy/auth/data changes; active book and newer SERVER entries preserved.
+
+
+<!-- END_VERBATIM_MIGRATION:MASTER_BOOK_MIGRATION_20261018_038 -->
+
