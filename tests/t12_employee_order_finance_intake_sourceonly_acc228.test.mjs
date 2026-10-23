@@ -221,6 +221,16 @@ test('ACC229 refuses missing/corrupted ledger intent or edited selector capture 
   assert.equal((await request(x)).status,200);
  }
 }));
+test('ACC229 policy epoch drift and wrong original queue plan do not qualify source',()=>withFixture(async x=>{
+ x.raw.prepare("UPDATE t12_prod_request_ledger SET policy_epoch='CHANGED_POLICY' WHERE request_key=?").run(KEY);
+ assert.equal((await request(x)).body.code,'ORIGINAL_T12_CREATE_INTENT_NOT_AVAILABLE');
+ x.raw.prepare("UPDATE t12_prod_request_ledger SET policy_epoch='FAKE_POLICY' WHERE request_key=?").run(KEY);
+ const canonical=JSON.parse(x.raw.prepare('SELECT canonical_json AS json FROM t12_prod_request_ledger WHERE request_key=?').get(KEY).json);
+ canonical.queuePlans[1].department='طباعة';
+ x.raw.prepare('UPDATE t12_prod_request_ledger SET canonical_json=? WHERE request_key=?')
+   .run(JSON.stringify(canonical),KEY);
+ assert.equal((await request(x)).body.code,'T12_SOURCE_LINE_SET_INCOMPLETE_OR_UNSUPPORTED');
+}));
 test('without D1 batch, broken transaction or broken schema return generic fail closed',async()=>{
  const lacking=await inspect({db:{prepare(){}},orderId:ORDER_ID,expectedOfficialCustomerId:C});
  assert.equal(lacking.status,503);
