@@ -139,7 +139,7 @@ def seed_sql():
           "INSERT INTO t12_prod_lines(line_id,order_id,request_key,ordinal,department,item_name,qty,priority,status,heat_press,fly_print) "+
           "VALUES ('%s','%s','%s',1,'الطباعة','FAKE PRINT REQUEST',2,'عادي','طلب جديد',0,0);"%(line,oid,key),
           "INSERT INTO customer_portal_native_order_ownership_v1(order_id,customer_id,source,status,proof_ref,proof_method,verified_by,verified_at) "+
-          "VALUES ('%s','%s','t12-cloud-native','VERIFIED','LOCAL_TEST_REVIEW','OWNER_REVIEWED_EXACT_ID','LOCAL_TEST_ONLY','2026-10-24');"%(oid,ident)
+          "VALUES ('%s','%s','t12-cloud-native','VERIFIED','LOCAL_TEST_REVIEW_%s','OWNER_REVIEWED_EXACT_ID','LOCAL_TEST_ONLY','2026-10-24');"%(oid,ident,ident)
         ]
     return "\n".join(statements)+"\n"
 
