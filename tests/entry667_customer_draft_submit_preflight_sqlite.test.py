@@ -96,19 +96,32 @@ class NativeSubmitPreflightSqlite(unittest.TestCase):
   self.db.execute("UPDATE t12_customers SET legacy_chat_code='PC-C2' WHERE customer_id='C2'")
   self.assertIsNone(self.owner(now=NOW+31000))
  def test_11_t12_existing_cloud_request_needs_manual_reconciliation(self):
-  key='cld1_'+str(NOW-60000)+'_'+DRAFT[4:]
-  self.assertIsNone(self.db.execute(EXISTING,(key,)).fetchone())
+  key='cld1_'+str(NOW)+'_'+DRAFT[4:]
+  self.assertIsNone(self.db.execute(EXISTING,(DRAFT,)).fetchone())
   self.db.execute("""
     INSERT INTO t12_prod_request_ledger
       (request_key,actor,policy_epoch,canonical_json,order_id,status)
     VALUES (?, 'FAKE_ACTOR', 'FAKE_EPOCH', '{}', 'FAKE_ORDER', 'PREPARED')
   """,(key,))
-  self.assertEqual(self.db.execute(EXISTING,(key,)).fetchone()['status'],'PREPARED')
+  self.assertEqual(self.db.execute(EXISTING,(DRAFT,)).fetchone()['status'],'PREPARED')
   self.db.execute("UPDATE t12_prod_request_ledger SET status='COMMITTED' WHERE request_key=?",(key,))
-  self.assertEqual(self.db.execute(EXISTING,(key,)).fetchone()['status'],'COMMITTED')
-  self.assertIsNone(self.db.execute(EXISTING,('cld1_'+str(NOW-60000)+'_'+'a'*32,)).fetchone())
+  self.assertEqual(self.db.execute(EXISTING,(DRAFT,)).fetchone()['status'],'COMMITTED')
+  self.assertIsNone(self.db.execute(EXISTING,(fixture.OTHER_DRAFT,)).fetchone())
+ def test_13_owner_items_files_and_t12_ledger_share_read_transaction(self):
+  self.db.execute("SAVEPOINT entry681_submit_read")
+  try:
+   owner=self.db.execute(OWNER,(DRAFT,MAC,NOW,NOW)).fetchall()
+   items=self.db.execute(ITEMS,(DRAFT,)).fetchall()
+   files=self.db.execute(FILES,(DRAFT,)).fetchall()
+   prior=self.db.execute(EXISTING,(DRAFT,)).fetchall()
+   self.assertEqual(len(owner),1)
+   self.assertEqual(len(items),1)
+   self.assertEqual(files[0]["fileCount"],0)
+   self.assertEqual(prior,[])
+  finally:
+   self.db.execute("RELEASE SAVEPOINT entry681_submit_read")
  def test_12_read_only_sql_does_not_change_source_orders_or_drafts(self):
   before=self.db.total_changes
-  self.owner();self.items();self.files();self.db.execute(EXISTING,('cld1_'+str(NOW-60000)+'_'+DRAFT[4:],)).fetchone()
+  self.owner();self.items();self.files();self.db.execute(EXISTING,(DRAFT,)).fetchone()
   self.assertEqual(self.db.total_changes,before)
 if __name__=="__main__":unittest.main()
