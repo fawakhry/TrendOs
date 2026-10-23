@@ -93,12 +93,44 @@
       mustChange:false
     }};
   }
-  function nativeLocalLogoutOnly() {
+  async function nativeServerLogoutOnly() {
+    // Wipe the browser bearer immediately, even when server revocation is
+    // unavailable. Only a VERIFIED D1 CAS response can claim remote logout.
     if (!nativeToken) throw fail('CUSTOMER_NATIVE_SESSION_NOT_AVAILABLE');
+    var bearer = nativeToken;
     ++nativeEpoch;
     nativeToken = '';
-    return {success:true,source:'d1-native-client-memory-clear-v0',
-      serverSessionRevoked:false,forceRelogin:true};
+    var origin = exactCloudOrigin();
+    if (typeof window.fetch !== 'function')
+      throw fail('CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED');
+    var controller = new AbortController();
+    var timeout = setTimeout(function () { controller.abort(); }, 15000);
+    var response;
+    try {
+      response = await window.fetch(origin + '/v1/customer/native/logout', {
+        method: 'POST',
+        headers: { accept: 'application/json', authorization: 'Bearer ' + bearer },
+        credentials: 'omit', cache: 'no-store', redirect: 'error',
+        signal: controller.signal
+      });
+    } catch (_) {
+      throw fail('CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED');
+    } finally { clearTimeout(timeout); }
+    if (!response || response.ok !== true || response.status !== 200)
+      throw fail('CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED');
+    var raw;
+    try { raw = await response.text(); }
+    catch (_) { throw fail('CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'); }
+    if (typeof raw !== 'string' || raw.length > 2048)
+      throw fail('CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED');
+    var data;
+    try { data = JSON.parse(raw); }
+    catch (_) { throw fail('CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'); }
+    if (!data || data.success !== true || data.sessionRevoked !== true ||
+        data.source !== 'customer-d1-native-logout-v0')
+      throw fail('CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED');
+    return {success:true,sessionRevoked:true,serverSessionRevoked:true,
+      forceRelogin:true,source:'customer-d1-native-logout-v0'};
   }
   function safeRow(row) {
     if (!row || Array.isArray(row) || typeof row !== 'object') return null;
@@ -165,14 +197,18 @@
       return downstream(action, params);
     }
     if (!nativeEnabled()) {
-      // A mode flip must never send previously established native credentials
-      // or its marker to Google through the old browser transport.
-      if (nativeToken) throw fail('CUSTOMER_NATIVE_MODE_MISMATCH');
+      // A native session must never be downgraded to legacy Google, including
+      // when the UI still carries its nonsecret marker after local logout.
+      if (nativeToken && action === 'customerLogout')
+        return nativeServerLogoutOnly();
+      if (nativeToken || (params && (params.nativeSession === true ||
+          params.token === 'NATIVE_SESSION_IN_MEMORY')))
+        throw fail('CUSTOMER_NATIVE_MODE_MISMATCH');
       if (typeof downstream !== 'function') throw fail('CUSTOMER_LEGACY_TRANSPORT_MISSING');
       return downstream(action, params);
     }
     if (action === 'customerLogin') return nativeLoginOnly(params);
-    if (action === 'customerLogout') return nativeLocalLogoutOnly();
+    if (action === 'customerLogout') return nativeServerLogoutOnly();
     // Remaining seven operations do not have approved live HTTP handlers.
     if (action !== 'getCustomerOrders')
       throw fail('CUSTOMER_NATIVE_ACTION_NOT_WIRED');
@@ -184,6 +220,7 @@
     sourceOnly: true, defaultOff: true, customerActions: Object.keys(ACTIONS).length,
     nativeHttpReadQualifiedForLive: false, customerLoginRouteReady: false,
     nativeLoginSourceHandshakeOnly: true, nativeTokenNeverPersisted: true,
+    logoutRequiresServerCasAck: true, clientClearsBearerBeforeLogoutResponse: true,
     googleFallbackWhenEnabled: false, customerMasterMigration: false,
     customerOrderWriterCreated: false, zeroGoogleComplete: false
   });

@@ -1,0 +1,53 @@
+name: TrendOS Customer Native Server Logout Handshake OFF
+on:
+  push:
+    branches:
+      - feat/zero-google-customer-server-logout-handshake-off-20261024
+  pull_request:
+    paths:
+      - 'customer-native-browser-transport-v0.js'
+      - 'app.js'
+      - 'tests/customer_native_browser_transport_off.test.mjs'
+      - '.github/workflows/trendos-customer-native-server-logout-off-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  customer-native-server-logout-offline-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static script syntax and original client handshake regressions
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          OPENAI_API_KEY: ''
+        run: |
+          set -euo pipefail
+          node --check customer-native-browser-transport-v0.js
+          node --check app.js
+          node --test tests/customer_native_browser_transport_off.test.mjs
+      - name: Original exact D1 CAS logout source and disposable SQLite
+        run: |
+          set -euo pipefail
+          node --test tests/entry661_customer_native_logout_off.test.mjs
+          python3 tests/entry661_customer_native_logout_sqlite.test.py -v
+      - name: Preserve default OFF and no Cloudflare live route
+        run: |
+          set -euo pipefail
+          grep -Eq 'TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED[[:space:]]*=[[:space:]]*false' config.js
+          if grep -q "customer-portal-native-logout-v0" cloudflare-d1/src/index_v2.js; then
+            echo 'Native logout imported into Worker without Stage approval'; exit 1
+          fi
+          echo 'SOURCE_ONLY=YES'
+          echo 'SERVER_D1_CAS_TESTED_LOCALLY=YES'
+          echo 'PUBLIC_LOGOUT_ROUTE_DEPLOYED=NO'
+          echo 'CUSTOMER_MASTER_REBUILD=NO'
+          echo 'GOOGLE_CUSTOMER_ACTIONS_RETIRED=0_OF_9'
+          echo 'CLOUDFLARE_DEPLOY=NO'
