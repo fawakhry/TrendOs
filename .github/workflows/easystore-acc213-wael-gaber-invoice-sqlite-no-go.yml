@@ -36,6 +36,11 @@ jobs:
           node --check cloudflare-d1/src/t12-general-create.mjs
           node --check tests/t12_general_create.test.mjs
           node --test tests/t12_general_create.test.mjs
+          node --check cloudflare-d1/src/t12-employee-order-finance-intake-sourceonly.mjs
+          node --check tests/t12_employee_order_finance_intake_sourceonly_acc228.test.mjs
+          node --test tests/t12_employee_order_finance_intake_sourceonly_acc228.test.mjs
+          echo 'ACC228_ORIGINAL_EMPLOYEE_ORDER_TWO_DEPARTMENT_SOURCE=SOURCE_ONLY'
+          echo 'ACC228_FINANCE_INVOICE_POSTING=NO_GO'
           echo 'ACC223_ISOLATED_TRANSACTIONAL_AT_CREATE_CUSTOMER_CAPTURE=TESTED'
           echo 'ACC223_REAL_CUSTOMER_OWNER_ATTESTATION=NOT_VERIFIED'
           echo 'ACC223_NEW_PRODUCTION_ROUTE_OR_DEPLOY=NONE'
