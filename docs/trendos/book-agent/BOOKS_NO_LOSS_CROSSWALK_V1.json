@@ -16870,5 +16870,159 @@
       "archive_untouched": true,
       "production_mutation": 0
     }
+  },
+  "book_agent_20261023_edge_native_revocation_r2_checksum_synthetic_cases_v1": {
+    "date": "2026-10-23",
+    "book_head_prepared_at": "67b1a051456be37418e438f06a41ce92e0ed609d",
+    "pinned_pr": 221,
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "tested_source_files": [
+      {
+        "path": "cloudflare-d1/src/edge-orders-read-v1.mjs",
+        "sha": "540cca2143e7da940b96d6f990a8951e3b5c87ab",
+        "functions": [
+          "issueOrdersEdgeToken",
+          "verifyOrdersEdgeToken"
+        ]
+      },
+      {
+        "path": "cloudflare-d1/src/employee-auth-native-v1.mjs",
+        "sha": "c01156a965e7de60e7a70d44d86b41b59eb83ded",
+        "function": "verifyNativeEmployeeSession"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-comms-native-v1.mjs",
+        "sha": "f415d06ccd15ba241d679c61b7afeb6ec904e4b8",
+        "function": "serveFile"
+      },
+      {
+        "path": "cloudflare-d1/src/employee-content-native-v1.mjs",
+        "sha": "fab5eeeca0ecc9312380054b32f01a44639f4664",
+        "function": "serveFile"
+      }
+    ],
+    "harness": "Actual original source functions extracted from the immutable file by stripping only module import/export wrappers. Ran offline JavaScript in fresh V8 isolate with fake native DB, fake R2 object, fake Response/Headers, ASCII fixtures and a deliberately insecure deterministic signature substitute. No real HMAC, fingerprint cryptography, Cloudflare Worker, production route, D1, R2 or customer data.",
+    "original_pr211_relation": "Different independently draft PR211 ACC232 current runtime veto; no code/test merge, no finance customer authority.",
+    "native_edge_cases": [
+      {
+        "name": "baseline_active_native_and_edge",
+        "observed_matches_expected": true,
+        "native": "hit",
+        "edge": "valid"
+      },
+      {
+        "name": "native_revoked_but_prior_edge_valid",
+        "observed_matches_expected": true,
+        "native": "miss_after_fake_revocation",
+        "edge": "valid_until_exp"
+      },
+      {
+        "name": "native_version_advanced_but_prior_edge_valid",
+        "observed_matches_expected": true,
+        "native": "session-version-mismatch",
+        "edge": "valid_until_exp"
+      },
+      {
+        "name": "native_disabled_but_prior_edge_valid",
+        "observed_matches_expected": true,
+        "native": "inactive",
+        "edge": "valid_until_exp"
+      },
+      {
+        "name": "native_role_changed_but_prior_edge_claim_old_laser",
+        "observed_matches_expected": true,
+        "native": "hit_with_new_service_role",
+        "edge_claim_remains": "laser"
+      },
+      {
+        "name": "edge_expiry_blocks_previous_edge_token",
+        "observed_matches_expected": true,
+        "edge": "expired_after_601_seconds"
+      }
+    ],
+    "r2_file_integrity_cases": [
+      {
+        "name": "comms_tampered_r2_body_does_not_match_stored_sha",
+        "observed_matches_expected": true,
+        "status": 200,
+        "r2_fake_bytes_returned": true,
+        "stored_content_sha256_selected_by_GET": false,
+        "owner_active_status_checked_before_content_GET": false
+      },
+      {
+        "name": "comms_r2_custom_sha_mismatch_against_metadata_row",
+        "observed_matches_expected": true,
+        "status": 200,
+        "r2_fake_bytes_returned": true,
+        "stored_content_sha256_selected_by_GET": false,
+        "owner_active_status_checked_before_content_GET": false
+      },
+      {
+        "name": "comms_missing_r2_object_rejected_404",
+        "observed_matches_expected": true,
+        "status": 404,
+        "r2_fake_bytes_returned": false,
+        "stored_content_sha256_selected_by_GET": false,
+        "owner_active_status_checked_before_content_GET": false
+      },
+      {
+        "name": "content_tampered_r2_object_returned_with_no_checksum_field",
+        "observed_matches_expected": true,
+        "status": 200,
+        "r2_fake_bytes_returned": true,
+        "stored_content_sha256_selected_by_GET": false,
+        "owner_active_status_checked_before_content_GET": false
+      },
+      {
+        "name": "content_deleted_or_inactive_owner_not_queried_before_file_return",
+        "observed_matches_expected": true,
+        "status": 200,
+        "r2_fake_bytes_returned": true,
+        "stored_content_sha256_selected_by_GET": false,
+        "owner_active_status_checked_before_content_GET": false
+      },
+      {
+        "name": "content_missing_r2_object_rejected_404",
+        "observed_matches_expected": true,
+        "status": 404,
+        "r2_fake_bytes_returned": false,
+        "stored_content_sha256_selected_by_GET": false,
+        "owner_active_status_checked_before_content_GET": false
+      }
+    ],
+    "total_executed": 12,
+    "matched_expected": 12,
+    "interpretation": "Native employee verifier queries session revoked_at_ms, active flag and session_version; previously issued Edge token verifier only checks token syntax/signature/audience/sub/time and is not coupled to native revocation/role updates. This is a source revocation-time limitation, NOT a proof of leaked real bearer or an Apps Script vs native credential equality; real issuer is Apps Script verifyEmployeeSession. Independently original R2 handlers GET bytes using key and MIME without checking stored content SHA-256 or owner active. Content files may be intentionally public, so owner archive enforcement is a POLICY question, not automatically a vulnerability.",
+    "key_limitations": [
+      "TOY_HMAC_ONLY",
+      "STUBBED_NATIVE_DB_AND_FILE_HASH_NOT_REAL",
+      "NO_DEPLOYED_WORKER_OR_R2_BINARY_PROVENANCE",
+      "NO_PRIVATE_PRODUCTION_BYTES",
+      "NOT_GITHUB_CI",
+      "NO_EXPLICIT_ASSUMPTION_THAT_NATIVE_AND_APPS_SCRIPT_SESSIONS_ARE_SAME"
+    ],
+    "next_owner_gates": [
+      "EDGE_SESSION_REVOCATION_SLA_AND_CANONICAL_ISSUER",
+      "EDGE_ROLE_CLAIM_REFRESH_AND_PER_ROUTE_ACL",
+      "PRIVATE_R2_GET_DIGEST_VERIFY_AND_OBJECT_PROVENANCE",
+      "CONTENT_FILE_ARCHIVE_VISIBILITY_POLICY"
+    ],
+    "authority": {
+      "master": "ACTIVE_WRITE",
+      "catalog": "FROZEN_MIGRATION_ONLY",
+      "final_cutover": "NO_GO",
+      "finance": "EASYSTORE",
+      "native_customer_ownership_attested": false,
+      "zero_google_retirement": "0/9 VERIFIED",
+      "deployed_sha": "UNVERIFIED",
+      "r2_binary_provenance": "UNVERIFIED"
+    },
+    "source_only": true,
+    "CI_VERIFIED": "NO_NEW_GITHUB_ACTIONS",
+    "STAGING_VERIFIED": false,
+    "PRODUCTION_VERIFIED": false,
+    "production_mutations": 0,
+    "code_mutations": 0,
+    "no_duplicate_ticket": true
   }
 }

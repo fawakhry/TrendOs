@@ -844,5 +844,32 @@
     "finance_authority": "EASYSTORE",
     "ownership_attested": false,
     "production_mutations": 0
+  },
+  "current_no_loss_gate_20261023_edge_native_revocation_r2_checksum_source_v1": {
+    "date": "2026-10-23",
+    "crosswalk_key": "book_agent_20261023_edge_native_revocation_r2_checksum_synthetic_cases_v1",
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "book_head_before_write": "67b1a051456be37418e438f06a41ce92e0ed609d",
+    "executed_offline_cases": 12,
+    "observed_as_expected": 12,
+    "native_edge_synthetic": 6,
+    "r2_file_digest_synthetic": 6,
+    "proof_level": "ORIGINAL_SOURCE_FUNCTIONS_STUBBED_OFFLINE_NOT_PRODUCTION",
+    "native_revoked_edge_claim": "EDGE_SIGNATURE_ACCEPTS_BEFORE_EXPIRY_IN_FAKE_SIGN_FIXTURE",
+    "native_role_refresh": "NOT_CHECKED_BY_EDGE_VERIFIER",
+    "comm_and_content_r2_checksum": "NOT_VERIFIED_ON_GET",
+    "r2_missing_key": "SOURCE_FIXTURE_404",
+    "content_inactive_owner_policy": "OWNER_DECISION",
+    "crypto_strength": "NOT_TESTED_TOY_SIGNER",
+    "CI_VERIFIED": "NO_NEW_CI",
+    "STAGING_VERIFIED": false,
+    "PRODUCTION_VERIFIED": false,
+    "CLOUDFLARE_DEPLOYED_SHA": "UNVERIFIED",
+    "R2_BINARY_PROVENANCE": "UNVERIFIED",
+    "old_master": "ACTIVE_WRITE",
+    "frozen_catalog": "FROZEN_MIGRATION_ONLY",
+    "cutover": "NO_GO",
+    "finance_authority": "EASYSTORE",
+    "production_mutations": 0
   }
 }
