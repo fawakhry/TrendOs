@@ -76,12 +76,40 @@ SELECT event_key AS eventKey,request_key AS requestKey,order_id AS orderId,
  WHERE request_key=(SELECT request_key FROM t12_prod_orders WHERE order_id=?)
  ORDER BY event_key ASC LIMIT 3
 `;
+// ACC232_T12_CURRENT_RUNTIME_PARITY: Inspect CURRENT original T12 runtime state
+// and last mutation event, not solely immutable at-create rows. This is NOT
+// employee accounting approval, a signed V1 event or a financial grant.
+// Source-only, read in the SAME D1 batch as original create/lines/outbox.
+export const T12_EMPLOYEE_INTAKE_RUNTIME_SQL=`
+SELECT l.line_id AS lineId,l.order_id AS orderId,
+ r.status AS runtimeStatus,r.updated_by AS runtimeActor,
+ r.version AS runtimeVersion,
+ (SELECT COUNT(*) FROM t12_prod_runtime_events e
+  WHERE e.line_id=l.line_id AND e.order_id=l.order_id) AS runtimeEventCount,
+ (SELECT e.event_type FROM t12_prod_runtime_events e
+  WHERE e.line_id=l.line_id AND e.order_id=l.order_id
+  ORDER BY e.event_id DESC LIMIT 1) AS lastEventType,
+ (SELECT e.new_status FROM t12_prod_runtime_events e
+  WHERE e.line_id=l.line_id AND e.order_id=l.order_id
+  ORDER BY e.event_id DESC LIMIT 1) AS lastEventStatus,
+ (SELECT e.old_status FROM t12_prod_runtime_events e
+  WHERE e.line_id=l.line_id AND e.order_id=l.order_id
+  ORDER BY e.event_id DESC LIMIT 1) AS lastEventPreviousStatus,
+ (SELECT e.actor FROM t12_prod_runtime_events e
+  WHERE e.line_id=l.line_id AND e.order_id=l.order_id
+  ORDER BY e.event_id DESC LIMIT 1) AS lastEventActor
+ FROM t12_prod_lines l
+ LEFT JOIN t12_prod_line_runtime r
+   ON r.line_id=l.line_id AND r.order_id=l.order_id
+ WHERE l.order_id=? ORDER BY l.ordinal ASC LIMIT 3
+`;
 export const T12_EMPLOYEE_FINANCE_INTAKE_POLICY=Object.freeze({
  sourceOnly:true,workerEntryWired:false,httpRouteAvailable:false,
  readsOneD1Batch:true,originalT12Only:true,
  reliesOnACC223ImmutableCapture:true,
  comparesOriginalT12CanonicalLedger:true,
  comparesOriginalT12ActivityAndOutbox:true,
+ comparesCurrentT12RuntimeAndLastMutation:true,
  existingFinanceConnectorReused:true,usesOfficialNativeCustomerId:true,
  sourceSelectorVerifiesCustomerOwnership:false,
  includesBillingPrices:false,
@@ -103,9 +131,10 @@ export async function inspectT12EmployeeOrderFinanceCandidate({
    db.prepare(T12_EMPLOYEE_INTAKE_ORDER_SQL).bind(orderId),
    db.prepare(T12_EMPLOYEE_INTAKE_LINES_SQL).bind(orderId),
    db.prepare(T12_EMPLOYEE_INTAKE_ACTIVITY_SQL).bind(orderId),
-   db.prepare(T12_EMPLOYEE_INTAKE_OUTBOX_SQL).bind(orderId)
+   db.prepare(T12_EMPLOYEE_INTAKE_OUTBOX_SQL).bind(orderId),
+   db.prepare(T12_EMPLOYEE_INTAKE_RUNTIME_SQL).bind(orderId)
   ]);
-  if(!Array.isArray(batch)||batch.length!==4||
+  if(!Array.isArray(batch)||batch.length!==5||
      batch.some(x=>!x||x.success!==true||!Array.isArray(x.results)))
    return deny('T12_INTAKE_READ_TRANSACTION_UNVERIFIED',503);
   const orderRows=batch[0].results;
@@ -252,6 +281,43 @@ export async function inspectT12EmployeeOrderFinanceCandidate({
    catch{return deny('T12_ORIGINAL_OUTBOX_PAYLOAD_DRIFT');}
    if(JSON.stringify(storedPlan)!==JSON.stringify(expected))
     return deny('T12_ORIGINAL_OUTBOX_PAYLOAD_DRIFT');
+  }
+  // ACC232: runtime status can change after the original create. A cancelled,
+  // stopped or duplicate line must NOT look like an active invoice candidate.
+  // Each runtime upsert by the original Worker also inserts one immutable
+  // event and increments version in its atomic D1 batch; assert one-to-one
+  // count, latest actor/status and event family without trusting a display
+  // label or treating a WhatsApp message as payment/approval.
+  const current=batch[4].results;
+  if(current.length!==lines.length)
+   return deny('T12_RUNTIME_LINE_SET_INCOMPLETE_OR_UNKNOWN');
+  for(let i=0;i<lines.length;i++){
+   const r=current[i],l=lines[i];
+   if(!r||r.lineId!==l.lineId||r.orderId!==orderId||
+      !Number.isSafeInteger(r.runtimeEventCount)||r.runtimeEventCount<0)
+    return deny('T12_RUNTIME_LINE_SET_INCOMPLETE_OR_UNKNOWN');
+   if(r.runtimeStatus===null){
+    if(r.runtimeVersion!==null||r.runtimeActor!==null||
+       r.runtimeEventCount!==0||r.lastEventType!==null||
+       r.lastEventStatus!==null||r.lastEventActor!==null)
+     return deny('T12_RUNTIME_EVENT_WITHOUT_STATE');
+    continue; // original unmodified order; create status is still authoritative
+   }
+   if(!Number.isSafeInteger(r.runtimeVersion)||r.runtimeVersion<1||
+      r.runtimeEventCount!==r.runtimeVersion||
+      !id(r.runtimeActor)||r.lastEventActor!==r.runtimeActor||
+      r.lastEventStatus!==r.runtimeStatus||
+      !['line-update','whatsapp-ready_notify','whatsapp-status_reply',
+        'whatsapp-registration'].includes(r.lastEventType)||
+      (r.runtimeVersion===1&&r.lastEventPreviousStatus!=='طلب جديد')||
+      (r.lastEventType!=='line-update'&&
+        r.lastEventPreviousStatus!==r.lastEventStatus))
+    return deny('T12_RUNTIME_STATUS_EVENT_OR_ACTOR_DRIFT');
+   if(['ملغى','مكرر','متوقف'].includes(r.runtimeStatus))
+    return deny('T12_RUNTIME_LINE_CANCELLED_DUPLICATE_OR_STOPPED');
+   if(!['طلب جديد','بدأ التنفيذ','تحت التنفيذ',
+         'جاهز للاستلام','تم التسليم'].includes(r.runtimeStatus))
+    return deny('T12_RUNTIME_UNKNOWN_STATE');
   }
   // These IDs are an INTERNAL operational candidate only. The original
   // EasyStore invoice requires distinct real departmental APPROVALS, financial
