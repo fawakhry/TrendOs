@@ -9425,10 +9425,10 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 > Preserve four prior migration/precheck **administrative receipts** (not customer-order payloads). The privacy review note records only the restriction: Entry596/599/600 raw records remain in the active Master under owner hold. Historical not live/CI proof.
 
 <!-- BOOK_AGENT_20261023: historical transitional administrative receipt, old Master blob bb07f4561085382f5368b8d51503484f20ca465f. -->
-<!-- BEGIN_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT 001 -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_001 -->
 - **MIGRATION UNIT 001 — 2026-10-16 / MASTER_CLEANING_CHECKPOINT_20261002:** `COPY→VERIFY→REMOVE` مُنفّذ للقسم التاريخي القديم `## 10. Cleaning checkpoint — 2026-10-02` فقط. المصدر عند بداية النقل [commit e42a9978](https://github.com/fawakhry/TrendOs/commit/e42a9978fd361284d6887b069449272528d7430d)، Git blob `e7a55dadda6d736ae50bca0fcc4b8013503f8fd5`. نُسخ النص حرفيًا (619 حرفًا) إلى الملحق التاريخي «و» في الكتاب الموحد عبر [copy commit c1b9290d89a8](https://github.com/fawakhry/TrendOs/commit/c1b9290d89a8004805bf0d78efd042987c2c0a59)؛ أُعيدت قراءة الوجهة من GitHub وثبت `EXACT_TEXT_MATCH=PASS (619/619)` مع مصدر القديم وأرشيف `b2788ecb4c187717e020321954a1ea449c1aa0d5` (blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`). أُزيل نص القسم وحده من هذا الكتاب بعد فحص المقارنة، مع بقاء جميع Entry والأعمال الأخرى و`ACTIVE_WRITE`. `HISTORICAL` / `DOCUMENTATION_ONLY` / `NO_RUNTIME_CLAIM`. Commit الإزالة هو الذي يحتوي هذا السجل في Git. 66 Entry ما زالت بحاجة إلى مصالحة مستقلة، لا ادعاء `FULLY_VERIFIED`. لا تغيير في كتب المشاريع الأخرى ولا main/الأرشيف/الإنتاج.
 
-<!-- END_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT 001 -->
+<!-- END_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_001 -->
 
 <!-- BOOK_AGENT_20261023: historical transitional administrative receipt, old Master blob bb07f4561085382f5368b8d51503484f20ca465f. -->
 <!-- BEGIN_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_PRECHECK -->
@@ -9437,15 +9437,15 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 <!-- END_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_PRECHECK -->
 
 <!-- BOOK_AGENT_20261023: historical transitional administrative receipt, old Master blob bb07f4561085382f5368b8d51503484f20ca465f. -->
-<!-- BEGIN_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT 002 -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_002 -->
 - **MIGRATION UNIT 002 / Entry597 / 2026-10-16:** ترحيل تاريخي مراجَع إلى الملحق «ز» من الكتاب الموحد، `HISTORICAL` / `SOURCE_QUALIFICATION_AT_ORIGINAL_DATE` لا دليل Runtime جديد. نص Entry597 الأصلي **1938 حرفًا** نُسخ في [commit b12e99b5acb1](https://github.com/fawakhry/TrendOs/commit/b12e99b5acb1f9ca232f2c7ebe4f5e91b521b85f)؛ تمت إعادة قراءة الأصل والهدف والأرشيف على GitHub، و`EXACT_VERBATIM_MATCH=PASS (1938/1938)`. مصدر البداية [HEAD cce96674](https://github.com/fawakhry/TrendOs/commit/cce96674fb573788b5d9d8d44d81cca24fbe9675) blob `986761be5262e39961ebe0ed64df0fe70641319e`؛ الأرشيف الثابت `b2788ecb4c187717e020321954a1ea449c1aa0d5` blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`. أزيل عنوان/نص Entry597 فقط من الكتاب القديم، مع إبقاء Entry596/598/599–600 و`ACTIVE_WRITE`؛ سيظل عائق خصوصية مجموعة 596–600 قائمًا لأجزائها غير المراجعة. Commit الإزالة يحمل هذا التسجيل. `NO_PRODUCTION_MUTATION`.
 
-<!-- END_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT 002 -->
+<!-- END_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_002 -->
 
 <!-- BOOK_AGENT_20261023: historical transitional administrative receipt, old Master blob bb07f4561085382f5368b8d51503484f20ca465f. -->
-<!-- BEGIN_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT 003 -->
+<!-- BEGIN_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_003 -->
 - **MIGRATION UNIT 003 / Entry598 / 2026-10-16:** تاريخ فحص Production preflight قبل Entry599/600 نُقل إلى الملحق التاريخي «ح» في الكتاب الجديد، `HISTORICAL` / `NO_NEW_RUNTIME_VERIFICATION`. نص Entry598 طوله **1535 حرفًا** نُسخ في [commit ceccf9114c1e](https://github.com/fawakhry/TrendOs/commit/ceccf9114c1ef3b8992953ad010a115a41dbc9f0)؛ `EXACT_VERBATIM_MATCH=PASS (1535/1535)` على GitHub أمام الأصل والأرشيف `b2788ecb4c187717e020321954a1ea449c1aa0d5` blob `a5eb39309413c2c2b8c5b62cab4ebc581e90f71e`. مصدر الأصل عند بداية هذه الوحدة [HEAD 0bd4a36e](https://github.com/fawakhry/TrendOs/commit/0bd4a36e39869ea5b6fa4bf6513e659d70f7c187)، blob `a56766f63eef4f8d1d11aaa708118c2b4a7309a1`. بعد التحقق أزيل قسم Entry598 فقط من القديم، وبقي Entry596 وEntry599/600 وبقية أقسام الكتاب و`ACTIVE_WRITE` دون حذف. هذا التسجيل في Commit الإزالة. `NO_PRODUCTION_MUTATION`.
 
 
-<!-- END_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT 003 -->
+<!-- END_VERBATIM_MIGRATION:MASTER_OWNER_RECEIPT_20261016_MIGRATION_UNIT_003 -->
 
