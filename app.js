@@ -4118,7 +4118,24 @@ Trend Mall`;
       closeVisitorPreview();
       return;
     }
-    try { const c = state.customer || {}; api("customerLogout", { customerCode: c.customerCode || c.code || "", token: c.token || "" }).catch(function(){}); } catch (e) {}
+    try {
+      const c = state.customer || {};
+      // Keep legacy fire-and-forget UI behavior, but never claim that a Native
+      // server session was revoked unless its D1 CAS response confirms it.
+      api("customerLogout", {
+        customerCode: c.customerCode || c.code || "",
+        token: c.token || "", nativeSession: c.nativeSession === true
+      }).then(function(result) {
+        if (c.nativeSession === true && (!result ||
+            result.sessionRevoked !== true || result.serverSessionRevoked !== true)) {
+          alert("تم الخروج من هذا الجهاز، لكن لم نتأكد من إلغاء الجلسة على السيرفر. حاول تسجيل الدخول من جديد عند توفر الخدمة.");
+        }
+      }).catch(function() {
+        if (c.nativeSession === true) {
+          alert("تم الخروج من هذا الجهاز، لكن تعذر تأكيد إلغاء الجلسة من السيرفر. لن تُستخدم الجلسة القديمة في المتصفح.");
+        }
+      });
+    } catch (e) {}
     clearCustomerSession();
     showEntryChoice();
   }
