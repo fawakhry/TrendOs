@@ -1,0 +1,48 @@
+name: ACC234 EasyStore isolated native finance Stage (offline, no D1 access)
+on:
+  pull_request:
+    paths:
+      - 'cloudflare-d1/easystore-finance-stage/**'
+      - 'cloudflare-d1/migrations/0015_employee_accounting_zero_google_v1.sql'
+      - 'cloudflare-d1/migrations/00*_employee_accounting_*.sql'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - '.github/workflows/easystore-finance-isolated-stage-offline.yml'
+  push:
+    branches:
+      - 'fix/acc214-accounting-read-scope-precutover-no-go-20261020'
+    paths:
+      - 'cloudflare-d1/easystore-finance-stage/**'
+      - 'cloudflare-d1/migrations/0015_employee_accounting_zero_google_v1.sql'
+      - 'cloudflare-d1/migrations/00*_employee_accounting_*.sql'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - '.github/workflows/easystore-finance-isolated-stage-offline.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-schema-and-entry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Rehearse ORIGINAL schema ONLY in ephemeral SQLite
+        run: python cloudflare-d1/easystore-finance-stage/schema_preflight.py
+      - name: Check independent original-native Worker fails closed
+        run: node --test cloudflare-d1/easystore-finance-stage/tests/*.test.mjs
+      - name: Check isolated stage binding has no operational or production database
+        shell: python
+        run: |
+          from pathlib import Path
+          t=Path('cloudflare-d1/easystore-finance-stage/wrangler.toml').read_text()
+          assert 'c2fe1a54-90f5-4e6f-9d51-80ce23e21328' in t
+          assert 'database_name = "easystore-accounting-staging"' in t
+          for bad in ['trendos-main','trendos-staging','5c4b92bf-e043-4f6e-bd6d-d514a92cd825','bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6','migrations_dir = "../migrations"']:
+              assert bad not in t
+          assert 'FINANCE_WRITES = "OFF"' in t
+          print('PASS: dedicated financial D1 binding, no production/operational D1 reference')
