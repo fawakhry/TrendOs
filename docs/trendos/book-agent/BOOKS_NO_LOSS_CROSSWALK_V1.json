@@ -16802,5 +16802,73 @@
       "live_google_retired": "0/9 VERIFIED",
       "deployed_sha": "UNVERIFIED"
     }
+  },
+  "book_agent_20261023_t12_committed_replay_child_parity_fault_fixture_v1": {
+    "date": "2026-10-23",
+    "head_read": "6d3d018188e42b4bab0bb15b834c563b5c557817",
+    "exact_source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "file": "cloudflare-d1/src/t12-general-create.mjs",
+    "blob": "06ab0dfee6db7c0480f37d3445da564853ed036d",
+    "logic": "createT12GeneralOrder -> verifiedRead COMMITTED branch",
+    "links_to_prior": "book_agent_20261023_t12_ack_and_edge_revocation_source_delta_v1",
+    "harness": "Original exported createT12GeneralOrder and internal verifiedRead functions executed in offline JavaScript isolate; pure synthetic fixed intent constructor; D1 prepare SELECT test adapter with fake control, ledger, order, lines; no actual SQLite transaction and no real R2. Mock DB.batch forbidden and never invoked. Source imports replaced by stub dependencies to isolate replay decision; case does not test atomic batch creation or full canonical-intent builder.",
+    "cases": [
+      {
+        "name": "COMMITTED ledger order and line but no activity/outbox",
+        "source_replay": "ACCEPTED_SUCCESS_IDEMPOTENT_STORED_FALSE",
+        "query_count": 4,
+        "activity_outbox_reads": 0,
+        "write_batch_calls": 0,
+        "matched_expected": true
+      },
+      {
+        "name": "COMMITTED ledger order but missing line",
+        "source_replay": "existing-transaction-incomplete-no-retry",
+        "query_count": 4,
+        "activity_outbox_reads": 0,
+        "write_batch_calls": 0,
+        "matched_expected": true
+      },
+      {
+        "name": "COMMITTED ledger actor mismatch",
+        "source_replay": "same-key-actor-payload-or-policy-conflict",
+        "query_count": 2,
+        "activity_outbox_reads": 0,
+        "write_batch_calls": 0,
+        "matched_expected": true
+      },
+      {
+        "name": "COMMITTED ledger canonical payload mismatch",
+        "source_replay": "same-key-actor-payload-or-policy-conflict",
+        "query_count": 2,
+        "activity_outbox_reads": 0,
+        "write_batch_calls": 0,
+        "matched_expected": true
+      }
+    ],
+    "count": 4,
+    "matched_expected": 4,
+    "interpretation": "Executed replay verifiedRead validates ledger/order/line, but never queries t12_prod_events or t12_prod_outbox; source can return stored:false/idempotent:true even in synthetic COMMITTED fixture whose event/outbox children are absent. This DOES NOT prove DB batch atomicity has failed in a real commit. Entry686's separate original offline reader checks these children but is not imported into GENERAL replay. This is a narrowly reproduced integrity proof gap; avoid duplicate security tickets.",
+    "required_evidence": "Owner must decide whether original operational activity/outbox integrity is part of ACK replay success criterion; add isolated disposable real SQLite/D1 failure/corruption fixtures and runtime readback negative contract before staging; do not create/replay live orders.",
+    "proof": {
+      "SOURCE_ONLY": "EXECUTED_WITH_STUBBED_D1_AND_CANONICAL_INTENT",
+      "CI_VERIFIED": "NOT_RUN_FOR_NEW_CASES",
+      "STAGING_VERIFIED": "NO",
+      "PRODUCTION_VERIFIED": "NO",
+      "DEPLOYED_SHA": "UNVERIFIED"
+    },
+    "financial_boundary": {
+      "T12_customer_ownership": "NO",
+      "EasyStore_invoice_authority": "EXCLUSIVE",
+      "finance_mutation": 0
+    },
+    "no_loss": {
+      "old": "ACTIVE_WRITE",
+      "catalog": "FROZEN_MIGRATION_ONLY",
+      "cutover": "NO_GO",
+      "catalog_untouched": true,
+      "archive_untouched": true,
+      "production_mutation": 0
+    }
   }
 }
