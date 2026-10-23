@@ -41,12 +41,12 @@ function harness(opts = {}) {
     fetch: async (url, init) => {
       nativeCalls.push({ url, init });
       if (opts.rejectFetch || (opts.rejectLogoutFetch && url.endsWith('/logout'))) throw new Error('network');
-      if (opts.responseStatus) {
-        return { ok: false, status: opts.responseStatus, text: async () => '{}' };
+      if (opts.responseStatus || (opts.logoutResponseStatus && url.endsWith('/logout'))) {
+        return { ok: false, status: opts.logoutResponseStatus && url.endsWith('/logout') ? opts.logoutResponseStatus : opts.responseStatus, text: async () => '{}' };
       }
       return {
         ok: true, status: 200, text: async () =>
-          opts.rawResponse ?? JSON.stringify(url.endsWith('/login') ? (opts.loginResponse ?? goodLogin) : url.endsWith('/logout') ? (opts.logoutResponse ?? goodLogout) : response)
+          url.endsWith('/logout') && opts.logoutRawResponse !== undefined ? opts.logoutRawResponse : (opts.rawResponse ?? JSON.stringify(url.endsWith('/login') ? (opts.loginResponse ?? goodLogin) : url.endsWith('/logout') ? (opts.logoutResponse ?? goodLogout) : response))
       };
     }
   };
@@ -316,9 +316,9 @@ test('native source-only app.js save/load functions do not persist or restore na
 test('Native logout fails CLOSED on network/401/503/fake-success response, clears local bearer immediately',async()=>{
   const variants=[
     [{rejectLogoutFetch:true},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
-    [{responseStatus:401},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
-    [{responseStatus:503},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
-    [{rawResponse:'not JSON'},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
+    [{logoutResponseStatus:401},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
+    [{logoutResponseStatus:503},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
+    [{logoutRawResponse:'not JSON'},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
     [{logoutResponse:{...goodLogout,sessionRevoked:false}},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
     [{logoutResponse:{...goodLogout,source:'google-bridge'}},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED'],
     [{logoutResponse:{success:true,sessionRevoked:true}},'CUSTOMER_NATIVE_LOGOUT_SERVER_UNVERIFIED']
