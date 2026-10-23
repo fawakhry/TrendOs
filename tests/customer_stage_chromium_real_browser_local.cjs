@@ -122,12 +122,11 @@ try {
     assert.equal(errors.length,0,'Chrome page errors: '+errors.join(', '));
     assert.equal(external,0,'Browser attempted an external production/Google request');
     // A separate loopback HTTP origin is intentionally NOT in Stage CORS
-    // allowlist. A genuine browser must refuse this login before any POST.
+    // allowlist. A genuine browser must not obtain a Native session.
     const hostilePage = await context.newPage();
     try {
       await hostilePage.goto(untrustedFrontend+'/', {waitUntil:'load',timeout:20000});
-      const beforeHostilePosts = requests.filter(
-        x => x.method==='POST' && x.path.endsWith('/login')).length;
+      const beforeHostileRequests = requests.length;
       const badOriginResult = await hostilePage.evaluate(async () => {
         try {
           await window.customerStageBrowserFixtureV0.call('customerLogin',{
@@ -139,9 +138,17 @@ try {
       });
       assert.equal(badOriginResult, 'CUSTOMER_NATIVE_LOGIN_NETWORK_UNAVAILABLE',
         'Chromium must enforce refusal of an unauthorized CORS Origin');
-      assert.equal(requests.filter(x=>x.method==='POST' &&
-        x.path.endsWith('/login')).length, beforeHostilePosts,
-        'No login POST should pass a rejected browser CORS preflight');
+      // Chromium/Playwright can surface an attempted POST at the routing
+      // layer even when the Worker rejects its Origin with HTTP 403 or CORS
+      // blocks the response. Counting routed POSTs is NOT proof of issuance.
+      assert.equal(await hostilePage.evaluate(
+        () => window.customerStageBrowserFixtureV0.customer), null,
+        'Unauthorized browser Origin must not establish any customer session');
+      assert.equal(await hostilePage.evaluate(
+        () => window.customerStageBrowserFixtureV0.legacyCalls), 0);
+      assert.ok(requests.slice(beforeHostileRequests).some(
+        x=>x.path==='/v1/customer/native/login'),
+        'Negative CORS probe must actually reach the local Worker network');
     } finally {await hostilePage.close();}
     const posts=requests.filter(x=>x.method==='POST');
     const gets=requests.filter(x=>x.method==='GET');
