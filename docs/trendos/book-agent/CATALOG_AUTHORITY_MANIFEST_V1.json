@@ -817,5 +817,32 @@
     "cutover": "NO_GO",
     "production_mutation": "ZERO",
     "no_duplicate_security_issues": true
+  },
+  "current_no_loss_gate_20261023_t12_committed_ack_child_parity_fixture_v1": {
+    "date": "2026-10-23",
+    "book_head_read": "27d956435465a32f6217124e72f03bfffb825c3c",
+    "crosswalk_key": "book_agent_20261023_t12_committed_replay_child_parity_fault_fixture_v1",
+    "source_sha": "fca5625e53815647addc6d183ebe4040990acdf5",
+    "source_blob": "06ab0dfee6db7c0480f37d3445da564853ed036d",
+    "synthetic_replay_cases": 4,
+    "observed_as_expected": 4,
+    "committed_missing_event_outbox_replay": "ACCEPTED_IN_STUBBED_SOURCE",
+    "missing_line": "REJECTED",
+    "wrong_actor": "REJECTED",
+    "canonical_mismatch": "REJECTED",
+    "db_mutations": 0,
+    "proof_level": "SOURCE_FUNCTION_EXECUTED_WITH_FAKE_D1_NOT_REAL_SQLITE_OR_CI",
+    "CI_VERIFIED": "NO",
+    "STAGING_VERIFIED": false,
+    "PRODUCTION_VERIFIED": false,
+    "original_Entry686_separate_read_gate": "NOT_PART_OF_GENERAL_REPLAY",
+    "owner_action": "APPROVE_ACK_REPLAY_CHILD_INTEGRITY_POLICY_THEN_ADD_DISPOSABLE_D1_TESTS",
+    "old_book": "ACTIVE_WRITE",
+    "new_book": "FROZEN_MIGRATION_ONLY",
+    "final_cutover": "NO_GO",
+    "deployed_sha": "UNVERIFIED",
+    "finance_authority": "EASYSTORE",
+    "ownership_attested": false,
+    "production_mutations": 0
   }
 }
