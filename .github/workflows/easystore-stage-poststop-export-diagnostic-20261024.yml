@@ -35,6 +35,7 @@ jobs:
              x.financeWrites!=='OFF' || x.financeRelease!=='NO_GO') throw Error('STAGE_READ_GUARD_FAIL');
           console.log('POSTSTOP_STAGE_STATE='+x.inspectState);
           console.log('POSTSTOP_STAGE_USER_TABLES='+x.userTables.length);
+          console.log('POSTSTOP_TABLE_NAMES='+x.userTables.join(','));
           if(x.inspectState!=='EMPTY_STAGE_UNMIGRATED') throw Error('NONEMPTY_STAGE_STOP_DIAGNOSTIC');
           NODE
       - name: Verify remote export availability without SQL logging or mutation
