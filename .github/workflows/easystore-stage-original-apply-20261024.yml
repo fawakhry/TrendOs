@@ -58,7 +58,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/es-migrations-cli" wrangler@4.33.2
+          npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/es-migrations-cli" wrangler@4.152.0
       - name: Verify exact provider UUID, fresh empty Stage and provider rollback bookmark
         shell: bash
         run: |
