@@ -403,6 +403,174 @@ def apply_stage(cli, destination, confirmation, exclusive):
     return evidence
 
 
+# Cloudflare Wrangler >=4.152 can return human-readable stdout from --file
+# even with --json while the DDL was APPLIED. Never infer rollback from stdout.
+# For a partial Stage, use read-only verified schema parity after EVERY file.
+FINANCE_OBJECT_SQL = (
+    "SELECT type,name,tbl_name FROM sqlite_master WHERE type IN "
+    "('table','index','trigger') AND name NOT LIKE 'sqlite_%' "
+    "AND (name LIKE 'employee_accounting_%' OR name LIKE 'idx_employee_accounting_%') "
+    "ORDER BY type,name"
+)
+FINANCE_COLUMN_SQL = (
+    "SELECT m.name AS table_name,p.name AS column_name "
+    "FROM sqlite_master m JOIN pragma_table_info(m.name) p "
+    "WHERE m.type='table' AND m.name LIKE 'employee_accounting_%' "
+    "ORDER BY m.name,p.cid"
+)
+
+
+def local_schema_rows(db, sql, fields):
+    return [dict(zip(fields, row)) for row in db.execute(sql)]
+
+
+def exact_schema_parity(cli, expected):
+    expected_objects = local_schema_rows(expected, FINANCE_OBJECT_SQL,
+                                         ("type", "name", "tbl_name"))
+    expected_columns = local_schema_rows(expected, FINANCE_COLUMN_SQL,
+                                         ("table_name", "column_name"))
+    if rows(cli, FINANCE_OBJECT_SQL) != expected_objects:
+        stop("STAGE_ORIGINAL_MIGRATION_OBJECT_PARITY_STOP")
+    if rows(cli, FINANCE_COLUMN_SQL) != expected_columns:
+        stop("STAGE_ORIGINAL_MIGRATION_COLUMN_PARITY_STOP")
+    control = rows(cli, CONTROL_SQL)
+    if len(control) != 1 or tuple(control[0].get(k) for k in
+            ("marker", "mode", "next_invoice_number")) != (
+                "ENTRY614_ACCOUNTING_V1", "OFF", 1):
+        stop("STAGE_MIGRATION_CONTROL_AUTHORITY_CHANGED")
+    if rows(cli, "PRAGMA foreign_key_check"):
+        stop("STAGE_MIGRATION_FOREIGN_KEY_CHECK_FAILED")
+    return len([x for x in expected_objects if x["type"] == "table"])
+
+
+def first_stage_has_only_seed_rows(cli, tables):
+    for name in tables:
+        if not re.fullmatch(r"employee_accounting_[a-z0-9_]+", name):
+            stop("STAGE_UNEXPECTED_APPLICATION_TABLE")
+        result = rows(cli, "SELECT COUNT(*) AS n FROM " + name)
+        allowed = 1 if name in (
+            "employee_accounting_control_v1",
+            "employee_accounting_write_canary_v1"
+        ) else 0
+        if len(result) != 1 or result[0].get("n") != allowed:
+            stop("STAGE_NONEMPTY_FINANCIAL_DATA_STOP")
+
+
+def check_original_0015_export(filepath, expected):
+    conn = sqlite3.connect(":memory:")
+    try:
+        conn.executescript(Path(filepath).read_text(encoding="utf-8"))
+        if conn.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+            stop("STAGE_0015_PRIVATE_EXPORT_INTEGRITY_FAILED")
+        if conn.execute("PRAGMA foreign_key_check").fetchall():
+            stop("STAGE_0015_PRIVATE_EXPORT_FK_FAILED")
+        for sql, fields in (
+            (FINANCE_OBJECT_SQL, ("type", "name", "tbl_name")),
+            (FINANCE_COLUMN_SQL, ("table_name", "column_name"))
+        ):
+            if local_schema_rows(conn, sql, fields) != local_schema_rows(expected, sql, fields):
+                stop("STAGE_0015_PRIVATE_RESTORE_SCHEMA_MISMATCH")
+        ctrl = conn.execute(CONTROL_SQL).fetchone()
+        if ctrl != ("ENTRY614_ACCOUNTING_V1", "OFF", 1):
+            stop("STAGE_0015_PRIVATE_RESTORE_CONTROL_MISMATCH")
+    except sqlite3.DatabaseError:
+        stop("STAGE_0015_PRIVATE_RESTORE_FAILED")
+    finally:
+        conn.close()
+
+
+def resume_after_verified_0015(cli, destination, confirmation, exclusive):
+    """Recover the EXACT completed original 0015 on Stage; NEVER rerun 0015.
+
+    This is NOT the generic apply() path. No unknown nonempty or partly
+    applied migration can be continued. The source-locked expected schema,
+    private pre-resume export+SQLite restore and a provider Time Travel
+    bookmark gate are required BEFORE file 0020.
+    """
+    if confirmation != STAGE_UUID or exclusive != "EXCLUSIVE_STAGE_CHANGE_WINDOW":
+        stop("STAGE_0015_RESUME_OWNER_EXCLUSIVE_WINDOW_REQUIRED")
+    artifacts = migration_files()
+    check_config()
+    folder = safe_output_dir(destination)
+    identity = list_identity(cli)
+    source = sqlite3.connect(":memory:")
+    completed = []
+    try:
+        source.executescript((MIGRATIONS / FILES[0]).read_text(encoding="utf-8"))
+        initial = application_table_names(remote_names(cli))
+        expected_initial = sorted(
+            x[0] for x in source.execute(READ_TABLES)
+        )
+        if len(initial) != 9 or initial != expected_initial:
+            stop("STAGE_RESUME_REQUIRES_EXACT_INITIAL_0015_NINE_TABLES")
+        exact_schema_parity(cli, source)
+        first_stage_has_only_seed_rows(cli, initial)
+
+        backup = folder / "before_resume_verified_0015.sql"
+        old_umask = os.umask(0o077)
+        try:
+            cli.run("d1", "export", STAGE_NAME, "--remote",
+                    "--output", str(backup), "--skip-confirmation")
+        finally:
+            os.umask(old_umask)
+        if backup.is_symlink() or not backup.is_file():
+            stop("STAGE_RESUME_PRIVATE_BACKUP_NOT_REGULAR")
+        backup.chmod(0o600)
+        restored = restore_private_export(backup, should_be_empty=False)
+        if restored["restoredTables"] != 9:
+            stop("STAGE_RESUME_PRIVATE_EXPORT_TABLE_COUNT_MISMATCH")
+        check_original_0015_export(backup, source)
+        if application_table_names(remote_names(cli)) != initial:
+            stop("STAGE_CHANGED_DURING_RESUME_BACKUP")
+        exact_schema_parity(cli, source)
+        first_stage_has_only_seed_rows(cli, initial)
+
+        try:
+            for name, expected_sha in artifacts[1:]:
+                migration = MIGRATIONS / name
+                if digest(migration) != expected_sha:
+                    stop("STAGE_RESUME_SOURCE_HASH_DRIFT")
+                # Wrangler 4.152's --file output isn't a stable JSON receipt.
+                # Exit status followed by two *provider* schema reads is the
+                # gate: no next migration until the previous one's original
+                # tables/indexes/triggers and ALL column names are verified.
+                cli.run("d1", "execute", STAGE_NAME, "--remote",
+                        "--file", str(migration), "--yes")
+                source.executescript(migration.read_text(encoding="utf-8"))
+                exact_schema_parity(cli, source)
+                completed.append(name)
+
+            expected_final = sorted(x[0] for x in source.execute(READ_TABLES))
+            if len(expected_final) != EXPECTED_TABLES:
+                stop("STAGE_RESUME_EXPECTED_TABLES_NOT_22")
+            ensure_baseline(cli, expected_final)
+            first_stage_has_only_seed_rows(cli, expected_final)
+        except Exception:
+            print("STAGE_RESUME_STOP_NO_AUTO_RETRY_OR_ROLLBACK; "
+                  "fully_verified_files=" + ",".join(completed),
+                  file=sys.stderr)
+            raise
+        evidence = {
+            "result": "STAGE_VERIFIED_0015_PLUS_REMAINING_12_POSTCHECKED",
+            "target": identity,
+            "originalCompleted0015Verified": True,
+            "remainingOriginalMigrations": completed,
+            "verifiedTables": EXPECTED_TABLES,
+            "privateBackup": {"localFile": backup.name, **restored},
+            "financeRelease": "NO_GO", "financeWrites": "OFF",
+            "productionDeployed": False, "realFinancialPosting": False,
+            "secondHostRestore": "NOT_RUN"
+        }
+        evidence_path = folder / "stage_resume_evidence.json"
+        fd = os.open(evidence_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(evidence, handle, indent=2, ensure_ascii=False)
+            handle.write("\n")
+        return evidence
+    finally:
+        source.close()
+
+
 def ci_stage_only_owner_approved(args):
     """One-time owner-authorized, exact-repo, exact-stage CI schema window.
 
@@ -420,14 +588,17 @@ def ci_stage_only_owner_approved(args):
         and os.environ.get("GITHUB_REF")
             == "refs/heads/fix/acc214-accounting-read-scope-precutover-no-go-20261020"
         and os.environ.get("GITHUB_EVENT_NAME") == "push"
-        and os.environ.get("GITHUB_WORKFLOW") == "EasyStore Stage approved original schema apply"
+        and os.environ.get("GITHUB_WORKFLOW") == {
+            "apply": "EasyStore Stage approved original schema apply",
+            "resume-0015": "EasyStore Stage approved post-failure original migration resume",
+        }.get(args.action, "")
         and os.environ.get("EASYSTORE_STAGE_RECOVERY_BOOKMARK_VERIFIED") == "YES"
     )
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["plan", "inspect", "backup-verify", "apply"])
+    parser.add_argument("action", choices=["plan", "inspect", "backup-verify", "apply", "resume-0015"])
     parser.add_argument("--private-backup-dir")
     parser.add_argument("--confirm-stage-uuid", default="")
     parser.add_argument("--exclusive-stage-window", default="")
@@ -454,9 +625,14 @@ def main():
                         stop("LIVE_D1_APPLY_FORBIDDEN_FROM_CI")
                 elif args.stage_ci_owner_approval:
                     stop("STAGE_CI_OVERRIDE_ONLY_ALLOWED_IN_EXACT_GITHUB_STAGE_WINDOW")
-                result = apply_stage(cli, args.private_backup_dir,
-                                     args.confirm_stage_uuid,
-                                     args.exclusive_stage_window)
+                if args.action == "resume-0015":
+                    result = resume_after_verified_0015(
+                        cli, args.private_backup_dir,
+                        args.confirm_stage_uuid, args.exclusive_stage_window)
+                else:
+                    result = apply_stage(cli, args.private_backup_dir,
+                                         args.confirm_stage_uuid,
+                                         args.exclusive_stage_window)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     except (GateError, ValueError, OSError) as exc:
         # Fail closed and print no credentials / SQL / financial values.
