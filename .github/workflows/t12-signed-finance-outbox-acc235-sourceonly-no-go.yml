@@ -1,0 +1,39 @@
+name: ACC235 T12 signed source outbox isolated NO_GO
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  source-only-sqlite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+      FINANCE_RELEASE: 'NO_GO'
+      CONNECTOR_TRANSPORT: 'OFF'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Original T12 source plus signed HMAC outbox SQLite fixture
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test -z "$GOOGLE_APPLICATION_CREDENTIALS"
+          test "$FINANCE_RELEASE" = 'NO_GO'
+          test "$CONNECTOR_TRANSPORT" = 'OFF'
+          node --check cloudflare-d1/src/t12-employee-order-finance-intake-sourceonly.mjs
+          node --check cloudflare-d1/src/t12-finance-connector-v1-order-created-sourceonly.mjs
+          node --check cloudflare-d1/src/t12-finance-signed-outbox-acc235-offline.mjs
+          node --check tests/t12_employee_order_finance_intake_sourceonly_acc228.test.mjs
+          node --test tests/t12_employee_order_finance_intake_sourceonly_acc228.test.mjs
+          echo 'ACC235_SIGNED_OUTBOX=DISPOSABLE_SQLITE_ONLY'
+          echo 'ACC235_REAL_TRANSPORT=OFF'
+          echo 'ACC235_CONSUMER_ACK=NOT_QUALIFIED'
+          echo 'ACC235_FINANCE_POSTING=NO_GO'

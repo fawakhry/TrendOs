@@ -1,0 +1,94 @@
+name: EasyStore Stage post-stop provider export diagnostic READONLY
+# Deliberate STOP after prior unsuccessful Stage apply. NO DDL, NO retries.
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths: ['.github/workflows/easystore-stage-poststop-export-diagnostic-20261024.yml']
+permissions:
+  contents: read
+jobs:
+  inspect-and-export-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      STAGE: easystore-accounting-staging
+      UUID: c2fe1a54-90f5-4e6f-9d51-80ce23e21328
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Wrangler
+        run: npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/es-diagnostic-cli" wrangler@4.152.0
+      - name: Strict original-provider reinspection
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/es-diagnostic-cli/node_modules/.bin/wrangler"
+          python3 cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py inspect --wrangler "$CLI" > "$RUNNER_TEMP/es-stage-now.json"
+          node <<'NODE'
+          const fs=require('node:fs'),x=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/es-stage-now.json','utf8'));
+          if(x.target?.uuid!==process.env.UUID || !Array.isArray(x.userTables) ||
+             x.financeWrites!=='OFF' || x.financeRelease!=='NO_GO') throw Error('STAGE_READ_GUARD_FAIL');
+          console.log('POSTSTOP_STAGE_STATE='+x.inspectState);
+          console.log('POSTSTOP_STAGE_USER_TABLES='+x.userTables.length);
+          console.log('POSTSTOP_TABLE_NAMES='+x.userTables.join(','));
+          if(x.inspectState!=='EMPTY_STAGE_UNMIGRATED') throw Error('NONEMPTY_STAGE_STOP_DIAGNOSTIC');
+          NODE
+      - name: Verify remote export availability without SQL logging or mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/es-diagnostic-cli/node_modules/.bin/wrangler"
+          TEMP="$(mktemp -d "$RUNNER_TEMP/es-stage-export-XXXXXXXX")"
+          chmod 700 "$TEMP"
+          trap 'rm -rf -- "$TEMP"' EXIT
+          cd cloudflare-d1/easystore-finance-stage
+          set +e
+          "$CLI" d1 export "$STAGE" --remote --output "$TEMP/stage-private.sql" --skip-confirmation --config "$PWD/wrangler.toml" > "$TEMP/export.out" 2> "$TEMP/export.err"
+          rc="$?"
+          set -e
+          python3 - "$TEMP" "$rc" <<'PY'
+          import pathlib, sys, sqlite3, hashlib, os, re
+          base=pathlib.Path(sys.argv[1])
+          rc=int(sys.argv[2])
+          err=(base/'export.err').read_text(errors='replace')
+          # Never print provider stdout or SQL. Classify only generic error.
+          if rc:
+              if re.search('permission|not authorized|forbidden|unauthorized|insufficient|403', err, re.I): kind='EXPORT_PERMISSION_OR_AUTH_DENIED'
+              elif re.search('invalid|unknown|unrecognized|argument|option|--skip-confirmation', err, re.I): kind='EXPORT_COMMAND_OR_CLI_INCOMPATIBLE'
+              elif re.search('rate limit|too many|429', err, re.I): kind='EXPORT_RATE_LIMITED'
+              else: kind='EXPORT_UNKNOWN_PROVIDER_FAILURE'
+              print('STAGE_EXPORT_STATUS=FAIL')
+              print('STAGE_EXPORT_ERROR_CLASS='+kind)
+              # Only short generic error lines; never raw stdout, SQL or IDs.
+              for item in err.splitlines():
+                  item=item.strip()
+                  if not re.search(r'error|invalid|unknown|failed|permission|option|argument', item, re.I):
+                      continue
+                  item=re.sub(r'(?i)(token|secret|bearer|authorization)\\s*[:=]\\s*\\S+', r'\\1=[REDACTED]', item)
+                  item=re.sub(r'[A-Za-z0-9_\\-]{38,}', '[REDACTED]', item)
+                  print('SANITIZED_EXPORT_ERROR='+item[:200])
+                  break
+              sys.exit(0)
+          f=base/'stage-private.sql'
+          if not f.exists() or f.stat().st_size==0:
+              print('STAGE_EXPORT_STATUS=EMPTY_OR_MISSING')
+              sys.exit(0)
+          db=sqlite3.connect(':memory:')
+          try:
+              db.executescript(f.read_text())
+              integrity=db.execute('PRAGMA integrity_check').fetchone()[0]
+              tables=[r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
+              print('STAGE_EXPORT_STATUS=PASS')
+              print('PRIVATE_LOCAL_RESTORE_INTEGRITY='+('PASS' if integrity=='ok' else 'FAIL'))
+              print('PRIVATE_LOCAL_RESTORE_APPLICATION_TABLES='+str(len([x for x in tables if x!='_cf_KV'])))
+          except sqlite3.DatabaseError:
+              print('STAGE_EXPORT_STATUS=RESTORE_SQL_ERROR')
+          finally:
+              db.close()
+          PY

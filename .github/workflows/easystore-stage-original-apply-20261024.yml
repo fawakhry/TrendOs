@@ -1,0 +1,162 @@
+name: EasyStore Stage approved original schema apply
+# One-time owner-requested Stage-only schema activation, not finance authority.
+# Exclusive on this workflow; provider bookmark + historical protected private
+# Ubuntu backup; fresh ephemeral protected SQL export/SQLite restore by ORIGINAL
+# stage_d1_bootstrap.py apply. SQL is NEVER uploaded/logged/committed.
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths: ['.github/workflows/easystore-stage-original-apply-20261024.yml']
+
+permissions:
+  contents: read
+concurrency:
+  group: easystore-accounting-staging-exclusive-original-schema-20261024
+  cancel-in-progress: false
+
+jobs:
+  exact-stage-original-migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EXPECTED_UUID: c2fe1a54-90f5-4e6f-9d51-80ce23e21328
+      STAGE_NAME: easystore-accounting-staging
+      CONFIG: cloudflare-d1/easystore-finance-stage/wrangler.toml
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify preexisting credentials without disclosure
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+      - name: Rehearse original 13 migrations and CI-stage authority guard before any provider write
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py plan > "$RUNNER_TEMP/stage-migration-plan.json"
+          python3 cloudflare-d1/easystore-finance-stage/tests/stage_bootstrap_safety.test.py -v
+          node <<'NODE'
+          const fs=require('node:fs');
+          const x=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/stage-migration-plan.json','utf8'));
+          if(x.uuid!==process.env.EXPECTED_UUID || x.mode!=='OFF' || x.remoteContacted!==false ||
+             x.writes!==false || x.migrations?.length!==13)
+            throw Error('SOURCE_SCHEMA_PREFLIGHT_FAILED');
+          console.log('ORIGINAL_MIGRATION_COUNT=13');
+          NODE
+      - name: Install only exact supported Wrangler in private runner directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/es-migrations-cli" wrangler@4.152.0
+      - name: Verify exact provider UUID, fresh empty Stage and provider rollback bookmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/es-migrations-cli/node_modules/.bin/wrangler"
+          "$CLI" d1 list --json --config "$CONFIG" > "$RUNNER_TEMP/stage-list.json"
+          "$CLI" d1 info "$STAGE_NAME" --json --config "$CONFIG" > "$RUNNER_TEMP/stage-info.json"
+          python3 cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py inspect --wrangler "$CLI" > "$RUNNER_TEMP/stage-before-inspect.json"
+          "$CLI" d1 time-travel info "$STAGE_NAME" --json --config "$CONFIG" > "$RUNNER_TEMP/stage-recovery-bookmark.json"
+          node <<'NODE'
+          const fs=require('node:fs');
+          const d=process.env.RUNNER_TEMP;
+          const list=JSON.parse(fs.readFileSync(d+'/stage-list.json','utf8'));
+          const info=JSON.parse(fs.readFileSync(d+'/stage-info.json','utf8'));
+          const i=JSON.parse(fs.readFileSync(d+'/stage-before-inspect.json','utf8'));
+          const tt=JSON.parse(fs.readFileSync(d+'/stage-recovery-bookmark.json','utf8'));
+          const target=list.filter(x=>x.name===process.env.STAGE_NAME);
+          if(target.length!==1 || String(target[0].uuid).toLowerCase()!==process.env.EXPECTED_UUID ||
+             String(info.uuid).toLowerCase()!==process.env.EXPECTED_UUID)
+             throw Error('PROVIDER_IDENTITY_NOT_EXACT_STAGE');
+          if(i?.target?.uuid!==process.env.EXPECTED_UUID ||
+             i.inspectState!=='EMPTY_STAGE_UNMIGRATED' ||
+             i.userTables?.length!==0 || i.schemaApplied!==false ||
+             i.financeWrites!=='OFF' || i.financeRelease!=='NO_GO')
+             throw Error('STAGE_ALREADY_NONEMPTY_OR_FINANCE_UNSAFE_STOP');
+          const bookmark=tt.bookmark || tt.result?.bookmark || '';
+          if(typeof bookmark!=='string' || !/^[-a-zA-Z0-9]{24,100}$/.test(bookmark))
+             throw Error('STAGE_TIME_TRAVEL_RECOVERY_NOT_VERIFIED');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+             '## Existing EasyStore Stage owner-authorized exclusive schema window\n\n'+
+             '- Stage UUID: '+process.env.EXPECTED_UUID+'\n'+
+             '- Before: EMPTY_STAGE_UNMIGRATED\n'+
+             '- Cloudflare recovery bookmark (Stage only; NOT a credential): `'+bookmark+'`\n'+
+             '- DO NOT use Time Travel restore automatically after partial failure.\n'+
+             '- Existing owner-held protected offline SQL backup remains on Ubuntu.\n');
+          fs.appendFileSync(process.env.GITHUB_ENV,
+             'EASYSTORE_STAGE_RECOVERY_BOOKMARK_VERIFIED=YES\n');
+          console.log('EXACT_STAGE_AND_CLOUDFLARE_RECOVERY=VERIFIED');
+          console.log('BEFORE_USER_TABLES=0');
+          NODE
+      - name: Apply ORIGINAL verified migrations in order, with private export and independent restore first
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/es-migrations-cli/node_modules/.bin/wrangler"
+          PRIVATE_DIR="$(mktemp -d "$RUNNER_TEMP/easystore-stage-finance-XXXXXXXX")"
+          chmod 700 "$PRIVATE_DIR"
+          # The export lives ONLY on this restricted, ephemeral runner.
+          # NEVER print, commit, artifact-upload or expose the SQL.
+          trap 'rm -rf -- "$PRIVATE_DIR"' EXIT
+          python3 cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py apply \
+            --private-backup-dir "$PRIVATE_DIR" \
+            --confirm-stage-uuid "$EXPECTED_UUID" \
+            --exclusive-stage-window EXCLUSIVE_STAGE_CHANGE_WINDOW \
+            --stage-ci-owner-approval "$EXPECTED_UUID" \
+            --wrangler "$CLI" > "$RUNNER_TEMP/stage-applied-summary.json"
+          node <<'NODE'
+          const fs=require('node:fs');
+          const s=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/stage-applied-summary.json','utf8'));
+          if(s.result!=='STAGE_SCHEMA_APPLIED_POSTCHECKED' ||
+             s.providerStage?.uuid!==process.env.EXPECTED_UUID ||
+             s.originalMigrations?.length!==13 || s.verifiedTables!==22 ||
+             s.remoteFinanceWrites!=='OFF' || s.financeRelease!=='NO_GO' ||
+             !/^[a-f0-9]{64}$/i.test(s.backup?.sha256||''))
+             throw Error('STAGE_NATIVE_APPLY_POSTCHECK_FAILED');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+             '\n### Original migration execution\n\n'+
+             '- Result: STAGE_SCHEMA_APPLIED_POSTCHECKED\n'+
+             '- Original migration count: 13\n'+
+             '- Original finance tables: 22\n'+
+             '- Fresh private export SHA-256: `'+s.backup.sha256+'`\n'+
+             '- Financial posting: NOT RUN; FINANCE_RELEASE=NO_GO; FINANCE_WRITES=OFF\n');
+          console.log('STAGE_SCHEMA_APPLIED_POSTCHECKED=YES');
+          console.log('STAGE_ORIGINAL_MIGRATIONS=13');
+          console.log('STAGE_ORIGINAL_TABLES=22');
+          console.log('STAGE_FINANCE_WRITES=OFF');
+          NODE
+      - name: Independently re-inspect Stage schema using the original source, provider read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI="$RUNNER_TEMP/es-migrations-cli/node_modules/.bin/wrangler"
+          python3 cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py inspect --wrangler "$CLI" > "$RUNNER_TEMP/stage-after-inspect.json"
+          node <<'NODE'
+          const fs=require('node:fs');
+          const i=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/stage-after-inspect.json','utf8'));
+          if(i.target?.uuid!==process.env.EXPECTED_UUID ||
+             i.inspectState!=='NATIVE_SCHEMA_VERIFIED_WRITES_OFF' ||
+             i.userTables?.length!==22 || i.schemaApplied!==true ||
+             i.financeWrites!=='OFF' || i.financeRelease!=='NO_GO')
+            throw Error('STAGE_FINAL_PROVIDER_INSPECT_FAILED');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '\n### Independent final provider read\n\n'+
+            '- NATIVE_SCHEMA_VERIFIED_WRITES_OFF: PASS\n'+
+            '- 22 exact original financial tables: PASS\n'+
+            '- No production worker deployment, money posting, PR merge, or Google switch.\n');
+          console.log('STAGE_FINAL_PROVIDER_VERIFY=PASS');
+          console.log('REAL_FINANCIAL_RELEASE=NO_GO');
+          NODE

@@ -1,0 +1,16 @@
+# ACC235 TrendOS operational SOURCE only. Private service Worker, no public route.
+# Not auto-deployed; this service reads the existing operational staging D1 ONLY.
+name = "trendos-customer-facts-stage-source"
+main = "./trendos-customer-facts-source.mjs"
+compatibility_date = "2026-10-23"
+workers_dev = false
+
+[vars]
+TRENDOS_CUSTOMER_FACTS_SOURCE_V1 = "ENFORCE"
+# Secret TRENDOS_CUSTOMER_FACTS_HMAC_V1 provisioned separately on BOTH
+# Workers via Cloudflare secret management, NEVER committed.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "trendos-staging"
+database_id = "bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6"

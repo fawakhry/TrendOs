@@ -1,0 +1,87 @@
+name: EasyStore Stage D1 recovery capability (READONLY NO_GO)
+# Only Cloudflare provider read endpoints, no SQL, DDL, export or mutation.
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths: ['.github/workflows/easystore-stage-recovery-preflight-readonly-20261024.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: easystore-stage-recovery-preflight-readonly
+  cancel-in-progress: false
+jobs:
+  recovery-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      STAGE: easystore-accounting-staging
+      STAGE_UUID: c2fe1a54-90f5-4e6f-9d51-80ce23e21328
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require existing provider auth without disclosure
+        run: test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID"
+      - name: Install Wrangler
+        run: npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/es-stage-cli" wrangler@4.33.2
+      - name: Read exact stage and provider recovery support
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/es-stage-cli/node_modules/.bin/wrangler"
+          CONFIG=cloudflare-d1/easystore-finance-stage/wrangler.toml
+          "$CLI" d1 list --json --config "$CONFIG" > "$RUNNER_TEMP/stage-d1-list.json"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const a=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/stage-d1-list.json','utf8'));
+          const matches=Array.isArray(a)?a.filter(x=>x.name===process.env.STAGE):[];
+          if(matches.length!==1 || String(matches[0].uuid).toLowerCase()!==process.env.STAGE_UUID)
+            throw Error('EXACT_FINANCE_STAGE_UUID_MISMATCH');
+          console.log('STAGE_UUID_VERIFIED=YES');
+          NODE
+          "$CLI" d1 info "$STAGE" --json --config "$CONFIG" > "$RUNNER_TEMP/stage-d1-info.json"
+          "$CLI" d1 time-travel info "$STAGE" --json --config "$CONFIG" > "$RUNNER_TEMP/stage-d1-time-travel.json"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const d=process.env.RUNNER_TEMP;
+          const info=JSON.parse(fs.readFileSync(d+'/stage-d1-info.json','utf8'));
+          const tt=JSON.parse(fs.readFileSync(d+'/stage-d1-time-travel.json','utf8'));
+          const candidates=v=>[v,...(Array.isArray(v)?v:[]),
+            v&&typeof v==='object'?v.result:null].filter(x=>x&&typeof x==='object');
+          const versions=candidates(info).map(x=>x.version).filter(x=>typeof x==='string');
+          const bookmarks=candidates(tt).map(x=>x.bookmark).filter(x=>typeof x==='string');
+          const version=versions.find(x=>x==='production')||'';
+          const book=bookmarks.find(x=>/^[-a-zA-Z0-9]{24,100}$/.test(x))||'';
+          const providerUuid=String(info.uuid||info.result?.uuid||'').toLowerCase();
+          if(!version || !book) {
+            console.log('D1_INFO_JSON_SHAPE='+JSON.stringify({
+              isArray:Array.isArray(info),topKeys:Object.keys(info||{}).slice(0,20),
+              resultIsArray:Array.isArray(info?.result),
+              returnedVersionCandidates:versions.map(x=>x.slice(0,40)),
+              timeTravelIsArray:Array.isArray(tt),
+              timeTravelTopKeys:Object.keys(tt||{}).slice(0,20),
+              returnedBookmarkCount:bookmarks.length}));
+          }
+          if(providerUuid!==process.env.STAGE_UUID) throw Error('D1_INFO_UUID_MISMATCH');
+          // Wrangler 4.33's actual d1 info --json omits 'version' on this
+          // provider: a successful exact-stage time-travel bookmark is
+          // positive recovery support evidence; never guess a version.
+          if(version && version!=='production') throw Error('STAGE_D1_UNSUPPORTED_BACKEND');
+          if(!book) throw Error('STAGE_RECOVERY_BOOKMARK_NOT_CONFIRMED');
+          // Provider Time Travel bookmark is a recovery capability only, not a
+          // replacement for the operator's existing private SQL export/restore.
+          const safe={stage:process.env.STAGE,uuid:process.env.STAGE_UUID,
+            version,bookmarkAvailable:true,cloudWrites:false,
+            schemaApplied:false,financeWrites:'OFF',financeRelease:'NO_GO'};
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '## EasyStore Stage Cloudflare recovery read-only preflight\n\n'+
+            '```json\n'+JSON.stringify(safe,null,2)+'\n```\n');
+          console.log('STAGE_RECOVERY_BACKEND='+(version||'VERSION_NOT_RETURNED_BOOKMARK_VERIFIED'));
+          console.log('STAGE_TIME_TRAVEL_BOOKMARK=VERIFIED_REDACTED');
+          console.log('CLOUDFLARE_FINANCE_DDL=NOT_RUN');
+          NODE

@@ -1,0 +1,21 @@
+# ACC236: private, independent TrendOS native-session verifier.
+# This source Worker must NOT share EasyStore financial D1 and must never
+# expose a public route; it remains OFF until independently reviewed Stage.
+name = "trendos-native-session-stage-source"
+main = "./trendos-native-session-source.mjs"
+compatibility_date = "2026-10-23"
+workers_dev = false
+
+[vars]
+TRENDOS_NATIVE_SESSION_SOURCE_V1 = "ENFORCE"
+TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "true"
+TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "true"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "trendos-staging"
+database_id = "bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6"
+
+# ONLY provider secret: TRENDOS_EMPLOYEE_SESSION_HMAC_V1
+# Additionally, existing fingerprint secret EDGE_SESSION_SECRET is needed
+# exclusively inside this operational verifier; no secret in GitHub.

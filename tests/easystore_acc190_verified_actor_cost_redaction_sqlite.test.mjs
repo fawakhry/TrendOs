@@ -33,9 +33,13 @@ try{
  for(const filename of migrations)db.exec(fs.readFileSync('cloudflare-d1/migrations/'+filename,'utf8'));
  // Account customer lookup is owned by an existing T12 native family and is not
  // part of the accounting migrations, so provide ONLY its minimum fake schema.
- db.exec("CREATE TABLE t12_customers(customer_id TEXT PRIMARY KEY,customer_name TEXT,active TEXT,updated_at TEXT);");
- db.prepare("INSERT INTO t12_customers(customer_id,customer_name,active,updated_at) VALUES(?,?,'نعم',CURRENT_TIMESTAMP)")
-   .run('ACC170-FAKE-CUSTOMER','ACC170_SYNTHETIC_CUSTOMER');
+ db.exec("CREATE TABLE t12_customers(customer_id TEXT PRIMARY KEY,customer_name TEXT,active TEXT,updated_at TEXT,manager TEXT NOT NULL DEFAULT '',phone TEXT NOT NULL DEFAULT '',extra_phone TEXT NOT NULL DEFAULT '',customer_type TEXT NOT NULL DEFAULT '');");
+ db.prepare("INSERT INTO t12_customers(customer_id,customer_name,active,updated_at,phone) VALUES(?,?,'نعم',CURRENT_TIMESTAMP,?)")
+   .run('ACC170-FAKE-CUSTOMER','ACC170_SYNTHETIC_CUSTOMER','ACC170_FAKE_PHONE_NOT_REAL');
+ db.prepare("INSERT INTO employee_accounting_party_balances_v1(party_type,party_id,party_name,balance,version,last_request_key,updated_at_ms) VALUES('customer',?,?,123.45,1,'',?)")
+   .run('ACC170-FAKE-CUSTOMER','ACC170_SYNTHETIC_CUSTOMER',Date.now());
+ db.prepare("INSERT INTO employee_accounting_parties_v1(party_id,party_type,display_name,normalized_name,created_at_ms,updated_at_ms) VALUES(?,'supplier',?,?,?,?)")
+   .run('ACC214-FAKE-SUPPLIER','ACC214_FAKE_SUPPLIER','acc214_fake_supplier',Date.now(),Date.now());
  const financeState=()=>db.prepare("SELECT mode FROM employee_accounting_control_v1 WHERE singleton=1").get().mode;
  const sqlTrace=[], DB={
    prepare(sql){
@@ -164,6 +168,41 @@ try{
    }
    const report=data.summary?.byDepartment||[];
    for(const row of report){assert.equal(row.cost,'');assert.equal(row.profit,'');}
+   // ACC214: all advertised READ routes must honor VERIFIED, not forged, actor.
+   // getAccounting was already safe; drafts and directories must be safe too.
+   const draft=await send('getDeptInvoiceDraftV1887',{
+     orderId:department?'ACC190-FAKE-ORDER-'+suffix:'ACC190-FAKE-ORDER-PRINT',
+     department:mode==='print'?'ليزر':'طباعة', role:'admin'
+   });
+   assert.equal(draft.success,true,JSON.stringify(draft));
+   assert.equal(draft.lines.length,1);
+   assert.equal(draft.lines[0].department,department||'طباعة');
+   for(const prop of privateLines)assert.equal(draft.lines[0][prop],'',mode+' draft leak: '+prop);
+   const directory=await send('getEasyStoreCustomers',{role:'admin'});
+   const search=await send('searchCustomers',{q:'ACC170_SYNTHETIC',role:'admin'});
+   assert.equal(directory.success,true,JSON.stringify(directory));
+   assert.equal(search.success,true,JSON.stringify(search));
+   assert.equal(directory.customers.length,1);
+   assert.equal(search.customers.length,1);
+   const phoneProbe=await send('searchCustomers',{q:'ACC170_FAKE_PHONE_NOT_REAL',role:'admin'});
+   assert.equal(phoneProbe.success,true);
+   assert.equal(phoneProbe.customers.length,mode==='final'?1:0,
+     'department search must not reveal customers by private phone, even without phone in response');
+   for(const response of [directory,search]){
+     const record=response.customers[0];
+     assert.equal(record.customerId,'ACC170-FAKE-CUSTOMER');
+     if(mode==='final'){
+       assert.equal(record.currentBalance,123.45);
+     }else{
+       for(const forbidden of ['currentBalance','debt','debtAmount','remainingBalance',
+         'creditBalance','customerCredit','displayBalance','phone','mobile','extraPhone']){
+         assert.equal(Object.hasOwn(record,forbidden),false,mode+' private directory leak: '+forbidden);
+       }
+     }
+   }
+   const supplier=await send('getEasyStoreSuppliers',{role:'admin'});
+   assert.equal(supplier.success,false,mode+' must not see supplier finance directory');
+   assert.equal(supplier.status,400);
  }
  setMode('full');
  const full=await send('getAccounting',{role:'service'});
@@ -175,6 +214,20 @@ try{
  assert.ok(full.materials.every(x=>x.unitCost===11&&x.computedUnitCost===12));
  assert.ok(full.templates.every(x=>x.inkCost===2&&x.fixedCost===7&&x.computedUnitCost===22));
  assert.ok(full.deptLines.every(x=>x.materialCost===11&&x.totalCost===18&&x.profit===14));
+ const fullDraft=await send('getDeptInvoiceDraftV1887',{orderId:'ACC190-FAKE-ORDER-PRINT',department:'طباعة'});
+ assert.equal(fullDraft.success,true);
+ assert.equal(fullDraft.lines[0].materialCost,11);
+ assert.equal(fullDraft.lines[0].profit,14);
+ const fullDirectory=await send('getEasyStoreCustomers',{});
+ assert.equal(fullDirectory.success,true);
+ assert.equal(fullDirectory.customers[0].currentBalance,123.45);
+ const fullPhoneSearch=await send('searchCustomers',{q:'ACC170_FAKE_PHONE_NOT_REAL'});
+ assert.equal(fullPhoneSearch.success,true);
+ assert.equal(fullPhoneSearch.customers.length,1,'finance owner can still search by phone');
+ const fullSuppliers=await send('getEasyStoreSuppliers',{});
+ assert.equal(fullSuppliers.success,true);
+ assert.equal(fullSuppliers.suppliers.length,1);
+ assert.equal(fullSuppliers.suppliers[0].partyId,'ACC214-FAKE-SUPPLIER');
  assert.deepEqual(silentSnapshot(),baseline,'read-only role requests cannot mutate any fake ledger');
  // No real staff role is changed: only ephemeral env scope.
  roleEnv([]);

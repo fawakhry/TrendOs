@@ -476,7 +476,7 @@ async function issueNativeSession(env, row, nowMs) {
   return { token, expiresAtMs, expiresIn: ttl };
 }
 
-export async function verifyNativeEmployeeSession(username, employeeToken, env, nowMs = Date.now()) {
+export async function verifyNativeEmployeeSession(username, employeeToken, env, nowMs = Date.now(), options = {}) {
   const key = usernameKey(username);
   const token = text(employeeToken);
   if (!key || !token) return { hit: false, reason: 'credentials-missing' };
@@ -514,13 +514,18 @@ export async function verifyNativeEmployeeSession(username, employeeToken, env, 
     if (Number(row.active) !== 1) return { hit: false, reason: 'inactive' };
     if (Number(row.sessionVersion) !== Number(row.currentSessionVersion)) return { hit: false, reason: 'session-version-mismatch' };
 
-    try {
-      await env.DB.prepare(`
-        UPDATE employee_auth_sessions_v1
-           SET last_seen_at_ms=?
-         WHERE username_key=? AND token_fingerprint=?
-      `).bind(Number(nowMs), key, fingerprint).run();
-    } catch (err) {}
+    // ACC236: finance identity's private cross-service verifier must be a
+    // truly READ-ONLY native-session check on operational D1. All existing
+    // login/legacy callers retain their original last_seen update behavior.
+    if (options?.readOnly !== true) {
+      try {
+        await env.DB.prepare(`
+          UPDATE employee_auth_sessions_v1
+             SET last_seen_at_ms=?
+           WHERE username_key=? AND token_fingerprint=?
+        `).bind(Number(nowMs), key, fingerprint).run();
+      } catch (err) {}
+    }
 
     const user = {
       username: text(row.canonicalUsername) || text(username),
