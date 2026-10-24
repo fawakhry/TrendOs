@@ -1,0 +1,86 @@
+name: EasyStore Stage original 0015 post-failure semantic read-only audit
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths: ['.github/workflows/easystore-stage-original-0015-partial-schema-readonly-20261024.yml']
+permissions:
+  contents: read
+jobs:
+  verify-no-schema-mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/first-schema-cli" wrangler@4.152.0
+      - name: Reconstruct original 0015 locally and compare remote schema/indexes/columns/seed only
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY'
+          import json, os, re, sqlite3, sys
+          from pathlib import Path
+          sys.path.insert(0,'cloudflare-d1/easystore-finance-stage')
+          import stage_d1_bootstrap as b
+          cli=b.Wrangler(os.environ['RUNNER_TEMP']+'/first-schema-cli/node_modules/.bin/wrangler')
+          assert b.list_identity(cli)['uuid']==b.STAGE_UUID
+          info=b.inspect_stage(cli)
+          if info['inspectState']!='NONEMPTY_SCHEMA_UNQUALIFIED_STOP':
+              raise RuntimeError('EXPECTED_FIRST_MIGRATION_PARTIAL_STATE_NOT_PRESENT')
+          db=sqlite3.connect(':memory:')
+          db.executescript((b.MIGRATIONS/b.FILES[0]).read_text(encoding='utf-8'))
+          names_sql=("SELECT type,name,tbl_name FROM sqlite_master WHERE type IN "
+            "('table','index','trigger') AND name NOT LIKE 'sqlite_%' "
+            "AND (name LIKE 'employee_accounting_%' OR name LIKE 'idx_employee_accounting_%') "
+            "ORDER BY type,name")
+          cols_sql=("SELECT m.name AS table_name,p.name AS column_name "
+            "FROM sqlite_master m JOIN pragma_table_info(m.name) p "
+            "WHERE m.type='table' AND m.name LIKE 'employee_accounting_%' "
+            "ORDER BY m.name,p.cid")
+          source=[dict(zip(('type','name','tbl_name'),r)) for r in db.execute(names_sql)]
+          remote=b.rows(cli,names_sql)
+          print('EXPECTED_INITIAL_0015_APPLICATION_TABLES='+str(len([x for x in source if x['type']=='table'])))
+          print('OBSERVED_STAGE_APPLICATION_TABLES='+str(len(info['userTables'])))
+          if source!=remote:
+              missing=sorted(set((x['type'],x['name']) for x in source)-
+                             set((x['type'],x['name']) for x in remote))
+              extra=sorted(set((x['type'],x['name']) for x in remote)-
+                           set((x['type'],x['name']) for x in source))
+              print('FIRST_MIGRATION_SCHEMA_NAMES_MISSING='+json.dumps(missing))
+              print('FIRST_MIGRATION_SCHEMA_NAMES_UNEXPECTED='+json.dumps(extra))
+              raise RuntimeError('FIRST_MIGRATION_OBJECT_PARITY_FAIL')
+          expected_cols=[dict(zip(('table_name','column_name'),r)) for r in db.execute(cols_sql)]
+          remote_cols=b.rows(cli,cols_sql)
+          if expected_cols!=remote_cols:
+              print('FIRST_MIGRATION_EXPECTED_COLS='+str(len(expected_cols)))
+              print('FIRST_MIGRATION_REMOTE_COLS='+str(len(remote_cols)))
+              raise RuntimeError('FIRST_MIGRATION_COLUMN_PARITY_FAIL')
+          ctl=b.rows(cli,b.CONTROL_SQL)
+          if len(ctl)!=1 or (ctl[0].get('marker'),ctl[0].get('mode'),
+                            ctl[0].get('next_invoice_number'))!=('ENTRY614_ACCOUNTING_V1','OFF',1):
+              raise RuntimeError('FIRST_MIGRATION_ORIGINAL_CONTROL_NOT_OFF')
+          for name in info['userTables']:
+              x=b.rows(cli,'SELECT COUNT(*) AS n FROM '+name)
+              allowed=1 if name=='employee_accounting_control_v1' else 0
+              if len(x)!=1 or x[0].get('n')!=allowed:
+                  raise RuntimeError('UNEXPECTED_STAGE_BUSINESS_ROWS_STOP')
+          if b.rows(cli,'PRAGMA foreign_key_check'):
+              raise RuntimeError('STAGE_FK_CHECK_FAIL')
+          check=b.rows(cli,'PRAGMA integrity_check')
+          if len(check)!=1 or list(check[0].values())!=['ok']:
+              raise RuntimeError('STAGE_INTEGRITY_CHECK_FAIL')
+          print('STAGE_0015_TABLE_INDEX_TRIGGER_PARITY=PASS')
+          print('STAGE_0015_COLUMNS_PARITY=PASS')
+          print('STAGE_0015_ORIGINAL_CONTROL_OFF=PASS')
+          print('STAGE_0015_BUSINESS_DATA_EMPTY=PASS')
+          print('STAGE_0015_INTEGRITY_FK=PASS')
+          print('STAGE_0015_READONLY_AUDIT=PASS')
+          PY
