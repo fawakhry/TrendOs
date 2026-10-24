@@ -1,0 +1,140 @@
+name: EasyStore Stage approved post-failure original migration resume
+# Explicit owner-requested SAME dedicated Stage ONLY. First 0015 has been
+# independently verified on provider with 9 exact tables, indexes, columns,
+# seed, OFF authority, empty business data and foreign-key checks.
+# NEVER rerun original 0015 and NEVER allow a generic nonempty Stage apply.
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths: ['.github/workflows/easystore-stage-original-0015-resume-20261024.yml']
+permissions:
+  contents: read
+concurrency:
+  group: easystore-accounting-staging-exclusive-original-schema-20261024
+  cancel-in-progress: false
+jobs:
+  resume-only-original-0020-through-0031:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EXPECTED_UUID: c2fe1a54-90f5-4e6f-9d51-80ce23e21328
+      STAGE_NAME: easystore-accounting-staging
+      CONFIG: cloudflare-d1/easystore-finance-stage/wrangler.toml
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify exclusive Stage owner approval and fixed original migration source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          python3 cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py plan > "$RUNNER_TEMP/stage-plan.json"
+          python3 cloudflare-d1/easystore-finance-stage/tests/stage_bootstrap_safety.test.py -v
+          node <<'NODE'
+          const fs=require('node:fs'), p=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/stage-plan.json','utf8'));
+          if(p.uuid!==process.env.EXPECTED_UUID||p.mode!=='OFF'||p.migrations?.length!==13||p.writes!==false)throw Error('SOURCE_13_MIGRATIONS_CHANGED_STOP');
+          console.log('ORIGINAL_SOURCE_MIGRATIONS=13');
+          NODE
+      - name: Install already verified Cloudflare CLI
+        run: npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/easystore-resume-cli" wrangler@4.152.0
+      - name: Check exact Stage, existing first nine tables and provider Time Travel recovery before DDL
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/easystore-resume-cli/node_modules/.bin/wrangler"
+          "$CLI" d1 list --json --config "$CONFIG" > "$RUNNER_TEMP/stage-list.json"
+          python3 cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py inspect --wrangler "$CLI" > "$RUNNER_TEMP/stage-first-current.json"
+          "$CLI" d1 time-travel info "$STAGE_NAME" --json --config "$CONFIG" > "$RUNNER_TEMP/stage-recovery-bookmark.json"
+          node <<'NODE'
+          const fs=require('node:fs'),d=process.env.RUNNER_TEMP;
+          const list=JSON.parse(fs.readFileSync(d+'/stage-list.json','utf8'));
+          const state=JSON.parse(fs.readFileSync(d+'/stage-first-current.json','utf8'));
+          const tt=JSON.parse(fs.readFileSync(d+'/stage-recovery-bookmark.json','utf8'));
+          const target=list.filter(x=>x.name===process.env.STAGE_NAME);
+          if(target.length!==1||target[0].uuid!==process.env.EXPECTED_UUID ||
+             state.target?.uuid!==process.env.EXPECTED_UUID ||
+             state.inspectState!=='NONEMPTY_SCHEMA_UNQUALIFIED_STOP' ||
+             state.userTables?.length!==9 || state.schemaApplied!==false ||
+             state.financeWrites!=='OFF'||state.financeRelease!=='NO_GO')
+             throw Error('STAGE_NOT_EXACT_OR_FIRST_MIGRATION_DRIFT_STOP');
+          const bookmark=tt.bookmark||tt.result?.bookmark||'';
+          if(typeof bookmark!=='string'||!/^[-a-zA-Z0-9]{24,100}$/.test(bookmark))
+             throw Error('STAGE_PRE_RESUME_RECOVERY_NOT_VERIFIED');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+             '## Owner-approved Stage recovery of first migration partial run\n\n'+
+             '- Database: '+process.env.STAGE_NAME+' / '+process.env.EXPECTED_UUID+'\n'+
+             '- Initial schema: exactly nine tables after 0015, still NO_GO\n'+
+             '- Provider Time Travel pre-resume bookmark: `'+bookmark+'`\n'+
+             '- Historical private empty-stage backup was already restored on owner Ubuntu.\n'+
+             '- This action will NOT replay migration 0015 or auto-rollback.\n');
+          fs.appendFileSync(process.env.GITHUB_ENV,'EASYSTORE_STAGE_RECOVERY_BOOKMARK_VERIFIED=YES\n');
+          console.log('EXACT_STAGE_FIRST_0015_PRECHECK=PASS');
+          NODE
+      - name: Resume only twelve original migrations and verify each remote schema before continuing
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/easystore-resume-cli/node_modules/.bin/wrangler"
+          PRIVATE_DIR="$(mktemp -d "$RUNNER_TEMP/easystore-stage-resume-XXXXXXXX")"
+          chmod 700 "$PRIVATE_DIR"
+          trap 'rm -rf -- "$PRIVATE_DIR"' EXIT
+          PYTHONDONTWRITEBYTECODE=1 python3 cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py resume-0015 \
+            --private-backup-dir "$PRIVATE_DIR" \
+            --confirm-stage-uuid "$EXPECTED_UUID" \
+            --exclusive-stage-window EXCLUSIVE_STAGE_CHANGE_WINDOW \
+            --stage-ci-owner-approval "$EXPECTED_UUID" \
+            --wrangler "$CLI" > "$RUNNER_TEMP/stage-resumed.json"
+          node <<'NODE'
+          const fs=require('node:fs'),s=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/stage-resumed.json','utf8'));
+          if(s.result!=='STAGE_VERIFIED_0015_PLUS_REMAINING_12_POSTCHECKED'||
+             s.target?.uuid!==process.env.EXPECTED_UUID||
+             s.originalCompleted0015Verified!==true||
+             s.remainingOriginalMigrations?.length!==12||s.verifiedTables!==22||
+             s.financeRelease!=='NO_GO'||s.financeWrites!=='OFF'||
+             !/^[a-f0-9]{64}$/i.test(s.privateBackup?.sha256||''))
+             throw Error('STAGE_RESUME_POSTCHECK_ERROR');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+             '\n### Original native 0015+0020..0031 schema result\n\n'+
+             '- Previously applied 0015 verified once; NO duplicate apply\n'+
+             '- Remaining native 12/12 migration files: provider verified\n'+
+             '- Expected finance tables: 22\n'+
+             '- Fresh pre-resume private export SHA-256: `'+s.privateBackup.sha256+'`\n'+
+             '- Worker deployment: NO; financial posting: NO\n');
+          console.log('ORIGINAL_STAGE_RESUME_FILES_VERIFIED=12');
+          console.log('ORIGINAL_STAGE_TABLES=22');
+          console.log('FINANCE_WRITES=OFF');
+          NODE
+      - name: Final INDEPENDENT provider D1 inspect only
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI="$RUNNER_TEMP/easystore-resume-cli/node_modules/.bin/wrangler"
+          python3 cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py inspect --wrangler "$CLI" > "$RUNNER_TEMP/stage-final-now.json"
+          node <<'NODE'
+          const fs=require('node:fs'),s=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/stage-final-now.json','utf8'));
+          if(s.inspectState!=='NATIVE_SCHEMA_VERIFIED_WRITES_OFF' ||
+             s.target?.uuid!==process.env.EXPECTED_UUID ||
+             s.userTables?.length!==22 || s.schemaApplied!==true ||
+             s.financeWrites!=='OFF'||s.financeRelease!=='NO_GO')
+            throw Error('STAGE_FINAL_SCHEMA_NOT_VERIFIED_STOP');
+          console.log('CLOUDFLARE_STAGE_SCHEMA_APPLIED=YES');
+          console.log('CLOUDFLARE_STAGE_USER_TABLE_COUNT=22');
+          console.log('CLOUDFLARE_FINANCIAL_RELEASE=NO_GO');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+             '\n### Independent final live D1 check\n\n'+
+             '- NATIVE_SCHEMA_VERIFIED_WRITES_OFF: PASS\n'+
+             '- 22 exact original tables confirmed, isolated from TrendOS production\n'+
+             '- No PR merge, no financial POST, no Google cutover.\n');
+          NODE
