@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install Wrangler
-        run: npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/es-diagnostic-cli" wrangler@4.33.2
+        run: npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/es-diagnostic-cli" wrangler@4.152.0
       - name: Strict original-provider reinspection
         shell: bash
         run: |
