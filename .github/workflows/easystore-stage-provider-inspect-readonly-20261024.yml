@@ -1,0 +1,97 @@
+name: EasyStore Stage D1 provider inspect (READONLY NO_GO)
+# Source-only authenticated inventory of the existing independent EasyStore D1.
+# No migration, no export, no financial writes, no deploy, no database creation.
+on:
+  push:
+    branches:
+      - 'fix/acc214-accounting-read-scope-precutover-no-go-20261020'
+    paths:
+      - '.github/workflows/easystore-stage-provider-inspect-readonly-20261024.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: easystore-stage-provider-inspect-no-go
+  cancel-in-progress: false
+
+jobs:
+  stage-identity-and-schema-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EXPECTED_UUID: c2fe1a54-90f5-4e6f-9d51-80ce23e21328
+      EXPECTED_STAGE: easystore-accounting-staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fail closed without preexisting scoped provider credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${CLOUDFLARE_API_TOKEN}" || -z "${CLOUDFLARE_ACCOUNT_ID}" ]]; then
+            echo 'EASYSTORE_STAGE_INSPECT=BLOCKED_CI_PROVIDER_CREDENTIALS_UNAVAILABLE'
+            echo 'No provider connection, no D1 modifications.'
+            exit 2
+          fi
+          echo 'EASYSTORE_STAGE_CI_AUTH_INPUTS=PRESENT_VALUES_UNDISCLOSED'
+      - name: Install isolated provider CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/easystore-stage-tools"
+          npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/easystore-stage-tools" wrangler@4.33.2
+      - name: Inspect exact independent EasyStore Stage D1, no SQL writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          PYTHONDONTWRITEBYTECODE=1 python3 \
+            cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py inspect \
+            --wrangler "$RUNNER_TEMP/easystore-stage-tools/node_modules/.bin/wrangler" \
+            > "$RUNNER_TEMP/easystore-stage-inspection.json"
+      - name: Verify safe status and publish schema-only result
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('node:fs');
+          const f=process.env.RUNNER_TEMP+'/easystore-stage-inspection.json';
+          const x=JSON.parse(fs.readFileSync(f,'utf8'));
+          if(x?.target?.uuid!==process.env.EXPECTED_UUID ||
+             x?.target?.name!==process.env.EXPECTED_STAGE ||
+             x?.readOnly!==true || x?.financeRelease!=='NO_GO' ||
+             x?.financeWrites!=='OFF' || x?.mayApplyMigrations!==false ||
+             !Array.isArray(x.userTables) ||
+             !['EMPTY_STAGE_UNMIGRATED','NONEMPTY_SCHEMA_UNQUALIFIED_STOP',
+               'NATIVE_SCHEMA_VERIFIED_WRITES_OFF'].includes(x.inspectState)){
+            throw Error('STAGE_INSPECT_INVARIANT_FAILED');
+          }
+          const safe={
+            stageName:x.target.name,stageUuid:x.target.uuid,
+            inspectState:x.inspectState,readOnly:x.readOnly,
+            userTableCount:x.userTables.length,
+            userTables:x.userTables,
+            schemaApplied:x.schemaApplied,financeRelease:x.financeRelease,
+            financeWrites:x.financeWrites,
+            writesExecuted:false,deployExecuted:false,
+            productionTouched:false
+          };
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '## Independent EasyStore D1 live inventory — NO_GO\n\n'+
+            '```json\n'+JSON.stringify(safe,null,2)+'\n```\n');
+          console.log('EASYSTORE_STAGE_INSPECT='+x.inspectState);
+          console.log('EASYSTORE_STAGE_USER_TABLE_COUNT='+x.userTables.length);
+          console.log('EASYSTORE_STAGE_WRITES=OFF');
+          console.log('CLOUDFLARE_D1_MUTATION=NO');
+          NODE
