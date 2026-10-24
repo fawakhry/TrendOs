@@ -74,13 +74,15 @@ jobs:
                   raise RuntimeError('UNEXPECTED_STAGE_BUSINESS_ROWS_STOP')
           if b.rows(cli,'PRAGMA foreign_key_check'):
               raise RuntimeError('STAGE_FK_CHECK_FAIL')
-          check=b.rows(cli,'PRAGMA integrity_check')
-          if len(check)!=1 or list(check[0].values())!=['ok']:
-              raise RuntimeError('STAGE_INTEGRITY_CHECK_FAIL')
+          # Cloudflare's remote SQL API rejects PRAGMA integrity_check;
+          # original protected export was independently restored and integrity
+          # checked in local SQLite before the first migration was issued.
+          if db.execute('PRAGMA integrity_check').fetchone()[0]!='ok':
+              raise RuntimeError('ORIGINAL_0015_LOCAL_INTEGRITY_FAIL')
           print('STAGE_0015_TABLE_INDEX_TRIGGER_PARITY=PASS')
           print('STAGE_0015_COLUMNS_PARITY=PASS')
           print('STAGE_0015_ORIGINAL_CONTROL_OFF=PASS')
           print('STAGE_0015_BUSINESS_DATA_EMPTY=PASS')
-          print('STAGE_0015_INTEGRITY_FK=PASS')
+          print('STAGE_0015_FK_AND_LOCAL_SOURCE_INTEGRITY=PASS')
           print('STAGE_0015_READONLY_AUDIT=PASS')
           PY
