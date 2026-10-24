@@ -64,6 +64,15 @@ jobs:
               else: kind='EXPORT_UNKNOWN_PROVIDER_FAILURE'
               print('STAGE_EXPORT_STATUS=FAIL')
               print('STAGE_EXPORT_ERROR_CLASS='+kind)
+              # Only short generic error lines; never raw stdout, SQL or IDs.
+              for item in err.splitlines():
+                  item=item.strip()
+                  if not re.search(r'error|invalid|unknown|failed|permission|option|argument', item, re.I):
+                      continue
+                  item=re.sub(r'(?i)(token|secret|bearer|authorization)\\s*[:=]\\s*\\S+', r'\\1=[REDACTED]', item)
+                  item=re.sub(r'[A-Za-z0-9_\\-]{38,}', '[REDACTED]', item)
+                  print('SANITIZED_EXPORT_ERROR='+item[:200])
+                  break
               sys.exit(0)
           f=base/'stage-private.sql'
           if not f.exists() or f.stat().st_size==0:
