@@ -388,6 +388,80 @@ class StageBootstrapTests(unittest.TestCase):
             }):
                 self.assertTrue(b.ci_stage_only_owner_approved(args))
 
+    def test_verified_0015_resume_original_rest_12_with_human_wrangler_stdout(self):
+        # Essential regression: latest Wrangler --file can return prose despite
+        # a successful native schema change. Test 0020..0031 exactly once.
+        class NativeLocalCli:
+            def __init__(self):
+                self.db=sqlite3.connect(':memory:')
+                self.db.executescript((b.MIGRATIONS/b.FILES[0]).read_text())
+                self.completed=[]
+                self.exported=False
+
+            def run(self,*cmd):
+                if cmd[:2]==('d1','list'):
+                    return json.dumps([{'name':b.STAGE_NAME,'uuid':b.STAGE_UUID}])
+                if cmd[:2]==('d1','export'):
+                    path=Path(cmd[cmd.index('--output')+1])
+                    path.write_text('\n'.join(self.db.iterdump())+'\n',encoding='utf-8')
+                    self.exported=True
+                    return ''
+                if cmd[:2]==('d1','execute') and '--command' in cmd:
+                    sql=cmd[cmd.index('--command')+1]
+                    cur=self.db.execute(sql)
+                    names=[col[0] for col in (cur.description or [])]
+                    return json.dumps([{'success':True,'results':[
+                        dict(zip(names,row)) for row in cur.fetchall()
+                    ]}])
+                if cmd[:2]==('d1','execute') and '--file' in cmd:
+                    path=Path(cmd[cmd.index('--file')+1])
+                    self.db.executescript(path.read_text())
+                    self.completed.append(path.name)
+                    return 'D1 executed migration, but no machine JSON!'
+                raise AssertionError('Unexpected fake CLI call')
+
+        with tempfile.TemporaryDirectory() as folder:
+            cli=NativeLocalCli()
+            report=b.resume_after_verified_0015(
+                cli,folder,b.STAGE_UUID,'EXCLUSIVE_STAGE_CHANGE_WINDOW')
+            self.assertEqual(report['result'],
+                'STAGE_VERIFIED_0015_PLUS_REMAINING_12_POSTCHECKED')
+            self.assertEqual(report['verifiedTables'],22)
+            self.assertTrue(report['originalCompleted0015Verified'])
+            self.assertEqual(cli.completed,b.FILES[1:])
+            self.assertTrue(cli.exported)
+            self.assertEqual(report['financeRelease'],'NO_GO')
+            self.assertEqual(report['financeWrites'],'OFF')
+            self.assertTrue((Path(folder)/'before_resume_verified_0015.sql').exists())
+            self.assertEqual((Path(folder)/'stage_resume_evidence.json').stat().st_mode & 0o077,0)
+            cli.db.close()
+
+    def test_resume_rejects_unverified_initial_index_before_private_export(self):
+        class Drift:
+            def __init__(self):
+                self.db=sqlite3.connect(':memory:')
+                self.db.executescript((b.MIGRATIONS/b.FILES[0]).read_text())
+                self.db.execute('DROP INDEX idx_employee_accounting_materials_dept')
+                self.calls=[]
+            def run(self,*cmd):
+                self.calls.append(cmd)
+                if cmd[:2]==('d1','list'):
+                    return json.dumps([{'name':b.STAGE_NAME,'uuid':b.STAGE_UUID}])
+                if cmd[:2]==('d1','execute') and '--command' in cmd:
+                    cur=self.db.execute(cmd[cmd.index('--command')+1])
+                    names=[x[0] for x in (cur.description or [])]
+                    return json.dumps([{'success':True,'results':[
+                        dict(zip(names,row)) for row in cur.fetchall()
+                    ]}])
+                raise AssertionError('Must never export or apply on index drift')
+        with tempfile.TemporaryDirectory() as folder:
+            cli=Drift()
+            with self.assertRaisesRegex(b.GateError,'OBJECT_PARITY'):
+                b.resume_after_verified_0015(
+                    cli,folder,b.STAGE_UUID,'EXCLUSIVE_STAGE_CHANGE_WINDOW')
+            self.assertFalse(any('--file' in c or 'export' in c for c in cli.calls))
+            cli.db.close()
+
     def test_absent_explicit_owner_gate_cannot_touch_any_remote_api(self):
         cli = OfflineWrangler()
         with tempfile.TemporaryDirectory() as folder:
