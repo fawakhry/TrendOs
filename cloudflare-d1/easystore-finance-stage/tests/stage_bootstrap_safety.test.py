@@ -316,6 +316,41 @@ class StageBootstrapTests(unittest.TestCase):
             self.assertFalse(any("delete" in c or "restore" in c
                                  for cmd in cli.commands for c in cmd))
 
+    def test_apply_backup_private_from_first_byte_under_ubuntu_umask_0022(self):
+        # Narrow regression for approved Stage apply. Unlike checking only
+        # the final chmod, capture permissions immediately after fake export.
+        # No provider connection, real D1 DDL or secrets.
+        import os
+
+        class CheckCreationMode(OfflineWrangler):
+            created_mode = None
+
+            def run(self, *cmd):
+                out = super().run(*cmd)
+                if cmd[:2] == ("d1", "export"):
+                    path = Path(cmd[cmd.index("--output") + 1])
+                    self.created_mode = path.stat().st_mode & 0o777
+                return out
+
+        prior_umask = os.umask(0o022)
+        try:
+            with tempfile.TemporaryDirectory() as folder:
+                cli = CheckCreationMode(present=["_cf_KV"])
+                evidence = b.apply_stage(
+                    cli, folder, b.STAGE_UUID, "EXCLUSIVE_STAGE_CHANGE_WINDOW"
+                )
+                self.assertEqual(cli.created_mode, 0o600)
+                self.assertEqual(evidence["remoteFinanceWrites"], "OFF")
+                self.assertEqual(cli.apply_files, b.FILES)
+                self.assertEqual(
+                    (Path(folder) / "stage_schema_evidence.json").stat().st_mode
+                    & 0o777, 0o600
+                )
+                # The bootstrap must restore the shell umask too.
+                self.assertEqual(os.umask(0o022), 0o022)
+        finally:
+            os.umask(prior_umask)
+
     def test_absent_explicit_owner_gate_cannot_touch_any_remote_api(self):
         cli = OfflineWrangler()
         with tempfile.TemporaryDirectory() as folder:
