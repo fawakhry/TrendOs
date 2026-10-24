@@ -57,6 +57,7 @@ jobs:
           const bookmarks=candidates(tt).map(x=>x.bookmark).filter(x=>typeof x==='string');
           const version=versions.find(x=>x==='production')||'';
           const book=bookmarks.find(x=>/^[-a-zA-Z0-9]{24,100}$/.test(x))||'';
+          const providerUuid=String(info.uuid||info.result?.uuid||'').toLowerCase();
           if(!version || !book) {
             console.log('D1_INFO_JSON_SHAPE='+JSON.stringify({
               isArray:Array.isArray(info),topKeys:Object.keys(info||{}).slice(0,20),
@@ -66,7 +67,11 @@ jobs:
               timeTravelTopKeys:Object.keys(tt||{}).slice(0,20),
               returnedBookmarkCount:bookmarks.length}));
           }
-          if(version!=='production') throw Error('STAGE_D1_RECOVERY_BACKEND_NOT_CONFIRMED');
+          if(providerUuid!==process.env.STAGE_UUID) throw Error('D1_INFO_UUID_MISMATCH');
+          // Wrangler 4.33's actual d1 info --json omits 'version' on this
+          // provider: a successful exact-stage time-travel bookmark is
+          // positive recovery support evidence; never guess a version.
+          if(version && version!=='production') throw Error('STAGE_D1_UNSUPPORTED_BACKEND');
           if(!book) throw Error('STAGE_RECOVERY_BOOKMARK_NOT_CONFIRMED');
           // Provider Time Travel bookmark is a recovery capability only, not a
           // replacement for the operator's existing private SQL export/restore.
@@ -76,7 +81,7 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
             '## EasyStore Stage Cloudflare recovery read-only preflight\n\n'+
             '```json\n'+JSON.stringify(safe,null,2)+'\n```\n');
-          console.log('STAGE_RECOVERY_BACKEND='+version);
+          console.log('STAGE_RECOVERY_BACKEND='+(version||'VERSION_NOT_RETURNED_BOOKMARK_VERIFIED'));
           console.log('STAGE_TIME_TRAVEL_BOOKMARK=VERIFIED_REDACTED');
           console.log('CLOUDFLARE_FINANCE_DDL=NOT_RUN');
           NODE
