@@ -351,6 +351,36 @@ class StageBootstrapTests(unittest.TestCase):
         finally:
             os.umask(prior_umask)
 
+    def test_exact_ci_stage_window_approval_cannot_be_reused_for_production(self):
+        # Cloudflare is NEVER contacted in this test.
+        import os
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        args = SimpleNamespace(stage_ci_owner_approval=b.STAGE_UUID)
+        grants = {
+            "CI": "true",
+            "GITHUB_ACTIONS": "true",
+            "GITHUB_REPOSITORY": "fawakhry/TrendOs",
+            "GITHUB_REF": "refs/heads/fix/acc214-accounting-read-scope-precutover-no-go-20261020",
+            "GITHUB_EVENT_NAME": "push",
+            "GITHUB_WORKFLOW": "EasyStore Stage approved original schema apply",
+            "EASYSTORE_STAGE_RECOVERY_BOOKMARK_VERIFIED": "YES",
+        }
+        with patch.dict(os.environ, grants, clear=True):
+            self.assertTrue(b.ci_stage_only_owner_approved(args))
+            for key, bad in [
+                ("GITHUB_REPOSITORY", "other/EasyStore"),
+                ("GITHUB_REF", "refs/heads/main"),
+                ("GITHUB_EVENT_NAME", "workflow_dispatch"),
+                ("GITHUB_WORKFLOW", "other workflow"),
+                ("EASYSTORE_STAGE_RECOVERY_BOOKMARK_VERIFIED", ""),
+                ("GITHUB_ACTIONS", ""),
+            ]:
+                with self.subTest(key=key), patch.dict(os.environ, {key:bad}):
+                    self.assertFalse(b.ci_stage_only_owner_approved(args))
+            args.stage_ci_owner_approval = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"
+            self.assertFalse(b.ci_stage_only_owner_approved(args))
+
     def test_absent_explicit_owner_gate_cannot_touch_any_remote_api(self):
         cli = OfflineWrangler()
         with tempfile.TemporaryDirectory() as folder:
