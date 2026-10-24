@@ -356,7 +356,7 @@ class StageBootstrapTests(unittest.TestCase):
         import os
         from types import SimpleNamespace
         from unittest.mock import patch
-        args = SimpleNamespace(stage_ci_owner_approval=b.STAGE_UUID)
+        args = SimpleNamespace(stage_ci_owner_approval=b.STAGE_UUID, action="apply")
         grants = {
             "CI": "true",
             "GITHUB_ACTIONS": "true",
@@ -380,6 +380,13 @@ class StageBootstrapTests(unittest.TestCase):
                     self.assertFalse(b.ci_stage_only_owner_approved(args))
             args.stage_ci_owner_approval = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"
             self.assertFalse(b.ci_stage_only_owner_approved(args))
+            args.stage_ci_owner_approval = b.STAGE_UUID
+            args.action = "resume-0015"
+            self.assertFalse(b.ci_stage_only_owner_approved(args))
+            with patch.dict(os.environ, {
+                "GITHUB_WORKFLOW": "EasyStore Stage approved post-failure original migration resume"
+            }):
+                self.assertTrue(b.ci_stage_only_owner_approved(args))
 
     def test_absent_explicit_owner_gate_cannot_touch_any_remote_api(self):
         cli = OfflineWrangler()
