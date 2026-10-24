@@ -403,6 +403,28 @@ def apply_stage(cli, destination, confirmation, exclusive):
     return evidence
 
 
+def ci_stage_only_owner_approved(args):
+    """One-time owner-authorized, exact-repo, exact-stage CI schema window.
+
+    Strictly opt-in; ordinary GitHub CI and all production databases stay
+    prohibited. The same original apply_stage() still performs independent
+    provider UUID/schema inspection, fresh restricted SQL export, disposable
+    SQLite restore and original migration-by-migration postchecks. A separate
+    provider Time Travel bookmark must first be validated by the calling job.
+    No financial or Worker deployment privileges are granted.
+    """
+    return (
+        args.stage_ci_owner_approval == STAGE_UUID
+        and os.environ.get("GITHUB_ACTIONS") == "true"
+        and os.environ.get("GITHUB_REPOSITORY") == "fawakhry/TrendOs"
+        and os.environ.get("GITHUB_REF")
+            == "refs/heads/fix/acc214-accounting-read-scope-precutover-no-go-20261020"
+        and os.environ.get("GITHUB_EVENT_NAME") == "push"
+        and os.environ.get("GITHUB_WORKFLOW") == "EasyStore Stage approved original schema apply"
+        and os.environ.get("EASYSTORE_STAGE_RECOVERY_BOOKMARK_VERIFIED") == "YES"
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["plan", "inspect", "backup-verify", "apply"])
@@ -410,6 +432,8 @@ def main():
     parser.add_argument("--confirm-stage-uuid", default="")
     parser.add_argument("--exclusive-stage-window", default="")
     parser.add_argument("--wrangler", default="wrangler")
+    parser.add_argument("--stage-ci-owner-approval", default="",
+                        help="Owner-authorized exact Stage-only CI schema window; not financial GO")
     args = parser.parse_args()
     try:
         if args.action == "plan":
@@ -425,8 +449,11 @@ def main():
                 result = backup_verify_stage(cli, args.private_backup_dir,
                                              args.confirm_stage_uuid)
             else:
-                if os.environ.get("CI", "").lower() == "true" or os.environ.get("GITHUB_ACTIONS"):
-                    stop("LIVE_D1_APPLY_FORBIDDEN_FROM_CI")
+                if (os.environ.get("CI", "").lower() == "true" or os.environ.get("GITHUB_ACTIONS")):
+                    if not ci_stage_only_owner_approved(args):
+                        stop("LIVE_D1_APPLY_FORBIDDEN_FROM_CI")
+                elif args.stage_ci_owner_approval:
+                    stop("STAGE_CI_OVERRIDE_ONLY_ALLOWED_IN_EXACT_GITHUB_STAGE_WINDOW")
                 result = apply_stage(cli, args.private_backup_dir,
                                      args.confirm_stage_uuid,
                                      args.exclusive_stage_window)
