@@ -336,8 +336,17 @@ def apply_stage(cli, destination, confirmation, exclusive):
     backup = folder / "pre_migration_original_stage.sql"
     if backup.exists():
         stop("PRIVATE_BACKUP_PATH_ALREADY_EXISTS")
-    cli.run("d1", "export", STAGE_NAME, "--remote",
-            "--output", str(backup), "--skip-confirmation")
+    # Keep the remote SQL export private from its FIRST byte, even if the
+    # invoking Ubuntu shell has the default umask 0022. chmod afterwards
+    # cannot undo a period of world-readable financial backup exposure.
+    old_umask = os.umask(0o077)
+    try:
+        cli.run("d1", "export", STAGE_NAME, "--remote",
+                "--output", str(backup), "--skip-confirmation")
+    finally:
+        os.umask(old_umask)
+    if backup.is_symlink() or not backup.is_file():
+        stop("PRIVATE_STAGE_EXPORT_NOT_A_REGULAR_FILE")
     backup.chmod(0o600)
     proof = restore_private_export(backup, should_be_empty=True)
     # Avoid quietly rewriting an intermediate state changed by another agent.
@@ -386,10 +395,11 @@ def apply_stage(cli, destination, confirmation, exclusive):
         "financialPostingTest": "NOT_RUN", "employeeService": "NOT_DEPLOYED",
         "orderOwnership": "NOT_ATTESTED", "financeRelease": "NO_GO"
     }
-    (folder / "stage_schema_evidence.json").write_text(
-        json.dumps(evidence, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-    )
-    (folder / "stage_schema_evidence.json").chmod(0o600)
+    evidence_path = folder / "stage_schema_evidence.json"
+    fd = os.open(evidence_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        json.dump(evidence, handle, ensure_ascii=False, indent=2)
+        handle.write("\n")
     return evidence
 
 
