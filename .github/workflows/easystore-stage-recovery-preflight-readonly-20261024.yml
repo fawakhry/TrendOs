@@ -51,11 +51,23 @@ jobs:
           const d=process.env.RUNNER_TEMP;
           const info=JSON.parse(fs.readFileSync(d+'/stage-d1-info.json','utf8'));
           const tt=JSON.parse(fs.readFileSync(d+'/stage-d1-time-travel.json','utf8'));
-          const version=info.version || info.result?.version || '';
-          const book=tt.bookmark || tt.result?.bookmark || '';
+          const candidates=v=>[v,...(Array.isArray(v)?v:[]),
+            v&&typeof v==='object'?v.result:null].filter(x=>x&&typeof x==='object');
+          const versions=candidates(info).map(x=>x.version).filter(x=>typeof x==='string');
+          const bookmarks=candidates(tt).map(x=>x.bookmark).filter(x=>typeof x==='string');
+          const version=versions.find(x=>x==='production')||'';
+          const book=bookmarks.find(x=>/^[-a-zA-Z0-9]{24,100}$/.test(x))||'';
+          if(!version || !book) {
+            console.log('D1_INFO_JSON_SHAPE='+JSON.stringify({
+              isArray:Array.isArray(info),topKeys:Object.keys(info||{}).slice(0,20),
+              resultIsArray:Array.isArray(info?.result),
+              returnedVersionCandidates:versions.map(x=>x.slice(0,40)),
+              timeTravelIsArray:Array.isArray(tt),
+              timeTravelTopKeys:Object.keys(tt||{}).slice(0,20),
+              returnedBookmarkCount:bookmarks.length}));
+          }
           if(version!=='production') throw Error('STAGE_D1_RECOVERY_BACKEND_NOT_CONFIRMED');
-          if(typeof book!=='string'||!/^[-a-zA-Z0-9]{24,100}$/.test(book))
-            throw Error('STAGE_RECOVERY_BOOKMARK_NOT_CONFIRMED');
+          if(!book) throw Error('STAGE_RECOVERY_BOOKMARK_NOT_CONFIRMED');
           // Provider Time Travel bookmark is a recovery capability only, not a
           // replacement for the operator's existing private SQL export/restore.
           const safe={stage:process.env.STAGE,uuid:process.env.STAGE_UUID,
