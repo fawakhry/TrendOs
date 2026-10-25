@@ -1,0 +1,272 @@
+name: ACC253 ORIGINAL signed customer/session Stage LIVE qualified; restore diagnostic OFF
+# Owner-approved Stage-only. Zero real money, login and source-row changes.
+# IMPORTANT: finance Stage is PRIVATE, 22-table D1 control OFF, grants empty.
+# Temporarily enable a diagnostic using existing Stage HMAC secrets, prove real
+# cross-Worker signed calls, then redeploy original config OFF in ALWAYS cleanup.
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths: ['.github/workflows/easystore-acc253-live-signed-stage-with-rollback-20261025.yml']
+permissions:
+  contents: read
+concurrency:
+  group: easystore-accounting-staging-exclusive-original-schema-20261024
+  cancel-in-progress: false
+jobs:
+  signed-sources-private-stage-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DIR: cloudflare-d1/easystore-finance-stage
+      FIN_UUID: c2fe1a54-90f5-4e6f-9d51-80ce23e21328
+      OPS_UUID: bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6
+      PRIVATE_FINANCE: easystore-accounting-staging-api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin private-only finance and empty fake customer/native auth stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID"
+          python3 - <<'PY'
+          from pathlib import Path
+          import tomllib,json
+          p=Path("cloudflare-d1/easystore-finance-stage")
+          finance=tomllib.loads((p/"wrangler.toml").read_text())
+          probe=tomllib.loads((p/"wrangler.acc253-signed-caller-preview.toml").read_text())
+          v=finance["vars"]
+          assert finance["name"]=="easystore-accounting-staging-api"
+          assert finance["workers_dev"] is False and not finance.get("routes") and not finance.get("route")
+          assert finance["d1_databases"]==[{"binding":"DB","database_name":"easystore-accounting-staging",
+            "database_id":"c2fe1a54-90f5-4e6f-9d51-80ce23e21328"}]
+          assert v["FINANCE_RELEASE"]=="NO_GO" and v["FINANCE_WRITES"]=="OFF"
+          assert v["EASYSTORE_ACCOUNTING_D1_WRITES"]=="false"
+          assert v["EASYSTORE_ACCOUNTING_D1_WRITE_MODE"]=="OFF"
+          assert v["EASYSTORE_STAGE_READONLY_API_V1"]=="OFF"
+          assert v["EASYSTORE_STAGE_SIGNED_SOURCE_SMOKE_V1"]=="OFF"
+          assert v["ACCOUNTING_FINANCE_GRANTS_MODE_V1"]=="ENFORCE"
+          assert json.loads(v["ACCOUNTING_FINANCE_GRANTS_V1"])=={"version":1,"grants":[]}
+          assert {x["binding"]:x["service"] for x in finance["services"]}=={
+            "TRENDOS_EMPLOYEE_SESSION":"trendos-native-session-stage-source",
+            "TRENDOS_CUSTOMER_FACTS":"trendos-customer-facts-stage-source"}
+          assert probe["workers_dev"] is False and not probe.get("d1_databases") and not probe.get("routes")
+          assert probe["services"]==[{"binding":"EASYSTORE_FINANCE",
+            "service":"easystore-accounting-staging-api"}]
+          source=(p/"index.mjs").read_text()
+          assert "SIGNED_SOURCE_SMOKE = '/internal/acc253/signed-source-smoke'" in source
+          assert "env?.EASYSTORE_STAGE_SIGNED_SOURCE_SMOKE_V1 !== 'ENFORCE'" in source
+          assert "if (await stageSchema(env) !== 'OFF')" in source
+          assert "if (!readGatewayConfigured(env))" in source
+          print("ACC253_STAGE_ONLY_FINANCE_AND_DIAGNOSTIC_DEFAULT_OFF=PASS")
+          PY
+      - name: Install vetted Wrangler and run original offline deny/source tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/acc253-cli" wrangler@4.152.0
+          node --test "$DIR/tests/stage_gate.test.mjs" "$DIR/tests/native_session_cross_d1.test.mjs"
+      - name: Live provider D1 control/identity, empty source and private secret names
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/acc253-cli/node_modules/.bin/wrangler"
+          "$CLI" d1 list --json --config "$DIR/wrangler.toml" > "$RUNNER_TEMP/list.json"
+          python3 "$DIR/stage_d1_bootstrap.py" inspect --wrangler "$CLI" > "$RUNNER_TEMP/fin.json"
+          "$CLI" d1 execute trendos-staging --remote --json \
+            --config "$DIR/wrangler.trendos-native-session-source.toml" \
+            --command "SELECT mode FROM employee_auth_control_v1 WHERE singleton=1 AND marker='T12_EMPLOYEE_AUTH_V1'" > "$RUNNER_TEMP/auth-mode.json"
+          "$CLI" d1 execute trendos-staging --remote --json \
+            --config "$DIR/wrangler.trendos-native-session-source.toml" \
+            --command "SELECT COUNT(*) AS n FROM employee_auth_users_v1" > "$RUNNER_TEMP/employee-count.json"
+          "$CLI" d1 execute trendos-staging --remote --json \
+            --config "$DIR/wrangler.trendos-native-session-source.toml" \
+            --command "SELECT COUNT(*) AS n FROM employee_auth_sessions_v1" > "$RUNNER_TEMP/session-count.json"
+          "$CLI" d1 execute trendos-staging --remote --json \
+            --config "$DIR/wrangler.trendos-native-session-source.toml" \
+            --command "SELECT COUNT(*) AS n FROM t12_customers" > "$RUNNER_TEMP/customer-count.json"
+          node <<'NODE'
+          const fs=require('fs'),dir=process.env.RUNNER_TEMP;
+          const read=n=>JSON.parse(fs.readFileSync(dir+'/'+n+'.json','utf8'));
+          const rows=n=>{let x=read(n);if(!Array.isArray(x)||x.length!==1||x[0].success!==true)throw Error('PROVIDER_SQL_UNVERIFIED_'+n);return x[0].results};
+          const list=read('list'),fin=read('fin');
+          if(list.filter(v=>v.name==='easystore-accounting-staging'&&v.uuid===process.env.FIN_UUID).length!==1||
+             list.filter(v=>v.name==='trendos-staging'&&v.uuid===process.env.OPS_UUID).length!==1||
+             fin.target?.uuid!==process.env.FIN_UUID||
+             fin.inspectState!=='NATIVE_SCHEMA_VERIFIED_WRITES_OFF'||fin.userTables?.length!==22||
+             fin.financeWrites!=='OFF'||fin.financeRelease!=='NO_GO')throw Error('D1_STAGE_IDENTITY_OR_FINANCE_OFF_UNQUALIFIED');
+          if(rows('auth-mode').length!==1||rows('auth-mode')[0].mode!=='OFF'||
+             ['employee-count','session-count','customer-count'].some(n=>
+                rows(n).length!==1||Number(rows(n)[0].n)!==0))
+             throw Error('STAGE_SOURCE_NATIVE_AUTH_OR_CUSTOMERS_NOT_EMPTY_OFF_STOP');
+          const root='https://api.cloudflare.com/client/v4/accounts/'+encodeURIComponent(process.env.CLOUDFLARE_ACCOUNT_ID)+'/workers/scripts/';
+          const headers={Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN};
+          const targets=[
+            ['easystore-accounting-staging-api',['TRENDOS_EMPLOYEE_SESSION_HMAC_V1','TRENDOS_CUSTOMER_FACTS_HMAC_V1']],
+            ['trendos-native-session-stage-source',['TRENDOS_EMPLOYEE_SESSION_HMAC_V1']],
+            ['trendos-customer-facts-stage-source',['TRENDOS_CUSTOMER_FACTS_HMAC_V1']]];
+          (async()=>{
+            for(const [name,required] of targets){
+              const base=root+encodeURIComponent(name);
+              const sub=await fetch(base+'/subdomain',{headers});if(!sub.ok)throw Error('NO_PRIVACY_PROVIDER_PERMISSION_'+name);
+              const sj=await sub.json();if(!sj.success||sj.result?.enabled!==false)throw Error('PRIVATE_STAGE_PUBLIC_TARGET_STOP_'+name);
+              const rr=await fetch(base+'/secrets',{headers});if(!rr.ok)throw Error('NO_SECRET_NAME_INVENTORY_'+name);
+              const j=await rr.json();if(!j.success||!Array.isArray(j.result))throw Error('SECRET_NAME_LIST_INVALID_'+name);
+              if(required.some(k=>!j.result.some(x=>x.name===k)))throw Error('REQUIRED_HMAC_NAMES_NOT_CONFIGURED_'+name);
+            }
+            console.log('THREE_PRIVATE_STAGE_WORKERS_SECRETS_AND_NO_PUBLIC_ROUTES=PASS');
+            console.log('STAGE_TWO_D1_IDENTITIES_OFF_AND_AUTH_TABLES_EMPTY=PASS');
+          })().catch(e=>{console.error(String(e.message));process.exitCode=1});
+          NODE
+      - name: Create ephemeral exact config enabling ONLY ACC253 diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("cloudflare-d1/easystore-finance-stage")
+          original=(p/"wrangler.toml").read_text()
+          before='EASYSTORE_STAGE_SIGNED_SOURCE_SMOKE_V1 = "OFF"'
+          assert original.count(before)==1
+          target=p/"wrangler.acc253-temporary-enforce-DO-NOT-COMMIT.toml"
+          assert not target.exists()
+          target.write_text(original.replace(before,
+              'EASYSTORE_STAGE_SIGNED_SOURCE_SMOKE_V1 = "ENFORCE"'))
+          print('TEMPORARY_STAGE_ONLY_DIAGNOSTIC_CONFIG=GENERATED_UNTRACKED')
+          PY
+          CLI="$RUNNER_TEMP/acc253-cli/node_modules/.bin/wrangler"
+          "$CLI" deploy --dry-run --config "$DIR/wrangler.acc253-temporary-enforce-DO-NOT-COMMIT.toml" \
+            --outdir "$RUNNER_TEMP/acc253-dry" >/dev/null
+          "$CLI" deploy --dry-run --config "$DIR/wrangler.toml" \
+            --outdir "$RUNNER_TEMP/acc253-revert-dry" >/dev/null
+          echo 'BOTH_STAGE_DEPLOY_AND_ROLLBACK_BUILDS=PASS'
+      - name: Deploy original finance Stage code with DIAGNOSTIC ENFORCE briefly, money OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Set recovery intent BEFORE any provider mutation, including partial upload.
+          echo 'ACC253_RESTORE_REQUIRED=YES' >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/acc253-cli/node_modules/.bin/wrangler" deploy \
+            --config "$DIR/wrangler.acc253-temporary-enforce-DO-NOT-COMMIT.toml" \
+            --message "ACC253 original private Stage temporary signed HMAC smoke ONLY; finance OFF" --yes
+          echo 'ORIGINAL_PRIVATE_FINANCE_STAGE_DIAGNOSTIC_TEMPORARILY_ENFORCED=YES'
+      - name: Real Cloudflare private bound finance calls both ORIGINAL signed sources; no tokens/users
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs'),path=require('path'),cp=require('child_process');
+          const cli=process.env.RUNNER_TEMP+'/acc253-cli/node_modules/.bin/wrangler';
+          const file=path.join(process.env.RUNNER_TEMP,'acc253-private-remote-preview.log');
+          const sink=fs.createWriteStream(file,{flags:'w',mode:0o600});
+          const child=cp.spawn(cli,['dev','--remote','--ip','127.0.0.1','--port','8793',
+            '--config',process.env.DIR+'/wrangler.acc253-signed-caller-preview.toml','--log-level','error'],{
+              env:{...process.env,CI:'true',BROWSER:'none'},stdio:['ignore','pipe','pipe']
+            });
+          child.stdout.pipe(sink);child.stderr.pipe(sink);
+          const delay=t=>new Promise(r=>setTimeout(r,t));
+          (async()=>{
+            try{
+              const url='http://127.0.0.1:8793/internal/acc253/check-signed-stage-sources';
+              let ok=false,reason='not-ready';
+              for(let i=0;i<30;i++){
+                if(child.exitCode!==null)throw Error('PRIVATE_PREVIEW_EARLY_TERMINATION');
+                try{
+                  const r=await fetch(url,{signal:AbortSignal.timeout(5500)});
+                  const j=await r.json();
+                  if(r.status===200&&j?.ok===true&&
+                    j?.code==='ACC253_ORIGINAL_PRIVATE_LIVE_SIGNED_STAGE_PROVEN'&&
+                    j?.customersHmacSignedResponse===true&&
+                    j?.employeeHmacSignedControlRejection===true&&
+                    j?.postingDenied===true&&j?.financeOff===true&&
+                    j?.originalNativeAuthMode==='OFF'&&
+                    j?.realEmployeeAuth===false&&j?.realCustomerIdentity===false){
+                    console.log('ACC253_LIVE_CUSTOMER_HMAC_SIGNED_REQUEST_RESPONSE=PASS');
+                    console.log('ACC253_LIVE_NATIVE_SESSION_HMAC_SIGNATURE_ACCEPTED_CONTROL_OFF=PASS');
+                    console.log('ACC253_FINANCE_OFF_AND_INVOICE_POST_DENIED=PASS');
+                    ok=true;break;
+                  }
+                  reason='HTTP_'+r.status+'_'+String(j?.code||'unknown').slice(0,70);
+                }catch(e){reason='PREVIEW_CONNECT_'+String(e?.name||'error');}
+                await delay(1250);
+              }
+              if(!ok)throw Error('LIVE_SIGNED_STAGE_NOT_QUALIFIED_'+reason);
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+                '## ACC253 real private Stage signed source qualification\n\n'+
+                '- Two existing remote Stage sources signed/verified using preexisting matching HMAC secrets\n'+
+                '- Official customer BY_ID absent probe verified authentic signed empty response, no PII\n'+
+                '- Native session valid MAC verified by native-control OFF rejection (no fake login)\n'+
+                '- Original finance D1 22 tables OFF, grants empty, invoice POST DENIED\n'+
+                '- Temporary diagnostic MUST be restored OFF by next always cleanup\n'+
+                '- No production deployment, real user/client, financial posting or ledger mutation\n');
+            }finally{
+              child.kill('SIGTERM');await delay(700);
+              if(child.exitCode===null)child.kill('SIGKILL');sink.end();
+            }
+          })().catch(e=>{console.error('ACC253_STAGE_TEST_STOP: '+String(e.message).slice(0,170));process.exitCode=1});
+          NODE
+      - name: ALWAYS restore original checked-in Stage finance diagnostic OFF
+        if: always() && env.ACC253_RESTORE_REQUIRED == 'YES'
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/acc253-cli/node_modules/.bin/wrangler" deploy \
+            --config "$DIR/wrangler.toml" \
+            --message "ACC253 revert private finance diagnostic OFF; original financial controls unchanged" --yes
+          echo 'ACC253_PRIVATE_STAGE_DIAGNOSTIC_RESTORED_OFF=YES'
+      - name: Independently provider-attest AFTER cleanup: diagnostic OFF, original HMAC preserved, still private
+        if: always() && env.ACC253_RESTORE_REQUIRED == 'YES'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const base='https://api.cloudflare.com/client/v4/accounts/'+
+            encodeURIComponent(process.env.CLOUDFLARE_ACCOUNT_ID)+'/workers/scripts/'+
+            encodeURIComponent(process.env.PRIVATE_FINANCE);
+          const headers={Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN};
+          const get=async path=>{
+            const r=await fetch(base+path,{headers});
+            if(!r.ok)throw Error('PROVIDER_ATTEST_HTTP_'+r.status);
+            const v=await r.json();if(!v.success)throw Error('PROVIDER_ATTEST_REJECTED');
+            return v.result;
+          };
+          (async()=>{
+            const sub=await get('/subdomain');
+            const secrets=await get('/secrets');
+            const config=await get('/settings');
+            if(sub?.enabled!==false)throw Error('PUBLIC_STAGE_ROUTE_ENABLED');
+            if(!Array.isArray(secrets)||[
+              'TRENDOS_EMPLOYEE_SESSION_HMAC_V1','TRENDOS_CUSTOMER_FACTS_HMAC_V1'
+            ].some(x=>!secrets.some(y=>y.name===x)))throw Error('STAGE_SIGNING_SECRETS_NOT_PRESERVED');
+            if(!Array.isArray(config?.bindings))throw Error('STAGE_CONFIG_PROVIDER_BINDINGS_UNVERIFIED');
+            const plain=config.bindings.find(x=>x.name==='EASYSTORE_STAGE_SIGNED_SOURCE_SMOKE_V1');
+            const finance=config.bindings.find(x=>x.name==='FINANCE_WRITES');
+            const release=config.bindings.find(x=>x.name==='FINANCE_RELEASE');
+            const read=config.bindings.find(x=>x.name==='EASYSTORE_STAGE_READONLY_API_V1');
+            if(plain?.text!=='OFF'||finance?.text!=='OFF'||release?.text!=='NO_GO'||
+               read?.text!=='OFF')throw Error('STAGE_FINANCE_POST_REVERT_NOT_OFF');
+            console.log('ACC253_PROVIDER_RESTORED_DIAGNOSTIC_OFF=PASS');
+            console.log('ACC253_PROVIDER_FINANCE_OFF_AND_PRIVATE=PASS');
+            console.log('ACC253_ORIGINAL_HMAC_SECRET_NAMES_PRESERVED=PASS');
+            require('fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+              '- Cloudflare provider GET verifies diagnostic OFF, FINANCE_WRITES OFF, READ API OFF, private workers.dev disabled and both original secret names preserved AFTER rollback\n');
+          })().catch(e=>{console.error(String(e.message));process.exitCode=1});
+          NODE
+      - name: Remove temporary private Stage diagnostic config (not committed)
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$DIR/wrangler.acc253-temporary-enforce-DO-NOT-COMMIT.toml"
+          echo 'TEMPORARY_STAGE_DIAGNOSTIC_CONFIG_REMOVED=YES'

@@ -1,0 +1,9 @@
+# ACC253 TEMPORARY private remote DEV preview only, NEVER deploy.
+name = "easystore-acc253-signed-caller-preview-only"
+main = "./private-acc253-signed-caller.mjs"
+compatibility_date = "2026-10-23"
+workers_dev = false
+
+[[services]]
+binding = "EASYSTORE_FINANCE"
+service = "easystore-accounting-staging-api"
