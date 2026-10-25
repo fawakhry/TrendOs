@@ -1,0 +1,85 @@
+name: ACC247 original 0008 post-interrupted CLI response remote safe inspection
+# The original remote D1 execute 0008 process exited success but Wrangler emitted
+# human text even with --json; never replay DDL until exact remote verification.
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths: ['.github/workflows/easystore-stage-original-0008-recovery-inspect-20261025.yml']
+permissions:
+  contents: read
+concurrency:
+  group: easystore-accounting-staging-exclusive-original-schema-20261024
+  cancel-in-progress: false
+jobs:
+  inspect-no-reapply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CFG: cloudflare-d1/easystore-finance-stage/wrangler.trendos-native-session-source.toml
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned Wrangler
+        run: npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/acc247" wrangler@4.152.0
+      - name: Read actual database independently; no migration replay, read-only only
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/acc247/node_modules/.bin/wrangler"
+          "$CLI" d1 list --json --config "$CFG" > "$RUNNER_TEMP/list.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name" > "$RUNNER_TEMP/tables.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT name FROM sqlite_master WHERE type='index' ORDER BY name" > "$RUNNER_TEMP/indexes.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT mode FROM t12_customer_control WHERE singleton=1 AND marker='T12_CUSTOMER_MASTER_V1'" > "$RUNNER_TEMP/customer-control.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT COUNT(*) AS n FROM t12_customers" > "$RUNNER_TEMP/customer-count.json"
+          node <<'NODE'
+          const fs=require('fs'),p=process.env.RUNNER_TEMP;
+          function read(name){
+            const j=JSON.parse(fs.readFileSync(p+'/'+name+'.json','utf8'));
+            if(!Array.isArray(j)||j.length!==1||j[0].success!==true||!Array.isArray(j[0].results))throw Error('D1_VERIFY_RESULT_INVALID_'+name);
+            return j[0].results;
+          }
+          const list=JSON.parse(fs.readFileSync(p+'/list.json','utf8'));
+          if(!Array.isArray(list)||list.filter(x=>x.name==='trendos-staging'&&x.uuid==='bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6').length!==1||
+             list.filter(x=>x.name==='easystore-accounting-staging'&&x.uuid==='c2fe1a54-90f5-4e6f-9d51-80ce23e21328').length!==1)
+             throw Error('POST_0008_TARGET_UUID_INVALID');
+          const tables=new Set(read('tables').map(x=>x.name));
+          const indexes=new Set(read('indexes').map(x=>x.name));
+          const expected=['t12_customer_control','t12_customers','t12_customer_request_ledger','t12_customer_events'];
+          const ind=['idx_t12_customers_name_key','idx_t12_customers_phone','idx_t12_customers_extra_phone',
+            'idx_t12_customers_active','idx_t12_customer_request_customer','idx_t12_customer_events_customer'];
+          const absent=['employee_auth_control_v1','employee_auth_users_v1','employee_auth_sessions_v1'];
+          const schema=[...tables].filter(x=>!x.startsWith('sqlite_')&&x!=='_cf_KV');
+          const mode=read('customer-control');
+          const cnt=read('customer-count');
+          const ok=expected.every(x=>tables.has(x)) && ind.every(x=>indexes.has(x)) &&
+             absent.every(x=>!tables.has(x)) && schema.length===15 &&
+             mode.length===1 && mode[0].mode==='OFF' &&
+             cnt.length===1 && Number(cnt[0].n)===0;
+          console.log('PROVIDER_0008_TARGET_TABLES='+expected.filter(x=>tables.has(x)).length+'/4');
+          console.log('PROVIDER_0008_INDEXES='+ind.filter(x=>indexes.has(x)).length+'/6');
+          console.log('PROVIDER_0009_SCHEMA_STILL_ABSENT='+absent.filter(x=>!tables.has(x)).length+'/3');
+          console.log('PROVIDER_0008_CUSTOMER_CONTROL='+ (mode[0]?.mode||'NOT_ATTESTED'));
+          console.log('PROVIDER_0008_CLIENT_RECORDS='+Number(cnt[0]?.n||0));
+          console.log('PROVIDER_0008_EXACT_COMPLETE_AND_0009_NOT_STARTED='+ (ok?'YES':'NO'));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '## ACC247 read-only remote 0008 aftermath\n\n'+
+            '- Original 0008 expected 4 tables: '+expected.filter(x=>tables.has(x)).length+'/4\n'+
+            '- Original 0008 expected 6 indexes: '+ind.filter(x=>indexes.has(x)).length+'/6\n'+
+            '- Customer control OFF and empty customer records: '+(mode[0]?.mode==='OFF'&&Number(cnt[0]?.n)===0?'PASS':'UNQUALIFIED')+'\n'+
+            '- Original 0009 native auth tables absent: '+absent.filter(x=>!tables.has(x)).length+'/3\n'+
+            '- Existing 11 unrelated tables retained: '+(schema.length===15?'YES':'UNQUALIFIED')+'\n'+
+            '- DO NOT rerun 0008. No D1 mutations in this check.\n');
+          if(!ok)throw Error('ORIGINAL_0008_REMOTE_PARTIAL_OR_DRIFT_STOP');
+          NODE
