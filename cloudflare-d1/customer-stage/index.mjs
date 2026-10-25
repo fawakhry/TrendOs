@@ -22,6 +22,10 @@ import {CUSTOMER_NATIVE_PUBLIC_CONTENT_PATH_V0,handleCustomerNativePublicContent
   from './public-content-ro-v0.mjs';
 import {CUSTOMER_NATIVE_PASSWORD_CHANGE_PATH_V0,handleCustomerNativePasswordChangeStageV0}
   from './password-change-cas-v0.mjs';
+import {CUSTOMER_NATIVE_DRAFT_CREATE_PATH_V0,handleCustomerNativeDraftCreateV0}
+  from '../src/customer-portal-native-draft-create-v0.mjs';
+import {handleNativeCustomerDraftItemV0}
+  from '../src/customer-portal-native-draft-item-v0.mjs';
 
 import {createCustomerStageDurableRateGateV0}
   from './login-throttle-v0.mjs';
@@ -33,7 +37,8 @@ const PATHS=Object.freeze([
   '/v1/customer/native/logout',
   CUSTOMER_NATIVE_ORDERS_READ_PATH_V0,
   CUSTOMER_NATIVE_PUBLIC_CONTENT_PATH_V0,
-  CUSTOMER_NATIVE_PASSWORD_CHANGE_PATH_V0
+  CUSTOMER_NATIVE_PASSWORD_CHANGE_PATH_V0,
+  CUSTOMER_NATIVE_DRAFT_CREATE_PATH_V0
 ]);
 const OWN_STAGE_MODE='isolated-customer-stage-v0';
 const text=x=>typeof x==='string'?x.trim():'';
@@ -49,8 +54,9 @@ function originAllowed(request,env){
   // No wildcard or default production browser origin.
   return origins.length>0&&origins.includes(origin);
 }
+const DRAFT_ITEM_STAGE_PATH_V0=/^\/v1\/customer\/native\/drafts\/CDR-[0-9a-f]{32}\/items$/;
 function isCustomerStagePathV0(path){
-  return PATHS.includes(path);
+  return PATHS.includes(path)||DRAFT_ITEM_STAGE_PATH_V0.test(path);
 }
 export default {
   async fetch(request,env={}){
@@ -95,6 +101,10 @@ export default {
         return await handleCustomerNativePublicContentStageV0(request,env);
       if (path===CUSTOMER_NATIVE_PASSWORD_CHANGE_PATH_V0)
         return await handleCustomerNativePasswordChangeStageV0(request,env);
+      if (path===CUSTOMER_NATIVE_DRAFT_CREATE_PATH_V0)
+        return await handleCustomerNativeDraftCreateV0(request,env);
+      if (DRAFT_ITEM_STAGE_PATH_V0.test(path))
+        return await handleNativeCustomerDraftItemV0(request,env);
       return await handleCustomerNativeOrdersReadV0(request,env);
     }catch{
       // No data, password, DB error, tenant identifiers or stack leak.
