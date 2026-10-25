@@ -12,7 +12,8 @@
     customerLogin: 1, customerLogout: 1, changeCustomerPassword: 1,
     getCustomerOrders: 1, getCustomerPortalAccountsV1859: 1,
     createCustomerDraft: 1, addCustomerDraftItem: 1,
-    submitCustomerDraft: 1, uploadCustomerDraftFile: 1
+    submitCustomerDraft: 1, uploadCustomerDraftFile: 1,
+    getPlatformSections: 1, getFranchiseBranches: 1
   });
   function fail(code) {
     var err = new Error('خدمة العملاء السحابية لم تُفعّل بعد. لم يتم إرسال الطلب إلى جوجل.');
@@ -189,6 +190,59 @@
       nativeCustomerPreviewOnly: true
     };
   }
+  async function nativePublicContentReadOnly(action) {
+    var view=action==='getPlatformSections'?'sections':'branches';
+    var origin=exactCloudOrigin();
+    var bearer=nativeSessionBearer();
+    var response;
+    try {
+      response=await window.fetch(origin+'/v1/customer/native/public-content?view='+view,{
+        method:'GET',
+        headers:{accept:'application/json',authorization:'Bearer '+bearer},
+        credentials:'omit',cache:'no-store',redirect:'error'
+      });
+    } catch (_) {throw fail('CUSTOMER_NATIVE_PUBLIC_CONTENT_NETWORK_UNAVAILABLE');}
+    if(!response||response.status!==200||response.ok!==true)
+      throw fail('CUSTOMER_NATIVE_PUBLIC_CONTENT_HTTP_DENIED');
+    var raw;
+    try {raw=await response.text();}
+    catch (_) {throw fail('CUSTOMER_NATIVE_PUBLIC_CONTENT_RESPONSE_INVALID');}
+    if(typeof raw!=='string'||raw.length>65536)
+      throw fail('CUSTOMER_NATIVE_PUBLIC_CONTENT_RESPONSE_INVALID');
+    var data;
+    try {data=JSON.parse(raw);}
+    catch (_) {throw fail('CUSTOMER_NATIVE_PUBLIC_CONTENT_RESPONSE_INVALID');}
+    var key=view==='sections'?'sections':'branches';
+    if(!data||data.success!==true||data.readOnly!==true||
+       data.source!=='customer-native-public-content-stage-v0'||
+       data.view!==view||!Array.isArray(data[key])||data[key].length>40)
+      throw fail('CUSTOMER_NATIVE_PUBLIC_CONTENT_CONTRACT_INVALID');
+    var rows=data[key].map(function (v) {
+      if(!v||typeof v!=='object'||Array.isArray(v))return null;
+      if(view==='sections'){
+        if(typeof v.sectionCode!=='string'||!v.sectionCode||
+           typeof v.name!=='string'||!v.name||v.active!=='نعم')return null;
+        return {sectionCode:v.sectionCode,name:v.name,
+          description:typeof v.description==='string'?v.description:'',
+          sectionType:typeof v.sectionType==='string'?v.sectionType:'',
+          executionType:typeof v.executionType==='string'?v.executionType:'',
+          active:'نعم'};
+      }
+      if(typeof v.branchCode!=='string'||!v.branchCode||
+         typeof v.brandName!=='string'||!v.brandName||
+         v.active!=='نعم'||v.customerVisibility!=='ظاهر كفرع مطبعجي')
+        return null;
+      return {branchCode:v.branchCode,brandName:v.brandName,
+        governorate:typeof v.governorate==='string'?v.governorate:'',
+        city:typeof v.city==='string'?v.city:'',
+        publicArea:typeof v.publicArea==='string'?v.publicArea:'',
+        publicDescription:typeof v.publicDescription==='string'?v.publicDescription:'',
+        active:'نعم',customerVisibility:'ظاهر كفرع مطبعجي'};
+    });
+    if(rows.some(function (row) {return !row;}))
+      throw fail('CUSTOMER_NATIVE_PUBLIC_CONTENT_ROW_INVALID');
+    return view==='sections'?{success:true,sections:rows}:{success:true,branches:rows};
+  }
   window.trendosCustomerNativeBrowserDispatchV0 = async function (action, params, downstream) {
     // Identity of the employee/original transport stays intact, including
     // all arguments and result. No employee action is intercepted.
@@ -209,7 +263,10 @@
     }
     if (action === 'customerLogin') return nativeLoginOnly(params);
     if (action === 'customerLogout') return nativeServerLogoutOnly();
-    // Remaining seven operations do not have approved live HTTP handlers.
+    // Two narrowly public read-only Stage content views only; all employee
+    // content and remaining customer writes stay fail-closed.
+    if(action==='getPlatformSections'||action==='getFranchiseBranches')
+      return nativePublicContentReadOnly(action);
     if (action !== 'getCustomerOrders')
       throw fail('CUSTOMER_NATIVE_ACTION_NOT_WIRED');
     // Ignore customerCode/token/ID in legacy caller params. Only server-side
