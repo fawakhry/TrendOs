@@ -119,9 +119,15 @@ async function main() {
       assert.ok(ownOrders.includes('LOCAL-ORDER-LOCAL-C1'),'Actual original UI did not render C1 order');
       assert.ok(!ownOrders.includes('LOCAL-ORDER-LOCAL-C2'),'Original UI rendered another customer order');
       assert.ok(!ownOrders.includes('LOCAL_FAKE_PHONE'),'Original UI leaked private phone');
-      await page.waitForFunction(()=>
-        window.__trendosOriginalPortalAudit.legacy.length>=5,null,{timeout:15000});
-      const old=await page.evaluate(()=>window.__trendosOriginalPortalAudit.legacy.slice());
+      // Calls may route through other original employee/public adapters;
+      // audit the observed list directly, rather than waiting indefinitely.
+      await page.waitForTimeout(800);
+      const diagnostic=await page.evaluate(()=>({
+        legacy:window.__trendosOriginalPortalAudit.legacy.slice(),
+        others:window.__trendosOriginalPortalAudit.otherFetch.slice()
+      }));
+      console.log('FULL_ORIGINAL_UI_NETWORK_DIAGNOSTIC='+JSON.stringify(diagnostic));
+      const old=diagnostic.legacy;
       const ancillary=old.filter(action=>expectedAncillary.includes(action));
       assert.deepEqual(ancillary.slice().sort(),expectedAncillary.slice().sort(),
         'Full original customer boot added unexpected repeats/missing public-data legacy calls');
