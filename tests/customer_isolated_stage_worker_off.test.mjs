@@ -304,3 +304,34 @@ test('Durable Object reservation failure stops the original customer D1 password
     assert.equal(dbHits,0);
   }
 });
+
+
+test('isolated Stage submit preflight is GET-only, OFF-by-default, no T12 order write',async()=>{
+  const draft='CDR-'+'11'.repeat(16);
+  const path='/v1/customer/native/drafts/'+draft+'/submit-preflight';
+  const stageEnabled={...envOff(),TRENDOS_CUSTOMER_PORTAL_STAGING_ENABLED:'true'};
+  let accessed=0;
+  stageEnabled.DB={prepare(){accessed++;throw Error('preflight must stop before D1');}};
+  const withoutBearer=await failBody(await stage.fetch(request(path,'GET'),stageEnabled));
+  assert.equal(withoutBearer.status,503);
+  assert.equal(withoutBearer.body.code,'DRAFT_PREFLIGHT_ROUTE_OFF');
+  const badOrigin=await failBody(await stage.fetch(new Request(BASE+path,{
+    headers:{Origin:'https://evil.test',Authorization:'Bearer '+hex64}
+  }),stageEnabled));
+  assert.equal(badOrigin.status,403);
+  const query=await failBody(await stage.fetch(request(path+'?customerId=FAKE-C2','GET'),stageEnabled));
+  assert.equal(query.status,400);
+  const post=await failBody(await stage.fetch(request(path,'POST',{
+    headers:{Authorization:'Bearer '+hex64,'Content-Type':'application/json'},body:'{}'
+  }),{...stageEnabled,TRENDOS_CUSTOMER_NATIVE_DRAFT_PREFLIGHT_RO_V0_ENABLED:'true'}));
+  assert.equal(post.status,405);
+  const wrongPath=await failBody(await stage.fetch(request(
+    '/v1/customer/native/drafts/INVALID/submit-preflight','GET'),stageEnabled));
+  assert.equal(wrongPath.status,404);
+  assert.equal(accessed,0);
+  const source=readFileSync('cloudflare-d1/customer-stage/submit-preflight-ro-v0.mjs','utf8');
+  assert.doesNotMatch(source,/createT12GeneralOrder|INSERT INTO t12_prod_orders|APPS_SCRIPT_API_URL/);
+  assert.match(source,/preflightNativeCustomerDraftSubmitV0/);
+  const cfg=readFileSync('cloudflare-d1/wrangler.customer-stage.toml','utf8');
+  assert.match(cfg,/TRENDOS_CUSTOMER_NATIVE_DRAFT_PREFLIGHT_RO_V0_ENABLED\\s*=\\s*"false"/);
+});
