@@ -1111,6 +1111,7 @@ test('ACC245-OUTBOX rejects post-enqueue changed customer or source line assignm
  const store=acc235OfflineDb();try{
   const key=await fakeSignKey();
   assert.equal((await acc235Stage(x,store,key)).success,true);
+  let attempts=store.row().attempts;
   for(const [change,undo] of [
    ["UPDATE t12_prod_orders SET external_customer_id='CHANGED' WHERE order_id='4323'",
     "UPDATE t12_prod_orders SET external_customer_id='999002' WHERE order_id='4323'"],
@@ -1122,9 +1123,11 @@ test('ACC245-OUTBOX rejects post-enqueue changed customer or source line assignm
    x.raw.exec(change);
    const r=await acc235Reserve(x,store,key);
    assert.equal(r.code,'OUTBOX_ORIGINAL_T12_NOW_UNQUALIFIED',change);
-   assert.equal(store.row().attempts,0);
+   assert.equal(store.row().attempts,attempts);
    x.raw.exec(undo);
    assert.equal((await acc235Reserve(x,store,key)).success,true,undo);
+   attempts++;
+   assert.equal(store.row().attempts,attempts);
    const out=await releaseSigned({outboxDb:store.db,eventId:acc235Event,
      leaseOwner:'A',nowMs:SIGN_TIME+2000,mode:acc235Mode});
    assert.equal(out.success,true);
