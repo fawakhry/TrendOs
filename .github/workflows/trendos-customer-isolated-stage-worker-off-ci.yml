@@ -6,6 +6,9 @@ on:
   pull_request:
     paths:
       - 'cloudflare-d1/customer-stage/index.mjs'
+      - 'cloudflare-d1/src/customer-portal-native-draft-file-r2-v0.mjs'
+      - 'cloudflare-d1/migrations/0040_customer_portal_native_file_quarantine_v1.sql'
+      - 'tests/entry666_customer_native_r2_file_off.test.mjs'
       - 'cloudflare-d1/wrangler.customer-stage.toml'
       - 'tests/customer_isolated_stage_worker_off.test.mjs'
       - '.github/workflows/trendos-customer-isolated-stage-worker-off-ci.yml'
