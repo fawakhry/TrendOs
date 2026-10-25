@@ -119,12 +119,35 @@ def serve_browser_fixture(port=8000):
     """Same-origin LOCAL fixture for Chromium; never serve production files."""
     fixture=(ROOT/"tests/fixtures/customer-stage-browser-local.html").read_bytes()
     native=(ROOT/"customer-native-browser-transport-v0.js").read_bytes()
+    # Serve the actual original customer-facing index/app/config, unmodified,
+    # at a LOCAL browser-only path. No arbitrary filesystem exposure.
+    customer_assets={
+        "index.html", "config.js", "app.js", "styles.css",
+        "matbagy_theme_v1860.css", "matbagy_theme_v1860.js",
+        "browser-api-transport-v1.js",
+        "customer-native-browser-transport-v0.js",
+        "employee-api-dispatcher-v1.js",
+        "trendos-return-traffic-quiet-v1.js",
+        "customer_manager_d1_bridge_v1934.js",
+        "customer_manager_v1933.js",
+        "customer_manager_guard_v1933.js",
+    }
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            if self.path in ("/","/index.html"):
+            path=self.path.split("?",1)[0]
+            if path in ("/","/index.html"):
                 body,content_type=fixture,"text/html; charset=utf-8"
-            elif self.path=="/customer-native-browser-transport-v0.js":
+            elif path=="/customer-native-browser-transport-v0.js":
                 body,content_type=native,"text/javascript; charset=utf-8"
+            elif path.startswith("/real-portal/"):
+                filename=path[len("/real-portal/"):] or "index.html"
+                if filename not in customer_assets:
+                    self.send_error(404)
+                    return
+                body=(ROOT/filename).read_bytes()
+                content_type=("text/html" if filename.endswith(".html")
+                              else "text/css" if filename.endswith(".css")
+                              else "text/javascript")+"; charset=utf-8"
             else:
                 self.send_error(404)
                 return
@@ -312,6 +335,21 @@ def main():
                 check("PASS: actual Chromium browser DOM customer login" in browser.stdout,
                       "Real browser did not confirm local D1/DO portal flow")
                 print(browser.stdout.strip())
+                # Full original index.html/app.js actual Chromium test.
+                # Its browser-only config flag is overridden ONLY in memory,
+                # never in checked-in config.js or the real customer UI.
+                full=subprocess.run(
+                    ["node",str(ROOT/"tests/customer_stage_chromium_full_original_portal_local.cjs")],
+                    cwd=ROOT,text=True,capture_output=True,timeout=100,
+                    env={**os.environ,"CUSTOMER_STAGE_LOCAL_PORT":str(port),
+                         "CLOUDFLARE_API_TOKEN":"","CLOUDFLARE_ACCOUNT_ID":""}
+                )
+                if full.returncode:
+                    raise AssertionError("Full original customer portal Chromium audit failed: "+
+                                         full.stderr[-5500:]+"\nFULL_STDOUT:"+full.stdout[-2500:])
+                check("PASS: original full TrendOS index.html + app.js" in full.stdout,
+                      "Original production HTML/app customer workflow was not proven")
+                print(full.stdout.strip())
             finally:
                 local_browser.shutdown()
                 local_browser.server_close()
@@ -319,8 +357,9 @@ def main():
                 hostile_browser.shutdown()
                 hostile_browser.server_close()
                 hostile_thread.join(timeout=5)
-            # C1 now performed three valid logins (Python+VM+Chromium).
-            for i in range(2):
+            # C1 now performed four valid logins (Python+VM+mini+FULL UI).
+            # One wrong password reaches the 5/15m local SQLite DO cap.
+            for i in range(1):
                 status,wrong=request(port,paths["login"],method="POST",
                     payload={"portalCode":CODE,"password":"LOCAL-WRONG-PASSWORD-"+str(i)+"-NOT_REAL"})
                 check(status==401,"Expected generic rejection for bad local password")
@@ -337,7 +376,7 @@ def main():
             status,otherafter=request(port,paths["orders"],token=token2)
             check(status==200 and len(otherafter.get("lines",[]))==1,
                   "D1 owner read did not survive local Worker restart")
-            print("PASS: Wrangler local D1+SQLite Durable Object + original Node VM adapter + REAL Chromium browser: owner-isolated login/orders, CAS revoke, browser-native CORS, 5/15m and restart persistence")
+            print("PASS: Wrangler local D1+SQLite Durable Object + original Node VM + fixture and FULL ORIGINAL UI Chromium: owner-isolated login/orders, CAS revoke, browser CORS, DO 5/15m restart persistence")
             print("NO_DEPLOY=YES; CLOUD_CUSTOMER_DB_UNTOUCHED=YES; STAGE_REMOTE_UNPROVISIONED=YES")
         finally:
             stop_dev(proc)
