@@ -505,6 +505,7 @@ def main():
                   "Private R2 integrity route allowed foreign Origin")
             status,integrity_get=request(port,integrity_route,token=token)
             check(status==200 and integrity_get.get("integrityNowVerified") is True
+                  and integrity_get.get("allFilesQuarantined") is True
                   and integrity_get.get("verifiedFileCount")==1
                   and integrity_get.get("provisionalReadOnlyObservation") is True
                   and integrity_get.get("malwareScanComplete") is False
@@ -522,7 +523,7 @@ def main():
                 method="POST",token=token)
             check(status==405 and not integrity_post.get("integrityNowVerified"),
                   "Private R2 integrity accepted POST mutation")
-            print("PASS: REAL LOCAL R2 byte SHA256 and D1 metadata/status recheck with ACTIVE C1 session, C2 isolation, NO malware scan or T12 approval")
+            print("PASS: REAL LOCAL R2 byte SHA256 plus mandatory immutable D1 QUARANTINED ledger before/after reads, ACTIVE C1 session, C2 isolation, NO malware scan or T12 approval")
             print("PASS: REAL LOCAL Wrangler private R2 plus D1 PENDING/READY CAS, binary MIME, idempotent replay, C1/C2 scope, no public GET")
             status,item_repeat=request(port,item_route,method="POST",token=token,
                 payload=item_payload)
