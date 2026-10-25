@@ -361,6 +361,16 @@ export async function inspectT12EmployeeOrderFinanceCandidate({
    source:'original-t12-at-create-source-only',
    officialCustomerId:expectedOfficialCustomerId,
    orderId,sourceCreatedAt:new Date(sourceMs).toISOString().slice(0,19)+'Z',
+   // ACC246_OPERATIONAL_REVISION_FENCE: read-only source revision in same
+   // original five-SELECT snapshot. Runtime version increments on T12 native
+   // status/WhatsApp mutations. Not HMAC proof, role/owner attestation or
+   // a cross-database transaction, and NOT part of order_created payload.
+   operationalRevision:Object.freeze({
+    customerVersion:o.currentCustomerVersion,
+    lineVersions:Object.freeze(current.map((r,i)=>Object.freeze({
+     lineId:lines[i].lineId,version:r.runtimeVersion===null?0:r.runtimeVersion
+    })))
+   }),
    lines:normalized,
    lineCount:normalized.length,
    sourceOnly:true,readOnly:true,
