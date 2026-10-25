@@ -229,7 +229,7 @@ def seed_sql():
         verifier=hashlib.pbkdf2_hmac("sha256",password.encode(),
                                     bytes.fromhex(salt),100000).hex()
         statements+= [
-          "INSERT INTO t12_customers(customer_id,customer_name,customer_name_key,source,legacy_chat_code) VALUES ('%s','LOCAL FAKE CUSTOMER','%s','cloud-native','%s');"%(ident,ident,code),
+          "INSERT INTO t12_customers(customer_id,customer_name,customer_name_key,phone,source,legacy_chat_code) VALUES ('%s','عميل تجريبي','%s','01012345678','cloud-native','%s');"%(ident,ident,code),
           "INSERT INTO customer_portal_native_accounts_v1 "+
           "(customer_id,portal_code,state,password_scheme,password_salt_hex,"+
           "password_hash_hex,password_iterations,must_change,verified_enrollment_ref) "+
@@ -284,7 +284,8 @@ def main():
               "TRENDOS_CUSTOMER_PORTAL_NATIVE_PASSWORD_CHANGE_V0_ENABLED",
               "TRENDOS_CUSTOMER_NATIVE_DRAFT_CREATE_V0_ENABLED",
               "TRENDOS_CUSTOMER_NATIVE_DRAFT_ITEM_V0_ENABLED",
-              "TRENDOS_CUSTOMER_NATIVE_DRAFT_FILE_R2_V0_ENABLED"
+              "TRENDOS_CUSTOMER_NATIVE_DRAFT_FILE_R2_V0_ENABLED",
+              "TRENDOS_CUSTOMER_NATIVE_DRAFT_PREFLIGHT_RO_V0_ENABLED"
             ):
                 original=name+' = "false"'
                 check(config.count(original)==1,"Invalid OFF gate "+name)
@@ -500,6 +501,51 @@ def main():
             check(status==201 and c2created.get("officialOrderCreated") is False
                   and c2created.get("draftId")!=c1_draft,
                   "Independent C2 draft wasn't isolated")
+            # READONLY T12 preflight: one item/no files CAN pass a provisional
+            # shadow contract, but response must explicitly DENY production
+            # create authority. A READY PRIVATE R2 file CANNOT silently cross
+            # into the old T12 order writer.
+            preflight_c1=draft_route+"/"+c1_draft+"/submit-preflight"
+            preflight_c2=draft_route+"/"+c2created["draftId"]+"/submit-preflight"
+            status,with_file=request(port,preflight_c1,token=token)
+            check(status==409 and
+                  with_file.get("code")=="T12_CUSTOMER_FILE_HANDOFF_NOT_YET_SUPPORTED" and
+                  with_file.get("officialOrderCreated") is False,
+                  "Preflight dangerously accepted READY R2 attachment into T12")
+            status,cross_preflight=request(port,preflight_c1,token=token2)
+            check(status==404 and not cross_preflight.get("success"),
+                  "C2 could inspect C1 T12 draft preflight")
+            status,without_bearer=request(port,preflight_c1)
+            check(status==401 and not without_bearer.get("success"),
+                  "Customer preflight was available without Native bearer")
+            status,foreign_preflight=request(port,preflight_c1,token=token,
+                                            origin="https://evil.test")
+            check(status==403 and not foreign_preflight.get("success"),
+                  "Preflight accepted unauthorized Origin")
+            status,with_post=request(port,preflight_c1,method="POST",token=token)
+            check(status==405 and not with_post.get("success"),
+                  "GET-only preflight accepted HTTP mutation")
+            status,empty_c2=request(port,preflight_c2,token=token2)
+            check(status==409 and empty_c2.get("code")==
+                  "T12_CUSTOMER_MULTI_ITEM_SUBMIT_NOT_YET_SUPPORTED",
+                  "Empty staged draft gave positive submit preflight")
+            status,c2item=request(port,
+                    draft_route+"/"+c2created["draftId"]+"/items",
+                    method="POST",token=token2,
+                    payload={**item_payload,"requestKey":"d7"*16})
+            check(status==201 and c2item.get("ordinal")==1 and
+                  c2item.get("officialOrderCreated") is False,
+                  "Second customer clean draft item setup failed")
+            status,c2preflight=request(port,preflight_c2,token=token2)
+            check(status==200 and c2preflight.get("preflightEligible") is True
+                  and c2preflight.get("officialOrderCreated") is False
+                  and c2preflight.get("productionWriteAuthorized") is False
+                  and c2preflight.get("needsTrustedEmployeeDelegate") is True
+                  and c2preflight.get("snapshotSealed") is False
+                  and "01012345678" not in json.dumps(c2preflight) and
+                  "customerId" not in json.dumps(c2preflight),
+                  "One clean C2 draft didn't pass READONLY shadow preflight")
+            print("PASS: REAL LOCAL D1 read-only preflight accepts one eligible C2 item but NEVER authorizes T12 write, and rejects C1 READY R2 attachment, cross-tenant, no token, empty draft")
             print("PASS: REAL local Worker/D1 Native customer DRAFT create + ITEM create, stable idempotency, no customer ID forgery, C1/C2 scope and no official order")
             status,otherorders=request(port,paths["orders"],token=token2)
             check(status==200 and
@@ -523,6 +569,9 @@ def main():
                 token=token,request_key="e5"*16)
             check(status in (401,409) and not revoked_file.get("fileReady"),
                   "Revoked Native C1 session staged a new private file")
+            status,revoked_preflight=request(port,preflight_c1,token=token)
+            check(status==404 and not revoked_preflight.get("preflightEligible"),
+                  "Revoked Native C1 session still saw a draft preflight")
             status,revoked_public=request(port,
                     "/v1/customer/native/public-content?view=sections",token=token)
             check(status==401 and revoked_public.get("code")=="CUSTOMER_SESSION_REJECTED",
