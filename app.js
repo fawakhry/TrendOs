@@ -1999,7 +1999,8 @@ Trend Mall`;
     // Employee API/roles/handlers remain byte-for-byte unchanged.
     if (window.TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED === true &&
         state.customer && state.customer.nativeSession === true) {
-      if (action !== "getPlatformSections" && action !== "getFranchiseBranches")
+      if (!["getPlatformSections","getFranchiseBranches","getMarketplace",
+             "getPlatformAds","getWhiteLabelSettings"].includes(action))
         return Promise.reject(new Error("Unqualified Native public-content action."));
       if (typeof window.trendosCustomerNativeBrowserDispatchV0 !== 'function')
         return Promise.reject(new Error("Native customer transport unavailable."));
@@ -2080,7 +2081,7 @@ Trend Mall`;
   async function loadWhiteLabelSettings(forAdmin) {
     try {
       const params = forAdmin ? authParams({}) : {};
-      const res = await api("getWhiteLabelSettings", params);
+      const res = await readCustomerNativePublicContentV0("getWhiteLabelSettings", params);
       if (!res.success) {
         if (forAdmin) setMsg("whiteLabelStatus", res.message || "تعذر تحميل إعدادات النسخة.", true);
         return;
@@ -3030,7 +3031,7 @@ Trend Mall`;
   async function loadPlatformAds(forAdmin) {
     try {
       const params = forAdmin ? authParams({ includeInactive: "نعم" }) : { activeOnly: "نعم" };
-      const res = await api("getPlatformAds", params);
+      const res = await readCustomerNativePublicContentV0("getPlatformAds", params);
       if (!res.success) {
         if (forAdmin) setMsg("platformAdsStatus", res.message || "تعذر تحميل الإعلانات.", true);
         return;
@@ -3096,6 +3097,12 @@ Trend Mall`;
     }
     board.classList.remove("hidden");
     board.innerHTML = list.slice(0, 3).map(function (ad) {
+      if (ad.publicTextOnly === true) {
+        // Native Stage never publishes unapproved external media URLs.
+        // Render a safe text advertisement, not an empty/remote link.
+        return '<div class="customer-ad-slide premium-customer-ad"><b>' +
+          escapeHtml(ad.headline || "إعلان Trend Mall") + '</b></div>';
+      }
       const img = escapeHtml(adImageUrl(ad, 1200));
       const url = escapeHtml(ad.fileUrl || "#");
       return '<a class="customer-ad-slide premium-customer-ad" href="' + url + '" target="_blank" rel="noopener">' +
@@ -3347,7 +3354,7 @@ Trend Mall`;
   async function loadMarketplace(forAdmin) {
     try {
       const params = forAdmin ? authParams({ includeInactive: "نعم" }) : {};
-      const res = await api("getMarketplace", params);
+      const res = await readCustomerNativePublicContentV0("getMarketplace", params);
       if (!res.success) {
         if (forAdmin) setMsg("marketplaceStatus", res.message || "تعذر تحميل الماركت بليس.", true);
         else markCustomerNativePublicContentUnavailable("customerMarketplaceBoard");
