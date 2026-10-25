@@ -40,6 +40,7 @@ MIGRATIONS=[
     "0036_customer_portal_native_draft_create_v1.sql",
     "0037_customer_portal_native_draft_items_v1.sql",
     "0038_customer_portal_native_draft_file_r2_v1.sql",
+    "0040_customer_portal_native_file_quarantine_v1.sql",
 ]
 NAME="trendos-customer-disposable-local-only"
 
