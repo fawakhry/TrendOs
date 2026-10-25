@@ -226,7 +226,7 @@ jobs:
             --config "$DIR/wrangler.toml" \
             --message "ACC253 revert private finance diagnostic OFF; original financial controls unchanged" --yes
           echo 'ACC253_PRIVATE_STAGE_DIAGNOSTIC_RESTORED_OFF=YES'
-      - name: Independently provider-attest AFTER cleanup: diagnostic OFF, original HMAC preserved, still private
+      - name: "Independently provider-attest AFTER cleanup: diagnostic OFF, original HMAC preserved, still private"
         if: always() && env.ACC253_RESTORE_REQUIRED == 'YES'
         shell: bash
         run: |
