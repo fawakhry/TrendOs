@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import {webcrypto} from 'node:crypto';
+import acc251Worker from '../cloudflare-d1/easystore-finance-stage/trendos-original-order-context-source.mjs';
+import {VERSION as ACC251_VERSION,POLICY as ACC251_POLICY,signBody as acc251Sign,validRequest as acc251ValidRequest,validReply as acc251ValidReply,readOriginalOrderContextV1 as acc251Read}
+ from '../cloudflare-d1/src/accounting-original-order-context-v1.mjs';
+import {signBody as signCustomerFactsForACC251} from '../cloudflare-d1/src/accounting-customer-facts-contract-v1.mjs';
+
 import {ACC247_RECEIVER_FIXTURE_SCHEMA,ACC247_RECEIVER_POLICY,acceptACC247OrderCreatedContextFixtureOnly as acceptACC247,auditACC248StoredContextBeforeInvoiceFixtureOnly as auditACC248} from '../cloudflare-d1/src/t12-finance-order-created-acc247-receiver-fixture.mjs';
 import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -1528,6 +1533,139 @@ test('ACC248 rejects mutated original customer/order/line at audit time even if 
   assert.equal(receiver.count(),1);
   assert.equal(r.financeAuthorized,false);
  }finally{sender.close();receiver.close()}
+}));
+
+
+const ACC251_TEST_SECRET='ACC251_FAKE_PRIVATE_HMAC_ONLY_X'.repeat(3);
+const ACC251_PATH='/internal/easystore/original-order-context/v1';
+const acc251SourceEnv=x=>({
+ TRENDOS_ORDER_CONTEXT_SOURCE_V1:'ENFORCE',
+ TRENDOS_ORDER_CONTEXT_HMAC_V1:ACC251_TEST_SECRET,
+ DB:x.db
+});
+const acc251ClientEnv=x=>({
+ EASYSTORE_ORDER_CONTEXT_SOURCE_V1:'REMOTE_REQUIRED',
+ TRENDOS_ORDER_CONTEXT_HMAC_V1:ACC251_TEST_SECRET,
+ TRENDOS_ORDER_CONTEXT:{fetch:r=>acc251Worker.fetch(r,acc251SourceEnv(x))}
+});
+const acc251Req=(overrides={})=>({
+ version:ACC251_VERSION,orderId:ORDER_ID,customerId:C,
+ issuedAt:Date.now(),nonce:'44444444-4444-4444-8444-444444444444',
+ ...overrides
+});
+async function acc251SignedHttp(x,request=acc251Req(),env=acc251SourceEnv(x),secret=ACC251_TEST_SECRET){
+ const body=JSON.stringify(request);
+ const sig=await acc251Sign(secret,body);
+ return acc251Worker.fetch(new Request('https://private-original-t12.internal'+ACC251_PATH,{
+  method:'POST',headers:{'content-type':'application/json','x-order-context-signature':sig},
+  body
+ }),env);
+}
+test('ACC251 private order source OFF by default and never deployed/wired to money routes',()=>{
+ const cfg=readFileSync('cloudflare-d1/easystore-finance-stage/wrangler.trendos-original-order-context-source.toml','utf8');
+ const money=readFileSync('cloudflare-d1/easystore-finance-stage/index.mjs','utf8');
+ const worker=readFileSync('cloudflare-d1/src/index_v2.js','utf8');
+ assert.match(cfg,/workers_dev = false/);
+ assert.match(cfg,/TRENDOS_ORDER_CONTEXT_SOURCE_V1 = "OFF"/);
+ assert.match(cfg,/FINANCE_WRITES = "OFF"/);
+ assert.match(cfg,/database_name = "trendos-staging"/);
+ assert.doesNotMatch(cfg,/database_name = "easystore-accounting-staging"/);
+ assert.doesNotMatch(money,/accounting-original-order-context-v1|trendos-original-order-context-source/);
+ assert.doesNotMatch(worker,/accounting-original-order-context-v1|trendos-original-order-context-source/);
+ assert.equal(ACC251_POLICY.financialAuthority,false);
+ assert.equal(ACC251_POLICY.invoicePostingAllowed,false);
+ assert.equal(ACC251_POLICY.allowedEffect,'prepare_context_only');
+});
+test('ACC251 existing T12 original inspected live by HTTP private service, signed V1 reply and zero T12 mutations',()=>withFixture(async x=>{
+ const before=x.raw.prepare('SELECT total_changes() n').get().n;
+ const env=acc251ClientEnv(x);
+ const context=await acc251Read(env,{orderId:ORDER_ID,customerId:C});
+ assert.equal(context.version,ACC251_VERSION);
+ assert.equal(context.orderId,ORDER_ID);
+ assert.equal(context.customerId,C);
+ assert.equal(context.contextOnly,true);
+ assert.equal(context.financialAuthority,false);
+ assert.equal(context.ownerAttested,false);
+ assert.equal(context.approvedLineEventsVerified,false);
+ assert.equal(context.sourceCreatedAt,'2026-09-21T14:13:20Z');
+ assert.deepEqual(context.lines.map(l=>l.department),['طباعة','ليزر']);
+ assert.deepEqual(context.operationalRevision.lineVersions.map(l=>l.version),[0,0]);
+ assert.equal(x.batches(),1);
+ assert.equal(x.raw.prepare('SELECT total_changes() n').get().n,before);
+ for(const privateText of ['FAKE CLIENT','01000000000','999002','FAKE_ACC228_SIGNED_SELECTOR_EVIDENCE']){
+  assert.equal(JSON.stringify(context).includes(privateText),false);
+ }
+}));
+test('ACC251 no valid SOURCE schema/capture, cancelled line or incorrect official customer => no signed business context',()=>withFixture(async x=>{
+ const noOwner=await acc251SignedHttp(x,acc251Req({customerId:'UNTRUSTED_CUSTOMER'}));
+ assert.equal(noOwner.status,409);
+ runtimeState(x,'4323-02','ملغى','jaber-synthetic');
+ runtimeEvent(x,'4323-02','طلب جديد','ملغى','jaber-synthetic');
+ const cancelled=await acc251SignedHttp(x);
+ assert.equal(cancelled.status,409);
+ await assert.rejects(()=>acc251Read(acc251ClientEnv(x),{orderId:ORDER_ID,customerId:C}),/ACC251_ORIGINAL_ORDER_SOURCE_REJECTED/);
+}));
+test('ACC251 rejects unrelated key, reusing CUSTOMER FACTS HMAC domain, old nonce and bad method/path',()=>withFixture(async x=>{
+ const input=acc251Req();
+ const raw=JSON.stringify(input);
+ const foreign=await signCustomerFactsForACC251(ACC251_TEST_SECRET,raw);
+ const cross=await acc251Worker.fetch(new Request('https://private-original-t12.internal'+ACC251_PATH,{
+  method:'POST',headers:{'x-order-context-signature':foreign},body:raw
+ }),acc251SourceEnv(x));
+ assert.equal(cross.status,401);
+ const wrong=await acc251SignedHttp(x,input,acc251SourceEnv(x),'WRONG_PRIVATE_KEY_X'.repeat(4));
+ assert.equal(wrong.status,401);
+ const stale=await acc251SignedHttp(x,acc251Req({issuedAt:Date.now()-120001}));
+ assert.equal(stale.status,400);
+ const noFlag=await acc251SignedHttp(x,input,{...acc251SourceEnv(x),TRENDOS_ORDER_CONTEXT_SOURCE_V1:'OFF'});
+ assert.equal(noFlag.status,503);
+ const badPath=await acc251Worker.fetch(new Request('https://private-original-t12.internal/not-a-private-path',{
+  method:'POST'
+ }),acc251SourceEnv(x));
+ assert.equal(badPath.status,404);
+ const badVerb=await acc251Worker.fetch(new Request('https://private-original-t12.internal'+ACC251_PATH),acc251SourceEnv(x));
+ assert.equal(badVerb.status,405);
+}));
+test('ACC251 rejects forged response fields and wrong pinned producer; never posts invoice',()=>withFixture(async x=>{
+ const client=acc251ClientEnv(x);
+ await assert.rejects(()=>acc251Read({
+  ...client,TRENDOS_ORDER_CONTEXT_HMAC_V1:'NOT_THE_PRODUCER_HMAC_X'.repeat(3)
+ },{orderId:ORDER_ID,customerId:C}),/ACC251_ORIGINAL_ORDER_SOURCE_REJECTED/);
+ const fake={...client,TRENDOS_ORDER_CONTEXT:{fetch:async req=>{
+  const r=await acc251Worker.fetch(req,acc251SourceEnv(x));
+  const payload=await r.json();
+  const forged={...payload,financialAuthority:true};
+  const body=JSON.stringify(forged);
+  return new Response(body,{status:200,headers:{
+   'x-order-context-signature':await acc251Sign(ACC251_TEST_SECRET,body)
+  }});
+ }}};
+ await assert.rejects(()=>acc251Read(fake,{orderId:ORDER_ID,customerId:C}),/ACC251_ORDER_REPLY_NOT_BOUND_TO_REQUEST/);
+}));
+test('ACC251 private worker fail-closes on T12 read errors without leaking data',()=>withFixture(async x=>{
+ const badDb={batch:async()=>{throw Error('SENSITIVE_SOURCE_ERROR')},prepare:x.db.prepare};
+ const env={...acc251SourceEnv(x),DB:badDb};
+ const response=await acc251SignedHttp(x,acc251Req(),env);
+ assert.equal(response.status,409);
+ assert.equal((await response.text()).includes('SENSITIVE_SOURCE_ERROR'),false);
+}));
+test('ACC251 exactly authenticates request nonce/order/actor binding; never accepts caller supplied approval',()=>withFixture(async x=>{
+ const p=acc251Req({approval:'APPROVED'});
+ assert.equal(acc251ValidRequest(p),false);
+ const response=await acc251SignedHttp(x,p);
+ assert.equal(response.status,400);
+ const valid=acc251Req();
+ assert.equal(acc251ValidRequest(valid),true);
+ const forged={version:ACC251_VERSION,orderId:ORDER_ID,customerId:C,issuedAt:valid.issuedAt,
+  nonce:valid.nonce,source:'TrendOS',contextOnly:true,financialAuthority:false,
+  ownerAttested:false,approvedLineEventsVerified:false,
+  sourceCreatedAt:'2026-09-21T14:13:20Z',lines:[{lineId:ORDER_ID+'-01',
+   department:'طباعة',ordinal:1}],operationalRevision:{customerVersion:1,
+  lineVersions:[{lineId:ORDER_ID+'-01',version:0}]}};
+ assert.equal(acc251ValidReply(forged,valid),true);
+ assert.equal(acc251ValidReply({...forged,nonce:'55555555-5555-4555-8555-555555555555'},valid),false);
+ assert.equal(acc251ValidReply({...forged,approvedLineEventsVerified:true},valid),false);
+ assert.equal(acc251ValidReply({...forged,price:10},valid),false);
 }));
 
 test('without D1 batch, broken transaction or broken schema return generic fail closed',async()=>{
