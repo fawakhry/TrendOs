@@ -23,9 +23,7 @@ if (process.env.CUSTOMER_STAGE_LOCAL_E2E !== '1' ||
     !fs.readFileSync('config.js','utf8').match(/TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED\s*=\s*false/))
   throw new Error('Refuse full portal browser test outside explicitly isolated OFF/loopback fixture');
 
-const expectedAncillary = [
-  'getPlatformAds', 'getMarketplace', 'getWhiteLabelSettings'
-];
+const expectedAncillary = []; // All five customer public-content startup reads are now Native Stage-only.
 async function main() {
   const browser = await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
   try {
@@ -152,11 +150,25 @@ async function main() {
       const old=diagnostic.legacy;
       const ancillary=diagnostic.actions.filter(x=>expectedAncillary.includes(x.action));
       assert.deepEqual(ancillary.map(x=>x.action).sort(),expectedAncillary.slice().sort(),
-        'Three remaining nonqualified public UI content actions must be explicitly audited');
+        'Customer boot must no longer ask employee dispatcher for any of the five public reads');
       assert.ok(ancillary.every(x=>x.status!=='success'),
         'Do not claim customer public content parity when Stage Native HTTP handlers are unavailable');
-      assert.match(await page.locator('#customerMarketplaceBoard').textContent(),/غير متاحة مؤقتًا/,
-        'Unavailable Native customer marketplace must not show an indefinite loading spinner');
+      await page.waitForFunction(()=>document.querySelector('#customerMarketplaceBoard').textContent.includes('LOCAL PUBLIC SHOP'),
+        null,{timeout:12000});
+      const marketText=await page.locator('#customerMarketplaceBoard').textContent();
+      assert.ok(!marketText.includes('PRIVATE_')&&!marketText.includes('PRIVATE INACTIVE SHOP'));
+      const vendor=page.locator('#customerMarketplaceBoard .market-vendor-card').first();
+      await vendor.click();
+      await page.waitForFunction(()=>document.querySelector('#customerMarketplaceProducts').textContent.includes('LOCAL PUBLIC PRINT'),
+        null,{timeout:8000});
+      const productsText=await page.locator('#customerMarketplaceProducts').textContent();
+      assert.ok(!productsText.includes('PRIVATE_')&&!productsText.includes('PRIVATE ORPHAN PRODUCT'));
+      await page.waitForFunction(()=>document.querySelector('#customerAdsBoard').textContent.includes('LOCAL PUBLIC OFFER'),
+        null,{timeout:8000});
+      const adText=await page.locator('#customerAdsBoard').textContent();
+      assert.ok(!adText.includes('PRIVATE_')&&!adText.includes('drive.google'));
+      assert.equal(await page.title(),'LOCAL PUBLIC PLATFORM - منصة الطلبات',
+        'Public white-label brand name was not rendered from protected D1');
       await page.waitForFunction(()=>document.querySelector('#customerFranchiseBranches').textContent.includes('LOCAL AREA'),null,{timeout:10000});
       await page.waitForFunction(()=>document.querySelector('#customerPlatformSections').textContent.includes('LOCAL SAFE SECTION'),null,{timeout:10000});
       const customerSectionCards=await page.locator('#customerPlatformSections').textContent();
@@ -176,8 +188,8 @@ async function main() {
       assert.equal(rawPublicBranches.branches.length,1);
       assert.equal(rawPublicBranches.branches[0].brandName,'LOCAL PUBLIC BRANCH');
       assert.ok(!JSON.stringify(rawPublicBranches).includes('PRIVATE_'));
-      assert.ok(network.filter(x=>x.path==='/v1/customer/native/public-content').length>=2,
-        'Both customer-only public D1 read routes must be used in real Chromium');
+      assert.ok(network.filter(x=>x.path==='/v1/customer/native/public-content').length>=5,
+        'All five customer public-content reads must use authenticated Stage D1');
       const sectionResult=await page.evaluate(()=>window.trendosCustomerNativeBrowserDispatchV0('getPlatformSections',{},null));
       assert.equal(sectionResult.sections.length,1);
       assert.equal(sectionResult.sections[0].name,'LOCAL SAFE SECTION');
@@ -232,6 +244,7 @@ async function main() {
       assert.deepEqual(pageErrors,[],'Original full UI JavaScript runtime errors');
       console.log('PASS: original full TrendOS index.html + app.js real Chromium login → real local Worker/D1 own orders → logout and replay denied');
       console.log('FULL_CUSTOMER_UI_UNWIRED_CONTENT_ACTIONS='+JSON.stringify(ancillary));
+      console.log('PASS: original customer home displays D1 public marketplace, text-only ads, platform brand, public sections and branches; private fields omitted');
       console.log('PASS: original customer Native READONLY sections and public branches sourced from isolated D1, no employee session and no private fields');
       console.log('FULL_CUSTOMER_UI_ACTION_AUDIT='+JSON.stringify(diagnostic.actions));
       console.log('FULL_UI_LEGACY_HTTP_CALLS='+old.length+'; REMOTE_ACTUAL_CONNECTIONS=0; BLOCKED_REMOTE_FONT_ATTEMPTS='+remoteAttempts.length);
