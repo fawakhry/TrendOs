@@ -1,0 +1,53 @@
+name: ACC253 private original T12 source worker OFFLINE NO_GO
+on:
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/t12-employee-order-finance-intake-sourceonly.mjs'
+      - 'cloudflare-d1/easystore-finance-stage/trendos-original-order-context-source.mjs'
+      - 'cloudflare-d1/easystore-finance-stage/wrangler.trendos-original-order-context-source.toml'
+      - 'tests/acc253_original_t12_private_source_sqlite_no_go.test.mjs'
+      - 'tests/fixtures/acc253-original-t12/**'
+      - '.github/workflows/acc253-original-t12-private-source-offline-no-go.yml'
+  push:
+    branches:
+      - 'integration/trendos-easystore-verified-offline-no-go-20261025'
+    paths:
+      - 'cloudflare-d1/src/t12-employee-order-finance-intake-sourceonly.mjs'
+      - 'cloudflare-d1/easystore-finance-stage/trendos-original-order-context-source.mjs'
+      - 'tests/acc253_original_t12_private_source_sqlite_no_go.test.mjs'
+permissions:
+  contents: read
+jobs:
+  private-source-disposable-sqlite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      FINANCE_RELEASE: NO_GO
+      FINANCE_WRITES: 'OFF'
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Offline immutable original T12 inspector + private fake HTTP pair
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test -z "$GOOGLE_APPLICATION_CREDENTIALS"
+          test "$FINANCE_RELEASE" = NO_GO
+          test "$FINANCE_WRITES" = OFF
+          node --check cloudflare-d1/src/t12-employee-order-finance-intake-sourceonly.mjs
+          node --check cloudflare-d1/easystore-finance-stage/trendos-original-order-context-source.mjs
+          node --check tests/acc253_original_t12_private_source_sqlite_no_go.test.mjs
+          node --test tests/acc253_original_t12_private_source_sqlite_no_go.test.mjs
+          echo 'ACC253_ONLY_TESTS_DISPOSABLE_LOCAL_SQLITE=PASS'
+          echo 'ACC253_SOURCE_WORKER_DEPLOYMENT=NO'
+          echo 'ACC253_ORIGINAL_STAGE_0005_0006_0035=MISSING_NOT_MODIFIED'
+          echo 'ACC253_REAL_CUSTOMER_FINANCE_APPROVAL=NO_GO'
