@@ -60,6 +60,12 @@ jobs:
           set -euo pipefail
           node --check cloudflare-d1/customer-stage/private-r2-integrity-ro-v0.mjs
           node --test tests/customer_stage_private_r2_integrity_off.test.mjs
+      - name: Verify immutable customer R2 quarantine D1 ledger — never scanned/printed
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/customer-portal-native-file-quarantine-ro-v0.mjs
+          node --test tests/customer_native_file_quarantine_off.test.mjs
+          python3 tests/customer_native_file_quarantine_sqlite.test.py -v
       - name: Recheck current customer browser and employee transport contracts
         run: |
           set -euo pipefail
