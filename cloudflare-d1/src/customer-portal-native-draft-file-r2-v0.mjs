@@ -94,6 +94,25 @@ SELECT f.file_id AS fileId,f.state AS state
        AND TRIM(COALESCE(other.legacy_chat_code,''))=a.portal_code)
  LIMIT 1
 `;
+// When source-only D1 quarantine migration 0040 adds its AFTER INSERT
+// audit row, D1's meta.changes reports both inserted rows. An honest TWO
+// rows-changed result is accepted ONLY after these two independently
+// authenticated PENDING + immutable QUARANTINED ledger readbacks.
+export const CUSTOMER_NATIVE_FILE_QUARANTINE_PROOF_SQL_V0=`
+SELECT q.file_id AS fileId,q.disposition AS disposition,
+       q.scan_completed AS scanCompleted,
+       q.print_release_authorized AS printReleaseAuthorized
+  FROM customer_portal_native_file_quarantine_v1 q
+  JOIN customer_portal_native_draft_files_v1 f ON f.file_id=q.file_id
+ WHERE q.file_id=? AND q.draft_id=? AND q.item_id=?
+   AND q.customer_id=f.customer_id AND q.draft_id=f.draft_id
+   AND q.item_id=f.item_id AND q.sha256_hex=f.sha256_hex
+   AND q.byte_size=f.byte_size AND q.content_type=f.content_type
+   AND q.sha256_hex=? AND q.byte_size=? AND q.content_type=?
+   AND q.disposition='QUARANTINED' AND q.scan_completed=0
+   AND q.print_release_authorized=0 AND f.state='PENDING'
+ LIMIT 1
+`;
 export const CUSTOMER_NATIVE_FILE_FINALIZE_CAS_SQL_V0=`
 UPDATE customer_portal_native_draft_files_v1
    SET state='READY',updated_at_ms=?
@@ -152,7 +171,25 @@ export async function storeNativeCustomerDraftFileV0({
       .bind(fileId,requestKey,sum,contentType,bytes.byteLength,objectKey,
         nowMs,nowMs,itemId,draftId,mac,nowMs,nowMs).run();
     const count=reserved?.meta?.changes;
-    if(count!==0&&count!==1)return denied(503,'CUSTOMER_FILE_RESERVE_UNVERIFIED');
+    if(count!==0&&count!==1&&count!==2)
+      return denied(503,'CUSTOMER_FILE_RESERVE_UNVERIFIED');
+    if(count===2){
+      // D1 counted BOTH the file reserve and the mandatory quarantine
+      // INSERT trigger. Never rely on that number alone to call R2.put:
+      // confirm exact ACTIVE owner-scoped PENDING file AND quarantine proof.
+      const pending=await db.prepare(CUSTOMER_NATIVE_FILE_READBACK_SQL_V0)
+        .bind(requestKey,draftId,itemId,sum,contentType,bytes.byteLength,
+          mac,nowMs,nowMs).first();
+      if(!pending||pending.fileId!==fileId||pending.state!=='PENDING')
+        return denied(503,'CUSTOMER_FILE_TRIGGER_RESERVE_UNVERIFIED');
+      const proof=await db.prepare(CUSTOMER_NATIVE_FILE_QUARANTINE_PROOF_SQL_V0)
+        .bind(fileId,draftId,itemId,sum,bytes.byteLength,contentType).first();
+      if(!proof||proof.fileId!==fileId||
+         proof.disposition!=='QUARANTINED'||
+         Number(proof.scanCompleted)!==0||
+         Number(proof.printReleaseAuthorized)!==0)
+        return denied(503,'CUSTOMER_FILE_QUARANTINE_PROOF_REQUIRED');
+    }
     // Duplicate is intentionally NOT written again. Only an owner-authorized,
     // identical READY record is considered successful idempotent replay.
     if(count===0){
