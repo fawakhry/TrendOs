@@ -18,34 +18,42 @@ async function setup(opts={}){
  };
  const trace=[];
  let sessions=0,reads=0,objects=0;
- const db={prepare(sql){
-  const kind=sql.includes('SELECT a.customer_id AS customerId')?'auth':
-    sql.includes('SELECT d.draft_id AS draftId')?'draft':
-    sql.includes('SELECT f.file_id AS fileId')?'files':'UNEXPECTED';
-  assert.notEqual(kind,'UNEXPECTED','Unauthorized/altering D1 SQL');
-  assert.match(sql,/SELECT/);
-  return {bind(...args){trace.push({kind,args});return{
-   async first(){
-    assert.ok(['auth','draft'].includes(kind));
-    if(kind==='auth') {
-      sessions++;
-      return (opts.revokeAtEnd && sessions>1)||opts.denyAuth?
-        null:{customerId:'LOCAL-C1'};
-    }
-    return opts.denyDraft?null:{draftId:DRAFT};
-   },
-   async all(){
-    assert.equal(kind,'files');reads++;
-    if(opts.noFiles)return {results:[]};
-    if(opts.tooMany)return {results:Array.from({length:6},()=>row)};
-    const r={...row};
-    if(opts.pending)r.state='PENDING';
-    if(opts.invalidKey)r.objectKey='other/'+FILE;
-    if(opts.invalidId)r.fileId='invalid';
-    if(opts.metadataChanged&&reads>1)r.sha256Hex='ff'.repeat(32);
-    return {results:[r]};
-   }
-  }};}}
+ const db={
+  prepare(sql){
+    const kind=sql.includes('SELECT a.customer_id AS customerId')?'auth':
+      sql.includes('SELECT d.draft_id AS draftId')?'draft':
+      sql.includes('SELECT f.file_id AS fileId')?'files':'UNEXPECTED';
+    assert.notEqual(kind,'UNEXPECTED','Unauthorized/altering D1 SQL');
+    assert.match(sql,/SELECT/);
+    return {
+      bind(...args){
+        trace.push({kind,args});
+        return {
+          async first(){
+            assert.ok(['auth','draft'].includes(kind));
+            if(kind==='auth'){
+              sessions++;
+              return (opts.revokeAtEnd&&sessions>1)||opts.denyAuth?
+                null:{customerId:'LOCAL-C1'};
+            }
+            return opts.denyDraft?null:{draftId:DRAFT};
+          },
+          async all(){
+            assert.equal(kind,'files');
+            reads++;
+            if(opts.noFiles)return {results:[]};
+            if(opts.tooMany)return {results:Array.from({length:6},()=>row)};
+            const r={...row};
+            if(opts.pending)r.state='PENDING';
+            if(opts.invalidKey)r.objectKey='other/'+FILE;
+            if(opts.invalidId)r.fileId='invalid';
+            if(opts.metadataChanged&&reads>1)r.sha256Hex='ff'.repeat(32);
+            return {results:[r]};
+          }
+        };
+      }
+    };
+  }
  };
  const bucket={async get(key){
   objects++;assert.equal(key,'customer-drafts/'+FILE);
