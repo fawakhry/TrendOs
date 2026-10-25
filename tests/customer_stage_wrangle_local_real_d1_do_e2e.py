@@ -285,7 +285,8 @@ def main():
               "TRENDOS_CUSTOMER_NATIVE_DRAFT_CREATE_V0_ENABLED",
               "TRENDOS_CUSTOMER_NATIVE_DRAFT_ITEM_V0_ENABLED",
               "TRENDOS_CUSTOMER_NATIVE_DRAFT_FILE_R2_V0_ENABLED",
-              "TRENDOS_CUSTOMER_NATIVE_DRAFT_PREFLIGHT_RO_V0_ENABLED"
+              "TRENDOS_CUSTOMER_NATIVE_DRAFT_PREFLIGHT_RO_V0_ENABLED",
+              "TRENDOS_CUSTOMER_PRIVATE_R2_INTEGRITY_RO_V0_ENABLED"
             ):
                 original=name+' = "false"'
                 check(config.count(original)==1,"Invalid OFF gate "+name)
@@ -486,6 +487,39 @@ def main():
             status,get_blocked=request(port,file_route,token=token)
             check(status==405 and not get_blocked.get("success"),
                   "Customer R2 file upload route allowed GET download")
+            # READONLY byte-integrity proof over the actual PRIVATE local R2
+            # object. No file bytes, keys or per-file metadata in response.
+            integrity_route=draft_route+"/"+c1_draft+"/files-integrity"
+            status,integrity_unauth=request(port,integrity_route)
+            check(status==401 and not integrity_unauth.get("integrityNowVerified"),
+                  "Private R2 integrity route accepted no D1 session")
+            status,integrity_cross=request(port,integrity_route,token=token2)
+            check(status==404 and not integrity_cross.get("integrityNowVerified"),
+                  "C2 could inspect C1 private R2 integrity status")
+            status,integrity_wrong_origin=request(port,integrity_route,
+                token=token,origin="https://evil.test")
+            check(status==403 and not integrity_wrong_origin.get("integrityNowVerified"),
+                  "Private R2 integrity route allowed foreign Origin")
+            status,integrity_get=request(port,integrity_route,token=token)
+            check(status==200 and integrity_get.get("integrityNowVerified") is True
+                  and integrity_get.get("verifiedFileCount")==1
+                  and integrity_get.get("provisionalReadOnlyObservation") is True
+                  and integrity_get.get("malwareScanComplete") is False
+                  and integrity_get.get("eligibleForT12FileHandoff") is False
+                  and integrity_get.get("officialOrderCreated") is False
+                  and integrity_get.get("productionWriteAuthorized") is False
+                  and saved_file["fileId"] not in json.dumps(integrity_get)
+                  and "customer-drafts/" not in json.dumps(integrity_get),
+                  "Actual local R2 bytes/SHA256/D1 snapshot not verified read-only")
+            status,integrity_query=request(port,integrity_route+"?customerId=LOCAL-C2",
+                token=token)
+            check(status==400 and not integrity_query.get("integrityNowVerified"),
+                  "Private R2 integrity accepted caller supplied customerId")
+            status,integrity_post=request(port,integrity_route,
+                method="POST",token=token)
+            check(status==405 and not integrity_post.get("integrityNowVerified"),
+                  "Private R2 integrity accepted POST mutation")
+            print("PASS: REAL LOCAL R2 byte SHA256 and D1 metadata/status recheck with ACTIVE C1 session, C2 isolation, NO malware scan or T12 approval")
             print("PASS: REAL LOCAL Wrangler private R2 plus D1 PENDING/READY CAS, binary MIME, idempotent replay, C1/C2 scope, no public GET")
             status,item_repeat=request(port,item_route,method="POST",token=token,
                 payload=item_payload)
@@ -572,6 +606,9 @@ def main():
             status,revoked_preflight=request(port,preflight_c1,token=token)
             check(status==404 and not revoked_preflight.get("preflightEligible"),
                   "Revoked Native C1 session still saw a draft preflight")
+            status,revoked_integrity=request(port,integrity_route,token=token)
+            check(status==401 and not revoked_integrity.get("integrityNowVerified"),
+                  "Revoked C1 D1 session could still verify private R2 file")
             status,revoked_public=request(port,
                     "/v1/customer/native/public-content?view=sections",token=token)
             check(status==401 and revoked_public.get("code")=="CUSTOMER_SESSION_REJECTED",
