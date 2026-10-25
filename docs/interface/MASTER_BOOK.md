@@ -427,3 +427,13 @@
 - **المخاطر/الرجوع:** الخطر المتبقي هو اختلاف الترتيب المرغوب أو حقن عناصر من JS/الثيم أثناء التشغيل. الرجوع = revert commit `ccf71aad...` فقط؛ لا قاعدة بيانات أو migrations.
 - **مسار المراجعة:** اختبار CI المرتبط PR #260، ثم قراءة screenshots موبايل/كمبيوتر من Staging عند توفره، ثم مراجعة ترتيب الأزرار مع المالك قبل تثبيت الجزء.
 
+
+### UI-LOG-004 — اختبار إعادة الترتيب على GitHub — 2026-10-25
+
+- **Branch / HEAD:** `review/ui01-reorder-existing-buttons-20261025` / `ccf71aad7596fcfa0a6f694e8f6d0d5900d0bf82`.
+- **نتيجة CI:** [TrendOS A61 browser Cloud transport regression run #40213501751](https://github.com/fawakhry/TrendOs/actions/runs/40213501751) = **SUCCESS** (`isolated-regression`). تغير `index.html` فقط، بلا JavaScript/CSS جديد.
+- **فحص Cloudflare المنفصل:** `Workers Builds: trendos-tasks-v3-t1-preview-20260914` = **FAILURE** على نفس commit (خدمة مستقلة غير مؤكدة المسار ولا تعني بالضرورة فشل كود الواجهة). لم يُصلح في هذا التغيير؛ لا تغييرات Settings من هنا.
+- **PR status:** [#260](https://github.com/fawakhry/TrendOs/pull/260) `OPEN DRAFT / 1 file changed / NOT MERGED`. و[PR #38](https://github.com/fawakhry/TrendOs/pull/38) القديم `CLOSED UNMERGED`.
+- **الحالة النهائية لهذه المرحلة المصدرية:** `SOURCE_REORDER_PASS / A61_CI_PASS / UNRELATED_CLOUDFLARE_CHECK_FAILED / STAGING_NOT_VERIFIED / NOT_FIXED / NO_DEPLOY`.
+- **الخطوة التالية:** معاينة دور موظف/مالك ببيئة staged مؤهلة للموبايل والكمبيوتر. عدم تحويل تغيير ترتيب HTML إلى LIVE/FIXED بناءً على CI فقط.
+
