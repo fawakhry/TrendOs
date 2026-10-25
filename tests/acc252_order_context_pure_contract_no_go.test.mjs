@@ -25,7 +25,7 @@ const source=()=>({status:200,body:{
  financeAuthorized:false,canRequestInvoice:false,posted:false,
  connectorEventPublished:false,orderId:ORDER,officialCustomerId:CUSTOMER,
  sourceCreatedAt:'2026-09-21T14:13:20Z',lineCount:1,
- lines:[line],operationalRevision:{
+ lines:[{...line}],operationalRevision:{
  customerVersion:1,lineVersions:[{lineId:line.lineId,version:0}]
  }
 }});
