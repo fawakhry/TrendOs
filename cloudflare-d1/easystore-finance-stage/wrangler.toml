@@ -13,6 +13,8 @@ FINANCE_WRITES = "OFF"
 # finance READONLY D1 control, private service bindings and nonempty grants.
 # Never set ENFORCE in a build or migrate production as a shortcut.
 EASYSTORE_STAGE_READONLY_API_V1 = "OFF"
+# ACC253 temporary signed-source diagnostic always OFF in checked-in config.
+EASYSTORE_STAGE_SIGNED_SOURCE_SMOKE_V1 = "OFF"
 EASYSTORE_ACCOUNTING_D1_WRITES = "false"
 EASYSTORE_ACCOUNTING_D1_WRITE_MODE = "OFF"
 EASYSTORE_FINANCE_PHASE1_SCOPE_V1 = "ENFORCE"

@@ -3,6 +3,7 @@
  * preview only; no credentials, customers, employee tokens or SQL mutations.
  */
 const H='/internal/acc252/stage-service-boundary/negative';
+const S='/internal/acc253/stage-service-boundary/signed';
 const refs=[
   ['TRENDOS_CUSTOMER_FACTS','/internal/easystore/customer-facts/v1'],
   ['TRENDOS_EMPLOYEE_SESSION','/internal/easystore/native-employee-session/v1']
@@ -20,7 +21,36 @@ async function call(binding,path,method='GET',body){
   return r.status;
 }
 export default {async fetch(request,env){
-  if(new URL(request.url).pathname!==H)return result('not-found',404);
+  const uri=new URL(request.url).pathname;
+  if(uri!==H && uri!==S)return result('not-found',404);
+  if(uri===S) {
+    if(request.method!=='GET')return result('method-not-allowed',405);
+    if(typeof env?.EASYSTORE_FINANCE?.fetch!=='function')
+      return result('private-finance-binding-missing');
+    try {
+      const signed=await env.EASYSTORE_FINANCE.fetch(new Request(
+        'https://isolated-finance-service.internal/internal/acc253/signed-source-smoke',
+        {method:'POST'}));
+      const body=await signed.json();
+      if(signed.status!==200||body?.success!==true||
+         body?.code!=='ACC253_LIVE_SIGNED_INTERNAL_STAGE_SOURCE_PASS'||
+         body?.customerFactsHmacAuthenticated!==true||
+         body?.employeePacketHmacAccepted!==true||
+         body?.nativeAuthControl!=='OFF'||
+         body?.financeWrites!=='OFF'||
+         body?.employeeLoginQualified!==false||
+         body?.invoicePostingQualified!==false)
+        return result('signed-source-stage-private-proof-unqualified',503);
+      return new Response(JSON.stringify({
+        success:true,code:'PRIVATE_ACC253_SIGNED_SOURCE_LIVE_PASS',
+        customerFactsHmacAuthenticated:true,
+        employeePacketHmacAccepted:true,financeWrites:'OFF',
+        nativeAuthControl:'OFF',realEmployeeLogin:false,
+        customerDataFetched:false,financePost:false
+      }),{status:200,headers:{'content-type':'application/json; charset=utf-8',
+        'cache-control':'no-store'}});
+    }catch{return result('signed-source-private-preview-unavailable');}
+  }
   if(request.method!=='GET')return result('method-not-allowed',405);
   if(!env?.EASYSTORE_FINANCE?.fetch ||
      refs.some(([name])=>typeof env[name]?.fetch!=='function'))

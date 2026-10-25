@@ -6,10 +6,12 @@
  * TrendOS customer/order API are implemented and independently qualified.
  */
 import { handleEmployeeAccountingNativeRequest } from '../src/employee-accounting-native-v1.mjs';
+import { signedSourceStageSmoke } from './stage-signed-source-smoke-v1.mjs';
 
 const HEALTH = '/v1/employee/accounting/health';
 const API = '/v1/employee/accounting';
 const TABLE_COUNT = 22;
+const SIGNED_SOURCE_SMOKE = '/internal/acc253/signed-source-smoke';
 const READ_ACTIONS = new Set([
   'getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858',
   'getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers',
@@ -76,6 +78,26 @@ function reply(code, status = 503, more = {}) {
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname.replace(/\/+$/, '') || '/';
+    // ACC253: diagnostics are ONLY Stage, ONLY while ALL finance controls OFF,
+    // require an explicit temporary provider-side toggle. Never a money API,
+    // never a customer-directory endpoint and never usable in READONLY/CANARY.
+    if (path === SIGNED_SOURCE_SMOKE) {
+      if (request.method !== 'POST') return reply('method-not-allowed',405);
+      if (env?.EASYSTORE_STAGE_SIGNED_SOURCE_SMOKE_V1 !== 'ENFORCE' ||
+          env?.FINANCE_RELEASE !== 'NO_GO' || env?.FINANCE_WRITES !== 'OFF' ||
+          env?.EASYSTORE_STAGE_READONLY_API_V1 !== 'OFF' ||
+          env?.EASYSTORE_ACCOUNTING_D1_WRITES !== 'false' ||
+          env?.EASYSTORE_ACCOUNTING_D1_WRITE_MODE !== 'OFF' ||
+          env?.ACCOUNTING_FINANCE_GRANTS_V1 !== '{"version":1,"grants":[]}' ||
+          env?.EASYSTORE_CUSTOMER_SOURCE_V1 !== 'REMOTE_REQUIRED' ||
+          env?.EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1 !== 'REMOTE_NATIVE_REQUIRED' ||
+          !env?.DB) return reply('isolated-stage-signed-source-smoke-disabled');
+      try {
+        if (await stageSchema(env) !== 'OFF')
+          return reply('isolated-stage-signed-source-smoke-control-not-off');
+        return await signedSourceStageSmoke(env);
+      } catch { return reply('isolated-stage-signed-source-smoke-unavailable'); }
+    }
     // Any money write remains impossible at this Stage gateway: native D1
     // must be READONLY, all authority flags OFF, and action explicitly a read.
     if (path === API) {

@@ -116,3 +116,31 @@ test('read-only Stage gateway is explicitly opt-in, never enables money writes',
   assert.equal(h.status,200);
   assert.equal((await h.json()).readOnlyApiEnabled,true);
 });
+
+test('ACC253 Stage signed-source smoke disabled by default on OFF finance D1',async()=>{
+  const url='https://example.invalid/internal/acc253/signed-source-smoke';
+  const res=await worker.fetch(new Request(url,{method:'POST'}),{
+    DB:fakeDb(),FINANCE_WRITES:'OFF',FINANCE_RELEASE:'NO_GO',
+    EASYSTORE_STAGE_READONLY_API_V1:'OFF',
+    EASYSTORE_ACCOUNTING_D1_WRITES:'false',
+    EASYSTORE_ACCOUNTING_D1_WRITE_MODE:'OFF',
+    ACCOUNTING_FINANCE_GRANTS_V1:'{"version":1,"grants":[]}'
+  });
+  assert.equal(res.status,503);
+  assert.equal((await res.json()).code,'isolated-stage-signed-source-smoke-disabled');
+});
+test('ACC253 Stage signed bridge has no money-authority under READONLY D1',async()=>{
+  const url='https://example.invalid/internal/acc253/signed-source-smoke';
+  const res=await worker.fetch(new Request(url,{method:'POST'}),{
+    DB:fakeDb('READONLY'),FINANCE_WRITES:'OFF',FINANCE_RELEASE:'NO_GO',
+    EASYSTORE_STAGE_READONLY_API_V1:'OFF',
+    EASYSTORE_STAGE_SIGNED_SOURCE_SMOKE_V1:'ENFORCE',
+    EASYSTORE_ACCOUNTING_D1_WRITES:'false',
+    EASYSTORE_ACCOUNTING_D1_WRITE_MODE:'OFF',
+    ACCOUNTING_FINANCE_GRANTS_V1:'{"version":1,"grants":[]}',
+    EASYSTORE_CUSTOMER_SOURCE_V1:'REMOTE_REQUIRED',
+    EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1:'REMOTE_NATIVE_REQUIRED'
+  });
+  assert.equal(res.status,503);
+  assert.equal((await res.json()).code,'isolated-stage-signed-source-smoke-control-not-off');
+});
