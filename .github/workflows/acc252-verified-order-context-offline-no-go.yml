@@ -1,0 +1,50 @@
+name: ACC252 verified original order HMAC contract SAFE MERGE OFFLINE NO_GO
+on:
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/accounting-original-order-context-v1.mjs'
+      - 'tests/acc252_order_context_pure_contract_no_go.test.mjs'
+      - '.github/workflows/acc252-verified-order-context-offline-no-go.yml'
+  push:
+    branches:
+      - 'integration/trendos-easystore-verified-offline-no-go-20261025'
+    paths:
+      - 'cloudflare-d1/src/accounting-original-order-context-v1.mjs'
+      - 'tests/acc252_order_context_pure_contract_no_go.test.mjs'
+      - '.github/workflows/acc252-verified-order-context-offline-no-go.yml'
+permissions:
+  contents: read
+jobs:
+  pure-source-contract-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      FINANCE_RELEASE: NO_GO
+      FINANCE_WRITES: 'OFF'
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Source contract, no Cloudflare, no finance
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test -z "$GOOGLE_APPLICATION_CREDENTIALS"
+          test "$FINANCE_RELEASE" = NO_GO
+          test "$FINANCE_WRITES" = OFF
+          node --check cloudflare-d1/src/accounting-original-order-context-v1.mjs
+          node --check tests/acc252_order_context_pure_contract_no_go.test.mjs
+          node --test tests/acc252_order_context_pure_contract_no_go.test.mjs
+          echo 'ACC252_SAFE_INTEGRATION_MERGE_ONLY=YES'
+          echo 'ACC252_LIVE_WORKER=NOT_DEPLOYED'
+          echo 'ACC252_ORIGINAL_ORDER_STAGE_SCHEMA=UNQUALIFIED'
+          echo 'ACC252_SIGNED_REAL_LINE_APPROVALS=NOT_ATTESTED'
+          echo 'FINANCE_RELEASE=NO_GO'
