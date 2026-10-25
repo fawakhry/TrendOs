@@ -1,0 +1,18 @@
+# ACC252 temporary Wrangler --remote PREVIEW ONLY. Not a deployed service.
+name = "easystore-acc252-private-boundary-preview-only"
+main = "./private-stage-service-boundary-probe.mjs"
+compatibility_date = "2026-10-23"
+workers_dev = false
+
+# IMPORTANT: zero SQL bindings, zero secrets, no production or public route.
+[[services]]
+binding = "TRENDOS_CUSTOMER_FACTS"
+service = "trendos-customer-facts-stage-source"
+
+[[services]]
+binding = "TRENDOS_EMPLOYEE_SESSION"
+service = "trendos-native-session-stage-source"
+
+[[services]]
+binding = "EASYSTORE_FINANCE"
+service = "easystore-accounting-staging-api"

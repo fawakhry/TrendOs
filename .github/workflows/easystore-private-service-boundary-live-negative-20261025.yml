@@ -1,0 +1,116 @@
+name: ACC252 original three PRIVATE Stage Workers signed-transport reject/health check
+# REMOTE PREVIEW ONLY; no deploy, D1 write, employee token or secret.
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths:
+      - '.github/workflows/easystore-private-service-boundary-live-negative-20261025.yml'
+permissions:
+  contents: read
+concurrency:
+  group: easystore-accounting-staging-exclusive-original-schema-20261024
+  cancel-in-progress: false
+jobs:
+  private-boundary-provider-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CI: 'true'
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CFG: cloudflare-d1/easystore-finance-stage/wrangler.private-stage-service-boundary-probe.toml
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify exact existing PRIVATE services, no exposed route or D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          python3 - <<'PY'
+          import pathlib,tomllib
+          p=pathlib.Path('cloudflare-d1/easystore-finance-stage')
+          probe=tomllib.loads((p/'wrangler.private-stage-service-boundary-probe.toml').read_text())
+          assert probe['workers_dev'] is False and probe['name']=='easystore-acc252-private-boundary-preview-only'
+          assert not probe.get('routes') and not probe.get('d1_databases') and not probe.get('vars')
+          assert {x['binding']:x['service'] for x in probe['services']}=={
+            'TRENDOS_EMPLOYEE_SESSION':'trendos-native-session-stage-source',
+            'TRENDOS_CUSTOMER_FACTS':'trendos-customer-facts-stage-source',
+            'EASYSTORE_FINANCE':'easystore-accounting-staging-api'}
+          fin=tomllib.loads((p/'wrangler.toml').read_text())
+          assert fin['workers_dev'] is False
+          assert fin['d1_databases']==[{'binding':'DB','database_name':'easystore-accounting-staging',
+            'database_id':'c2fe1a54-90f5-4e6f-9d51-80ce23e21328'}]
+          assert fin['vars']['FINANCE_WRITES']=='OFF'
+          assert fin['vars']['FINANCE_RELEASE']=='NO_GO'
+          assert fin['vars']['EASYSTORE_STAGE_READONLY_API_V1']=='OFF'
+          assert fin['vars']['ACCOUNTING_FINANCE_GRANTS_V1']=='{"version":1,"grants":[]}'
+          print('TEMPORARY_PROBE_PRIVATE_NO_DB_NO_SECRET=PASS')
+          PY
+      - name: Install pinned Cloudflare Wrangler
+        shell: bash
+        run: npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/acc252-cli" wrangler@4.152.0
+      - name: Run TEMPORARY remote Stage service-binding preview, negative HMAC and finance hard-deny
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const cp=require('node:child_process'),fs=require('node:fs'),path=require('node:path');
+          const cli=process.env.RUNNER_TEMP+'/acc252-cli/node_modules/.bin/wrangler';
+          const log=path.join(process.env.RUNNER_TEMP,'acc252-private-preview.log');
+          const stream=fs.createWriteStream(log,{flags:'w',mode:0o600});
+          const proc=cp.spawn(cli,['dev','--remote','--ip','127.0.0.1','--port','8791',
+            '--config',process.env.CFG,'--log-level','error'],{
+              env:{...process.env,CI:'true',BROWSER:'none'},stdio:['ignore','pipe','pipe']
+            });
+          proc.stdout.pipe(stream);proc.stderr.pipe(stream);
+          const delay=ms=>new Promise(r=>setTimeout(r,ms));
+          const endpoint='http://127.0.0.1:8791/internal/acc252/stage-service-boundary/negative';
+          (async()=>{
+            try{
+              let last='PREVIEW_NOT_READY',ok=false;
+              for(let i=0;i<35;i++){
+                if(proc.exitCode!==null)throw Error('CLOUDFLARE_PREVIEW_STOPPED');
+                try{
+                  const r=await fetch(endpoint,{signal:AbortSignal.timeout(6500)});
+                  const v=await r.json();
+                  if(r.status===200&&v?.success===true&&v.code==='PRIVATE_STAGE_BOUNDARY_NEGATIVE_LIVE_PASS'&&
+                     v.checks?.TRENDOS_CUSTOMER_FACTS?.methodDenied===true&&
+                     v.checks?.TRENDOS_CUSTOMER_FACTS?.unsignedDenied===true&&
+                     v.checks?.TRENDOS_EMPLOYEE_SESSION?.methodDenied===true&&
+                     v.checks?.TRENDOS_EMPLOYEE_SESSION?.unsignedDenied===true&&
+                     v.checks?.financeHealth===true&&
+                     v.checks?.financeInvoiceDenied===true&&
+                     v.financialAuthority===false&&v.readsEnabled===false){
+                    console.log('PRIVATE_STAGE_SOURCE_SERVICE_BOUNDARIES_LIVE=PASS_2_OF_2');
+                    console.log('PRIVATE_STAGE_HMAC_UNSIGNED_REJECTION_LIVE=PASS_2_OF_2');
+                    console.log('PRIVATE_STAGE_FINANCE_HEALTH_LIVE=PASS');
+                    console.log('PRIVATE_STAGE_FINANCE_INVOICE_HARD_DENY_LIVE=PASS');
+                    ok=true;break;
+                  }
+                  last='HTTP_'+r.status+'_'+String(v?.code||'unknown').slice(0,90);
+                }catch(e){last='PREVIEW_CONNECTION_'+String(e?.name||'error');}
+                await delay(1200);
+              }
+              if(!ok)throw Error('PRIVATE_STAGE_BOUNDARY_LIVE_UNQUALIFIED_'+last);
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+                '## ACC252 signed transport Stage-boundary live negative test\n\n'+
+                '- REAL private Cloudflare service binding to original customer and employee Stage Workers: 2/2\n'+
+                '- GET denied 405, unsigned POST denied 401 on both original sources\n'+
+                '- REAL independent original finance Worker health: 200, 22 tables, OFF\n'+
+                '- Invoice financial POST still denied 503\n'+
+                '- NO real employee login, customer identities, money writes, D1 changes, public routes or provider secrets read\n'+
+                '- This does NOT establish matched HMAC signing, authenticated sessions, cashier grants or financial GO\n');
+            }finally{
+              proc.kill('SIGTERM');await delay(800);
+              if(proc.exitCode===null)proc.kill('SIGKILL');
+              stream.end();
+            }
+          })().catch(e=>{console.error('ACC252_SAFE_STOP: '+String(e.message).slice(0,170));process.exitCode=1});
+          NODE
