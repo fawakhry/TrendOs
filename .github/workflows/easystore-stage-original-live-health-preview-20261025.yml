@@ -1,0 +1,161 @@
+name: ACC250 EasyStore ORIGINAL Stage Worker remote live D1 health (NO MONEY)
+# Owner requested continue existing finance implementation. This one-shot
+# GitHub Actions job runs Wrangler's TEMPORARY Cloudflare preview, NOT
+# wrangler deploy or a public route. It reads the EXISTING separated Stage
+# finance D1 only; all financial POST actions must remain hard denied.
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths: ['.github/workflows/easystore-stage-original-live-health-preview-20261025.yml']
+permissions:
+  contents: read
+concurrency:
+  group: easystore-accounting-staging-exclusive-original-schema-20261024
+  cancel-in-progress: false
+jobs:
+  stage-live-original-worker-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CI: 'true'
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      STAGE_UUID: c2fe1a54-90f5-4e6f-9d51-80ce23e21328
+      OPS_UUID: bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6
+      CFG: cloudflare-d1/easystore-finance-stage/wrangler.toml
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate exact original OFF-only private Stage source and no production bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID"
+          python3 - <<'PY'
+          import pathlib,tomllib,json
+          p=pathlib.Path('cloudflare-d1/easystore-finance-stage')
+          cfg=tomllib.loads((p/'wrangler.toml').read_text())
+          assert cfg['name']=='easystore-accounting-staging-api'
+          assert cfg['workers_dev'] is False and not cfg.get('routes')
+          assert cfg['d1_databases']==[{'binding':'DB','database_name':'easystore-accounting-staging','database_id':'c2fe1a54-90f5-4e6f-9d51-80ce23e21328'}]
+          v=cfg['vars']
+          assert v['FINANCE_RELEASE']=='NO_GO' and v['FINANCE_WRITES']=='OFF'
+          assert v['EASYSTORE_STAGE_READONLY_API_V1']=='OFF'
+          assert v['EASYSTORE_ACCOUNTING_D1_WRITES']=='false' and v['EASYSTORE_ACCOUNTING_D1_WRITE_MODE']=='OFF'
+          assert json.loads(v['ACCOUNTING_FINANCE_GRANTS_V1'])=={'version':1,'grants':[]}
+          assert v['EASYSTORE_CUSTOMER_SOURCE_V1']=='REMOTE_REQUIRED'
+          assert v['EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1']=='REMOTE_NATIVE_REQUIRED'
+          assert len(cfg['services'])==2
+          s=(p/'index.mjs').read_text()
+          assert "if (!readGatewayConfigured(env))" in s
+          assert "readOnlyApiEnabled: mode === 'READONLY'" in s
+          print('ORIGINAL_STAGE_SOURCE_OFF_NO_PRODUCTION=PASS')
+          PY
+      - name: Install pinned provider client
+        run: npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/acc250" wrangler@4.152.0
+      - name: Provider-confirm exact Stage D1 and native 22/22 schema before preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/acc250/node_modules/.bin/wrangler"
+          "$CLI" d1 list --json --config "$CFG" > "$RUNNER_TEMP/list.json"
+          python3 cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py inspect --wrangler "$CLI" > "$RUNNER_TEMP/finance-schema.json"
+          node <<'NODE'
+          const fs=require('fs'),d=process.env.RUNNER_TEMP;
+          const list=JSON.parse(fs.readFileSync(d+'/list.json','utf8'));
+          const state=JSON.parse(fs.readFileSync(d+'/finance-schema.json','utf8'));
+          if(list.filter(x=>x.uuid===process.env.STAGE_UUID&&x.name==='easystore-accounting-staging').length!==1||
+             list.filter(x=>x.uuid===process.env.OPS_UUID&&x.name==='trendos-staging').length!==1||
+             state.target?.uuid!==process.env.STAGE_UUID||
+             state.inspectState!=='NATIVE_SCHEMA_VERIFIED_WRITES_OFF'||
+             state.userTables?.length!==22||state.financeWrites!=='OFF'||
+             state.financeRelease!=='NO_GO')throw Error('LIVE_STAGE_DB_PROVIDER_PREVIEW_STOP');
+          console.log('PROVIDER_EXACT_FINANCE_STAGE_22_TABLES_OFF=PASS');
+          NODE
+      - name: Run TEMPORARY Cloudflare remote preview on runner loopback and test live finance D1 health
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const cp=require('node:child_process'),fs=require('node:fs'),path=require('node:path');
+          const wrangler=process.env.RUNNER_TEMP+'/acc250/node_modules/.bin/wrangler';
+          const logs=path.join(process.env.RUNNER_TEMP,'acc250-private-wrangler-preview.log');
+          const stream=fs.createWriteStream(logs,{flags:'w',mode:0o600});
+          // This is a temporary Cloudflare preview, never deployment to the
+          // permanent Stage Worker; local endpoint listens ONLY on loopback.
+          const proc=cp.spawn(wrangler,['dev','--remote','--ip','127.0.0.1','--port','8787',
+            '--config',process.env.CFG,'--log-level','error'],{
+              env:{...process.env,CI:'true',BROWSER:'none'},
+              stdio:['ignore','pipe','pipe'],detached:false
+            });
+          proc.stdout.pipe(stream);proc.stderr.pipe(stream);
+          const url='http://127.0.0.1:8787';
+          const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+          let lastError='';
+          async function probe(){
+            const r=await fetch(url+'/v1/employee/accounting/health',
+              {signal:AbortSignal.timeout(7500)});
+            const body=await r.json();
+            if(r.status!==200||body?.success!==true||
+               body?.stage!=='easystore-accounting-staging'||
+               body?.nativeEngine!=='employee-accounting-native-v1'||
+               body?.schemaReady!==true||body?.schemaTables!==22||
+               body?.mode!=='OFF'||body?.readOnlyApiEnabled!==false||
+               body?.financeWrites!=='OFF'||body?.financeRelease!=='NO_GO')
+              throw Error('ORIGINAL_LIVE_HEALTH_FAILED_'+r.status+'_'+JSON.stringify(body).slice(0,200));
+            console.log('LIVE_ORIGINAL_FINANCE_HEALTH_PROVIDER_D1=PASS');
+            console.log('LIVE_ORIGINAL_NATIVE_SCHEMA_TABLES=22');
+            const req=async(method,payload)=>{
+              const res=await fetch(url+'/v1/employee/accounting',{
+                method,headers:{'content-type':'application/json'},
+                ...(payload?{body:JSON.stringify(payload)}:{}) ,
+                signal:AbortSignal.timeout(7500)
+              });
+              return {status:res.status,body:await res.json()};
+            };
+            for(const action of ['saveAccountingFinalInvoice','savePartyLedgerTransaction',
+                                 'getEasyStoreCustomers']){
+              const result=await req('POST',{username:'ACC250-NOT-REAL-EMPLOYEE',
+                action,requestId:'ACC250-NO-MONEY-READ-ONLY'});
+              if(result.status!==503||result.body.code!=='isolated-stage-financial-routes-disabled'||
+                 result.body.financeWrites!=='OFF')
+                throw Error('STAGE_FINANCIAL_ACTION_WAS_NOT_HARD_DENIED_'+action);
+            }
+            console.log('LIVE_ORIGINAL_FINANCE_WRITE_AND_CUSTOMER_API=DENIED_3_OF_3');
+            const missing=await fetch(url+'/v1/t12/orders',{signal:AbortSignal.timeout(7500)});
+            if(missing.status!==404)throw Error('T12_ROUTE_LEAK_ORIGINAL_STAGE');
+            console.log('LIVE_STAGE_T12_OPERATIONAL_ROUTE=NOT_EXPOSED');
+          }
+          (async()=>{
+            try{
+              let ok=false;
+              for(let i=0;i<65;i++){
+                if(proc.exitCode!==null)throw Error('REMOTE_PREVIEW_PROCESS_STOPPED_'+proc.exitCode);
+                try{await probe();ok=true;break;}
+                catch(e){lastError=String(e.message).slice(0,350);await delay(1800);}
+              }
+              if(!ok)throw Error('CLOUDFLARE_REMOTE_PREVIEW_HEALTH_FAILED_'+lastError);
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+                '## ACC250 Original EasyStore Stage Worker live Cloudflare preview\n\n'+
+                '- Cloudflare temporary remote preview bound to existing exact independent finance Stage D1\n'+
+                '- ORIGINAL finance native health PASS, 22/22 tables, D1 mode OFF\n'+
+                '- Finance POST, cash receipt and customer enumeration DENIED (3/3)\n'+
+                '- No T12 operational endpoint exposed; no D1 writes/DDL; no permanent Worker deployment\n'+
+                '- Finance release still NO_GO; authentic employee login and Stage invoice/receipt NOT RUN\n');
+            }finally{
+              proc.kill('SIGTERM');await delay(1000);
+              if(proc.exitCode===null)proc.kill('SIGKILL');
+              stream.end();
+            }
+          })().catch(e=>{
+            // Do not print provider logs/tokens. Fail loudly but safely.
+            console.error('ACC250_PREVIEW_FAILED: '+String(e.message).slice(0,300));
+            process.exitCode=1;
+          });
+          NODE
