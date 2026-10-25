@@ -1,0 +1,46 @@
+name: ACC257 existing TrendOS T12 platform order source ONLY (no 0035 finance)
+on:
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/t12-platform-order-context-readonly-acc257.mjs'
+      - 'tests/acc257_existing_platform_orders_no_customer_capture.test.mjs'
+      - '.github/workflows/acc257-platform-order-existing-t12-without-0035-no-go.yml'
+  push:
+    branches:
+      - 'integration/trendos-easystore-verified-offline-no-go-20261025'
+    paths:
+      - 'cloudflare-d1/src/t12-platform-order-context-readonly-acc257.mjs'
+      - 'tests/acc257_existing_platform_orders_no_customer_capture.test.mjs'
+permissions:
+  contents: read
+jobs:
+  isolated-platform-source-existing-schemas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      FINANCE_RELEASE: NO_GO
+      FINANCE_WRITES: 'OFF'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read only existing platform T12 DDL fixtures, no customer capture or finance
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test "$FINANCE_RELEASE" = NO_GO
+          test "$FINANCE_WRITES" = OFF
+          node --check cloudflare-d1/src/t12-platform-order-context-readonly-acc257.mjs
+          node --check tests/acc257_existing_platform_orders_no_customer_capture.test.mjs
+          node --test tests/acc257_existing_platform_orders_no_customer_capture.test.mjs
+          echo 'ACC257_PLATFORM_SOURCE=ORIGINAL_NATIVE_T12_0005_0006'
+          echo 'ACC257_0035_CUSTOMER_BINDING=NOT_CLAIMED'
+          echo 'ACC257_REAL_FINANCE_POSTING=OFF'
+          echo 'ACC257_REAL_STAGE_CONNECTOR=NOT_DEPLOYED'
