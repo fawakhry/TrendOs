@@ -342,3 +342,12 @@
 - **Next:** Read-only inspect **`trendos-tasks-v3-t1-preview-20260914`** Builds settings and decide only after comparing actual Worker name and intended pipeline; meanwhile UI-001 [PR #38](https://github.com/fawakhry/TrendOs/pull/38) remains DRAFT/source browser test PASS, not LIVE or FIXED. Final prerequisite is isolated staging employee-role verification and approved guarded deployment of actual `trendos-ui`.
 - **Book tracking:** [UI book PR #37](https://github.com/fawakhry/TrendOs/pull/37) and [TrendOS UI-001 PR #38](https://github.com/fawakhry/TrendOs/pull/38).
 
+
+### UI-001 — Cloudflare second Builds settings screenshot — 2026-10-25
+
+- **Evidence marker:** `CLOUDFLARE_TASKS_BUILDS_UNCONNECTED_SCREENSHOT_20261025`; owner provided a screenshot after being directed to review `trendos-tasks-v3-t1-preview-20260914` Worker > Settings > Builds. **The cropped image omits the Worker name**; therefore the target's identity remains `ASSUMED_FROM_NAVIGATION / NOT_VERIFIED_IN_IMAGE` until a screenshot with the top breadcrumb or Worker URL is available.
+- **Observed:** Builds / Git repository displays `Connect` rather than a connected repository; API token for external CI/CD displays `Create token` (a suggestion, **not** proof no other credentials exist); Cron triggers say `No cron triggers configured`. This shows there is **no Git repository visibly attached through the Cloudflare Builds UI for the depicted Worker**. It does not demonstrate absence of external CI/CD, existing Worker code, versions, manual deployments, or bindings.
+- **User action required on this screen:** **None.** Do not click `Connect` or `Create token`, disable any unrelated service, or alter cron/deploy settings. No Cloudflare API token should be created for UI-001.
+- **Work state:** `BUILDS_GIT_UNCONNECTED_IN_SCREENSHOT / WORKER_ID_UNVERIFIED / NO_SETTINGS_MUTATION / UI001_CODE_TESTED_ONLY`. Previous `trendos` service shows Disable builds ON by owner's separate screenshot. Both are distinct from a verified safe `trendos-ui` staging deployment.
+- **Next read-only gate:** confirm service identity via top breadcrumb or Worker detail URL; independently verify which Worker receives the `trendos-ui` frontend packaging flow, check its staging auth/Access before using real staff sessions, then staging smoke after explicit approval. Existing [UI-001 PR #38](https://github.com/fawakhry/TrendOs/pull/38) remains Draft. No merge or production deploy here.
+
