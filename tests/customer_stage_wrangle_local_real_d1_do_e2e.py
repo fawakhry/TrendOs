@@ -39,6 +39,7 @@ MIGRATIONS=[
     "0033_customer_portal_native_order_ownership_v1.sql",
     "0036_customer_portal_native_draft_create_v1.sql",
     "0037_customer_portal_native_draft_items_v1.sql",
+    "0038_customer_portal_native_draft_file_r2_v1.sql",
 ]
 NAME="trendos-customer-disposable-local-only"
 
@@ -83,6 +84,22 @@ def request(port,path,method="GET",payload=None,token=None,origin=STAGE_ORIGIN):
     with response:
         content=response.read(100_000)
         return response.status,json.loads(content.decode())
+
+def file_request(port,path,data,token=None,origin=STAGE_ORIGIN,
+                 content_type="image/png",request_key="f6"*16):
+    headers={"Origin":origin,"Content-Type":content_type,
+             "x-idempotency-key":request_key,
+             "CF-Connecting-IP":"192.0.2.17"}
+    if token is not None:
+        headers["Authorization"]="Bearer "+token
+    req=urllib.request.Request("http://127.0.0.1:%d%s"%(port,path),
+            method="POST",data=data,headers=headers)
+    try:
+        response=urllib.request.urlopen(req,timeout=20)
+    except urllib.error.HTTPError as e:
+        response=e
+    with response:
+        return response.status,json.loads(response.read(100000).decode())
 
 def start_dev(conf,persist,port):
     proc=subprocess.Popen([str(WRANGLER),"dev","--local",
@@ -266,7 +283,8 @@ def main():
               "TRENDOS_CUSTOMER_PORTAL_NATIVE_PUBLIC_CONTENT_V0_ENABLED",
               "TRENDOS_CUSTOMER_PORTAL_NATIVE_PASSWORD_CHANGE_V0_ENABLED",
               "TRENDOS_CUSTOMER_NATIVE_DRAFT_CREATE_V0_ENABLED",
-              "TRENDOS_CUSTOMER_NATIVE_DRAFT_ITEM_V0_ENABLED"
+              "TRENDOS_CUSTOMER_NATIVE_DRAFT_ITEM_V0_ENABLED",
+              "TRENDOS_CUSTOMER_NATIVE_DRAFT_FILE_R2_V0_ENABLED"
             ):
                 original=name+' = "false"'
                 check(config.count(original)==1,"Invalid OFF gate "+name)
@@ -280,6 +298,10 @@ def main():
             config+='database_name = "'+NAME+'"\n'
             config+='database_id = "'+DUMMY_UUID+'"\n'
             config+='migrations_dir = "migrations"\n'
+            # Only disposable generated-local Wrangler config gets R2 storage.
+            config+='\n[[r2_buckets]]\n'
+            config+='binding = "CUSTOMER_DRAFT_FILES_BUCKET"\n'
+            config+='bucket_name = "trendos-local-customer-draft-not-real"\n'
             local.write_text(config)
             for f in MIGRATIONS:
                 run(["d1","execute",NAME,"--local","--config",local.name,
@@ -425,6 +447,45 @@ def main():
                   item_created.get("ordinal")==1 and
                   item_created.get("officialOrderCreated") is False,
                   "Staged Native D1 draft item insert failed")
+            # Disposable *real local Wrangler R2* fake file bytes. This
+            # signature-only fixture is NOT trusted printable media and
+            # must never reach the original T12 writer or download API.
+            file_route=draft_route+"/"+c1_draft+"/items/"+item_created["itemId"]+"/files"
+            fixture_png=bytes([137,80,78,71,13,10,26,10,1,2,3,4,5])
+            status,unauth_file=file_request(port,file_route,fixture_png)
+            check(status==401 and not unauth_file.get("fileReady"),
+                  "File upload allowed missing Native bearer")
+            status,foreign_file=file_request(port,file_route,fixture_png,token=token2)
+            check(status==409 and not foreign_file.get("fileReady") and
+                  "fileId" not in foreign_file,
+                  "C2 staged a file on C1 draft item")
+            status,bad_origin_file=file_request(port,file_route,fixture_png,
+                token=token,origin="https://evil.test")
+            check(status==403 and not bad_origin_file.get("fileReady"),
+                  "R2 upload accepted hostile Origin")
+            status,bad_mime_file=file_request(port,file_route,fixture_png,
+                token=token,content_type="application/pdf")
+            check(status==415 and not bad_mime_file.get("fileReady"),
+                  "R2 accepted forged PDF MIME for PNG magic bytes")
+            status,saved_file=file_request(port,file_route,fixture_png,token=token)
+            check(status==201 and saved_file.get("fileReady") is True and
+                  saved_file.get("privateObject") is True and
+                  saved_file.get("alreadyUploaded") is False and
+                  saved_file.get("fileId","").startswith("CDF-") and
+                  "customer-drafts/" not in json.dumps(saved_file),
+                  "Local R2 put + D1 PENDING-to-READY finalize failed")
+            status,repeat_file=file_request(port,file_route,fixture_png,token=token)
+            check(status==200 and repeat_file.get("fileId")==saved_file.get("fileId")
+                  and repeat_file.get("alreadyUploaded") is True,
+                  "Repeated identical file request created another object")
+            status,changed_file=file_request(port,file_route,fixture_png+b"UNTRUSTED",
+                token=token)
+            check(status==409 and not changed_file.get("fileReady"),
+                  "Changed file replay with same key bypassed SHA256 check")
+            status,get_blocked=request(port,file_route,token=token)
+            check(status==405 and not get_blocked.get("success"),
+                  "Customer R2 file upload route allowed GET download")
+            print("PASS: REAL LOCAL Wrangler private R2 plus D1 PENDING/READY CAS, binary MIME, idempotent replay, C1/C2 scope, no public GET")
             status,item_repeat=request(port,item_route,method="POST",token=token,
                 payload=item_payload)
             check(status==200 and item_repeat.get("alreadyAdded") is True and
@@ -458,6 +519,10 @@ def main():
                 token=token,payload={**item_payload,"requestKey":"e5"*16})
             check(status in (401,409) and not revoked_item.get("success"),
                   "Revoked Native C1 session appended an item to draft")
+            status,revoked_file=file_request(port,file_route,fixture_png,
+                token=token,request_key="e5"*16)
+            check(status in (401,409) and not revoked_file.get("fileReady"),
+                  "Revoked Native C1 session staged a new private file")
             status,revoked_public=request(port,
                     "/v1/customer/native/public-content?view=sections",token=token)
             check(status==401 and revoked_public.get("code")=="CUSTOMER_SESSION_REJECTED",
