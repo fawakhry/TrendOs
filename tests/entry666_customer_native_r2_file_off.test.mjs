@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {
  CUSTOMER_NATIVE_FILE_MAX_BYTES_V0,NATIVE_CUSTOMER_FILE_R2_POLICY_V0,
  CUSTOMER_NATIVE_FILE_RESERVE_SQL_V0,CUSTOMER_NATIVE_FILE_READBACK_SQL_V0,
- CUSTOMER_NATIVE_FILE_FINALIZE_CAS_SQL_V0,
+ CUSTOMER_NATIVE_FILE_FINALIZE_CAS_SQL_V0,CUSTOMER_NATIVE_FILE_QUARANTINE_PROOF_SQL_V0,
  classifyNativeCustomerFileV0,newNativeCustomerFileIdV0,
  storeNativeCustomerDraftFileV0,handleNativeCustomerDraftFileR2V0
 } from '../cloudflare-d1/src/customer-portal-native-draft-file-r2-v0.mjs';
@@ -18,16 +18,17 @@ const png=Uint8Array.from([137,80,78,71,13,10,26,10,1,2,3,4,5]);
 const jpeg=Uint8Array.from([255,216,255,224,0,1,2,3]);
 const pdf=new TextEncoder().encode('%PDF-1.7\n');
 let log=[];
-function fakeDb({reserved=1,readback={fileId:FILE,state:'READY'},finalized=1,broken=false}={}){
+function fakeDb({reserved=1,readback={fileId:FILE,state:'READY'},finalized=1,broken=false,quarantineProof=null}={}){
  return{prepare(sql){
    const kind=sql.includes('INSERT OR IGNORE')?'reserve':
+     sql.includes('customer_portal_native_file_quarantine_v1')?'quarantine':
      sql.includes('SELECT f.file_id')?'readback':'finalize';
    log.push({kind,phase:'prepare'});
    return{bind(...args){
      log.push({kind,phase:'bind',args});
      return{
        async run(){if(broken)throw Error('PRIVATE_SQL');return {meta:{changes:kind==='reserve'?reserved:finalized}};},
-       async first(){if(broken)throw Error('PRIVATE_SQL');return readback;}
+       async first(){if(broken)throw Error('PRIVATE_SQL');return kind==='quarantine'?quarantineProof:readback;}
      };
    }};
  }};
@@ -90,6 +91,30 @@ test('fresh R2 commit only after D1 auth reservation and final D1 session CAS',a
  assert.deepEqual(log.find(y=>y.kind==='finalize'&&y.phase==='bind').args,
   [NOW,FILE,KEY,DRAFT,ITEM,mac,NOW,NOW]);
  assert.equal(log.find(y=>y.kind==='r2-put').key,OBJECT);
+});
+test('D1 trigger result TWO changes requires ACTIVE PENDING owner AND matching QUARANTINED proof before R2 put',async()=>{
+ log=[];
+ const approved={fileId:FILE,disposition:'QUARANTINED',scanCompleted:0,printReleaseAuthorized:0};
+ const verified=await run({db:fakeDb({reserved:2,
+  readback:{fileId:FILE,state:'PENDING'},quarantineProof:approved})});
+ assert.equal(verified.status,201);
+ assert.deepEqual(log.filter(y=>y.phase==='bind'||y.kind==='r2-put').map(y=>y.kind),
+  ['reserve','readback','quarantine','r2-put','finalize']);
+ assert.match(CUSTOMER_NATIVE_FILE_QUARANTINE_PROOF_SQL_V0,/q\.scan_completed=0/);
+ for(const input of [
+  {readback:null,quarantineProof:approved},
+  {readback:{fileId:FILE,state:'READY'},quarantineProof:approved},
+  {readback:{fileId:'CDF-'+'11'.repeat(16),state:'PENDING'},quarantineProof:approved},
+  {readback:{fileId:FILE,state:'PENDING'},quarantineProof:null},
+  {readback:{fileId:FILE,state:'PENDING'},quarantineProof:{...approved,scanCompleted:1}},
+  {readback:{fileId:FILE,state:'PENDING'},quarantineProof:{...approved,printReleaseAuthorized:1}}
+ ]){
+  log=[];
+  const rejected=await run({db:fakeDb({reserved:2,...input})});
+  assert.equal(rejected.status,503,JSON.stringify(input));
+  assert.equal(rejected.body.fileReady,false);
+  assert.equal(log.some(x=>x.kind==='r2-put'),false);
+ }
 });
 test('same-key READY replay succeeds without second upload; pending and cross-owner deny',async()=>{
  log=[];const ok=await run({db:fakeDb({reserved:0})});
