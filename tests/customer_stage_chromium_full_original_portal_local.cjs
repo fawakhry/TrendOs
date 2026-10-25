@@ -158,10 +158,17 @@ async function main() {
       assert.match(await page.locator('#customerMarketplaceBoard').textContent(),/غير متاحة مؤقتًا/,
         'Unavailable Native customer marketplace must not show an indefinite loading spinner');
       await page.waitForFunction(()=>document.querySelector('#customerFranchiseBranches').textContent.includes('LOCAL AREA'),null,{timeout:10000});
+      await page.waitForFunction(()=>document.querySelector('#customerPlatformSections').textContent.includes('LOCAL SAFE SECTION'),null,{timeout:10000});
+      const customerSectionCards=await page.locator('#customerPlatformSections').textContent();
+      assert.ok(customerSectionCards.includes('LOCAL SAFE SECTION') &&
+                !customerSectionCards.includes('PRIVATE_EMPLOYEE_SECRET') &&
+                !customerSectionCards.includes('PRIVATE_GOOGLE_FILE_ID'),
+        'Original customer UI must render only source-approved public service sections');
       const publicBranches=await page.locator('#customerFranchiseBranches').textContent();
       assert.ok(publicBranches.includes('LOCAL AREA') &&
                 !publicBranches.includes('LOCAL PUBLIC BRANCH') &&
                 !publicBranches.includes('SECRET BRANCH') &&
+                !publicBranches.includes('UNREVIEWED PRIVATE BRANCH') &&
                 !publicBranches.includes('PRIVATE_'),
         'Original customer UI must show public area, not internal branch name or employee data');
       const rawPublicBranches=await page.evaluate(()=>window.trendosCustomerNativeBrowserDispatchV0(
