@@ -1,0 +1,126 @@
+name: ACC255 live trendos-main original order TABLE NAMES ONLY READONLY
+on:
+  push:
+    branches:
+      - audit/acc255-trendos-main-orders-readonly-20261025
+    paths:
+      - .github/workflows/acc255-trendos-main-t12-tables-readonly-20261025.yml
+permissions:
+  contents: read
+jobs:
+  cloudflare-production-d1-metadata-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EXPECTED_DB_NAME: trendos-main
+      EXPECTED_DB_UUID: 5c4b92bf-e043-4f6e-bd6d-d514a92cd825
+      FINANCE_RELEASE: NO_GO
+      FINANCE_WRITES: 'OFF'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate production D1 config ID before any provider access
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test "$FINANCE_RELEASE" = NO_GO
+          test "$FINANCE_WRITES" = OFF
+          node <<'NODE'
+          const fs=require('fs');
+          const p=fs.readFileSync('cloudflare-d1/wrangler.toml','utf8');
+          for(const exact of [
+           'name = "trendos-d1-api"',
+           'binding = "DB"',
+           'database_name = "trendos-main"',
+           'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"'
+          ])if(!p.includes(exact))throw Error('ACC255_TARGET_ORIGINAL_D1_CONFIG_DRIFT');
+          console.log('ACC255_REPO_ORIGINAL_TRENDOS_MAIN_BINDING=PASS');
+          NODE
+      - name: Install pinned Wrangler for catalog SELECT only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/acc255-wrangler" --no-audit --no-fund wrangler@4.152.0
+      - name: Verify provider database identity BEFORE read
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CFG=cloudflare-d1/wrangler.toml
+          CLI="$RUNNER_TEMP/acc255-wrangler/node_modules/.bin/wrangler"
+          "$CLI" d1 list --json --config "$CFG" > "$RUNNER_TEMP/acc255-list.json"
+          node <<'NODE'
+          const fs=require('fs');
+          const j=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/acc255-list.json','utf8'));
+          if(!Array.isArray(j)||j.filter(x=>x.name===process.env.EXPECTED_DB_NAME&&
+              x.uuid===process.env.EXPECTED_DB_UUID).length!==1)
+           throw Error('ACC255_PRODUCTION_DATABASE_ID_NOT_CONFIRMED_STOP');
+          console.log('ACC255_CLOUDFLARE_TRENDOS_MAIN_DB_IDENTITY=PASS');
+          NODE
+      - name: Query ONLY sqlite_master table names, no business records
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CFG=cloudflare-d1/wrangler.toml
+          CLI="$RUNNER_TEMP/acc255-wrangler/node_modules/.bin/wrangler"
+          "$CLI" d1 execute trendos-main --remote --json --config "$CFG" \
+            --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name" \
+            > "$RUNNER_TEMP/acc255-table-names.json"
+          node <<'NODE'
+          const fs=require('fs');
+          const data=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/acc255-table-names.json','utf8'));
+          const res=(Array.isArray(data)?data:[data]);
+          if(res.some(x=>x.success!==true))throw Error('ACC255_SQL_CATALOG_QUERY_NOT_CONFIRMED');
+          const rows=res.flatMap(x=>x.results||x.result?.results||[]);
+          if(!Array.isArray(rows)||!rows.length||rows.some(x=>typeof x.name!=='string'))
+           throw Error('ACC255_PRODUCTION_CATALOG_EMPTY_OR_INVALID');
+          const tables=new Set(rows.map(x=>x.name));
+          const grouped={
+           'T12_CREATE_LEDGER_0005':['t12_prod_create_control','t12_prod_request_ledger',
+            't12_prod_orders','t12_prod_lines','t12_prod_events','t12_prod_outbox'],
+           'T12_RUNTIME_0006':['t12_prod_line_runtime','t12_prod_runtime_events'],
+           'T12_CUSTOMER_CAPTURE_0035':['t12_order_customer_at_create_control_v1',
+            't12_order_customer_at_create_v1'],
+           'LEGACY_DISPLAY_NOT_AUTHORITY':['orders','sheet_rows'],
+           'CUSTOMER_NATIVE_0008':['t12_customers']
+          };
+          let report='## ACC255 original production Cloudflare D1 TABLE NAMES ONLY\n\n';
+          report+='- D1 identity: verified trendos-main (exact configured UUID)\n';
+          report+='- SQL executed: SELECT name FROM sqlite_master WHERE type=\'table\' ORDER BY name\n';
+          report+='- Business rows, names/phones/order IDs, secret values: NEVER QUERIED\n';
+          report+='- DDL, UPDATE/INSERT/DELETE, deployment, finance DB access: ZERO\n\n';
+          for(const [k,names]of Object.entries(grouped)){
+           const present=names.filter(x=>tables.has(x));
+           const missing=names.filter(x=>!tables.has(x));
+           console.log('ACC255_'+k+'='+present.length+'/'+names.length);
+           console.log('ACC255_'+k+'_PRESENT='+present.join(','));
+           console.log('ACC255_'+k+'_MISSING='+missing.join(','));
+           report+='- '+k+': '+present.length+'/'+names.length+
+             '; present: '+(present.join(', ')||'none')+
+             '; missing: '+(missing.join(', ')||'none')+'\n';
+          }
+          const required=grouped.T12_CREATE_LEDGER_0005.concat(grouped.T12_RUNTIME_0006);
+          const missing=required.filter(n=>!tables.has(n));
+          console.log('ACC255_ORIGINAL_PROD_T12_TABLE_NAMES='+
+            (missing.length?'MISSING_SOURCE_TABLES':'ALL_EXPECTED_NAMES_PRESENT'));
+          report+='\nThis is schema-name evidence ONLY. Not order-row validity, customer owner attestation, provider service binding, finance or deployment GO.\n';
+          report+='\nFINANCE_RELEASE=NO_GO.\n';
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,report);
+          NODE
+      - name: Destroy temporary provider metadata files; no upload
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/acc255-list.json" "$RUNNER_TEMP/acc255-table-names.json"
+          echo 'ACC255_PRODUCTION_D1_OPERATIONS=LIST_PLUS_SQLITE_MASTER_SELECT_ONLY'
+          echo 'ACC255_WRITES_OR_MIGRATIONS=ZERO'
+          echo 'FINANCE_RELEASE=NO_GO'
