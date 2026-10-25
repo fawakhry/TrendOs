@@ -92,12 +92,22 @@ jobs:
           s=(root/'index.html').read_bytes()
           assert hashlib.sha256(s).hexdigest()==os.environ['PRE_HTML_SHA256'], 'Snapshot HTML drift'
           original=s.decode('utf-8')
-          pat=r'(?P<start>\s*<div class="top-actions">\n)(?P<body>.*?)(?P<end>\s*</div>)'
-          matches=list(re.finditer(pat,original,re.S))
-          assert len(matches)==1,'Toolbar not unique'
-          match=matches[0]
-          lines=match['body'].splitlines(keepends=True)
-          b=[v for v in lines if '<button id="' in v]
+          # Choose the employee toolbar by its unique position inside mainView, never by a global regex.
+          def toolbar(html):
+              anchor='<section id="mainView" class="hidden">'
+              assert html.count(anchor)==1,'mainView not unique'
+              main=html.index(anchor)
+              tag='      <div class="top-actions">'
+              pos=html.find(tag,main)
+              assert pos!=-1,'Employee toolbar not found'
+              finish=html.find('      </div>',pos)
+              assert finish!=-1 and 0<finish-pos<1800,'Employee toolbar block unsafe'
+              part=html[pos:finish]
+              lines=part.splitlines(keepends=True)
+              assert lines[0].strip()==tag.strip() and len(lines)==11,'Unexpected toolbar structure'
+              return pos,finish,lines
+          begin,finish,lines=toolbar(original)
+          b=lines[1:]
           old=['refreshBtn','remoteFilesBtn','matbagySheetsBtn','matbagyRotetBtn',
                'matbagyNoteBtn','accountingBtn','endDayBtn','urgentNotificationsBtn',
                'changePassBtn','logoutBtn']
@@ -107,15 +117,15 @@ jobs:
           ids=[re.search(r'id="([^"]+)"',x).group(1) for x in b]
           assert ids==old,'Unexpected live button order'
           source=Path('index.html').read_text()
-          sourceBar=re.search(pat,source,re.S)
-          assert sourceBar,'Missing source toolbar'
-          assert re.findall(r'<button id="([^"]+)"',sourceBar['body'])==new,'Wrong reviewed main source'
-          assert len(lines)==len(b),'Toolbar contains additional unknown elements'
+          sourceStart,sourceEnd,sourceLines=toolbar(source)
+          sourceIds=[re.search(r'id="([^"]+)"',x).group(1) for x in sourceLines[1:]]
+          assert sourceIds==new,'Wrong reviewed main source'
+          assert len(set(ids))==len(old),'Duplicate buttons'
           mapLines=dict(zip(ids,b))
-          newBody=''.join(mapLines[n] for n in new)
-          patched=original[:match.start('body')]+newBody+original[match.end('body'):]
+          newBlock=lines[0]+''.join(mapLines[n] for n in new)
+          patched=original[:begin]+newBlock+original[finish:]
           assert patched!=original
-          assert patched.replace(newBody,match['body'],1)==original,'Change outside toolbar'
+          assert patched.replace(newBlock,original[begin:finish],1)==original,'Change outside toolbar'
           (root/'index.html').write_bytes(patched.encode('utf-8'))
           from collections import Counter
           allNames=[v.strip() for v in Path('/tmp/ui001-assetnames.txt').read_text().splitlines()]
