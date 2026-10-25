@@ -16,6 +16,8 @@ export const ACC235_SIGNED_OUTBOX_POLICY=Object.freeze({
  noExternalTransport:true,immutableSignedBytes:true,
  consumerAckQualified:false,realLedgerQualified:false,
  requiresFreshOriginalT12BeforeEveryLease:true,
+ requiresFreshOperationalRevisionAtPreDispatch:true,
+ simulatedHandoffOnly:true,realDeliveryEnabled:false,
  noCrossDatabaseAtomicityAttested:true,
  departmentalApprovalAttested:false,financialPostingAllowed:false,
  productionRelease:'NO_GO'
@@ -31,6 +33,8 @@ CREATE TABLE acc235_signed_outbox_fixture(
  attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts>=0),
  lease_owner TEXT NOT NULL DEFAULT '',
  lease_until_ms INTEGER NOT NULL DEFAULT 0,
+ lease_source_revision_json TEXT NOT NULL DEFAULT '',
+ simulated_handoff_epoch INTEGER NOT NULL DEFAULT 0 CHECK(simulated_handoff_epoch>=0),
  created_at_ms INTEGER NOT NULL
 );
 CREATE TRIGGER acc235_immutable_signed_message
@@ -57,15 +61,27 @@ const DB_SQL=Object.freeze({
  find:`SELECT event_id AS eventId,order_id AS orderId,
  idempotency_key AS idempotencyKey,payload_json AS payloadJson,
  payload_sha256 AS payloadSha256,state,attempts,
- lease_owner AS leaseOwner,lease_until_ms AS leaseUntilMs
+ lease_owner AS leaseOwner,lease_until_ms AS leaseUntilMs,
+ lease_source_revision_json AS leaseSourceRevisionJson,
+ simulated_handoff_epoch AS simulatedHandoffEpoch
  FROM acc235_signed_outbox_fixture WHERE event_id=? LIMIT 1`,
  claim:`UPDATE acc235_signed_outbox_fixture
- SET state='LEASED',lease_owner=?,lease_until_ms=?,attempts=attempts+1
+ SET state='LEASED',lease_owner=?,lease_until_ms=?,
+ lease_source_revision_json=?,attempts=attempts+1
  WHERE event_id=? AND attempts<? AND
  (state='PENDING' OR (state='LEASED' AND lease_until_ms<=?))
  RETURNING event_id AS eventId,payload_json AS payloadJson,
  payload_sha256 AS payloadSha256,attempts,lease_owner AS leaseOwner,
- lease_until_ms AS leaseUntilMs`,
+ lease_until_ms AS leaseUntilMs,
+ lease_source_revision_json AS leaseSourceRevisionJson`,
+ simulate:`UPDATE acc235_signed_outbox_fixture
+ SET simulated_handoff_epoch=attempts
+ WHERE event_id=? AND state='LEASED' AND lease_owner=?
+   AND attempts=? AND lease_until_ms>?
+   AND lease_source_revision_json=?
+   AND simulated_handoff_epoch<attempts
+ RETURNING event_id AS eventId,attempts,
+ simulated_handoff_epoch AS simulatedHandoffEpoch`,
  release:`UPDATE acc235_signed_outbox_fixture
  SET state='PENDING',lease_owner='',lease_until_ms=0
  WHERE event_id=? AND state='LEASED' AND lease_owner=? AND
@@ -187,7 +203,23 @@ async function currentSourceMatchesStored(sourceDb,message){
      a.ordinal!==b?.ordinal)
    return stop('OUTBOX_STORED_SOURCE_BINDING_DRIFT');
  }
- return {success:true};
+ const revision=c.operationalRevision;
+ if(!revision||!Number.isSafeInteger(revision.customerVersion)||
+    revision.customerVersion<1||
+    !Array.isArray(revision.lineVersions)||
+    revision.lineVersions.length!==p.lines.length)
+  return stop('OUTBOX_OPERATIONAL_REVISION_UNAVAILABLE');
+ const fingerprint=[];
+ for(let i=0;i<p.lines.length;i++){
+  const t=revision.lineVersions[i];
+  if(t?.lineId!==p.lines[i].line_id||
+     !Number.isSafeInteger(t.version)||t.version<0)
+   return stop('OUTBOX_OPERATIONAL_REVISION_UNAVAILABLE');
+  fingerprint.push({lineId:t.lineId,version:t.version});
+ }
+ return {success:true,sourceFenceJson:JSON.stringify({
+  customerVersion:revision.customerVersion,lineVersions:fingerprint
+ })};
 }
 
 export async function reserveSignedFixtureForSimulatedRetry({
@@ -210,20 +242,72 @@ export async function reserveSignedFixtureForSimulatedRetry({
   return stop('OUTBOX_RETRY_BUDGET_EXHAUSTED');
  let claimed;
  try{claimed=await outboxDb.prepare(DB_SQL.claim)
-  .bind(leaseOwner,nowMs+leaseMs,eventId,maxAttempts,nowMs).first();}
+  .bind(leaseOwner,nowMs+leaseMs,recheck.sourceFenceJson,eventId,maxAttempts,nowMs).first();}
  catch{return stop('OUTBOX_RESERVATION_SQL_UNAVAILABLE');}
  if(!claimed||claimed.eventId!==eventId||
     claimed.payloadJson!==existing.row.payloadJson||
     claimed.payloadSha256!==existing.row.payloadSha256||
-    claimed.leaseOwner!==leaseOwner||claimed.leaseUntilMs!==nowMs+leaseMs)
+    claimed.leaseOwner!==leaseOwner||claimed.leaseUntilMs!==nowMs+leaseMs||
+    claimed.leaseSourceRevisionJson!==recheck.sourceFenceJson)
   return stop('OUTBOX_CONCURRENT_RESERVATION_LOST');
  return {success:true,simulationOnly:true,
   originalSignedMessage:existing.message,attempts:claimed.attempts,
   leaseOwner,leaseUntilMs:claimed.leaseUntilMs,
+  simulatedHandoffPerformed:false,
   sourceOnly:true,connectorEventPublished:false,
   financeAuthorized:false,postingAllowed:false,
   consumerAcknowledged:false,productionRelease:'NO_GO'};
 }
+
+/* ACC246-FENCE: ONLY a fixture-stage simulation marker, NOT an external send.
+ * Caller must present the exact lease owner and attempt epoch. Check the
+ * original five-query D1 snapshot AGAIN and compare its runtime revisions
+ * with the revision saved in the lease. A changed-then-returned operational
+ * status increments native runtime.version and is rejected here (ABA fence).
+ * SQLite CAS stops a stale worker using a superseded lease and enforces one
+ * simulated handoff per attempt. No cross-DB atomicity: a source change after
+ * this reread is STILL possible. Actual recipient must independently fence.
+ */
+export async function simulateACC246PreDispatchFenceFixtureOnly({
+ sourceDb,outboxDb,eventId,verifyKey,keyId,nowMs,leaseOwner,
+ leaseAttempt,mode
+}={}){
+ if(mode!=='ISOLATED_SQLITE_FIXTURE')return stop('OUTBOX_DEFAULT_OFF');
+ if(!adapter(outboxDb)||!isId(eventId)||!isId(keyId)||
+    !isId(leaseOwner)||!clock(nowMs)||
+    !Number.isSafeInteger(leaseAttempt)||leaseAttempt<1||
+    leaseAttempt>10)return stop('ACC246_FENCE_INPUT_INVALID');
+ const existing=await checked(outboxDb,eventId,verifyKey,keyId,nowMs);
+ if(!existing.success)return existing;
+ if(existing.row.state!=='LEASED'||
+    existing.row.leaseOwner!==leaseOwner||
+    existing.row.attempts!==leaseAttempt||
+    existing.row.leaseUntilMs<=nowMs)
+  return stop('ACC246_LEASE_EXPIRED_OR_SUPERSEDED');
+ const fresh=await currentSourceMatchesStored(sourceDb,existing.message);
+ if(!fresh.success)return fresh;
+ if(!existing.row.leaseSourceRevisionJson||
+    fresh.sourceFenceJson!==existing.row.leaseSourceRevisionJson)
+  return stop('ACC246_SOURCE_REVISION_CHANGED_AFTER_LEASE');
+ let marked;
+ try{marked=await outboxDb.prepare(DB_SQL.simulate)
+  .bind(eventId,leaseOwner,leaseAttempt,nowMs,
+   fresh.sourceFenceJson).first();}
+ catch{return stop('ACC246_FIXTURE_HANDOFF_CAS_UNAVAILABLE');}
+ if(!marked||marked.eventId!==eventId||
+    marked.attempts!==leaseAttempt||
+    marked.simulatedHandoffEpoch!==leaseAttempt)
+  return stop('ACC246_SIMULATED_HANDOFF_ALREADY_MARKED_OR_LEASE_LOST');
+ return {
+  success:true,fixturePreDispatchFencePassed:true,simulationOnly:true,
+  originalSignedEventId:eventId,leaseAttempt,
+  sourceOnly:true,realTransportAllowed:false,
+  connectorEventPublished:false,consumerAcknowledged:false,
+  financeAuthorized:false,postingAllowed:false,
+  productionRelease:'NO_GO'
+ };
+}
+
 export async function releaseUnconfirmedFixtureLease({
  outboxDb,eventId,leaseOwner,nowMs,mode
 }={}){
