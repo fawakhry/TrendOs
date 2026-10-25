@@ -58,7 +58,7 @@ async function main() {
         return route.abort('blockedbyclient');
       });
       await context.addInitScript(({apiOrigin,localWorker}) => {
-        const audit={legacy:[],otherFetch:[]};
+        const audit={legacy:[],otherFetch:[],actions:[]};
         Object.defineProperty(window,'__trendosOriginalPortalAudit',{value:audit,configurable:false});
         const rawFetch=window.fetch.bind(window);
         window.fetch=function(input,opts) {
@@ -99,6 +99,27 @@ async function main() {
       }
       await page.waitForFunction(()=>!document.querySelector('#entryView').classList.contains('hidden'),
         null,{timeout:18000});
+      // TEST-ONLY logical action audit at ORIGINAL app.js dispatch boundary.
+      // The employee dispatcher can fail a customer content call before fetch;
+      // counting HTTP legacy-api calls alone would incorrectly imply success.
+      await page.evaluate(()=>{
+        const original=window.trendosSecureApiV1922;
+        if(typeof original!=='function') throw new Error('ORIGINAL_PORTAL_DISPATCH_MISSING');
+        window.trendosSecureApiV1922=async function(action,params){
+          const entry={action,status:'pending',code:''};
+          window.__trendosOriginalPortalAudit.actions.push(entry);
+          try{
+            const result=await original.apply(this,arguments);
+            entry.status=result&&result.success===true?'success':'unsuccessful';
+            entry.code=result&&result.code||'';
+            return result;
+          } catch(error){
+            entry.status='rejected';
+            entry.code=error&&error.code||'UNCLASSIFIED';
+            throw error;
+          }
+        };
+      });
       assert.equal(await page.evaluate(
         ()=>window.MATBAGY_EDGE_ORDERS_API_URL),pinned,
         'Production API origin must not be rewritten in the original source config');
@@ -124,15 +145,20 @@ async function main() {
       await page.waitForTimeout(800);
       const diagnostic=await page.evaluate(()=>({
         legacy:window.__trendosOriginalPortalAudit.legacy.slice(),
-        others:window.__trendosOriginalPortalAudit.otherFetch.slice()
+        others:window.__trendosOriginalPortalAudit.otherFetch.slice(),
+        actions:window.__trendosOriginalPortalAudit.actions.map(x=>({...x}))
       }));
       console.log('FULL_ORIGINAL_UI_NETWORK_DIAGNOSTIC='+JSON.stringify(diagnostic));
       const old=diagnostic.legacy;
-      const ancillary=old.filter(action=>expectedAncillary.includes(action));
-      assert.deepEqual(ancillary.slice().sort(),expectedAncillary.slice().sort(),
-        'Full original customer boot added unexpected repeats/missing public-data legacy calls');
-      const extra=old.filter(action=>!expectedAncillary.includes(action));
-      assert.deepEqual(extra,[],'Full UI attempted other legacy API actions: '+JSON.stringify(extra));
+      const ancillary=diagnostic.actions.filter(x=>expectedAncillary.includes(x.action));
+      assert.deepEqual(ancillary.map(x=>x.action).sort(),expectedAncillary.slice().sort(),
+        'Original customer boot must attempt exactly these five public UI content actions');
+      assert.ok(ancillary.every(x=>x.status!=='success'),
+        'Do not claim customer public content parity when Stage Native HTTP handlers are unavailable');
+      assert.ok(diagnostic.actions.some(x=>x.action==='customerLogin'&&x.status==='success'));
+      assert.ok(diagnostic.actions.some(x=>x.action==='getCustomerOrders'&&x.status==='success'));
+      assert.deepEqual(old,[],
+        'Full customer native-mode startup must not dispatch any HTTP legacy Google bridge');
       const fetched=await page.evaluate(()=>window.__trendosOriginalPortalAudit.otherFetch.slice());
       assert.deepEqual(fetched,[],'Full UI attempted nonqualified raw fetch');
       assert.equal(await page.locator('#customerPassword').inputValue(),'',
@@ -162,8 +188,9 @@ async function main() {
       assert.deepEqual(missingLocal,[],'Missing original local script/css assets');
       assert.deepEqual(pageErrors,[],'Original full UI JavaScript runtime errors');
       console.log('PASS: original full TrendOS index.html + app.js real Chromium login → real local Worker/D1 own orders → logout and replay denied');
-      console.log('FULL_CUSTOMER_UI_ANCILLARY_LEGACY_ACTIONS='+JSON.stringify(old));
-      console.log('FULL_UI_LEGACY_REQUESTS_BLOCKED='+old.length+'; REMOTE_ACTUAL_CONNECTIONS=0; BLOCKED_REMOTE_FONT_ATTEMPTS='+remoteAttempts.length);
+      console.log('FULL_CUSTOMER_UI_UNWIRED_CONTENT_ACTIONS='+JSON.stringify(ancillary));
+      console.log('FULL_CUSTOMER_UI_ACTION_AUDIT='+JSON.stringify(diagnostic.actions));
+      console.log('FULL_UI_LEGACY_HTTP_CALLS='+old.length+'; REMOTE_ACTUAL_CONNECTIONS=0; BLOCKED_REMOTE_FONT_ATTEMPTS='+remoteAttempts.length);
       console.log('FULL_PRODUCTION_CUSTOMER_GOOGLE_RETIRED=0/9; REAL_STAGE_HTTPS_TESTED=NO; NO_DEPLOY=YES');
       await page.close();
     } finally {await context.close();}
