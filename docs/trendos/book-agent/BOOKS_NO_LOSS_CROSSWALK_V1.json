@@ -19258,5 +19258,319 @@
     "switch": "NOT_ACTIVATED",
     "next": "Reconcile owner-approved current operational snapshots, collect explicit multi-agent write-freeze/acks, verify same HEAD, owner approval, atomically switch writers",
     "final_cutover": "NO_GO"
+  },
+  "cutover_20261025_active_operational_source_inventory_v1": {
+    "date": "2026-10-25",
+    "snapshot_head": "9287ea06efd0e1e3aae024ce2bd99077a97bbd63",
+    "snapshot_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+    "snapshot_master_characters": 205344,
+    "snapshot_unified_blob": "5040bbe6117951ddf781bf873b72424383cb6712",
+    "section_granularity": "Top-level active entry headings + protected subsections; offsets are JS UTF-16 characters at exact master Git blob only",
+    "groups": {
+      "PROTECTED_BASELINE": 1,
+      "PROTECTED_OWNER_HOLD": 4,
+      "ACTIVE_T12_ZERO_GOOGLE": 20,
+      "ACTIVE_DRAFT_SECURITY": 2,
+      "ACTIVE_ISSUE_LEDGER": 1,
+      "CURRENT_ISSUE_LEDGER_EVENT": 8,
+      "MIGRATION_RECEIPT_NOT_OPERATIONAL": 7,
+      "ACTIVE_EASYSTORE_SOURCE_CONTEXT": 12
+    },
+    "active_inventory": [
+      {
+        "group": "PROTECTED_BASELINE",
+        "title": "1. الحالة النشطة — Production baseline بعد Entry600",
+        "character_offset_at_snapshot": 5861,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "PROTECTED_OWNER_HOLD",
+        "title": "Entry596 — أوردرات Legacy قديمة ظاهرة Active رغم أنها مُسلّمة",
+        "character_offset_at_snapshot": 5917,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "PROTECTED_OWNER_HOLD",
+        "title": "Entry599/600 — إصلاح Production للأوردرات القديمة = CLOSED PASS",
+        "character_offset_at_snapshot": 7474,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "PROTECTED_OWNER_HOLD",
+        "title": "Owner Book Transition Progress — 2026-10-16 / OLD_WRITE_ACTIVE_AND_NEW_FROZEN",
+        "character_offset_at_snapshot": 9967,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "PROTECTED_OWNER_HOLD",
+        "title": "SERVER-20261016-61 — customer-manager D1 bridge malformed-response fallback (2026-10-16)",
+        "character_offset_at_snapshot": 11545,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "2026-10-23 — Entry669 Zero Google finance safety (LIVE status: NO_GO)",
+        "character_offset_at_snapshot": 13675,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "2026-10-23 — Entry670 T12 zero-loss draft preflight and PR chain audit",
+        "character_offset_at_snapshot": 17011,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "2026-10-23 — Entry671 live T12 health read-only verification",
+        "character_offset_at_snapshot": 20795,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "2026-10-23 — Entry672 legacy and operator-task source/runtime route audit",
+        "character_offset_at_snapshot": 22299,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "2026-10-23 — Entry673 public frontend reachability",
+        "character_offset_at_snapshot": 24340,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "2026-10-23 — Entry674/675 continued Zero Google: strong T12 replay guard and private R2 pending audit",
+        "character_offset_at_snapshot": 25160,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "2026-10-23 — Entry676 EasyStore source Cloudflare topology cross-repo read-only verification",
+        "character_offset_at_snapshot": 30761,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "2026-10-23 — Entry678/679 continuation: R2 duplicate customer identity and full draft metadata inventory",
+        "character_offset_at_snapshot": 32544,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "2026-10-23 — Entry680 exact D1 read transaction for native customer T12 handoff inventory",
+        "character_offset_at_snapshot": 37370,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "2026-10-23 — Entry681 native customer T12 preflight same-transaction ledger replay guard",
+        "character_offset_at_snapshot": 41180,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "2026-10-23 — Entry682 DB-enforced immutable customer draft seal on original T12 handoff branch",
+        "character_offset_at_snapshot": 45307,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "2026-10-23 — Entry683 source-only sealed customer draft → existing T12 operational order readback",
+        "character_offset_at_snapshot": 51103,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "2026-10-23 — Entry684 original employee T12 order native-customer source-line review (OFF)",
+        "character_offset_at_snapshot": 55633,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "2026-10-23 — Entry685 ACC229 original T12 canonical order/lines drift safety gate (OFF)",
+        "character_offset_at_snapshot": 59548,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "2026-10-23 — Entry686 ACC230 original T12 order activity + per-line outbox no-loss read gate (OFF)",
+        "character_offset_at_snapshot": 64129,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "2026-10-23 — Entry687 ACC231 original T12 source-to-EasyStore offline crosscheck (OFF)",
+        "character_offset_at_snapshot": 68954,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "Entry688 / ACC232 — T12 current runtime line veto before EasyStore source candidate (2026-10-23; SOURCE ONLY / NO_GO)",
+        "character_offset_at_snapshot": 72332,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "Entry689 / ACC233 — V1 cryptographically signed ORIGINAL T12 order_created transport rehearsal (2026-10-23; SOURCE ONLY / NO_GO)",
+        "character_offset_at_snapshot": 76234,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "Entry690 / ACC234 — stable original T12 source-time signed V1 order_created retries (2026-10-23; SOURCE ONLY / NO_GO)",
+        "character_offset_at_snapshot": 81121,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_T12_ZERO_GOOGLE",
+        "title": "Entry691 / ACC235-OUTBOX — immutable signed `order_created` fixture journal and safe retry simulation (2026-10-23; SOURCE ONLY / NO_GO)",
+        "character_offset_at_snapshot": 86325,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_DRAFT_SECURITY",
+        "title": "ENTRY692_SECURITY_READ_FIX_20261024_DRAFT_PR234 — security repairs implemented on isolated Draft PR #234, not deployed",
+        "character_offset_at_snapshot": 91719,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_DRAFT_SECURITY",
+        "title": "ENTRY693_CLOUDFLARE_SAFE_ROLLBACK_FILES_PREDEPLOY_20261024 — actual Cloudflare workflow corrections in isolated Draft PR #236 (NO_DEPLOY)",
+        "character_offset_at_snapshot": 95376,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_ISSUE_LEDGER",
+        "title": "ENTRY694 — الفصل الدائم للمشاكل والاختبارات المؤجلة | سجل العيوب والإصلاحات والتجارب | TRENDOS_ISSUE_TEST_LEDGER_V1 (أمر المالك 2026-10-24)",
+        "character_offset_at_snapshot": 98715,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_EASYSTORE_SOURCE_CONTEXT",
+        "title": "ACC245-OUTBOX-RECHECK-20261025 — revalidate CURRENT original T12 source before each signed outbox lease (SOURCE-ONLY / NO_GO)",
+        "character_offset_at_snapshot": 143604,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_EASYSTORE_SOURCE_CONTEXT",
+        "title": "ACC246-OUTBOX-FENCE-20261025 — original T12 runtime revision + lease-epoch pre-dispatch gate (SOURCE-ONLY / NO_GO)",
+        "character_offset_at_snapshot": 148049,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_EASYSTORE_SOURCE_CONTEXT",
+        "title": "ACC247-TRENDOS-RECEIVER-CONTEXT-20261025 — EasyStore V1 `order_created` receive-time source revision and dedupe rehearsal (SOURCE ONLY / NO_GO)",
+        "character_offset_at_snapshot": 152877,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_EASYSTORE_SOURCE_CONTEXT",
+        "title": "ACC248-TRENDOS-CONTEXT-RECHECK-20261025 — re-audit received order context against original native T12 BEFORE any financial use (SOURCE-ONLY / NO_GO)",
+        "character_offset_at_snapshot": 158078,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_EASYSTORE_SOURCE_CONTEXT",
+        "title": "ACC250-STAGE-LAUNCH-READINESS-20261025 — actual post-0008/0009 original Stage provider recheck + shortest accounting first-use path (NO_GO)",
+        "character_offset_at_snapshot": 163200,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_EASYSTORE_SOURCE_CONTEXT",
+        "title": "ACC251-ORIGINAL-ORDER-CONTEXT-BRIDGE-20261025 — private signed T12 → EasyStore order context WORKER CODE + real Stage missing-source proof (NO_GO)",
+        "character_offset_at_snapshot": 169691,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_EASYSTORE_SOURCE_CONTEXT",
+        "title": "ACC252-SAFE-INTEGRATION-MERGE-20261025 — first owner-authorized passing/finished bridge component MERGED into isolated integration branch (NOT main / NOT GO)",
+        "character_offset_at_snapshot": 176745,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_EASYSTORE_SOURCE_CONTEXT",
+        "title": "ACC253-SAFE-ORIGINAL-SOURCE-MERGE-20261025",
+        "character_offset_at_snapshot": 180533,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_EASYSTORE_SOURCE_CONTEXT",
+        "title": "ACC254-PLATFORM-ORDER-SOURCE-REUSE-ARCH-20261025",
+        "character_offset_at_snapshot": 184030,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_EASYSTORE_SOURCE_CONTEXT",
+        "title": "ACC255-ORIGINAL-PRODUCTION-T12-TABLE-NAMES-20261025 — Cloudflare provider exact trendos-main catalog evidence (READ-ONLY)",
+        "character_offset_at_snapshot": 188593,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_EASYSTORE_SOURCE_CONTEXT",
+        "title": "ACC256-MERGED-ORIGINAL-SOURCE-CANDIDATE-20261025",
+        "character_offset_at_snapshot": 192834,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      },
+      {
+        "group": "ACTIVE_EASYSTORE_SOURCE_CONTEXT",
+        "title": "ACC257-PLATFORM-NATIVE-SOURCE-NO-DUPLICATE-20261025",
+        "character_offset_at_snapshot": 196787,
+        "source_master_blob": "f266c2499587320c6856db50de8b315bc54f13b1",
+        "cutover": "PENDING_RECONCILIATION"
+      }
+    ],
+    "live_writers_observed": "12 new commits on OLD Master after f09238a, 162 additions 0 deletions as of pre-snapshot; current owner agents unacknowledged",
+    "all_live_entries_transferred": false,
+    "not_migrated": [
+      "Protected Entry596/599/600",
+      "SERVER61 owner hold",
+      "Entry669–694 and all newer updates",
+      "ACC245–257 and future appends",
+      "ENTRY694 issue/test ledger"
+    ],
+    "writer_control": "NO_ATOMIC_MULTI_CHAT_FREEZE",
+    "owner_final_approval": "NOT_GRANTED",
+    "old_authority": "ACTIVE_WRITE",
+    "new_authority": "FROZEN_MIGRATION_ONLY",
+    "cutover": "NO_GO"
   }
 }
