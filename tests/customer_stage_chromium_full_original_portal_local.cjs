@@ -157,13 +157,19 @@ async function main() {
         'Do not claim customer public content parity when Stage Native HTTP handlers are unavailable');
       assert.match(await page.locator('#customerMarketplaceBoard').textContent(),/غير متاحة مؤقتًا/,
         'Unavailable Native customer marketplace must not show an indefinite loading spinner');
-      await page.waitForFunction(()=>document.querySelector('#customerFranchiseBranches').textContent.includes('LOCAL PUBLIC BRANCH'),null,{timeout:10000});
+      await page.waitForFunction(()=>document.querySelector('#customerFranchiseBranches').textContent.includes('LOCAL AREA'),null,{timeout:10000});
       const publicBranches=await page.locator('#customerFranchiseBranches').textContent();
-      assert.ok(publicBranches.includes('LOCAL PUBLIC BRANCH') &&
+      assert.ok(publicBranches.includes('LOCAL AREA') &&
+                !publicBranches.includes('LOCAL PUBLIC BRANCH') &&
                 !publicBranches.includes('SECRET BRANCH') &&
                 !publicBranches.includes('PRIVATE_'),
-        'Original customer franchise UI must show only permitted public D1 fields');
-      assert.ok(network.filter(x=>x.path==='/v1/customer/native/public-content').length===2,
+        'Original customer UI must show public area, not internal branch name or employee data');
+      const rawPublicBranches=await page.evaluate(()=>window.trendosCustomerNativeBrowserDispatchV0(
+        'getFranchiseBranches',{},null));
+      assert.equal(rawPublicBranches.branches.length,1);
+      assert.equal(rawPublicBranches.branches[0].brandName,'LOCAL PUBLIC BRANCH');
+      assert.ok(!JSON.stringify(rawPublicBranches).includes('PRIVATE_'));
+      assert.ok(network.filter(x=>x.path==='/v1/customer/native/public-content').length>=2,
         'Both customer-only public D1 read routes must be used in real Chromium');
       const sectionResult=await page.evaluate(()=>window.trendosCustomerNativeBrowserDispatchV0('getPlatformSections',{},null));
       assert.equal(sectionResult.sections.length,1);
