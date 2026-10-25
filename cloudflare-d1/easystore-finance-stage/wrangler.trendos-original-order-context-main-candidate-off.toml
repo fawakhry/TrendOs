@@ -1,0 +1,28 @@
+# ACC256 — actual platform T12 order source CANDIDATE ONLY, NEVER DEPLOYED.
+# This config points to the existing production TrendOS order DATABASE,
+# not a second copy in EasyStore and not the incomplete trendos-staging clone.
+# Discovered by ACC255 EXACT Cloudflare provider sqlite_master name-only read.
+# Important: at-create customer capture 0035 is ABSENT in trendos-main.
+# The original signed context reader requires that capture and FAILS CLOSED.
+# Any LIVE access/credential provisioning, real customer ownership attestation,
+# Worker deployment or new finance route needs separate explicit owner approval.
+name = "trendos-original-order-context-main-candidate-off"
+main = "./trendos-original-order-context-source.mjs"
+compatibility_date = "2026-10-25"
+workers_dev = false
+# No routes, no triggers, no service-binding wired, no secret material here.
+
+[vars]
+TRENDOS_ORDER_CONTEXT_SOURCE_V1 = "OFF"
+FINANCE_RELEASE = "NO_GO"
+FINANCE_WRITES = "OFF"
+SOURCE_SYSTEM = "trendos_t12_native"
+ORIGINAL_ORDER_CUSTOMER_CAPTURE_0035 = "NOT_PRESENT"
+# No TRENDOS_ORDER_CONTEXT_HMAC_V1 secret provisioned.
+# NEVER reuse the EDGE_SESSION_SECRET or customer facts HMAC.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "trendos-main"
+database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"
+# D1 binding is a configuration CANDIDATE, not an actual deployed binding.
