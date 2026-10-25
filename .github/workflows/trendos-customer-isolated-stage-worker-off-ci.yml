@@ -48,6 +48,13 @@ jobs:
           python3 tests/entry660_customer_native_orders_sqlite.test.py -v
           python3 tests/entry661_customer_native_logout_sqlite.test.py -v
           python3 tests/entry662_customer_native_login_sqlite.test.py -v
+      - name: Private R2 source and T12 submission preflight NEGATIVE gates only
+        run: |
+          set -euo pipefail
+          node --test tests/entry666_customer_native_r2_file_off.test.mjs
+          python3 tests/entry666_customer_native_r2_file_sqlite.test.py -v
+          node --test tests/entry667_customer_draft_submit_preflight_off.test.mjs
+          python3 tests/entry667_customer_draft_submit_preflight_sqlite.test.py -v
       - name: Recheck current customer browser and employee transport contracts
         run: |
           set -euo pipefail
