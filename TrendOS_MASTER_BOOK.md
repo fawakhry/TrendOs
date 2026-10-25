@@ -6812,3 +6812,13 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - **State:** `ROOT_CAUSE_LOG_REVIEWED / SETTINGS_MISMATCH_CONFIRMED / AUTO_DEPLOY_RISK_IDENTIFIED / REMEDIATION_PENDING_OWNER / NO_DEPLOY_BY_ASSISTANT`. لا نغيّر `trendos-d1-api` أو `trendos-ui` أو D1، ولا نرقّي PR #38. بعد صورة تأكيد تعطيل البناء، نراجع `trendos-tasks-v3-t1-preview-20260914` بنفس مبدأ هدف النشر قبل تعديل أي شيء.
 - **References:** [GitHub PR #38 UI-001](https://github.com/fawakhry/TrendOs/pull/38), [UI book PR #37](https://github.com/fawakhry/TrendOs/pull/37), [Cloudflare Builds docs](https://developers.cloudflare.com/workers/ci-cd/builds/).
 
+
+### UI-001 — Cloudflare trendos Auto Builds stop confirmed by owner screenshot — 2026-10-25
+
+- **Evidence marker:** `CLOUDFLARE_TRENDOS_DISABLE_BUILDS_ON_SCREENSHOT_20261025`; screenshot provided directly by owner of Cloudflare Dashboard > Workers & Pages > `trendos` > Production > Settings > Builds. Toggle **Disable builds = ON** (purple). Repository `fawakhry/TrendOs` remains connected to production branch `main`. `Deploy Hooks: No deploy hooks defined` appears. No build command or deploy command visible in the follow-up screenshot because builds are disabled.
+- **Confirmation scope:** UI screenshot documents toggle enabled at time of capture; assistant did not change Cloudflare settings nor independently verify server-side persistence or runtime health. This mitigates inadvertent Git-triggered builds for **this named service only**. Do not infer changes to `trendos-d1-api`, `trendos-ui`, the task preview worker, or other deploy pathways.
+- **Historical error:** October 9 `Missing entry-point` was an earlier build failure; the new screenshot **does not prove the old pipeline configuration was repaired**, only that auto-builds for `trendos` are now visibly disabled.
+- **Safety:** NO merge, NO deploy, NO API change, NO D1 write/migration. Preserve `Disable builds` on `trendos` until ownership of Worker targets and config is reconciled.
+- **Next:** Read-only inspect **`trendos-tasks-v3-t1-preview-20260914`** Builds settings and decide only after comparing actual Worker name and intended pipeline; meanwhile UI-001 [PR #38](https://github.com/fawakhry/TrendOs/pull/38) remains DRAFT/source browser test PASS, not LIVE or FIXED. Final prerequisite is isolated staging employee-role verification and approved guarded deployment of actual `trendos-ui`.
+- **Book tracking:** [UI book PR #37](https://github.com/fawakhry/TrendOs/pull/37) and [TrendOS UI-001 PR #38](https://github.com/fawakhry/TrendOs/pull/38).
+
