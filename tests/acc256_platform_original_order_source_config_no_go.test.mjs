@@ -63,7 +63,7 @@ test('ACC256 missing original 0035 capture fails closed even with fake fully sig
  }),{
   TRENDOS_ORDER_CONTEXT_SOURCE_V1:'ENFORCE',
   TRENDOS_ORDER_CONTEXT_HMAC_V1:PRIVATE_TEST_KEY,
-  DB:{batch:async()=>{batches++;throw Error('no such table: t12_order_customer_at_create_v1')}}
+  DB:{prepare(){return null;},batch:async()=>{batches++;throw Error('no such table: t12_order_customer_at_create_v1')}}
  });
  assert.equal(resp.status,409);
  assert.equal(batches,1);
