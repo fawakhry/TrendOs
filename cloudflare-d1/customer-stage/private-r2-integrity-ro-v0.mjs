@@ -35,6 +35,28 @@ SELECT f.file_id AS fileId,f.item_id AS itemId,
  ORDER BY f.file_id ASC
  LIMIT 6
 `;
+// Immutable quarantine is the required default for ALL private R2 staged files.
+// D1 READY + matching R2 SHA256 is still NOT a malware/print clearance.
+export const CUSTOMER_R2_QUARANTINE_ROWS_SQL_V0=`
+SELECT q.file_id AS fileId,q.sha256_hex AS sha256Hex,
+       q.byte_size AS byteSize,q.content_type AS contentType,
+       q.disposition AS disposition,q.scan_completed AS scanCompleted,
+       q.print_release_authorized AS printReleaseAuthorized
+ FROM customer_portal_native_file_quarantine_v1 q
+ JOIN customer_portal_native_draft_files_v1 f ON f.file_id=q.file_id
+ WHERE f.draft_id=? AND f.customer_id=? AND q.draft_id=f.draft_id
+   AND q.customer_id=f.customer_id AND q.item_id=f.item_id
+ ORDER BY q.file_id ASC LIMIT 6
+`;
+function quarantineMatches(quarantines,files){
+  return quarantines.length===files.length&&files.every((row,i)=>{
+    const q=quarantines[i];
+    return q&&q.fileId===row.fileId&&q.sha256Hex===row.sha256Hex&&
+      Number(q.byteSize)===row.byteSize&&q.contentType===row.contentType&&
+      q.disposition==='QUARANTINED'&&Number(q.scanCompleted)===0&&
+      Number(q.printReleaseAuthorized)===0;
+  });
+}
 const cleanRow=r=>r&&typeof r==='object'&&
   typeof r.fileId==='string'&&/^CDF-[0-9a-f]{32}$/.test(r.fileId)&&
   typeof r.itemId==='string'&&/^CDI-[0-9a-f]{32}$/.test(r.itemId)&&
@@ -81,6 +103,11 @@ export async function inspectCustomerPrivateR2IntegrityV0({
     if(rows.length>MAX_FILES)return block(409,'CUSTOMER_R2_INTEGRITY_MORE_THAN_FIVE_FILES');
     if(rows.some(r=>!cleanRow(r)))
       return block(409,'CUSTOMER_R2_INTEGRITY_FILE_NOT_READY_OR_INVALID');
+    const quarantineStart=await db.prepare(CUSTOMER_R2_QUARANTINE_ROWS_SQL_V0)
+      .bind(draftId,customerId).all();
+    if(!quarantineStart||!Array.isArray(quarantineStart.results)||
+       !quarantineMatches(quarantineStart.results,rows))
+      return block(409,'CUSTOMER_R2_QUARANTINE_LEDGER_MISSING_OR_INVALID');
     // No arbitrary key supplied from client. Read ONLY exact D1-attested
     // private keys; never issue public URLs or return bytes/object names.
     for(const row of rows){
@@ -116,8 +143,14 @@ export async function inspectCustomerPrivateR2IntegrityV0({
     if(!finish||!Array.isArray(finish.results)||
        snap(finish.results)!==snap(rows))
       return block(409,'CUSTOMER_R2_INTEGRITY_SNAPSHOT_CHANGED');
+    const quarantineEnd=await db.prepare(CUSTOMER_R2_QUARANTINE_ROWS_SQL_V0)
+      .bind(draftId,customerId).all();
+    if(!quarantineEnd||!Array.isArray(quarantineEnd.results)||
+       !quarantineMatches(quarantineEnd.results,finish.results)||
+       JSON.stringify(quarantineEnd.results)!==JSON.stringify(quarantineStart.results))
+      return block(409,'CUSTOMER_R2_QUARANTINE_CHANGED_DURING_READ');
     return {status:200,body:{success:true,
-      integrityNowVerified:true,verifiedFileCount:rows.length,
+      integrityNowVerified:true,allFilesQuarantined:true,verifiedFileCount:rows.length,
       provisionalReadOnlyObservation:true,malwareScanComplete:false,
       officialOrderCreated:false,productionWriteAuthorized:false,
       eligibleForT12FileHandoff:false,source:'customer-private-r2-integrity-stage-v0'}};
