@@ -1,0 +1,225 @@
+name: ACC247 Owner-approved original 0008 0009 operational Stage-only migration
+# OWNER APPROVED: Stage only. Never production. EXACT 0008/0009 originals, no
+# recreation, no employee enrollment, no customers, no finance ledger authority.
+# One-shot on this workflow path; fail-closed on schema drift, export or restore.
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths: ['.github/workflows/easystore-stage-original-opsource-0008-0009-20261025.yml']
+permissions:
+  contents: read
+concurrency:
+  group: easystore-accounting-staging-exclusive-original-schema-20261024
+  cancel-in-progress: false
+jobs:
+  migrate-original-ops-schema-stage-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      OP_UUID: bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6
+      FIN_UUID: c2fe1a54-90f5-4e6f-9d51-80ce23e21328
+      CFG: cloudflare-d1/easystore-finance-stage/wrangler.trendos-native-session-source.toml
+      MIG8: cloudflare-d1/migrations/0008_t12_customer_master.sql
+      MIG9: cloudflare-d1/migrations/0009_employee_auth_native_v1.sql
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Original migration source hashes and Stage-only source configs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test "$(git hash-object "$MIG8")" = "c638b2afca70471c9916d6f644111cdce1157b45"
+          test "$(git hash-object "$MIG9")" = "20739798d691286b47918299c099049cbcf50c46"
+          node <<'NODE'
+          const fs=require('fs'),p='cloudflare-d1/easystore-finance-stage/';
+          const op=fs.readFileSync(p+'wrangler.trendos-native-session-source.toml','utf8');
+          const fin=fs.readFileSync(p+'wrangler.toml','utf8');
+          if(!op.includes('database_name = "trendos-staging"')||
+             !op.includes('database_id = "bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6"')||
+             !op.includes('workers_dev = false')||
+             !fin.includes('database_id = "c2fe1a54-90f5-4e6f-9d51-80ce23e21328"')||
+             !fin.includes('FINANCE_WRITES = "OFF"')||
+             !fin.includes('EASYSTORE_STAGE_READONLY_API_V1 = "OFF"'))
+             throw Error('OP_SOURCE_MIGRATION_NOT_STAGE_ONLY_STOP');
+          console.log('PINNED_ORIGINAL_0008_AND_0009=PASS');
+          NODE
+      - name: Install pinned provider CLI
+        shell: bash
+        run: npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/acc247-cli" wrangler@4.152.0
+      - name: Fresh independently authenticated database identity, no duplicate apply, verified Time Travel
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/acc247-cli/node_modules/.bin/wrangler"
+          "$CLI" d1 list --json --config "$CFG" > "$RUNNER_TEMP/list.json"
+          "$CLI" d1 time-travel info trendos-staging --json --config "$CFG" > "$RUNNER_TEMP/recovery.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name" > "$RUNNER_TEMP/before-names.json"
+          node <<'NODE'
+          const fs=require('fs'),d=process.env.RUNNER_TEMP;
+          const list=JSON.parse(fs.readFileSync(d+'/list.json','utf8'));
+          const tt=JSON.parse(fs.readFileSync(d+'/recovery.json','utf8'));
+          const a=JSON.parse(fs.readFileSync(d+'/before-names.json','utf8'));
+          if(list.filter(x=>x.name==='trendos-staging'&&x.uuid===process.env.OP_UUID).length!==1||
+             list.filter(x=>x.name==='easystore-accounting-staging'&&x.uuid===process.env.FIN_UUID).length!==1)
+             throw Error('D1_PROVIDER_WRONG_TARGET_STOP');
+          const mark=tt.bookmark||tt.result?.bookmark||'';
+          if(typeof mark!=='string'||!/^[-a-zA-Z0-9]{24,100}$/.test(mark))throw Error('TIME_TRAVEL_BACKUP_NOT_VERIFIED_STOP');
+          if(!Array.isArray(a)||a.length!==1||a[0].success!==true||!Array.isArray(a[0].results))
+             throw Error('STAGE_SCHEMA_INVENTORY_UNTRUSTED');
+          const names=new Set(a[0].results.map(x=>x.name));
+          const old=[...names].filter(x=>!x.startsWith('sqlite_')&&x!=='_cf_KV');
+          const absent=['t12_customer_control','t12_customers','t12_customer_request_ledger',
+            't12_customer_events','employee_auth_control_v1',
+            'employee_auth_users_v1','employee_auth_sessions_v1'];
+          if(old.length!==11||absent.some(t=>names.has(t)))
+             throw Error('ORIGINAL_STAGE_DDL_PRECONDITION_CHANGED_STOP');
+          console.log('STAGE_EXACT_11_UNRELATED_TABLES_PRESENT=PASS');
+          console.log('ORIGINAL_7_TARGET_TABLES_ABSENT=PASS');
+          console.log('RECOVERY_TIME_TRAVEL_BOOKMARK=VERIFIED_UNDISCLOSED');
+          NODE
+      - name: Encrypted runner temp not needed - full private SQL export and independently restored SQLite before ANY DDL
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          export PRIVATE="$(mktemp -d "$RUNNER_TEMP/acc247-protected-XXXXXXXX")"
+          chmod 700 "$PRIVATE"
+          echo "PROTECTED_DIR=$PRIVATE" >> "$GITHUB_ENV"
+          CLI="$RUNNER_TEMP/acc247-cli/node_modules/.bin/wrangler"
+          "$CLI" d1 export trendos-staging --remote --config "$CFG" \
+            --output "$PRIVATE/original_operational_stage_before_0008_0009.sql" > "$PRIVATE/export-cli-private.log" 2>&1
+          python3 - <<'PY'
+          import hashlib,os,sqlite3,pathlib
+          directory=pathlib.Path(os.environ['PRIVATE'])
+          export=directory/'original_operational_stage_before_0008_0009.sql'
+          if not export.is_file() or export.stat().st_size==0:
+              raise RuntimeError('PROTECTED_FULL_STAGE_EXPORT_MISSING')
+          os.chmod(export,0o600)
+          restore=directory/'independent_restore.sqlite'
+          db=sqlite3.connect(restore)
+          try:
+              db.executescript(export.read_text(encoding='utf8'))
+              check=db.execute('PRAGMA integrity_check').fetchone()[0]
+              if check!='ok':raise RuntimeError('RESTORED_STAGE_INTEGRITY_ERROR')
+              names={v[0] for v in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+              targets={'t12_customers','employee_auth_control_v1','employee_auth_users_v1','employee_auth_sessions_v1'}
+              actual=[t for t in names if not t.startswith('sqlite_') and t!='_cf_KV']
+              if len(actual)!=11 or targets & names:raise RuntimeError('RESTORED_PREMIGRATION_SCHEMA_DRIFT')
+          finally:db.close()
+          os.chmod(restore,0o600)
+          print('FULL_STAGE_EXPORT_LOCAL_SQLITE_RESTORE_INTEGRITY=PASS')
+          print('PROTECTED_BACKUP_SHA256_VALID='+str(len(hashlib.sha256(export.read_bytes()).digest())==32).upper())
+          print('PRIVATE_SQL_AND_RESTORE=NOT_UPLOADED')
+          PY
+      - name: No DDL if provider changed while full export ran (fresh second SELECT)
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI="$RUNNER_TEMP/acc247-cli/node_modules/.bin/wrangler"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name" > "$PROTECTED_DIR/recheck.json"
+          node <<'NODE'
+          const fs=require('fs'),p=process.env.PROTECTED_DIR;
+          const old=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/before-names.json','utf8'))[0].results.map(x=>x.name).sort();
+          const now=JSON.parse(fs.readFileSync(p+'/recheck.json','utf8'));
+          if(!Array.isArray(now)||now[0]?.success!==true ||
+             JSON.stringify((now[0].results||[]).map(x=>x.name).sort())!==JSON.stringify(old))
+              throw Error('REMOTE_STAGE_SCHEMA_CHANGED_AFTER_PRIVATE_BACKUP_STOP');
+          console.log('EXCLUSIVE_STAGE_PRE_APPLY_SCHEMA_STILL_SAME=PASS');
+          NODE
+      - name: Apply ONLY exact original 0008 to operational Stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI="$RUNNER_TEMP/acc247-cli/node_modules/.bin/wrangler"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --file "$MIG8" > "$PROTECTED_DIR/apply-0008-private.json"
+          node <<'NODE'
+          const fs=require('fs'),r=JSON.parse(fs.readFileSync(process.env.PROTECTED_DIR+'/apply-0008-private.json','utf8'));
+          if(!Array.isArray(r)||!r.length||r.some(x=>x.success!==true))throw Error('ORIGINAL_0008_PROVIDER_APPLY_FAILED_STOP');
+          console.log('ORIGINAL_0008_REMOTE_STAGE=SUCCESS');
+          NODE
+      - name: Apply ONLY exact original 0009 to operational Stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI="$RUNNER_TEMP/acc247-cli/node_modules/.bin/wrangler"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --file "$MIG9" > "$PROTECTED_DIR/apply-0009-private.json"
+          node <<'NODE'
+          const fs=require('fs'),r=JSON.parse(fs.readFileSync(process.env.PROTECTED_DIR+'/apply-0009-private.json','utf8'));
+          if(!Array.isArray(r)||!r.length||r.some(x=>x.success!==true))throw Error('ORIGINAL_0009_PROVIDER_APPLY_FAILED_STOP');
+          console.log('ORIGINAL_0009_REMOTE_STAGE=SUCCESS');
+          NODE
+      - name: Provider postcheck BOTH original schema and initial OFF controls; no data rows
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI="$RUNNER_TEMP/acc247-cli/node_modules/.bin/wrangler"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name" > "$PROTECTED_DIR/after-names.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT mode FROM employee_auth_control_v1 WHERE singleton=1 AND marker='T12_EMPLOYEE_AUTH_V1'" > "$PROTECTED_DIR/auth-control.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT mode FROM t12_customer_control WHERE singleton=1 AND marker='T12_CUSTOMER_MASTER_V1'" > "$PROTECTED_DIR/customer-control.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT COUNT(*) AS n FROM t12_customers" > "$PROTECTED_DIR/customer-count.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT COUNT(*) AS n FROM employee_auth_users_v1" > "$PROTECTED_DIR/employee-count.json"
+          node <<'NODE'
+          const fs=require('fs'),p=process.env.PROTECTED_DIR;
+          function read(n){
+            const x=JSON.parse(fs.readFileSync(p+'/'+n+'.json','utf8'));
+            if(!Array.isArray(x)||x.length!==1||x[0].success!==true||!Array.isArray(x[0].results))throw Error('POSTCHECK_PROVIDER_FORMAT_'+n);
+            return x[0].results;
+          }
+          const old=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/before-names.json','utf8'))[0].results.map(x=>x.name);
+          const now=new Set(read('after-names').map(x=>x.name));
+          const expected=['t12_customer_control','t12_customers','t12_customer_request_ledger',
+            't12_customer_events','employee_auth_control_v1','employee_auth_users_v1','employee_auth_sessions_v1'];
+          if(old.some(x=>!now.has(x))||expected.some(x=>!now.has(x))||
+             now.size!==new Set([...old,...expected]).size)throw Error('POSTCHECK_STAGE_TABLES_NOT_EXACT');
+          if(read('auth-control').length!==1||read('auth-control')[0].mode!=='OFF'||
+             read('customer-control').length!==1||read('customer-control')[0].mode!=='OFF'||
+             read('customer-count').length!==1||Number(read('customer-count')[0].n)!==0||
+             read('employee-count').length!==1||Number(read('employee-count')[0].n)!==0)
+             throw Error('POSTCHECK_ORIGINAL_DEFAULT_AUTH_AND_CUSTOMERS_NOT_INERT');
+          console.log('ORIGINAL_0008_0009_D1_STAGE_VERIFIED=YES');
+          console.log('OPERATIONAL_STAGE_APPLICATION_TABLES=18');
+          console.log('T12_CUSTOMERS=ZERO_UNTIL_ORIGINAL_SOURCE_IMPORT');
+          console.log('EMPLOYEE_AUTH_CONTROL=OFF');
+          console.log('T12_CUSTOMER_CONTROL=OFF');
+          console.log('FINANCE_D1_WRITES=OFF');
+          console.log('PRODUCTION_D1_TOUCHED=NO');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '## ACC247 original Stage-only operational source schema\n\n'+
+            '- Full private pre-apply D1 export restored to independent disposable SQLite with integrity PASS (never uploaded)\n'+
+            '- Exact original 0008 and 0009 SHA pinned, applied to existing isolated trendos-staging ONLY\n'+
+            '- All 11 existing application tables retained, 7 target tables newly present, total 18\n'+
+            '- Customer and native auth controls: OFF/OFF, no customers or users created\n'+
+            '- EasyStore finance D1 never written to, no finance money routes enabled\n'+
+            '- Cloudflare Time Travel recovery available; second-host restore still NOT RUN\n');
+          NODE
+      - name: Remove private protected backup from ephemeral runner (provider Time Travel remains)
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${PROTECTED_DIR:-}" ] && [ -d "$PROTECTED_DIR" ]; then
+            chmod -R u+rwX "$PROTECTED_DIR" 2>/dev/null || true
+            rm -rf -- "$PROTECTED_DIR"
+            echo 'PRIVATE_RUNNER_EXPORT_NOT_RETAINED_OR_UPLOADED=YES'
+          fi
