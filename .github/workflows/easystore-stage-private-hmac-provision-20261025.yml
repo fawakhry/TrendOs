@@ -1,0 +1,137 @@
+name: ACC246 Stage-only signed service HMAC provisioning (owner approved)
+# Operator-approved private Stage ONLY, not production. Generates cryptographically
+# random, independent pairing keys inside the CI process; never writes plaintext
+# to git, logs, Actions artifacts or summaries. Does NOT replace EDGE_SESSION_SECRET.
+# One shot: only a change to THIS workflow on existing Draft branch triggers.
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths: ['.github/workflows/easystore-stage-private-hmac-provision-20261025.yml']
+permissions:
+  contents: read
+concurrency:
+  group: easystore-accounting-staging-exclusive-original-schema-20261024
+  cancel-in-progress: false
+jobs:
+  isolated-stage-hmac-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify exact Stage declaration, unchanged disabled finance authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          node - <<'NODE'
+          const fs=require('fs'),p='cloudflare-d1/easystore-finance-stage/';
+          const s=fs.readFileSync(p+'wrangler.toml','utf8');
+          if(!s.includes('database_id = "c2fe1a54-90f5-4e6f-9d51-80ce23e21328"') ||
+             !s.includes('EASYSTORE_STAGE_READONLY_API_V1 = "OFF"') ||
+             !s.includes('ACCOUNTING_FINANCE_GRANTS_V1 = "{\\\"version\\\":1,\\\"grants\\\":[]}"') ||
+             !s.includes('FINANCE_WRITES = "OFF"') || !s.includes('FINANCE_RELEASE = "NO_GO"') ||
+             !s.includes('workers_dev = false')) throw Error('STAGE_HMAC_FINANCE_BOUNDARY_STOP');
+          for(const [file,db] of [['wrangler.trendos-native-session-source.toml','bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6'],['wrangler.trendos-customer-facts-source.toml','bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6']]) {
+            const t=fs.readFileSync(p+file,'utf8');
+            if(!t.includes('workers_dev = false')||!t.includes('database_name = "trendos-staging"')||!t.includes('database_id = "bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6"'))throw Error('STAGE_HMAC_OPERATIONS_BOUNDARY_STOP');
+          }
+          console.log('ORIGINAL_PRIVATE_STAGE_CONFIG=PASS');
+          NODE
+      - name: Precheck all 3 private Stage Workers and absent HMAC names
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const scripts={
+            'easystore-accounting-staging-api':['TRENDOS_EMPLOYEE_SESSION_HMAC_V1','TRENDOS_CUSTOMER_FACTS_HMAC_V1'],
+            'trendos-native-session-stage-source':['TRENDOS_EMPLOYEE_SESSION_HMAC_V1'],
+            'trendos-customer-facts-stage-source':['TRENDOS_CUSTOMER_FACTS_HMAC_V1']
+          };
+          const root='https://api.cloudflare.com/client/v4/accounts/'+encodeURIComponent(process.env.CLOUDFLARE_ACCOUNT_ID)+'/workers/scripts';
+          const hdr={Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN};
+          async function get(url){
+            const res=await fetch(url,{headers:hdr});if(!res.ok)throw Error('PROVIDER_PREFLIGHT_HTTP_'+res.status);
+            const j=await res.json();if(!j.success)throw Error('PROVIDER_PREFLIGHT_UNTRUSTED');return j.result;
+          }
+          (async()=>{
+            const existing=await get(root);
+            for(const [name,needed] of Object.entries(scripts)){
+              if(!existing.some(x=>x.id===name))throw Error('STAGE_SCRIPT_MISSING_'+name);
+              const sub=await get(root+'/'+encodeURIComponent(name)+'/subdomain');
+              if(sub?.enabled!==false)throw Error('STAGE_SCRIPT_PUBLIC_STOP_'+name);
+              const sec=await get(root+'/'+encodeURIComponent(name)+'/secrets');
+              if(!Array.isArray(sec))throw Error('STAGE_SECRETS_LIST_INVALID');
+              if(needed.some(k=>sec.some(x=>x.name===k)))throw Error('PREEXISTING_HMAC_DO_NOT_ROTATE_'+name);
+            }
+            console.log('THREE_PRIVATE_STAGE_WORKERS_HMAC_PRECHECK=PASS');
+            console.log('EXISTING_EDGE_SESSION_SECRET=UNCHANGED');
+          })().catch(e=>{console.error(e.message);process.exitCode=1});
+          NODE
+      - name: Provision two separate ephemeral high-entropy HMAC keys into paired Stage Workers
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const {randomBytes}=require('node:crypto');
+          const root='https://api.cloudflare.com/client/v4/accounts/'+encodeURIComponent(process.env.CLOUDFLARE_ACCOUNT_ID)+'/workers/scripts';
+          const auth={Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN};
+          // Generate exactly TWO independent 384-bit values, each shared only
+          // with the corresponding private finance/source pairing. NEVER log.
+          const session=randomBytes(48).toString('hex'),customers=randomBytes(48).toString('hex');
+          const writes=[
+            ['trendos-native-session-stage-source','TRENDOS_EMPLOYEE_SESSION_HMAC_V1',session],
+            ['trendos-customer-facts-stage-source','TRENDOS_CUSTOMER_FACTS_HMAC_V1',customers],
+            ['easystore-accounting-staging-api','TRENDOS_EMPLOYEE_SESSION_HMAC_V1',session],
+            ['easystore-accounting-staging-api','TRENDOS_CUSTOMER_FACTS_HMAC_V1',customers]
+          ];
+          async function get(url){
+            const r=await fetch(url,{headers:auth});
+            if(!r.ok)throw Error('PROVIDER_VERIFY_HTTP_'+r.status);
+            const j=await r.json();if(!j.success)throw Error('PROVIDER_VERIFY_REJECTED');
+            return j.result;
+          }
+          (async()=>{
+            for(const [name,key,value] of writes){
+              // Provider PUT creates a *new version of this private Stage script*,
+              // not a production script or a D1 write.
+              const r=await fetch(root+'/'+encodeURIComponent(name)+'/secrets',{
+                method:'PUT',headers:{...auth,'Content-Type':'application/json'},
+                body:JSON.stringify({name:key,text:value,type:'secret_text'})
+              });
+              if(!r.ok)throw Error('STAGE_SECRET_PUT_HTTP_'+r.status+'_'+name+'_'+key);
+              const v=await r.json();if(!v.success)throw Error('STAGE_SECRET_PUT_FAILED_'+name+'_'+key);
+              console.log('PRIVATE_STAGE_HMAC_NAME_PROVISIONED='+name+':'+key);
+            }
+            for(const name of ['easystore-accounting-staging-api','trendos-native-session-stage-source','trendos-customer-facts-stage-source']){
+              const sec=await get(root+'/'+encodeURIComponent(name)+'/secrets');
+              if(!Array.isArray(sec))throw Error('POST_SECRET_INVENTORY_BAD');
+              const req=name==='easystore-accounting-staging-api'?
+                ['TRENDOS_EMPLOYEE_SESSION_HMAC_V1','TRENDOS_CUSTOMER_FACTS_HMAC_V1']:
+                [name==='trendos-native-session-stage-source'?'TRENDOS_EMPLOYEE_SESSION_HMAC_V1':'TRENDOS_CUSTOMER_FACTS_HMAC_V1'];
+              if(req.some(k=>!sec.some(x=>x.name===k)))throw Error('SECRET_POSTCHECK_MISSING_'+name);
+              const sub=await get(root+'/'+encodeURIComponent(name)+'/subdomain');
+              if(sub?.enabled!==false)throw Error('PUBLIC_SUBDOMAIN_ENABLED_AFTER_SECRET_PUT_'+name);
+            }
+            console.log('STAGE_HMAC_PAIRS=2_OF_2_PROVISIONED');
+            console.log('PRIVATE_STAGE_PUBLIC_SUBDOMAIN=DISABLED_3_OF_3');
+            console.log('EDGE_SESSION_SECRET=NOT_MODIFIED');
+            console.log('FINANCE_D1_MUTATION=NONE');
+            require('fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+              '## ACC246 stage-only signing secrets\n\n'+
+              '- Two independent 384-bit HMAC signing secrets provisioned to their matched private Stage service pairs\n'+
+              '- No secret values or hashes logged, committed or stored as artifacts\n'+
+              '- All 3 Workers still private (workers.dev disabled by provider GET)\n'+
+              '- Original native session fingerprint secret EDGE_SESSION_SECRET NOT created/rotated\n'+
+              '- Finance writes/reads still disabled in deployed source; no DB changes\n');
+          })().catch(e=>{console.error(e.message);process.exitCode=1});
+          NODE
