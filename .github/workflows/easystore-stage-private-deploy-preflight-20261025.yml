@@ -1,0 +1,104 @@
+name: ACC245 EasyStore owner-approved private Stage deployment preflight
+# This is READ ONLY provider inventory. It cannot deploy or alter D1.
+# Target: existing EasyStore finance Stage + existing TrendOS operational Stage ONLY.
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths: ['.github/workflows/easystore-stage-private-deploy-preflight-20261025.yml']
+permissions:
+  contents: read
+concurrency:
+  group: easystore-finance-stage-private-deploy-20261025
+  cancel-in-progress: false
+jobs:
+  inspect-no-mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EASYSTORE_STAGE_UUID: c2fe1a54-90f5-4e6f-9d51-80ce23e21328
+      TRENDOS_STAGE_UUID: bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify owner-approved targets and no other D1 bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          python3 - <<'PY'
+          import pathlib,tomllib
+          root=pathlib.Path("cloudflare-d1/easystore-finance-stage")
+          names=[("wrangler.toml","easystore-accounting-staging","c2fe1a54-90f5-4e6f-9d51-80ce23e21328"),("wrangler.trendos-customer-facts-source.toml","trendos-staging","bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6"),("wrangler.trendos-native-session-source.toml","trendos-staging","bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6")]
+          for path,name,db_id in names:
+              d=tomllib.loads((root/path).read_text())
+              assert d.get("workers_dev") is False
+              dbs=d["d1_databases"]
+              assert len(dbs)==1 and dbs[0]["database_name"]==name and dbs[0]["database_id"]==db_id and dbs[0]["binding"]=="DB"
+              assert d["name"] in {"easystore-accounting-staging-api","trendos-customer-facts-stage-source","trendos-native-session-stage-source"}
+          d=tomllib.loads((root/"wrangler.toml").read_text())
+          assert d["vars"]["FINANCE_RELEASE"]=="NO_GO"
+          assert d["vars"]["FINANCE_WRITES"]=="OFF"
+          assert d["vars"]["EASYSTORE_STAGE_READONLY_API_V1"]=="OFF"
+          assert d["vars"]["EASYSTORE_ACCOUNTING_D1_WRITE_MODE"]=="OFF"
+          assert d["vars"]["ACCOUNTING_FINANCE_GRANTS_V1"]=='{"version":1,"grants":[]}'
+          print("STAGE_SOURCE_OFF_AND_PRIVATE=PASS")
+          PY
+      - name: Pinned provider CLI
+        shell: bash
+        run: npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/acc245" wrangler@4.152.0
+      - name: Verify fresh exact finance schema and both provider D1 UUIDs without write
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/acc245/node_modules/.bin/wrangler"
+          "$CLI" d1 list --json --config cloudflare-d1/easystore-finance-stage/wrangler.toml > "$RUNNER_TEMP/d1-list.json"
+          python3 cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py inspect --wrangler "$CLI" > "$RUNNER_TEMP/fin-inspect.json"
+          node <<'NODE'
+          const fs=require('fs'), list=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/d1-list.json','utf8'));
+          const f=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/fin-inspect.json','utf8'));
+          const fin=list.filter(x=>x.name==='easystore-accounting-staging');
+          const ops=list.filter(x=>x.name==='trendos-staging');
+          if(fin.length!==1||fin[0].uuid!==process.env.EASYSTORE_STAGE_UUID ||
+             ops.length!==1||ops[0].uuid!==process.env.TRENDOS_STAGE_UUID ||
+             f.target?.uuid!==process.env.EASYSTORE_STAGE_UUID ||
+             f.inspectState!=='NATIVE_SCHEMA_VERIFIED_WRITES_OFF' ||
+             f.userTables?.length!==22 || f.financeRelease!=='NO_GO' || f.financeWrites!=='OFF')
+              throw Error('PRIVATE_STAGE_D1_UNQUALIFIED_STOP');
+          console.log('PRIVATE_STAGE_D1_TARGET_UUIDS=PASS');
+          console.log('EASYSTORE_STAGE_SCHEMA_22=PASS');
+          console.log('EASYSTORE_STAGE_FINANCE_WRITES=OFF');
+          NODE
+      - name: Read-only Worker provider inventory (target names only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const names=['easystore-accounting-staging-api','trendos-customer-facts-stage-source','trendos-native-session-stage-source'];
+          const url='https://api.cloudflare.com/client/v4/accounts/'+encodeURIComponent(process.env.CLOUDFLARE_ACCOUNT_ID)+'/workers/scripts';
+          (async()=>{
+            const res=await fetch(url,{headers:{Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN}});
+            if(!res.ok)throw Error('WORKER_INVENTORY_HTTP_'+res.status);
+            const x=await res.json();
+            if(!x.success||!Array.isArray(x.result))throw Error('WORKER_INVENTORY_UNVERIFIED');
+            const found=names.map(name=>({name,exists:x.result.some(w=>w.id===name)}));
+            console.log('PRIVATE_STAGE_WORKER_NAMES='+JSON.stringify(found));
+            const s='## ACC245 predeploy private Stage inventory (GET only)\n\n'+
+              '- Finance D1: original 22 tables, control OFF, no mutation\n'+
+              '- Operational D1: exact existing TrendOS staging UUID verified\n'+
+              found.map(v=>'- '+v.name+': '+(v.exists?'ALREADY_EXISTS__NO_OVERWRITE':'ABSENT__NEW_PRIVATE_CANDIDATE')).join('\n')+
+              '\n- Production and finance writes: NOT TOUCHED\n';
+            require('fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,s);
+          })().catch(e=>{console.error(String(e.message));process.exitCode=1});
+          NODE
