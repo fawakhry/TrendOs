@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import {webcrypto} from 'node:crypto';
-import {ACC247_RECEIVER_FIXTURE_SCHEMA,ACC247_RECEIVER_POLICY,acceptACC247OrderCreatedContextFixtureOnly as acceptACC247} from '../cloudflare-d1/src/t12-finance-order-created-acc247-receiver-fixture.mjs';
+import {ACC247_RECEIVER_FIXTURE_SCHEMA,ACC247_RECEIVER_POLICY,acceptACC247OrderCreatedContextFixtureOnly as acceptACC247,auditACC248StoredContextBeforeInvoiceFixtureOnly as auditACC248} from '../cloudflare-d1/src/t12-finance-order-created-acc247-receiver-fixture.mjs';
 import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -1426,6 +1426,108 @@ test('ACC247 isolated receiver survives file restart, duplicate remains same imm
   assert.equal(dup.duplicateIdenticalContext,true);
   assert.deepEqual(receiver.row(),old);
  }finally{sender.close();receiver?.close();rmSync(dir,{recursive:true,force:true})}
+}));
+
+
+const acc248Args=(x,receiver,key,nowMs=SIGN_TIME+4000)=>({
+ sourceDb:x.db,recipientDb:receiver.raw,eventId:acc235Event,
+ verifyKey:key,expectedKeyId:FIXTURE_KEY_ID,nowMs,
+ mode:'ISOLATED_SQLITE_RECEIVER'
+});
+async function acc248AcceptedFixture(x,sender,receiver,key){
+ const lease=await acc247Stage(x,sender,key);
+ const outcome=await acceptACC247(acc247Args(x,sender,receiver,key,lease));
+ assert.equal(outcome.success,true,JSON.stringify(outcome));
+ return lease;
+}
+test('ACC248 audit is default OFF and NEVER authorizes invoice, even with current context',()=>withFixture(async x=>{
+ const sender=acc235OfflineDb(),receiver=acc247Inbox();
+ try{
+  const key=await fakeSignKey();
+  await acc248AcceptedFixture(x,sender,receiver,key);
+  const before=x.raw.prepare('SELECT total_changes() n').get().n;
+  const snapshot=receiver.row();
+  assert.equal((await auditACC248({...acc248Args(x,receiver,key),mode:undefined})).code,
+   'ACC248_AUDIT_DEFAULT_OFF');
+  const audit=await auditACC248(acc248Args(x,receiver,key));
+  assert.equal(audit.success,true,JSON.stringify(audit));
+  assert.equal(audit.fixtureContextCurrent,true);
+  assert.equal(audit.contextPurpose,'prepare_context_only');
+  assert.equal(audit.realSignedLineApprovalsVerified,false);
+  assert.equal(audit.invoiceRequested,false);
+  assert.equal(audit.postingAllowed,false);
+  assert.equal(audit.customerOwnershipAttested,false);
+  assert.equal(audit.consumerAcknowledged,false);
+  assert.equal(x.raw.prepare('SELECT total_changes() n').get().n,before);
+  assert.deepEqual(receiver.row(),snapshot);
+ }finally{sender.close();receiver.close()}
+}));
+test('ACC248 rejects source line cancellation after already accepted context with no context mutation',()=>withFixture(async x=>{
+ const sender=acc235OfflineDb(),receiver=acc247Inbox();
+ try{
+  const key=await fakeSignKey();
+  await acc248AcceptedFixture(x,sender,receiver,key);
+  const accepted=receiver.row();
+  runtimeState(x,'4323-02','ملغى','jaber-synthetic');
+  runtimeEvent(x,'4323-02','طلب جديد','ملغى','jaber-synthetic');
+  const r=await auditACC248(acc248Args(x,receiver,key));
+  assert.equal(r.code,'ACC248_CONTEXT_STALE_SINCE_RECEIPT');
+  assert.equal(r.postingAllowed,false);
+  assert.deepEqual(receiver.row(),accepted);
+ }finally{sender.close();receiver.close()}
+}));
+test('ACC248 rejects restored native line status after acceptance (monotonic revision ABA)',()=>withFixture(async x=>{
+ const sender=acc235OfflineDb(),receiver=acc247Inbox();
+ try{
+  const key=await fakeSignKey();
+  await acc248AcceptedFixture(x,sender,receiver,key);
+  runtimeState(x,'4323-01','بدأ التنفيذ','wael-synthetic');
+  runtimeEvent(x,'4323-01','طلب جديد','بدأ التنفيذ','wael-synthetic');
+  x.raw.exec("UPDATE t12_prod_line_runtime SET version=2,status='طلب جديد' WHERE line_id='4323-01'");
+  runtimeEvent(x,'4323-01','بدأ التنفيذ','طلب جديد','wael-synthetic');
+  assert.equal((await request(x)).status,200);
+  const r=await auditACC248(acc248Args(x,receiver,key));
+  assert.equal(r.code,'ACC248_CONTEXT_STALE_SINCE_RECEIPT');
+  assert.equal(r.consumerAcknowledged,false);
+ }finally{sender.close();receiver.close()}
+}));
+test('ACC248 refuses old signed context when original creation HMAC expired',()=>withFixture(async x=>{
+ const sender=acc235OfflineDb(),receiver=acc247Inbox();
+ try{
+  const key=await fakeSignKey();
+  await acc248AcceptedFixture(x,sender,receiver,key);
+  const r=await auditACC248(acc248Args(x,receiver,key,SIGN_TIME+301000));
+  assert.equal(r.code,'ACC248_CONTEXT_HMAC_EXPIRED_OR_UNVERIFIED');
+  assert.equal(r.invoiceRequested,false);
+ }finally{sender.close();receiver.close()}
+}));
+test('ACC248 missing row or original source, wrong HMAC key and absent marker fail closed',()=>withFixture(async x=>{
+ const sender=acc235OfflineDb(),receiver=acc247Inbox();
+ try{
+  const key=await fakeSignKey(),wrong=await otherSignKey();
+  assert.equal((await auditACC248(acc248Args(x,receiver,key))).code,
+   'ACC248_NO_TRUSTED_ORIGINAL_CONTEXT_ROW');
+  await acc248AcceptedFixture(x,sender,receiver,key);
+  assert.equal((await auditACC248(acc248Args(x,receiver,wrong))).code,
+   'ACC248_CONTEXT_HMAC_EXPIRED_OR_UNVERIFIED');
+  assert.equal((await auditACC248({...acc248Args(x,receiver,key),sourceDb:undefined})).code,
+   'ACC248_SOURCE_AND_CONTEXT_READERS_REQUIRED');
+  receiver.raw.exec('DELETE FROM acc247_fixture_control');
+  assert.equal((await auditACC248(acc248Args(x,receiver,key))).code,
+   'ACC248_RECEIVER_CONTEXT_MARKER_UNVERIFIED');
+ }finally{sender.close();receiver.close()}
+}));
+test('ACC248 rejects mutated original customer/order/line at audit time even if recorded context is valid',()=>withFixture(async x=>{
+ const sender=acc235OfflineDb(),receiver=acc247Inbox();
+ try{
+  const key=await fakeSignKey();
+  await acc248AcceptedFixture(x,sender,receiver,key);
+  x.raw.exec("UPDATE t12_prod_orders SET external_customer_id='FAKE_WRONG' WHERE order_id='4323'");
+  const r=await auditACC248(acc248Args(x,receiver,key));
+  assert.equal(r.code,'ACC248_CONTEXT_STALE_SINCE_RECEIPT');
+  assert.equal(receiver.count(),1);
+  assert.equal(r.financeAuthorized,false);
+ }finally{sender.close();receiver.close()}
 }));
 
 test('without D1 batch, broken transaction or broken schema return generic fail closed',async()=>{
