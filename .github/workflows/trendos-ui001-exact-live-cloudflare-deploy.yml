@@ -2,7 +2,7 @@ name: TrendOS UI-001 Exact-Live One-HTML Production Release
 
 on:
   push:
-    branches: [main]
+    branches: [main, release/ui001-exact-live-cloudflare-deploy-20261025]
     paths:
       - '.github/workflows/trendos-ui001-exact-live-cloudflare-deploy.yml'
 
@@ -131,11 +131,13 @@ jobs:
           print('UI001_ASSET_COUNT='+str(len(allNames)))
           print('UI001_PATCHED_HTML_SHA256='+hashlib.sha256(patched.encode()).hexdigest())
           PY
-          for item in app.js config.js styles.css employee-api-dispatcher-v1.js; do
-            node --check "cloudflare-d1/frontend-dist/$item" || { [ "$item" = styles.css ] && true; }
+          for item in app.js config.js employee-api-dispatcher-v1.js; do
+            node --check "cloudflare-d1/frontend-dist/$item"
           done
           echo UI001_SOURCE_AND_SNAPSHOT=PASS
+          echo UI001_DRY_RUN_NO_DEPLOY=$([ "$GITHUB_REF" = 'refs/heads/main' ] && echo NO || echo YES)
       - name: Repeat original-version and old-HTML guards immediately before deployment
+        if: github.ref == 'refs/heads/main'
         shell: bash
         run: |
           set -euo pipefail
@@ -155,6 +157,7 @@ jobs:
           echo "$PRE_HTML_SHA256  /tmp/ui001-before-publish.html" | sha256sum --check
           echo UI001_PREPROMOTE_HTML_LEASE=PASS
       - name: Publish to trendos-ui only with automatic rollback and strict postflight
+        if: github.ref == 'refs/heads/main'
         shell: bash
         run: |
           set -eEuo pipefail
