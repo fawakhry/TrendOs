@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import {webcrypto} from 'node:crypto';
+import {ACC247_RECEIVER_FIXTURE_SCHEMA,ACC247_RECEIVER_POLICY,acceptACC247OrderCreatedContextFixtureOnly as acceptACC247} from '../cloudflare-d1/src/t12-finance-order-created-acc247-receiver-fixture.mjs';
 import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -1277,6 +1278,154 @@ test('ACC246-FENCE enforces default OFF, source availability and signature expir
   assert.equal(store.row().state,'LEASED');
   assert.equal(OUTBOX_POLICY.consumerAckQualified,false);
  }finally{store.close();}
+}));
+
+
+function acc247Inbox(filename=':memory:',initialize=true){
+ const raw=new DatabaseSync(filename);
+ if(initialize)raw.exec(ACC247_RECEIVER_FIXTURE_SCHEMA);
+ return {raw,close(){raw.close()},
+  count(){return raw.prepare('SELECT COUNT(*) AS n FROM acc247_context_inbox').get().n},
+  row(){return raw.prepare('SELECT * FROM acc247_context_inbox').get()}};
+}
+const acc247Args=(x,sender,receiver,key,lease,nowMs=SIGN_TIME+3000)=>({
+ sourceDb:x.db,sourceOutboxDb:sender.db,recipientDb:receiver.raw,
+ message:JSON.parse(sender.row().payload_json),
+ verifyKey:key,expectedKeyId:FIXTURE_KEY_ID,
+ leaseOwner:lease.leaseOwner,leaseAttempt:lease.attempts,
+ nowMs,mode:'ISOLATED_SQLITE_RECEIVER'
+});
+async function acc247Stage(x,sender,key){
+ assert.equal((await acc235Stage(x,sender,key)).success,true);
+ const lease=await acc235Reserve(x,sender,key);
+ assert.equal(lease.success,true,JSON.stringify(lease));
+ const marker=await fenceHandoff(acc246FenceArgs(x,sender,key,lease));
+ assert.equal(marker.success,true,JSON.stringify(marker));
+ return lease;
+}
+test('ACC247 receiver is OFF, event only prepares context, never financial approval',()=>withFixture(async x=>{
+ const sender=acc235OfflineDb(),receiver=acc247Inbox();
+ try{
+  assert.equal(ACC247_RECEIVER_POLICY.defaultMode,'OFF');
+  assert.equal(ACC247_RECEIVER_POLICY.allowedEffect,'prepare_context_only');
+  assert.equal(ACC247_RECEIVER_POLICY.financialWritesAllowed,false);
+  assert.equal(ACC247_RECEIVER_POLICY.consumerAckQualified,false);
+  assert.doesNotMatch(readFileSync('cloudflare-d1/src/index_v2.js','utf8'),
+   /t12-finance-order-created-acc247-receiver-fixture/);
+  const key=await fakeSignKey(),lease=await acc247Stage(x,sender,key);
+  const before=x.raw.prepare('SELECT total_changes() n').get().n;
+  const off=await acceptACC247({...acc247Args(x,sender,receiver,key,lease),mode:undefined});
+  assert.equal(off.code,'ACC247_DEFAULT_OFF');
+  assert.equal(receiver.count(),0);
+  assert.equal(x.raw.prepare('SELECT total_changes() n').get().n,before);
+ }finally{sender.close();receiver.close()}
+}));
+test('ACC247 accepts fake handoff exact source revision as context only; identical retries dedupe',()=>withFixture(async x=>{
+ const sender=acc235OfflineDb(),receiver=acc247Inbox();
+ try{
+  const key=await fakeSignKey(),lease=await acc247Stage(x,sender,key);
+  const before=x.raw.prepare('SELECT total_changes() n').get().n;
+  const first=await acceptACC247(acc247Args(x,sender,receiver,key,lease));
+  assert.equal(first.success,true,JSON.stringify(first));
+  assert.equal(first.fixtureContextStored,true);
+  assert.equal(first.duplicateIdenticalContext,false);
+  assert.equal(first.consumerAcknowledged,false);
+  assert.equal(first.financeAuthorized,false);
+  assert.equal(first.invoiceRequested,false);
+  assert.equal(receiver.count(),1);
+  assert.equal(receiver.row().state,'SOURCE_CONTEXT_ONLY_NO_POST');
+  assert.equal(receiver.row().signed_payload_json,sender.row().payload_json);
+  assert.equal(x.raw.prepare('SELECT total_changes() n').get().n,before);
+  const retry=await acceptACC247(acc247Args(x,sender,receiver,key,lease,SIGN_TIME+4000));
+  assert.equal(retry.success,true,JSON.stringify(retry));
+  assert.equal(retry.duplicateIdenticalContext,true);
+  assert.equal(receiver.count(),1);
+  assert.throws(()=>receiver.raw.exec("UPDATE acc247_context_inbox SET signed_payload_json='{}'"),
+   /ACC247_CONTEXT_BYTES_IMMUTABLE/);
+  assert.throws(()=>receiver.raw.exec("DELETE FROM acc247_context_inbox"),/ACC247_CONTEXT_NO_DELETE/);
+ }finally{sender.close();receiver.close()}
+}));
+test('ACC247 canceled source after sender final fence is rejected before recipient context',()=>withFixture(async x=>{
+ const sender=acc235OfflineDb(),receiver=acc247Inbox();
+ try{
+  const key=await fakeSignKey(),lease=await acc247Stage(x,sender,key);
+  runtimeState(x,'4323-02','ملغى','jaber-synthetic');
+  runtimeEvent(x,'4323-02','طلب جديد','ملغى','jaber-synthetic');
+  const r=await acceptACC247(acc247Args(x,sender,receiver,key,lease));
+  assert.equal(r.code,'ACC247_SOURCE_CHANGED_BEFORE_RECEIPT');
+  assert.equal(r.consumerAcknowledged,false);
+  assert.equal(receiver.count(),0);
+  assert.equal(sender.row().simulated_handoff_epoch,1);
+ }finally{sender.close();receiver.close()}
+}));
+test('ACC247 catches changed-then-restored native line state after fake sender handoff',()=>withFixture(async x=>{
+ const sender=acc235OfflineDb(),receiver=acc247Inbox();
+ try{
+  const key=await fakeSignKey(),lease=await acc247Stage(x,sender,key);
+  runtimeState(x,'4323-01','بدأ التنفيذ','wael-synthetic');
+  runtimeEvent(x,'4323-01','طلب جديد','بدأ التنفيذ','wael-synthetic');
+  x.raw.prepare("UPDATE t12_prod_line_runtime SET version=2,status='طلب جديد' WHERE line_id='4323-01'").run();
+  runtimeEvent(x,'4323-01','بدأ التنفيذ','طلب جديد','wael-synthetic');
+  assert.equal((await request(x)).status,200);
+  const r=await acceptACC247(acc247Args(x,sender,receiver,key,lease));
+  assert.equal(r.code,'ACC247_SOURCE_CHANGED_BEFORE_RECEIPT');
+  assert.equal(receiver.count(),0);
+ }finally{sender.close();receiver.close()}
+}));
+test('ACC247 rejects pre-handoff receipt, old lease owner, forged HMAC and stale message',()=>withFixture(async x=>{
+ const sender=acc235OfflineDb(),receiver=acc247Inbox();
+ try{
+  const key=await fakeSignKey(),wrong=await otherSignKey();
+  assert.equal((await acc235Stage(x,sender,key)).success,true);
+  const a=await acc235Reserve(x,sender,key,SIGN_TIME+1000,'WORKER-A');
+  assert.equal(a.success,true);
+  let r=await acceptACC247(acc247Args(x,sender,receiver,key,a));
+  assert.equal(r.code,'ACC247_SENDER_HANDOFF_OR_SIGNED_BYTES_UNQUALIFIED');
+  const handoff=await fenceHandoff(acc246FenceArgs(x,sender,key,a,SIGN_TIME+2000));
+  assert.equal(handoff.success,true);
+  r=await acceptACC247({...acc247Args(x,sender,receiver,key,a),leaseOwner:'OTHER'});
+  assert.equal(r.code,'ACC247_SENDER_HANDOFF_OR_SIGNED_BYTES_UNQUALIFIED');
+  r=await acceptACC247({...acc247Args(x,sender,receiver,key,a),verifyKey:wrong});
+  assert.equal(r.code,'ACC247_SIGNED_ORDER_CREATED_UNTRUSTED');
+  r=await acceptACC247(acc247Args(x,sender,receiver,key,a,SIGN_TIME+301000));
+  assert.equal(r.code,'ACC247_SIGNED_ORDER_CREATED_UNTRUSTED');
+  assert.equal(receiver.count(),0);
+ }finally{sender.close();receiver.close()}
+}));
+test('ACC247 rejects conflicting persisted duplicate in a transaction and never leaks funds',()=>withFixture(async x=>{
+ const sender=acc235OfflineDb(),receiver=acc247Inbox();
+ try{
+  const key=await fakeSignKey(),lease=await acc247Stage(x,sender,key);
+  const m=JSON.parse(sender.row().payload_json);
+  receiver.raw.prepare(`INSERT INTO acc247_context_inbox
+    (event_id,idempotency_key,order_id,customer_id,signed_payload_json,
+     payload_sha256,source_revision_json,state,received_at_ms)
+   VALUES(?,?,?,?,?,?,?,'SOURCE_CONTEXT_ONLY_NO_POST',?)`).run(
+    m.envelope.event_id,m.envelope.idempotency_key,m.envelope.payload.order_id,
+    'FAKE_OTHER_CUSTOMER','{}','0'.repeat(64),'{}',SIGN_TIME);
+  const before=receiver.row();
+  const r=await acceptACC247(acc247Args(x,sender,receiver,key,lease));
+  assert.equal(r.code,'ACC247_CONTEXT_DUPLICATE_CONFLICT_OR_SQL_ERROR');
+  assert.equal(receiver.count(),1);
+  assert.deepEqual(receiver.row(),before);
+  assert.equal(r.postingAllowed,false);
+ }finally{sender.close();receiver.close()}
+}));
+test('ACC247 isolated receiver survives file restart, duplicate remains same immutable context',()=>withFixture(async x=>{
+ const sender=acc235OfflineDb();
+ const dir=mkdtempSync(join(tmpdir(),'acc247-recv-')),file=join(dir,'context.sqlite');
+ let receiver;
+ try{
+  const key=await fakeSignKey(),lease=await acc247Stage(x,sender,key);
+  receiver=acc247Inbox(file);
+  assert.equal((await acceptACC247(acc247Args(x,sender,receiver,key,lease))).success,true);
+  const old=receiver.row();receiver.close();receiver=null;
+  receiver=acc247Inbox(file,false);
+  const dup=await acceptACC247(acc247Args(x,sender,receiver,key,lease,SIGN_TIME+4000));
+  assert.equal(dup.success,true);
+  assert.equal(dup.duplicateIdenticalContext,true);
+  assert.deepEqual(receiver.row(),old);
+ }finally{sender.close();receiver?.close();rmSync(dir,{recursive:true,force:true})}
 }));
 
 test('without D1 batch, broken transaction or broken schema return generic fail closed',async()=>{
