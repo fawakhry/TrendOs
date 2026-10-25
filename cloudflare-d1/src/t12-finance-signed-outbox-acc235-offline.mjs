@@ -4,6 +4,7 @@
  * provider receipt, delivery, finance approval, billing or live connector.
  * Source truth comes ONLY from the existing T12 inspector-backed signer.
  */
+import {inspectT12EmployeeOrderFinanceCandidate as inspectOriginalT12} from './t12-employee-order-finance-intake-sourceonly.mjs';
 import {
  buildT12SignedOrderCreatedSourceOnly as originalSigned,
  verifyT12SignedOrderCreatedSourceOnly as verifySigned
@@ -14,6 +15,8 @@ export const ACC235_SIGNED_OUTBOX_POLICY=Object.freeze({
  standaloneTestSchemaOnly:true,workerWired:false,httpRouteAvailable:false,
  noExternalTransport:true,immutableSignedBytes:true,
  consumerAckQualified:false,realLedgerQualified:false,
+ requiresFreshOriginalT12BeforeEveryLease:true,
+ noCrossDatabaseAtomicityAttested:true,
  departmentalApprovalAttested:false,financialPostingAllowed:false,
  productionRelease:'NO_GO'
 });
@@ -144,8 +147,51 @@ export async function persistOriginalSignedFixtureOnly({
    consumerAcknowledged:false,productionRelease:'NO_GO'};
  }catch{return stop('OUTBOX_FIXTURE_WRITE_OR_SCHEMA_UNAVAILABLE');}
 }
+
+// ACC245-OUTBOX-RECHECK: Signature validity only authenticates past bytes.
+// Re-read the original T12 create+runtime snapshot through the ORIGINAL
+// five-SELECT read-only inspector before EVERY simulated claim; cancelled,
+// duplicate, stopped, reassigned or tampered lines may not be retried.
+// This is not an atomic cross-D1 commit, a recipient-side revocation
+// protocol, customer ownership attestation or production dispatch permit.
+async function currentSourceMatchesStored(sourceDb,message){
+ if(!sourceDb||typeof sourceDb.prepare!=='function'||
+    typeof sourceDb.batch!=='function')
+  return stop('OUTBOX_FRESH_ORIGINAL_T12_READER_REQUIRED');
+ const e=message?.envelope,p=e?.payload;
+ if(!e||!p||!isId(p.order_id)||!isId(p.customer_id)||
+    !Array.isArray(p.lines))
+  return stop('OUTBOX_STORED_SOURCE_BINDING_INVALID');
+ let r;
+ try{r=await inspectOriginalT12({
+  db:sourceDb,orderId:p.order_id,
+  expectedOfficialCustomerId:p.customer_id
+ });}catch{return stop('OUTBOX_FRESH_ORIGINAL_T12_READ_UNAVAILABLE');}
+ const c=r?.body;
+ if(r?.status!==200||c?.success!==true||
+    c.source!=='original-t12-at-create-source-only'||
+    c.sourceOnly!==true||c.readOnly!==true||
+    c.operationalSourceShapeVerified!==true||
+    c.officialCustomerOwnershipAttested!==false||
+    c.departmentApprovalsVerified!==false||
+    c.financeAuthorized!==false||c.canRequestInvoice!==false||
+    c.connectorEventPublished!==false||c.posted!==false)
+  return stop('OUTBOX_ORIGINAL_T12_NOW_UNQUALIFIED');
+ if(c.orderId!==p.order_id||c.officialCustomerId!==p.customer_id||
+    c.sourceCreatedAt!==e.occurred_at||c.lineCount!==p.expected_line_count||
+    !Array.isArray(c.lines)||c.lines.length!==p.lines.length)
+  return stop('OUTBOX_STORED_SOURCE_BINDING_DRIFT');
+ for(let i=0;i<p.lines.length;i++){
+  const a=p.lines[i],b=c.lines[i];
+  if(a.line_id!==b?.lineId||a.department!==b?.department||
+     a.ordinal!==b?.ordinal)
+   return stop('OUTBOX_STORED_SOURCE_BINDING_DRIFT');
+ }
+ return {success:true};
+}
+
 export async function reserveSignedFixtureForSimulatedRetry({
- outboxDb,eventId,verifyKey,keyId,nowMs,leaseOwner,
+ sourceDb,outboxDb,eventId,verifyKey,keyId,nowMs,leaseOwner,
  leaseMs=15000,maxAttempts=3,mode
 }={}){
  if(mode!=='ISOLATED_SQLITE_FIXTURE')return stop('OUTBOX_DEFAULT_OFF');
@@ -156,6 +202,8 @@ export async function reserveSignedFixtureForSimulatedRetry({
   return stop('OUTBOX_RESERVATION_INVALID');
  const existing=await checked(outboxDb,eventId,verifyKey,keyId,nowMs);
  if(!existing.success)return existing;
+ const recheck=await currentSourceMatchesStored(sourceDb,existing.message);
+ if(!recheck.success)return recheck;
  if(existing.row.state==='LEASED'&&existing.row.leaseUntilMs>nowMs)
   return stop('OUTBOX_ALREADY_LEASED');
  if(existing.row.attempts>=maxAttempts)
