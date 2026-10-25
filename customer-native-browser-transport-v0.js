@@ -153,9 +153,18 @@
       status: row.status, qty: row.qty
     };
   }
+  function rejectStaleNativeRead(bearer, epoch) {
+    // A response from before logout/relogin must never populate the UI of a
+    // new account, even if it was valid when the Worker first issued it.
+    // Preserve the existing test-only bearer seam only at initial epoch zero.
+    if(epoch!==nativeEpoch||
+       (nativeToken ? nativeToken!==bearer : epoch!==0))
+      throw fail('CUSTOMER_NATIVE_STALE_READ_REJECTED');
+  }
   async function nativeOrdersOnly() {
     var origin = exactCloudOrigin();
     var bearer = nativeSessionBearer();
+    var readEpoch = nativeEpoch;
     if (typeof window.fetch !== 'function')
       throw fail('CUSTOMER_NATIVE_FETCH_UNAVAILABLE');
     var url = origin + '/v1/customer/native/orders?limit=40&offset=0';
@@ -177,6 +186,7 @@
     var data;
     try { data = JSON.parse(raw); }
     catch (_) { throw fail('CUSTOMER_NATIVE_ORDER_RESPONSE_INVALID'); }
+    rejectStaleNativeRead(bearer, readEpoch);
     // Prevent silently showing a partial list as "all your orders".
     if (!data || data.success !== true || data.readOnly !== true ||
         data.source !== 'customer-d1-native-read-v0' ||
@@ -201,6 +211,7 @@
     if(!view)throw fail('CUSTOMER_NATIVE_PUBLIC_VIEW_DENIED');
     var origin=exactCloudOrigin();
     var bearer=nativeSessionBearer();
+    var readEpoch=nativeEpoch;
     var response;
     try {
       response=await window.fetch(origin+'/v1/customer/native/public-content?view='+view,{
@@ -219,6 +230,7 @@
     var data;
     try {data=JSON.parse(raw);}
     catch (_) {throw fail('CUSTOMER_NATIVE_PUBLIC_CONTENT_RESPONSE_INVALID');}
+    rejectStaleNativeRead(bearer,readEpoch);
     var key=view==='sections'?'sections':view==='branches'?'branches':
       view==='ads'?'ads':'';
     if(!data||data.success!==true||data.readOnly!==true||
