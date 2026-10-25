@@ -1974,6 +1974,10 @@ Trend Mall`;
     } catch (err) {
       setMsg("customerLoginMsg", err.message || "حصل خطأ أثناء دخول العميل.", true);
     } finally {
+      // Customer-only hygiene: never retain the typed secret in the original
+      // login form after any result. No employee, T12 or storage path changes.
+      const customerPassInput = $("customerPassword");
+      if (customerPassInput) customerPassInput.value = "";
       if (btn) { btn.disabled = false; btn.textContent = "دخول العميل"; }
     }
   }
