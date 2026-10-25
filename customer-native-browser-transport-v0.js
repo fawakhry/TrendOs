@@ -13,7 +13,8 @@
     getCustomerOrders: 1, getCustomerPortalAccountsV1859: 1,
     createCustomerDraft: 1, addCustomerDraftItem: 1,
     submitCustomerDraft: 1, uploadCustomerDraftFile: 1,
-    getPlatformSections: 1, getFranchiseBranches: 1
+    getPlatformSections: 1, getFranchiseBranches: 1,
+    getMarketplace: 1, getPlatformAds: 1, getWhiteLabelSettings: 1
   });
   function fail(code) {
     var err = new Error('خدمة العملاء السحابية لم تُفعّل بعد. لم يتم إرسال الطلب إلى جوجل.');
@@ -191,7 +192,13 @@
     };
   }
   async function nativePublicContentReadOnly(action) {
-    var view=action==='getPlatformSections'?'sections':'branches';
+    var views={
+      getPlatformSections:'sections',getFranchiseBranches:'branches',
+      getMarketplace:'marketplace',getPlatformAds:'ads',
+      getWhiteLabelSettings:'brand'
+    };
+    var view=views[action];
+    if(!view)throw fail('CUSTOMER_NATIVE_PUBLIC_VIEW_DENIED');
     var origin=exactCloudOrigin();
     var bearer=nativeSessionBearer();
     var response;
@@ -212,11 +219,66 @@
     var data;
     try {data=JSON.parse(raw);}
     catch (_) {throw fail('CUSTOMER_NATIVE_PUBLIC_CONTENT_RESPONSE_INVALID');}
-    var key=view==='sections'?'sections':'branches';
+    var key=view==='sections'?'sections':view==='branches'?'branches':
+      view==='ads'?'ads':'';
     if(!data||data.success!==true||data.readOnly!==true||
-       data.source!=='customer-native-public-content-stage-v0'||
-       data.view!==view||!Array.isArray(data[key])||data[key].length>40)
+       data.source!=='customer-native-public-content-stage-v0'||data.view!==view)
       throw fail('CUSTOMER_NATIVE_PUBLIC_CONTENT_CONTRACT_INVALID');
+    function exactText(v,max) {
+      return typeof v==='string'&&v.length<=max?v:'';
+    }
+    if(view==='brand'){
+      var settings=data.settings;
+      if(!settings||Array.isArray(settings)||typeof settings!=='object')
+        throw fail('CUSTOMER_NATIVE_PUBLIC_CONTENT_CONTRACT_INVALID');
+      var name=exactText(settings.platformName,100);
+      var color=exactText(settings.primaryColor,7);
+      return {success:true,settings:{
+        ...(name?{platformName:name}:{}),
+        ...(/^#[0-9a-fA-F]{6}$/.test(color)?{primaryColor:color}:{})
+      }};
+    }
+    if(view==='marketplace'){
+      if(!Array.isArray(data.vendors)||!Array.isArray(data.products)||
+         data.vendors.length>40||data.products.length>40)
+        throw fail('CUSTOMER_NATIVE_PUBLIC_CONTENT_CONTRACT_INVALID');
+      var vendors=data.vendors.map(function(v){
+        if(!v||typeof v!=='object'||Array.isArray(v)||
+           !exactText(v.vendorCode,48)||!exactText(v.vendorName,120)||v.active!=='نعم')
+          return null;
+        return {vendorCode:v.vendorCode,vendorName:v.vendorName,
+          category:exactText(v.category,90),active:'نعم'};
+      });
+      var codes=new Set(vendors.filter(Boolean).map(function(v){return v.vendorCode;}));
+      var products=data.products.map(function(p){
+        if(!p||typeof p!=='object'||Array.isArray(p)||
+           !codes.has(p.vendorCode)||!exactText(p.productCode,48)||
+           !exactText(p.productName,120)||p.active!=='نعم')
+          return null;
+        return {vendorCode:p.vendorCode,productCode:p.productCode,
+          productName:p.productName,description:exactText(p.description,360),
+          price:exactText(p.price,24),unit:exactText(p.unit,50),active:'نعم'};
+      });
+      if(vendors.some(function(v){return !v;})||products.some(function(p){return !p;})||
+         codes.size!==vendors.length)
+        throw fail('CUSTOMER_NATIVE_PUBLIC_CONTENT_ROW_INVALID');
+      return {success:true,vendors:vendors,products:products};
+    }
+    if(!key||!Array.isArray(data[key])||data[key].length>40)
+      throw fail('CUSTOMER_NATIVE_PUBLIC_CONTENT_CONTRACT_INVALID');
+    if(view==='ads'){
+      var ads=data.ads.map(function(ad){
+        if(!ad||typeof ad!=='object'||Array.isArray(ad)||
+           !exactText(ad.headline,120)||ad.publicTextOnly!==true||
+           ad.active!=='نعم'||!['top','marketplace','branches'].includes(ad.placement))
+          return null;
+        return {headline:ad.headline,placement:ad.placement,
+          active:'نعم',publicTextOnly:true};
+      });
+      if(ads.some(function(ad){return !ad;}))
+        throw fail('CUSTOMER_NATIVE_PUBLIC_CONTENT_ROW_INVALID');
+      return {success:true,ads:ads};
+    }
     var rows=data[key].map(function (v) {
       if(!v||typeof v!=='object'||Array.isArray(v))return null;
       if(view==='sections'){
@@ -265,7 +327,8 @@
     if (action === 'customerLogout') return nativeServerLogoutOnly();
     // Two narrowly public read-only Stage content views only; all employee
     // content and remaining customer writes stay fail-closed.
-    if(action==='getPlatformSections'||action==='getFranchiseBranches')
+    if(['getPlatformSections','getFranchiseBranches','getMarketplace',
+        'getPlatformAds','getWhiteLabelSettings'].includes(action))
       return nativePublicContentReadOnly(action);
     if (action !== 'getCustomerOrders')
       throw fail('CUSTOMER_NATIVE_ACTION_NOT_WIRED');
