@@ -1001,9 +1001,11 @@ const acc235Event='t12:order_created:'+ORDER_ID;
 const acc235Stage=(x,store,key,nowMs=SIGN_TIME,verifyKey=key)=>persistSigned({
  sourceDb:x.db,outboxDb:store.db,orderId:ORDER_ID,expectedOfficialCustomerId:C,
  signKey:key,verifyKey,keyId:FIXTURE_KEY_ID,nowMs,mode:acc235Mode});
-const acc235Reserve=(store,key,nowMs=SIGN_TIME+1000,leaseOwner='A')=>reserveSigned({
- outboxDb:store.db,eventId:acc235Event,verifyKey:key,keyId:FIXTURE_KEY_ID,
+const acc235ReserveArgs=(x,store,key,nowMs=SIGN_TIME+1000,leaseOwner='A')=>({
+ sourceDb:x.db,outboxDb:store.db,eventId:acc235Event,verifyKey:key,keyId:FIXTURE_KEY_ID,
  nowMs,leaseOwner,mode:acc235Mode});
+const acc235Reserve=(x,store,key,nowMs=SIGN_TIME+1000,leaseOwner='A')=>
+ reserveSigned(acc235ReserveArgs(x,store,key,nowMs,leaseOwner));
 test('ACC235-OUTBOX remains isolated OFF, signed bytes immutable, source D1 read-only',()=>withFixture(async x=>{
  const store=acc235OfflineDb();try{
   const key=await fakeSignKey(),before=x.raw.prepare('SELECT total_changes() n').get().n;
@@ -1035,11 +1037,11 @@ test('ACC235-OUTBOX CAS lease excludes second sender and retries exact original 
  const store=acc235OfflineDb();try{
   const key=await fakeSignKey();assert.equal((await acc235Stage(x,store,key)).success,true);
   const original=store.row().payload_json;
-  const first=await acc235Reserve(store,key);assert.equal(first.success,true,JSON.stringify(first));
-  assert.equal((await acc235Reserve(store,key,SIGN_TIME+1000,'OTHER')).code,'OUTBOX_ALREADY_LEASED');
+  const first=await acc235Reserve(x,store,key);assert.equal(first.success,true,JSON.stringify(first));
+  assert.equal((await acc235Reserve(x,store,key,SIGN_TIME+1000,'OTHER')).code,'OUTBOX_ALREADY_LEASED');
   assert.equal((await releaseSigned({outboxDb:store.db,eventId:acc235Event,
    leaseOwner:'OTHER',nowMs:SIGN_TIME+2000,mode:acc235Mode})).success,false);
-  const retry=await acc235Reserve(store,key,SIGN_TIME+17000,'OTHER');
+  const retry=await acc235Reserve(x,store,key,SIGN_TIME+17000,'OTHER');
   assert.equal(retry.success,true,JSON.stringify(retry));
   assert.equal(retry.attempts,2);
   assert.equal(JSON.stringify(retry.originalSignedMessage),original);
@@ -1049,12 +1051,12 @@ test('ACC235-OUTBOX CAS lease excludes second sender and retries exact original 
 test('ACC235-OUTBOX enforces max attempts, explicit dead letter and rejects re-stage of dead event',()=>withFixture(async x=>{
  const store=acc235OfflineDb();try{
   const key=await fakeSignKey();assert.equal((await acc235Stage(x,store,key)).success,true);
-  const a=await acc235Reserve(store,key);assert.equal(a.success,true);
+  const a=await acc235Reserve(x,store,key);assert.equal(a.success,true);
   assert.equal((await deadSigned({outboxDb:store.db,eventId:acc235Event,
    nowMs:SIGN_TIME+2000,mode:acc235Mode})).success,false);
-  const b=await acc235Reserve(store,key,SIGN_TIME+17000,'B');assert.equal(b.success,true);
-  const c=await acc235Reserve(store,key,SIGN_TIME+33000,'C');assert.equal(c.success,true);
-  assert.equal((await acc235Reserve(store,key,SIGN_TIME+49000,'D')).code,'OUTBOX_RETRY_BUDGET_EXHAUSTED');
+  const b=await acc235Reserve(x,store,key,SIGN_TIME+17000,'B');assert.equal(b.success,true);
+  const c=await acc235Reserve(x,store,key,SIGN_TIME+33000,'C');assert.equal(c.success,true);
+  assert.equal((await acc235Reserve(x,store,key,SIGN_TIME+49000,'D')).code,'OUTBOX_RETRY_BUDGET_EXHAUSTED');
   const dead=await deadSigned({outboxDb:store.db,eventId:acc235Event,
    nowMs:SIGN_TIME+49000,mode:acc235Mode});
   assert.equal(dead.success,true);assert.equal(dead.consumerAcknowledged,false);
@@ -1067,8 +1069,8 @@ test('ACC235-OUTBOX verifies pinned signer, source cancellation and stale event 
   const key=await fakeSignKey(),wrong=await otherSignKey();
   assert.equal((await acc235Stage(x,store,key,SIGN_TIME,wrong)).code,'OUTBOX_SIGNER_VERIFIER_UNMATCHED');
   assert.equal((await acc235Stage(x,store,key)).success,true);
-  assert.equal((await acc235Reserve(store,wrong)).code,'OUTBOX_SIGNATURE_STALE_OR_UNVERIFIED');
-  assert.equal((await acc235Reserve(store,key,SIGN_TIME+301000)).code,'OUTBOX_SIGNATURE_STALE_OR_UNVERIFIED');
+  assert.equal((await acc235Reserve(x,store,wrong)).code,'OUTBOX_SIGNATURE_STALE_OR_UNVERIFIED');
+  assert.equal((await acc235Reserve(x,store,key,SIGN_TIME+301000)).code,'OUTBOX_SIGNATURE_STALE_OR_UNVERIFIED');
   assert.equal(store.row().attempts,0);
  }finally{store.close()}
 }));
@@ -1080,13 +1082,91 @@ test('ACC235-OUTBOX survives close/reopen of disposable disk SQLite and concurre
   const signed=store.row().payload_json;store.close();store=null;
   store=acc235OfflineDb(file,false);
   const [a,b]=await Promise.all([
-   acc235Reserve(store,key,SIGN_TIME+1000,'A'),
-   acc235Reserve(store,key,SIGN_TIME+1000,'B')
+   acc235Reserve(x,store,key,SIGN_TIME+1000,'A'),
+   acc235Reserve(x,store,key,SIGN_TIME+1000,'B')
   ]);
   assert.equal([a,b].filter(v=>v.success).length,1,JSON.stringify([a,b]));
   assert.equal(JSON.stringify((a.success?a:b).originalSignedMessage),signed);
   assert.equal(store.row().attempts,1);
  }finally{store?.close();rmSync(dir,{recursive:true,force:true})}
+}));
+
+
+test('ACC245-OUTBOX denies post-enqueue T12 cancellation before any retry lease',()=>withFixture(async x=>{
+ const store=acc235OfflineDb();try{
+  const key=await fakeSignKey(),before=x.raw.prepare('SELECT total_changes() n').get().n;
+  assert.equal((await acc235Stage(x,store,key)).success,true);
+  runtimeState(x,'4323-02','ملغى','jaber-synthetic');
+  runtimeEvent(x,'4323-02','طلب جديد','ملغى','jaber-synthetic');
+  const snapshot=store.row();
+  const r=await acc235Reserve(x,store,key);
+  assert.equal(r.code,'OUTBOX_ORIGINAL_T12_NOW_UNQUALIFIED');
+  assert.equal(r.connectorEventPublished,false);
+  assert.equal(store.row().attempts,0);
+  assert.deepEqual(store.row(),snapshot);
+  assert.equal(x.raw.prepare('SELECT total_changes() n').get().n>before,true);
+ }finally{store.close()}
+}));
+test('ACC245-OUTBOX rejects post-enqueue changed customer or source line assignment',()=>withFixture(async x=>{
+ const store=acc235OfflineDb();try{
+  const key=await fakeSignKey();
+  assert.equal((await acc235Stage(x,store,key)).success,true);
+  for(const [change,undo] of [
+   ["UPDATE t12_prod_orders SET external_customer_id='CHANGED' WHERE order_id='4323'",
+    "UPDATE t12_prod_orders SET external_customer_id='999002' WHERE order_id='4323'"],
+   ["UPDATE t12_prod_lines SET assigned_to='OTHER' WHERE line_id='4323-02'",
+    "UPDATE t12_prod_lines SET assigned_to='جابر' WHERE line_id='4323-02'"],
+   ["UPDATE t12_prod_events SET created_at='2026-09-21 14:14:50' WHERE event_key='activity'",
+    "UPDATE t12_prod_events SET created_at='2026-09-21 14:13:20' WHERE event_key='activity'"]
+  ]){
+   x.raw.exec(change);
+   const r=await acc235Reserve(x,store,key);
+   assert.equal(r.code,'OUTBOX_ORIGINAL_T12_NOW_UNQUALIFIED',change);
+   assert.equal(store.row().attempts,0);
+   x.raw.exec(undo);
+   assert.equal((await acc235Reserve(x,store,key)).success,true,undo);
+   const out=await releaseSigned({outboxDb:store.db,eventId:acc235Event,
+     leaseOwner:'A',nowMs:SIGN_TIME+2000,mode:acc235Mode});
+   assert.equal(out.success,true);
+  }
+ }finally{store.close()}
+}));
+test('ACC245-OUTBOX missing source reader, failed source batch, and post-enqueue loss refuse retry',()=>withFixture(async x=>{
+ const store=acc235OfflineDb();try{
+  const key=await fakeSignKey();
+  assert.equal((await acc235Stage(x,store,key)).success,true);
+  const absent=await reserveSigned({
+   outboxDb:store.db,eventId:acc235Event,verifyKey:key,keyId:FIXTURE_KEY_ID,
+   nowMs:SIGN_TIME+1000,leaseOwner:'A',mode:acc235Mode
+  });
+  assert.equal(absent.code,'OUTBOX_FRESH_ORIGINAL_T12_READER_REQUIRED');
+  const fakeSource={prepare:x.db.prepare,batch:async()=>{throw new Error('SENSITIVE_FAKE_SOURCE_ERROR')}};
+  const broken=await reserveSigned({
+   ...acc235ReserveArgs(x,store,key),sourceDb:fakeSource
+  });
+  assert.equal(broken.code,'OUTBOX_ORIGINAL_T12_NOW_UNQUALIFIED');
+  assert.equal(JSON.stringify(broken).includes('SENSITIVE_FAKE_SOURCE_ERROR'),false);
+  assert.equal(store.row().attempts,0);
+  x.raw.exec("DELETE FROM t12_prod_outbox WHERE event_key='queue:02'");
+  assert.equal((await acc235Reserve(x,store,key)).code,'OUTBOX_ORIGINAL_T12_NOW_UNQUALIFIED');
+  assert.equal(store.row().attempts,0);
+ }finally{store.close()}
+}));
+test('ACC245-OUTBOX healthy reread stays read-only, same immutable signed HMAC bytes',()=>withFixture(async x=>{
+ const store=acc235OfflineDb();try{
+  const key=await fakeSignKey();
+  assert.equal((await acc235Stage(x,store,key)).success,true);
+  const original=store.row().payload_json;
+  const before=x.raw.prepare('SELECT total_changes() n').get().n;
+  const batches=x.batches();
+  const r=await acc235Reserve(x,store,key);
+  assert.equal(r.success,true,JSON.stringify(r));
+  assert.equal(x.batches(),batches+1);
+  assert.equal(x.raw.prepare('SELECT total_changes() n').get().n,before);
+  assert.equal(JSON.stringify(r.originalSignedMessage),original);
+  assert.equal(r.financeAuthorized,false);
+  assert.equal(r.consumerAcknowledged,false);
+ }finally{store.close()}
 }));
 
 test('without D1 batch, broken transaction or broken schema return generic fail closed',async()=>{
