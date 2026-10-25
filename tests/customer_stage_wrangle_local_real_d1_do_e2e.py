@@ -529,6 +529,28 @@ def main():
                   {x["orderId"] for x in own_after.get("lines",[])}==
                     {"LOCAL-ORDER-LOCAL-C2"},
                   "Native password rotation altered order ownership/account scope")
+            # Verify password-change cannot be used for online old-password
+            # guessing with a stolen current session. 5 failed attempts
+            # atomically share the original account lock counter; correct
+            # password is then denied for the 15-minute D1 lock window.
+            for attempt in range(5):
+                status,wrong_again=request(port,rotate,method="POST",
+                    token=new_login["token"],
+                    payload={"currentPassword":"SYNTHETIC-WRONG-PASSWORD-"+str(attempt),
+                             "newPassword":"LOCAL-OTHER-PASSWORD-ROTATION-2026"})
+                check(status==401 and not wrong_again.get("passwordChanged"),
+                      "Password change bypassed 5-attempt account lock")
+            status,locked_change=request(port,rotate,method="POST",
+                token=new_login["token"],
+                payload={"currentPassword":updated_pass,
+                         "newPassword":"LOCAL-OTHER-PASSWORD-ROTATION-2026"})
+            check(status==401 and not locked_change.get("passwordChanged"),
+                  "Correct old password bypassed account lock after five failures")
+            status,locked_login=request(port,paths["login"],method="POST",
+                payload={"portalCode":CODE2,"password":updated_pass})
+            check(status in (401,429) and not locked_login.get("customerSessionIssued"),
+                  "Locked D1 account issued fresh session after password guesses")
+            print("PASS: Shared D1 password-rotation credential failure CAS locks account after 5 wrong OLD passwords, prevents guessing through existing token")
             print("PASS: Stage OFF-by-default Native D1 password change CAS after old-password proof, two previous sessions invalidated, new verifier live on LOCAL synthetic customers only")
             print("PASS: Wrangler local D1+SQLite Durable Object + original Node VM + fixture and FULL ORIGINAL UI Chromium: owner-isolated login/orders, CAS revoke, browser CORS, DO 5/15m restart persistence")
             print("NO_DEPLOY=YES; CLOUD_CUSTOMER_DB_UNTOUCHED=YES; STAGE_REMOTE_UNPROVISIONED=YES")
