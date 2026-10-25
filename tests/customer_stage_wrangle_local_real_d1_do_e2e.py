@@ -476,7 +476,9 @@ def main():
                   saved_file.get("alreadyUploaded") is False and
                   saved_file.get("fileId","").startswith("CDF-") and
                   "customer-drafts/" not in json.dumps(saved_file),
-                  "Local R2 put + D1 PENDING-to-READY finalize failed")
+                  "Local R2 put + D1 PENDING-to-READY finalize failed; "+
+                  "HTTP="+str(status)+" CODE="+str(saved_file.get("code"))+
+                  " source="+str(saved_file.get("source")))
             status,repeat_file=file_request(port,file_route,fixture_png,token=token)
             check(status==200 and repeat_file.get("fileId")==saved_file.get("fileId")
                   and repeat_file.get("alreadyUploaded") is True,
