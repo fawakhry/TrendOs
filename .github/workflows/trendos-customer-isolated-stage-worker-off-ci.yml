@@ -55,6 +55,11 @@ jobs:
           python3 tests/entry666_customer_native_r2_file_sqlite.test.py -v
           node --test tests/entry667_customer_draft_submit_preflight_off.test.mjs
           python3 tests/entry667_customer_draft_submit_preflight_sqlite.test.py -v
+      - name: Private R2 cryptographic READ ONLY integrity, stale-session and T12 NO_GO unit tests
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/customer-stage/private-r2-integrity-ro-v0.mjs
+          node --test tests/customer_stage_private_r2_integrity_off.test.mjs
       - name: Recheck current customer browser and employee transport contracts
         run: |
           set -euo pipefail
