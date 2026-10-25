@@ -183,6 +183,27 @@ def seed_sql():
         """INSERT INTO employee_content_records_v1
            (collection,record_id,record_json,active,sort_order,updated_by)
            VALUES ('franchise_branches','LOCAL-UNREVIEWED','{"code":"LOCAL-UNREVIEWED","displayName":"UNREVIEWED PRIVATE BRANCH","internalNotes":"PRIVATE_MISSING_VISIBILITY"}',1,3,'LOCAL_FIXTURE');"""
+        """INSERT INTO employee_content_records_v1
+           (collection,record_id,record_json,active,sort_order,updated_by)
+           VALUES ('marketplace_vendors','VEND-PUB','{"code":"VEND-PUB","vendorName":"LOCAL PUBLIC SHOP","category":"طباعة","whatsapp":"PRIVATE_VENDOR_PHONE","commission":83,"notes":"PRIVATE_ADMIN_NOTE","fileUrl":"https://drive.google.com/private"}',1,1,'LOCAL_FIXTURE');""",
+        """INSERT INTO employee_content_records_v1
+           (collection,record_id,record_json,active,sort_order,updated_by)
+           VALUES ('marketplace_vendors','VEND-HIDDEN','{"code":"VEND-HIDDEN","vendorName":"PRIVATE INACTIVE SHOP","notes":"PRIVATE_SHOP_NOTE"}',0,2,'LOCAL_FIXTURE');""",
+        """INSERT INTO employee_content_records_v1
+           (collection,record_id,record_json,active,sort_order,updated_by)
+           VALUES ('marketplace_products','PROD-PUB','{"code":"PROD-PUB","vendorCode":"VEND-PUB","productName":"LOCAL PUBLIC PRINT","description":"300 DPI","price":"25","unit":"قطعة","internalCost":6,"supplierPhone":"PRIVATE_SUPPLIER_PHONE","thumbnailUrl":"https://drive.google.com/private"}',1,1,'LOCAL_FIXTURE');""",
+        """INSERT INTO employee_content_records_v1
+           (collection,record_id,record_json,active,sort_order,updated_by)
+           VALUES ('marketplace_products','PROD-ORPHAN','{"code":"PROD-ORPHAN","vendorCode":"VEND-HIDDEN","productName":"PRIVATE ORPHAN PRODUCT"}',1,2,'LOCAL_FIXTURE');""",
+        """INSERT INTO employee_content_records_v1
+           (collection,record_id,record_json,active,sort_order,updated_by)
+           VALUES ('platform_ads','AD-TEXT','{"adId":"AD-TEXT","title":"LOCAL PUBLIC OFFER","placement":"top","fileId":"PRIVATE_AD_GOOGLE_ID","fileUrl":"https://drive.google.com/private","ownerNotes":"PRIVATE_CAMPAIGN_NOTE"}',1,1,'LOCAL_FIXTURE');""",
+        """INSERT INTO employee_content_records_v1
+           (collection,record_id,record_json,active,sort_order,updated_by)
+           VALUES ('platform_ads','AD-ONLY-IMAGE','{"adId":"AD-ONLY-IMAGE","fileId":"PRIVATE_FILE_ID","fileUrl":"https://drive.google.com/secret"}',1,2,'LOCAL_FIXTURE');""",
+        """INSERT INTO employee_content_records_v1
+           (collection,record_id,record_json,active,sort_order,updated_by)
+           VALUES ('white_label','default','{"platformName":"LOCAL PUBLIC PLATFORM","primaryColor":"#224466","ownerName":"PRIVATE_OWNER_PERSON","whatsappNumber":"PRIVATE_PHONE","notes":"PRIVATE_LICENSE_NOTE","featurePhoneLeads":"نعم","logoUrl":"https://drive.google.com/private"}',1,1,'LOCAL_FIXTURE');"""
     ]
     for ident,code,password in [("LOCAL-C1",CODE,PASSWORD),("LOCAL-C2",CODE2,PASSWORD2)]:
         salt=("09" if ident=="LOCAL-C1" else "0a")*16
@@ -293,23 +314,30 @@ def main():
             check(status==200 and own.get("success") is True and
                   {x["orderId"] for x in own.get("lines",[])}=={"LOCAL-ORDER-LOCAL-C1"},
                   "Real-local D1 order read violated exact owner scope")
-            # Two independent public read-only content routes share VERIFIED
+            # Five independent public read-only content views share VERIFIED
             # Native C1 D1 session; never expose employee JSON/finance or
             # hidden franchise branches. No direct Google or employee auth.
             for view,key,ident in [
                 ("sections","sections","LOCAL-SEC"),
-                ("branches","branches","LOCAL-PUBLIC")
+                ("branches","branches","LOCAL-PUBLIC"),
+                ("marketplace","vendors","VEND-PUB"),
+                ("ads","ads","LOCAL PUBLIC OFFER"),
+                ("brand","settings","LOCAL PUBLIC PLATFORM")
             ]:
                 route="/v1/customer/native/public-content?view="+view
                 status,out=request(port,route,token=token)
                 check(status==200 and out.get("success") is True and
-                      out.get("readOnly") is True and len(out.get(key,[]))==1,
+                      out.get("readOnly") is True and
+                      (len(out.get(key,[]))==1 if key!="settings" else
+                       out.get("settings",{}).get("platformName")=="LOCAL PUBLIC PLATFORM"),
                       "Original D1 public "+view+" read not qualified")
                 content=json.dumps(out,ensure_ascii=False)
                 check(ident in content and
                       not any(word in content for word in [
                         "PRIVATE_", "commissionRate", "internalNotes",
-                        "matbagyShare", "partnerPhone", "fileId", "SECRET BRANCH"
+                        "matbagyShare", "partnerPhone", "fileId", "SECRET BRANCH",
+                        "whatsapp", "commission", "ownerName", "logoUrl",
+                        "PRIVATE ORPHAN PRODUCT", "PRIVATE_SHOP_NOTE", "drive.google"
                       ]), "Private employee content or hidden branch escaped whitelist")
                 status,unauth=request(port,route)
                 check(status==401 and unauth.get("code")=="CUSTOMER_SESSION_REJECTED",
@@ -317,6 +345,12 @@ def main():
                 status,foreign=request(port,route,token=token,origin="https://evil.test")
                 check(status==403 and not foreign.get("success"),
                       "Public D1 content CORS origin bypass")
+            # Marketplace omits orphan products and any vendor admin metadata.
+            status,market=request(port,
+                  "/v1/customer/native/public-content?view=marketplace",token=token)
+            check(status==200 and len(market.get("products",[]))==1 and
+                  market["products"][0].get("productName")=="LOCAL PUBLIC PRINT",
+                  "Marketplace private/hidden product filtering failed")
             for dangerous in [
               "/v1/customer/native/public-content?view=accounts",
               "/v1/customer/native/public-content?view=sections&customerId=LOCAL-C2",
