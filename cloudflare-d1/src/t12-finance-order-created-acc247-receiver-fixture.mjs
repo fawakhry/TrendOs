@@ -143,7 +143,7 @@ export async function acceptACC247OrderCreatedContextFixtureOnly({
   message,verifyKey,expectedKeyId,nowMs
  });
  if(verified.success!==true||verified.eventType!=='order_created'||
-    verified.financeAuthorized!==false||
+    verified.financialAuthority!==false||
     verified.invoicePostingAllowed!==false)
   return stop('ACC247_SIGNED_ORDER_CREATED_UNTRUSTED');
  const e=message.envelope,p=e.payload,body=JSON.stringify(message);
