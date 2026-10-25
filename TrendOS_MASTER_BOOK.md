@@ -6789,3 +6789,16 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - بناء Cloudflare للـ`trendos` و`trendos-tasks-v3-t1-preview-20260914` لا يزال FAILURE؛ نفس النوع ظاهر على baseline قبل أول تعديل، لكن السبب التفصيلي غير معروف دون Cloudflare logs.
 - **الحالة الرسمية:** `SOURCE_BROWSER_CI_PASS / NO_STAGING / NO_PRODUCTION_DEPLOY / NOT_FIXED`؛ [PR #38](https://github.com/fawakhry/TrendOs/pull/38) Draft. لا migrations أو تغييرات data / auth / financial writes. لا ترقية للجزء إلى FIXED إلا بموافقة وبوابة نشر واختبار حقيقي.
 - [كتاب الواجهة](https://github.com/fawakhry/TrendOs/pull/37) `docs/interface/MASTER_BOOK.md` إدخال `UI-001-FINAL-CODE-REVIEW`.
+ 
+### UI-001-CF-BUILDS-ENTRYPOINT-DIAGNOSIS — 2026-10-25 (owner-supplied historical log)
+
+- **Scope:** تسجيل سبب فشل Cloudflare Workers Builds للفترة التي كان فيها UI-001 Source-only؛ لا production mutation، لا source-code deploy، لا D1 query، لا change إلى Workers Build settings.
+- **الدليل المرسل من المالك:** Cloudflare build `2026-10-09T18:27:04Z` إلى `18:27:17Z`: `npx wrangler versions upload` ثم `Missing entry-point to Worker script or to assets directory`. نجح Git clone، والفشل قبل رفع أي Worker version وفق السجل.
+- **Source map:** من فرع `candidate/t12-full-cloud-cutover-a56-20260929`: `cloudflare-d1/wrangler.frontend.toml` = `trendos-ui` + `src/frontend-static-worker.mjs` + generated `frontend-dist`; `cloudflare-d1/wrangler.toml` = `trendos-d1-api` + `production-shadow/index.js` وD1 binding. غير موجود root Wrangler config، وبالتالي الأمر المجرد في root لا يعرف Worker أو assets.
+- **Packaging truth:** `.github/workflows/trendos-entry579-frontend-create-version-only.yml` و`trendos-entry604-login-fast-production.yml` يبنيان `frontend-dist` من `*.html,*.js,*.css` قبل إنشاء نسخة `trendos-ui` المؤهلة. لن يصلح مجرد تغيير command لاسم service مختلف.
+- **Affected Cloudflare check labels:** `Workers Builds: trendos` و`Workers Builds: trendos-tasks-v3-t1-preview-20260914`، وليسا الاسمين المباشرين للواجهة أو الـAPI. لا يوجد دليل بعد أن Git integration لهاتين الخدمتين مقصود أو يحتاج تعطيل/إعادة تعيين؛ يلزم Read-only Settings → Build inspection من المالك أو Connector مخوّل.
+- **التحذير:** لا نضيف `wrangler.toml` واحد في root، ولا نغير `wrangler.toml` الخاص بـD1 إلى اسم `trendos`، ولا ننفذ `wrangler deploy` أو reroute production. المستودع multi-worker والهدف خطأ ممكن أن يضر خدمات العملاء أو API.
+- **النتيجة:** `ROOT_CAUSE=MISSING_ENTRY_OR_ASSETS_CONFIG`، `NO_VERSION_UPLOADED_IN_SUPPLIED_LOG`، `CLOUDFLARE_BUILD_SETTINGS_UNVERIFIED`، `PROD_UNCHANGED_BY_THIS_ACTION`. مصدر السبب check ليس الواجهة الجديدة؛ بناء مشابه فشل بالفعل على baseline قبل UI-001.
+- **القرار التالي:** التحقق من Connected Repository/Branch/Root/Build/Deploy في Cloudflare لكل خدمة. إن كانت Git Builds غير مقصودة لخدمتي checks، يمكن لصاحب الصلاحية Disconnect بعد تأكيد عدم احتياجهما، أو ضبط المسار الدقيق لكل خدمة. أي Frontend UI rollout يظل ضمن Guarded staging/version-only pipeline، مع explicit approval.
+- **UI log:** [PR #37 UI book](https://github.com/fawakhry/TrendOs/pull/37) إدخال `UI-001-CFBUILD-ROOTCAUSE`؛ [PR #38 code](https://github.com/fawakhry/TrendOs/pull/38) ما يزال Draft، لا Merge ولا Deploy.
+
