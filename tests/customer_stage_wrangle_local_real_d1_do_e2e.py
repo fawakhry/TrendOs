@@ -261,7 +261,8 @@ def main():
               "TRENDOS_CUSTOMER_PORTAL_NATIVE_LOGIN_HTTP_V0_ENABLED",
               "TRENDOS_CUSTOMER_PORTAL_NATIVE_ORDERS_READ_V0_ENABLED",
               "TRENDOS_CUSTOMER_PORTAL_NATIVE_LOGOUT_V0_ENABLED",
-              "TRENDOS_CUSTOMER_PORTAL_NATIVE_PUBLIC_CONTENT_V0_ENABLED"
+              "TRENDOS_CUSTOMER_PORTAL_NATIVE_PUBLIC_CONTENT_V0_ENABLED",
+              "TRENDOS_CUSTOMER_PORTAL_NATIVE_PASSWORD_CHANGE_V0_ENABLED"
             ):
                 original=name+' = "false"'
                 check(config.count(original)==1,"Invalid OFF gate "+name)
@@ -461,6 +462,74 @@ def main():
             status,otherafter=request(port,paths["orders"],token=token2)
             check(status==200 and len(otherafter.get("lines",[]))==1,
                   "D1 owner read did not survive local Worker restart")
+            # NEW BACKEND ONLY: Stage Native password-rotation CAS, independent
+            # of the unchanged source-only original customer UI. The route
+            # is gated OFF in checked-in Wrangler; enabled ONLY in the fake
+            # disposable test config used for this run.
+            rotate="/v1/customer/native/change-password"
+            updated_pass="LOCAL-C2-NEW-PASSWORD-2026-NOT-REAL!"
+            invalid={"currentPassword":PASSWORD2,
+                     "newPassword":updated_pass,
+                     "customerId":"LOCAL-C1"}
+            status,blocked_fields=request(port,rotate,method="POST",token=token2,
+                                          payload=invalid)
+            check(status==400 and not blocked_fields.get("passwordChanged"),
+                  "Native password route trusted client customerId")
+            status,bad_origin=request(port,rotate,method="POST",token=token2,
+                origin="https://evil.test",
+                payload={"currentPassword":PASSWORD2,"newPassword":updated_pass})
+            check(status==403 and not bad_origin.get("passwordChanged"),
+                  "Native password rotation allowed untrusted Origin")
+            status,no_auth=request(port,rotate,method="POST",
+                payload={"currentPassword":PASSWORD2,"newPassword":updated_pass})
+            check(status==401 and no_auth.get("code")=="CUSTOMER_SESSION_REJECTED",
+                  "Native password mutation did not require bearer")
+            status,wrong_old=request(port,rotate,method="POST",token=token2,
+                payload={"currentPassword":"LOCAL-WRONG-OLD-PASSWORD-NOT-REAL!",
+                         "newPassword":updated_pass})
+            check(status==401 and not wrong_old.get("passwordChanged"),
+                  "Password rotation accepted wrong current credential")
+            status,same=request(port,rotate,method="POST",token=token2,
+                payload={"currentPassword":PASSWORD2,"newPassword":PASSWORD2})
+            check(status==400 and not same.get("passwordChanged"),
+                  "Password rotation accepted same old and new verifier")
+            # Two verified sessions for the same independently enrolled C2
+            # account: rotating via one MUST invalidate both by version.
+            status,sibling=request(port,paths["login"],method="POST",
+                payload={"portalCode":CODE2,"password":PASSWORD2})
+            check(status==200 and sibling.get("customerSessionIssued"),
+                  "Second current C2 D1 token could not be established")
+            token2extra=sibling["token"]
+            status,changed=request(port,rotate,method="POST",token=token2,
+                payload={"currentPassword":PASSWORD2,"newPassword":updated_pass})
+            check(status==200 and changed.get("passwordChanged") is True
+                  and changed.get("forceRelogin") is True
+                  and changed.get("allPreviousSessionsInvalidated") is True
+                  and "password" not in json.dumps(changed).lower().replace("passwordchanged","").replace("customer-d1-native-password-rotate-stage-v0",""),
+                  "D1 password CAS failed or leaked verifier or raw password")
+            for old_token in (token2,token2extra):
+                status,dead=request(port,paths["orders"],token=old_token)
+                check(status==401 and dead.get("code")=="CUSTOMER_SESSION_REJECTED",
+                      "Password changed but old/sibling customer token still valid")
+                status,cannot_repeat=request(port,rotate,method="POST",
+                    token=old_token,
+                    payload={"currentPassword":PASSWORD2,"newPassword":updated_pass})
+                check(status==401 and not cannot_repeat.get("passwordChanged"),
+                      "Old bearer replayed password rotation after epoch bump")
+            status,old_login=request(port,paths["login"],method="POST",
+                 payload={"portalCode":CODE2,"password":PASSWORD2})
+            check(status==401 and not old_login.get("customerSessionIssued"),
+                  "Old password still issued session after D1 CAS")
+            status,new_login=request(port,paths["login"],method="POST",
+                 payload={"portalCode":CODE2,"password":updated_pass})
+            check(status==200 and new_login.get("customerSessionIssued") is True,
+                  "New PBKDF2 verifier was not accepted after rotation")
+            status,own_after=request(port,paths["orders"],token=new_login["token"])
+            check(status==200 and
+                  {x["orderId"] for x in own_after.get("lines",[])}==
+                    {"LOCAL-ORDER-LOCAL-C2"},
+                  "Native password rotation altered order ownership/account scope")
+            print("PASS: Stage OFF-by-default Native D1 password change CAS after old-password proof, two previous sessions invalidated, new verifier live on LOCAL synthetic customers only")
             print("PASS: Wrangler local D1+SQLite Durable Object + original Node VM + fixture and FULL ORIGINAL UI Chromium: owner-isolated login/orders, CAS revoke, browser CORS, DO 5/15m restart persistence")
             print("NO_DEPLOY=YES; CLOUD_CUSTOMER_DB_UNTOUCHED=YES; STAGE_REMOTE_UNPROVISIONED=YES")
         finally:
