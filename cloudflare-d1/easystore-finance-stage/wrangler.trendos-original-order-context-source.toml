@@ -1,0 +1,20 @@
+# ACC251 private original T12 order context source PREPARED ONLY / NOT DEPLOYED.
+# Separate from existing customer facts/auth providers and all finance writers.
+# Operational Stage may lack native 0005 + 0035 at-create evidence: fail closed
+# until provider schema/official customer ownership are independently verified.
+name = "trendos-original-order-context-stage-source"
+main = "./trendos-original-order-context-source.mjs"
+compatibility_date = "2026-10-25"
+workers_dev = false
+
+[vars]
+TRENDOS_ORDER_CONTEXT_SOURCE_V1 = "OFF"
+FINANCE_RELEASE = "NO_GO"
+FINANCE_WRITES = "OFF"
+# Secret TRENDOS_ORDER_CONTEXT_HMAC_V1 is NOT generated or provisioned here.
+# Never reuse EDGE_SESSION_SECRET or a browser token for the order bridge.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "trendos-staging"
+database_id = "bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6"
