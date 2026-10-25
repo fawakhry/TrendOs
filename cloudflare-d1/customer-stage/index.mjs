@@ -18,6 +18,9 @@ import {
   handleCustomerNativeLoginHttpV0
 } from '../src/customer-portal-native-login-http-off-v0.mjs';
 
+import {CUSTOMER_NATIVE_PUBLIC_CONTENT_PATH_V0,handleCustomerNativePublicContentStageV0}
+  from './public-content-ro-v0.mjs';
+
 import {createCustomerStageDurableRateGateV0}
   from './login-throttle-v0.mjs';
 export {CustomerLoginThrottleStageV0}
@@ -26,7 +29,8 @@ export {CustomerLoginThrottleStageV0}
 const PATHS=Object.freeze([
   CUSTOMER_NATIVE_LOGIN_HTTP_PATH_V0,
   '/v1/customer/native/logout',
-  CUSTOMER_NATIVE_ORDERS_READ_PATH_V0
+  CUSTOMER_NATIVE_ORDERS_READ_PATH_V0,
+  CUSTOMER_NATIVE_PUBLIC_CONTENT_PATH_V0
 ]);
 const OWN_STAGE_MODE='isolated-customer-stage-v0';
 const text=x=>typeof x==='string'?x.trim():'';
@@ -64,9 +68,11 @@ export default {
     // Reject user-controlled customerId/code/phone, unexpected query and hash.
     // Only the original orders handler may accept bounded pagination values.
     if (url.hash||
-        (path!==CUSTOMER_NATIVE_ORDERS_READ_PATH_V0&&url.search)||
+        (![CUSTOMER_NATIVE_ORDERS_READ_PATH_V0,CUSTOMER_NATIVE_PUBLIC_CONTENT_PATH_V0].includes(path)&&url.search)||
         (path===CUSTOMER_NATIVE_ORDERS_READ_PATH_V0&&
-         Array.from(url.searchParams.keys()).some(x=>!['limit','offset'].includes(x))))
+         Array.from(url.searchParams.keys()).some(x=>!['limit','offset'].includes(x)))||
+        (path===CUSTOMER_NATIVE_PUBLIC_CONTENT_PATH_V0&&
+         Array.from(url.searchParams.keys()).some(x=>x!=='view')))
       return json('CUSTOMER_STAGE_QUERY_DENIED',400);
     // These handlers each require a second independent env flag and secure
     // D1/secret/bearer/origin evidence, so an accidental single-flag enable
@@ -82,6 +88,8 @@ export default {
       }
       if (isCustomerNativeLogoutPathV0(path))
         return await handleCustomerNativeLogoutV0(request,env);
+      if (path===CUSTOMER_NATIVE_PUBLIC_CONTENT_PATH_V0)
+        return await handleCustomerNativePublicContentStageV0(request,env);
       return await handleCustomerNativeOrdersReadV0(request,env);
     }catch{
       // No data, password, DB error, tenant identifiers or stack leak.
