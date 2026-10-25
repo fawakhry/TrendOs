@@ -1,0 +1,224 @@
+name: TrendOS UI-001 Exact-Live One-HTML Production Release
+
+on:
+  push:
+    branches: [main, release/ui001-exact-live-cloudflare-deploy-20261025]
+    paths:
+      - '.github/workflows/trendos-ui001-exact-live-cloudflare-deploy.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-ui-frontend-production-guarded
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+      UI_WORKER: trendos-ui
+      LIVE_ASSET_BASE: 2da755ca910b84911378c018d050cf806d8349d5
+      PRE_VERSION: 899b134a-12bb-495c-9114-3b1bd0de15c8
+      PRE_HTML_SHA256: c3024864c77b8ad3a1a6c52730660537c3b388dbc07d4bc7af6f3f6af46384c8
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install proven Wrangler version
+        run: npm install --no-save wrangler@4.33.2
+      - name: Verify active worker version and exact live HTML (READ ONLY)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          curl --fail --silent --show-error --location \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$UI_WORKER/deployments" >/tmp/ui001-predeploy.json
+          python3 - <<'PY'
+          import json,os
+          x=json.load(open('/tmp/ui001-predeploy.json'))
+          assert x.get('success') is True, 'Cloudflare API failed'
+          obj=x.get('result')
+          ds=obj.get('deployments',[]) if isinstance(obj,dict) else obj
+          assert ds, 'No deployments'
+          v=ds[0].get('versions',[])
+          assert len(v)==1,'Unexpected traffic split'
+          assert v[0].get('version_id')==os.environ['PRE_VERSION'],'Frontend deployment drift'
+          assert float(v[0].get('percentage',0))==100,'Frontend not at 100 percent'
+          print('UI001_FRONTEND_VERSION_GUARD=PASS')
+          print('UI001_PRE_VERSION='+os.environ['PRE_VERSION'])
+          PY
+          curl --fail --silent --show-error --location \
+            "$UI_URL/?ui001-pre=$GITHUB_SHA-$(date +%s%N)" >/tmp/ui001-pre-root.html
+          echo "$PRE_HTML_SHA256  /tmp/ui001-pre-root.html" | sha256sum --check
+          echo UI001_LIVE_ROOT_SHA_GUARD=PASS
+      - name: Snapshot every existing frontend asset and modify only original HTML ordering
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git ls-tree -r --name-only "$LIVE_ASSET_BASE" | grep -E '^[^/]+\.(html|js|css)$' | wc -l)" = 46
+          mkdir -p cloudflare-d1/src cloudflare-d1/frontend-dist
+          git show "$LIVE_ASSET_BASE:cloudflare-d1/wrangler.frontend.toml" >cloudflare-d1/wrangler.frontend.toml
+          git show "$LIVE_ASSET_BASE:cloudflare-d1/src/frontend-static-worker.mjs" >cloudflare-d1/src/frontend-static-worker.mjs
+          grep -Fxq 'name = "trendos-ui"' cloudflare-d1/wrangler.frontend.toml
+          grep -Fxq 'main = "src/frontend-static-worker.mjs"' cloudflare-d1/wrangler.frontend.toml
+          git ls-tree -r --name-only "$LIVE_ASSET_BASE" | grep -E '^[^/]+\.(html|js|css)$' >/tmp/ui001-assetnames.txt
+          while IFS= read -r asset; do
+            mime=$(curl --fail --silent --show-error --location \
+              --output "cloudflare-d1/frontend-dist/$asset" --write-out '%{content_type}' \
+              "$UI_URL/$asset?ui001-snapshot=$GITHUB_SHA-$(date +%s%N)")
+            case "$asset" in
+              *.js) case "$mime" in *javascript*|*ecmascript*) ;; *) echo "FAIL_CONTENT_TYPE $asset $mime"; exit 21;; esac ;;
+              *.css) case "$mime" in *css*) ;; *) echo "FAIL_CONTENT_TYPE $asset $mime"; exit 22;; esac ;;
+              *.html) case "$mime" in *html*) ;; *) echo "FAIL_CONTENT_TYPE $asset $mime"; exit 23;; esac ;;
+            esac
+            test -s "cloudflare-d1/frontend-dist/$asset"
+          done </tmp/ui001-assetnames.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,re,hashlib
+          root=Path('cloudflare-d1/frontend-dist')
+          s=(root/'index.html').read_bytes()
+          assert hashlib.sha256(s).hexdigest()==os.environ['PRE_HTML_SHA256'], 'Snapshot HTML drift'
+          original=s.decode('utf-8')
+          # Choose the employee toolbar by its unique position inside mainView, never by a global regex.
+          def toolbar(html):
+              anchor='<section id="mainView" class="hidden">'
+              assert html.count(anchor)==1,'mainView not unique'
+              main=html.index(anchor)
+              tag='      <div class="top-actions">'
+              pos=html.find(tag,main)
+              assert pos!=-1,'Employee toolbar not found'
+              finish=html.find('      </div>',pos)
+              assert finish!=-1 and 0<finish-pos<1800,'Employee toolbar block unsafe'
+              part=html[pos:finish]
+              lines=part.splitlines(keepends=True)
+              assert lines[0].strip()==tag.strip() and len(lines)==11,'Unexpected toolbar structure'
+              return pos,finish,lines
+          begin,finish,lines=toolbar(original)
+          b=lines[1:]
+          old=['refreshBtn','remoteFilesBtn','matbagySheetsBtn','matbagyRotetBtn',
+               'matbagyNoteBtn','accountingBtn','endDayBtn','urgentNotificationsBtn',
+               'changePassBtn','logoutBtn']
+          new=['remoteFilesBtn','accountingBtn','matbagySheetsBtn','matbagyNoteBtn',
+               'matbagyRotetBtn','refreshBtn','urgentNotificationsBtn','endDayBtn',
+               'changePassBtn','logoutBtn']
+          ids=[re.search(r'id="([^"]+)"',x).group(1) for x in b]
+          assert ids==old,'Unexpected live button order'
+          source=Path('index.html').read_text()
+          sourceStart,sourceEnd,sourceLines=toolbar(source)
+          sourceIds=[re.search(r'id="([^"]+)"',x).group(1) for x in sourceLines[1:]]
+          assert sourceIds==new,'Wrong reviewed main source'
+          assert len(set(ids))==len(old),'Duplicate buttons'
+          mapLines=dict(zip(ids,b))
+          newBlock=lines[0]+''.join(mapLines[n] for n in new)
+          patched=original[:begin]+newBlock+original[finish:]
+          assert patched!=original
+          assert patched.replace(newBlock,original[begin:finish],1)==original,'Change outside toolbar'
+          (root/'index.html').write_bytes(patched.encode('utf-8'))
+          from collections import Counter
+          allNames=[v.strip() for v in Path('/tmp/ui001-assetnames.txt').read_text().splitlines()]
+          assert len(allNames)==46 and len(set(allNames))==46
+          assert {'app.js','config.js','styles.css','index.html'}.issubset(allNames)
+          assert not any((root/n).read_bytes().lstrip().startswith(b'<!doctype html') for n in allNames if n.endswith('.js'))
+          # Validate that every script/style URL explicitly referenced in HTML is in the snapshot.
+          refs=re.findall(r'(?:src|href)="([^"]+\.(?:js|css))(?:\?[^"]*)?"',original)
+          missing=[ref.rsplit('/',1)[-1] for ref in refs if ref.rsplit('/',1)[-1] not in allNames and not ref.startswith('http')]
+          assert not missing, 'Referenced missing assets: '+repr(missing)
+          print('UI001_EXACT_LIVE_BUNDLE=PASS')
+          print('UI001_ONLY_CHANGED_ASSET=index.html')
+          print('UI001_ASSET_COUNT='+str(len(allNames)))
+          print('UI001_PATCHED_HTML_SHA256='+hashlib.sha256(patched.encode()).hexdigest())
+          PY
+          for item in app.js config.js employee-api-dispatcher-v1.js; do
+            node --check "cloudflare-d1/frontend-dist/$item"
+          done
+          echo UI001_SOURCE_AND_SNAPSHOT=PASS
+          echo UI001_DRY_RUN_NO_DEPLOY=$([ "$GITHUB_REF" = 'refs/heads/main' ] && echo NO || echo YES)
+      - name: Repeat original-version and old-HTML guards immediately before deployment
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$UI_WORKER/deployments" >/tmp/ui001-before-publish.json
+          python3 - <<'PY'
+          import json,os
+          x=json.load(open('/tmp/ui001-before-publish.json'))['result']
+          ds=x.get('deployments',[]) if isinstance(x,dict) else x
+          assert len(ds)>0
+          v=ds[0]['versions']
+          assert len(v)==1 and v[0]['version_id']==os.environ['PRE_VERSION'] and float(v[0]['percentage'])==100
+          print('UI001_PREPROMOTE_VERSION_LEASE=PASS')
+          PY
+          curl --fail --silent --show-error --location \
+            "$UI_URL/?ui001-lease=$GITHUB_SHA-$(date +%s%N)" >/tmp/ui001-before-publish.html
+          echo "$PRE_HTML_SHA256  /tmp/ui001-before-publish.html" | sha256sum --check
+          echo UI001_PREPROMOTE_HTML_LEASE=PASS
+      - name: Publish to trendos-ui only with automatic rollback and strict postflight
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -eEuo pipefail
+          DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = "1" ]; then
+              npx wrangler rollback "$PRE_VERSION" --config cloudflare-d1/wrangler.frontend.toml \
+                --message "UI001 exact-live buttons reorder automated rollback" || true
+              echo UI001_AUTO_ROLLBACK_ATTEMPTED=YES
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+          npx wrangler deploy --config cloudflare-d1/wrangler.frontend.toml > /tmp/ui001-wrangler-publish.log
+          DEPLOYED=1
+          echo UI001_TARGET_WORKER=trendos-ui
+          echo UI001_DEPLOY_COMMAND_SUCCESS=YES
+          OK=0
+          for attempt in $(seq 1 25); do
+            curl --fail --silent --show-error --location \
+              "$UI_URL/?ui001-post=$GITHUB_SHA-$attempt-$(date +%s%N)" > /tmp/ui001-post-root.html || true
+            if cmp -s /tmp/ui001-post-root.html cloudflare-d1/frontend-dist/index.html; then
+              OK=1
+              echo UI001_PROPAGATION_ATTEMPT=$attempt
+              break
+            fi
+            sleep 2
+          done
+          test "$OK" = "1"
+          while IFS= read -r asset; do
+            [ "$asset" = index.html ] && continue
+            curl --fail --silent --show-error --location \
+              "$UI_URL/$asset?ui001-final=$GITHUB_SHA-$(date +%s%N)" -o "/tmp/ui001-post-$asset"
+            cmp "cloudflare-d1/frontend-dist/$asset" "/tmp/ui001-post-$asset"
+          done </tmp/ui001-assetnames.txt
+          echo UI001_OTHER_45_ASSETS_BYTE_IDENTICAL=PASS
+          curl --fail --silent --show-error --location -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$UI_WORKER/deployments" >/tmp/ui001-after.json
+          python3 - <<'PY'
+          import json,os
+          x=json.load(open('/tmp/ui001-after.json'))['result']
+          ds=x.get('deployments',[]) if isinstance(x,dict) else x
+          v=ds[0]['versions']
+          assert len(v)==1 and float(v[0]['percentage'])==100
+          assert v[0]['version_id']!=os.environ['PRE_VERSION'],'New version not activated'
+          print('UI001_POST_DEPLOYMENT='+str(ds[0]['id']))
+          print('UI001_NEW_VERSION='+str(v[0]['version_id']))
+          print('UI001_TRAFFIC=100')
+          PY
+          trap - ERR
+          echo UI001=LIVE_VERIFIED
+          echo UI001_ROLLBACK_USED=NO
