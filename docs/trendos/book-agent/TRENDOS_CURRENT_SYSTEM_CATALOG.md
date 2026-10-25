@@ -9835,3 +9835,56 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 <!-- END_VERBATIM_UNIT:HIST-20261023-T12-KEY-CUSTOMER-IDENTITY-DELTA -->
 
 <!-- END_EXACT_HISTORICAL_MIGRATION:20261024_3_T12_R2_IDENTITY_SOURCE_NOTES -->
+
+
+## ملحق تاريخي — أربعة سجلات مراجعة Book Agent لحالة أكتوبر 2026 (ليست مرجعًا حيًا)
+
+<!-- BEGIN_EXACT_HISTORICAL_MIGRATION:20261025_4_BOOK_AGENT_OLD_CHECKPOINTS;SOURCE_COMMIT:21a88404ab21c123a3174e36c7f8c39b2f06227c -->
+
+<!-- BEGIN_VERBATIM_UNIT:HIST-20261023-71-TRANSFER-CHECKPOINT;OLD_COMMIT:21a88404ab21c123a3174e36c7f8c39b2f06227c;BLOB:ef50c45d11b4aff41a5520d4e7d5ff5e659207b8;CHARACTERS:2447 -->
+### BOOK-AGENT-20261023-71-SAFE-TRANSFERS-FINAL-CURRENT-CHECKPOINT
+
+- **Four additional historical observations verified after 67:** `MIGRATED EARLIER`, `MIGRATED THIS PASS`, `NO-LOSS CHECK`, `OPERATIONS`, totaling **1,441 old-source characters**. Original text copied at `0fea71f07964bb83aa4ce1fbe27d27d94899512d` and re-read independently: `EXACT_MATCH=4/4`. Only after verification the four distinct original paragraphs were removed at `d2ca422fcd181c6a922e023682323c6099e70c66`; complete old-source reconstruction minus exactly those paragraphs: `PASS`. Owner policy text remained untouched.
+- **2026-10-23 cumulative:** 21 earlier SERVER sections + 26 original migration receipts + 13 audit checkpoints + 3 baseline snapshots + 4 initial receipts + 4 extra transition receipts = **71 separate historical text transfers / 101,481 original characters**. Older 38 historically migrated Entry units are independent, not recounted. Unified catalog markers `111/111` balanced unique.
+- **Crosswalk/Manifest:** `migration_resumed_20261023_4_extra_owner_transition_receipts` at `ae112a16a17e43a8ceb2917b7a313e7973c6d34d`; `current_no_loss_gate_checkpoint_20261023_after_71_sections` at `d7831021a1e7194a159400199dd8397e1b49d53c`. Prior seven-section entry remains in Crosswalk `migration_resumed_20261023_7_safe_remaining_master_chunks`.
+- **Concurrent new active engineering record protected:** `Entry669 Zero Google finance safety` was appended by a separate workflow after these historical removals. This is fresh active-source work, **NOT** part of the 71 migrated historical sections, **NOT** transferred, edited or relabeled as LIVE; review its independent evidence and any private/finance scope before future migration. Do not overwrite concurrent agents' active notes.
+- **Remaining held:** Active owner reading/writing policy, original Entry596 and Entry599/600 private order data, explicit no-move SERVER-61, current rolling checkpoints and newly appended Entry669 current engineering note. Current runtime Cloudflare SHA / D1/R2 / Google actions / Single Writer / all 256 test **outcomes** still lack latest shared proof in this book task; cutover needs separate owner approval.
+- **Authority remains:** `OLD_BOOK=ACTIVE_WRITE`, `CATALOG=FROZEN_MIGRATION_ONLY`, `ONE_BOOK_CUTOVER=NO_GO`. This book agent performed documentation-only GitHub edits; no production, customer, Google, cloud, EasyStore/Printshop, CI, Merge/Deploy operations.
+
+
+<!-- END_VERBATIM_UNIT:HIST-20261023-71-TRANSFER-CHECKPOINT -->
+
+<!-- BEGIN_VERBATIM_UNIT:HIST-20261023-ENTRY679-RESIDUAL-GATE;OLD_COMMIT:21a88404ab21c123a3174e36c7f8c39b2f06227c;BLOB:10d220efc922c91d21d93409051bc0bf34810752;CHARACTERS:2181 -->
+### BOOK-AGENT-20261023-REMAINING-SOURCE-GATE-679 — complete safe residual review, hold source authority
+- **Pinned pre-checkpoint HEAD:** `b600a79c2b08e6c7cfe39036686dc4c916d456c0`; old blob `0449bf98d79ee870356b487c0e3a6414e5576918`; catalog blob `7c07ffcea93e776796e29a6e78e98ceb609c171c` (unchanged).
+- Classified **22 remaining old-book headings**, including owner authority, private Entry596/599/600, protected SERVER-20261016-61, historical migration checkpoints still acting as active provenance, and active Entry669–679 source notes. **No separate safe untransferred historical section identified; new migrations: 0, no COPY/REMOVE commits.** No active source entry was deleted, moved, or reclassified as deployed.
+- Independently checked frozen catalog structure **32/32 contiguous chapters**, **115/115 balanced unique verbatim marker pairs**, and **40/40 local relative Markdown destinations present** in the non-truncated repository tree. Existing 75 verified source moves / 109,955 original characters and separate 38 historical units remain unchanged; 256-test-path inventory not rerun.
+- Newer active Entry678/679 preserved in old book; no distinct Entry677 heading in this pinned old-source snapshot (not proof of lost history). Unified catalog intentionally remains FROZEN_MIGRATION_ONLY; reconcile active entries only as an owner-approved part of final transition.
+- Remaining NO_GO: private retention approval, SERVER61 owner hold, Cloudflare deployed source, remaining Google writers, D1/R2 owner identity and parity, T12/customer authorizations, finance/EasyStore, single-writer, test-versus-deployed parity, printshop integration, and **explicit owner cutover approval**. SOURCE_ONLY ≠ DEPLOYED_VERIFIED ≠ PRODUCTION_VERIFIED.
+- Crosswalk key `book_agent_remaining_old_source_readonly_gate_20261023_after_entry679`; Manifest key `current_no_loss_gate_checkpoint_20261023_after_75_readonly_remaining_entry679`. Documentation-only checkpoint; **NO_PRODUCTION_CHANGE / NO_GOOGLE_CLOUDFLARE_CHANGE / NO_EASYSTORE_PRINTSHOP_CHANGE**. Next: watch HEAD for new active notes, preserve them; do not repeat previous 75 transfers or 38 units; do not delete old book.
+
+
+<!-- END_VERBATIM_UNIT:HIST-20261023-ENTRY679-RESIDUAL-GATE -->
+
+<!-- BEGIN_VERBATIM_UNIT:HIST-20261023-ENTRY679-PR-PROVENANCE;OLD_COMMIT:21a88404ab21c123a3174e36c7f8c39b2f06227c;BLOB:ca22eb30d61e7a5c94d90e724e579113ad2689fa;CHARACTERS:2147 -->
+### BOOK-AGENT-20261023-ACTIVE-PR-PROVENANCE-679 — newer active Entry provenance reconciled without frozen-book edits
+- **Pinned branch HEAD:** `c661cc4f0796ca8cb0706698a2f5febe05e23646`; old source blob `fb57e290726403bc7d64e457340ba256c5e5b2ee`; frozen catalog blob `7c07ffcea93e776796e29a6e78e98ceb609c171c` unchanged.
+- Linked active Entry669, 670, 671, 672, 673, 674, 675, 676, 678, 679 to existing catalog topical chapters **as references only**; **Entry677 has no distinct heading in reviewed old master** (not a finding of lost data). This is a future owner-approved editorial-reconciliation queue, not movement or operational certification.
+- PR [#220](https://github.com/fawakhry/TrendOs/pull/220) at `1303167b60dc47e44c97b428862541bf7900428f` and [#221](https://github.com/fawakhry/TrendOs/pull/221) at `acba0c15ece7a57fa7a406cdeae50b499386edcb` were OPEN/DRAFT/UNMERGED as independently read. The draft source contains Entry674/675/679 modules and Entry668 finance preview; modules are not present in current book branch. Inspected corresponding module heads: **SOURCE_ONLY/OFF, read-only diagnostic and not a real T12 write or EasyStore-authoritative statement**. Targeted current draft Worker `index_v2.js` scan had no references to these four modules, not a complete runtime/deployment attestation.
+- Crosswalk `agent_trendos_active_entries_669_679_pr_provenance_reconciliation_20261023` records scoped chapter targets and source-file blobs/PR pins; Manifest `current_no_loss_gate_checkpoint_20261023_after_entry679_pr_source_provenance` records authority and NO_GO. Preserved old `ACTIVE_WRITE`, new `FROZEN_MIGRATION_ONLY`, 75 historical safe moves / 115 marker pairs and all privacy/owner SERVER61 holds. No private record copied and no historical section removed. **NO_DEPLOY / NO_CLOUDFLARE_GOOGLE / NO_EASYSTORE_MODIFICATION / NO_PRODUCTION_WRITE**.
+- Remaining: owner privacy handling + protected SERVER61 transition + explicit cutover; deployed SHA, independent Google retirement, T12/D1/R2 single writer and replay, finance parity, customer auth, printshop and test-versus-runtime gaps remain separate engineering tasks.
+
+
+<!-- END_VERBATIM_UNIT:HIST-20261023-ENTRY679-PR-PROVENANCE -->
+
+<!-- BEGIN_VERBATIM_UNIT:HIST-20261023-ENTRY680681-SHA-CI;OLD_COMMIT:21a88404ab21c123a3174e36c7f8c39b2f06227c;BLOB:f00d6bf2895181cac5a6d41ee8536d32f7ccc2f0;CHARACTERS:2194 -->
+### BOOK-AGENT-20261023-ACTIVE680681-EXACTSHA-GATE — Entry680/681 pinned provenance + corrected CI without release promotion
+- Book Agent documentation-only review of current OLD source at `376d1a48d187b2d67f17b1d454e1988c979b3d3a` blob `84271410a3dc8f1aff9bc36ffdd30f4166f5e6b6`. Added active-source reference map for **Entry680** (3 read-only D1 batch SELECTs) and **Entry681** (4 read-only D1 batch SELECTs including ledger) to Crosswalk `book_agent_entries_680_681_d1_read_batch_exact_head_evidence_20261023` / Manifest `current_no_loss_gate_20261023_active_680_681_ci_provenance` with relevant existing catalog chapter targets. **Neither Entry moved.** Frozen catalog blob `7c07ffcea93e776796e29a6e78e98ceb609c171c` unchanged.
+- Independent current PR220 HEAD `e735a9a970634c3647d2360b7a9c4fb000a8773b` OPEN/DRAFT/UNMERGED and PR221 HEAD `8ca319ee8c54f72d6cbc7c07d897445a17849af4` OPEN/DRAFT/UNMERGED. Read code blobs `95a7d96830d20b3623df0dd834cd7d0a5c53714d` (handoff manifest) and `f4aa6d54db8213f957290adff5f92375243cf149` (T12 submit preflight). Both explicitly **OFF/SOURCE_ONLY**; a consistent read transaction is **not** an immutable seal, binary R2 verification, trusted T12 writer, or production customer flow.
+- Independently queried workflow run metadata at those exact PR SHAs: PR220 runs `39989004659`, `39989004795`, `39989005320` and PR221 runs `39989010756`, `39989010753`, `39989010830`, `39989010738` all COMPLETED/SUCCESS; **7/7 for this selected evidence set, not all tests**. Preserved failed intermediary runs `39987563093`, `39988754740`, `39988916831` as historical failures, not new production failures. No tests rerun by Book Agent.
+- Old book remains `ACTIVE_WRITE`; catalog remains `FROZEN_MIGRATION_ONLY`; **cutover NO_GO**. New historical-safe transfers 0; earlier 75 safe movements and 115/115 marker pairs unchanged. Protected Entry596/599/600, SERVER61 and all concurrent active entries preserved. Live deployed SHA, Google retirement, durable D1/R2 handoff, EasyStore parity, BOOK24 Single Writer and customer E2E still require independent engineering evidence. No Production, Cloudflare, Google, client data, EasyStore, Printshop or runtime mutation.
+
+
+<!-- END_VERBATIM_UNIT:HIST-20261023-ENTRY680681-SHA-CI -->
+
+<!-- END_EXACT_HISTORICAL_MIGRATION:20261025_4_BOOK_AGENT_OLD_CHECKPOINTS -->
