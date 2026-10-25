@@ -97,15 +97,6 @@ async function main() {
       }
       await page.waitForFunction(()=>!document.querySelector('#entryView').classList.contains('hidden'),
         null,{timeout:18000});
-      const staleReadResults=await page.evaluate(async()=>{
-        window.__customerNativeRaceReleases.splice(0).forEach(release=>release());
-        return await window.__customerNativeRaceResults;
-      });
-      assert.deepEqual(staleReadResults,[
-        'CUSTOMER_NATIVE_STALE_READ_REJECTED',
-        'CUSTOMER_NATIVE_STALE_READ_REJECTED'
-      ],'Native order and public D1 read payloads from revoked login must NEVER surface after logout');
-      console.log('PASS: REAL Chromium delayed D1 orders+brand responses rejected after native customer CAS logout');
 
       // TEST-ONLY logical action audit at ORIGINAL app.js dispatch boundary.
       // The employee dispatcher can fail a customer content call before fetch;
@@ -270,6 +261,16 @@ async function main() {
       await page.locator('#customerLogoutBtn').click();
       await page.waitForFunction(()=>!document.querySelector('#entryView').classList.contains('hidden'),
         null,{timeout:18000});
+      const staleReadResults=await page.evaluate(async()=>{
+        window.__customerNativeRaceReleases.splice(0).forEach(release=>release());
+        return await window.__customerNativeRaceResults;
+      });
+      assert.deepEqual(staleReadResults,[
+        'CUSTOMER_NATIVE_STALE_READ_REJECTED',
+        'CUSTOMER_NATIVE_STALE_READ_REJECTED'
+      ],'Native order and public D1 read payloads from revoked login must NEVER surface after logout');
+      console.log('PASS: REAL Chromium delayed D1 orders+brand responses rejected after native customer CAS logout');
+
       await assert.rejects(async()=>{
         const outcome=await page.evaluate(async()=>{
           try{
