@@ -34,6 +34,7 @@ MIGRATIONS=[
     "0005_t12_production_create_canary.sql",
     "0006_t12_operational_runtime.sql",
     "0008_t12_customer_master.sql",
+    "0013_employee_content_zero_google_v1.sql",
     "0032_customer_portal_identity_foundation_v1.sql",
     "0033_customer_portal_native_order_ownership_v1.sql",
 ]
@@ -167,7 +168,18 @@ def serve_browser_fixture(port=8000):
 
 def seed_sql():
     statements=[
-        "UPDATE customer_portal_native_control_v1 SET mode='GENERAL' WHERE singleton=1;"
+        "UPDATE customer_portal_native_control_v1 SET mode='GENERAL' WHERE singleton=1;",
+        "UPDATE employee_content_control_v1 SET mode='READONLY' WHERE singleton=1;",
+        "DELETE FROM employee_content_records_v1;",
+        """INSERT INTO employee_content_records_v1
+           (collection,record_id,record_json,active,sort_order,updated_by)
+           VALUES ('platform_sections','LOCAL-SEC','{"code":"LOCAL-SEC","name":"LOCAL SAFE SECTION","description":"LOCAL PUBLIC PRINT","internalNotes":"PRIVATE_EMPLOYEE_SECRET","commissionRate":93,"fileId":"PRIVATE_GOOGLE_FILE_ID"}',1,1,'LOCAL_FIXTURE');""",
+        """INSERT INTO employee_content_records_v1
+           (collection,record_id,record_json,active,sort_order,updated_by)
+           VALUES ('franchise_branches','LOCAL-PUBLIC','{"code":"LOCAL-PUBLIC","displayName":"LOCAL PUBLIC BRANCH","visibleArea":"LOCAL AREA","customerVisibility":"ظاهر كفرع مطبعجي","internalNotes":"PRIVATE_BRANCH_FINANCE","matbagyShare":91,"partnerPhone":"PRIVATE_PHONE"}',1,1,'LOCAL_FIXTURE');""",
+        """INSERT INTO employee_content_records_v1
+           (collection,record_id,record_json,active,sort_order,updated_by)
+           VALUES ('franchise_branches','LOCAL-HIDDEN','{"code":"LOCAL-HIDDEN","displayName":"SECRET BRANCH","customerVisibility":"مخفي","internalNotes":"PRIVATE_HIDDEN_SECRET"}',1,2,'LOCAL_FIXTURE');"""
     ]
     for ident,code,password in [("LOCAL-C1",CODE,PASSWORD),("LOCAL-C2",CODE2,PASSWORD2)]:
         salt=("09" if ident=="LOCAL-C1" else "0a")*16
@@ -224,7 +236,8 @@ def main():
               "TRENDOS_CUSTOMER_PORTAL_STAGING_ENABLED",
               "TRENDOS_CUSTOMER_PORTAL_NATIVE_LOGIN_HTTP_V0_ENABLED",
               "TRENDOS_CUSTOMER_PORTAL_NATIVE_ORDERS_READ_V0_ENABLED",
-              "TRENDOS_CUSTOMER_PORTAL_NATIVE_LOGOUT_V0_ENABLED"
+              "TRENDOS_CUSTOMER_PORTAL_NATIVE_LOGOUT_V0_ENABLED",
+              "TRENDOS_CUSTOMER_PORTAL_NATIVE_PUBLIC_CONTENT_V0_ENABLED"
             ):
                 original=name+' = "false"'
                 check(config.count(original)==1,"Invalid OFF gate "+name)
@@ -277,6 +290,37 @@ def main():
             check(status==200 and own.get("success") is True and
                   {x["orderId"] for x in own.get("lines",[])}=={"LOCAL-ORDER-LOCAL-C1"},
                   "Real-local D1 order read violated exact owner scope")
+            # Two independent public read-only content routes share VERIFIED
+            # Native C1 D1 session; never expose employee JSON/finance or
+            # hidden franchise branches. No direct Google or employee auth.
+            for view,key,ident in [
+                ("sections","sections","LOCAL-SEC"),
+                ("branches","branches","LOCAL-PUBLIC")
+            ]:
+                route="/v1/customer/native/public-content?view="+view
+                status,out=request(port,route,token=token)
+                check(status==200 and out.get("success") is True and
+                      out.get("readOnly") is True and len(out.get(key,[]))==1,
+                      "Original D1 public "+view+" read not qualified")
+                content=json.dumps(out,ensure_ascii=False)
+                check(ident in content and
+                      not any(word in content for word in [
+                        "PRIVATE_", "commissionRate", "internalNotes",
+                        "matbagyShare", "partnerPhone", "fileId", "SECRET BRANCH"
+                      ]), "Private employee content or hidden branch escaped whitelist")
+                status,unauth=request(port,route)
+                check(status==401 and unauth.get("code")=="CUSTOMER_SESSION_REJECTED",
+                      "Public D1 content allowed unauthenticated read")
+                status,foreign=request(port,route,token=token,origin="https://evil.test")
+                check(status==403 and not foreign.get("success"),
+                      "Public D1 content CORS origin bypass")
+            for dangerous in [
+              "/v1/customer/native/public-content?view=accounts",
+              "/v1/customer/native/public-content?view=sections&customerId=LOCAL-C2",
+              "/v1/customer/native/public-content?view=sections&view=branches"
+            ]:
+                status,body=request(port,dangerous,token=token)
+                check(status==400,"Public content accepted unauthorized view/query")
             status,other=request(port,paths["login"],method="POST",
                                 payload={"portalCode":CODE2,"password":PASSWORD2})
             check(status==200 and other.get("customerSessionIssued") is True,
@@ -292,6 +336,10 @@ def main():
             status,denied=request(port,paths["orders"],token=token)
             check(status==401 and denied.get("code")=="CUSTOMER_SESSION_REJECTED",
                   "Revoked session was accepted")
+            status,revoked_public=request(port,
+                    "/v1/customer/native/public-content?view=sections",token=token)
+            check(status==401 and revoked_public.get("code")=="CUSTOMER_SESSION_REJECTED",
+                  "Revoked session read public content")
             status,replay=request(port,paths["logout"],method="POST",token=token)
             check(status==401,"Replayed logout accepted")
             status,otherstill=request(port,paths["orders"],token=token2)
