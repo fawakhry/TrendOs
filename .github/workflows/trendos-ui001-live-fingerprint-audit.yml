@@ -1,3 +1,4 @@
+# UI-001 independently repeated after controlled Cloudflare release 2026-10-25
 name: TrendOS UI-001 Live Frontend Fingerprint Audit (read only)
 
 on:
