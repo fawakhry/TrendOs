@@ -17,12 +17,13 @@ async function setup(opts={}){
   updatedAtMs:NOW
  };
  const trace=[];
- let sessions=0,reads=0,objects=0;
+ let sessions=0,reads=0,quarantines=0,objects=0;
  const db={
   prepare(sql){
     const kind=sql.includes('SELECT a.customer_id AS customerId')?'auth':
       sql.includes('SELECT d.draft_id AS draftId')?'draft':
-      sql.includes('SELECT f.file_id AS fileId')?'files':'UNEXPECTED';
+      sql.includes('SELECT f.file_id AS fileId')?'files':
+      sql.includes('SELECT q.file_id AS fileId')?'quarantine':'UNEXPECTED';
     assert.notEqual(kind,'UNEXPECTED','Unauthorized/altering D1 SQL');
     assert.match(sql,/SELECT/);
     return {
@@ -39,7 +40,20 @@ async function setup(opts={}){
             return opts.denyDraft?null:{draftId:DRAFT};
           },
           async all(){
-            assert.equal(kind,'files');
+            assert.ok(['files','quarantine'].includes(kind));
+            if(kind==='quarantine'){
+              quarantines++;
+              if(opts.noQuarantine)return {results:[]};
+              const q={fileId:FILE,sha256Hex:sha,byteSize:bytes.length,
+                contentType:'image/png',disposition:'QUARANTINED',
+                scanCompleted:0,printReleaseAuthorized:0};
+              if(opts.quarantineBadHash)q.sha256Hex='ab'.repeat(32);
+              if(opts.quarantineScanFake)q.scanCompleted=1;
+              if(opts.quarantineReleaseFake)q.printReleaseAuthorized=1;
+              if(opts.quarantineNotHeld)q.disposition='CLEAN';
+              if(opts.quarantineChanged&&quarantines>1)q.sha256Hex='cd'.repeat(32);
+              return {results:[q]};
+            }
             reads++;
             if(opts.noFiles)return {results:[]};
             if(opts.tooMany)return {results:Array.from({length:6},()=>row)};
@@ -63,7 +77,7 @@ async function setup(opts={}){
     httpMetadata:{contentType:opts.wrongType?'application/pdf':'image/png'},
     async arrayBuffer(){return out.buffer.slice(out.byteOffset,out.byteOffset+out.byteLength);}};
  }};
- return {db,bucket,trace,counts:()=>({sessions,reads,objects}),
+ return {db,bucket,trace,counts:()=>({sessions,reads,quarantines,objects}),
   input:{db,bucket,token:TOKEN,secret:SECRET,draftId:DRAFT,nowMs:NOW,clock:()=>NOW}};
 }
 test('integrity output does not grant malware clearance, T12 create, file download or public R2 URLs',async()=>{
@@ -71,6 +85,7 @@ test('integrity output does not grant malware clearance, T12 create, file downlo
  const r=await inspectCustomerPrivateR2IntegrityV0(ctx.input);
  assert.equal(r.status,200);
  assert.equal(r.body.integrityNowVerified,true);
+ assert.equal(r.body.allFilesQuarantined,true);
  assert.equal(r.body.verifiedFileCount,1);
  assert.equal(r.body.malwareScanComplete,false);
  assert.equal(r.body.eligibleForT12FileHandoff,false);
@@ -79,7 +94,7 @@ test('integrity output does not grant malware clearance, T12 create, file downlo
  const json=JSON.stringify(r);
  for(const sensitive of [FILE,ITEM,DRAFT,TOKEN,SECRET,'customer-drafts/','LOCAL-C1',shaPrivate()])
   assert.equal(json.includes(sensitive),false,'Leaked internal file metadata');
- assert.deepEqual(ctx.counts(),{sessions:2,reads:2,objects:1});
+ assert.deepEqual(ctx.counts(),{sessions:2,reads:2,quarantines:2,objects:1});
  assert.equal(ctx.trace.filter(x=>x.kind==='auth').length,2);
 });
 function shaPrivate(){return 'FAKE_INTERNAL_SALT';}
@@ -95,7 +110,9 @@ test('tampered/private mismatched R2 bytes, content-type, size and missing objec
 });
 test('not-ready, unauthorized, empty, >5, wrong key, changed D1 snapshot or revoked session all DENY',async()=>{
  for(const key of ['pending','denyAuth','denyDraft','noFiles','tooMany','invalidKey',
-  'invalidId','metadataChanged','revokeAtEnd']){
+  'invalidId','metadataChanged','revokeAtEnd','noQuarantine',
+  'quarantineBadHash','quarantineScanFake','quarantineReleaseFake',
+  'quarantineNotHeld','quarantineChanged']){
   const ctx=await setup({[key]:true});
   const result=await inspectCustomerPrivateR2IntegrityV0(ctx.input);
   assert.notEqual(result.status,200,key);
@@ -109,7 +126,7 @@ test('invalid bearer and missing actual R2 binding fail before any D1 read or ge
  assert.equal(r.status,401);
  r=await inspectCustomerPrivateR2IntegrityV0({...ctx.input,bucket:null});
  assert.equal(r.status,503);
- assert.deepEqual(ctx.counts(),{sessions:0,reads:0,objects:0});
+ assert.deepEqual(ctx.counts(),{sessions:0,reads:0,quarantines:0,objects:0});
 });
 test('HTTP own Origin, GET, bearer and stage-only OFF flag; query and injection rejected',async()=>{
  const ctx=await setup();
@@ -133,7 +150,7 @@ test('HTTP own Origin, GET, bearer and stage-only OFF flag; query and injection 
  r=await handleCustomerPrivateR2IntegrityStageV0(new Request(route,{
    headers:{Origin:ORIGIN}}),allow);
  assert.equal(r.status,401);
- assert.deepEqual(ctx.counts(),{sessions:0,reads:0,objects:0});
+ assert.deepEqual(ctx.counts(),{sessions:0,reads:0,quarantines:0,objects:0});
 });
 test('production binding and T12/Printshop submission remain source-OFF and unwired',()=>{
  const cfg=readFileSync('cloudflare-d1/wrangler.customer-stage.toml','utf8');
