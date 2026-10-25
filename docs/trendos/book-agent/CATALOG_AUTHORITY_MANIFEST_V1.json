@@ -1430,5 +1430,40 @@
     "finance": "EASYSTORE",
     "final_cutover": "NO_GO",
     "owner_cutover_approval": "NOT_GRANTED"
+  },
+  "current_no_loss_gate_20261025_four_agent_checkpoint_verbatim_v1": {
+    "date": "2026-10-25",
+    "crosswalk_key": "migration_20261025_four_historical_book_agent_checkpoints_v1",
+    "copy_commit": "11fa5df381717c6895483d6e81e5f244ccfbab0e",
+    "copy_catalog_blob": "5040bbe6117951ddf781bf873b72424383cb6712",
+    "source_commit": "21a88404ab21c123a3174e36c7f8c39b2f06227c",
+    "verified": "4/4",
+    "characters": 8969,
+    "master_reconstruction": "OLD_MINUS_EXACT_FOUR_PLUS_RECEIPT_AND_ENTRY694_EVENT_20261025_01",
+    "archival_protected_sha": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "active_authority": "OLD_MASTER_ONLY",
+    "unified": "FROZEN_MIGRATION_ONLY",
+    "final_cutover": "NO_GO",
+    "no_prod_or_finance_mutation": true
+  },
+  "current_no_loss_gate_20261025_active_writer_handoff_no_go_v1": {
+    "date": "2026-10-25",
+    "reason": "Owner requests faster cutover before live agent chats continue writing",
+    "original_source_before_migration": "21a88404ab21c123a3174e36c7f8c39b2f06227c",
+    "copy_commit": "11fa5df381717c6895483d6e81e5f244ccfbab0e",
+    "authority": "OLD_MASTER_ACTIVE_WRITE_NEW_CATALOG_MIGRATION_ONLY",
+    "owner_final_approval": "NOT_GRANTED_FINAL_CUTOVER",
+    "open_issue": "BOOK-694-01",
+    "all_old_sections_migrated": false,
+    "active_chat_writer_acks": "NOT_OBTAINED",
+    "writer_freeze": "NOT_ESTABLISHED",
+    "owner_privacy_server61_clearance": "NOT_ATTESTED",
+    "active_current_entries": "Entry669-694 and ACC245-257 and protected Entry596/599/600 SERVER61",
+    "post_sync_no_loss": "PENDING",
+    "candidate_new_write_target": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+    "write_target_now": "TrendOS_MASTER_BOOK.md",
+    "switch": "NOT_ACTIVATED",
+    "next": "Reconcile owner-approved current operational snapshots, collect explicit multi-agent write-freeze/acks, verify same HEAD, owner approval, atomically switch writers",
+    "final_cutover": "NO_GO"
   }
 }

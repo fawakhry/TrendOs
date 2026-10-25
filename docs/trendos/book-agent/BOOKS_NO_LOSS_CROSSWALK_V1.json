@@ -19200,5 +19200,63 @@
     "finance": "EASYSTORE",
     "final_cutover": "NO_GO",
     "owner_approval": "NOT_GIVEN"
+  },
+  "migration_20261025_four_historical_book_agent_checkpoints_v1": {
+    "date": "2026-10-25",
+    "source_commit": "21a88404ab21c123a3174e36c7f8c39b2f06227c",
+    "source_master_blob": "5ed65e3cbd5e26aca1b9a31fd9e7e552ff7cd710",
+    "copy_commit": "11fa5df381717c6895483d6e81e5f244ccfbab0e",
+    "copy_catalog_blob": "5040bbe6117951ddf781bf873b72424383cb6712",
+    "units": [
+      {
+        "id": "HIST-20261023-71-TRANSFER-CHECKPOINT",
+        "sha": "ef50c45d11b4aff41a5520d4e7d5ff5e659207b8",
+        "chars": 2447
+      },
+      {
+        "id": "HIST-20261023-ENTRY679-RESIDUAL-GATE",
+        "sha": "10d220efc922c91d21d93409051bc0bf34810752",
+        "chars": 2181
+      },
+      {
+        "id": "HIST-20261023-ENTRY679-PR-PROVENANCE",
+        "sha": "ca22eb30d61e7a5c94d90e724e579113ad2689fa",
+        "chars": 2147
+      },
+      {
+        "id": "HIST-20261023-ENTRY680681-SHA-CI",
+        "sha": "f00d6bf2895181cac5a6d41ee8536d32f7ccc2f0",
+        "chars": 2194
+      }
+    ],
+    "verified": "4/4_EXACT_TEXT_LENGTH_GIT_BLOB",
+    "characters": 8969,
+    "source_unchanged_on_copy": true,
+    "remove": "ONLY_4_HISTORICAL_CHECKPOINT_STRINGS_PLUS_RECEIPT_AND_EVENT_01",
+    "preserve_active": "Entry596_599_600_SERVER61_Entry669-694_ACC245-257",
+    "archive_sha": "b2788ecb4c187717e020321954a1ea449c1aa0d5",
+    "unified_catalog": "FROZEN_MIGRATION_ONLY",
+    "master": "ACTIVE_WRITE",
+    "cutover": "NO_GO"
+  },
+  "book_transition_20261025_active_chats_cutover_preflight_no_go_v1": {
+    "date": "2026-10-25",
+    "reason": "Owner requests faster cutover before live agent chats continue writing",
+    "original_source_before_migration": "21a88404ab21c123a3174e36c7f8c39b2f06227c",
+    "copy_commit": "11fa5df381717c6895483d6e81e5f244ccfbab0e",
+    "authority": "OLD_MASTER_ACTIVE_WRITE_NEW_CATALOG_MIGRATION_ONLY",
+    "owner_final_approval": "NOT_GRANTED_FINAL_CUTOVER",
+    "open_issue": "BOOK-694-01",
+    "all_old_sections_migrated": false,
+    "active_chat_writer_acks": "NOT_OBTAINED",
+    "writer_freeze": "NOT_ESTABLISHED",
+    "owner_privacy_server61_clearance": "NOT_ATTESTED",
+    "active_current_entries": "Entry669-694 and ACC245-257 and protected Entry596/599/600 SERVER61",
+    "post_sync_no_loss": "PENDING",
+    "candidate_new_write_target": "docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md",
+    "write_target_now": "TrendOS_MASTER_BOOK.md",
+    "switch": "NOT_ACTIVATED",
+    "next": "Reconcile owner-approved current operational snapshots, collect explicit multi-agent write-freeze/acks, verify same HEAD, owner approval, atomically switch writers",
+    "final_cutover": "NO_GO"
   }
 }
