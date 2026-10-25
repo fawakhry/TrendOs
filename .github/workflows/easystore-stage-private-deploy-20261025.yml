@@ -1,0 +1,175 @@
+name: ACC245 Owner-approved private EasyStore Stage Worker deployment (NO_GO)
+# 2026-10-25: owner explicitly approved STAGE deployment only.
+# Deploy THREE previously absent private Stage service Workers, no routes, no
+# production, no finance DB DDL, no cash, no transactions, no permission grants.
+# One-shot: only updates to THIS workflow on the reviewed PR branch trigger it.
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths: ['.github/workflows/easystore-stage-private-deploy-20261025.yml']
+permissions:
+  contents: read
+concurrency:
+  group: easystore-accounting-staging-exclusive-original-schema-20261024
+  cancel-in-progress: false
+jobs:
+  private-stage-worker-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TARGET_FIN_D1: c2fe1a54-90f5-4e6f-9d51-80ce23e21328
+      TARGET_OP_D1: bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6
+      BASE: cloudflare-d1/easystore-finance-stage
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Safe exact staged-source configurations and owner authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          python3 - <<'PY'
+          import tomllib,pathlib
+          root=pathlib.Path('cloudflare-d1/easystore-finance-stage')
+          expected={
+            'wrangler.toml':('easystore-accounting-staging-api','easystore-accounting-staging','c2fe1a54-90f5-4e6f-9d51-80ce23e21328'),
+            'wrangler.trendos-native-session-source.toml':('trendos-native-session-stage-source','trendos-staging','bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6'),
+            'wrangler.trendos-customer-facts-source.toml':('trendos-customer-facts-stage-source','trendos-staging','bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6')
+          }
+          for file,(worker,db,uuid) in expected.items():
+            x=tomllib.loads((root/file).read_text())
+            assert x['name']==worker and x['workers_dev'] is False
+            assert len(x['d1_databases'])==1
+            assert x['d1_databases'][0]=={'binding':'DB','database_name':db,'database_id':uuid}
+            assert not x.get('routes') and not x.get('route')
+            assert 'triggers' not in x
+          finance=tomllib.loads((root/'wrangler.toml').read_text())
+          v=finance['vars']
+          assert v['FINANCE_RELEASE']=='NO_GO' and v['FINANCE_WRITES']=='OFF'
+          assert v['EASYSTORE_ACCOUNTING_D1_WRITES']=='false'
+          assert v['EASYSTORE_ACCOUNTING_D1_WRITE_MODE']=='OFF'
+          assert v['EASYSTORE_STAGE_READONLY_API_V1']=='OFF'
+          assert v['ACCOUNTING_FINANCE_GRANTS_V1']=='{"version":1,"grants":[]}'
+          assert v['EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1']=='REMOTE_NATIVE_REQUIRED'
+          assert v['EASYSTORE_CUSTOMER_SOURCE_V1']=='REMOTE_REQUIRED'
+          assert len(finance['services'])==2
+          assert {s['service'] for s in finance['services']}=={
+            'trendos-native-session-stage-source','trendos-customer-facts-stage-source'}
+          stage=(root/'index.mjs').read_text()
+          assert "const READ_ACTIONS = new Set([" in stage
+          assert "if (mode !== 'READONLY')" in stage
+          assert "readGatewayConfigured" in stage
+          assert "isolated-stage-financial-routes-disabled" in stage
+          print('EXACT_STAGING_WORKERS_ONLY=PASS')
+          print('FINANCE_DEFAULT_WRITES_OFF=PASS')
+          PY
+      - name: Install proven pinned Wrangler
+        shell: bash
+        run: npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/acc245" wrangler@4.152.0
+      - name: Fresh owner provider Stage checks and reject any preexisting target Workers
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/acc245/node_modules/.bin/wrangler"
+          "$CLI" d1 list --json --config "$BASE/wrangler.toml" > "$RUNNER_TEMP/d1-list.json"
+          python3 "$BASE/stage_d1_bootstrap.py" inspect --wrangler "$CLI" > "$RUNNER_TEMP/fin-inspect.json"
+          node <<'NODE'
+          const fs=require('node:fs');
+          const dir=process.env.RUNNER_TEMP;
+          const list=JSON.parse(fs.readFileSync(dir+'/d1-list.json','utf8'));
+          const f=JSON.parse(fs.readFileSync(dir+'/fin-inspect.json','utf8'));
+          if(list.filter(x=>x.name==='easystore-accounting-staging' && x.uuid===process.env.TARGET_FIN_D1).length!==1||
+             list.filter(x=>x.name==='trendos-staging' && x.uuid===process.env.TARGET_OP_D1).length!==1||
+             f.target?.uuid!==process.env.TARGET_FIN_D1||
+             f.inspectState!=='NATIVE_SCHEMA_VERIFIED_WRITES_OFF' ||
+             f.userTables?.length!==22 || f.financeWrites!=='OFF'||f.financeRelease!=='NO_GO')
+            throw Error('D1_PROVIDER_STAGE_HARD_STOP');
+          console.log('STAGE_PROVIDER_22_TABLES_OFF=PASS');
+          const targets=['easystore-accounting-staging-api','trendos-customer-facts-stage-source','trendos-native-session-stage-source'];
+          (async()=>{
+            const base='https://api.cloudflare.com/client/v4/accounts/'+encodeURIComponent(process.env.CLOUDFLARE_ACCOUNT_ID)+'/workers/scripts';
+            const res=await fetch(base,{headers:{Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN}});
+            if(!res.ok)throw Error('SCRIPT_INVENTORY_PERMISSION_STOP_'+res.status);
+            const d=await res.json();
+            if(!d.success||!Array.isArray(d.result))throw Error('SCRIPT_INVENTORY_UNTRUSTED_STOP');
+            const exists=targets.filter(id=>d.result.some(x=>x.id===id));
+            if(exists.length)throw Error('TARGET_WORKERS_EXIST_REFUSE_OVERWRITE_'+exists.join(','));
+            console.log('ALL_THREE_NEW_PRIVATE_STAGE_NAMES=ABSENT_CONFIRMED');
+          })().catch(e=>{console.error(e.message);process.exitCode=1});
+          NODE
+      - name: Compile exact source without provider mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI="$RUNNER_TEMP/acc245/node_modules/.bin/wrangler"
+          for config in wrangler.trendos-native-session-source.toml wrangler.trendos-customer-facts-source.toml wrangler.toml; do
+            "$CLI" deploy --dry-run --config "$BASE/$config" --outdir "$RUNNER_TEMP/acc245-build-$config" >/dev/null
+          done
+          node --test "$BASE/tests/"*.test.mjs
+          echo 'THREE_PRIVATE_STAGE_WORKERS_BUILD_AND_OFFLINE_TESTS=PASS'
+      - name: Deploy private original native session source (TrendOS operational Stage only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/acc245/node_modules/.bin/wrangler" deploy --config "$BASE/wrangler.trendos-native-session-source.toml"
+          echo 'PRIVATE_TRENDOS_SESSION_STAGE_DEPLOY=SUCCESS'
+      - name: Deploy private official customer facts source (TrendOS operational Stage only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/acc245/node_modules/.bin/wrangler" deploy --config "$BASE/wrangler.trendos-customer-facts-source.toml"
+          echo 'PRIVATE_TRENDOS_CUSTOMER_STAGE_DEPLOY=SUCCESS'
+      - name: Deploy isolated private EasyStore finance health Worker (writes/read gateway OFF)
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/acc245/node_modules/.bin/wrangler" deploy --config "$BASE/wrangler.toml"
+          echo 'PRIVATE_EASYSTORE_FINANCE_STAGE_DEPLOY=SUCCESS'
+      - name: Independent provider check and verify all three have workers.dev disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const names=['trendos-native-session-stage-source','trendos-customer-facts-stage-source','easystore-accounting-staging-api'];
+          const root='https://api.cloudflare.com/client/v4/accounts/'+encodeURIComponent(process.env.CLOUDFLARE_ACCOUNT_ID)+'/workers/scripts';
+          const headers={Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN};
+          async function get(url){
+            const r=await fetch(url,{headers});
+            if(!r.ok)throw Error('STAGE_FINAL_PROVIDER_HTTP_'+r.status);
+            const j=await r.json();if(!j.success)throw Error('STAGE_FINAL_PROVIDER_REJECTED');
+            return j.result;
+          }
+          (async()=>{
+            const scripts=await get(root);
+            for(const name of names){
+              if(!scripts.some(w=>w.id===name))throw Error('MISSING_STAGE_WORKER_'+name);
+              const sub=await get(root+'/'+encodeURIComponent(name)+'/subdomain');
+              if(sub?.enabled!==false)throw Error('PUBLIC_SUBDOMAIN_NOT_CONFIRMED_DISABLED_'+name);
+            }
+            console.log('PRIVATE_STAGE_WORKER_DEPLOYMENT=3_OF_3');
+            console.log('PRIVATE_STAGE_PUBLIC_WORKERS_DEV=DISABLED_3_OF_3');
+            console.log('FINANCE_WRITES=OFF');
+            console.log('FINANCE_RELEASE=NO_GO');
+            require('fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+              '## Owner-approved private Stage deployment\n\n'+
+              '- Exactly 3 NEW private Stage Workers deployed (no overwrites)\n'+
+              '- Two operational sources bound only to trendos-staging\n'+
+              '- Finance Worker bound only to easystore-accounting-staging (22 original tables)\n'+
+              '- workers.dev disabled on all 3 by provider GET\n'+
+              '- Finance D1 original control OFF and read gateway OFF\n'+
+              '- No public or production route, no money operations, no D1 SQL mutations\n'+
+              '- End-to-end authenticated finance read/write remains NOT RUN and NO_GO\n');
+          })().catch(e=>{console.error(String(e.message));process.exitCode=1});
+          NODE
