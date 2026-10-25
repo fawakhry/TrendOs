@@ -24,8 +24,7 @@ if (process.env.CUSTOMER_STAGE_LOCAL_E2E !== '1' ||
   throw new Error('Refuse full portal browser test outside explicitly isolated OFF/loopback fixture');
 
 const expectedAncillary = [
-  'getPlatformAds', 'getPlatformSections', 'getFranchiseBranches',
-  'getMarketplace', 'getWhiteLabelSettings'
+  'getPlatformAds', 'getMarketplace', 'getWhiteLabelSettings'
 ];
 async function main() {
   const browser = await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
@@ -66,7 +65,8 @@ async function main() {
           const url=new URL(original,location.href);
           if(url.origin===apiOrigin && url.pathname.startsWith('/v1/customer/native/')){
             if(!['/v1/customer/native/login','/v1/customer/native/orders',
-                 '/v1/customer/native/logout'].includes(url.pathname))
+                 '/v1/customer/native/logout',
+                 '/v1/customer/native/public-content'].includes(url.pathname))
               throw new Error('FULL_PORTAL_NATIVE_ROUTE_NOT_QUALIFIED');
             return rawFetch(localWorker+url.pathname+url.search,opts);
           }
@@ -152,13 +152,24 @@ async function main() {
       const old=diagnostic.legacy;
       const ancillary=diagnostic.actions.filter(x=>expectedAncillary.includes(x.action));
       assert.deepEqual(ancillary.map(x=>x.action).sort(),expectedAncillary.slice().sort(),
-        'Original customer boot must attempt exactly these five public UI content actions');
+        'Three remaining nonqualified public UI content actions must be explicitly audited');
       assert.ok(ancillary.every(x=>x.status!=='success'),
         'Do not claim customer public content parity when Stage Native HTTP handlers are unavailable');
       assert.match(await page.locator('#customerMarketplaceBoard').textContent(),/غير متاحة مؤقتًا/,
         'Unavailable Native customer marketplace must not show an indefinite loading spinner');
-      assert.match(await page.locator('#customerFranchiseBranches').textContent(),/غير متاحة مؤقتًا/,
-        'Unavailable Native customer franchise data must not show a false loading state');
+      await page.waitForFunction(()=>document.querySelector('#customerFranchiseBranches').textContent.includes('LOCAL PUBLIC BRANCH'),null,{timeout:10000});
+      const publicBranches=await page.locator('#customerFranchiseBranches').textContent();
+      assert.ok(publicBranches.includes('LOCAL PUBLIC BRANCH') &&
+                !publicBranches.includes('SECRET BRANCH') &&
+                !publicBranches.includes('PRIVATE_'),
+        'Original customer franchise UI must show only permitted public D1 fields');
+      assert.ok(network.filter(x=>x.path==='/v1/customer/native/public-content').length===2,
+        'Both customer-only public D1 read routes must be used in real Chromium');
+      const sectionResult=await page.evaluate(()=>window.trendosCustomerNativeBrowserDispatchV0('getPlatformSections',{},null));
+      assert.equal(sectionResult.sections.length,1);
+      assert.equal(sectionResult.sections[0].name,'LOCAL SAFE SECTION');
+      assert.ok(!JSON.stringify(sectionResult).includes('PRIVATE_'),
+        'Public D1 section response leaked an employee-only field');
       assert.ok(diagnostic.actions.some(x=>x.action==='customerLogin'&&x.status==='success'));
       assert.ok(diagnostic.actions.some(x=>x.action==='getCustomerOrders'&&x.status==='success'));
       assert.deepEqual(old,[],
@@ -208,6 +219,7 @@ async function main() {
       assert.deepEqual(pageErrors,[],'Original full UI JavaScript runtime errors');
       console.log('PASS: original full TrendOS index.html + app.js real Chromium login → real local Worker/D1 own orders → logout and replay denied');
       console.log('FULL_CUSTOMER_UI_UNWIRED_CONTENT_ACTIONS='+JSON.stringify(ancillary));
+      console.log('PASS: original customer Native READONLY sections and public branches sourced from isolated D1, no employee session and no private fields');
       console.log('FULL_CUSTOMER_UI_ACTION_AUDIT='+JSON.stringify(diagnostic.actions));
       console.log('FULL_UI_LEGACY_HTTP_CALLS='+old.length+'; REMOTE_ACTUAL_CONNECTIONS=0; BLOCKED_REMOTE_FONT_ATTEMPTS='+remoteAttempts.length);
       console.log('FULL_PRODUCTION_CUSTOMER_GOOGLE_RETIRED=0/9; REAL_STAGE_HTTPS_TESTED=NO; NO_DEPLOY=YES');
