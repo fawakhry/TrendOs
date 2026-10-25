@@ -5,7 +5,9 @@ on:
       - feat/zero-google-customer-isolated-stage-worker-off-20261024
   pull_request:
     paths:
-      - 'cloudflare-d1/customer-stage/index.mjs'
+      - 'cloudflare-d1/customer-stage/**'
+      - 'tests/customer_stage_private_r2_integrity_off.test.mjs'
+      - 'tests/customer_stage_wrangle_local_real_d1_do_e2e.py'
       - 'cloudflare-d1/src/customer-portal-native-draft-file-r2-v0.mjs'
       - 'cloudflare-d1/migrations/0040_customer_portal_native_file_quarantine_v1.sql'
       - 'tests/entry666_customer_native_r2_file_off.test.mjs'
