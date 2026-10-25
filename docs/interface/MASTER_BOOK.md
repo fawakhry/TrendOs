@@ -295,3 +295,30 @@
 - **باقي الفشل:** Cloudflare Workers Builds اثنان = FAILURE على head نفسه كما حدث قبل تعديل UI-01؛ التفاصيل تحتاج Build Logs. يمنع ذلك اعتماد نشر جديد دون فحص مستقل لمسار نشر `trendos-ui`.
 - **قرار المرحلة:** `CODE_BROWSER_CI_PASS / DRAFT_PR_38 / NOT_DEPLOYED / NOT_FIXED`. كتابة `FIXED` لا تتم إلا بعد اعتماد staging/employee-role smoke ثم نشر مراقب مع rollback.
 
+
+### UI-001-CFBUILD-ROOTCAUSE — تشخيص Build Logs المرسل من المالك بتاريخ 2026-10-25
+
+**بيان مصدر الدليل:** سجل Cloudflare الذي أرسله المالك يبدأ `2026-10-09T18:27:04Z` وينتهي بفشل `2026-10-09T18:27:17Z`. هو سجل تاريخي مُقدّم يوم 2026-10-25، وليس قراءة لحالة Cloudflare الحية بتاريخ 2026-10-25.
+
+**نص الخطأ الحاسم:**
+- Cloudflare ينفذ `npx wrangler versions upload` من Working Directory لم يُثبت فيه entry point أو assets directory.
+- Wrangler 4.149.0: `Missing entry-point to Worker script or to assets directory`.
+- نجح clone/initialize؛ الفشل يقع **قبل** Bundle/Upload وليس فشلًا لاختبارات UI-001 أو مشكلة D1. ليس في السجل ما يثبت أن أي إصدار رفع أو أن حركة Production تغيرت.
+
+**سبب فشل الإعداد مؤكد ضمن الحدود التالية:**
+- Repo root لا يحتوي `wrangler.toml` ولا `wrangler.jsonc` ولا `package.json` يحدد Worker entry لاسم الخدمة المشمولة في Build. GitHub tree على فرع candidate يثبت configs متخصصة داخل `cloudflare-d1/`.
+- مصدر Truth للواجهة: `cloudflare-d1/wrangler.frontend.toml` يحدد `name = "trendos-ui"` و `main = "src/frontend-static-worker.mjs"` و `assets.directory = "./frontend-dist"` (المسارات نسبة لمجلد الإعداد).
+- `cloudflare-d1/frontend-dist` **لا يوجد جاهزًا في git tree**، بل يُولَّد أثناء Packaging بالنسخ الانتقائي للملفات `*.html,*.js,*.css` من root، كما تفعل `.github/workflows/trendos-entry579-frontend-create-version-only.yml` و`trendos-entry604-login-fast-production.yml`.
+- مصدر Truth للـAPI منفصل: `cloudflare-d1/wrangler.toml` يحدد `name = "trendos-d1-api"` و `main = "production-shadow/index.js"` مع D1 binding إنتاجي.
+- اسما Cloudflare Builds اللذان ظهرا في GitHub checks: `trendos` و `trendos-tasks-v3-t1-preview-20260914`؛ لا يتطابق أي منهما مع `trendos-ui` أو `trendos-d1-api` في configs المعتمدة. **لا يجوز تبديل اسم API في إعداد الواجهة أو تشغيل `wrangler deploy` لحل مجرد فحص**.
+
+**قرار العمل الآمن:** `BUILD_CONFIGURATION_ROOT_CAUSE_IDENTIFIED / CORRECTION_NOT_APPLIED / NO_DEPLOY`.
+1. قراءة إعدادات **Settings → Build** للخدمتين الفاشلتين: Connected repository + Git branch + Root directory + Build command + Deploy command + هل هذه الخدمة مقصود أن تأخذ Builds من TrendOs أساسًا.
+2. لو اتضح أن Git Builds غير مطلوبة لهاتين الخدمتين، يصير **قطع Git Builds عنهما أو حصره بالمسار المقصود** قرارًا تشغيليًا مستقلًا؛ لا نفصلهما عشوائيًا. ينص [دليل Cloudflare الرسمي](https://developers.cloudflare.com/workers/ci-cd/builds/) على `Settings → Builds → Disconnect` إن اختير هذا المسار.
+3. لو الخدمة مقصودة، يثبت أولًا **Target Worker name** ثم مصدر entry/config الصحيح مع build/package step؛ Cloudflare يسمح بضبط Root directory وDeploy command داخل Build settings. يجب أن تكون خطوة التحقق **preview/no traffic** لا نشر إنتاجي.
+4. `versions upload` يحفظ version دون promotion عند إعداد صحيح؛ لا يعني ذلك أن `deploy` آمن أو مسموح.
+5. Cloudflare Settings تغيير خارجي لا يمكن توثيق تنفيذه من GitHub وحده؛ حتى يُجرب فعليًا يظل `BLOCKED`. واجهة UI-001 تحت PR #38 Draft حتى staging browser/role smoke وما يلزمه من موافقة.
+6. لا يُضاف root `wrangler.toml` لتسكين الـchecks: المستودع متعدد الخدمات، والتكوين الخاطئ قد يربط frontend بـD1 أو خدمة أخرى.
+
+**الخلاصة:** العمل المطلوب الآن ضبط Build Integration للخدمة الصحيحة في Cloudflare بموافقة المالك، **وليس إصلاح كود تصميم**. لم يُدمج PR #38 ولم يُنشر؛ UI-specific Node/Chromium/A61 checks نجحت بالفعل لكن Workers Builds failures منفصلة.
+
