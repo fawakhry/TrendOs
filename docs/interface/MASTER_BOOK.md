@@ -437,3 +437,12 @@
 - **الحالة النهائية لهذه المرحلة المصدرية:** `SOURCE_REORDER_PASS / A61_CI_PASS / UNRELATED_CLOUDFLARE_CHECK_FAILED / STAGING_NOT_VERIFIED / NOT_FIXED / NO_DEPLOY`.
 - **الخطوة التالية:** معاينة دور موظف/مالك ببيئة staged مؤهلة للموبايل والكمبيوتر. عدم تحويل تغيير ترتيب HTML إلى LIVE/FIXED بناءً على CI فقط.
 
+
+### UI-LOG-005 — Owner authorization and first merge, 2026-10-25
+
+- **Directive:** «اللى تعمله ادمجه علطول وشغله مش عاوز حاجات مركونة». Authorizes prompt, tested merge and intended release of completed changes. Still requires correct target and zero accidental changes to other Workers, with verification and rollback.
+- **Completed:** PR [#260](https://github.com/fawakhry/TrendOs/pull/260) merged using squash to `candidate/t12-full-cloud-cutover-a56-20260929`, result commit `8da5af81a9705db9b6f306c24618c15617e37151`. Original A61 test run [40213501751](https://github.com/fawakhry/TrendOs/actions/runs/40213501751) = success. `index.html` only, +4/-4 lines.
+- **Critical discovery:** `main` and candidate differ by ~4,996 commits ahead /173 behind at comparison; do NOT merge whole candidate into main. A small dedicated main port of **the same 10-button DOM order** was prepared from `main` blob `b9856ae00e64a76e0988411758d6ae9a4a4bae6b`.
+- **Main port:** `release/ui01-reorder-existing-buttons-main-20261025` commit `90812fa8c07a8340b0a0cf1659e42e41efeba7b7`, [PR #262](https://github.com/fawakhry/TrendOs/pull/262) against `main`. GitHub compare exactly `index.html`, +4/-4 lines, no JS/CSS added or other code changed. Frontend Employee Dispatcher CI [run 40216167699](https://github.com/fawakhry/TrendOs/actions/runs/40216167699) started; confirm final result before promotion.
+- **Actual Worker deploy not yet claimed:** Cloudflare `trendos` Git builds are disabled by owner's screenshot; target for UI is `trendos-ui`. Old fixed-SHA publish workflows cannot be replayed blindly; the actual production frontend's source/version and CI/CD pathway must be qualified to prevent deploying large unrelated changes. Browser session and Cloudflare API credentials have not been linked for a direct deploy in this conversation.
+- **Current state at this log:** `CANDIDATE_MERGED / MAIN_PORT_PR_OPEN / PRODUCTION_DEPLOY_UNVERIFIED`. Continue logging final main merge and any Worker release with actual evidence. No claim that the button arrangement is on a live URL yet.
