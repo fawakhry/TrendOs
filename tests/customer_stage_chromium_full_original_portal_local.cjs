@@ -155,6 +155,10 @@ async function main() {
         'Original customer boot must attempt exactly these five public UI content actions');
       assert.ok(ancillary.every(x=>x.status!=='success'),
         'Do not claim customer public content parity when Stage Native HTTP handlers are unavailable');
+      assert.match(await page.locator('#customerMarketplaceBoard').textContent(),/غير متاحة مؤقتًا/,
+        'Unavailable Native customer marketplace must not show an indefinite loading spinner');
+      assert.match(await page.locator('#customerFranchiseBranches').textContent(),/غير متاحة مؤقتًا/,
+        'Unavailable Native customer franchise data must not show a false loading state');
       assert.ok(diagnostic.actions.some(x=>x.action==='customerLogin'&&x.status==='success'));
       assert.ok(diagnostic.actions.some(x=>x.action==='getCustomerOrders'&&x.status==='success'));
       assert.deepEqual(old,[],
@@ -163,6 +167,21 @@ async function main() {
       assert.deepEqual(fetched,[],'Full UI attempted nonqualified raw fetch');
       assert.equal(await page.locator('#customerPassword').inputValue(),'',
         'Original UI must clear raw customer password after login');
+      // Full original customer new-order UX must fail closed: do NOT create
+      // a second T12 writer or send fake customer data to legacy Google.
+      await page.locator('#customerGoHomeBtn').click();
+      await page.locator('#customerShowNewOrderBtn').click();
+      await page.locator('#customerOrderItem').fill('LOCAL_SYNTHETIC_UNSENT_PRINT_JOB');
+      await page.locator('#customerAddDraftItemBtn').click();
+      await page.waitForFunction(()=>window.__trendosOriginalPortalAudit.actions.some(x=>
+        x.action==='createCustomerDraft' && x.status==='rejected'),null,{timeout:15000});
+      const blockedDraft=await page.evaluate(()=>
+        window.__trendosOriginalPortalAudit.actions.find(x=>x.action==='createCustomerDraft'));
+      assert.equal(blockedDraft.code,'CUSTOMER_NATIVE_ACTION_NOT_WIRED');
+      assert.match(await page.locator('#customerOrderMsg').textContent(),/لم تُفعّل بعد/,
+        'Original customer draft UI must explain failed-closed source-only feature');
+      assert.ok(!network.some(x=>/\/v1\/customer\/native\/(draft|submit|upload)/.test(x.path)),
+        'No unqualified customer write was sent to Worker');
       await page.locator('#customerLogoutBtn').click();
       await page.waitForFunction(()=>!document.querySelector('#entryView').classList.contains('hidden'),
         null,{timeout:18000});
