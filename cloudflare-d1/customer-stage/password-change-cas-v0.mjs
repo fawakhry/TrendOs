@@ -7,6 +7,8 @@
 import {fingerprintCustomerSessionV0} from '../src/customer-portal-native-orders-v0.mjs';
 import {hashNewCustomerPasswordV0,verifyNewCustomerPasswordV0}
   from '../src/customer-portal-phone-enrollment-v0.mjs';
+import {CUSTOMER_NATIVE_LOGIN_FAILURE_CAS_SQL_V0,CUSTOMER_NATIVE_LOGIN_LOCK_MS_V0}
+  from '../src/customer-portal-native-login-v0.mjs';
 
 export const CUSTOMER_NATIVE_PASSWORD_CHANGE_PATH_V0='/v1/customer/native/change-password';
 const text=x=>typeof x==='string'?x.trim():'';
@@ -128,7 +130,19 @@ export async function rotateNativeCustomerPasswordV0({
       .bind(fingerprint,nowMs,nowMs,nowMs).first();
     if(!a||!a.customerId)return denied('CUSTOMER_PASSWORD_CHANGE_REJECTED');
     const okay=await verifyNewCustomerPasswordV0(currentPassword,a);
-    if(!okay)return denied('CUSTOMER_PASSWORD_CHANGE_REJECTED');
+    if(!okay){
+      // Password-change is a credential authentication event: account-level
+      // D1 CAS counts wrong OLD passwords and locks after five attempts for
+      // 15 minutes. Without this, a stolen active session could guess the
+      // old password indefinitely and bypass the login Durable Object gate.
+      const failure=await db.prepare(CUSTOMER_NATIVE_LOGIN_FAILURE_CAS_SQL_V0)
+        .bind(nowMs+CUSTOMER_NATIVE_LOGIN_LOCK_MS_V0,a.customerId,a.portalCode,
+          a.passwordSaltHex,a.passwordHashHex,a.sessionVersion,
+          a.failedAttempts,nowMs).run();
+      if(!failure||!failure.meta||failure.meta.changes!==1)
+        return denied('CUSTOMER_PASSWORD_CHANGE_UNAVAILABLE',503);
+      return denied('CUSTOMER_PASSWORD_CHANGE_REJECTED');
+    }
     const fresh=await hashNewCustomerPasswordV0(newPassword);
     if(fresh.passwordSaltHex===a.passwordSaltHex)
       return denied('CUSTOMER_PASSWORD_CHANGE_UNAVAILABLE',503);
