@@ -1994,6 +1994,20 @@ Trend Mall`;
     loadWhiteLabelSettings(false);
   }
 
+  function readCustomerNativePublicContentV0(action, params) {
+    // Customer-only source path bypasses employee-content session dispatch.
+    // Employee API/roles/handlers remain byte-for-byte unchanged.
+    if (window.TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED === true &&
+        state.customer && state.customer.nativeSession === true) {
+      if (action !== "getPlatformSections" && action !== "getFranchiseBranches")
+        return Promise.reject(new Error("Unqualified Native public-content action."));
+      if (typeof window.trendosCustomerNativeBrowserDispatchV0 !== 'function')
+        return Promise.reject(new Error("Native customer transport unavailable."));
+      return window.trendosCustomerNativeBrowserDispatchV0(action, params, null);
+    }
+    return api(action, params);
+  }
+
   function markCustomerNativePublicContentUnavailable(elementId) {
     // Customer-only NO-GO state: never leave a false "loading" indicator when
     // the isolated Native customer content route is not implemented.
@@ -2524,7 +2538,7 @@ Trend Mall`;
   async function loadPlatformSections(forAdmin) {
     try {
       const params = forAdmin ? authParams({ includeInactive: "نعم" }) : { activeOnly: "نعم" };
-      const res = await api("getPlatformSections", params);
+      const res = await readCustomerNativePublicContentV0("getPlatformSections", params);
       if (!res.success) {
         if (forAdmin) setMsg("platformSectionsStatus", res.message || "تعذر تحميل أقسام المنصة.", true);
         return;
@@ -2738,7 +2752,7 @@ Trend Mall`;
   async function loadFranchiseBranches(forAdmin) {
     try {
       const params = forAdmin ? authParams({ includeInactive: "نعم" }) : { activeOnly: "نعم", publicOnly: "نعم" };
-      const res = await api("getFranchiseBranches", params);
+      const res = await readCustomerNativePublicContentV0("getFranchiseBranches", params);
       if (!res.success) {
         if (forAdmin) setMsg("franchiseBranchesStatus", res.message || "تعذر تحميل فروع مطبعجي.", true);
         else markCustomerNativePublicContentUnavailable("customerFranchiseBranches");
