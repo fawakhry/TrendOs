@@ -1,0 +1,108 @@
+name: ACC251 original T12 order context private source Stage READONLY preflight
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths: ['.github/workflows/easystore-original-order-context-acc251-readonly-preflight-20261025.yml']
+permissions:
+  contents: read
+jobs:
+  original-source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      OP_UUID: bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6
+      FIN_UUID: c2fe1a54-90f5-4e6f-9d51-80ce23e21328
+      FINANCE_RELEASE: NO_GO
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Strict read-only original private Stage configuration and no invoice authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          node <<'NODE'
+          const fs=require('fs');
+          const path='cloudflare-d1/easystore-finance-stage/';
+          const stage=fs.readFileSync(path+'wrangler.trendos-original-order-context-source.toml','utf8');
+          const op=fs.readFileSync(path+'wrangler.trendos-native-session-source.toml','utf8');
+          const fin=fs.readFileSync(path+'wrangler.toml','utf8');
+          if(!stage.includes('workers_dev = false')||
+             !stage.includes('TRENDOS_ORDER_CONTEXT_SOURCE_V1 = "OFF"')||
+             !stage.includes('FINANCE_RELEASE = "NO_GO"')||
+             !stage.includes('FINANCE_WRITES = "OFF"')||
+             !stage.includes(process.env.OP_UUID)||
+             !op.includes(process.env.OP_UUID)||
+             !fin.includes(process.env.FIN_UUID)||
+             !fin.includes('EASYSTORE_STAGE_READONLY_API_V1 = "OFF"')||
+             !fin.includes('FINANCE_WRITES = "OFF"'))
+             throw Error('ACC251_PRIVATE_ORIGINAL_SOURCE_CONFIG_UNQUALIFIED');
+          const module=fs.readFileSync(path+'trendos-original-order-context-source.mjs','utf8');
+          if(/from [\x27\x22].*employee-accounting-native/.test(module)||
+             /wrangler deploy|d1 execute|INSERT INTO|UPDATE t12_prod|DELETE FROM/i.test(module))
+             throw Error('ACC251_SOURCE_WORKER_NOT_READONLY');
+          console.log('ACC251_SOURCE_PRIVATE_CONFIG=PASS');
+          NODE
+      - name: Install pinned Wrangler for provider D1 metadata inspection only
+        run: npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/acc251-stage" wrangler@4.152.0
+      - name: Verify original operational Stage UUID and inspect only table/index NAMES
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CFG=cloudflare-d1/easystore-finance-stage/wrangler.trendos-native-session-source.toml
+          CLI="$RUNNER_TEMP/acc251-stage/node_modules/.bin/wrangler"
+          "$CLI" d1 list --json --config "$CFG" > "$RUNNER_TEMP/acc251-db-list.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT type,name FROM sqlite_master WHERE type IN ('table','index') ORDER BY type,name" \
+            > "$RUNNER_TEMP/acc251-schema.json"
+          node <<'NODE'
+          const fs=require('fs'),tmp=process.env.RUNNER_TEMP;
+          const list=JSON.parse(fs.readFileSync(tmp+'/acc251-db-list.json','utf8'));
+          for(const [uuid,name] of [[process.env.OP_UUID,'trendos-staging'],
+                                    [process.env.FIN_UUID,'easystore-accounting-staging']]){
+           if(list.filter(x=>x.uuid===uuid&&x.name===name).length!==1)
+            throw Error('ACC251_CLOUDFLARE_STAGE_D1_IDENTITY_DRIFT');
+          }
+          const raw=JSON.parse(fs.readFileSync(tmp+'/acc251-schema.json','utf8'));
+          const rows=(Array.isArray(raw)?raw:[raw]).flatMap(x=>x.results||x.result?.results||[]);
+          if(!Array.isArray(rows)||rows.some(x=>!['table','index'].includes(x.type)||typeof x.name!=='string'))
+            throw Error('ACC251_PROVIDER_SCHEMA_METADATA_UNVERIFIED');
+          const have=new Set(rows.filter(x=>x.type==='table').map(x=>x.name));
+          const expect={
+           'original-0005-creation':['t12_prod_create_control','t12_prod_request_ledger',
+            't12_prod_orders','t12_prod_lines','t12_prod_events','t12_prod_outbox'],
+           'original-0006-runtime':['t12_prod_line_runtime','t12_prod_runtime_events'],
+           'original-0035-at-create':['t12_order_customer_at_create_control_v1',
+             't12_order_customer_at_create_v1'],
+           'original-0008-customer':['t12_customers']
+          };
+          let all=true;
+          const report=['## ACC251 actual original T12 order-source Stage gate',
+           'Cloudflare provider SELECT sqlite_master names only; no client data.',
+           'Finance Stage D1 read: ZERO; DDL/production: ZERO.'];
+          for(const [group,tables] of Object.entries(expect)){
+           const present=tables.filter(x=>have.has(x));
+           const missing=tables.filter(x=>!have.has(x));
+           if(missing.length)all=false;
+           const status=present.length+'/'+tables.length;
+           console.log('ACC251_'+group.toUpperCase().replace(/-/g,'_')+'_TABLES='+status);
+           report.push('- '+group+': '+status+'; missing names: '+(missing.join(', ')||'none'));
+          }
+          console.log('ACC251_REAL_ORDER_CONTEXT_SOURCE_STAGE_READY='+(all?'TABLE_NAMES_PRESENT_ONLY':'BLOCKED_SOURCE_TABLES_MISSING'));
+          report.push('NO authentic customer owner/employee signer, no real approve or invoice claims.');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,report.join('\n')+'\n');
+          NODE
+      - name: Never upload operational Stage source metadata or private credentials
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/acc251-db-list.json" "$RUNNER_TEMP/acc251-schema.json"
+          echo 'ACC251_STAGE_PROVIDER_READ_ONLY_NO_GO=YES'
