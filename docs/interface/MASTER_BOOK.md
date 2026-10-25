@@ -5,7 +5,7 @@
 > **المسار الرسمي:** `docs/interface/MASTER_BOOK.md`
 > **بدء الكتاب:** 2026-10-09
 > **أول إدخال:** UI-000 — قراءة المطبعة الذاتية وتجميع مراجع الواجهة.
-> **الحالة:** DESIGN_BASELINE / DOCUMENTATION_ONLY / IMPLEMENTATION_NOT_STARTED_IN_THIS_BOOK.
+> **الحالة المحدثة في 2026-10-25:** UI-001 SOURCE + BROWSER CI PASS / STAGING_NOT_VERIFIED / NOT_DEPLOYED / NOT_FIXED. الكتاب نفسه على فرع توثيق في PR #37 Draft.
 > **مسار العمل:** كل جزء منفصل؛ اختبار واقعي؛ تثبيت؛ الانتقال للجزء التالي. لا تغيير للواجهة الحية من إنشاء هذا الكتاب.
 
 ## 0. الهدف وحدود السلطة
@@ -360,4 +360,42 @@
 - **Historic failing check:** `Workers Builds: trendos-tasks-v3-t1-preview-20260914` refers to a **different name**; its provenance and settings have NOT been inspected, so mark `UNRESOLVED`, not "verified no Git" and not "resolved". If necessary inspect that service explicitly by exact breadcrumb without changing it.
 - **Frontend:** actual UI target uses `cloudflare-d1/wrangler.frontend.toml`, which names `trendos-ui`. `trendos-operator-task-v2-preview` is **not** the frontend staging environment. Neither screenshot proves UI-001 is deployed, nor proves the frontend's staged employee permissions tested.
 - **Outcome:** `OPERATOR_V2_ID_CONFIRMED_BY_SCREENSHOT / OTHER_TASKS_V3_CHECK_UNRESOLVED / NO_CLOUDFLARE_MUTATION / UI001_SOURCE_TESTED_ONLY`. Keep [PR #38](https://github.com/fawakhry/TrendOs/pull/38) Draft and [PR #37](https://github.com/fawakhry/TrendOs/pull/37) book Draft, no merge or production promotion. Proceed with staging verification scoped to `trendos-ui`, no need for user to change Operator Task V2 settings.
+
+
+## 12. بروتوكول التسجيل الإلزامي — قرار المالك 2026-10-25
+
+**توجيه مباشر من المالك:** «اقرا كتاب الواجهة وكل خطوة بتتسجل فيه». هذا الكتاب هو سجل التنفيذ الأساسي الوحيد الخاص بتطوير واجهة Trend Mall/TrendOS. يُراجَع قبل أي تنفيذ جديد، ويُحدّث أثناء العمل وعقب كل خطوة قابلة للإثبات، وليس في نهاية مشروع كبير فقط. كتاب TrendOS الرئيسي يُستخدم لمراجع الأكواد والتبعيات اللازمة دون تكرار السجل التفصيلي هنا.
+
+### قواعد لا استثناء منها
+
+1. **قراءة قبل العمل:** اجلب أحدث نسخة من `docs/interface/MASTER_BOOK.md` وتحقق من branch/commit، ثم حدد آخر جزء لم يُغلق والاعتمادات الحرجة.
+2. **سجل لكل حركة مهمة:** القراءة والجرد، قرار التصميم، إضافة/تعديل كود، اكتشاف عيب، إصلاح، تشغيل اختبار، CI، مراجعة Cloudflare، مشكلة، توقف، واسترجاع؛ كل حدث له عنوان/تاريخ/حالة/مرجع وماذا حدث بالفعل.
+3. **أدلة بدل الوعود:** لكل كود: repo + branch + file paths + head SHA + PR؛ لكل اختبار: الاسم ونتيجة حقيقية ورابط run أو log؛ لكل معاينة: مصدرها وسياقها (mock/isolated browser/staging/live).
+4. **تمييز الحالة:** `PLANNED`, `SOURCE_ONLY`, `TESTED_ISOLATED`, `STAGING_VERIFIED`, `LIVE_VERIFIED`, `FIXED`, `BLOCKED`, `FAILED`, `ROLLED_BACK`. لا يساوي نجاح اختبار Node/Chromium في بيئة معزولة نشرًا أو تثبيتًا.
+5. **التوقف عند الخطأ:** يُسجَّل سبب التعطيل أو درجة اليقين، وما الذي يحتاجه الإغلاق، دون وصف التخمين كحقيقة. عند انقطاع الشبكة يُستعاد آخر HEAD وحالة PR والـCI قبل استئناف أي تعديل.
+6. **كل جزء منفصل:** يتضمن baseline، تغيير دقيق، أثر على الأدوار والصلاحيات، regression، rollback، اختبار هاتف/كمبيوتر، وموافقة النشر عند الحاجة. لا يُصنّف `FIXED` دون اختبار فعلي مناسب ودليل قابل للاسترجاع.
+7. **عدم تغيير الإنتاج ضمن التوثيق:** كتابة سجل في GitHub لا تعني Merge أو Deploy. لا تعديل قاعدة العملاء أو API أو EasyStore أو صلاحيات Cloudflare، ولا اعتماد تلقائي لأي تشغيل ذاتي.
+8. **عدم تكرار العمل:** كل إدخال يحمل معرفًا متسلسلًا غير مكرر، ويربط ما سبقه وما يعتمد عليه. عند اكتشاف تصحيح يُضاف إدخال تصحيحي مؤرخ، ولا يُطمس سجل قديم.
+9. **سرية البيانات:** لا نضع أسماء/هواتف العملاء أو أسرار API أو كلمات مرور أو لقطات غير منقحة في GitHub؛ نكتفي بإثبات خالٍ من البيانات الحساسة.
+10. **حقيقة GitHub:** فرع التوثيق وPR #37 ما زالا Draft، وفرع كود UI-001 وPR #38 Draft؛ يُذكر موضع كل تحديث بالضبط، ولا يُدّعى وصول الكتاب إلى `main` دون دمج فعلي.
+
+### نموذج سجل خطوة قصيرة (إلزامي حتى للتغييرات الصغيرة)
+
+- `Step ID / Date / Actor / Parent UI Gate`:
+- `Input & intent`: المطلوب وما اعتُمد من قيود.
+- `Before`: ما تم فحصه، branch/commit وحالة الواجهة.
+- `Action actually performed`: مسارات الملفات أو Settings التي **تم** تغييرها؛ وإلا `READ_ONLY`.
+- `Evidence`: PR/commit/run/screenshot منقحة، مصدر البيانات ووقت المراجعة.
+- `Result / Qualification`: `PASS/PARTIAL/FAIL/BLOCKED`، source vs staging vs live.
+- `Risk & rollback`: ما قد يتأثر، إجراء الرجوع، موافقة المالك عند أي إنتاج.
+- `Next step`: فعل واحد واضح لا يفترض حدوث أي أمر لم يثبت.
+
+### UI-LOG-001 — اعتماد دفتر تنفيذ إلزامي وتحديث حالة الكتاب
+
+- **التاريخ:** 2026-10-25.
+- **الحدث:** أمر المالك بقراءة كتاب الواجهة وتسجيل كل خطوة فيه.
+- **ما حدث:** تمت قراءة أحدث نسخة موجودة في `fawakhry/TrendOs` على الفرع `docs/trendos-ui-master-book-20261009` (364 سطرًا قبل هذا الإدخال، آخر عنصر `UI-001 — Correct Cloudflare Worker identity`). تمت مراجعة حالة [PR #37](https://github.com/fawakhry/TrendOs/pull/37) و[PR #38](https://github.com/fawakhry/TrendOs/pull/38)، وكلاهما Draft غير مدمج وقت القراءة. أُضيف هذا البروتوكول وتم تحديث رأس الملف من `IMPLEMENTATION_NOT_STARTED` إلى الحالة الموثقة الحقيقية.
+- **حالة الجزء الحالي:** UI-001 — `SOURCE_BROWSER_CI_PASS / STAGING_NOT_VERIFIED / NOT_DEPLOYED / NOT_FIXED`. لا يوجد إثبات تشغيله في الإنتاج؛ خدمة `trendos` أظهرها المالك مع `Disable builds ON`، و`trendos-operator-task-v2-preview` منفصلة عن خدمة الواجهة `trendos-ui`.
+- **التنفيذ في هذه الخطوة:** `DOCUMENTATION_ONLY` داخل PR #37. لم يُعدّل كود الواجهة أو إعدادات Cloudflare أو صلاحيات API أو بيانات عملاء.
+- **الخطوة التالية:** استكمال فحوص UI-001 المصرح بها على `trendos-ui` وفق سياسة الوصول وStaging. بعدها فقط يُطلب قرار التثبيت/النشر مع سجل الإثبات وRollback.
 
