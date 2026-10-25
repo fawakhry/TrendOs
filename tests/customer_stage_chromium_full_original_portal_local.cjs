@@ -157,6 +157,7 @@ async function main() {
         null,{timeout:12000});
       const marketText=await page.locator('#customerMarketplaceBoard').textContent();
       assert.ok(!marketText.includes('PRIVATE_')&&!marketText.includes('PRIVATE INACTIVE SHOP'));
+      await page.locator('#customerGoHomeBtn').click();
       const vendor=page.locator('#customerMarketplaceBoard .market-vendor-card').first();
       await vendor.click();
       await page.waitForFunction(()=>document.querySelector('#customerMarketplaceProducts').textContent.includes('LOCAL PUBLIC PRINT'),
