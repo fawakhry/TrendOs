@@ -1,0 +1,109 @@
+name: ACC250 refreshed Stage readiness after original 0008/0009 (GET SELECT ONLY)
+# New read-only observation AFTER verified original 0008/0009 Stage, paired HMAC provisioning.
+# No deployments, no SQL writes, no secret values, no finance control changes.
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths: ['.github/workflows/easystore-stage-current-readiness-acc250-readonly-20261025.yml']
+permissions:
+  contents: read
+jobs:
+  provider-readiness-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      FINANCE_UUID: c2fe1a54-90f5-4e6f-9d51-80ce23e21328
+      OP_UUID: bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Recheck original declared private-only Stage targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          node - <<'NODE'
+          const fs=require('fs'), p='cloudflare-d1/easystore-finance-stage/';
+          const xs=['wrangler.toml','wrangler.trendos-native-session-source.toml','wrangler.trendos-customer-facts-source.toml'].map(s=>fs.readFileSync(p+s,'utf8'));
+          if(xs.some(s=>!s.includes('workers_dev = false'))) throw Error('NONPRIVATE_STAGE_SOURCE_STOP');
+          if(!xs[0].includes('EASYSTORE_STAGE_READONLY_API_V1 = "OFF"')||!xs[0].includes('FINANCE_WRITES = "OFF"'))throw Error('FINANCE_GATE_NOT_OFF');
+          console.log('PRIVATE_STAGE_DEPLOY_SOURCE_OFF=PASS');
+          NODE
+      - name: Independently inventory provider Worker secrets NAMES ONLY, never values
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const scripts=[
+            ['easystore-accounting-staging-api',['TRENDOS_EMPLOYEE_SESSION_HMAC_V1','TRENDOS_CUSTOMER_FACTS_HMAC_V1']],
+            ['trendos-native-session-stage-source',['TRENDOS_EMPLOYEE_SESSION_HMAC_V1','EDGE_SESSION_SECRET']],
+            ['trendos-customer-facts-stage-source',['TRENDOS_CUSTOMER_FACTS_HMAC_V1']]
+          ];
+          const root='https://api.cloudflare.com/client/v4/accounts/'+encodeURIComponent(process.env.CLOUDFLARE_ACCOUNT_ID)+'/workers/scripts';
+          const headers={Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN};
+          (async()=>{
+            let msg='## ACC250 provider Stage READ-ONLY credential-name inventory\n\n';
+            for(const [script,requirements] of scripts){
+              const response=await fetch(root+'/'+encodeURIComponent(script)+'/secrets',{headers});
+              if(!response.ok)throw Error('STAGE_SECRETS_NAMES_UNAVAILABLE_'+script+'_'+response.status);
+              const b=await response.json();
+              if(!b.success||!Array.isArray(b.result))throw Error('STAGE_SECRET_NAMES_UNVERIFIED_'+script);
+              const actual=new Set(b.result.map(x=>x.name));
+              const missing=requirements.filter(x=>!actual.has(x));
+              console.log('STAGE_SECRET_NAMES_'+script+'='+(missing.length?'MISSING_REQUIRED_NAMES':'PRESENT_REQUIRED_NAMES'));
+              msg+='- '+script+': '+(missing.length?'MISSING '+missing.join(', '):'required secret names present')+'\n';
+            }
+            msg+='\nValues NOT queried or printed. Name presence is NOT HMAC equality/verified SSO.\n';
+            require('fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY,msg);
+          })().catch(e=>{console.error(e.message);process.exitCode=1});
+          NODE
+      - name: Install pinned Wrangler to check operations Stage table names, not business records
+        shell: bash
+        run: npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/acc250" wrangler@4.152.0
+      - name: Query ONLY operational Stage table names and safe auth control mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/acc250/node_modules/.bin/wrangler"
+          CFG=cloudflare-d1/easystore-finance-stage/wrangler.trendos-native-session-source.toml
+          "$CLI" d1 list --json --config "$CFG" > "$RUNNER_TEMP/stage-list.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name" > "$RUNNER_TEMP/stage-tables.json"
+          node <<'NODE'
+          const fs=require('fs'),dir=process.env.RUNNER_TEMP;
+          const list=JSON.parse(fs.readFileSync(dir+'/stage-list.json','utf8'));
+          if(list.filter(d=>d.uuid===process.env.OP_UUID&&d.name==='trendos-staging').length!==1 ||
+            list.filter(d=>d.uuid===process.env.FINANCE_UUID&&d.name==='easystore-accounting-staging').length!==1)throw Error('TARGET_D1_IDENTITY_DRIFT_STOP');
+          const raw=JSON.parse(fs.readFileSync(dir+'/stage-tables.json','utf8'));
+          const rows=(Array.isArray(raw)?raw:[raw]).flatMap(x=>x.results||x.result?.results||[]);
+          const names=new Set(rows.map(r=>r.name));
+          const required=['t12_customers','employee_auth_control_v1','employee_auth_users_v1','employee_auth_sessions_v1'];
+          const missing=required.filter(name=>!names.has(name));
+          console.log('OPERATIONAL_STAGE_REQUIRED_SOURCE_SCHEMA='+ (missing.length?'MISSING':'PRESENT'));
+          const safe='## ACC250 operational source metadata (SELECT only)\n\n'+
+            '- Original operational staging D1 UUID and separate finance UUID: PASS\n'+
+            '- T12 customer/native auth source tables: '+(missing.length?'MISSING '+missing.join(', '):'ALL REQUIRED PRESENT')+'\n'+
+            '- No customer records, employee names/tokens or secrets accessed\n';
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,safe);
+          NODE
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT mode FROM employee_auth_control_v1 WHERE singleton=1 AND marker='T12_EMPLOYEE_AUTH_V1'" > "$RUNNER_TEMP/auth-control.json" || {
+            echo 'OP_STAGE_NATIVE_AUTH_CONTROL=NOT_QUERYABLE'
+            exit 0
+          }
+          node <<'NODE'
+          const fs=require('fs'),raw=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/auth-control.json','utf8'));
+          const rows=(Array.isArray(raw)?raw:[raw]).flatMap(x=>x.results||x.result?.results||[]);
+          const mode=rows.length===1?rows[0].mode:'NOT_ATTESTED';
+          console.log('OP_STAGE_NATIVE_AUTH_CONTROL='+mode);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'- Operational native auth control: '+mode+' (no write)\n');
+          NODE
