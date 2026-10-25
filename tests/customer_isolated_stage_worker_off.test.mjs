@@ -333,5 +333,5 @@ test('isolated Stage submit preflight is GET-only, OFF-by-default, no T12 order 
   assert.doesNotMatch(source,/createT12GeneralOrder|INSERT INTO t12_prod_orders|APPS_SCRIPT_API_URL/);
   assert.match(source,/preflightNativeCustomerDraftSubmitV0/);
   const cfg=readFileSync('cloudflare-d1/wrangler.customer-stage.toml','utf8');
-  assert.match(cfg,/TRENDOS_CUSTOMER_NATIVE_DRAFT_PREFLIGHT_RO_V0_ENABLED\\s*=\\s*"false"/);
+  assert.ok(cfg.includes('TRENDOS_CUSTOMER_NATIVE_DRAFT_PREFLIGHT_RO_V0_ENABLED = "false"'));
 });
