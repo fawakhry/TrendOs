@@ -37,6 +37,8 @@ MIGRATIONS=[
     "0013_employee_content_zero_google_v1.sql",
     "0032_customer_portal_identity_foundation_v1.sql",
     "0033_customer_portal_native_order_ownership_v1.sql",
+    "0036_customer_portal_native_draft_create_v1.sql",
+    "0037_customer_portal_native_draft_items_v1.sql",
 ]
 NAME="trendos-customer-disposable-local-only"
 
@@ -262,7 +264,9 @@ def main():
               "TRENDOS_CUSTOMER_PORTAL_NATIVE_ORDERS_READ_V0_ENABLED",
               "TRENDOS_CUSTOMER_PORTAL_NATIVE_LOGOUT_V0_ENABLED",
               "TRENDOS_CUSTOMER_PORTAL_NATIVE_PUBLIC_CONTENT_V0_ENABLED",
-              "TRENDOS_CUSTOMER_PORTAL_NATIVE_PASSWORD_CHANGE_V0_ENABLED"
+              "TRENDOS_CUSTOMER_PORTAL_NATIVE_PASSWORD_CHANGE_V0_ENABLED",
+              "TRENDOS_CUSTOMER_NATIVE_DRAFT_CREATE_V0_ENABLED",
+              "TRENDOS_CUSTOMER_NATIVE_DRAFT_ITEM_V0_ENABLED"
             ):
                 original=name+' = "false"'
                 check(config.count(original)==1,"Invalid OFF gate "+name)
@@ -364,6 +368,78 @@ def main():
             check(status==200 and other.get("customerSessionIssued") is True,
                   "Second synthetic tenant login failed")
             token2=other["token"]
+            # Native D1 draft staging is NOT an official T12 order. The same
+            # ACTIVE Native bearer scopes both create and line append. Unique
+            # client requestKeys are opaque 128-bit and never identify owner.
+            draft_route="/v1/customer/native/drafts"
+            draft_key="a1"*16
+            draft_payload={"requestKey":draft_key}
+            status,unauthorized_draft=request(port,draft_route,method="POST",
+                payload=draft_payload)
+            check(status==401 and not unauthorized_draft.get("success"),
+                  "Draft create accepted a caller without a D1 session")
+            status,forged_draft=request(port,draft_route,method="POST",token=token,
+                payload={"requestKey":draft_key,"customerId":"LOCAL-C2"})
+            check(status==400 and not forged_draft.get("success"),
+                  "Draft create trusted a client-supplied customer id")
+            status,foreign_draft=request(port,draft_route,method="POST",token=token,
+                origin="https://evil.test",payload=draft_payload)
+            check(status==403 and not foreign_draft.get("success"),
+                  "Draft create ignored the isolated Stage Origin policy")
+            status,created=request(port,draft_route,method="POST",token=token,
+                payload=draft_payload)
+            check(status==201 and created.get("success") is True and
+                  created.get("officialOrderCreated") is False and
+                  created.get("state")=="DRAFT" and
+                  created.get("draftId","").startswith("CDR-"),
+                  "D1 native draft did not insert a staged, nonofficial row")
+            c1_draft=created["draftId"]
+            status,repeat=request(port,draft_route,method="POST",token=token,
+                payload=draft_payload)
+            check(status==200 and repeat.get("draftId")==c1_draft and
+                  repeat.get("alreadyCreated") is True,
+                  "Draft idempotency failed, created duplicate customer draft")
+            status,other_key=request(port,draft_route,method="POST",token=token2,
+                payload=draft_payload)
+            check(status==409 and "draftId" not in other_key,
+                  "Foreign customer reused a requestKey and learned draft ID")
+            item_route=draft_route+"/"+c1_draft+"/items"
+            item_payload={"requestKey":"b2"*16,"department":"طباعة",
+                          "itemName":"LOCAL SYNTHETIC PRINT ITEM",
+                          "qty":2,"notes":"","heatPress":False,"flyPrint":False}
+            status,item_unauth=request(port,item_route,method="POST",
+                payload=item_payload)
+            check(status==401 and not item_unauth.get("success"),
+                  "Draft item append accepted missing bearer")
+            status,item_foreign=request(port,item_route,method="POST",
+                token=token2,payload=item_payload)
+            check(status==409 and "itemId" not in item_foreign,
+                  "Foreign customer appended item to C1 draft")
+            status,item_forgery=request(port,item_route,method="POST",token=token,
+                payload={**item_payload,"customerId":"LOCAL-C2"})
+            check(status==400 and not item_forgery.get("success"),
+                  "Item route trusted caller-supplied customerId")
+            status,item_created=request(port,item_route,method="POST",token=token,
+                payload=item_payload)
+            check(status==201 and item_created.get("success") is True and
+                  item_created.get("ordinal")==1 and
+                  item_created.get("officialOrderCreated") is False,
+                  "Staged Native D1 draft item insert failed")
+            status,item_repeat=request(port,item_route,method="POST",token=token,
+                payload=item_payload)
+            check(status==200 and item_repeat.get("alreadyAdded") is True and
+                  item_repeat.get("itemId")==item_created.get("itemId"),
+                  "Item duplicate retry did not return first item idempotently")
+            status,changed_payload=request(port,item_route,method="POST",token=token,
+                payload={**item_payload,"qty":3})
+            check(status==409 and "itemId" not in changed_payload,
+                  "Same item key accepted changed request without HMAC match")
+            status,c2created=request(port,draft_route,method="POST",token=token2,
+                payload={"requestKey":"c3"*16})
+            check(status==201 and c2created.get("officialOrderCreated") is False
+                  and c2created.get("draftId")!=c1_draft,
+                  "Independent C2 draft wasn't isolated")
+            print("PASS: REAL local Worker/D1 Native customer DRAFT create + ITEM create, stable idempotency, no customer ID forgery, C1/C2 scope and no official order")
             status,otherorders=request(port,paths["orders"],token=token2)
             check(status==200 and
                   {x["orderId"] for x in otherorders.get("lines",[])}=={"LOCAL-ORDER-LOCAL-C2"},
@@ -374,6 +450,14 @@ def main():
             status,denied=request(port,paths["orders"],token=token)
             check(status==401 and denied.get("code")=="CUSTOMER_SESSION_REJECTED",
                   "Revoked session was accepted")
+            status,revoked_draft=request(port,draft_route,method="POST",
+                token=token,payload={"requestKey":"d4"*16})
+            check(status in (401,409) and not revoked_draft.get("success"),
+                  "Revoked Native C1 session created a new D1 draft")
+            status,revoked_item=request(port,item_route,method="POST",
+                token=token,payload={**item_payload,"requestKey":"e5"*16})
+            check(status in (401,409) and not revoked_item.get("success"),
+                  "Revoked Native C1 session appended an item to draft")
             status,revoked_public=request(port,
                     "/v1/customer/native/public-content?view=sections",token=token)
             check(status==401 and revoked_public.get("code")=="CUSTOMER_SESSION_REJECTED",
