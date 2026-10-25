@@ -1,0 +1,244 @@
+name: ACC249 Stage-only original native employee 0009 resume after verified 0008
+# Owner authorised Stage continuation. This is an independently checked, one-time
+# apply of ORIGINAL 0009 ONLY; 0008 is COMPLETE and NEVER replayed.
+# Never touch production or finance D1. No employees/sessions/credentials created.
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths: ['.github/workflows/easystore-stage-original-0009-resume-20261025.yml']
+permissions:
+  contents: read
+concurrency:
+  group: easystore-accounting-staging-exclusive-original-schema-20261024
+  cancel-in-progress: false
+jobs:
+  original-0009-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      OP_UUID: bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6
+      FIN_UUID: c2fe1a54-90f5-4e6f-9d51-80ce23e21328
+      CFG: cloudflare-d1/easystore-finance-stage/wrangler.trendos-native-session-source.toml
+      MIG: cloudflare-d1/migrations/0009_employee_auth_native_v1.sql
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Confirm original source and owner-approved isolated Stage only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test "$(git hash-object "$MIG")" = "20739798d691286b47918299c099049cbcf50c46"
+          test "$(git hash-object cloudflare-d1/migrations/0008_t12_customer_master.sql)" = "c638b2afca70471c9916d6f644111cdce1157b45"
+          python3 - <<'PY'
+          from pathlib import Path
+          import tomllib
+          p=Path("cloudflare-d1/easystore-finance-stage")
+          op=tomllib.loads((p/"wrangler.trendos-native-session-source.toml").read_text())
+          f=tomllib.loads((p/"wrangler.toml").read_text())
+          assert op["name"]=="trendos-native-session-stage-source" and op["workers_dev"] is False
+          assert op["d1_databases"]==[{"binding":"DB","database_name":"trendos-staging","database_id":"bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6"}]
+          assert f["workers_dev"] is False and f["d1_databases"]==[{"binding":"DB","database_name":"easystore-accounting-staging","database_id":"c2fe1a54-90f5-4e6f-9d51-80ce23e21328"}]
+          assert f["vars"]["FINANCE_WRITES"]=="OFF" and f["vars"]["FINANCE_RELEASE"]=="NO_GO"
+          assert f["vars"]["EASYSTORE_STAGE_READONLY_API_V1"]=="OFF"
+          assert f["vars"]["ACCOUNTING_FINANCE_GRANTS_V1"]=='{"version":1,"grants":[]}'
+          print("STAGE_ONLY_AND_NATIVE_0009_SOURCE_PINNED=PASS")
+          PY
+      - name: Install existing pinned Wrangler client
+        shell: bash
+        run: npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/acc249-wrangler" wrangler@4.152.0
+      - name: Verify existing 0008 is COMPLETE, 0009 is ENTIRELY ABSENT, and recovery bookmark exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/acc249-wrangler/node_modules/.bin/wrangler"
+          "$CLI" d1 list --json --config "$CFG" > "$RUNNER_TEMP/list.json"
+          "$CLI" d1 time-travel info trendos-staging --json --config "$CFG" > "$RUNNER_TEMP/bookmark.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT name,type FROM sqlite_master WHERE type IN ('table','index') ORDER BY type,name" > "$RUNNER_TEMP/pre.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT mode FROM t12_customer_control WHERE singleton=1 AND marker='T12_CUSTOMER_MASTER_V1'" > "$RUNNER_TEMP/customer-mode.json"
+          node <<'NODE'
+          const fs=require('fs'),p=process.env.RUNNER_TEMP;
+          const j=n=>JSON.parse(fs.readFileSync(p+'/'+n+'.json','utf8'));
+          const list=j('list'), bookmark=j('bookmark');
+          if(!Array.isArray(list)||
+             list.filter(x=>x.name==='trendos-staging'&&x.uuid===process.env.OP_UUID).length!==1 ||
+             list.filter(x=>x.name==='easystore-accounting-staging'&&x.uuid===process.env.FIN_UUID).length!==1)
+              throw Error('INCORRECT_D1_STAGE_UUID_STOP');
+          const mark=bookmark.bookmark||bookmark.result?.bookmark||'';
+          if(typeof mark!=='string'||!/^[-a-zA-Z0-9]{24,100}$/.test(mark))
+              throw Error('ORIGINAL_STAGE_TIME_TRAVEL_NOT_VERIFIED_STOP');
+          const get=n=>{
+            const v=j(n);
+            if(!Array.isArray(v)||v.length!==1||v[0].success!==true||!Array.isArray(v[0].results))
+              throw Error('D1_PROVIDER_RESULT_UNVERIFIED_'+n);
+            return v[0].results;
+          };
+          const objects=get('pre'),tables=new Set(objects.filter(x=>x.type==='table').map(x=>x.name));
+          const indexes=new Set(objects.filter(x=>x.type==='index').map(x=>x.name));
+          const apps=[...tables].filter(x=>!x.startsWith('sqlite_')&&x!=='_cf_KV');
+          const original8=['t12_customer_control','t12_customers','t12_customer_request_ledger','t12_customer_events'];
+          const original8indexes=['idx_t12_customers_name_key','idx_t12_customers_phone',
+            'idx_t12_customers_extra_phone','idx_t12_customers_active',
+            'idx_t12_customer_request_customer','idx_t12_customer_events_customer'];
+          const native9=['employee_auth_control_v1','employee_auth_users_v1','employee_auth_sessions_v1'];
+          const native9indexes=['idx_employee_auth_users_v1_active',
+            'idx_employee_auth_sessions_v1_expiry','idx_employee_auth_sessions_v1_user'];
+          const mode=get('customer-mode');
+          if(apps.length!==15||original8.some(x=>!tables.has(x))||
+            original8indexes.some(x=>!indexes.has(x))||
+            native9.some(x=>tables.has(x))||native9indexes.some(x=>indexes.has(x))||
+            mode.length!==1||mode[0].mode!=='OFF')
+            throw Error('PREVIOUS_0008_NOT_EXACT_OR_0009_PARTIAL_STOP');
+          console.log('PRIOR_0008_COMPLETELY_VERIFIED=PASS');
+          console.log('0009_TABLES_AND_INDEXES_ALL_ABSENT=PASS');
+          console.log('OP_STAGE_APPLICATION_TABLES_PRE=15');
+          console.log('PRE_0009_TIME_TRAVEL_RECOVERY=PROVIDER_VERIFIED');
+          NODE
+      - name: Full Stage D1 private export and independently restored SQLite BEFORE 0009 remote DDL
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          PROTECTED="$(mktemp -d "$RUNNER_TEMP/acc249-stage-protected-XXXXXXXX")"
+          chmod 700 "$PROTECTED"
+          echo "PROTECTED_DIR=$PROTECTED" >> "$GITHUB_ENV"
+          CLI="$RUNNER_TEMP/acc249-wrangler/node_modules/.bin/wrangler"
+          "$CLI" d1 export trendos-staging --remote --config "$CFG" \
+             --output "$PROTECTED/complete_original_operational_stage_before_0009.sql" > "$PROTECTED/export-private.log" 2>&1
+          python3 - <<'PY'
+          import hashlib,os,pathlib,sqlite3
+          p=pathlib.Path(os.environ["PROTECTED_DIR"])
+          src=p/"complete_original_operational_stage_before_0009.sql"
+          if not src.is_file() or src.stat().st_size==0:raise RuntimeError("FULL_PRE_0009_EXPORT_REQUIRED")
+          os.chmod(src,0o600)
+          d=sqlite3.connect(p/"restored-before-0009.sqlite")
+          try:
+              d.executescript(src.read_text(encoding="utf-8"))
+              if d.execute("PRAGMA integrity_check").fetchone() != ("ok",):
+                  raise RuntimeError("PRIVATE_RESTORE_SQLITE_INTEGRITY_FAILED")
+              names={x[0] for x in d.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+              apps={x for x in names if not x.startswith("sqlite_") and x!="_cf_KV"}
+              assert len(apps)==15
+              assert {"t12_customer_control","t12_customers","t12_customer_request_ledger","t12_customer_events"}<=apps
+              assert not {"employee_auth_control_v1","employee_auth_users_v1","employee_auth_sessions_v1"} & apps
+              assert d.execute("SELECT mode FROM t12_customer_control WHERE singleton=1").fetchone()==("OFF",)
+              h=hashlib.sha256(src.read_bytes()).hexdigest()
+              assert len(h)==64
+          finally:d.close()
+          os.chmod(p/"restored-before-0009.sqlite",0o600)
+          print("PROTECTED_ORIGINAL_STAGE_COMPLETE_EXPORT=PASS")
+          print("SEPARATE_SQLITE_RESTORE_AND_INTEGRITY=PASS")
+          print("PRIVATE_BACKUP_CONTENTS_NOT_UPLOADED=YES")
+          PY
+      - name: Reject concurrent Stage schema drift immediately before DDL
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI="$RUNNER_TEMP/acc249-wrangler/node_modules/.bin/wrangler"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT name,type FROM sqlite_master WHERE type IN ('table','index') ORDER BY type,name" > "$PROTECTED_DIR/recheck.json"
+          node <<'NODE'
+          const fs=require('fs'),a=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/pre.json','utf8'));
+          const b=JSON.parse(fs.readFileSync(process.env.PROTECTED_DIR+'/recheck.json','utf8'));
+          if(!Array.isArray(b)||b[0]?.success!==true||
+             JSON.stringify(a[0]?.results)!==JSON.stringify(b[0]?.results))
+             throw Error('REMOTE_SCHEMA_DRIFT_AFTER_EXPORT_NO_DDL_STOP');
+          console.log('STAGE_SCHEMA_UNCHANGED_AFTER_BACKUP=PASS');
+          NODE
+      - name: Apply ONLY original pinned 0009 to exact existing operational Stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI="$RUNNER_TEMP/acc249-wrangler/node_modules/.bin/wrangler"
+          # Wrangler 4.x emits text instead of JSON for --file even with --json:
+          # remote exit 0 alone is NOT proof; the next step independently checks
+          # actual provider schema, controls and zero employee/session rows.
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --file "$MIG" > "$PROTECTED_DIR/0009-private-provider-output.log" 2>&1
+          echo 'ORIGINAL_0009_CLI_EXIT=0__VERIFY_REMOTE_NEXT'
+      - name: Independently verify exact 0009 tables indexes columns and OFF empty control
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI="$RUNNER_TEMP/acc249-wrangler/node_modules/.bin/wrangler"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT name,type FROM sqlite_master WHERE type IN ('table','index') ORDER BY type,name" > "$PROTECTED_DIR/after.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT marker,mode FROM employee_auth_control_v1 WHERE singleton=1" > "$PROTECTED_DIR/auth-control.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT COUNT(*) AS n FROM employee_auth_users_v1" > "$PROTECTED_DIR/employee-count.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT COUNT(*) AS n FROM employee_auth_sessions_v1" > "$PROTECTED_DIR/session-count.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "PRAGMA table_info(employee_auth_sessions_v1)" > "$PROTECTED_DIR/sessions-cols.json"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "PRAGMA table_info(employee_auth_users_v1)" > "$PROTECTED_DIR/users-cols.json"
+          node <<'NODE'
+          const fs=require('fs'),p=process.env.PROTECTED_DIR;
+          const get=n=>{
+            const x=JSON.parse(fs.readFileSync(p+'/'+n+'.json','utf8'));
+            if(!Array.isArray(x)||x.length!==1||x[0].success!==true||!Array.isArray(x[0].results))
+              throw Error('POST_0009_PROVIDER_RESULT_UNVERIFIED_'+n);
+            return x[0].results;
+          };
+          const objects=get('after'),tables=new Set(objects.filter(x=>x.type==='table').map(x=>x.name));
+          const indexes=new Set(objects.filter(x=>x.type==='index').map(x=>x.name));
+          const app=[...tables].filter(x=>!x.startsWith('sqlite_')&&x!=='_cf_KV');
+          const need=['employee_auth_control_v1','employee_auth_users_v1','employee_auth_sessions_v1'];
+          const idx=['idx_employee_auth_users_v1_active','idx_employee_auth_sessions_v1_expiry','idx_employee_auth_sessions_v1_user'];
+          if(app.length!==18||need.some(x=>!tables.has(x))||idx.some(x=>!indexes.has(x)))throw Error('0009_SCHEMA_NOT_EXACT');
+          const pre=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/pre.json','utf8'))[0].results;
+          if(pre.some(x=>!objects.some(y=>x.name===y.name&&x.type===y.type)))
+             throw Error('0009_MODIFIED_PRIOR_0008_OR_UNRELATED_STAGE_OBJECTS');
+          const control=get('auth-control'),users=get('employee-count'),sessions=get('session-count');
+          if(control.length!==1||control[0].marker!=='T12_EMPLOYEE_AUTH_V1'||control[0].mode!=='OFF'||
+             users.length!==1||Number(users[0].n)!==0||
+             sessions.length!==1||Number(sessions[0].n)!==0)
+             throw Error('0009_NOT_DEFAULT_OFF_OR_EMPLOYEES_UNEXPECTED');
+          for(const [file,columns]of Object.entries({
+            'users-cols':['employee_id','username_key','canonical_username','password_scheme','active','role','department','must_change','session_version'],
+            'sessions-cols':['username_key','token_fingerprint','session_version','issued_at_ms','expires_at_ms','last_seen_at_ms','revoked_at_ms']
+          })){
+            const got=new Set(get(file).map(x=>x.name));
+            if(columns.some(k=>!got.has(k)))throw Error('0009_MISSING_REQUIRED_COLUMN_'+file);
+          }
+          console.log('ORIGINAL_0009_STAGE_PROVIDER_SCHEMA=PASS');
+          console.log('NATIVE_EMPLOYEE_SCHEMA_TABLES=3_OF_3');
+          console.log('NATIVE_EMPLOYEE_SCHEMA_INDEXES=3_OF_3');
+          console.log('STAGE_APPLICATION_TABLES=18');
+          console.log('EMPLOYEE_AUTH_CONTROL_MODE=OFF');
+          console.log('NATIVE_EMPLOYEE_USERS=0_SESSIONS=0');
+          console.log('FINANCE_LEDGER_WRITES=NONE');
+          console.log('PRODUCTION_CHANGE=NONE');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '## ACC249 exact original 0009 Stage-only native auth schema applied\n\n'+
+            '- Existing verified 0008 never rerun\n'+
+            '- Private pre-0009 full D1 export restored to disposable independent SQLite with integrity PASS (not uploaded)\n'+
+            '- Provider D1 schema verified: 3 original native employee auth tables and 3 indexes; existing tables retained (18 total)\n'+
+            '- Employee auth mode OFF, 0 employee accounts, 0 sessions: not a functional login yet\n'+
+            '- Finance D1 untouched; accounting control and all financial writes remain OFF; no public routes or merge\n'+
+            '- Independent second machine restore still NOT RUN; original session fingerprint secret not invented\n');
+          NODE
+      - name: Do not retain private D1 export or employee schema copies in CI artifacts
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${PROTECTED_DIR:-}" ] && [ -d "$PROTECTED_DIR" ]; then
+            chmod -R u+rwX "$PROTECTED_DIR" 2>/dev/null || true
+            rm -rf -- "$PROTECTED_DIR"
+            echo 'EPHEMERAL_CI_PRIVATE_STAGE_EXPORT_REMOVED=YES'
+          fi
