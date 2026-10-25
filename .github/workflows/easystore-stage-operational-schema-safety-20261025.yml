@@ -1,0 +1,94 @@
+name: ACC246 Operational Stage original schema and recovery check (READONLY)
+# Exact read-only operational Stage D1 table inventory + Time Travel bookmark.
+# No migrations, records, tokens, backups exported to GitHub, or finance writes.
+on:
+  push:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+    paths: ['.github/workflows/easystore-stage-operational-schema-safety-20261025.yml']
+permissions:
+  contents: read
+concurrency:
+  group: easystore-accounting-staging-exclusive-original-schema-20261024
+  cancel-in-progress: false
+jobs:
+  read-only-ops-stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      OPS_UUID: bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6
+      FIN_UUID: c2fe1a54-90f5-4e6f-9d51-80ce23e21328
+      CFG: cloudflare-d1/easystore-finance-stage/wrangler.trendos-native-session-source.toml
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned Cloudflare provider client
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/acc246-cli" wrangler@4.152.0
+      - name: Confirm EXACT isolated operational D1 and Time Travel recovery bookmark, GET/SELECT only
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/acc246-cli/node_modules/.bin/wrangler"
+          "$CLI" d1 list --json --config "$CFG" > "$RUNNER_TEMP/d1-list.json"
+          "$CLI" d1 time-travel info trendos-staging --json --config "$CFG" > "$RUNNER_TEMP/time-travel.json"
+          node <<'NODE'
+          const fs=require('node:fs'),d=process.env.RUNNER_TEMP;
+          const list=JSON.parse(fs.readFileSync(d+'/d1-list.json','utf8'));
+          if(list.filter(x=>x.name==='trendos-staging'&&x.uuid===process.env.OPS_UUID).length!==1 ||
+             list.filter(x=>x.name==='easystore-accounting-staging'&&x.uuid===process.env.FIN_UUID).length!==1)
+              throw Error('WRONG_STAGE_OR_AMBIGUOUS_IDENTITY_STOP');
+          const raw=JSON.parse(fs.readFileSync(d+'/time-travel.json','utf8'));
+          const bookmark=raw.bookmark||raw.result?.bookmark||'';
+          if(typeof bookmark!=='string'||!/^[-a-zA-Z0-9]{24,100}$/.test(bookmark))
+              throw Error('NO_VERIFIABLE_OPERATIONAL_STAGE_TIME_TRAVEL_STOP');
+          console.log('OPERATIONAL_STAGE_EXACT_D1=PASS');
+          console.log('OP_STAGE_TIME_TRAVEL_BOOKMARK_AVAILABLE=YES');
+          // Bookmark intentionally not printed; restores are prohibited.
+          NODE
+      - name: Inventory ONLY original operational table names; identify exact missing schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          CLI="$RUNNER_TEMP/acc246-cli/node_modules/.bin/wrangler"
+          "$CLI" d1 execute trendos-staging --remote --json --config "$CFG" \
+            --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name" > "$RUNNER_TEMP/names.json"
+          node <<'NODE'
+          const fs=require('node:fs');
+          const z=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/names.json','utf8'));
+          if(!Array.isArray(z)||z.length!==1||z[0].success!==true||!Array.isArray(z[0].results))
+              throw Error('STAGE_OPERATIONAL_SCHEMA_RESPONSE_UNVERIFIED');
+          const names=new Set(z[0].results.map(x=>x.name));
+          const groups={
+            'original_0008_customer':['t12_customer_control','t12_customers','t12_customer_request_ledger','t12_customer_events'],
+            'original_0009_native_employee':['employee_auth_control_v1','employee_auth_users_v1','employee_auth_sessions_v1']
+          };
+          let summary='## ACC246 read-only existing TrendOS operational Stage schema\n\n'+
+            '- Original operational Stage UUID reverified; provider Time Travel bookmark available\n'+
+            '- No D1 changes or business-record SELECTs performed\n';
+          for(const [label,required]of Object.entries(groups)){
+            const present=required.filter(x=>names.has(x));
+            const missing=required.filter(x=>!names.has(x));
+            console.log(label+'_PRESENT='+present.length+'_MISSING='+missing.length);
+            console.log(label+'_MISSING_NAMES='+JSON.stringify(missing));
+            summary+='- '+label+': present '+present.length+'/'+required.length+
+              '; missing '+(missing.length?missing.join(', '):'none')+'\n';
+          }
+          const operational= [...names].filter(s=>!s.startsWith('sqlite_') && s!=='_cf_KV');
+          console.log('OP_STAGE_APPLICATION_TABLE_COUNT='+operational.length);
+          summary+='- Total application tables: '+operational.length+' (names only)\n';
+          summary+='- No customer, login, session, money or employee record values were inspected\n';
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary);
+          NODE
