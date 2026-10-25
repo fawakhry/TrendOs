@@ -115,6 +115,7 @@ jobs:
           umask 077
           PROTECTED="$(mktemp -d "$RUNNER_TEMP/acc249-stage-protected-XXXXXXXX")"
           chmod 700 "$PROTECTED"
+          export PROTECTED_DIR="$PROTECTED"
           echo "PROTECTED_DIR=$PROTECTED" >> "$GITHUB_ENV"
           CLI="$RUNNER_TEMP/acc249-wrangler/node_modules/.bin/wrangler"
           "$CLI" d1 export trendos-staging --remote --config "$CFG" \
