@@ -5,7 +5,7 @@
 > **المسار الرسمي:** `docs/interface/MASTER_BOOK.md`
 > **بدء الكتاب:** 2026-10-09
 > **أول إدخال:** UI-000 — قراءة المطبعة الذاتية وتجميع مراجع الواجهة.
-> **الحالة المحدثة في 2026-10-25:** UI-001 SOURCE + BROWSER CI PASS / STAGING_NOT_VERIFIED / NOT_DEPLOYED / NOT_FIXED. الكتاب نفسه على فرع توثيق في PR #37 Draft.
+> **الحالة المحدثة في 2026-10-25:** UI-001 EXISTING EMPLOYEE BUTTON REORDER / CLOUDFLARE LIVE VERIFIED (100%) / 45 OTHER ASSETS BYTE-IDENTICAL / AUTHENTICATED STAFF ROLE SMOKE NOT PERFORMED. الكتاب موجود في `main` بعد دمج PR #37؛ باقي الواجهة مشروع تدريجي منفصل.
 > **مسار العمل:** كل جزء منفصل؛ اختبار واقعي؛ تثبيت؛ الانتقال للجزء التالي. لا تغيير للواجهة الحية من إنشاء هذا الكتاب.
 
 ## 0. الهدف وحدود السلطة
@@ -226,7 +226,7 @@
 |---|---|---|---|
 | UI-000 | الكتاب والخريطة المقترحة | DOCUMENTATION_ONLY | يُملأ برابط commit/PR لهذا الكتاب |
 | UI-00 | الأمن وخط الأساس | BLOCKED_BY_OWNER_CONSOLE_ACCESS_GATE_FOR_PRIVATE_VIEW | [AP-085](https://github.com/fawakhry/TrendOs/blob/review/ap083-failclosed-ci-staging-gates-20261008/autonomous-printshop/MASTER_BOOK.md) |
-| UI-01 | أدوات الموظف على الموبايل — أول جزء من App Shell | SOURCE_ONLY / UI CONTRACT CI PASS / NOT FIXED | [PR #38](https://github.com/fawakhry/TrendOs/pull/38) |
+| UI-001 | ترتيب أزرار الموظف الحالية فقط (ليس إعادة تصميم App Shell) | **CLOUDFLARE LIVE VERIFIED** / 45 unrelated assets preserved / staff-role smoke pending | [PR #262](https://github.com/fawakhry/TrendOs/pull/262) + [PR #270](https://github.com/fawakhry/TrendOs/pull/270) + [release](https://github.com/fawakhry/TrendOs/actions/runs/40220150159) |
 | UI-02..UI-10 | بقية واجهات المنصة | PLANNED / NOT STARTED | غير موجود؛ لا يُختلق |
 
 **قاعدة التحديث:** كل إدخال جديد يُضاف بالتاريخ مع إثبات SHA/CI ولا يغيّر حقائق قديمة دون إيضاح من صححها ومصدره. أول مرحلة تنفيذ لا تبدأ إلا بعد baseline واستهداف جزء محدد.
@@ -464,3 +464,30 @@
 - **Cloudflare production unchanged/unproven:** `https://trendos-ui.trendmall-contact.workers.dev/` responds to public read-only HTML fetch as Trend Mall, but no proven file fingerprint/version after merges. `trendos` auto builds disabled by owner, and it is not `trendos-ui`. Thus `MAIN_MERGED / GITHUB_PAGES_DEPLOYED / CLOUDFLARE_TRENDOS_UI_NOT_VERIFIED`. Do not claim Cloudflare production deployment or customer login smoke.
 - **Blocked extra browser verification:** TinyFish live browser automation could not start due to insufficient independent wallet credits. No paid action was initiated, no retry. Public read-only fetch was possible but does not reveal hidden employee button order.
 - **Remaining action:** Cloudflare's actual `trendos-ui` production release requires a verified deploy path or authorized access and safe previous-version guard; preserve runtime and billing/security invariants. No root Wrangler config, D1 change or cross-Worker publishing was performed.
+
+
+### UI-LOG-008 — Cloudflare exact-live baseline audit and failed-safe rehearsal (2026-10-25)
+
+- **Problem:** user reports no visible difference on the real platform. The earlier main merge and GitHub Pages success were insufficient to prove the UI Worker had changed.
+- **Read-only production fingerprint:** [Action 40219284126](https://github.com/fawakhry/TrendOs/actions/runs/40219284126), SUCCESS. `trendos-ui` returned the **original ten-button order**, whereas GitHub Pages returned the new order. Cloudflare served different `config.js` and `app.js` byte content than `main`, therefore publishing all of main would risk changing unrelated live behavior.
+- **Before release, precise target:** Cloudflare Worker `trendos-ui`; deployment ID `d7b1e054-ca5d-4883-97f0-b6a217a080cb`; 100% version `899b134a-12bb-495c-9114-3b1bd0de15c8`; live HTML SHA256 `c3024864c77b8ad3a1a6c52730660537c3b388dbc07d4bc7af6f3f6af46384c8`.
+- **Safe package design:** guard exact active version & old HTML hash; download the **46 live-served HTML/JS/CSS files**, using the previously qualified asset-name inventory on `2da755ca910b84911378c018d050cf806d8349d5`; reorder only the ten original `#mainView .top-actions` button nodes in the downloaded live `index.html`, preserving each original line; preserve other 45 assets byte-for-byte. Use known `cloudflare-d1/wrangler.frontend.toml` config targeting only `trendos-ui`, with rollback to old version if postflight fails.
+- **First rehearsal:** [Action 40219897030](https://github.com/fawakhry/TrendOs/actions/runs/40219897030) stopped **before deployment** because an overly broad regex detected multiple toolbar matches. This was `FAIL_CLOSED / NO_DEPLOY / NO_WORKER_CHANGE`, not a live incident.
+- **Repair:** Replace global toolbar matcher with an exact anchored extraction under `<section id="mainView" class="hidden">...`, also preserving all ten existing button rows. [Action 40220029295](https://github.com/fawakhry/TrendOs/actions/runs/40220029295) then **SUCCESS**, `UI001_EXACT_LIVE_BUNDLE=PASS`, `UI001_ASSET_COUNT=46`, `UI001_ONLY_CHANGED_ASSET=index.html`, `UI001_DRY_RUN_NO_DEPLOY=YES`.
+- **Result:** `LIVE_BASELINE_PROVEN / DRY_RUN_QUALIFIED / NO_MUTATION_IN_REHEARSAL`.
+
+### UI-LOG-009 — Guarded Cloudflare publication and independent recheck (2026-10-25)
+
+- **Owner instruction:** tested changes must be merged and run, not parked.
+- **Code delivery:** [PR #260](https://github.com/fawakhry/TrendOs/pull/260) merged to candidate; [PR #262](https://github.com/fawakhry/TrendOs/pull/262) merged to `main`; [PR #37](https://github.com/fawakhry/TrendOs/pull/37) book merged to `main`; original experimental collapsible-menu [PR #38](https://github.com/fawakhry/TrendOs/pull/38) closed unmerged. [PR #270](https://github.com/fawakhry/TrendOs/pull/270) published the guarded release workflow to `main` (merge `9f42b56c49c3eea19411e2472c458576607403a0`).
+- **Production release:** [Action 40220150159](https://github.com/fawakhry/TrendOs/actions/runs/40220150159) **SUCCESS**; pre-version and HTML lease guards both PASS, all 46 assets downloaded from live, **index.html ONLY** changed in byte-exact snapshot. Wrangler deploy target only `trendos-ui`. Post-deploy HTML byte equality PASS, every other **45 files byte-identical** to snapshot, full traffic at 100%, rollback **NOT USED**. No D1/API/EasyStore/Operator Task mutation performed by this release.
+- **Pre-Worker-version:** `899b134a-12bb-495c-9114-3b1bd0de15c8`.
+- **New Worker version:** `8c5ccf6e-b002-4efb-858b-e0e609cdc730`; new deployment `f6599f59-1e01-482c-9bf5-1560eaa021c2`; at **100% traffic**.
+- **Post-HTML SHA256:** `9f06aaec71a679de7e6532bbdc6a0866b42850b3bb45bb2c463b07c577b2858a`. The original live HTML hash was `c3024864c77b8ad3a1a6c52730660537c3b388dbc07d4bc7af6f3f6af46384c8`.
+- **Independent public read-only recheck:** [Action 40220254068](https://github.com/fawakhry/TrendOs/actions/runs/40220254068) **SUCCESS**: Cloudflare HTML matches expected new ten-button DOM order; new HTML SHA256 confirmed; new Worker version 100%; `config.js` and `app.js` remain intentionally different from GitHub `main` (because live code was preserved rather than overwritten).
+- **Rollback:** previous Cloudflare version `899b134a-12bb-495c-9114-3b1bd0de15c8` remains the known restoration target. Workflow has automatic rollback triggered by post-deploy failure; it was not needed.
+- **Honest acceptance boundary:** `UI-001_SOURCE_MERGED / GITHUB_PAGES_DEPLOYED / CLOUDFLARE_LIVE_VERIFIED_STATIC / EXISTING_BUTTON_DOM_ORDER_PASS / 45_ASSETS_PRESERVED / NO_AUTHENTICATED_ROLE_SMOKE`. Real employee login/role click smoke was not run; no claim of verified financial actions or live task handling. The full UI redesign and Owner Console security gate remain separate work.
+- **Operational check for owner:** refresh `https://trendos-ui.trendmall-contact.workers.dev/` and open the employee area. Buttons should start `ملفات مطبعجي → حسابات مطبعجي → Trend Mall شيتات → نوت مطبعجي → روتيت مطبعجي`, subject to the original permission/hidden classes.
+- **Next UI gate:** document visual/role feedback if any; close UI-001 after normal operating verification, then choose next existing-button group to rearrange without new app code.
+
+
