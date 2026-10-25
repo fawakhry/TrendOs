@@ -30,6 +30,8 @@ import {handleNativeCustomerDraftFileR2V0}
   from '../src/customer-portal-native-draft-file-r2-v0.mjs';
 import {CUSTOMER_DRAFT_PREFLIGHT_STAGE_PATH_V0,handleCustomerDraftPreflightStageV0}
   from './submit-preflight-ro-v0.mjs';
+import {CUSTOMER_PRIVATE_R2_INTEGRITY_PATH_V0,handleCustomerPrivateR2IntegrityStageV0}
+  from './private-r2-integrity-ro-v0.mjs';
 
 import {createCustomerStageDurableRateGateV0}
   from './login-throttle-v0.mjs';
@@ -63,7 +65,8 @@ const DRAFT_FILE_STAGE_PATH_V0=/^\/v1\/customer\/native\/drafts\/CDR-[0-9a-f]{32
 function isCustomerStagePathV0(path){
   return PATHS.includes(path)||DRAFT_ITEM_STAGE_PATH_V0.test(path)||
     DRAFT_FILE_STAGE_PATH_V0.test(path)||
-    CUSTOMER_DRAFT_PREFLIGHT_STAGE_PATH_V0.test(path);
+    CUSTOMER_DRAFT_PREFLIGHT_STAGE_PATH_V0.test(path)||
+    CUSTOMER_PRIVATE_R2_INTEGRITY_PATH_V0.test(path);
 }
 export default {
   async fetch(request,env={}){
@@ -116,6 +119,8 @@ export default {
         return await handleNativeCustomerDraftFileR2V0(request,env);
       if (CUSTOMER_DRAFT_PREFLIGHT_STAGE_PATH_V0.test(path))
         return await handleCustomerDraftPreflightStageV0(request,env);
+      if (CUSTOMER_PRIVATE_R2_INTEGRITY_PATH_V0.test(path))
+        return await handleCustomerPrivateR2IntegrityStageV0(request,env);
       return await handleCustomerNativeOrdersReadV0(request,env);
     }catch{
       // No data, password, DB error, tenant identifiers or stack leak.
