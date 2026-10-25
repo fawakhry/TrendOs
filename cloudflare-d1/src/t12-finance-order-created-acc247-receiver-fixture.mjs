@@ -218,3 +218,79 @@ export async function acceptACC247OrderCreatedContextFixtureOnly({
   return stop('ACC247_CONTEXT_DUPLICATE_CONFLICT_OR_SQL_ERROR');
  }
 }
+
+
+/* ACC248 — a historical context record is NOT an evergreen invoice grant.
+ * Inspect the immutable fake recipient inbox again BEFORE anyone could
+ * propose finance treatment. Read only; never mutate or ACK. Do not infer
+ * Wael/Gaber line approval, cash, customer ownership or live Cloud trust.
+ * Stage table/schema and producer secrets remain separately unqualified.
+ * Expired original HMAC cannot authorize downstream use or be re-dated.
+ */
+export async function auditACC248StoredContextBeforeInvoiceFixtureOnly({
+ sourceDb,recipientDb,eventId,verifyKey,expectedKeyId,nowMs,mode
+}={}){
+ if(mode!=='ISOLATED_SQLITE_RECEIVER')return stop('ACC248_AUDIT_DEFAULT_OFF');
+ if(!sourceDb||typeof sourceDb.batch!=='function'||
+    typeof sourceDb.prepare!=='function'||
+    !recipientDb||typeof recipientDb.prepare!=='function'||
+    !globalThis.crypto?.subtle||!id(eventId)||!id(expectedKeyId)||
+    !isTime(nowMs))
+  return stop('ACC248_SOURCE_AND_CONTEXT_READERS_REQUIRED');
+ let control,row;
+ try{
+  control=recipientDb.prepare(controlSql).get();
+  row=recipientDb.prepare(recipientSql).get(eventId);
+ }catch{return stop('ACC248_RECEIVER_CONTEXT_SCHEMA_UNAVAILABLE');}
+ if(control?.marker!=='ACC247_FAKE_RECEIVER_ONLY'||
+    control?.mode!=='ISOLATED_SQLITE_RECEIVER')
+  return stop('ACC248_RECEIVER_CONTEXT_MARKER_UNVERIFIED');
+ if(!row||row.eventId!==eventId||row.state!=='SOURCE_CONTEXT_ONLY_NO_POST'||
+    !id(row.idempotencyKey)||!id(row.orderId)||!id(row.customerId)||
+    typeof row.signedPayloadJson!=='string'||
+    row.signedPayloadJson.length>16384||
+    typeof row.sourceRevisionJson!=='string'||
+    row.sourceRevisionJson.length>2048||
+    !/^[0-9a-f]{64}$/.test(row.payloadSha256||''))
+  return stop('ACC248_NO_TRUSTED_ORIGINAL_CONTEXT_ROW');
+ let msg;
+ try{msg=JSON.parse(row.signedPayloadJson);}
+ catch{return stop('ACC248_IMMUTABLE_CONTEXT_INVALID');}
+ const e=msg?.envelope,p=e?.payload;
+ if(!e||!p||e.event_id!==eventId||
+    e.idempotency_key!==row.idempotencyKey||
+    p.order_id!==row.orderId||p.customer_id!==row.customerId||
+    e.event_type!=='order_created')
+  return stop('ACC248_CONTEXT_SOURCE_BINDING_MISMATCH');
+ let digest;
+ try{digest=await hash(row.signedPayloadJson);}
+ catch{return stop('ACC248_CONTEXT_HASH_UNAVAILABLE');}
+ if(digest!==row.payloadSha256)
+  return stop('ACC248_CONTEXT_HASH_MISMATCH');
+ const verified=await verifyHmac({
+  message:msg,verifyKey,expectedKeyId,nowMs
+ });
+ if(verified.success!==true||verified.eventType!=='order_created'||
+    verified.financialAuthority!==false||
+    verified.invoicePostingAllowed!==false)
+  return stop('ACC248_CONTEXT_HMAC_EXPIRED_OR_UNVERIFIED');
+ let actual;
+ try{actual=await inspectSource({
+  db:sourceDb,orderId:p.order_id,
+  expectedOfficialCustomerId:p.customer_id
+ });}catch{return stop('ACC248_CURRENT_ORIGINAL_T12_READ_UNAVAILABLE');}
+ if(!compareSource(actual,msg,row.sourceRevisionJson))
+  return stop('ACC248_CONTEXT_STALE_SINCE_RECEIPT');
+ return Object.freeze({
+  success:true,fixtureContextCurrent:true,readOnly:true,
+  contextPurpose:'prepare_context_only',
+  expectedOrderId:p.order_id,
+  sourceOnly:true,fixtureOnly:true,
+  realSignedLineApprovalsVerified:false,
+  customerOwnershipAttested:false,
+  independentSignerVerified:false,consumerAcknowledged:false,
+  financeAuthorized:false,invoiceRequested:false,postingAllowed:false,
+  productionRelease:'NO_GO',
+  nextRequiredGate:'REAL_CUSTOMER_OWNER_AND_WAEL_GABER_SIGNED_LINE_APPROVALS'
+ });
+}
