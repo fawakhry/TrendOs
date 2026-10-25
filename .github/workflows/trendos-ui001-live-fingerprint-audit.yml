@@ -1,0 +1,99 @@
+name: TrendOS UI-001 Live Frontend Fingerprint Audit (read only)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/trendos-ui001-live-fingerprint-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trendos-ui001-live-fingerprint-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read-only frontend order and Worker version audit
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os, re, json, hashlib, urllib.request
+          from urllib.error import URLError, HTTPError
+          from pathlib import Path
+          
+          expected = ['remoteFilesBtn','accountingBtn','matbagySheetsBtn','matbagyNoteBtn',
+                      'matbagyRotetBtn','refreshBtn','urgentNotificationsBtn','endDayBtn',
+                      'changePassBtn','logoutBtn']
+          urls = [
+              ('CLOUDFLARE_UI','https://trendos-ui.trendmall-contact.workers.dev/'),
+              ('GITHUB_PAGES','https://fawakhry.github.io/TrendOs/'),
+          ]
+          def button_ids(html):
+              found=re.search(r'<div\s+class=["\']top-actions["\']\s*>(.*?)</div>',html,re.S|re.I)
+              return re.findall(r'<button\s+[^>]*\bid=["\']([^"\']+)',found.group(1),re.I) if found else []
+          def read_url(url,headers=None):
+              req=urllib.request.Request(url,headers=headers or {'User-Agent':'TrendOS-UI001-Readonly-Audit/1.0'})
+              with urllib.request.urlopen(req,timeout=18) as resp:
+                  return resp.status,resp.read()
+          local=Path('index.html').read_text(encoding='utf8')
+          print('AUDIT_MODE=READ_ONLY')
+          print('SOURCE_REF='+os.environ.get('GITHUB_SHA','UNKNOWN'))
+          print('SOURCE_ORDER='+','.join(button_ids(local)))
+          assert button_ids(local)==expected,'Unexpected local order: fail closed'
+          for name,url in urls:
+              try:
+                  code,body=read_url(url)
+                  html=body.decode('utf8','replace')
+                  order=button_ids(html)
+                  print(name+'_HTTP='+str(code))
+                  print(name+'_LENGTH='+str(len(body)))
+                  print(name+'_HTML_SHA256='+hashlib.sha256(body).hexdigest())
+                  print(name+'_ORDER='+(','.join(order) if order else 'UNAVAILABLE'))
+                  print(name+'_ORDER_MATCH='+str(order==expected).upper())
+                  for file in ('config.js','app.js'):
+                      try:
+                          remote_code,remote=read_url(url+file)
+                          local_path=Path(file)
+                          local_data=local_path.read_bytes() if local_path.exists() else b''
+                          print(name+'_'+file.replace('.','_')+'_HTTP='+str(remote_code))
+                          print(name+'_'+file.replace('.','_')+'_MATCH_LOCAL='+str(remote==local_data).upper())
+                      except (OSError,HTTPError,URLError,TimeoutError) as exc:
+                          print(name+'_'+file.replace('.','_')+'_READ_ERROR='+type(exc).__name__)
+              except (HTTPError,URLError,TimeoutError,OSError) as exc:
+                  print(name+'_READ_ERROR='+type(exc).__name__)
+          token=os.environ.get('CLOUDFLARE_API_TOKEN','').strip()
+          account=os.environ.get('CLOUDFLARE_ACCOUNT_ID','').strip()
+          if not token or not account:
+              print('CF_DEPLOYMENTS_API=NO_CONFIGURED_CREDENTIALS')
+          else:
+              api='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/trendos-ui/deployments'
+              try:
+                  _,payload=read_url(api,{'Authorization':'Bearer '+token,'Accept':'application/json'})
+                  result=json.loads(payload.decode('utf8')).get('result')
+                  deps=result.get('deployments',[]) if isinstance(result,dict) else (result if isinstance(result,list) else [])
+                  if deps:
+                      newest=deps[0]
+                      print('CF_DEPLOYMENTS_API=SUCCESS')
+                      print('CF_DEPLOYMENT_ID='+str(newest.get('id','UNKNOWN')))
+                      for obj in newest.get('versions',[]):
+                          print('CF_ACTIVE_VERSION='+str(obj.get('version_id',obj.get('id','UNKNOWN'))))
+                          print('CF_TRAFFIC_PERCENTAGE='+str(obj.get('percentage',obj.get('traffic_percentage','UNKNOWN'))))
+                  else: print('CF_DEPLOYMENTS_API=EMPTY_OR_UNEXPECTED')
+              except (ValueError,HTTPError,URLError,TimeoutError,OSError) as exc:
+                  print('CF_DEPLOYMENTS_API=FAILED_'+type(exc).__name__)
+          print('AUDIT_FINISHED=YES')
+          PY
