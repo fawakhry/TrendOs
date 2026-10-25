@@ -39,7 +39,10 @@ function safePublic(row,view){
       executionType:validText(record.executionType,100),
       active:'نعم'};
   }
-  if(record.customerVisibility==='مخفي'||record.branchRole==='شريك تنفيذ مخفي')
+  // Publication must be explicit. Unknown/missing visibility is PRIVATE,
+  // never accidentally public just because a record is active in D1.
+  if(record.customerVisibility!=='ظاهر كفرع مطبعجي'||
+     record.branchRole==='شريك تنفيذ مخفي')
     return null;
   const branchCode=validText(record.code||row.record_id,48);
   const brandName=validText(record.displayName||record.brandName,120);
