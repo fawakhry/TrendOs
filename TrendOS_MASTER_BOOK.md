@@ -6802,3 +6802,13 @@ Result: **PASS — EMPLOYEE SESSION RESTORE AND RUNTIME SESSION LIFECYCLE ARE NO
 - **القرار التالي:** التحقق من Connected Repository/Branch/Root/Build/Deploy في Cloudflare لكل خدمة. إن كانت Git Builds غير مقصودة لخدمتي checks، يمكن لصاحب الصلاحية Disconnect بعد تأكيد عدم احتياجهما، أو ضبط المسار الدقيق لكل خدمة. أي Frontend UI rollout يظل ضمن Guarded staging/version-only pipeline، مع explicit approval.
 - **UI log:** [PR #37 UI book](https://github.com/fawakhry/TrendOs/pull/37) إدخال `UI-001-CFBUILD-ROOTCAUSE`؛ [PR #38 code](https://github.com/fawakhry/TrendOs/pull/38) ما يزال Draft، لا Merge ولا Deploy.
 
+
+### UI-001 Cloudflare Build Settings — Owner screenshot — 2026-10-25
+
+- **Evidence marker:** `CLOUDFLARE_BUILD_SETTINGS_SCREENSHOT_20261025`. صورة من Cloudflare لـ **Workers & Pages → trendos → Production → Settings → Builds**، أرسلها المالك. الصورة توضح Git repository `fawakhry/TrendOs`, production branch `main`, root directory `/`, build command `None`, deploy command `cd cloudflare-d1 && npx wrangler deploy`, و`Disable builds` = OFF. لا بيانات دخول أو مفاتيح في الصورة.
+- **Important distinction:** سجل البناء الفاشل يوم 2026-10-09 كان يشغل `npx wrangler versions upload` بلا config؛ صورة 2026-10-25 تعرض **إعدادًا مختلفًا** ولا تثبت متى أو مَن غيّره أو نجاح Build بعد ذلك.
+- **GitHub main risk verified:** `cloudflare-d1/wrangler.toml` على `main` يحتوي `name = "trendos-d1-api"`, `main = "src/index_v2.js"`, وD1 `DB` المرتبطة بـ`trendos-main`. لذلك deploy command الظاهر على خدمة Cloudflare المسماة `trendos` يستطيع استهداف `trendos-d1-api` من `main`، وليس `trendos-ui`. هذا **خطر نشر API غير مقصود**؛ ليس علاجًا لفشل UI-001 ولا دليلًا على وقوعه.
+- **Owner recommendation, NOT EXECUTED:** تفعيل `Disable builds` لخدمة `trendos` وحدها وحفظ الإعداد إذا ظهر Save؛ بدون Disconnect أو تغيير Deploy Command أو إيقاف الإنتاج، لحين توثيق ملكية كل Git Build / Worker والـproduction path. هذه توصية احترازية، لا يُدعى تنفيذها إلا بعد إثبات من Cloudflare.
+- **State:** `ROOT_CAUSE_LOG_REVIEWED / SETTINGS_MISMATCH_CONFIRMED / AUTO_DEPLOY_RISK_IDENTIFIED / REMEDIATION_PENDING_OWNER / NO_DEPLOY_BY_ASSISTANT`. لا نغيّر `trendos-d1-api` أو `trendos-ui` أو D1، ولا نرقّي PR #38. بعد صورة تأكيد تعطيل البناء، نراجع `trendos-tasks-v3-t1-preview-20260914` بنفس مبدأ هدف النشر قبل تعديل أي شيء.
+- **References:** [GitHub PR #38 UI-001](https://github.com/fawakhry/TrendOs/pull/38), [UI book PR #37](https://github.com/fawakhry/TrendOs/pull/37), [Cloudflare Builds docs](https://developers.cloudflare.com/workers/ci-cd/builds/).
+
