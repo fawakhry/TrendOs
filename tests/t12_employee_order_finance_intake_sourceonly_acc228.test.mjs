@@ -6,7 +6,7 @@ import {webcrypto} from 'node:crypto';
 import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {ACC235_ISOLATED_SCHEMA as OUTBOX_SCHEMA,ACC235_SIGNED_OUTBOX_POLICY as OUTBOX_POLICY,persistOriginalSignedFixtureOnly as persistSigned,reserveSignedFixtureForSimulatedRetry as reserveSigned,releaseUnconfirmedFixtureLease as releaseSigned,isolateDeadLetterFixtureOnly as deadSigned} from '../cloudflare-d1/src/t12-finance-signed-outbox-acc235-offline.mjs';
+import {ACC235_ISOLATED_SCHEMA as OUTBOX_SCHEMA,ACC235_SIGNED_OUTBOX_POLICY as OUTBOX_POLICY,persistOriginalSignedFixtureOnly as persistSigned,reserveSignedFixtureForSimulatedRetry as reserveSigned,releaseUnconfirmedFixtureLease as releaseSigned,isolateDeadLetterFixtureOnly as deadSigned,simulateACC246PreDispatchFenceFixtureOnly as fenceHandoff} from '../cloudflare-d1/src/t12-finance-signed-outbox-acc235-offline.mjs';
 
 import {
  buildT12SignedOrderCreatedSourceOnly as signOrder,
@@ -1170,6 +1170,113 @@ test('ACC245-OUTBOX healthy reread stays read-only, same immutable signed HMAC b
   assert.equal(r.financeAuthorized,false);
   assert.equal(r.consumerAcknowledged,false);
  }finally{store.close()}
+}));
+
+
+const acc246FenceArgs=(x,store,key,lease,nowMs=SIGN_TIME+2000)=>({
+ sourceDb:x.db,outboxDb:store.db,eventId:acc235Event,
+ verifyKey:key,keyId:FIXTURE_KEY_ID,
+ leaseOwner:lease.leaseOwner,leaseAttempt:lease.attempts,
+ nowMs,mode:acc235Mode
+});
+test('ACC246-FENCE is fixture-only OFF, rechecks exact source revision just before simulated handoff',()=>withFixture(async x=>{
+ const store=acc235OfflineDb();try{
+  const key=await fakeSignKey();
+  assert.equal(OUTBOX_POLICY.requiresFreshOperationalRevisionAtPreDispatch,true);
+  assert.equal(OUTBOX_POLICY.realDeliveryEnabled,false);
+  assert.equal((await acc235Stage(x,store,key)).success,true);
+  const before=x.raw.prepare('SELECT total_changes() n').get().n;
+  const lease=await acc235Reserve(x,store,key);
+  assert.equal(lease.success,true,JSON.stringify(lease));
+  assert.equal(store.row().lease_source_revision_json,
+   JSON.stringify({customerVersion:1,lineVersions:[
+    {lineId:'4323-01',version:0},{lineId:'4323-02',version:0}]}));
+  const batches=x.batches();
+  const first=await fenceHandoff(acc246FenceArgs(x,store,key,lease));
+  assert.equal(first.success,true,JSON.stringify(first));
+  assert.equal(first.realTransportAllowed,false);
+  assert.equal(first.consumerAcknowledged,false);
+  assert.equal(first.financeAuthorized,false);
+  assert.equal(store.row().simulated_handoff_epoch,1);
+  assert.equal(x.batches(),batches+1);
+  assert.equal(x.raw.prepare('SELECT total_changes() n').get().n,before);
+  const twice=await fenceHandoff(acc246FenceArgs(x,store,key,lease));
+  assert.equal(twice.code,'ACC246_SIMULATED_HANDOFF_ALREADY_MARKED_OR_LEASE_LOST');
+  assert.equal(store.row().simulated_handoff_epoch,1);
+ }finally{store.close();}
+}));
+test('ACC246-FENCE denies cancellation after lease, preserving bytes and epoch',()=>withFixture(async x=>{
+ const store=acc235OfflineDb();try{
+  const key=await fakeSignKey();
+  assert.equal((await acc235Stage(x,store,key)).success,true);
+  const lease=await acc235Reserve(x,store,key);
+  assert.equal(lease.success,true);
+  const signedBytes=store.row().payload_json;
+  runtimeState(x,'4323-02','ملغى','jaber-synthetic');
+  runtimeEvent(x,'4323-02','طلب جديد','ملغى','jaber-synthetic');
+  const res=await fenceHandoff(acc246FenceArgs(x,store,key,lease));
+  assert.equal(res.code,'OUTBOX_ORIGINAL_T12_NOW_UNQUALIFIED');
+  assert.equal(store.row().attempts,1);
+  assert.equal(store.row().simulated_handoff_epoch,0);
+  assert.equal(store.row().payload_json,signedBytes);
+ }finally{store.close();}
+}));
+test('ACC246-FENCE blocks changed-then-restored operational status (native version ABA)',()=>withFixture(async x=>{
+ const store=acc235OfflineDb();try{
+  const key=await fakeSignKey();
+  assert.equal((await acc235Stage(x,store,key)).success,true);
+  const lease=await acc235Reserve(x,store,key);
+  assert.equal(lease.success,true);
+  runtimeState(x,'4323-01','بدأ التنفيذ','wael-synthetic');
+  runtimeEvent(x,'4323-01','طلب جديد','بدأ التنفيذ','wael-synthetic');
+  assert.equal((await request(x)).status,200);
+  assert.equal((await fenceHandoff(acc246FenceArgs(x,store,key,lease))).code,
+   'ACC246_SOURCE_REVISION_CHANGED_AFTER_LEASE');
+  x.raw.prepare("UPDATE t12_prod_line_runtime SET version=2,status='طلب جديد' WHERE line_id='4323-01'").run();
+  runtimeEvent(x,'4323-01','بدأ التنفيذ','طلب جديد','wael-synthetic');
+  assert.equal((await request(x)).status,200);
+  const res=await fenceHandoff(acc246FenceArgs(x,store,key,lease));
+  assert.equal(res.code,'ACC246_SOURCE_REVISION_CHANGED_AFTER_LEASE');
+  assert.equal(store.row().simulated_handoff_epoch,0);
+  assert.equal(store.row().attempts,1);
+ }finally{store.close();}
+}));
+test('ACC246-FENCE rejects stale lease owner/epoch after a worker timeout and reclaim',()=>withFixture(async x=>{
+ const store=acc235OfflineDb();try{
+  const key=await fakeSignKey();
+  assert.equal((await acc235Stage(x,store,key)).success,true);
+  const first=await acc235Reserve(x,store,key,SIGN_TIME+1000,'WORKER-A');
+  assert.equal(first.success,true);
+  const second=await acc235Reserve(x,store,key,SIGN_TIME+17000,'WORKER-B');
+  assert.equal(second.success,true);
+  assert.equal(second.attempts,2);
+  const stale=await fenceHandoff(acc246FenceArgs(x,store,key,first,SIGN_TIME+18000));
+  assert.equal(stale.code,'ACC246_LEASE_EXPIRED_OR_SUPERSEDED');
+  const newest=await fenceHandoff(acc246FenceArgs(x,store,key,second,SIGN_TIME+18000));
+  assert.equal(newest.success,true,JSON.stringify(newest));
+  assert.equal(store.row().simulated_handoff_epoch,2);
+  assert.equal(store.row().attempts,2);
+  assert.equal(newest.connectorEventPublished,false);
+ }finally{store.close();}
+}));
+test('ACC246-FENCE enforces default OFF, source availability and signature expiry; never marks consumer receipt',()=>withFixture(async x=>{
+ const store=acc235OfflineDb();try{
+  const key=await fakeSignKey();
+  assert.equal((await acc235Stage(x,store,key)).success,true);
+  const lease=await acc235Reserve(x,store,key);
+  assert.equal(lease.success,true);
+  const args=acc246FenceArgs(x,store,key,lease);
+  assert.equal((await fenceHandoff({...args,mode:undefined})).code,'OUTBOX_DEFAULT_OFF');
+  assert.equal((await fenceHandoff({...args,sourceDb:undefined})).code,
+   'OUTBOX_FRESH_ORIGINAL_T12_READER_REQUIRED');
+  assert.equal((await fenceHandoff({...args,leaseAttempt:2})).code,
+   'ACC246_LEASE_EXPIRED_OR_SUPERSEDED');
+  assert.equal((await fenceHandoff({...args,nowMs:SIGN_TIME+301000})).code,
+   'OUTBOX_SIGNATURE_STALE_OR_UNVERIFIED');
+  assert.equal(store.row().simulated_handoff_epoch,0);
+  assert.equal(store.row().state,'LEASED');
+  assert.equal(OUTBOX_POLICY.consumerAckQualified,false);
+ }finally{store.close();}
 }));
 
 test('without D1 batch, broken transaction or broken schema return generic fail closed',async()=>{
