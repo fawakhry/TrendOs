@@ -97,6 +97,16 @@ async function main() {
       }
       await page.waitForFunction(()=>!document.querySelector('#entryView').classList.contains('hidden'),
         null,{timeout:18000});
+      const staleReadResults=await page.evaluate(async()=>{
+        window.__customerNativeRaceReleases.splice(0).forEach(release=>release());
+        return await window.__customerNativeRaceResults;
+      });
+      assert.deepEqual(staleReadResults,[
+        'CUSTOMER_NATIVE_STALE_READ_REJECTED',
+        'CUSTOMER_NATIVE_STALE_READ_REJECTED'
+      ],'Native order and public D1 read payloads from revoked login must NEVER surface after logout');
+      console.log('PASS: REAL Chromium delayed D1 orders+brand responses rejected after native customer CAS logout');
+
       // TEST-ONLY logical action audit at ORIGINAL app.js dispatch boundary.
       // The employee dispatcher can fail a customer content call before fetch;
       // counting HTTP legacy-api calls alone would incorrectly imply success.
@@ -229,6 +239,34 @@ async function main() {
         'Original customer draft UI must explain failed-closed source-only feature');
       assert.ok(!network.some(x=>/\/v1\/customer\/native\/(draft|submit|upload)/.test(x.path)),
         'No unqualified customer write was sent to Worker');
+      // Deterministic REAL Chromium delayed-response race. Both GETs are
+      // accepted by the local Worker while the customer session is ACTIVE,
+      // but their responses are deliberately withheld until after D1 CAS
+      // logout; the browser MUST discard both old-session payloads.
+      await page.evaluate(()=>{
+        const upstreamFetch=window.fetch.bind(window);
+        window.__customerNativeRaceReleases=[];
+        window.fetch=async function(input,opts) {
+          const raw=typeof input==='string'?input:input.url;
+          const url=new URL(raw,location.href);
+          const hold=url.pathname==='/v1/customer/native/orders'||
+            (url.pathname==='/v1/customer/native/public-content' &&
+             url.searchParams.get('view')==='brand');
+          if(!hold)return upstreamFetch(input,opts);
+          const response=await upstreamFetch(input,opts);
+          return await new Promise(resolve=>{
+            window.__customerNativeRaceReleases.push(()=>resolve(response));
+          });
+        };
+        const outcome=p=>p.then(()=>'UNEXPECTED_STALE_READ_SUCCESS',
+          error=>error&&error.code||'NO_ERROR_CODE');
+        window.__customerNativeRaceResults=Promise.all([
+          outcome(window.trendosCustomerNativeBrowserDispatchV0('getCustomerOrders',{},null)),
+          outcome(window.trendosCustomerNativeBrowserDispatchV0('getWhiteLabelSettings',{},null))
+        ]);
+      });
+      await page.waitForFunction(()=>window.__customerNativeRaceReleases.length===2,
+        null,{timeout:15000});
       await page.locator('#customerLogoutBtn').click();
       await page.waitForFunction(()=>!document.querySelector('#entryView').classList.contains('hidden'),
         null,{timeout:18000});
