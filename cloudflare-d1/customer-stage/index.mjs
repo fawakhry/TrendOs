@@ -26,6 +26,8 @@ import {CUSTOMER_NATIVE_DRAFT_CREATE_PATH_V0,handleCustomerNativeDraftCreateV0}
   from '../src/customer-portal-native-draft-create-v0.mjs';
 import {handleNativeCustomerDraftItemV0}
   from '../src/customer-portal-native-draft-item-v0.mjs';
+import {handleNativeCustomerDraftFileR2V0}
+  from '../src/customer-portal-native-draft-file-r2-v0.mjs';
 
 import {createCustomerStageDurableRateGateV0}
   from './login-throttle-v0.mjs';
@@ -55,8 +57,10 @@ function originAllowed(request,env){
   return origins.length>0&&origins.includes(origin);
 }
 const DRAFT_ITEM_STAGE_PATH_V0=/^\/v1\/customer\/native\/drafts\/CDR-[0-9a-f]{32}\/items$/;
+const DRAFT_FILE_STAGE_PATH_V0=/^\/v1\/customer\/native\/drafts\/CDR-[0-9a-f]{32}\/items\/CDI-[0-9a-f]{32}\/files$/;
 function isCustomerStagePathV0(path){
-  return PATHS.includes(path)||DRAFT_ITEM_STAGE_PATH_V0.test(path);
+  return PATHS.includes(path)||DRAFT_ITEM_STAGE_PATH_V0.test(path)||
+    DRAFT_FILE_STAGE_PATH_V0.test(path);
 }
 export default {
   async fetch(request,env={}){
@@ -105,6 +109,8 @@ export default {
         return await handleCustomerNativeDraftCreateV0(request,env);
       if (DRAFT_ITEM_STAGE_PATH_V0.test(path))
         return await handleNativeCustomerDraftItemV0(request,env);
+      if (DRAFT_FILE_STAGE_PATH_V0.test(path))
+        return await handleNativeCustomerDraftFileR2V0(request,env);
       return await handleCustomerNativeOrdersReadV0(request,env);
     }catch{
       // No data, password, DB error, tenant identifiers or stack leak.
