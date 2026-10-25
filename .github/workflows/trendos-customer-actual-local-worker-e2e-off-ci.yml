@@ -10,6 +10,10 @@ on:
       - 'tests/customer_stage_wrangle_local_real_d1_do_e2e.py'
       - 'tests/customer_stage_browser_adapter_real_http_local.mjs'
       - 'tests/customer_stage_chromium_real_browser_local.cjs'
+      - 'tests/customer_stage_chromium_full_original_portal_local.cjs'
+      - 'index.html'
+      - 'app.js'
+      - 'customer-native-browser-transport-v0.js'
       - 'tests/fixtures/customer-stage-browser-local.html'
       - '.github/workflows/trendos-customer-actual-local-worker-e2e-off-ci.yml'
       - 'cloudflare-d1/customer-stage/**'
@@ -61,6 +65,7 @@ jobs:
           python3 -m py_compile tests/customer_stage_wrangle_local_real_d1_do_e2e.py
           node --check tests/customer_stage_browser_adapter_real_http_local.mjs
           node --check tests/customer_stage_chromium_real_browser_local.cjs
+          node --check tests/customer_stage_chromium_full_original_portal_local.cjs
       - name: Recheck existing customer Native source and isolated Stage contracts
         run: |
           set -euo pipefail
