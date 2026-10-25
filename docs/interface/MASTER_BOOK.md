@@ -413,3 +413,17 @@
 - **النتيجة الآن:** `DECISION_RECORDED / OLD_PR_CLOSED_UNMERGED / REORDER_IMPLEMENTATION_NOT_STARTED / NO_PRODUCTION_CHANGE`.
 - **الخطوة التالية:** تغيير ترتيب الأزرار داخل `index.html` فقط على فرع مراجعة صغير مستقل عند اعتماد ترتيب الاستخدام، وتشغيل اختبارات العقد/المرئيات وتسجيل SHA/PR هنا قبل قرار الدمج أو النشر.
 
+
+### UI-LOG-003 — التنفيذ المبسط: إعادة ترتيب أزرار الموظف الموجودة — 2026-10-25
+
+- **المطلب المعتمد:** الحفاظ على الواجهة القديمة وعدم إدخال JavaScript أو CSS أو قوائم جديدة، والاكتفاء بترتيب الأزرار داخل الصفحة القائمة.
+- **مصدر التنفيذ:** `candidate/t12-full-cloud-cutover-a56-20260929`، `index.html` blob قبل `788074c5fb4c3d4db2af9dc0b4dabffe3c34cfc1`.
+- **الفعل المكتمل:** إنشاء `review/ui01-reorder-existing-buttons-20261025` على أساس candidate، وإعادة ترتيب الأزرار العشرة داخل `#mainView .top-actions` **من دون تعديل حرف واحد في أي زر أو أي جزء آخر من الملف**. لا JS/CSS جديد، لا imports جديدة، لا Backend أو قاعدة بيانات أو صلاحية أو تغيير واجهة العملاء.
+- **قبل:** `refreshBtn, remoteFilesBtn, matbagySheetsBtn, matbagyRotetBtn, matbagyNoteBtn, accountingBtn, endDayBtn, urgentNotificationsBtn, changePassBtn, logoutBtn`.
+- **بعد:** `remoteFilesBtn, accountingBtn, matbagySheetsBtn, matbagyNoteBtn, matbagyRotetBtn, refreshBtn, urgentNotificationsBtn, endDayBtn, changePassBtn, logoutBtn`.
+- **الأدلة:** commit `ccf71aad7596fcfa0a6f694e8f6d0d5900d0bf82`، [Draft PR #260](https://github.com/fawakhry/TrendOs/pull/260) نحو candidate وليس production. GitHub `compare_commits`: فرع Ahead 1 commit، **ملف `index.html` فقط**، 4 أسطر إضافة/4 أسطر حذف (خطوط منقولة).
+- **تحقق سلامة نصي PASS:** 10 IDs نفسها دون تكرار؛ كل سطر زر منقول حرفيًا دون تعديل النص أو ID/classes/type، والباقي من HTML byte-identical في الفحص. لا يحتوي الملف الأساسي على imports الخاصة بتجربة PR #38 المغلقة.
+- **الأمن والنشر:** `SOURCE_MARKUP_VERIFIED / CI_IN_PROGRESS_AT_LOGGING / STAGING_NOT_TESTED / NOT_FIXED / NOT_DEPLOYED`. نجاح مقارنة HTML لا يُثبت صلاحيات الموظفين أو عمل الموبايل في البيئة الفعلية؛ لا Merge ولا Deploy. لا نغيّر إعداد Cloudflare `trendos` أو `trendos-ui` أو API.
+- **المخاطر/الرجوع:** الخطر المتبقي هو اختلاف الترتيب المرغوب أو حقن عناصر من JS/الثيم أثناء التشغيل. الرجوع = revert commit `ccf71aad...` فقط؛ لا قاعدة بيانات أو migrations.
+- **مسار المراجعة:** اختبار CI المرتبط PR #260، ثم قراءة screenshots موبايل/كمبيوتر من Staging عند توفره، ثم مراجعة ترتيب الأزرار مع المالك قبل تثبيت الجزء.
+
