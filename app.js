@@ -1994,6 +1994,16 @@ Trend Mall`;
     loadWhiteLabelSettings(false);
   }
 
+  function markCustomerNativePublicContentUnavailable(elementId) {
+    // Customer-only NO-GO state: never leave a false "loading" indicator when
+    // the isolated Native customer content route is not implemented.
+    // Legacy production mode and employee/admin rendering are unchanged.
+    if (window.TRENDOS_CUSTOMER_NATIVE_BROWSER_DISPATCH_V0_ENABLED !== true) return;
+    const container = $(elementId);
+    if (container) container.textContent =
+      "الخدمة غير متاحة مؤقتًا في وضع العملاء السحابي. لم يتم الرجوع إلى بيانات Google.";
+  }
+
   function renderCustomerHeader() {
     const c = state.customer || {};
     const title = $("customerWelcomeTitle");
@@ -2731,6 +2741,7 @@ Trend Mall`;
       const res = await api("getFranchiseBranches", params);
       if (!res.success) {
         if (forAdmin) setMsg("franchiseBranchesStatus", res.message || "تعذر تحميل فروع مطبعجي.", true);
+        else markCustomerNativePublicContentUnavailable("customerFranchiseBranches");
         return;
       }
       state.franchiseBranches = Array.isArray(res.branches) ? res.branches : [];
@@ -2739,6 +2750,7 @@ Trend Mall`;
       else renderCustomerFranchiseBranches();
     } catch (err) {
       if (forAdmin) setMsg("franchiseBranchesStatus", err.message || "خطأ في تحميل فروع مطبعجي.", true);
+      else markCustomerNativePublicContentUnavailable("customerFranchiseBranches");
     }
   }
 
@@ -3324,6 +3336,7 @@ Trend Mall`;
       const res = await api("getMarketplace", params);
       if (!res.success) {
         if (forAdmin) setMsg("marketplaceStatus", res.message || "تعذر تحميل الماركت بليس.", true);
+        else markCustomerNativePublicContentUnavailable("customerMarketplaceBoard");
         return;
       }
       state.marketplaceVendors = Array.isArray(res.vendors) ? res.vendors : [];
@@ -3332,6 +3345,7 @@ Trend Mall`;
       renderCustomerMarketplace();
     } catch (err) {
       if (forAdmin) setMsg("marketplaceStatus", err.message || "خطأ في تحميل الماركت بليس.", true);
+      else markCustomerNativePublicContentUnavailable("customerMarketplaceBoard");
     }
   }
 
