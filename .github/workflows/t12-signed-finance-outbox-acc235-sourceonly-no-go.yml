@@ -31,6 +31,7 @@ jobs:
           node --check cloudflare-d1/src/t12-employee-order-finance-intake-sourceonly.mjs
           node --check cloudflare-d1/src/t12-finance-connector-v1-order-created-sourceonly.mjs
           node --check cloudflare-d1/src/t12-finance-signed-outbox-acc235-offline.mjs
+          node --check cloudflare-d1/src/t12-finance-order-created-acc247-receiver-fixture.mjs
           node --check tests/t12_employee_order_finance_intake_sourceonly_acc228.test.mjs
           node --test tests/t12_employee_order_finance_intake_sourceonly_acc228.test.mjs
           echo 'ACC235_SIGNED_OUTBOX=DISPOSABLE_SQLITE_ONLY'
