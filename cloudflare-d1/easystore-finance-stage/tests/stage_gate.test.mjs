@@ -71,3 +71,48 @@ test('not an operational or customer API, and no non-GET health', async () => {
   r=await worker.fetch(new Request(health,{method:'POST'}),{DB:fakeDb()});
   assert.equal(r.status,405);
 });
+
+test('read-only Stage gateway is explicitly opt-in, never enables money writes',async()=>{
+  const flags={
+    EASYSTORE_STAGE_READONLY_API_V1:'ENFORCE',
+    FINANCE_RELEASE:'NO_GO',FINANCE_WRITES:'OFF',
+    EASYSTORE_ACCOUNTING_D1_WRITES:'false',
+    EASYSTORE_ACCOUNTING_D1_WRITE_MODE:'OFF',
+    ACCOUNTING_FINANCE_GRANTS_MODE_V1:'ENFORCE',
+    ACCOUNTING_FINANCE_GRANTS_V1:JSON.stringify({version:1,grants:[{username:'fake',mode:'final'}]}),
+    EASYSTORE_CUSTOMER_SOURCE_V1:'REMOTE_REQUIRED',
+    EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1:'REMOTE_NATIVE_REQUIRED',
+    TRENDOS_EMPLOYEE_SESSION_HMAC_V1:'test-native-session-secret-should-not-be-live',
+    TRENDOS_CUSTOMER_FACTS_HMAC_V1:'test-customer-facts-secret-should-not-be-live',
+    TRENDOS_EMPLOYEE_SESSION:{fetch:async()=>new Response(null,{status:401})},
+    TRENDOS_CUSTOMER_FACTS:{fetch:async()=>new Response(null,{status:401})}
+  };
+  for(const mode of ['OFF','READONLY','CANARY','GENERAL']){
+    const env={...flags,DB:fakeDb(mode)};
+    for(const action of ['saveAccountingFinalInvoice','savePartyLedgerTransaction',
+                         'saveEasyStoreSaleV2','approveAccountingDeptInvoice']){
+      const res=await worker.fetch(new Request(api,{method:'POST',
+        body:JSON.stringify({action,username:'fake'})}),env);
+      assert.equal(res.status,503);
+      assert.equal((await res.json()).code,'isolated-stage-financial-routes-disabled');
+    }
+    const read=await worker.fetch(new Request(api,{method:'POST',
+      body:JSON.stringify({action:'getAccounting',username:'fake'})}),env);
+    if(mode!=='READONLY'){
+      assert.equal(read.status,503);
+      assert.equal((await read.json()).code,'isolated-stage-readonly-control-required');
+    }else{
+      // Native employee token is absent: a read still cannot bypass SSO.
+      assert.equal(read.status,401);
+      assert.equal((await read.json()).code,'employee-session-rejected');
+    }
+  }
+  const withoutGrant={...flags,ACCOUNTING_FINANCE_GRANTS_V1:'{"version":1,"grants":[]}',DB:fakeDb('READONLY')};
+  const missing=await worker.fetch(new Request(api,{method:'POST',
+    body:JSON.stringify({action:'getEasyStoreCustomers'})}),withoutGrant);
+  assert.equal(missing.status,503);
+  assert.equal((await missing.json()).code,'isolated-stage-financial-routes-disabled');
+  const h=await worker.fetch(new Request(health),{...flags,DB:fakeDb('READONLY')});
+  assert.equal(h.status,200);
+  assert.equal((await h.json()).readOnlyApiEnabled,true);
+});
