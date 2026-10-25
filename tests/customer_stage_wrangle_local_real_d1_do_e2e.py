@@ -179,7 +179,10 @@ def seed_sql():
            VALUES ('franchise_branches','LOCAL-PUBLIC','{"code":"LOCAL-PUBLIC","displayName":"LOCAL PUBLIC BRANCH","visibleArea":"LOCAL AREA","customerVisibility":"ظاهر كفرع مطبعجي","internalNotes":"PRIVATE_BRANCH_FINANCE","matbagyShare":91,"partnerPhone":"PRIVATE_PHONE"}',1,1,'LOCAL_FIXTURE');""",
         """INSERT INTO employee_content_records_v1
            (collection,record_id,record_json,active,sort_order,updated_by)
-           VALUES ('franchise_branches','LOCAL-HIDDEN','{"code":"LOCAL-HIDDEN","displayName":"SECRET BRANCH","customerVisibility":"مخفي","internalNotes":"PRIVATE_HIDDEN_SECRET"}',1,2,'LOCAL_FIXTURE');"""
+           VALUES ('franchise_branches','LOCAL-HIDDEN','{"code":"LOCAL-HIDDEN","displayName":"SECRET BRANCH","customerVisibility":"مخفي","internalNotes":"PRIVATE_HIDDEN_SECRET"}',1,2,'LOCAL_FIXTURE');""",
+        """INSERT INTO employee_content_records_v1
+           (collection,record_id,record_json,active,sort_order,updated_by)
+           VALUES ('franchise_branches','LOCAL-UNREVIEWED','{"code":"LOCAL-UNREVIEWED","displayName":"UNREVIEWED PRIVATE BRANCH","internalNotes":"PRIVATE_MISSING_VISIBILITY"}',1,3,'LOCAL_FIXTURE');"""
     ]
     for ident,code,password in [("LOCAL-C1",CODE,PASSWORD),("LOCAL-C2",CODE2,PASSWORD2)]:
         salt=("09" if ident=="LOCAL-C1" else "0a")*16
