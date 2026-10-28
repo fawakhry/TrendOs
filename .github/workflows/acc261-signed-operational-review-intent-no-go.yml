@@ -1,0 +1,43 @@
+name: ACC261 immutable operational review intent - original native auth offline NO_GO
+on:
+  push:
+    branches:
+      - fix/acc261-native-review-intent-signed-fixture-no-go-20261028
+  pull_request:
+    branches:
+      - integration/trendos-easystore-verified-offline-no-go-20261025
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-native-review-intent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: connector-safe
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: b180e96d0568c54fef3af1079b1b0a4192cedc11
+          path: source-original
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Confirm exact original employee source and isolation
+        run: |
+          test "$(git -C source-original rev-parse HEAD)" = "b180e96d0568c54fef3af1079b1b0a4192cedc11"
+          test ! -e connector-safe/cloudflare-d1/src/employee-auth-native-v1.mjs
+          test -f source-original/cloudflare-d1/migrations/0009_employee_auth_native_v1.sql
+      - name: Execute ACC257 through ACC261 against disposable SQLite and real original native verifier implementation
+        working-directory: connector-safe
+        env:
+          ACC260_ORIGINAL_SOURCE_DIR: ../source-original
+        run: |
+          node --test --experimental-sqlite tests/acc257_existing_platform_orders_no_customer_capture.test.mjs tests/acc258_private_platform_order_preview_no_go.test.mjs tests/acc259_native_assigned_reviewer_no_go.test.mjs tests/acc260_original_native_auth_joined_t12_no_go.test.mjs tests/acc261_immutable_signed_operational_review_no_go.test.mjs
+      - name: Ensure never imported into live public Worker
+        working-directory: connector-safe
+        run: |
+          node --input-type=module -e "import{readFileSync as r}from'node:fs';const src=r('cloudflare-d1/src/t12-native-operational-review-intent-acc261-fixture.mjs','utf8'),main=r('cloudflare-d1/src/index_v2.js','utf8');if(main.includes('acc261')||!src.includes('NOT_FINANCE')||!src.includes('NO_GO'))process.exit(1)"
