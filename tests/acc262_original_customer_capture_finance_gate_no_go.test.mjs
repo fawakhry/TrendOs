@@ -65,12 +65,13 @@ function fixture({customerMaster=true,captureTables=false,captureRow=false,
   prepare(sql){
    assert.match(sql.trim(),/^SELECT /i,'never write via source D1');
    stats.nonBatchQueries++;
-   return {bind(...args){return {
+   const make=(args)=>({
     sql,args,
     async first(){return raw.prepare(sql).get(...args)??null},
     async all(){return {results:raw.prepare(sql).all(...args)}},
     async run(){stats.writes++;throw Error('read only')}
-   }}};
+   });
+   return {...make([]),bind(...args){return make(args)}};
   },
   async batch(statements){
    stats.batches++;
