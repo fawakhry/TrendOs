@@ -142,7 +142,7 @@ test('ACC259 never accepts cross-source, non-native order, changed assignment',(
  assert.equal((await run(f,{orderId:'sheet_rows:4323'})).success,false);
  assert.equal((await run(f,{lineId:'4324-01'})).success,false);
  f.raw.prepare("UPDATE t12_prod_lines SET assigned_to='غير معتمد' WHERE line_id='4323-01'").run();
- assert.equal((await run(f)).code,'ACC259_ORIGINAL_LINES_OR_CREATE_EVENTS_INCOMPLETE'); // Updated assignee is checked separately.
+ assert.equal((await run(f)).code,'ACC259_NATIVE_ORDER_UNQUALIFIED');
 }));
 test('ACC259 rejects cancelled original runtime; status update is not approval',()=>withFixture(async f=>{
  f.raw.prepare("INSERT INTO t12_prod_line_runtime (line_id,order_id,status,updated_by,version) VALUES ('4323-01','4323','ملغى','وائل',1)").run();
