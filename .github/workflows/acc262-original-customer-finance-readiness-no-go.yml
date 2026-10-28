@@ -1,0 +1,45 @@
+name: ACC262 ORIGINAL T12 at-create customer capture read-only finance NO_GO
+on:
+  push:
+    branches:
+      - fix/acc262-original-customer-capture-finance-readiness-no-go-20261028
+  pull_request:
+    branches:
+      - integration/trendos-easystore-verified-offline-no-go-20261025
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-customer-finance-fence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: connector-safe
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: b180e96d0568c54fef3af1079b1b0a4192cedc11
+          path: source-original
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Original schema source pinned; no independent roster or private DB mutated
+        run: |
+          test "$(git -C source-original rev-parse HEAD)" = "b180e96d0568c54fef3af1079b1b0a4192cedc11"
+          test ! -f connector-safe/cloudflare-d1/migrations/0035_t12_order_customer_at_create_sourceonly_v1.sql
+          test -f source-original/cloudflare-d1/migrations/0035_t12_order_customer_at_create_sourceonly_v1.sql
+          test -f source-original/cloudflare-d1/migrations/0008_t12_customer_master.sql
+          test ! -f connector-safe/cloudflare-d1/src/employee-auth-native-v1.mjs
+      - name: ACC257 through ACC262 original native source and synthetic SQLite customer capture
+        working-directory: connector-safe
+        env:
+          ACC260_ORIGINAL_SOURCE_DIR: ../source-original
+        run: |
+          node --test --experimental-sqlite tests/acc257_existing_platform_orders_no_customer_capture.test.mjs tests/acc258_private_platform_order_preview_no_go.test.mjs tests/acc259_native_assigned_reviewer_no_go.test.mjs tests/acc260_original_native_auth_joined_t12_no_go.test.mjs tests/acc261_immutable_signed_operational_review_no_go.test.mjs tests/acc262_original_customer_capture_finance_gate_no_go.test.mjs
+      - name: Hard stop before production Worker or financial event
+        working-directory: connector-safe
+        run: |
+          node --input-type=module -e "import{readFileSync as r}from'node:fs';const main=r('cloudflare-d1/src/index_v2.js','utf8'),s=r('cloudflare-d1/src/t12-original-at-create-finance-readiness-acc262-sourceonly.mjs','utf8');if(main.includes('acc262')||!s.includes('NO_GO')||!s.includes('SOURCE_ONLY_NOT_ATTESTED'))process.exit(1)"
