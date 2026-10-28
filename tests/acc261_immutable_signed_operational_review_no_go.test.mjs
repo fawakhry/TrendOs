@@ -83,7 +83,7 @@ async function login(f,p,opts={}){
 }
 function issue(f,p,token,overrides={}){
  return record({env:f.env,fixtureDb:f.raw,
-  verifyOriginalNativeSession,orderId:ORDER_ID,lineId:p.lineId,
+  verifyOriginalNativeSession:verifyNativeEmployeeSession,orderId:ORDER_ID,lineId:p.lineId,
   username:p.name,employeeToken:token,expectedVersion:0,
   requestKey:REQUEST,decision:'CONFIRM_OPERATIONAL_REVIEW_ONLY',
   nowMs:NOW,mode:'ISOLATED_SIGNED_REVIEW_SQLITE',...overrides});
