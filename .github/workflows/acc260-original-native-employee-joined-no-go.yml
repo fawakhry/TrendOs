@@ -1,0 +1,46 @@
+name: ACC260 pinned original native employee session joined to T12 (offline NO_GO)
+on:
+  push:
+    branches:
+      - fix/acc260-original-native-session-joined-source-no-go-20261028
+  pull_request:
+    branches:
+      - integration/trendos-easystore-verified-offline-no-go-20261025
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-joined-fake-d1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - name: Checkout isolated safe integration code
+        uses: actions/checkout@v4
+        with:
+          path: connector-safe
+          persist-credentials: false
+      - name: Checkout existing ORIGINAL employee native auth source (exact pinned SHA)
+        uses: actions/checkout@v4
+        with:
+          ref: b180e96d0568c54fef3af1079b1b0a4192cedc11
+          path: source-original
+          persist-credentials: false
+      - name: Assert pinned original source, no clone/copy of employee authentication
+        run: |
+          test "$(git -C source-original rev-parse HEAD)" = "b180e96d0568c54fef3af1079b1b0a4192cedc11"
+          test ! -e connector-safe/cloudflare-d1/src/employee-auth-native-v1.mjs
+          test -f source-original/cloudflare-d1/src/employee-auth-native-v1.mjs
+          test -f source-original/cloudflare-d1/migrations/0009_employee_auth_native_v1.sql
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Original native employee verifier + real original T12 operational schema joined offline
+        working-directory: connector-safe
+        env:
+          ACC260_ORIGINAL_SOURCE_DIR: ../source-original
+        run: |
+          node --test --experimental-sqlite tests/acc257_existing_platform_orders_no_customer_capture.test.mjs tests/acc258_private_platform_order_preview_no_go.test.mjs tests/acc259_native_assigned_reviewer_no_go.test.mjs tests/acc260_original_native_auth_joined_t12_no_go.test.mjs
+      - name: Enforce source-only/NO_GO and no new accounting or order writer
+        working-directory: connector-safe
+        run: |
+          node --input-type=module -e "import{readFileSync as read}from'node:fs';const src=read('cloudflare-d1/src/t12-native-department-review-acc259-sourceonly.mjs','utf8'),main=read('cloudflare-d1/src/index_v2.js','utf8');if(!src.includes('NO_GO')||!src.includes('readOnly:true')||main.includes('acc260'))process.exit(1)"
