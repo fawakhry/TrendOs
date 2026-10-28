@@ -1,0 +1,26 @@
+name: ACC259 original T12 native reviewer gate - source only
+on:
+  push:
+    branches:
+      - fix/acc259-native-staff-line-review-gate-no-go-20261028
+  pull_request:
+    branches:
+      - integration/trendos-easystore-verified-offline-no-go-20261025
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  acc259-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Reuse original ACC257 native order tests and isolated ACC259 reviewer guards
+        run: |
+          node --test --experimental-sqlite tests/acc257_existing_platform_orders_no_customer_capture.test.mjs tests/acc258_private_platform_order_preview_no_go.test.mjs tests/acc259_native_assigned_reviewer_no_go.test.mjs
+      - name: Hard stop before production Worker or finance write
+        run: |
+          node --input-type=module -e "import{readFileSync as r}from'node:fs';const main=r('cloudflare-d1/src/index_v2.js','utf8'),src=r('cloudflare-d1/src/t12-native-department-review-acc259-sourceonly.mjs','utf8');if(main.includes('acc259-sourceonly')||!src.includes('NO_GO')||!src.includes('readOnly:true'))process.exit(1)"
