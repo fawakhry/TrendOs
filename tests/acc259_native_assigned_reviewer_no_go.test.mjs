@@ -19,14 +19,14 @@ function fixture(){
  for(const name of ['0005_t12_production_create_canary','0006_t12_operational_runtime']){
   raw.exec(readFileSync('tests/fixtures/acc253-original-t12/'+name+'.fixture.sql.txt','utf8'));
  }
- raw.prepare('INSERT INTO t12_prod_request_ledger (request_key,actor,policy_epoch,canonical_json,order_id,status) VALUES (?,?,"fake","{}",?,"COMMITTED")').run(KEY,ACTOR,ORDER_ID);
- raw.prepare('INSERT INTO t12_prod_orders (order_id,request_key,customer_mode,customer_name,customer_phone,external_customer_id,department,priority,status,actor) VALUES (?,?,"external","TEST NAME","TEST PHONE","TEST_CODE","متعدد الأقسام","عادي","طلب جديد",?)').run(ORDER_ID,KEY,ACTOR);
+ raw.prepare(`INSERT INTO t12_prod_request_ledger (request_key,actor,policy_epoch,canonical_json,order_id,status) VALUES (?,?,'fake','{}',?,'COMMITTED')`).run(KEY,ACTOR,ORDER_ID);
+ raw.prepare(`INSERT INTO t12_prod_orders (order_id,request_key,customer_mode,customer_name,customer_phone,external_customer_id,department,priority,status,actor) VALUES (?,?,'external','TEST NAME','TEST PHONE','TEST_CODE','متعدد الأقسام','عادي','طلب جديد',?)`).run(ORDER_ID,KEY,ACTOR);
  for(const [i,dept,who] of [[1,'طباعة','وائل'],[2,'ليزر','جابر']]){
   const lineId=ORDER_ID+'-'+String(i).padStart(2,'0');
-  raw.prepare('INSERT INTO t12_prod_lines (line_id,order_id,request_key,ordinal,department,assigned_to,item_name,qty,priority,status,heat_press,fly_print) VALUES (?,?,?,?,?,?,"test-print",1,"عادي","طلب جديد",0,0)').run(lineId,ORDER_ID,KEY,i,dept,who);
-  raw.prepare('INSERT INTO t12_prod_outbox (request_key,event_key,order_id,line_id,event_type,status,payload_json) VALUES (?,?,?,?,"trend-master-status-intent","pending","{}")').run(KEY,'queue:'+String(i).padStart(2,'0'),ORDER_ID,lineId);
+  raw.prepare(`INSERT INTO t12_prod_lines (line_id,order_id,request_key,ordinal,department,assigned_to,item_name,qty,priority,status,heat_press,fly_print) VALUES (?,?,?,?,?,?,'test-print',1,'عادي','طلب جديد',0,0)`).run(lineId,ORDER_ID,KEY,i,dept,who);
+  raw.prepare(`INSERT INTO t12_prod_outbox (request_key,event_key,order_id,line_id,event_type,status,payload_json) VALUES (?,?,?,?,'trend-master-status-intent','pending','{}')`).run(KEY,'queue:'+String(i).padStart(2,'0'),ORDER_ID,lineId);
  }
- raw.prepare('INSERT INTO t12_prod_events (request_key,event_key,order_id,event_type,payload_json) VALUES (?,"activity",?,"order-create","{}")').run(KEY,ORDER_ID);
+ raw.prepare(`INSERT INTO t12_prod_events (request_key,event_key,order_id,event_type,payload_json) VALUES (?,'activity',?,'order-create','{}')`).run(KEY,ORDER_ID);
  for(const table of ['t12_prod_orders','t12_prod_request_ledger','t12_prod_lines','t12_prod_outbox','t12_prod_events'])
   raw.exec("UPDATE "+table+" SET created_at='2026-09-21 14:13:20'");
  const allowed=new Set([ORDER,LINES,ACTIVITY,OUTBOX,RUNTIME,ACC259_ASSIGNED_LINE_SQL]);
