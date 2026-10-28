@@ -1,0 +1,26 @@
+name: ACC258 native T12 signed private preview (OFF, offline only)
+on:
+  push:
+    branches:
+      - fix/acc258-native-private-order-preview-sourceonly-20261028
+  pull_request:
+    branches:
+      - integration/trendos-easystore-verified-offline-no-go-20261025
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-no-go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Original native T12 source and ACC258 private signed preview tests
+        run: |
+          node --test --experimental-sqlite tests/acc257_existing_platform_orders_no_customer_capture.test.mjs tests/acc258_private_platform_order_preview_no_go.test.mjs
+      - name: Prove no production imports, deployment, or finance flags were introduced
+        run: |
+          node --input-type=module -e "import{readFileSync as read}from'node:fs';const main=read('cloudflare-d1/src/index_v2.js','utf8');if(main.includes('acc258'))process.exit(1);const x=read('cloudflare-d1/src/t12-platform-order-private-preview-acc258.mjs','utf8');if(!x.includes('NO_GO')||!x.includes('ISOLATED_SOURCE_ONLY'))process.exit(1);"
