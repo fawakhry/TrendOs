@@ -1,9 +1,11 @@
 /* ACC259 — existing native employee/session + original T12 assigned-line review.
- * SOURCE-ONLY. No new roster, SQL migration, Worker route, financial approval
+ * SOURCE-ONLY. Reuses ORIGINAL native session verifier via a server-only hook;
+ * that verifier is not present on the isolated integration branch and MUST be
+ * injected by the existing ORIGINAL Worker (not by browser or request JSON).
+ * No new roster, SQL migration, Worker route, financial approval
  * event, issuer, session minting, customer link or invoice.
  * Operational reviewer authentication is NOT financial consent.
  */
-import {verifyNativeEmployeeSession} from './employee-auth-native-v1.mjs';
 import {inspectPlatformNativeOrderContextReadOnly} from './t12-platform-order-context-readonly-acc257.mjs';
 
 export const ACC259_POLICY=Object.freeze({
@@ -42,12 +44,12 @@ const sourceVersion=s=>JSON.stringify({
 });
 export async function inspectOriginalNativeReviewerACC259({
  env,orderId,lineId,username,employeeToken,nowMs=Date.now(),
- mode
+ verifyOriginalNativeSession,mode
 }={}){
  if(mode!=='ISOLATED_NATIVE_REVIEW_READONLY'||
     env?.TRENDOS_DEPARTMENT_REVIEW_ACC259_MODE!=='ISOLATED_NATIVE_REVIEW_READONLY')
   return denied('ACC259_DISABLED');
- if(!env?.DB||typeof env.DB.prepare!=='function'||
+ if(typeof verifyOriginalNativeSession!=='function'||!env?.DB||typeof env.DB.prepare!=='function'||
     typeof env.DB.batch!=='function'||!validId(orderId)||
     !/^[0-9]{4,18}$/.test(orderId)||!validId(lineId)||
     !validId(username)||typeof employeeToken!=='string'||
@@ -56,7 +58,7 @@ export async function inspectOriginalNativeReviewerACC259({
   return denied('ACC259_EXACT_NATIVE_ORDER_LINE_AND_SESSION_REQUIRED');
  try{
   // Existing employee_auth_sessions_v1+employee_auth_users_v1, readOnly.
-  const auth=await verifyNativeEmployeeSession(
+  const auth=await verifyOriginalNativeSession(
     username,employeeToken,env,nowMs,{readOnly:true});
   if(auth?.hit!==true||auth?.authSource!=='d1-native-employee-v1'||
     auth?.body?.success!==true||!auth.body.user||
