@@ -52,7 +52,7 @@
     if (start < 0) return str.trim();
     var end = str.indexOf(END, start);
     if (end < 0) return str.trim(); // never delete user's text on malformed tag
-    return (str.slice(0,start) + str.slice(end+END.length)).trim();
+    return (str.slice(0,start) + str.slice(end+END.length)).trim().replace(/^تعليمات العميل:\\s*/,"").trim();
   }
   function buildNotes(value, rawNotes) {
     var recipe = getRecipe(value.product);
