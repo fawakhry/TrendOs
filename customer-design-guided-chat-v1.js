@@ -144,8 +144,8 @@
       var nativeNotes=byId(doc,"customerOrderNotes");
       nativeNotes.value=buildNotes(value,nativeNotes.value);
       nativeNotes.dispatchEvent(new Event("input",{bubbles:true}));
-      var dep=byId(doc,"customerOrderDepartment");
-      dep.value=getRecipe(value.product).department;
+      // Department stays under the existing client selector's control:
+      // some products (e.g. bracelets) may be engraved rather than printed.
       announce(doc,"المواصفات وقواعد حماية الصورة أُضيفت لنفس مسودة الأوردر. رفع الملفات يتم من الأزرار الأصلية للمحادثة.",false);
     },true);
     // The former designer teaser must open the exact same authenticated draft chat,
