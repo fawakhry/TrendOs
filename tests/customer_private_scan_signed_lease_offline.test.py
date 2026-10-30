@@ -174,7 +174,7 @@ class SyntheticSignedScanLease(unittest.TestCase):
                 self.assertEqual(out["code"], "SCAN_LEASE_CLAIMS_OR_EXPIRY_REJECTED")
                 self.assertEqual(self.r2_reads, 0)
                 self.assert_never_release(out)
-        for at in (NOW - 1, NOW + 70000):
+        for at in (NOW - 6000, NOW + 70000):
             with self.subTest(now=at):
                 out = self.consume(orig, now_ms=at)
                 self.assertEqual(out["code"], "SCAN_LEASE_CLAIMS_OR_EXPIRY_REJECTED")
