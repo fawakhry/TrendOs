@@ -41,7 +41,7 @@ def _default_opener():
     )
 
 
-def _read_screen(opener, credential: str, screen: str) -> list[dict]:
+def _read_screen(opener, credential: str, screen: str, *, include_packet: bool = False) -> list[dict] | dict:
     if screen not in _SCREENS:
         raise TrendosShopReadError("SERVER34_SCOPE_DENIED")
     query = urlencode({"screen": screen, "page": 1, "pageSize": _MAX_PAGE_SIZE})
@@ -96,7 +96,7 @@ def _read_screen(opener, credential: str, screen: str) -> list[dict]:
         if row["lineId"] in seen:
             raise TrendosShopReadError("SERVER34_DUPLICATE_LINE")
         seen.add(row["lineId"])
-    return rows
+    return payload if include_packet else rows
 
 
 def read_trendosshop_once(
@@ -127,3 +127,30 @@ def read_trendosshop_once(
         "businessWrites": False,
         "deviceExecution": False,
     }
+
+
+def read_trendosshop_dispatch_preview_once(
+    credential: str, *, enabled: bool = False, owner_authorized: bool = False,
+    opener=None
+) -> dict:
+    """SERVER-77: reuse the actual bounded signed service-reader transport.
+
+    Preview contains order-line IDs only for a human queue, never raw customer
+    rows or file bytes. Both opt-in gates must be literal bool True. No
+    scheduler, equipment, Cloudflare mutation, folders, printing, R2 or logs.
+    The server-side print+laser service token is not an employee credential.
+    """
+    if enabled is not True or owner_authorized is not True:
+        raise TrendosShopReadError("SERVER34_LIVE_READ_DISABLED")
+    if type(credential) is not str or not _TOKEN_PATTERN.fullmatch(credential):
+        raise TrendosShopReadError("SERVER34_INVALID_SERVICE_CREDENTIAL")
+    # Reuse the same pinned HTTPS endpoint and strict transport/row validation;
+    # unlike the counts-only CLI this preserves authentic hasMore metadata.
+    client = opener if opener is not None else _default_opener()
+    packets = {
+        screen: _read_screen(client, credential, screen, include_packet=True)
+        for screen in _SCREENS
+    }
+    # Never pretend a truncated page is the complete dispatch backlog.
+    from .production_dispatch_preview import build_employee_dispatch_preview
+    return build_employee_dispatch_preview(packets)

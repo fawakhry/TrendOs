@@ -1,0 +1,31 @@
+# SERVER-68 REVIEW ONLY — isolated Worker namespace; do NOT deploy automatically.
+# Deliberately distinct from production "trendos", "trendos-d1-api" and Ubuntu.
+# No D1 bindings: even a mistakenly enabled read cannot query production rows.
+# NO account ID, secret, tokens, routes, zones or production hostnames.
+name = "trendos-server68-isolated-stage"
+main = "production-shadow/index.js"
+compatibility_date = "2026-10-16"
+workers_dev = false
+preview_urls = false
+
+[vars]
+MIRROR_SERVICE_READ_ENABLED = "false"
+MIRROR_METADATA_READ_ENABLED = "false"
+MIRROR_PARITY_READ_ENABLED = "false"
+TRENDOSSHOP_SERVICE_READ_ENABLED = "false"
+TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"
+TRENDOS_R5_PERIODIC_ENABLED = "false"
+TRENDOS_T12_PROD_CREATE_CANARY_ENABLED = "false"
+AUTONOMOUS_PRINTSHOP_SHADOW_V1_ENABLED = "false"
+TRENDOS_CLOUD_AUTH_SHADOW_V1_ENABLED = "false"
+TRENDOS_EMPLOYEE_AUTH_V1_ENABLED = "false"
+
+# This Durable Object binding exists in configuration SOURCE ONLY.
+# It must NOT be provisioned without a separately approved stage migration.
+[[durable_objects.bindings]]
+name = "MIRROR_SERVICE_READ_REPLAY_DO"
+class_name = "MirrorServiceNonceGuardV1"
+
+[[migrations]]
+tag = "server68_isolated_stage_nonce_v1"
+new_sqlite_classes = ["MirrorServiceNonceGuardV1"]

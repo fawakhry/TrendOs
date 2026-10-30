@@ -1,0 +1,36 @@
+name: SERVER-136 CF-Ray GraphQL Offline Safety
+
+on:
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+    paths:
+      - autonomous-printshop/print-server/src/server136_access_ray_graphql.py
+      - autonomous-printshop/print-server/tests/test_server136_access_ray_graphql.py
+      - .github/workflows/server136-stage-cf-ray-graphql-offline.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fake-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCESS_CLIENT_ID: ''
+      CLOUDFLARE_ACCESS_CLIENT_SECRET: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run SERVER-136 fake-only GraphQL tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests \
+            -p 'test_server136_access_ray_graphql.py' -v
+          echo 'SERVER136_CI=FAKE_ONLY; GRAPHQL_LIVE_CALLS=0'
+          echo 'ORDERS_READ=0; PRODUCTION_WORKER_TOUCHED=NO; DEVICES=OFF'

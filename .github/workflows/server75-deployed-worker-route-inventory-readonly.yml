@@ -1,0 +1,90 @@
+name: SERVER-75 Deployed Worker Route Fingerprint (GET Only)
+
+# Owner-approved browser-free source verification; no D1, customer rows, POST,
+# script modification, deployment, local files, or logging downloaded code.
+on:
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+    paths:
+      - .github/workflows/server75-deployed-worker-route-inventory-readonly.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deployed-route-fingerprint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Download only Worker code inside ephemeral memory and print boolean route markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from urllib.request import Request, build_opener, HTTPSHandler, HTTPRedirectHandler, ProxyHandler
+          from urllib.error import HTTPError, URLError
+
+          WORKERS=('trendos','trendos-d1-api')
+          MARKERS={
+            'printshop_readonly_route': b'/v1/printshop/service/orders/page',
+            'printshop_reader_flag': b'TRENDOSSHOP_SERVICE_READ_ENABLED',
+            'native_orders_page': b'/v1/edge/orders/02cr/page',
+            'service_orders_page': b'/v1/edge/orders/service/page',
+            'native_customer_search': b'/v1/edge/customers/search',
+            'signed_mirror_route': b'/v1/service/mirror/stats',
+          }
+          token=os.environ.get('CLOUDFLARE_API_TOKEN','')
+          account=os.environ.get('CLOUDFLARE_ACCOUNT_ID','')
+          if not token or not account:
+            print('SERVER75=NOT_RUN_GITHUB_CLOUDFLARE_CREDENTIAL_UNAVAILABLE')
+            raise SystemExit(0)
+          class NoRedirect(HTTPRedirectHandler):
+            def redirect_request(self,req,fp,code,msg,headers,newurl):
+              return None
+          opener=build_opener(ProxyHandler({}), HTTPSHandler(), NoRedirect())
+          for worker in WORKERS:
+            url=('https://api.cloudflare.com/client/v4/accounts/'+account+
+              '/workers/scripts/'+worker+'/content/v2')
+            req=Request(url,method='GET',headers={
+              'Authorization':'Bearer '+token,'Accept':'*/*'
+            })
+            try:
+              with opener.open(req,timeout=18) as r:
+                if r.status!=200:
+                  print('SERVER75_WORKER='+worker+';VERIFIED=NO;HTTP_STATUS='+str(r.status))
+                  continue
+                body=r.read(8388609)
+                if len(body)>8388608:
+                  print('SERVER75_WORKER='+worker+';VERIFIED=NO;CONTENT_TOO_LARGE=YES')
+                  continue
+                if not body:
+                  print('SERVER75_WORKER='+worker+';VERIFIED=NO;EMPTY_CONTENT=YES')
+                  continue
+                safe={
+                  'worker':worker,
+                  'downloaded_from_cloudflare':True,
+                  'byte_count':len(body),
+                  'content_sha256_prefix':hashlib.sha256(body).hexdigest()[:16],
+                  'markers':{k:(v in body) for k,v in MARKERS.items()},
+                  'active_version_hash_match':'NOT_PROVEN',
+                  'source_git_sha_match':'NOT_PROVEN',
+                  'runtime_flags_enabled':'NOT_PROVEN'
+                }
+                print('SERVER75_DEPLOYED_ROUTE_FINGERPRINT='+json.dumps(
+                  safe,separators=(',',':'),sort_keys=True))
+            except HTTPError as exc:
+              print('SERVER75_WORKER='+worker+';VERIFIED=NO;HTTP_STATUS='+str(exc.code))
+              exc.close()
+            except (URLError,TimeoutError,ValueError,TypeError,OSError):
+              print('SERVER75_WORKER='+worker+';VERIFIED=NO;READ_ERROR=YES')
+          print('SERVER75_GET_ONLY=YES;WORKER_CODE_PRINTED=NO;CUSTOMER_ROWS=NO;D1_READ=NO')
+          print('SERVER75_DEPLOY=NO;PROD_CHANGE=NO;DEVICE_ACTION=NO;D01_TO_D06_STILL_NO_GO=YES')
+          PY

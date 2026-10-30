@@ -1,0 +1,159 @@
+name: SERVER-82 Resume Existing Synthetic D1 / Bind Unpublished Stage Only
+
+# User-directed continuation of already created private test Worker.
+# One-shot, parent-pinned, path-filtered, NO database creation, only stage binding.
+# Do not add workflow_dispatch, schedule, generic deploy or repeat trigger.
+on:
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+    paths:
+      - .github/workflows/server82-stage-only-synthetic-d1-once.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server82-stage-only-synthetic-d1-create-once
+  cancel-in-progress: false
+
+jobs:
+  verify-existing-synthetic-d1-and-bind-unpublished-stage:
+    if: github.repository == 'fawakhry/TrendOs' && github.ref == 'refs/heads/release/server68-staging-qualification-20261016' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SERVER82_OWNER_CONTINUATION_ALLOWED: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exact owner-continuation source / one-shot pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'fawakhry/TrendOs'
+          test "$GITHUB_REF" = 'refs/heads/release/server68-staging-qualification-20261016'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^)" = '196d7c11ad516d0e536d32778d018d5303195b8f'
+          test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = '.github/workflows/server82-stage-only-synthetic-d1-once.yml'
+          test -n "$CLOUDFLARE_API_TOKEN"
+          [[ "$CLOUDFLARE_ACCOUNT_ID" =~ ^[a-fA-F0-9]{32}$ ]]
+          echo 'SERVER82_ONE_SHOT_LOCKED_TO_STAGE_ONLY=PASS'
+      - name: Verify schema OFFLINE without inheriting Cloudflare secrets
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+          SERVER82_OWNER_CONTINUATION_ALLOWED: 'false'
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s autonomous-printshop/print-server/tests -p 'test_server82_stage_d1.py' -v
+          PYTHONDONTWRITEBYTECODE=1 python3 \
+            autonomous-printshop/print-server/tools/server82_stage_d1.py --validate
+          node autonomous-printshop/print-server/tools/server80_isolated_stage_deploy_guard.mjs --validate
+          test ! -e cloudflare-d1/.dev.vars
+          echo 'SERVER82_PREEXISTING_PRODUCTION_D1=FORBIDDEN'
+      - name: Verify existing fake D1 via SELECT only before any Worker binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 \
+            autonomous-printshop/print-server/tools/server82_stage_d1.py --resume-existing
+          test -s /tmp/server82-db-id
+          test -s /tmp/server82-stage-toml
+          echo 'SERVER82_EXISTING_FAKE_D1_PROVENANCE_AND_LINES=READONLY_VERIFIED'
+      - name: Prepare temporary isolated-stage binding (never commit resource IDs)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          source=Path('/tmp/server82-stage-toml').read_text()
+          assert source.count('[[d1_databases]]') == 1
+          assert 'database_name = "trendos-server82-synthetic-20261021"' in source
+          assert 'binding = "DB"' in source
+          assert 'workers_dev = false' in source and 'preview_urls = false' in source
+          assert 'TRENDOSSHOP_SERVICE_READ_ENABLED = "false"' in source
+          assert 'MIRROR_SERVICE_READ_ENABLED = "false"' in source
+          assert 'trendos-main' not in source
+          path=Path('cloudflare-d1/wrangler.server68-isolated-stage.toml')
+          path.write_text(source)
+          print('SERVER82_TEMPORARY_ONLY_STAGE_BINDING_PREPARED=PASS')
+          PY
+          npx --yes wrangler@4.149.0 deploy \
+            --config cloudflare-d1/wrangler.server68-isolated-stage.toml \
+            --dry-run --outdir /tmp/server82-bundle
+          test -n "$(find /tmp/server82-bundle -maxdepth 1 -name '*.js' -print -quit)"
+          echo 'SERVER82_D1_BOUND_WORKER_DRY_RUN=PASS'
+      - name: Deploy existing isolated Worker ONLY with synthetic D1, all readers OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.149.0 deploy \
+            --config cloudflare-d1/wrangler.server68-isolated-stage.toml
+          echo 'SERVER82_UNPUBLISHED_STAGE_EXISTING_D1_BINDING_DEPLOY=ATTEMPTED'
+      - name: Independently verify only fake D1 bound and stage still unpublished
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0,'autonomous-printshop/print-server/tools')
+          import server82_stage_d1 as m
+          import os
+          dbid=Path('/tmp/server82-db-id').read_text().strip()
+          cf=m.Cloudflare(os.environ['CLOUDFLARE_ACCOUNT_ID'],os.environ['CLOUDFLARE_API_TOKEN'])
+          info={}
+          for suffix in ('settings','subdomain','deployments'):
+              x=cf.call('GET',f'/workers/scripts/{m.STAGE}/{suffix}').get('result')
+              if not isinstance(x,dict):
+                  raise m.StageBlocked('SERVER82_POSTDEPLOY_METADATA_INVALID')
+              info[suffix]=x
+          bindings=info['settings'].get('bindings')
+          if not isinstance(bindings,list):
+              raise m.StageBlocked('SERVER82_POSTDEPLOY_BINDINGS_UNKNOWN')
+          named={x.get('name'):x for x in bindings if isinstance(x,dict)}
+          d1=named.get('DB',{})
+          if (d1.get('type')!='d1' or
+              d1.get('id',d1.get('database_id')) != dbid or
+              named.get('TRENDOSSHOP_SERVICE_READ_ENABLED',{}).get('text')!='false' or
+              named.get('MIRROR_SERVICE_READ_ENABLED',{}).get('text')!='false'):
+              raise m.StageBlocked('SERVER82_WRONG_D1_OR_ENABLED_SERVICE_READ')
+          pub=info['subdomain']
+          if pub.get('enabled') is not False or pub.get('previews_enabled') is not False:
+              raise m.StageBlocked('SERVER82_STAGE_PUBLICATION_UNSAFE')
+          deps=info['deployments'].get('deployments',[])
+          if not deps or not isinstance(deps[0],dict) or not deps[0].get('versions'):
+              raise m.StageBlocked('SERVER82_POSTDEPLOY_VERSION_UNVERIFIED')
+          print('SERVER82_STAGE_DB_SYNTHETIC_ID_MATCH=YES; PUBLIC_LINKS_OFF=YES')
+          print('SERVER82_CUSTOMER_PRODUCTION_READ=NO; PRINT_LASER_EXECUTE=NO')
+          PY
+      - name: Summarize bounded stage result, no live release claims
+        shell: bash
+        run: |
+          {
+            echo '## SERVER-82: stage-only synthetic D1'
+            echo 'Reused existing D1 with exactly two fictional lines for one fake order.'
+            echo 'Existing unpublished stage Worker bound to this D1 only.'
+            echo 'Workers.dev OFF; preview URLs OFF; all customer/order readers OFF.'
+            echo 'No production D1, R5, Apps Script, Ubuntu, files, or equipment touched.'
+            echo 'D01 still needs a separate private test route / Cloudflare Access gate.'
+            echo 'D02-D06 remain NO_GO. This is NOT production go-live.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove temporary D1 ID and ephemeral deployment manifest
+        if: always()
+        shell: bash
+        run: |
+          rm -f /tmp/server82-db-id /tmp/server82-stage-toml
+          git checkout -- cloudflare-d1/wrangler.server68-isolated-stage.toml || true

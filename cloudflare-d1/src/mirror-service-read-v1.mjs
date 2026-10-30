@@ -107,7 +107,7 @@ export async function handleMirrorServiceRead(request, env = {}) {
     const namespace = env.MIRROR_SERVICE_READ_REPLAY_DO;
     if (!namespace || typeof namespace.idFromName !== 'function' ||
         typeof namespace.get !== 'function') return answer(503, 'replay-guard-unavailable');
-    const id = namespace.idFromName(authenticated.principal);
+    const id = namespace.idFromName(authenticated.scope);
     const stub = namespace.get(id);
     if (!stub || typeof stub.fetch !== 'function') return answer(503, 'replay-guard-unavailable');
     const receipt = await stub.fetch(new Request('https://mirror-replay.internal/consume', {

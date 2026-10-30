@@ -1,0 +1,43 @@
+name: SERVER-89 Confirm Failed Access Write Changed Nothing (GET only)
+on:
+  push:
+    branches:
+      - release/server68-staging-qualification-20261016
+    paths:
+      - .github/workflows/server89-post-access-denial-readonly.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Actual Cloudflare GET-only check, fail closed if any stage Access protection appeared unexpectedly
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SERVER85_METADATA_READ_ALLOW: 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 autonomous-printshop/print-server/tools/server85_access_readiness.py --metadata-get-only > /tmp/s89-safe-audit
+          python3 - <<'PY'
+          import json
+          with open('/tmp/s89-safe-audit', encoding='utf-8') as f:
+              report = json.loads(f.read().split('SERVER85_REDACTED_REPORT=',1)[1])
+          assert report['stage']['stage_deploy']['pinnedLiveVersion'] is True
+          assert report['stage']['stage_settings']['readerOff'] is True
+          assert report['stage']['stage_settings']['readerSecretAbsent'] is True
+          assert report['stage']['stage_subdomain']['workersDevOff'] is True
+          assert report['stage']['stage_subdomain']['previewUrlsOff'] is True
+          access=report['externalPrerequisites']['access_apps']
+          assert access['verified'] is True and access['firstPageComplete'] is True
+          assert access['stageNamedApplicationCount']==0
+          assert report['d01D06Release']=='NO_GO'
+          print('SERVER89_POST_DENIED_ACCESS_APP_ABSENT=VERIFIED')
+          print('SERVER89_STAGE_PUBLICATION_OFF=YES; READER_OFF=YES; CUSTOMER_DATA=NO')
+          print('SERVER89_PRODUCTION_CHANGED=NOT_REQUESTED; REAL_UBUNTU=OFF')
+          PY
