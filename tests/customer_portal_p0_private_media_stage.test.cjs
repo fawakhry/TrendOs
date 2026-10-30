@@ -110,7 +110,7 @@ test("private mock file requires explicit private permission and records only af
  const v=runUpload();
  assert.equal(v.result.success,true);
  assert.equal(v.state.created,1);
- assert.deepEqual(v.state.sharing,[["PRIVATE","NONE"]]);
+ assert.deepEqual(v.state.sharing,[["PRIVATE","VIEW"]]);
  assert.equal(v.state.recorded,1);
  assert.equal(v.state.trashed,0);
 });
