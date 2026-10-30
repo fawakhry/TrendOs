@@ -6038,7 +6038,8 @@ function getCustomerOrders_(e) {
   const colOrderId = firstCol_(h, ["رقم الأوردر", "Order ID"], 1);
   const colLineId = firstCol_(h, ["رقم البند", "Line ID"], 0);
   const colCode = firstCol_(h, ["كود الشات", "كود العميل", "Customer Code"], 0);
-  const colCustomer = firstCol_(h, ["اسم الشات / المكتب", "اسم العميل", "Customer Name"], 0);
+  // Fail closed: absent customer code column cannot establish ownership.
+  if (!colCode) return { success: false, message: "تعذر التحقق من ملكية الأوردرات. تواصل مع مطبعجي." };
   const colDept = firstCol_(h, ["القسم", "Department"], 0);
   const colItem = firstCol_(h, ["اسم البند / نوع الشغل", "اسم البند", "Item Name"], 0);
   const colQty = firstCol_(h, ["الكمية", "Qty"], 0);
@@ -6050,14 +6051,13 @@ function getCustomerOrders_(e) {
   const colUpdated = firstCol_(h, ["آخر تحديث", "Updated At"], 0);
 
   const orders = {};
-  const nameKey = searchKey_(customer.name);
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     const orderId = normalize_(valueAt_(row, colOrderId));
     if (!orderId) continue;
     const rowCode = normalize_(valueAt_(row, colCode));
-    const rowNameKey = searchKey_(valueAt_(row, colCustomer));
-    if (rowCode !== customer.customerCode && (!nameKey || rowNameKey !== nameKey)) continue;
+    // Customer-owned read: identical names NEVER override account-code mismatch.
+    if (!rowCode || rowCode !== customer.customerCode) continue;
     if (!orders[orderId]) {
       orders[orderId] = {
         orderId: orderId,
@@ -6365,7 +6365,12 @@ function uploadCustomerDraftFile_(payload) {
   const base64 = normalize_(payload.base64);
   const size = Number(payload.size || 0) || 0;
   if (!draftId || !itemId || !base64) return { success: false, message: "بيانات رفع الملف ناقصة." };
-  if (size > CUSTOMER_UPLOAD_MAX_BYTES) return { success: false, message: "حجم الملف أكبر من الحد المسموح 25MB." };
+  // Prevent encoded body and declared-length abuse BEFORE allocating decoded bytes.
+  if (!Number.isSafeInteger(size) || size <= 0 || size > CUSTOMER_UPLOAD_MAX_BYTES ||
+      base64.length > 4 * Math.ceil(CUSTOMER_UPLOAD_MAX_BYTES / 3) + 8 ||
+      !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) {
+    return { success: false, message: "حجم أو صيغة الملف غير صحيحة." };
+  }
 
   const foundDraft = findDraftRow_(draftId, customer.customerCode);
   if (!foundDraft) return { success: false, message: "المسودة غير موجودة." };
@@ -6405,10 +6410,27 @@ function uploadCustomerDraftFile_(payload) {
   if (!itemFolderId) return { success: false, message: "لم يتم العثور على فولدر البند." };
 
   const bytes = Utilities.base64Decode(base64);
-  const blob = Utilities.newBlob(bytes, mimeType, fileName);
+  // Treat payload.size as advisory only; decoded length is the authority.
+  if (bytes.length !== size || bytes.length > CUSTOMER_UPLOAD_MAX_BYTES) {
+    return { success: false, message: "حجم الملف الفعلي لا يطابق البيانات المرسلة." };
+  }
+  // Private-by-default staging guard. Merely removing ANYONE_WITH_LINK is
+  // insufficient if the owner folder inherits public/shared permissions.
   const folder = DriveApp.getFolderById(itemFolderId);
+  if (folder.getSharingAccess() !== DriveApp.Access.PRIVATE) {
+    return { success: false, message: "تخزين صور العميل غير خاص؛ تم إيقاف الرفع لحماية الصور." };
+  }
+  const blob = Utilities.newBlob(bytes, mimeType, fileName);
   const file = folder.createFile(blob);
-  try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+  try {
+    file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+    if (file.getSharingAccess() !== DriveApp.Access.PRIVATE) {
+      throw new Error("CREATED_FILE_NOT_PRIVATE");
+    }
+  } catch (err) {
+    try { file.setTrashed(true); } catch (cleanupError) {}
+    return { success: false, message: "تعذر تأمين خصوصية الملف؛ تم إيقاف الرفع." };
+  }
   const now = new Date();
 
   appendByHeaders_(files, {
