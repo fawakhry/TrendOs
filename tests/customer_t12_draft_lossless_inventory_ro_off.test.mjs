@@ -57,7 +57,10 @@ function mock(options={}){
         async first(){
           assert.equal(mode,'owner');
           calls.sessionReads++;
-          return fixture.revoked?null:structuredClone(fixture.owner);
+          // The real OWNER_SQL is session/account/customer joined. A foreign
+          // tenant draft is not returned by its first() in D1.
+          return fixture.revoked||fixture.owner?.customerId!==C1
+            ?null:structuredClone(fixture.owner);
         },
         async all(){throw Error('Only D1 read batch allowed');},
         async run(){calls.writes++;throw Error('WRITES_NOT_ALLOWED');},
