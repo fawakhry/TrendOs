@@ -69,9 +69,17 @@ test('fails closed if customer stage enabled accidentally or made public',t=>{
 });
 test('fails closed if customer Google set silently loses an action',t=>{
   const x=frozenFixture(t);
-  x.edit('cloudflare-d1/src/legacy-browser-transport-v1.mjs',
-    s=>s.replace("'submitCustomerDraft', 'uploadCustomerDraftFile'",
-      "'submitCustomerDraft'"));
+  // Legacy source contains a second, broader action allowlist earlier in the
+  // file. Mutate the scoped nine-action declaration only, not the first match.
+  x.edit('cloudflare-d1/src/legacy-browser-transport-v1.mjs',s=>{
+    const i=s.indexOf('const LEGACY_CUSTOMER_SESSION_ACTIONS');
+    assert.ok(i>=0);
+    const prefix=s.slice(0,i),tail=s.slice(i);
+    const changed=tail.replace("'submitCustomerDraft', 'uploadCustomerDraftFile'",
+      "'submitCustomerDraft'");
+    assert.notEqual(changed,tail);
+    return prefix+changed;
+  });
   const r=inspect(x.root);
   assert.equal(r.checks.nine_legacy_actions_match_source,false);
   assert.equal(r.productionGo,false);
