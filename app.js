@@ -1727,9 +1727,28 @@ Trend Mall`;
   function clearCustomerSession() {
     sessionStorage.removeItem("matbagy_platform_customer_session");
     try { localStorage.removeItem("matbagy_platform_customer_session"); } catch (e) {}
+    // Tenant/user boundary: never leave selected photos or their local preview URLs
+    // available to the next customer using the same browser tab.
+    clearCustomerDraftInputs();
+    if (window.TrendOSCustomerRecipe && typeof window.TrendOSCustomerRecipe.reset === "function") {
+      window.TrendOSCustomerRecipe.reset(document);
+    }
+    ["customerPassword", "customerCode"].forEach(function (id) {
+      if ($(id)) $(id).value = "";
+    });
+    state.customerImageViewerFiles = [];
+    state.customerImageViewerIndex = 0;
+    if ($("customerImageViewerModal")) $("customerImageViewerModal").classList.add("hidden");
     state.customer = null;
     state.customerOrders = [];
     state.customerDraft = null;
+    state.customerViewMode = "home";
+    state.customerSelectedSection = null;
+    state.customerSelectedFranchise = null;
+    state.customerSelectedMarketVendor = null;
+    state.customerSelectedMarketProduct = null;
+    state.customerLocation = null;
+    state.customerDesignOfferItemId = "";
   }
 
   function customerAuthParams(extra) {
@@ -1794,6 +1813,7 @@ Trend Mall`;
         return;
       }
       state.customer = res.customer || {};
+      if ($("customerPassword")) $("customerPassword").value = "";
       saveCustomerSession();
       bootCustomerMain();
       if (state.customer.mustChange) openCustomerPasswordModal();
@@ -4002,6 +4022,11 @@ Trend Mall`;
 
   function closeVisitorPreview() {
     state.visitorPreview = false;
+    // Preview mode may stage in-browser objects; never carry them to a customer session.
+    clearCustomerDraftInputs();
+    if (window.TrendOSCustomerRecipe && typeof window.TrendOSCustomerRecipe.reset === "function") {
+      window.TrendOSCustomerRecipe.reset(document);
+    }
     state.customer = null;
     state.customerDraft = null;
     showMain();
@@ -7239,7 +7264,11 @@ Trend Mall`;
     on("customerGoHomeBtn", "click", function () { state.customerSelectedSection = null; state.customerViewMode = "home"; renderCustomerHome(); });
     on("customerShowOrdersBtn", "click", function () { state.customerViewMode = "orders"; renderCustomerHome(); loadCustomerOrders(); });
     on("customerShowNewOrderBtn", "click", function () { state.customerSelectedSection = null; state.customerViewMode = "newOrder"; if (!state.customerDraft || state.customerDraft.submitted) resetCustomerDraft(); renderCustomerHome(); applyCustomerSelectedSectionToComposer(); });
-    on("customerShowDesignerBtn", "click", function () { state.customerViewMode = "designer"; renderCustomerHome(); });
+    on("customerShowDesignerBtn", "click", function () {
+      // Reuse the authenticated customer draft conversation, not the legacy placeholder.
+      const newOrder = $("customerShowNewOrderBtn");
+      if (newOrder) newOrder.click();
+    });
     on("customerUseGpsBtn", "click", requestCustomerGps);
     on("customerRefreshMarketplaceBtn", "click", function () { loadMarketplace(false); });
     on("customerOpenMatbagySheetsBtn", "click", function () { window.open("https://fawakhry.github.io/Matbagy/?from=matbagy-platform", "_blank"); });
