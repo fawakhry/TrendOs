@@ -10,6 +10,7 @@ import os
 import pathlib
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -126,6 +127,47 @@ class OfflineScanner(unittest.TestCase):
                 self.assert_never_authorized(r)
         r = self.run_scan(timeout_seconds=0)
         self.assertEqual(r["code"], "SCAN_TIMEOUT_CONFIG_INVALID")
+        self.assert_never_authorized(r)
+
+    def test_signature_timestamp_symlink_and_empty_preflight_fail_closed(self):
+        # mtime is only a preliminary LOCAL reject rule, never vendor
+        # authenticity proof, and no synthetic CLEAN grants file release.
+        try:
+            for changed_mtime in (time.time() - 73 * 3600, time.time() + 600):
+                os.utime(self.signature, (changed_mtime, changed_mtime))
+                result = self.run_scan()
+                self.assertEqual(result["code"], "SCAN_SIGNATURE_DATABASE_TIMESTAMP_REJECTED")
+                self.assertFalse(result["scannerEngineExecuted"])
+                self.assert_never_authorized(result)
+                self.assertIs(result["signatureDatabaseAuthenticityVerified"], False)
+        finally:
+            now = time.time()
+            os.utime(self.signature, (now, now))
+
+        untrusted = self.db / "linked-test.hdb"
+        untrusted.symlink_to(self.signature)
+        try:
+            result = self.run_scan()
+            self.assertEqual(result["code"], "SCAN_SIGNATURE_DATABASE_UNTRUSTED_PATH")
+            self.assertFalse(result["scannerEngineExecuted"])
+            self.assert_never_authorized(result)
+        finally:
+            untrusted.unlink()
+
+        original = self.signature.read_bytes()
+        try:
+            self.signature.write_bytes(b"")
+            result = self.run_scan()
+            self.assertEqual(result["code"], "SCAN_SIGNATURE_DATABASE_EMPTY")
+            self.assertFalse(result["scannerEngineExecuted"])
+            self.assert_never_authorized(result)
+        finally:
+            self.signature.write_bytes(original)
+
+        # A newly timestamped local test DB can run but is NEVER trusted.
+        r = self.run_scan()
+        self.assertEqual(r["code"], "SCAN_LOCAL_ENGINE_OBSERVED_CLEAN_UNTRUSTED")
+        self.assertIs(r["signatureDatabaseAuthenticityVerified"], False)
         self.assert_never_authorized(r)
 
     def test_no_remote_client_paths_or_network_upload_writer_in_source(self):
