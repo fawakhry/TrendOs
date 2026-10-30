@@ -5,6 +5,9 @@ on:
       - audit/acc266-native-employee-stage-counts-readonly-20261030
     paths:
       - '.github/workflows/easystore-acc266-stage-private-employee-auth-counts-readonly.yml'
+  pull_request:
+    branches:
+      - test/acc265-private-stage-auth-read-failclosed-no-go-20261030
   workflow_dispatch:
 permissions:
   contents: read
@@ -13,7 +16,10 @@ concurrency:
   cancel-in-progress: false
 jobs:
   isolated-real-provider-read-only:
-    if: github.repository == 'fawakhry/TrendOs' && github.ref == 'refs/heads/audit/acc266-native-employee-stage-counts-readonly-20261030'
+    if: >-
+      github.repository == 'fawakhry/TrendOs' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/audit/acc266-native-employee-stage-counts-readonly-20261030') ||
+       (github.event_name == 'pull_request' && github.head_ref == 'audit/acc266-native-employee-stage-counts-readonly-20261030' && github.event.pull_request.head.repo.full_name == 'fawakhry/TrendOs'))
     runs-on: ubuntu-latest
     timeout-minutes: 9
     env:
