@@ -1,0 +1,67 @@
+name: TrendOS customer isolated OFFLINE ClamAV scanner — NO PRINT RELEASE
+on:
+  pull_request:
+    paths:
+      - 'tools/customer_private_clamav_offline_v0.py'
+      - 'tests/customer_private_clamav_offline.test.py'
+      - '.github/workflows/trendos-customer-private-clamav-offline-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-scanner-fail-closed-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+      OPENAI_API_KEY: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fake scanner tests with zero customer files, secrets or releases
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/customer_private_clamav_offline_v0.py
+          python3 tests/customer_private_clamav_offline.test.py -v
+      - name: Enforce scanner is not wired into production and Stage stays OFF
+        run: |
+          set -euo pipefail
+          ! grep -q 'customer_private_clamav_offline_v0' cloudflare-d1/customer-stage/index.mjs
+          ! grep -q 'customer_private_clamav_offline_v0' cloudflare-d1/src/index_v2.js
+          ! grep -q 'customer_private_clamav_offline_v0' cloudflare-d1/production-shadow/index.js
+          ! grep -Eq '\[\[d1_databases\]\]|\[\[r2_buckets\]\]' cloudflare-d1/wrangler.customer-stage.toml
+          grep -q 'TRENDOS_CUSTOMER_PORTAL_STAGING_ENABLED = "false"' cloudflare-d1/wrangler.customer-stage.toml
+          echo 'OFFLINE_SCANNER_NO_DEPLOY=YES'
+          echo 'PRINT_RELEASE=NO_GO'
+  actual-clamav-local-fixture-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+      OPENAI_API_KEY: ''
+      TRENDOS_REAL_CLAMAV_OFFLINE_TEST: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install isolated ClamAV Linux executable, no production malware DB claim
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends clamav
+          /usr/bin/clamscan --version
+      - name: Real ClamAV scan of synthetic PNG and synthetic known-test hash signature ONLY
+        run: |
+          set -euo pipefail
+          python3 tests/customer_private_clamav_offline.test.py -v
+          echo 'ACTUAL_CLAMAV_EXECUTED_WITH_DISPOSABLE_TEST_SIGNATURES=YES'
+          echo 'REAL_PRODUCTION_SIGNATURE_DATABASE_FRESHNESS_CHECKED=NO'
+          echo 'CUSTOMER_FILES_SCANNED=0'
+          echo 'REAL_MALWARE_SCAN_ON_CUSTOMER_R2=NO'
+          echo 'PRINT_RELEASE=NO_GO'
