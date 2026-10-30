@@ -1476,6 +1476,10 @@ Trend Mall`;
   function resetCustomerDraft() {
     revokeCustomerPendingFiles();
     state.customerDraft = { draftId: "", items: [], submitted: false, orderId: "" };
+    // A fresh draft must not inherit the previous product or photo-consent state.
+    if (window.TrendOSCustomerRecipe && typeof window.TrendOSCustomerRecipe.reset === "function") {
+      window.TrendOSCustomerRecipe.reset(document);
+    }
     renderCustomerDraft();
     setMsg("customerOrderMsg", "", false);
   }
