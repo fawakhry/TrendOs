@@ -1,0 +1,32 @@
+name: TrendOS Customer Chat Product Recipes (Draft Only)
+
+on:
+  push:
+    branches:
+      - feature/customer-chat-product-recipes-ui-20261031
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  chat-ui-synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JS syntax
+        run: node --check customer-design-guided-chat-v1.js
+      - name: Execute synthetic chat product rules and privacy checks
+        run: node --test tests/customer_design_guided_chat_v1.test.cjs
+      - name: Confirm existing draft API symbols (static only; no live calls)
+        run: |
+          grep -q 'id="customerShowNewOrderBtn"' index.html
+          grep -q 'id="customerNewOrderPanel"' index.html
+          grep -q 'id="customerSubmitDraftBtn"' index.html
+          grep -q 'submitCustomerDraft' app.js
