@@ -33,7 +33,7 @@ def allowlisted_files():
     for name in items:
         p=PurePosixPath(name)
         if (p.is_absolute() or ".." in p.parts or "." in p.parts
-            or not p.parts or name.startswith(".") or "\\" in name
+            or not p.parts or (name.startswith(".") and not name.startswith(".github/workflows/")) or "\\" in name
             or any(x in {".git",".env",".wrangler","node_modules",
                           "secrets","credentials"} for x in p.parts)):
             raise ValueError("PACKAGE_UNSAFE_PATH")
