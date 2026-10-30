@@ -3325,8 +3325,9 @@ Trend Mall`;
     const home = $("customerHomePanel");
     const orderPanel = $("customerNewOrderPanel");
     const ordersPanel = $("customerOrdersPanel");
-    const designerPanel = $("customerDesignerPanel");
-    [home, orderPanel, ordersPanel, designerPanel].forEach(function (el) { if (el) el.classList.add("hidden"); });
+    // Backward-compatible in-memory designer view opens the same customer chat.
+    if (state.customerViewMode === "designer") state.customerViewMode = "newOrder";
+    [home, orderPanel, ordersPanel].forEach(function (el) { if (el) el.classList.add("hidden"); });
     if (state.customerViewMode !== "newOrder") state.customerSelectedSection = null;
 
     if (state.customerViewMode === "newOrder") {
@@ -3334,8 +3335,6 @@ Trend Mall`;
       if (!state.customerDraft) resetCustomerDraft();
       applyCustomerSelectedSectionToComposer();
       renderCustomerDraft();
-    } else if (state.customerViewMode === "designer") {
-      if (designerPanel) designerPanel.classList.remove("hidden");
     } else if (state.customerViewMode === "orders") {
       if (ordersPanel) ordersPanel.classList.remove("hidden");
     } else {
