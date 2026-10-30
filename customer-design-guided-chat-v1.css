@@ -1,0 +1,84 @@
+/* Matbagy blue product guidance inside the existing TrendOS WhatsApp-style order chat.
+ * No other dashboard panels, auth, order APIs or uploaded media modified. */
+#customerNewOrderPanel .matbagy-recipe {
+  direction:rtl;
+  margin:0 0 15px;
+  padding:17px;
+  border:1px solid #c6dbf9;
+  border-radius:17px;
+  background:linear-gradient(145deg,#f4f9ff,#fff);
+  color:#173557;
+  box-shadow:0 7px 20px rgba(24,105,202,.055);
+}
+#customerNewOrderPanel .matbagy-recipe-title {
+  display:flex;
+  align-items:center;
+  gap:11px;
+  margin:0 0 12px;
+}
+#customerNewOrderPanel .matbagy-recipe-title > span {
+  display:grid;place-items:center;
+  flex:0 0 30px;width:30px;height:30px;
+  border-radius:50%;background:#1672dd;color:white;font-weight:850;
+}
+#customerNewOrderPanel .matbagy-recipe-title b {display:block;font-size:15px;}
+#customerNewOrderPanel .matbagy-recipe-title small {display:block;font-size:12px;color:#546e8c;}
+#customerNewOrderPanel .matbagy-recipe-fields {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+#customerNewOrderPanel .matbagy-recipe-fields label {
+  display:flex;flex-direction:column;gap:5px;
+  font-size:12px;font-weight:750;color:#214e80;
+}
+#customerNewOrderPanel .matbagy-recipe-fields select,
+#customerNewOrderPanel .matbagy-recipe-fields input {
+  width:100%;max-width:100%;min-width:0;
+  padding:10px 12px;border:1px solid #bfd4ec;border-radius:10px;
+  background:white;color:#1b3452;font-size:14px;
+  box-sizing:border-box;
+}
+#customerNewOrderPanel .matbagy-recipe-fields .hidden{display:none!important;}
+#customerNewOrderPanel .matbagy-recipe-hint {
+  color:#25639e;background:#e8f2ff;
+  padding:10px 12px;border-radius:10px;line-height:1.8;font-size:12px;
+  margin:12px 0;
+}
+#customerNewOrderPanel .matbagy-recipe-hint.is-warning {
+  color:#9b3b00;background:#fff2e6;border:1px solid #ffd8b3;
+}
+#customerNewOrderPanel .matbagy-recipe-keep {
+  display:flex;align-items:flex-start;gap:9px;line-height:1.75;
+  font-weight:750;font-size:12px;color:#194d7f;
+}
+#customerNewOrderPanel .matbagy-recipe-keep input{
+  flex:none;width:18px;height:18px;margin:3px 0 0;accent-color:#1672dd;
+}
+#customerNewOrderPanel .matbagy-recipe-warning{
+  padding:10px 0 0;margin:8px 0 0;
+  font-size:12px;color:#52657f;line-height:1.65;
+}
+#customerNewOrderPanel .wa-chat-head{
+  background:linear-gradient(120deg,#073e86,#1578dc);
+}
+#customerNewOrderPanel .wa-send-btn,
+#customerNewOrderPanel #customerSubmitDraftBtn{
+  background:#176fd1;color:#fff;
+}
+#customerNewOrderPanel .matbagy-recipe a:focus-visible,
+#customerNewOrderPanel .matbagy-recipe input:focus-visible,
+#customerNewOrderPanel .matbagy-recipe select:focus-visible{
+ outline:3px solid #83bdff;outline-offset:2px;
+}
+@media(max-width:640px){
+ #customerNewOrderPanel .matbagy-recipe {padding:12px;margin-bottom:9px;}
+ #customerNewOrderPanel .matbagy-recipe-fields{grid-template-columns:1fr 1fr;gap:9px;}
+ #customerNewOrderPanel .matbagy-recipe-fields label:first-child,
+ #customerNewOrderPanel .matbagy-recipe-fields label:nth-child(2),
+ #customerNewOrderPanel #customerRecipeGarmentWrap,
+ #customerNewOrderPanel #customerRecipeOtherWrap{grid-column:1/-1;}
+}
+@media(prefers-reduced-motion:reduce){
+ #customerNewOrderPanel .matbagy-recipe *{transition:none!important;}
+}
