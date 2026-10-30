@@ -205,25 +205,25 @@ def seed_sql():
            VALUES ('franchise_branches','LOCAL-UNREVIEWED','{"code":"LOCAL-UNREVIEWED","displayName":"UNREVIEWED PRIVATE BRANCH","internalNotes":"PRIVATE_MISSING_VISIBILITY"}',1,3,'LOCAL_FIXTURE');"""
         """INSERT INTO employee_content_records_v1
            (collection,record_id,record_json,active,sort_order,updated_by)
-           VALUES ('marketplace_vendors','VEND-PUB','{"code":"VEND-PUB","vendorName":"LOCAL PUBLIC SHOP","category":"طباعة","whatsapp":"PRIVATE_VENDOR_PHONE","commission":83,"notes":"PRIVATE_ADMIN_NOTE","fileUrl":"https://drive.google.com/private"}',1,1,'LOCAL_FIXTURE');""",
+           VALUES ('marketplace_vendors','VEND-PUB','{"code":"VEND-PUB","vendorName":"LOCAL PUBLIC SHOP","category":"طباعة","publicToCustomers":true,"whatsapp":"PRIVATE_VENDOR_PHONE","commission":83,"notes":"PRIVATE_ADMIN_NOTE","fileUrl":"https://drive.google.com/private"}',1,1,'LOCAL_FIXTURE');""",
         """INSERT INTO employee_content_records_v1
            (collection,record_id,record_json,active,sort_order,updated_by)
            VALUES ('marketplace_vendors','VEND-HIDDEN','{"code":"VEND-HIDDEN","vendorName":"PRIVATE INACTIVE SHOP","notes":"PRIVATE_SHOP_NOTE"}',0,2,'LOCAL_FIXTURE');""",
         """INSERT INTO employee_content_records_v1
            (collection,record_id,record_json,active,sort_order,updated_by)
-           VALUES ('marketplace_products','PROD-PUB','{"code":"PROD-PUB","vendorCode":"VEND-PUB","productName":"LOCAL PUBLIC PRINT","description":"300 DPI","price":"25","unit":"قطعة","internalCost":6,"supplierPhone":"PRIVATE_SUPPLIER_PHONE","thumbnailUrl":"https://drive.google.com/private"}',1,1,'LOCAL_FIXTURE');""",
+           VALUES ('marketplace_products','PROD-PUB','{"code":"PROD-PUB","vendorCode":"VEND-PUB","productName":"LOCAL PUBLIC PRINT","publicToCustomers":true,"description":"300 DPI","price":"25","unit":"قطعة","internalCost":6,"supplierPhone":"PRIVATE_SUPPLIER_PHONE","thumbnailUrl":"https://drive.google.com/private"}',1,1,'LOCAL_FIXTURE');""",
         """INSERT INTO employee_content_records_v1
            (collection,record_id,record_json,active,sort_order,updated_by)
            VALUES ('marketplace_products','PROD-ORPHAN','{"code":"PROD-ORPHAN","vendorCode":"VEND-HIDDEN","productName":"PRIVATE ORPHAN PRODUCT"}',1,2,'LOCAL_FIXTURE');""",
         """INSERT INTO employee_content_records_v1
            (collection,record_id,record_json,active,sort_order,updated_by)
-           VALUES ('platform_ads','AD-TEXT','{"adId":"AD-TEXT","title":"LOCAL PUBLIC OFFER","placement":"top","fileId":"PRIVATE_AD_GOOGLE_ID","fileUrl":"https://drive.google.com/private","ownerNotes":"PRIVATE_CAMPAIGN_NOTE"}',1,1,'LOCAL_FIXTURE');""",
+           VALUES ('platform_ads','AD-TEXT','{"adId":"AD-TEXT","title":"LOCAL PUBLIC OFFER","placement":"top","publicToCustomers":true,"fileId":"PRIVATE_AD_GOOGLE_ID","fileUrl":"https://drive.google.com/private","ownerNotes":"PRIVATE_CAMPAIGN_NOTE"}',1,1,'LOCAL_FIXTURE');""",
         """INSERT INTO employee_content_records_v1
            (collection,record_id,record_json,active,sort_order,updated_by)
            VALUES ('platform_ads','AD-ONLY-IMAGE','{"adId":"AD-ONLY-IMAGE","fileId":"PRIVATE_FILE_ID","fileUrl":"https://drive.google.com/secret"}',1,2,'LOCAL_FIXTURE');""",
         """INSERT INTO employee_content_records_v1
            (collection,record_id,record_json,active,sort_order,updated_by)
-           VALUES ('white_label','default','{"platformName":"LOCAL PUBLIC PLATFORM","primaryColor":"#224466","ownerName":"PRIVATE_OWNER_PERSON","whatsappNumber":"PRIVATE_PHONE","notes":"PRIVATE_LICENSE_NOTE","featurePhoneLeads":"نعم","logoUrl":"https://drive.google.com/private"}',1,1,'LOCAL_FIXTURE');"""
+           VALUES ('white_label','default','{"platformName":"LOCAL PUBLIC PLATFORM","primaryColor":"#224466","publicToCustomers":true,"ownerName":"PRIVATE_OWNER_PERSON","whatsappNumber":"PRIVATE_PHONE","notes":"PRIVATE_LICENSE_NOTE","featurePhoneLeads":"نعم","logoUrl":"https://drive.google.com/private"}',1,1,'LOCAL_FIXTURE');"""
     ]
     for ident,code,password in [("LOCAL-C1",CODE,PASSWORD),("LOCAL-C2",CODE2,PASSWORD2)]:
         salt=("09" if ident=="LOCAL-C1" else "0a")*16
