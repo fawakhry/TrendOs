@@ -14,6 +14,9 @@ on:
       - 'cloudflare-d1/migrations/0041_customer_private_scan_lease_replay_v0.sql'
       - 'tests/customer_private_scan_lease_replay_d1_internal.test.mjs'
       - 'tests/customer_private_scan_lease_replay_sqlite.test.py'
+      - 'cloudflare-d1/customer-stage/private-scan-transport-envelope-internal-v0.mjs'
+      - 'tools/customer_private_scan_loopback_transport_off_v0.py'
+      - 'tests/customer_private_scan_loopback_transport_off.test.py'
       - '.github/workflows/trendos-customer-private-clamav-offline-ci.yml'
   workflow_dispatch:
 permissions:
@@ -34,13 +37,14 @@ jobs:
       - name: Fake scanner tests with zero customer files, secrets or releases
         run: |
           set -euo pipefail
-          python3 -m py_compile tools/customer_private_clamav_offline_v0.py tools/customer_private_r2_scan_handoff_offline_v0.py tools/customer_private_scan_signed_lease_offline_v0.py
+          python3 -m py_compile tools/customer_private_clamav_offline_v0.py tools/customer_private_r2_scan_handoff_offline_v0.py tools/customer_private_scan_signed_lease_offline_v0.py tools/customer_private_scan_loopback_transport_off_v0.py
           python3 tests/customer_private_clamav_offline.test.py -v
           python3 tests/customer_private_r2_scan_handoff_offline.test.py -v
           python3 tests/customer_private_scan_signed_lease_offline.test.py -v
           node --test tests/customer_private_scan_issuer_internal.test.mjs
           node --test tests/customer_private_scan_lease_replay_d1_internal.test.mjs
           python3 tests/customer_private_scan_lease_replay_sqlite.test.py -v
+          python3 tests/customer_private_scan_loopback_transport_off.test.py -v
       - name: Enforce scanner is not wired into production and Stage stays OFF
         run: |
           set -euo pipefail
@@ -59,6 +63,12 @@ jobs:
           ! grep -q 'private-scan-lease-replay-d1-internal-v0' cloudflare-d1/customer-stage/index.mjs
           ! grep -q 'private-scan-lease-replay-d1-internal-v0' cloudflare-d1/src/index_v2.js
           ! grep -q 'private-scan-lease-replay-d1-internal-v0' cloudflare-d1/production-shadow/index.js
+          ! grep -q 'private-scan-transport-envelope-internal-v0' cloudflare-d1/customer-stage/index.mjs
+          ! grep -q 'private-scan-transport-envelope-internal-v0' cloudflare-d1/src/index_v2.js
+          ! grep -q 'private-scan-transport-envelope-internal-v0' cloudflare-d1/production-shadow/index.js
+          ! grep -q 'customer_private_scan_loopback_transport_off_v0' cloudflare-d1/customer-stage/index.mjs
+          ! grep -q 'customer_private_scan_loopback_transport_off_v0' cloudflare-d1/src/index_v2.js
+          ! grep -q 'customer_private_scan_loopback_transport_off_v0' cloudflare-d1/production-shadow/index.js
           ! grep -q '0041_customer_private_scan_lease_replay_v0' cloudflare-d1/wrangler.customer-stage.toml
           ! grep -Eq '\[\[d1_databases\]\]|\[\[r2_buckets\]\]' cloudflare-d1/wrangler.customer-stage.toml
           grep -q 'TRENDOS_CUSTOMER_PORTAL_STAGING_ENABLED = "false"' cloudflare-d1/wrangler.customer-stage.toml
