@@ -892,3 +892,20 @@ fi
 This merely observes the existing main worktree and the one project-local path; status is limited to tracked-file changes. Do not infer any installed global Wrangler from a project-local check. Record actual output later under UBU-003 before further host action.
 
 **Source control coordination:** Original master book branch `agent/trendos-book-audit-v1-20261014` updated append-only; isolated safe integration HEAD verified at `affaa4b6f47b637cbb51823743e3df5789255fb2`, original TrendOS `main` HEAD at `3bc83c0f809fb30e8a3aac1a724b6e949dd7bea9` before this documentation write. Neither branch is targeted by this documentation update. The EasyStore original accounting book receives a non-financial mirrored log. `HOST_ACTION=NONE`, `UBU-002=OWNER_READONLY_INVENTORY`, `WRANGLER_PATH=NOT_FOUND`, `FINANCE_RELEASE=NO_GO`, `FINANCE_WRITES=OFF`, `PRODUCTION_DEPLOY=NO`.
+
+### TRENDOS-EASYSTORE-UBUNTU-HOST-PREFLIGHT-20261030 — UBU-003
+
+**2026-10-30 (Africa/Cairo), owner screenshot only.** Read-only commands previously prescribed as UBU-003 were executed by the owner in Ubuntu Terminal at prompt `trend-main@TrendosShop:~$`. Assistant has **no direct shell/SSH access** and did not execute, change, reset, fetch, checkout or deploy anything on this Ubuntu machine.
+
+**Exact observed commands/results:**
+- `git -C "$HOME/TrendOs" rev-parse --is-inside-work-tree` was used only in the shell `if` gate and succeeded (branch/commit/status commands executed).
+- `git -C "$HOME/TrendOs" branch --show-current` -> `feature/ap155-imac-ssh-service-absent-owner-install-20261012`.
+- `git -C "$HOME/TrendOs" rev-parse --short HEAD` -> `a238ce5a`. This is only the local *abbreviated* commit, not a verified full GitHub commit SHA.
+- `git -C "$HOME/TrendOs" status --short --untracked-files=no` -> **empty output** between the displayed HEAD and the following section header, indicating **no visible changes to tracked files**. Untracked and ignored files were specifically excluded, so this is **not evidence that the entire worktree is clean or empty of local files**.
+- `[ -x "$HOME/TrendOs/node_modules/.bin/wrangler" ]` -> `Project-local Wrangler not found in main TrendOs path`. Together with UBU-001/002's `command -v wrangler` not found in PATH, no Wrangler executable was observed in either tested path. This does not exclude a local Wrangler elsewhere or prove that Wrangler has never been installed.
+
+**Critical preservation decision:** The local `$HOME/TrendOs` working copy is on a distinct SSH/iMac feature branch, **NOT** the GitHub protected-by-convention safe TrendOS/EasyStore integration branch. Do not reuse this directory to checkout, reset, pull, clone over, force push or execute ACC263; do not overwrite any of the eight existing TrendOS staging/finance/ops directories listed in UBU-002. As of this record, remote safe integration HEAD `affaa4b6f47b637cbb51823743e3df5789255fb2`, remote original TrendOS `main` HEAD `3bc83c0f809fb30e8a3aac1a724b6e949dd7bea9` remain unchanged by this book edit. The local branch/head source is a **user-provided screenshot** and was not independently authenticated.
+
+**UBU-004 next owner-run READ-ONLY check only, not yet executed:** Inventory the existing eight `$HOME/TrendOs*` directories, printing only directory basenames, whether each is a Git worktree, branch and abbreviated HEAD, plus whether tracked-file status is empty or modified; do **not** expose `git remote -v`, `.env`, Wrangler config, tokens, cookies, Node credentials or untracked file contents. No `sudo`, `npm install`, `npx wrangler`, git fetch/pull/checkout/reset or Cloudflare deployment. Any subsequent decision to make a *new isolated* checkout will be separately approved and documented.
+
+**Status:** `UBU-003=OBSERVED_AND_LOGGED`, `LOCAL_MAIN_WORKTREE_BRANCH=feature/ap155-imac-ssh-service-absent-owner-install-20261012`, `LOCAL_MAIN_SHORT_HEAD=a238ce5a`, `TRACKED_STATUS_OUTPUT=EMPTY`, `UNTRACKED_STATUS=NOT_TESTED`, `WRANGLER_MAIN_PROJECT_PATH=NOT_FOUND`, `SERVER_WRITE=NONE`, `PRODUCTION_DEPLOY=NO`, `FINANCE_RELEASE=NO_GO`, `FINANCE_WRITES=OFF`.
