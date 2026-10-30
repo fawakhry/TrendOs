@@ -2022,8 +2022,11 @@ async function saveEasyStoreSaleV2A2(env,auth,b){
   const remaining=Math.max(0,total-paid),customer=await resolvePartyV1(env,'customer',{customerId:b.customerId,customerName:b.customer||b.customerName});
   const department=accountingDepartmentV1(b.department)||text(b.department)||'كل الأقسام',item=text(b.item||b.itemName)||'بند مطبعجي',workDate=workDateKeyV1(b.workDate||b.date);
   const invoiceNo=text(b.no||b.invoiceNo)||await nextInvoiceNo(env);
-  const duplicate=await env.DB.prepare("SELECT invoice_no FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? LIMIT 1").bind(invoiceNo).first();
-  if(duplicate)return {success:false,duplicatePrevented:true,message:'رقم فاتورة المبيعات مستخدم بالفعل: '+invoiceNo};
+  // ACC268: identical committed request may replay safely; a different
+  // request key must NEVER reuse the existing invoice number.
+  const duplicate=await env.DB.prepare("SELECT invoice_no,request_key AS requestKey FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? LIMIT 1").bind(invoiceNo).first();
+  if(duplicate && text(duplicate.requestKey)!==text(b.requestId||b.idempotencyKey||b.clientRequestId))
+    return {success:false,duplicatePrevented:true,message:'رقم فاتورة المبيعات مستخدم بالفعل: '+invoiceNo};
   const req=await directSaleStockRequirementsV1(env,item,department==='كل الأقسام'?'':department,qty);
   let manualCost=0;
   for(const {material,qty:need} of req.values()){
