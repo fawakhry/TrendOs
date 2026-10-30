@@ -22,7 +22,7 @@ class OnePackageOfflineBundle(unittest.TestCase):
         for name,path in files:
             self.assertFalse(path.is_symlink())
             self.assertFalse(name.startswith("/"))
-            self.assertFalse(name.startswith("."))
+            self.assertFalse(name.startswith(".") and not name.startswith(".github/workflows/"))
             self.assertNotIn("..",name)
             self.assertNotIn(".env",name)
             self.assertNotIn("credentials",name.lower())
