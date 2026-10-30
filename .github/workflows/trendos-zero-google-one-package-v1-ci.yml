@@ -1,0 +1,198 @@
+name: TrendOS Zero Google ONE PACKAGE V1 — OFFLINE INTEGRATION / NO DEPLOY
+on:
+  pull_request:
+    paths:
+      - 'packages/zero-google-one-package-v1/**'
+      - 'tools/zero_google_one_package_v1.mjs'
+      - 'tools/build_zero_google_one_package_v1.py'
+      - 'tests/zero_google_one_package_v1.test.mjs'
+      - 'tests/zero_google_one_package_build_v1.test.py'
+      - '.github/workflows/trendos-zero-google-one-package-v1-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: zero-google-one-package-v1-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  one-package-source-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+      OPENAI_API_KEY: ''
+      TRENDOS_CUSTOMER_PORTAL_STAGING_ENABLED: 'false'
+      TRENDOS_OPERATOR_TASK_V2_EDGE_ENABLED: 'false'
+      TRENDOS_WORK_QUEUE_V1_ENABLED: 'false'
+      TRENDOS_OPERATOR_TASK_V2_ENABLED: 'false'
+      TRENDOS_ACCOUNTING_WRITE_ENABLED: 'false'
+      TRENDOS_PRIVATE_SCAN_LOOPBACK_TEST_ONLY: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Unified 9 customer actions and private/public D1 source guards
+        run: |
+          set -euo pipefail
+          node --test tests/zero_google_precloud_freeze_audit.test.mjs
+          node --test tests/customer_public_content_explicit_publication_off.test.mjs
+          node --test tests/customer_t12_draft_lossless_inventory_ro_off.test.mjs
+          python3 tests/customer_t12_draft_inventory_real_sqlite_ro.test.py -v
+      - name: Original EasyStore, BOOK24 and original customer source-only tests
+        run: |
+          set -euo pipefail
+          python3 tests/zero_google_easystore_statement_source_audit_v0.test.py -v
+          node --test tests/zero_google_operator_book24_source_audit_off_v0.test.mjs
+          node --test tests/customer_isolated_stage_worker_off.test.mjs
+          node --test tests/customer_native_browser_transport_off.test.mjs
+          node --test tests/entry667_customer_draft_submit_preflight_off.test.mjs
+      - name: Scanner HMAC transport, immutable replay and private quarantine simulation
+        run: |
+          set -euo pipefail
+          python3 tests/customer_private_clamav_offline.test.py -v
+          python3 tests/customer_private_r2_scan_handoff_offline.test.py -v
+          python3 tests/customer_private_scan_signed_lease_offline.test.py -v
+          node --test tests/customer_private_scan_issuer_internal.test.mjs
+          node --test tests/customer_private_scan_lease_replay_d1_internal.test.mjs
+          python3 tests/customer_private_scan_lease_replay_sqlite.test.py -v
+          python3 tests/customer_private_scan_loopback_transport_off.test.py -v
+      - name: Unified one-package readiness report (source-only green, release NO_GO)
+        run: |
+          set -euo pipefail
+          node --test tests/zero_google_one_package_v1.test.mjs
+          node tools/zero_google_one_package_v1.mjs > "$RUNNER_TEMP/zero-google-one-package-audit.json"
+          node --input-type=module -e "
+            import fs from 'node:fs';
+            const j=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));
+            if(!j.sourceChecksPassed||j.sourceFileCount<55||
+              j.legacyCustomerGoogleActions.length!==9||
+              j.customerGoogleActionsRetiredInProductionLastProven!==0||
+              j.releaseGates.length!==8||j.releaseGates.some(g=>g.ready)||
+              j.productionDeploymentApproved||j.productionDeploymentPerformed||
+              j.appsScriptMayBeDisabled||j.printReleaseAllowed||
+              j.zeroGoogleComplete||j.book24SingleWriterCertified||
+              j.financeCustomerStatementAuthorized)
+              process.exit(1);
+            console.log('ZERO_GOOGLE_ONE_PACKAGE_SOURCE=PASS');
+            console.log('CUSTOMER_GOOGLE_RETIRED_LAST_PROVEN=0/9');
+            console.log('LIVE_EXTERNAL_RELEASE_GATES=8_BLOCKED');
+            console.log('NO_MERGE_NO_DEPLOY=YES');
+          " "$RUNNER_TEMP/zero-google-one-package-audit.json"
+  original-customer-browser-real-local:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+      OPENAI_API_KEY: ''
+      CUSTOMER_STAGE_LOCAL_E2E: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Original customer Stage OFF and no production Worker import
+        run: |
+          set -euo pipefail
+          grep -Eq 'TRENDOS_CUSTOMER_PORTAL_STAGING_ENABLED[[:space:]]*=[[:space:]]*"false"' cloudflare-d1/wrangler.customer-stage.toml
+          ! grep -Eq 'database_id|\[\[d1_databases\]\]|routes[[:space:]]*=' cloudflare-d1/wrangler.customer-stage.toml
+          grep -q 'main = "production-shadow/index.js"' cloudflare-d1/wrangler.toml
+          ! grep -q 'customer-stage' cloudflare-d1/production-shadow/index.js
+          ! grep -q 'customer-stage' cloudflare-d1/src/index_v2.js
+      - name: Local-only Wrangler binary (no login or remote operations)
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/zg-wrangler-only" --no-save --no-audit --no-fund wrangler@4
+          echo "CUSTOMER_STAGE_LOCAL_WRANGLER=$RUNNER_TEMP/zg-wrangler-only/node_modules/.bin/wrangler" >> "$GITHUB_ENV"
+      - name: Local-only original browser Chromium
+        run: |
+          set -euo pipefail
+          export PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/zg-chromium-only"
+          echo "PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
+          npm install --prefix "$RUNNER_TEMP/zg-playwright-only" --no-save --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/zg-playwright-only/node_modules/.bin/playwright" install --with-deps chromium --only-shell
+          echo "CUSTOMER_STAGE_LOCAL_PLAYWRIGHT_MODULE=$RUNNER_TEMP/zg-playwright-only/node_modules/playwright" >> "$GITHUB_ENV"
+      - name: Dry-run Worker build without deploying
+        working-directory: cloudflare-d1
+        run: |
+          set -euo pipefail
+          "$CUSTOMER_STAGE_LOCAL_WRANGLER" deploy --dry-run --config wrangler.customer-stage.toml --outdir "$RUNNER_TEMP/zg-stage-dry-run"
+          echo "ORIGINAL_CUSTOMER_STAGE_BUNDLE_LOCAL_DRY_RUN=PASS"
+      - name: Original customer UI full Chromium plus local Worker SQLite D1 and Durable Object
+        run: |
+          set -euo pipefail
+          python3 tests/customer_stage_wrangle_local_real_d1_do_e2e.py
+          echo "ORIGINAL_CUSTOMER_BROWSER_D1_DO_LOCAL=PASS"
+          echo "NO_CLOUDFLARE_REMOTE_DEPLOY=YES"
+  real-clamav-local-synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+      TRENDOS_REAL_CLAMAV_OFFLINE_TEST: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install actual local executable, not production signature database
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends clamav
+          /usr/bin/clamscan --version
+      - name: Verify actual ClamAV executable on disposable test signatures
+        run: |
+          set -euo pipefail
+          python3 tests/customer_private_clamav_offline.test.py -v
+          echo "ACTUAL_CLAMAV_LOCAL_SYNTHETIC_TEST=PASS"
+          echo "AUTHENTIC_VENDOR_SIGNATURE_FRESHNESS=NOT_PROVEN"
+          echo "CUSTOMER_R2_BYTES_SCANNED=0"
+          echo "PRINT_RELEASE=NO_GO"
+  one-package-zip-artifact:
+    needs:
+      - one-package-source-offline
+      - original-customer-browser-real-local
+      - real-clamav-local-synthetic
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify reproducible archive, manifest and redacted release evidence
+        run: |
+          set -euo pipefail
+          python3 tests/zero_google_one_package_build_v1.test.py -v
+      - name: Build exactly ONE offline-source ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/zg-one-package"
+          python3 tools/build_zero_google_one_package_v1.py \
+            --output "$RUNNER_TEMP/zg-one-package/TrendOS-ZeroGoogle-OnePackage-V1-OFF.zip"
+          sha256sum "$RUNNER_TEMP/zg-one-package/TrendOS-ZeroGoogle-OnePackage-V1-OFF.zip"
+          echo '## Zero Google ONE PACKAGE — safe source artifact only' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Customer Google retirements verified live: **0/9**.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Cloudflare, T12, EasyStore, BOOK24, live UI and owner release gates: **NO_GO**.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No deployment, merge, customer images, secrets or finance writes performed.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TrendOS-ZeroGoogle-OnePackage-V1-OFF
+          path: ${{ runner.temp }}/zg-one-package/TrendOS-ZeroGoogle-OnePackage-V1-OFF.zip
+          if-no-files-found: error
+          retention-days: 30
