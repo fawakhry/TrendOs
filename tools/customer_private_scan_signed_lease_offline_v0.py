@@ -34,7 +34,7 @@ MIN_SECRET_BYTES = 32
 MAX_TOKEN_BYTES = 4096
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 _NONCE = re.compile(r"^[0-9a-f]{32}$")
-_TOKEN = re.compile(r"^[A-Za-z0-9_-]{1,4000}\\.[A-Za-z0-9_-]{43}$")
+_TOKEN = re.compile(r"^[A-Za-z0-9_-]{1,4000}\.[A-Za-z0-9_-]{43}$")
 _KEYS = frozenset((
     "v", "iss", "aud", "purpose", "fileId", "draftId", "itemId",
     "sha256Hex", "byteSize", "contentType", "updatedAtMs",
