@@ -909,3 +909,38 @@ This merely observes the existing main worktree and the one project-local path; 
 **UBU-004 next owner-run READ-ONLY check only, not yet executed:** Inventory the existing eight `$HOME/TrendOs*` directories, printing only directory basenames, whether each is a Git worktree, branch and abbreviated HEAD, plus whether tracked-file status is empty or modified; do **not** expose `git remote -v`, `.env`, Wrangler config, tokens, cookies, Node credentials or untracked file contents. No `sudo`, `npm install`, `npx wrangler`, git fetch/pull/checkout/reset or Cloudflare deployment. Any subsequent decision to make a *new isolated* checkout will be separately approved and documented.
 
 **Status:** `UBU-003=OBSERVED_AND_LOGGED`, `LOCAL_MAIN_WORKTREE_BRANCH=feature/ap155-imac-ssh-service-absent-owner-install-20261012`, `LOCAL_MAIN_SHORT_HEAD=a238ce5a`, `TRACKED_STATUS_OUTPUT=EMPTY`, `UNTRACKED_STATUS=NOT_TESTED`, `WRANGLER_MAIN_PROJECT_PATH=NOT_FOUND`, `SERVER_WRITE=NONE`, `PRODUCTION_DEPLOY=NO`, `FINANCE_RELEASE=NO_GO`, `FINANCE_WRITES=OFF`.
+
+### TRENDOS-EASYSTORE-UBUNTU-HOST-PREFLIGHT-20261030 — UBU-004
+
+**2026-10-30, Africa/Cairo — owner-provided screenshot; PARTIAL viewport only.** The owner ran the read-only worktree-inventory loop proposed at UBU-003, which invokes `git -C "$d" rev-parse --is-inside-work-tree`, `git -C "$d" branch --show-current`, `git -C "$d" rev-parse --short HEAD` and `git -C "$d" status --porcelain --untracked-files=no` for directories matching `$HOME/TrendOs*`. The screen shows the final `===== UBU-004 COMPLETE =====` marker. The screenshot **begins in the middle of results**, so not all eight paths' output is visible. No tool directly accessed or modified the owner's Ubuntu host.
+
+**Visible results exactly as shown:**
+- At top, a `TRACKED FILES: CLEAN` line from a preceding directory is visible **without its directory heading**; do not assign that line to a particular worktree.
+- `FOLDER: TrendOs-finance-inspect-acc240` -> displayed `BRANCH: HEAD: 682aa001` on the same line, which indicates `branch --show-current` produced no visible branch name; `TRACKED FILES: CLEAN`.
+- `FOLDER: TrendOs-finance-inspect-acc241` -> displayed `BRANCH: HEAD: 0db543fd` with no visible branch name; `TRACKED FILES: CLEAN`.
+- `FOLDER: TrendOs-ops-pilot` -> `BRANCH: feature/ops-pilot-local-orders-manager-finance-off-20261018`; `HEAD: 9217e3b`; `TRACKED FILES: CLEAN`.
+- `FOLDER: TrendOs-server-reader-staging` -> displayed `BRANCH: HEAD: c29e8c1c` with no visible branch name; `TRACKED FILES: CLEAN`.
+- `FOLDER: TrendOs-stage-access-sandbox` -> displayed `BRANCH: HEAD: 9ba16651` with no visible branch name; `TRACKED FILES: CLEAN`.
+
+**Interpretation and limits:** Five identifiable worktrees plus a preceding unlabeled clean-status line are visible. Missing beginning of output means `$HOME/TrendOs`, `TrendOs-AP281-staging-66b64ab`, and `TrendOs-finance-inspect-acc238` have **not had their UBU-004 results verified from this screenshot**. Prior UBU-003 separately established `$HOME/TrendOs` feature branch `feature/ap155-imac-ssh-service-absent-owner-install-20261012`, short HEAD `a238ce5a`, with no tracked-file changes at that time. For acc240, acc241, server-reader-staging and stage-access-sandbox the blank branch output is *consistent* with detached HEAD, **but not conclusively verified**; an explicit `git symbolic-ref --quiet --short HEAD` read-only check is still needed. All SHAs shown here are abbreviated and cannot certify remote/origin commit identity.
+
+**Safety:** The `TRACKED FILES: CLEAN` label was computed with `--untracked-files=no`; it does not inspect untracked or ignored files, Git index intent, linked worktree topology, or any runtime state. `CLEAN` never authorizes Git checkout/pull/reset or reuse of a directory. Do not overwrite, delete, reset, fetch/pull into, migrate or deploy from any existing finance/staging/ops directory. Do not run `npx wrangler` (possible download), `wrangler login/deploy/d1`, `npm install`, `sudo`, or collect tokens/`.env`/Git remotes. This screenshot is **not** a live TrendOS/EasyStore service handshake, finance authorization, or security release.
+
+**UBU-005 planned owner-run read-only verification; NOT YET EXECUTED:** Inspect only the first three previously identified directories and explicitly confirm whether any blank branch in one inspected worktree is detached, without reading remote URLs or secrets. Proposed commands:
+```bash
+echo '===== UBU-005 MISSING FIRST THREE ====='
+for d in "$HOME/TrendOs" "$HOME/TrendOs-AP281-staging-66b64ab" "$HOME/TrendOs-finance-inspect-acc238"; do
+  echo "FOLDER: $(basename "$d")"
+  if git -C "$d" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo -n 'HEAD: '; git -C "$d" rev-parse --short HEAD
+    echo -n 'BRANCH: '; git -C "$d" symbolic-ref --quiet --short HEAD || echo 'DETACHED_OR_NO_BRANCH'
+    if [ -z "$(git -C "$d" status --porcelain --untracked-files=no)" ]; then echo 'TRACKED: CLEAN'; else echo 'TRACKED: MODIFIED'; fi
+  else echo 'NOT A GIT WORKTREE'; fi
+done
+echo '===== DETACHED CHECK FOR ACC240 ====='
+git -C "$HOME/TrendOs-finance-inspect-acc240" symbolic-ref --quiet --short HEAD || echo 'DETACHED_OR_NO_BRANCH'
+echo '===== UBU-005 END ====='
+```
+Record exact owner screenshot results as UBU-005 *before* any further host action. This command only queries; it does not write tracked files, install, fetch, checkout or deploy.
+
+**GitHub baseline as of this documentation event:** Isolated integration `affaa4b6f47b637cbb51823743e3df5789255fb2`, TrendOS `main` `3bc83c0f809fb30e8a3aac1a724b6e949dd7bea9`, neither modified by this book-only append; EasyStore official accounting book separately receives mirrored UBU-004 trace. `UBU-004=PARTIAL_VIEW_LOGGED`, `UBU-005=NOT_EXECUTED`, `PRODUCTION_DEPLOY=NO`, `FINANCE_RELEASE=NO_GO`, `FINANCE_WRITES=OFF`.
