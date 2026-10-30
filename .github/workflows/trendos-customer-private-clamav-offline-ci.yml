@@ -8,6 +8,8 @@ on:
       - 'tests/customer_private_r2_scan_handoff_offline.test.py'
       - 'tools/customer_private_scan_signed_lease_offline_v0.py'
       - 'tests/customer_private_scan_signed_lease_offline.test.py'
+      - 'cloudflare-d1/customer-stage/private-scan-lease-issuer-internal-v0.mjs'
+      - 'tests/customer_private_scan_issuer_internal.test.mjs'
       - '.github/workflows/trendos-customer-private-clamav-offline-ci.yml'
   workflow_dispatch:
 permissions:
@@ -32,6 +34,7 @@ jobs:
           python3 tests/customer_private_clamav_offline.test.py -v
           python3 tests/customer_private_r2_scan_handoff_offline.test.py -v
           python3 tests/customer_private_scan_signed_lease_offline.test.py -v
+          node --test tests/customer_private_scan_issuer_internal.test.mjs
       - name: Enforce scanner is not wired into production and Stage stays OFF
         run: |
           set -euo pipefail
@@ -44,6 +47,9 @@ jobs:
           ! grep -q 'customer_private_scan_signed_lease_offline_v0' cloudflare-d1/customer-stage/index.mjs
           ! grep -q 'customer_private_scan_signed_lease_offline_v0' cloudflare-d1/src/index_v2.js
           ! grep -q 'customer_private_scan_signed_lease_offline_v0' cloudflare-d1/production-shadow/index.js
+          ! grep -q 'private-scan-lease-issuer-internal-v0' cloudflare-d1/customer-stage/index.mjs
+          ! grep -q 'private-scan-lease-issuer-internal-v0' cloudflare-d1/src/index_v2.js
+          ! grep -q 'private-scan-lease-issuer-internal-v0' cloudflare-d1/production-shadow/index.js
           ! grep -Eq '\[\[d1_databases\]\]|\[\[r2_buckets\]\]' cloudflare-d1/wrangler.customer-stage.toml
           grep -q 'TRENDOS_CUSTOMER_PORTAL_STAGING_ENABLED = "false"' cloudflare-d1/wrangler.customer-stage.toml
           echo 'OFFLINE_SCANNER_NO_DEPLOY=YES'
