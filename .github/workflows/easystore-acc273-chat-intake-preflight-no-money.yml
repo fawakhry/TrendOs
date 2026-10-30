@@ -1,0 +1,74 @@
+name: ACC273 ChatGPT to original EasyStore finance action preflight (NO MONEY)
+on:
+  push:
+    branches:
+      - 'feature/acc273-chat-command-to-original-easystore-off-20261031'
+    paths:
+      - 'cloudflare-d1/src/easystore-chat-command-intake-acc273.mjs'
+      - 'tests/easystore_acc273_chat_command_preflight_no_money.test.mjs'
+      - '.github/workflows/easystore-acc273-chat-intake-preflight-no-money.yml'
+  pull_request:
+    branches: ['feature/acc268-easystore-standalone-customer-source-off-20261030']
+permissions:
+  contents: read
+concurrency:
+  group: acc273-chat-preflight-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  original-ledger-contract-no-network:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      FINANCE_RELEASE: NO_GO
+      FINANCE_WRITES: OFF
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Guarantee staged source-only contract and original finance hard stop
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$FINANCE_RELEASE" = NO_GO
+          test "$FINANCE_WRITES" = OFF
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const p='cloudflare-d1/src/easystore-chat-command-intake-acc273.mjs';
+          const code=fs.readFileSync(p,'utf8');
+          const stage=fs.readFileSync('cloudflare-d1/easystore-finance-stage/wrangler.toml','utf8');
+          if(code.includes('fetch(') || code.includes('.run()') || code.includes('DB.prepare') ||
+            code.includes('export async function submit') || code.includes('openAIKey'))
+            throw Error('ACC273_SIDE_EFFECT_OR_EXTERNAL_CALL_PRESENT');
+          if(!stage.includes('FINANCE_WRITES = "OFF"')||
+             !stage.includes('FINANCE_RELEASE = "NO_GO"')||
+             !stage.includes('EASYSTORE_STAGE_READONLY_API_V1 = "OFF"'))
+            throw Error('ACC273_ORIGINAL_FINANCE_STAGE_NOT_LOCKED');
+          const actions=['savePartyLedgerTransaction','saveEasyStoreSaleV2'];
+          const original=fs.readFileSync('cloudflare-d1/src/employee-accounting-native-v1.mjs','utf8');
+          for(const name of actions)
+            if(!original.includes("'"+name+"'")||!code.includes("action:'"+name+"'"))
+              throw Error('ACC273_NOT_ORIGINAL_EASYSTORE_ACTION_'+name);
+          console.log('ACC273_ORIGINAL_EASYSTORE_ACTION_PARITY=PASS');
+          console.log('ACC273_STAGE_FINANCE_NO_GO=PASS');
+          console.log('ACC273_NO_CHAT_AUTOSUBSCRIPTION_OR_MONEY_MUTATION=PASS');
+          JS
+      - name: Run pure chat preflight and original cash-first finance regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/easystore-chat-command-intake-acc273.mjs
+          node --check tests/easystore_acc273_chat_command_preflight_no_money.test.mjs
+          node --test tests/easystore_acc273_chat_command_preflight_no_money.test.mjs
+          node --test tests/easystore_acc268_standalone_customer_cash_sale_sqlite_no_go.test.mjs
+          echo 'ACC273_PURE_CHAT_INTENT_CONTRACT=PASS'
+          echo 'ACC273_ORIGINAL_CASH_FIRST_LEDGER_REGRESSION=PASS'
+          echo 'FINANCE_RELEASE=NO_GO'
+          echo 'FINANCE_WRITES=OFF'
