@@ -78,4 +78,6 @@ test("only existing client chat inputs are written; no additional API request",(
   assert.ok(!/\bOPENAI_API_KEY\b/.test(js));
   assert.ok(!/sk-proj-/.test(js));
   assert.ok(!js.includes("createCustomerDraft("));
+  assert.ok(!js.includes('dep.value='));
+  assert.ok(!js.includes('customerOrderDepartment").value='));
 });
