@@ -849,3 +849,46 @@ Status (لا يجوز CLOSED بدون إثبات):
 **Next UBU-002 preflight requested, read-only only:** On Ubuntu inspect `pwd`, `command -v git`, `git --version`, `command -v npm`, `npm --version`, `command -v npx`, `command -v wrangler`, and list candidate local TrendOS working-copy directories without opening secret/config files or using `sudo`, `npm install`, `npx wrangler` (which could auto-install), `wrangler login`, `wrangler deploy`, or any `wrangler d1 ...` command. The owner will supply sanitized output; record UBU-002 exact result and decision in this SAME original active book before any further host step. Do not assume machine is located at the printing shop or is the production host.
 
 **Mandatory workflow discipline:** For every future Ubuntu step record: `UBU-###`, date/time, owner-supplied command and observed result, interpretation, risk/no-effect assessment, next permitted read-only command, and branch/book commit; redact raw headers, set-cookie, access tokens, personal data and secrets. Do not portray plans, commands not yet run, or GitHub-only tests as an actual host change. If a host step is risky, request owner approval separately. Echo materially relevant finance handoff in the original EasyStore accounting book. `UBUNTU_STATUS=READONLY_BASELINE_ONLY`, `WRANGLER_PATH=NOT_FOUND`, `CLOUDFLARE_ACCESS=NOT_TESTED`, `FINANCE_RELEASE=NO_GO`, `FINANCE_WRITES=OFF`, `PRODUCTION_CHANGE=NONE`.
+
+### TRENDOS-EASYSTORE-UBUNTU-HOST-PREFLIGHT-20261030 — UBU-002
+
+**Evidence / actor / date:** 2026-10-30 (Egypt / Africa-Cairo), owner-submitted screenshot of terminal command results at `trend-main@TrendosShop:~$`; no direct SSH/remote shell executed by assistant. The previous UBU-001 screenshot showed Ubuntu `24.04.5 LTS`, Node `v22.23.3`, and `curl https://github.com` returned `HTTP: 200`. This UBU-002 screenshot shows outcomes of the read-only Git/npm/npx/Wrangler/path checks proposed in UBU-001. Observations below are user-provided, NOT independently verified server inventory or evidence of Cloudflare account access.
+
+**Observed UBU-002 commands/results (read-only):**
+- `git --version` => `git version 2.43.0`.
+- `npm --version` => `10.9.9`.
+- `command -v npx` => `/home/trend-main/.nvm/versions/node/v22.23.3/bin/npx` (nvm-managed Node 22 installation detected via path).
+- `command -v wrangler || echo 'NOT FOUND'` => `NOT FOUND` (global/current shell PATH executable absent; project-local `node_modules/.bin/wrangler` not checked yet).
+- The `for d in "$HOME"/TrendOs* "$HOME"/EasyStore*; do if [ -d "$d" ]; then echo "$d"; fi; done` glob lists **8 directories**, exactly as follows:
+  - `/home/trend-main/TrendOs`.
+  - `/home/trend-main/TrendOs-AP281-staging-66b64ab`.
+  - `/home/trend-main/TrendOs-finance-inspect-acc238`.
+  - `/home/trend-main/TrendOs-finance-inspect-acc240`.
+  - `/home/trend-main/TrendOs-finance-inspect-acc241`.
+  - `/home/trend-main/TrendOs-ops-pilot`.
+  - `/home/trend-main/TrendOs-server-reader-staging`.
+  - `/home/trend-main/TrendOs-stage-access-sandbox`.
+- No directory matching `$HOME/EasyStore*` appeared in this specific home-directory glob. This does NOT prove EasyStore is absent elsewhere, nor that every displayed path is a Git checkout. No directory contents, git branch/remote URL, secrets or runtime state inspected.
+
+**Risk controls / interpretation:** Git/npm/npx present, so a later approved tooling check may not require any additional Node installation. The repository paths may contain staging/finance inspection worktrees and must NOT be deleted, overwritten, merged, reset, used for migrations or assumed to be a production checkout. Do not run `npx wrangler` (may download/install), `wrangler login`, `wrangler deploy`, `wrangler d1 ...`, `npm install`, `git pull`, `git fetch`, `git checkout`, `sudo`, or any write-capable host action in this phase. No passwords, account identifiers, cookies, tokens or private config logged.
+
+**UBU-003 next read-only command (owner may run later; NOT yet executed):**
+```bash
+echo '===== MAIN REPO GIT STATE ====='
+if git -C "$HOME/TrendOs" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  git -C "$HOME/TrendOs" branch --show-current
+  git -C "$HOME/TrendOs" rev-parse --short HEAD
+  git -C "$HOME/TrendOs" status --short --untracked-files=no
+else
+  echo 'TrendOs is not a readable Git worktree'
+fi
+echo '===== LOCAL WRANGLER CHECK ====='
+if [ -x "$HOME/TrendOs/node_modules/.bin/wrangler" ]; then
+  echo 'Project-local Wrangler present'
+else
+  echo 'Project-local Wrangler not found in main TrendOs path'
+fi
+```
+This merely observes the existing main worktree and the one project-local path; status is limited to tracked-file changes. Do not infer any installed global Wrangler from a project-local check. Record actual output later under UBU-003 before further host action.
+
+**Source control coordination:** Original master book branch `agent/trendos-book-audit-v1-20261014` updated append-only; isolated safe integration HEAD verified at `affaa4b6f47b637cbb51823743e3df5789255fb2`, original TrendOS `main` HEAD at `3bc83c0f809fb30e8a3aac1a724b6e949dd7bea9` before this documentation write. Neither branch is targeted by this documentation update. The EasyStore original accounting book receives a non-financial mirrored log. `HOST_ACTION=NONE`, `UBU-002=OWNER_READONLY_INVENTORY`, `WRANGLER_PATH=NOT_FOUND`, `FINANCE_RELEASE=NO_GO`, `FINANCE_WRITES=OFF`, `PRODUCTION_DEPLOY=NO`.
