@@ -57,7 +57,7 @@ test("notes retain instructions, original safety and are idempotent on retry",()
   const a=recipes.buildNotes(fields,"اسم العميل: حنين، صور بدون تغيير");
   assert.match(a,/20 × 9 سم/);
   assert.match(a,/حفظ الأصل/);
-  assert.match(a,/حماية/); // guarantee no changes in source, not image output
+  assert.match(a,/لا تغيّر صورة العميل الأصلية/); // instruction is explicit; engine QC is separate
   assert.match(a,/اسم العميل: حنين/);
   const b=recipes.buildNotes(fields,a);
   assert.equal(a,b);
