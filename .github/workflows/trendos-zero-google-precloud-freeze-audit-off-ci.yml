@@ -1,0 +1,57 @@
+name: TrendOS Zero Google pre-Cloudflare freeze audit — SOURCE ONLY / NO DEPLOY
+on:
+  pull_request:
+    paths:
+      - 'tools/zero_google_precloud_freeze_audit_v0.mjs'
+      - 'tests/zero_google_precloud_freeze_audit.test.mjs'
+      - 'cloudflare-d1/src/legacy-browser-transport-v1.mjs'
+      - 'employee-api-dispatcher-v1.js'
+      - 'cloudflare-d1/wrangler.customer-stage.toml'
+      - 'cloudflare-d1/migrations/0041_customer_private_scan_lease_replay_v0.sql'
+      - 'cloudflare-d1/customer-stage/private-scan-lease-issuer-internal-v0.mjs'
+      - 'cloudflare-d1/customer-stage/private-scan-lease-replay-d1-internal-v0.mjs'
+      - 'cloudflare-d1/customer-stage/private-scan-transport-envelope-internal-v0.mjs'
+      - 'tools/customer_private_scan_loopback_transport_off_v0.py'
+      - 'cloudflare-d1/src/index_v2.js'
+      - 'cloudflare-d1/production-shadow/index.js'
+      - 'cloudflare-d1/customer-stage/index.mjs'
+      - '.github/workflows/trendos-zero-google-precloud-freeze-audit-off-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-inventory-fail-closed-no-google-cutover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+      OPENAI_API_KEY: ''
+      TRENDOS_PRIVATE_SCAN_LOOPBACK_TEST_ONLY: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Confirm nine legacy customer actions and no unapproved source exposure
+        run: |
+          set -euo pipefail
+          node --test tests/zero_google_precloud_freeze_audit.test.mjs
+          node tools/zero_google_precloud_freeze_audit_v0.mjs > "$RUNNER_TEMP/zero-google-source-gate.json"
+          node --input-type=module -e "
+            import fs from 'node:fs';
+            const j=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));
+            if(!j.sourceGuardsPassed||j.canonicalNineCustomerGoogleActions.length!==9||
+              j.customerActionsRetiredInProductionProven!==0||
+              j.productionGo||j.nativeGoogleCutoverAllowed||
+              j.customerPrintReleaseAllowed||j.remoteCloudflareAccessAuthenticated)
+              process.exit(1);
+            console.log('ZERO_GOOGLE_SOURCE_GUARD=PASS');
+            console.log('PRODUCTION_GOOGLE_CUSTOMER_ACTIONS_RETIRED_LAST_PROVEN=0/9');
+            console.log('CLOUDFLARE_ACCESS_REMEDIATION_WAITING_FOR_SUPPORT=YES');
+            console.log('CUSTOMER_PRINT_RELEASE=NO_GO');
+            console.log('NO_REMOTE_CREDENTIALS_NO_DEPLOY=YES');
+          " "$RUNNER_TEMP/zero-google-source-gate.json"
