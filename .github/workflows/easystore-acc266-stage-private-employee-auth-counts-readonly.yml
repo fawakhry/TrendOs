@@ -1,0 +1,131 @@
+name: ACC266 original private Stage employee auth aggregate read-only audit (NO_GO)
+on:
+  push:
+    branches:
+      - audit/acc266-native-employee-stage-counts-readonly-20261030
+    paths:
+      - '.github/workflows/easystore-acc266-stage-private-employee-auth-counts-readonly.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: acc266-stage-private-read-only
+  cancel-in-progress: false
+jobs:
+  isolated-real-provider-read-only:
+    if: github.repository == 'fawakhry/TrendOs' && github.ref == 'refs/heads/audit/acc266-native-employee-stage-counts-readonly-20261030'
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      FINANCE_WRITES: OFF
+      FINANCE_RELEASE: NO_GO
+      OPS_STAGE_ID: bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6
+      FIN_STAGE_ID: c2fe1a54-90f5-4e6f-9d51-80ce23e21328
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check exact original source OFF and stage-only identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$FINANCE_RELEASE" = NO_GO
+          test "$FINANCE_WRITES" = OFF
+          python3 - <<'PY'
+          import pathlib,tomllib
+          p=pathlib.Path("cloudflare-d1/easystore-finance-stage")
+          fin=tomllib.loads((p/"wrangler.toml").read_text())
+          op=tomllib.loads((p/"wrangler.trendos-native-session-source.toml").read_text())
+          assert fin["name"]=="easystore-accounting-staging-api"
+          assert op["name"]=="trendos-native-session-stage-source"
+          assert not fin["workers_dev"] and not op["workers_dev"]
+          assert fin["d1_databases"][0]["database_id"]=="c2fe1a54-90f5-4e6f-9d51-80ce23e21328"
+          assert op["d1_databases"][0]["database_id"]=="bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6"
+          assert fin["vars"]["FINANCE_RELEASE"]=="NO_GO"
+          assert fin["vars"]["FINANCE_WRITES"]=="OFF"
+          assert fin["vars"]["EASYSTORE_STAGE_READONLY_API_V1"]=="OFF"
+          assert fin["vars"]["ACCOUNTING_FINANCE_GRANTS_V1"]=='{"version":1,"grants":[]}'
+          print("ACC266_SOURCE_STAGE_UUIDS_FIXED_FINANCE_OFF=PASS")
+          PY
+      - name: REAL Cloudflare D1 Stage SELECT-only aggregate health; no staff identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          const ID = process.env.CLOUDFLARE_ACCOUNT_ID;
+          const TOKEN = process.env.CLOUDFLARE_API_TOKEN;
+          const OPS = process.env.OPS_STAGE_ID;
+          const FIN = process.env.FIN_STAGE_ID;
+          if (!ID || !TOKEN || !/^[a-f0-9]{32}$/i.test(ID)) throw Error('ACC266_PROVIDER_AUTH_MISSING_OR_INVALID');
+          if (process.env.FINANCE_RELEASE !== 'NO_GO' || process.env.FINANCE_WRITES !== 'OFF')
+            throw Error('ACC266_FINANCE_GUARD_MISSING');
+          const base = 'https://api.cloudflare.com/client/v4/accounts/' + ID + '/d1/database/';
+          const headers = {'authorization':'Bearer ' + TOKEN,'content-type':'application/json'};
+          async function request(url, method='GET', body) {
+            const r=await fetch(url,{method,headers,body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(18000)});
+            if(!r.ok) throw Error('ACC266_PROVIDER_HTTP_REFUSED_' + r.status);
+            const v=await r.json();
+            if(v?.success!==true) throw Error('ACC266_PROVIDER_RESULT_UNQUALIFIED');
+            return v.result;
+          }
+          async function database(id,name){
+            const result=await request(base+id);
+            if(result?.uuid!==id||result?.name!==name)
+              throw Error('ACC266_WRONG_STAGE_D1_RESOURCE_STOP');
+            return true;
+          }
+          // NEVER fetch user names, token fingerprints, debt, balances or PII.
+          // Literal hard-coded SELECT SQL only. Cloudflare D1 /query is a POST
+          // transport; every SQL statement here is read-only and checked.
+          async function select(id,sql){
+            if(!/^SELECT\s/i.test(sql) || /;|\b(?:UPDATE|INSERT|DELETE|DROP|ALTER|CREATE|PRAGMA|ATTACH|REPLACE)\b/i.test(sql))
+              throw Error('ACC266_NONREAD_SQL_STOP');
+            const data=await request(base+id+'/query','POST',{sql});
+            if(!Array.isArray(data)||data.length!==1||data[0]?.success!==true||
+              !Array.isArray(data[0]?.results)||data[0].results.length!==1)
+              throw Error('ACC266_SELECT_RESULT_INVALID');
+            if(Number(data[0]?.meta?.rows_written||0)!==0||
+               Number(data[0]?.meta?.changes||0)!==0)
+              throw Error('ACC266_D1_ROWS_WRITTEN_STOP');
+            return data[0].results[0];
+          }
+          await database(OPS,'trendos-staging');
+          await database(FIN,'easystore-accounting-staging');
+          const mode=(await select(OPS,"SELECT mode FROM employee_auth_control_v1 WHERE singleton=1 AND marker='T12_EMPLOYEE_AUTH_V1'")).mode;
+          const users=Number((await select(OPS,"SELECT COUNT(*) AS n FROM employee_auth_users_v1")).n);
+          const sessions=Number((await select(OPS,"SELECT COUNT(*) AS n FROM employee_auth_sessions_v1")).n);
+          const active=Number((await select(OPS,"SELECT COUNT(*) AS n FROM employee_auth_sessions_v1 WHERE revoked_at_ms IS NULL AND expires_at_ms > (CAST(strftime('%s','now') AS INTEGER)*1000)")).n);
+          const financeMode=(await select(FIN,"SELECT mode FROM employee_accounting_control_v1 WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1'")).mode;
+          const tables=Number((await select(FIN,"SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name LIKE 'employee_accounting_%'")).n);
+          if(!['OFF','TRANSITIONAL','NATIVE'].includes(mode)||!['OFF','READONLY'].includes(financeMode)||
+             ![users,sessions,active,tables].every(x=>Number.isSafeInteger(x)&&x>=0)||
+             active>sessions||tables!==22)throw Error('ACC266_STAGE_INVARIANT_UNQUALIFIED');
+          console.log('ACC266_REAL_PROVIDER_STAGE_NAMES_AND_UUIDS=PASS');
+          console.log('ACC266_FINANCE_STAGE_TABLES=' + tables);
+          console.log('ACC266_FINANCE_STAGE_D1_MODE=' + financeMode);
+          console.log('ACC266_NATIVE_EMPLOYEE_STAGE_MODE=' + mode);
+          console.log('ACC266_NATIVE_EMPLOYEE_USER_COUNT=' + users);
+          console.log('ACC266_NATIVE_EMPLOYEE_SESSION_COUNT=' + sessions);
+          console.log('ACC266_NATIVE_EMPLOYEE_ACTIVE_SESSION_COUNT=' + active);
+          console.log('ACC266_REAL_EMPLOYEE_SSO_ACCEPTANCE=NOT_EXECUTED');
+          console.log('ACC266_LIVE_FINANCE_READ_API=NOT_TESTED');
+          console.log('FINANCE_WRITES=OFF');
+          console.log('FINANCE_RELEASE=NO_GO');
+          const fs=await import('node:fs');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '## ACC266 owner Stage-only provider READ\n\n'+
+            '- Provider Stage UUIDs independently verified: YES\n'+
+            '- Finance D1 original application tables: '+tables+'\n'+
+            '- Finance D1 mode: '+financeMode+' (no writes)\n'+
+            '- Native Stage employee mode: '+mode+'\n'+
+            '- Aggregate users/sessions/active sessions: '+users+'/'+sessions+'/'+active+'\n'+
+            '- No names/tokens/passwords/actual customer data inspected\n'+
+            '- No provider configuration, D1 schema or finance mutation\n'+
+            '- Authenticated staff SSO and financial read: NOT TESTED\n'+
+            '- Finance release: NO_GO; finance writes: OFF\n');
+          JS
