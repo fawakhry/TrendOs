@@ -97,3 +97,19 @@ test("portal UI new-order chat remains isolated from staff, accounting and produ
   assert.ok(!addon.includes('customerDraft.submitted ='));
   assert.ok(!addon.includes('submitCustomerDraft('));
 });
+
+test("customer visual identity stays inside customer portal; order button and designer share one flow",()=>{
+  const css=fs.readFileSync(path.join(root,"customer-design-guided-chat-v1.css"),"utf8");
+  const htmlCustomer=html.slice(html.indexOf('<section id="customerView"'),html.indexOf('</section>',html.indexOf('<section id="customerView"'))+10);
+  assert.ok(htmlCustomer.includes('customer-matbagy-identity'));
+  assert.ok(htmlCustomer.includes('customer-matbagy-hero'));
+  assert.ok(htmlCustomer.includes('id="customerShowNewOrderBtn"'));
+  assert.ok(htmlCustomer.includes('id="customerShowDesignerBtn"'));
+  assert.ok(htmlCustomer.includes('MATBAGY'));
+  assert.ok(htmlCustomer.includes('خدمات مطبعجي'));
+  assert.ok(css.includes('#customerView .customer-topbar'));
+  assert.ok(css.includes('#customerView #customerShowNewOrderBtn'));
+  assert.ok(css.includes('#customerView #customerNewOrderPanel'));
+  assert.ok(css.includes('@media(max-width:520px)'));
+  assert.ok(!css.includes('#mainView .topbar'));
+});
