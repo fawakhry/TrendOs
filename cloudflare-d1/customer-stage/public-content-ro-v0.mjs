@@ -62,6 +62,9 @@ function safePublic(row,view){
 // every permitted property is curated and strictly bounded by its view.
 function safeMarketVendor(row){
   const record=parsePublicRecord(row);
+  // Employee content ACTIVE is not publication consent. Require explicit
+  // boolean opt-in per record. Missing, string or inherited flags stay private.
+  if(record.publicToCustomers!==true)return null;
   const vendorCode=validText(record.code||record.vendorCode||row.record_id,48);
   const vendorName=validText(record.vendorName||record.name,120);
   if(!vendorCode||!vendorName)return null;
@@ -69,6 +72,7 @@ function safeMarketVendor(row){
 }
 function safeMarketProduct(row,allowedVendors){
   const record=parsePublicRecord(row);
+  if(record.publicToCustomers!==true)return null;
   const vendorCode=validText(record.vendorCode,48);
   const productCode=validText(record.code||record.productCode||row.record_id,48);
   const productName=validText(record.productName||record.name,120);
@@ -92,6 +96,7 @@ function parsePublicRecord(row){
 }
 function safePublicAd(row){
   const r=parsePublicRecord(row);
+  if(r.publicToCustomers!==true)return null;
   const headline=validText(r.title||r.headline||r.caption,120);
   if(!headline)return null;
   const placement=validText(r.placement||r.adPlacement,30);
@@ -103,6 +108,9 @@ function safePublicAd(row){
 function safePublicBrand(row){
   if(!row)return {};
   const r=parsePublicRecord(row);
+  // Never echo internal owner/company brand metadata without explicit
+  // customer-visible publication approval. Empty settings remain safe.
+  if(r.publicToCustomers!==true)return {};
   const platformName=validText(r.platformName,100);
   const primaryColor=validText(r.primaryColor,7);
   return {...(platformName?{platformName}:{}),
