@@ -1,0 +1,130 @@
+name: ACC270 Nov-01 EasyStore REAL MONEY go-live readiness (read-only NO_GO)
+on:
+  push:
+    branches: ['audit/acc270-nov01-real-cash-go-live-preflight-20261031']
+    paths: ['.github/workflows/easystore-acc270-nov01-live-money-readiness-readonly.yml']
+  pull_request:
+    branches: ['feature/acc268-easystore-standalone-customer-source-off-20261030']
+permissions:
+  contents: read
+concurrency:
+  group: acc270-nov01-finance-readiness
+  cancel-in-progress: false
+jobs:
+  original-provider-and-published-ui-observation-only:
+    if: >-
+      github.repository == 'fawakhry/TrendOs' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/audit/acc270-nov01-real-cash-go-live-preflight-20261031') ||
+      (github.event_name == 'pull_request' && github.head_ref == 'audit/acc270-nov01-real-cash-go-live-preflight-20261031' &&
+        github.event.pull_request.head.repo.full_name == 'fawakhry/TrendOs'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      FINANCE_RELEASE: NO_GO
+      FINANCE_WRITES: OFF
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate source Stage never enables finance automatically
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib, tomllib
+          config=tomllib.loads(pathlib.Path('cloudflare-d1/easystore-finance-stage/wrangler.toml').read_text())
+          assert config['name']=='easystore-accounting-staging-api'
+          assert config['workers_dev'] is False
+          assert config['d1_databases'][0]['database_name']=='easystore-accounting-staging'
+          assert config['d1_databases'][0]['database_id']=='c2fe1a54-90f5-4e6f-9d51-80ce23e21328'
+          assert config['vars']['FINANCE_RELEASE']=='NO_GO'
+          assert config['vars']['FINANCE_WRITES']=='OFF'
+          assert config['vars']['EASYSTORE_ACCOUNTING_D1_WRITE_MODE']=='OFF'
+          assert config['vars']['ACCOUNTING_FINANCE_GRANTS_V1']=='{"version":1,"grants":[]}'
+          assert config['vars']['EASYSTORE_STAGE_READONLY_API_V1']=='OFF'
+          assert config['vars']['EASYSTORE_CUSTOMER_SOURCE_V1']=='REMOTE_REQUIRED'
+          assert config['vars']['EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1']=='REMOTE_NATIVE_REQUIRED'
+          print('ACC270_SOURCE_DEFAULTS_FINANCE_LOCKED=PASS')
+          PY
+      - name: Independently read ACTUAL Cloudflare Stage and live EasyStore flags
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const account=process.env.CLOUDFLARE_ACCOUNT_ID,token=process.env.CLOUDFLARE_API_TOKEN;
+          if(!/^[0-9a-f]{32}$/i.test(account||'')||!token) throw Error('ACC270_PROVIDER_CREDS_NOT_CONFIGURED');
+          if(process.env.FINANCE_RELEASE!=='NO_GO'||process.env.FINANCE_WRITES!=='OFF') throw Error('ACC270_GUARD_NOT_OFF');
+          const headers={authorization:'Bearer '+token,'content-type':'application/json'};
+          const base='https://api.cloudflare.com/client/v4/accounts/'+account+'/d1/database/';
+          const fin='c2fe1a54-90f5-4e6f-9d51-80ce23e21328';
+          const op='bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6';
+          async function provider(path,method='GET',body){
+            const res=await fetch(base+path,{method,headers,body:body?JSON.stringify(body):undefined,
+              signal:AbortSignal.timeout(18000)});
+            if(!res.ok)throw Error('ACC270_CLOUDFLARE_DENIED_'+res.status);
+            const d=await res.json();
+            if(d.success!==true)throw Error('ACC270_PROVIDER_UNQUALIFIED');
+            return d.result;
+          }
+          for(const [id,name] of [[fin,'easystore-accounting-staging'],[op,'trendos-staging']]){
+            const meta=await provider(id);
+            if(meta.uuid!==id||meta.name!==name)throw Error('ACC270_WRONG_DATABASE_ABORT');
+          }
+          async function sql(id,query){
+            if(!/^SELECT\s/i.test(query)||/;|\b(?:UPDATE|INSERT|DELETE|REPLACE|CREATE|ALTER|DROP|ATTACH|VACUUM|PRAGMA)\b/i.test(query))
+              throw Error('ACC270_NON_SELECT_SQL_ABORT');
+            const v=await provider(id+'/query','POST',{sql:query});
+            if(!Array.isArray(v)||v.length!==1||v[0]?.success!==true||v[0].results?.length!==1||
+              Number(v[0].meta?.rows_written||0)!==0||Number(v[0].meta?.changes||0)!==0)
+              throw Error('ACC270_SELECT_INVARIANT_FAILURE');
+            return v[0].results[0];
+          }
+          const fm=(await sql(fin,"SELECT mode FROM employee_accounting_control_v1 WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1'")).mode;
+          const table=Number((await sql(fin,"SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name LIKE 'employee_accounting_%'")).n);
+          const count=Number((await sql(fin,"SELECT COUNT(*) AS n FROM employee_accounting_final_invoices_v1")).n);
+          const cash=Number((await sql(fin,"SELECT COUNT(*) AS n FROM employee_accounting_cashbox_v1")).n);
+          const am=(await sql(op,"SELECT mode FROM employee_auth_control_v1 WHERE singleton=1 AND marker='T12_EMPLOYEE_AUTH_V1'")).mode;
+          const staff=Number((await sql(op,"SELECT COUNT(*) AS n FROM employee_auth_users_v1")).n);
+          const sessions=Number((await sql(op,"SELECT COUNT(*) AS n FROM employee_auth_sessions_v1")).n);
+          if(table!==22||![count,cash,staff,sessions].every(x=>Number.isSafeInteger(x)&&x>=0))throw Error('ACC270_SCHEMA_OR_COUNT_FAILURE');
+          const page=await fetch('https://fawakhry.github.io/EasyStore/config.js?acc270-readonly='+Date.now(),{
+            method:'GET',cache:'no-store',signal:AbortSignal.timeout(18000)});
+          if(!page.ok)throw Error('ACC270_PUBLISHED_CONFIG_UNAVAILABLE_'+page.status);
+          const conf=await page.text();
+          const liveFinanceOff=/EASYSTORE_ACCOUNTING_D1_WRITE_MODE\s*=\s*['"]OFF['"]/.test(conf)
+              && /EASYSTORE_ACCOUNTING_D1_WRITES\s*=\s*false/.test(conf);
+          const stageSafe=(fm==='OFF'&&am==='OFF'&&staff===0&&sessions===0);
+          const gates=[
+            ['VERIFIED_STAFF_SESSIONS',false,'Stage native employee login OFF/empty; no signed real cashier session supplied'],
+            ['REAL_OPENING_BALANCES_AT_2026_11_01',false,'genuine two-person signed balances NOT supplied'],
+            ['INDEPENDENT_BACKUP_RESTORE',false,'independent actual second-host restore evidence NOT supplied'],
+            ['STAGE_CASH_POST_AND_ROLLBACK',false,'original private Stage finance Writer hard-disabled'],
+            ['PRODUCTION_APPROVED_PINNED_SHA',false,'source branches remain Draft/unmerged']
+          ];
+          const results={
+            stage_d1_uuid_verified:true,finance_tables:table,finance_mode:fm,finance_invoices:count,
+            finance_cashbox:cash,stage_employee_auth_mode:am,stage_employee_users:staff,
+            stage_employee_sessions:sessions,published_finance_write_mode_off:liveFinanceOff,
+            stage_off_unchanged:stageSafe,opening_balances_proven:false,real_staff_session_verified:false,
+            separate_restore_proven:false,first_real_money_sale_allowed:false,
+            planned_cutover:'2026-11-01',actual_cutover:'NOT_STARTED',
+            real_money_release:'NO_GO',owner_approved_business_scope:'CASH_ONLY'
+          };
+          console.log('ACC270_REAL_PROVIDER_STAGE_IDS=PASS');
+          for(const [k,v] of Object.entries(results))console.log('ACC270_'+k.toUpperCase()+'='+v);
+          for(const [key,ok,why] of gates) console.log('ACC270_BLOCKER_'+key+'='+(ok?'CLEAR':'OPEN')+' ('+why+')');
+          if(!liveFinanceOff||!stageSafe)console.log('ACC270_CRITICAL_CONFIG_DRIFT=REVIEW_REQUIRED');
+          const lines=['## Nov 1, 2026 — original EasyStore real-money launch check (SELECT/GET only)',
+            '','**Actual release: NO_GO** (never infer GO from CI success).',
+            '','| Observation | Value |','|---|---|'];
+          for(const [k,v] of Object.entries(results))lines.push('| '+k+' | '+String(v)+' |');
+          lines.push('','No names, phones, tokens, invoice content, balances or financial SQL mutations were accessed.',
+          'Genuine cutover balances, verified employees, controlled money-stage test and independent second-host restore are external operator evidence: NOT SUPPLIED.');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,lines.join('\n')+'\n');
+          JS
