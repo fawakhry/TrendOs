@@ -386,6 +386,23 @@ async function getAccounting(env,auth){
 // TrendOS over a signed internal Worker service in the isolated EasyStore lane.
 // The legacy shared-D1 path remains unchanged when REMOTE_REQUIRED is absent;
 // isolated Stage must set REMOTE_REQUIRED and CANNOT fall back to local T12.
+// ACC268: standalone accounting uses the EXISTING finance party master only.
+// Two exact server-only switches and explicit IDs prevent legacy/T12 fallback.
+// OFF on all original production and isolated Stage configs.
+function standaloneFinanceCustomerSourceV1(env){
+  return text(env&&env.EASYSTORE_STANDALONE_CUSTOMERS_V1)==='ENFORCE' &&
+    text(env&&env.EASYSTORE_CUSTOMER_SOURCE_V1)==='FINANCE_LOCAL_ONLY';
+}
+function standaloneCustomerSelectV1(){
+  return `SELECT c.party_id AS customer_id,c.display_name AS customer_name,
+    '' AS manager,c.phone AS phone,'' AS extra_phone,'EasyStore' AS customer_type,
+    CASE WHEN c.active=1 THEN 'نعم' ELSE 'لا' END AS active,
+    0 AS credit_cents,
+    COALESCE((SELECT pb.balance FROM employee_accounting_party_balances_v1 pb
+      WHERE pb.party_type='customer' AND pb.party_id=c.party_id LIMIT 1),0) AS current_balance
+    FROM employee_accounting_parties_v1 c
+    WHERE c.party_type='customer' AND c.source_system='EasyStoreStandaloneV1'`;
+}
 function isolatedOfficialCustomerSourceV1(env){
   return text(env&&env.EASYSTORE_CUSTOMER_SOURCE_V1)==='REMOTE_REQUIRED';
 }
@@ -415,6 +432,13 @@ async function remoteCustomerDirectoryV1(env,auth,query){
     credit_cents:creditById.get(c.customer_id)||0}));
 }
 async function customerBalanceByName(env,name){
+  if(standaloneFinanceCustomerSourceV1(env)){
+    const matches=await rows(env,
+      "SELECT party_id FROM employee_accounting_parties_v1 WHERE party_type='customer' AND source_system='EasyStoreStandaloneV1' AND normalized_name=? AND active=1 LIMIT 2",
+      [key(name)]);
+    if(matches.length!==1)throw commandErrorV1('accounting-local-customer-ambiguous','العميل غير موجود أو غير محدد بشكل فريد.');
+    return partyBalanceV1(env,'customer',text(matches[0].party_id));
+  }
   if(isolatedOfficialCustomerSourceV1(env)){
     const matches=await readOfficialCustomersV1(env,{operation:'EXACT_NAME',name:text(name)});
     if(matches.length!==1)throw commandErrorV1('official-customer-name-unresolved','لا يمكن ربط رصيد عميل بالاسم بدون معرف رسمي واحد.');
@@ -443,6 +467,12 @@ function scopedCustomerViewV1(r,auth){
 }
 async function getEasyStoreCustomersV1(env,auth,b){
   const limit=Math.max(1,Math.min(Math.trunc((b.limit==null||b.limit==='')?500:num(b.limit,500)),1000));
+  if(standaloneFinanceCustomerSourceV1(env)){
+    const customers=await rows(env,standaloneCustomerSelectV1()+
+      " AND c.active=1 ORDER BY c.updated_at_ms DESC,c.display_name LIMIT ?",[limit]);
+    return {success:true,customers:customers.map(x=>scopedCustomerViewV1(x,auth)),
+      version:'EASYSTORE_STANDALONE_V1',identitySource:'EASYSTORE_FINANCE_LOCAL'};
+  }
   if(isolatedOfficialCustomerSourceV1(env)){
     const customers=await remoteCustomerDirectoryV1(env,auth,{operation:'LIST_ACTIVE',limit:Math.min(500,limit)});
     return {success:true,customers,version:'A1_D1_READ_MODEL_V1',identitySource:'TRENDOS_SIGNED_INTERNAL'};
@@ -464,6 +494,13 @@ async function getEasyStoreCustomersV1(env,auth,b){
 async function searchCustomersV1(env,auth,b){
   const q=key(b.q);
   if(!q)return {success:true,customers:[],version:'A1_D1_READ_MODEL_V1'};
+  if(standaloneFinanceCustomerSourceV1(env)){
+    const customers=await rows(env,standaloneCustomerSelectV1()+
+      " AND c.active=1 AND c.normalized_name LIKE ? ORDER BY c.updated_at_ms DESC,c.display_name LIMIT 12",
+      ['%'+q+'%']);
+    return {success:true,customers:customers.map(x=>scopedCustomerViewV1(x,auth)),
+      version:'EASYSTORE_STANDALONE_V1',identitySource:'EASYSTORE_FINANCE_LOCAL'};
+  }
   if(isolatedOfficialCustomerSourceV1(env)){
     // Search names only; the independent finance service never delegates
     // arbitrary contact/phone enumeration to the operational source.
@@ -520,7 +557,12 @@ async function getCustomerAccountV1915V1(env,auth,b){
   const customerId=text(b.customerId),requestedName=text(b.customerName||b.partyName||b.name);
   if(!customerId&&!requestedName)return {success:false,message:'اختر العميل أولًا.'};
   let customer;
-  if(isolatedOfficialCustomerSourceV1(env)){
+  if(standaloneFinanceCustomerSourceV1(env)){
+    if(!customerId)return {success:false,code:'accounting-local-customer-id-required',
+      message:'اختر العميل من دليل الحسابات بمعرّفه، وليس الاسم فقط.'};
+    customer=await env.DB.prepare(standaloneCustomerSelectV1()+
+      " AND c.party_id=? AND c.active=1 LIMIT 1").bind(customerId).first();
+  }else if(isolatedOfficialCustomerSourceV1(env)){
     const matches=await readOfficialCustomersV1(env,
       customerId?{operation:'BY_ID',customerId}:{operation:'EXACT_NAME',name:requestedName});
     if(!customerId&&matches.length>1)return {success:false,code:'accounting-customer-name-ambiguous',
@@ -1150,7 +1192,14 @@ async function resolvePartyV1(env,type,b){
   const partyId=text(b.partyId||b.customerId||b.supplierId),requested=text(b.partyName||b.customerName||b.supplierName||b.name);
   if(type==='customer'){
     let r;
-    if(isolatedOfficialCustomerSourceV1(env)){
+    if(standaloneFinanceCustomerSourceV1(env)){
+      if(!partyId)throw commandErrorV1('accounting-local-customer-id-required',
+        'لا يمكن تسجيل حركة عميل بالاسم فقط في الحسابات المستقلة.');
+      r=await env.DB.prepare(
+        "SELECT party_id AS partyId,display_name AS partyName FROM employee_accounting_parties_v1 "+
+        "WHERE party_type='customer' AND source_system='EasyStoreStandaloneV1' AND active=1 AND party_id=? LIMIT 1"
+      ).bind(partyId).first();
+    }else if(isolatedOfficialCustomerSourceV1(env)){
       const matches=await readOfficialCustomersV1(env,partyId?
         {operation:'BY_ID',customerId:partyId}:
         {operation:'EXACT_NAME',name:requested});
@@ -1359,6 +1408,43 @@ async function partyLedger(env,auth,b){
   const response={success:true,id:tx,partyId:party.partyId,partyType:type,partyName:party.partyName,balanceBefore:num(written.balanceBefore),balance:num(written.balanceAfter),cashboxPosted:op==='payment_received'||op==='payment_paid',version:'A2_D1_ACCOUNTING_V1'};
   await commitCommandV1(env,ctx,response);
   await auditEventV1(env,ctx,'party-ledger',tx,'post',auth.user.username,{type,partyId:party.partyId,partyName:party.partyName,op,amount,before:response.balanceBefore,after:response.balance,balanceVersionBefore:version,balanceVersionAfter:version+1});
+  return response;
+}
+// ACC268: original FINANCE D1 party master, never a second customer database.
+// No opening balance or guessed external/T12 owner. Default OFF everywhere.
+async function saveStandaloneCustomerV1(env,auth,b){
+  if(!standaloneFinanceCustomerSourceV1(env))
+    return {success:false,code:'accounting-standalone-customer-source-off'};
+  if(auth.mode!=='full')return {success:false,code:'accounting-customer-manager-required'};
+  const name=text(b.customerName||b.name),normalized=key(name);
+  if(name.length<2||name.length>120||/[<>\\x00-\\x1f]/u.test(name)||normalized.length<2)
+    return {success:false,code:'accounting-customer-name-invalid'};
+  if(text(b.customerId)||text(b.partyId)||text(b.externalId)||Number(b.openingDebt||0)!==0)
+    return {success:false,code:'accounting-customer-foreign-id-or-opening-denied'};
+  const requestId=text(b.requestId||b.idempotencyKey||b.clientRequestId);
+  if(!/^[\\p{L}\\p{N}_:.\\-]{12,180}$/u.test(requestId))
+    return {success:false,code:'accounting-idempotency-key-required'};
+  const partyId='ESC-'+(await sha256HexV1(requestId)).slice(0,20).toUpperCase();
+  const existing=await env.DB.prepare(
+    "SELECT party_id FROM employee_accounting_parties_v1 WHERE party_type='customer' AND normalized_name=? LIMIT 1"
+  ).bind(normalized).first();
+  if(existing&&text(existing.party_id)!==partyId)
+    return {success:false,code:'accounting-customer-name-already-registered'};
+  const cmd={requestId,customerName:name,partyId};
+  const ctx=await beginCommandV1(env,auth,'standalone-customer-create',cmd,partyId);
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const now=Date.now();
+  await env.DB.prepare(
+    "INSERT INTO employee_accounting_parties_v1 "+
+    "(party_id,party_type,display_name,normalized_name,external_id,source_system,phone,address,notes,active,created_by,created_at_ms,updated_at_ms) "+
+    "VALUES(?,'customer',?,?,'','EasyStoreStandaloneV1',?,?,?,1,?,?,?)"
+  ).bind(partyId,name,normalized,text(b.phone).slice(0,40),
+    text(b.address).slice(0,300),text(b.notes).slice(0,300),
+    auth.user.username,now,now).run();
+  const response={success:true,customerId:partyId,name,version:'EASYSTORE_STANDALONE_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'customer',partyId,'create',auth.user.username,
+    {source:'EasyStoreStandaloneV1',noOpeningBalance:true});
   return response;
 }
 async function saveSupplierV1(env,auth,b){
@@ -2903,6 +2989,7 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='recalcAccountingMaterialsCascade'||action==='recalculateAccountingMaterials'||action==='recalculateAccountingMaterialsCascade')out=await recalcAccountingMaterialsCascadeV1(env,auth,b);
     else if(action==='saveAccountingWaste')out=await saveAccountingWasteV1(env,auth,b);
     else if(action==='saveEasyStoreSupplier')out=await saveSupplierV1(env,auth,b);
+    else if(action==='saveEasyStoreCustomer')out=await saveStandaloneCustomerV1(env,auth,b);
     else if(action==='saveEasyStorePurchaseV2')out=await postPurchaseInvoiceV1(env,auth,b);
     else if(action==='saveEasyStoreSaleV2')out=await saveEasyStoreSaleV2A2(env,auth,b);
     else if(action==='saveDeptDailyPurchaseV1917')out=await saveDeptDailyPurchaseV1(env,auth,b);
