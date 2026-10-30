@@ -98,7 +98,8 @@
     "tools/zero_google_one_package_v1.mjs",
     "tools/build_zero_google_one_package_v1.py",
     "tests/zero_google_one_package_v1.test.mjs",
-    "tests/zero_google_one_package_build_v1.test.py"
+    "tests/zero_google_one_package_build_v1.test.py",
+    ".github/workflows/trendos-zero-google-one-package-v1-ci.yml"
   ],
   "sourceBranch": "integration/zero-google-one-package-v1-20261031",
   "sourceBranchBase": "chore/zero-google-operator-book24-google-proxy-audit-off-20261031",
