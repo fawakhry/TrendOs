@@ -25,7 +25,7 @@ const FAILED_RELEASE_GATES=Object.freeze([
   {id:'ZG-RELEASE-08',owner:'TrendOS owner',need:'Explicit canary, backups, monitoring and rollback approval before any Google/Apps Script retirement',ready:false}
 ]);
 const safeRelative=(p)=>typeof p==='string'&&p.length>0&&
-  !path.isAbsolute(p)&&!p.startsWith('.')&&
+  !path.isAbsolute(p)&&(!p.startsWith('.')||p.startsWith('.github/workflows/'))&&
   !p.split('/').includes('..')&&
   !p.includes('\\')&&
   !/(^|\/)(\.env|\.git|node_modules|\.wrangler|secrets?|credentials?)(\/|\.|$)/i.test(p);
