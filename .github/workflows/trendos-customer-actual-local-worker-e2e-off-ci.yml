@@ -20,6 +20,7 @@ on:
       - 'tests/fixtures/customer-stage-browser-local.html'
       - '.github/workflows/trendos-customer-actual-local-worker-e2e-off-ci.yml'
       - 'cloudflare-d1/customer-stage/**'
+      - 'tests/customer_public_content_explicit_publication_off.test.mjs'
       - 'cloudflare-d1/wrangler.customer-stage.toml'
   workflow_dispatch:
 permissions:
@@ -73,6 +74,7 @@ jobs:
         run: |
           set -euo pipefail
           node --test tests/customer_isolated_stage_worker_off.test.mjs
+          node --test tests/customer_public_content_explicit_publication_off.test.mjs
           node --test tests/customer_stage_durable_rate_limit_off.test.mjs
           python3 tests/customer_stage_durable_rate_limit_sqlite.test.py -v
           node --test tests/customer_native_browser_transport_off.test.mjs
