@@ -808,7 +808,11 @@
 
   <section id="customerView" class="hidden">
     <header class="topbar customer-topbar">
-      <div>
+      <div class="customer-matbagy-topline">
+        <div class="customer-matbagy-identity" aria-label="مطبعجي بنها">
+          <span class="customer-matbagy-mark" aria-hidden="true">م</span>
+          <span><strong>مطبعجي</strong><small>استوديو الطباعة والتصميم</small></span>
+        </div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
     <p class="version-badge">TrendOS V1931 Trend Master</p>
@@ -821,16 +825,25 @@
     </header>
 
     <section id="customerHomePanel" class="card customer-home-card">
+      <div class="customer-matbagy-hero">
+        <div>
+          <span class="customer-matbagy-eyebrow">MATBAGY • DESIGN & PRINT</span>
+          <h3>فكرتك تبدأ بمحادثة</h3>
+          <p>اختار المنتج والمقاس، ارفع الصور، واكتب المطلوب. هتقدر تراجع أوردراتك من نفس حسابك.</p>
+          <span class="customer-matbagy-mini-note">◉ الملامح والكتابة والمقاس يحتاجوا مراجعة قبل الطباعة</span>
+        </div>
+        <span class="customer-matbagy-hero-mark" aria-hidden="true">م</span>
+      </div>
       <div id="customerAdsBoard" class="customer-ads-board hidden"></div>
-      <h3>خدماتك على Trend Mall</h3>
+      <h3>خدمات مطبعجي</h3>
       <div class="customer-service-grid">
         <button id="customerFastPrintFilesBtn" class="customer-service-card fast-print-card hidden" type="button">
           <b>⚡ رفع ملف جاهز للطباعة</b>
           <span>للعملاء المصرح لهم فقط: ارفع ملفات جاهزة للطباعة مباشرة في مسار التنفيذ السريع.</span>
         </button>
         <button id="customerShowNewOrderBtn" class="customer-service-card" type="button">
-          <b>+ طلب جديد</b>
-          <span>افتح مسودة شات، أضف كل البنود والملفات، ثم ابدأ التنفيذ واستلم رقم الأوردر.</span>
+          <b>＋ أوردر جديد — افتح المحادثة</b>
+          <span>اختار المنتج والمقاس وارفع الصور واكتب التفاصيل في محادثة واحدة.</span>
         </button>
         <button id="customerShowOrdersBtn" class="customer-service-card" type="button">
           <b>متابعة أوردراتي</b>
@@ -838,7 +851,7 @@
         </button>
         <button id="customerOpenMatbagySheetsBtn" class="customer-service-card" type="button">
           <b>Trend Mall شيتات</b>
-          <span>رص صور الطباعة بجودة HD 300DPI.</span>
+          <span>تجهيز شيتات الصور للطباعة مع مراجعة الدقة قبل التنفيذ.</span>
         </button>
         <button id="customerShowDesignerBtn" class="customer-service-card ai" type="button">
           <b>اطلب تصميمًا ذكيًا</b>
@@ -872,7 +885,7 @@
 
     <section id="customerNewOrderPanel" class="card hidden customer-chat-card whatsapp-mode-card">
       <div class="table-tools wa-page-tools">
-        <h3>دردشة الطلب</h3>
+        <h3>محادثة أوردر مطبعجي</h3>
         <span id="customerOrderMsg"></span>
       </div>
 
@@ -888,7 +901,7 @@
         </div>
 
         <div id="customerDraftMessages" class="customer-chat-messages wa-chat-wall">
-          <div class="chat-bubble system">ابدأ بإضافة أول بند: اختر طباعة أو ليزر، ارفع الصور والملفات، واكتب المطلوب.</div>
+          <div class="chat-bubble system">أهلاً بيك في مطبعجي 👋 اختار المنتج ومقاسه، ابعت الصور واكتب المطلوب. كل بند بيتراجع قبل التنفيذ.</div>
         </div>
 
         <div class="customer-chat-composer wa-chat-composer">
