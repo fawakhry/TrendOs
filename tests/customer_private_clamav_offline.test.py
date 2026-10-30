@@ -45,6 +45,9 @@ class OfflineScanner(unittest.TestCase):
             "if b'FAKE_MALWARE' in data:\n"
             " print('stdin: Local.Test FOUND')\n"
             " sys.exit(1)\n"
+            "if b'FAKE_ENGINE_LIMIT' in data:\n"
+            " print('stdin: Heuristics.Limits.Exceeded FOUND')\n"
+            " sys.exit(1)\n"
             "if b'FAKE_ENGINE_ERROR' in data:\n"
             " print('stdin: ERROR')\n"
             " sys.exit(2)\n"
@@ -82,6 +85,12 @@ class OfflineScanner(unittest.TestCase):
         self.assertEqual(r["code"], "SCAN_LOCAL_THREAT_DETECTED")
         self.assertTrue(r["localEngineDetectedThreat"])
         self.assertFalse(r["localEngineObservedClean"])
+        self.assert_never_authorized(r)
+
+    def test_scan_limit_is_not_mislabeled_confirmed_infection(self):
+        r = self.run_scan(PNG + b"FAKE_ENGINE_LIMIT")
+        self.assertEqual(r["code"], "SCAN_ENGINE_LIMIT_EXCEEDED")
+        self.assertFalse(r["localEngineDetectedThreat"])
         self.assert_never_authorized(r)
 
     def test_engine_error_and_ambiguous_exit_fail_closed(self):
