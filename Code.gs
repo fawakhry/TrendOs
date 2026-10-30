@@ -6423,7 +6423,7 @@ function uploadCustomerDraftFile_(payload) {
   const blob = Utilities.newBlob(bytes, mimeType, fileName);
   const file = folder.createFile(blob);
   try {
-    file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+    file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW);
     if (file.getSharingAccess() !== DriveApp.Access.PRIVATE) {
       throw new Error("CREATED_FILE_NOT_PRIVATE");
     }
