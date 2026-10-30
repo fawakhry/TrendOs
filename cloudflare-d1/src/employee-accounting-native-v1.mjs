@@ -1417,12 +1417,12 @@ async function saveStandaloneCustomerV1(env,auth,b){
     return {success:false,code:'accounting-standalone-customer-source-off'};
   if(auth.mode!=='full')return {success:false,code:'accounting-customer-manager-required'};
   const name=text(b.customerName||b.name),normalized=key(name);
-  if(name.length<2||name.length>120||/[<>\\x00-\\x1f]/u.test(name)||normalized.length<2)
+  if(name.length<2||name.length>120||/[\x00-\x1f<>]/u.test(name)||normalized.length<2)
     return {success:false,code:'accounting-customer-name-invalid'};
   if(text(b.customerId)||text(b.partyId)||text(b.externalId)||Number(b.openingDebt||0)!==0)
     return {success:false,code:'accounting-customer-foreign-id-or-opening-denied'};
   const requestId=text(b.requestId||b.idempotencyKey||b.clientRequestId);
-  if(!/^[\\p{L}\\p{N}_:.\\-]{12,180}$/u.test(requestId))
+  if(!/^[\p{L}\p{N}_.:\-]{12,180}$/u.test(requestId))
     return {success:false,code:'accounting-idempotency-key-required'};
   const partyId='ESC-'+(await sha256HexV1(requestId)).slice(0,20).toUpperCase();
   const existing=await env.DB.prepare(
