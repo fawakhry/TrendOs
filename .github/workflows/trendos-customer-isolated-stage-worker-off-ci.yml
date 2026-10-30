@@ -6,6 +6,8 @@ on:
   pull_request:
     paths:
       - 'cloudflare-d1/customer-stage/**'
+      - 'tools/customer_private_clamav_offline_v0.py'
+      - 'tests/customer_private_clamav_offline.test.py'
       - 'tests/customer_stage_private_r2_integrity_off.test.mjs'
       - 'tests/customer_stage_wrangle_local_real_d1_do_e2e.py'
       - 'cloudflare-d1/src/customer-portal-native-draft-file-r2-v0.mjs'
@@ -71,6 +73,29 @@ jobs:
           node --check cloudflare-d1/src/customer-portal-native-file-quarantine-ro-v0.mjs
           node --test tests/customer_native_file_quarantine_off.test.mjs
           python3 tests/customer_native_file_quarantine_sqlite.test.py -v
+      - name: Offline scanner adapter fake engine: rejects all delivery and release claims
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/customer_private_clamav_offline_v0.py
+          python3 tests/customer_private_clamav_offline.test.py -v
+      - name: Install real isolated ClamAV Linux executable for synthetic test ONLY
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends clamav
+          /usr/bin/clamscan --version
+      - name: Actual ClamAV local byte engine with disposable EICAR-style hash signature only
+        env:
+          TRENDOS_REAL_CLAMAV_OFFLINE_TEST: '1'
+        run: |
+          set -euo pipefail
+          python3 tests/customer_private_clamav_offline.test.py -v
+          echo 'ACTUAL_CLAMAV_DISPOSABLE_TEST_SIGNATURE_ONLY=YES'
+          echo 'GENUINE_CURRENT_PRODUCTION_SIGNATURES=NOT_VERIFIED'
+          echo 'REAL_CUSTOMER_BYTES_SCANNED=NO'
+          echo 'T12_FILE_HANDOFF=NO_GO'
       - name: Recheck current customer browser and employee transport contracts
         run: |
           set -euo pipefail
