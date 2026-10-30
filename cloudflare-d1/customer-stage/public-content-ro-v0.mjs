@@ -80,7 +80,7 @@ function safeMarketProduct(row,allowedVendors){
   const price=validText(record.price,24);
   // Strict price syntax stops invisible downstream HTML/CSS manipulation;
   // zero and blank are allowed, never raw finance/private price metadata.
-  if(price&&!/^[0-9]+(?:\\.[0-9]{1,2})?$/.test(price))return null;
+  if(price&&!/^[0-9]+(?:\.[0-9]{1,2})?$/.test(price))return null;
   return {vendorCode,productCode,productName,price,
     description:validText(record.description,360),
     unit:validText(record.unit,50),active:'نعم'};
