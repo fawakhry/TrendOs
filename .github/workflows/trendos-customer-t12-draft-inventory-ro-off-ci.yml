@@ -4,6 +4,7 @@ on:
     paths:
       - 'cloudflare-d1/customer-stage/t12-draft-lossless-inventory-ro-internal-v0.mjs'
       - 'tests/customer_t12_draft_lossless_inventory_ro_off.test.mjs'
+      - 'tests/customer_t12_draft_inventory_real_sqlite_ro.test.py'
       - '.github/workflows/trendos-customer-t12-draft-inventory-ro-off-ci.yml'
       - 'cloudflare-d1/src/customer-portal-native-submit-preflight-v0.mjs'
       - 'cloudflare-d1/customer-stage/index.mjs'
@@ -33,6 +34,7 @@ jobs:
           set -euo pipefail
           node --check cloudflare-d1/customer-stage/t12-draft-lossless-inventory-ro-internal-v0.mjs
           node --test tests/customer_t12_draft_lossless_inventory_ro_off.test.mjs
+          python3 tests/customer_t12_draft_inventory_real_sqlite_ro.test.py -v
           ! grep -q 't12-draft-lossless-inventory-ro-internal-v0' cloudflare-d1/customer-stage/index.mjs
           ! grep -q 't12-draft-lossless-inventory-ro-internal-v0' cloudflare-d1/production-shadow/index.js
           ! grep -q 't12-draft-lossless-inventory-ro-internal-v0' cloudflare-d1/src/index_v2.js
