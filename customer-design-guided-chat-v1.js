@@ -8,6 +8,10 @@
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root && root.document) {
     root.TrendOSCustomerRecipe = api;
+    // Release gate is OFF by default. Only an explicitly configured,
+    // separately verified staged deployment may turn this on.
+    if (root.TRENDOS_CUSTOMER_CHAT_V1_ENABLED !== true) return;
+    if (root.document.documentElement) root.document.documentElement.classList.add("matbagy-ui-enabled");
     if (root.document.readyState === "loading") {
       root.document.addEventListener("DOMContentLoaded", function () { api.mount(root.document); });
     } else { api.mount(root.document); }
@@ -111,7 +115,13 @@
     announce(doc,spec ? spec.note+" "+(spec.sizes.length?"يمكن تغيير الأبعاد يدويًا.":"اكتب المقاس الفعلي بالسنتيمتر.") : "اختار المنتج علشان تظهر قواعده والمقاسات المتاحة.",false);
   }
   function mount(doc) {
+    // Direct mount must also fail closed: script-load gating alone is insufficient.
+    if (!root || root.TRENDOS_CUSTOMER_CHAT_V1_ENABLED !== true) return false;
     if (!doc || !byId(doc,"customerDesignRecipe")) return false;
+    ["customerMatbagyHero", "customerMatbagyIdentity", "customerDesignRecipe"].forEach(function (id) {
+      var node = byId(doc,id);
+      if (node) node.hidden = false;
+    });
     var send=byId(doc,"customerAddDraftItemBtn");
     var product=byId(doc,"customerRecipeProduct"),size=byId(doc,"customerRecipeSize");
     if (!send || !product || send.dataset.recipeAttached==="1") return false;
