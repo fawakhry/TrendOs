@@ -23,7 +23,7 @@ jobs:
       - name: Check JS syntax
         run: node --check customer-design-guided-chat-v1.js
       - name: Execute synthetic chat product rules and privacy checks
-        run: node --test tests/customer_design_guided_chat_v1.test.cjs
+        run: node --test tests/customer_design_guided_chat_v1.test.cjs tests/customer_portal_order_flow_audit.test.cjs
       - name: Confirm existing draft API symbols (static only; no live calls)
         run: |
           grep -q 'id="customerShowNewOrderBtn"' index.html
