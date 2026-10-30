@@ -63,3 +63,18 @@
 - **التوزيع:** GitHub Pages نشر تلقائي ممكن بعد merge (رصد Workflow جارٍ)، لكنه **ليس** إثبات نشر/اختبار Cloudflare `trendos-ui`. ليس هناك إذن تفعيل مستخدمين حقيقيين أو تجاوز الامتناع عن الصور.
 - **باقي مسؤولية واجهة العميل:** P0 خصوصية قائمة الأوردرات والملفات، P1 الحجم الحقيقي + رفع متعدد دون بنود معلّقة، اختبار حسابين وهميين على Stage، ثم بصمة Cloudflare الدقيقة/rollback وتصريح إطلاق منفصل. ابدأ بإغلاق خصوصية backend قبل أي `UI_ENABLED=true`.
 - **كتب مرتبطة:** `docs/interface/MASTER_BOOK.md` UI-LOG-015، و`TrendOS_MASTER_BOOK.md` على الفرع ACTIVE_WRITE، و`Matbagy-OS/PROJECT_BOOK.md` على فرع التطوير المختص، وكتاب Zero Google الجاري. لا كتابة في الكتالوج الموحد المجمد.
+
+
+## 8) إصلاحات P0 في Stage فقط — PR #312 (2026-10-31)
+
+**نتيجة الدمج النهائية:** PR #308 → `main` `f0a36fe40b757751bf98892fcaf771dd48641536`، واختبارات واجهة العميل نجحت؛ GitHub Pages نشر الأصول العامة تلقائيًا على Actions #41141540860 ثم #41141612661 (SUCCESS). **ليس** دليلًا على تغيير `trendos-ui` Cloudflare؛ لم يُنفذ Deploy Worker يدوي، ولا يوجد في الكود مفتاح تفعيل الواجهة الجديدة `true`.
+
+**متابعة فعلية للأمان بعد الدمج:** [Draft PR #312](https://github.com/fawakhry/TrendOs/pull/312)، Head `8b343b94c4559232eac7659492c2d27aeb59f525`، على فرع `security/customer-portal-p0-private-media-stage-20261031`، **لم يُدمج في main، ولم يُنشر Apps Script**:
+- `Code.gs:getCustomerOrders_` يعتمد كود العميل المطابق فقط، ولا يستخدم تشابه الاسم؛ يرفض القراءة إذا لم يوجد عمود كود العميل. يمنع كشف بيانات العملاء ذوي الأسماء المتطابقة لكنه قد يخفي أوردرات قديمة بلا كود حتى إكمال ترحيل موثق.
+- `Code.gs:uploadCustomerDraftFile_` يتحقق من صيغة base64 وحجم البايتات الفعلي (25MB) ويمنع رفع الملفات إلى فولدر يعلن مشاركة عامة، ويطلب `DriveApp.Access.PRIVATE` + `DriveApp.Permission.VIEW` ثم يتحقق ويُرسل الملف الجديد للمهملات إذا فشلت الخصوصية. **لا يثبت صلاحيات المجلدات الموروثة أو المشاركة الفردية، ولا يمكن استبدال صور المعاينة العامة قبل وجود بروكسي قراءة مصدق.**
+- اختبار Node يعزل ويشغّل دوال Apps Script الحقيقية بمحاكاة عميلين بنفس الاسم وكودين مختلفين، ورفع ملف إلى فولدر خاص/عام، وحالة فشل المشاركة، ومطابقة الحجم بعد فك التشفير. Source-only tests **PASS**: Actions #41141917009، #41141920196؛ اختبار واجهة العميل PR #41141920313 PASS.
+- **قيد حقيقي لم يحل:** CI الحارس `TrendOS T12 A61 Apps Script Bridge Main CI` يرفض تعديل `Code.gs` خارج حدوده bridge-only (Actions #41141920267 = FAIL). لا نلغي هذا الحارس أو نتجاوز الحماية لمجرد نجاح اختبارات Stage. إصلاح P0 يحتاج طريق نشر/فرع ملكية Backend معتمد وفحص Google Drive حقيقي على بيانات وهمية، بعدها مراجعة الترحيل والـLive parity.
+
+**الحقيقة:** `UI_SOURCE=MERGED` / `NEW_UI_ENABLED=OFF` / `P0_SECURITY_STAGE=MOCK_TEST_PASS_BUT_BRIDGE_GUARD_FAIL` / `APPS_SCRIPT_PRODUCTION_UNCHANGED` / `ZERO_GOOGLE_CUSTOMER_RETIRED=0/9` / `OPENAI_PAID=OFF` / `CUSTOMER_RELEASE=NO_GO`.
+
+**الأولوية التالية:** إعداد خدمة عرض صور خاصة بموافقة المالك أو استخدام عقد Zero Google R2 المؤهل عند جاهزيته؛ ثم مسار تصحيح Backend مؤهل واختبار حسابين وهميين متطابقي الاسم، واختبار صلاحيات الفولدر الموروثة، ثم إصدار Cloudflare guarded بعد تصريح جديد.
