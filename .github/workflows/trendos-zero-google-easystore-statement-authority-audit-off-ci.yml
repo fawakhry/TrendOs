@@ -1,0 +1,50 @@
+name: TrendOS Zero Google EasyStore statement authority source audit — OFF
+on:
+  pull_request:
+    paths:
+      - 'tools/zero_google_easystore_statement_source_audit_v0.py'
+      - 'tests/zero_google_easystore_statement_source_audit_v0.test.py'
+      - '.github/workflows/trendos-zero-google-easystore-statement-authority-audit-off-ci.yml'
+      - 'cloudflare-d1/src/customer-portal-easystore-finance-id-read-v0.mjs'
+      - 'cloudflare-d1/migrations/0015_employee_accounting_zero_google_v1.sql'
+      - 'cloudflare-d1/migrations/0024_employee_accounting_party_balances_v1.sql'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-identity-parity-no-go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+      OPENAI_API_KEY: ''
+      TRENDOS_ACCOUNTING_WRITE_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check actual original EasyStore source migrations and fail-closed financial authority
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/zero_google_easystore_statement_source_audit_v0.py
+          python3 tests/zero_google_easystore_statement_source_audit_v0.test.py -v
+          python3 tools/zero_google_easystore_statement_source_audit_v0.py > "$RUNNER_TEMP/easystore-source-audit.json"
+          python3 - "$RUNNER_TEMP/easystore-source-audit.json" <<'PY'
+          import json,sys
+          result=json.load(open(sys.argv[1],encoding='utf-8'))
+          assert result['existingBalanceExactIdSourceReady'] is True
+          assert result['statementSchemaExactIdentityReady'] is False
+          assert result['fullCustomerStatementAuthorized'] is False
+          assert result['easyStoreAuthoritativeOwnerSignatureVerified'] is False
+          assert result['productionGo'] is False
+          assert result['financeWriteAuthorized'] is False
+          assert result['liveCustomerGoogleAccountsActionRetired'] is False
+          assert result['productionCustomerGoogleActionsRetiredLastProven'] == 0
+          print('EASYSTORE_EXACT_ID_BALANCE_SOURCE=READY_ONLY')
+          print('EASYSTORE_FULL_INVOICE_RECEIPT_STATEMENT=BLOCKED')
+          print('FINANCE_AUTHORITY_AND_LIVE_PARITY=UNVERIFIED')
+          print('ZERO_GOOGLE_CUSTOMER_ACTIONS_RETIRED_LAST_PROVEN=0/9')
+          print('NO_PROD_FINANCE_WRITE_OR_DEPLOY=YES')
+          PY
