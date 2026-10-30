@@ -56,6 +56,9 @@ test("logout and preview exit clear image objects, originals-in-progress, creden
   const preview=slice("function closeVisitorPreview()","function bootMain()");
   assert.ok(preview.includes('clearCustomerDraftInputs()'));
   assert.ok(preview.includes('window.TrendOSCustomerRecipe.reset(document)'));
+  const freshDraft=slice("function resetCustomerDraft()","function authParams(extra)");
+  assert.ok(freshDraft.includes('revokeCustomerPendingFiles()'));
+  assert.ok(freshDraft.includes('window.TrendOSCustomerRecipe.reset(document)'));
   assert.ok(app.includes('if (state.visitorPreview) { setMsg("customerOrderMsg"'));
 });
 
