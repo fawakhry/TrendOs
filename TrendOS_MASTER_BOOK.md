@@ -970,3 +970,42 @@ echo '===== UBU-006 END ====='
 This prints local worktree paths, abbreviated SHAs and branches/detached labels, not remote URLs, tokens, file contents or configuration. It is read-only. If the owner's output contains any unexpected personal paths, redact those before sharing. Record actual results as UBU-006 in both books before further host actions. Only after relationship/permissions/safety review, ask owner for separate explicit authorization before creating a new isolated worktree or installing any tooling.
 
 **GitHub verification prior to book write:** Original active master book head `d25201509825a1acc5558edb1f4a9ba2d6bc08a3`; safe isolated integration branch `affaa4b6f47b637cbb51823743e3df5789255fb2`; TrendOS `main` `3bc83c0f809fb30e8a3aac1a724b6e949dd7bea9`. This update is append-only to the active master book branch; source/integration and production refs unchanged. `UBU-005=OBSERVED_READONLY`, `UBU-006=NOT_EXECUTED`, `HOST_WRITE=NONE`, `FINANCE_RELEASE=NO_GO`, `FINANCE_WRITES=OFF`, `PRODUCTION_DEPLOY=NO`.
+
+### TRENDOS-EASYSTORE-UBUNTU-HOST-PREFLIGHT-20261030 — UBU-006
+
+**Date/source:** 2026-10-30 Africa/Cairo. The owner supplied a screenshot of actual read-only Ubuntu Terminal output for `git -C "$HOME/TrendOs" worktree list` followed by `git -C "$HOME/TrendOs" rev-parse --show-toplevel`. The shell is `trend-main@TrendosShop:~$`. These commands were executed by the owner, **not by ChatGPT through SSH**; no Linux file modification, Git fetch/pull/checkout, Wrangler, Cloudflare, or finance action was executed.
+
+**Observed UBU-006 exact registered Git worktrees:** Seven paths reported by `git worktree list` from the primary `$HOME/TrendOs` repo:
+- `/home/trend-main/TrendOs` — short SHA `a238ce5a`, attached branch `feature/ap155-imac-ssh-service-absent-owner-install-20261012` (terminal line wrapped after `...imac-ss`).
+- `/home/trend-main/TrendOs-AP281-staging-66b64ab` — short SHA `66b64ab9`, `(detached HEAD)`.
+- `/home/trend-main/TrendOs-finance-inspect-acc238` — short SHA `b216e91b`, `(detached HEAD)`.
+- `/home/trend-main/TrendOs-finance-inspect-acc240` — short SHA `682aa001`, `(detached HEAD)`.
+- `/home/trend-main/TrendOs-finance-inspect-acc241` — short SHA `0db543fd`, `(detached HEAD)`.
+- `/home/trend-main/TrendOs-server-reader-staging` — short SHA `c29e8c1c`, `(detached HEAD)`.
+- `/home/trend-main/TrendOs-stage-access-sandbox` — short SHA `9ba16651`, `(detached HEAD)`.
+
+**Observed root:** `git -C "$HOME/TrendOs" rev-parse --show-toplevel` returned `/home/trend-main/TrendOs`; `===== UBU-006 END =====` appears. Thus the seven shown directories are registered worktrees under the primary TrendOs Git repository's worktree registry. This observation does **not** establish their remote URLs, whether they contain untracked/ignored files, CI deployment eligibility or whether any is safe for reuse.
+
+**Eighth TrendOS folder unresolved:** UBU-002 enumerated 8 `$HOME/TrendOs*` directories; `/home/trend-main/TrendOs-ops-pilot` was seen earlier in UBU-004 as a Git worktree on `feature/ops-pilot-local-orders-manager-finance-off-20261018`, short SHA `9217e3b`, tracked-file CLEAN. But **ops-pilot does not appear** in `git worktree list` from `$HOME/TrendOs`. Do NOT infer it is corrupt, unrelated, or safe to overwrite. It might be a separate clone/repository or a worktree of another common Git directory; only an explicit read-only `--git-common-dir` check can resolve this. No remote access or read of `.git/config`, `.env`, other credentials.
+
+**No-Go/source preservation:** Leave all 8 existing folders untouched; avoid checkout/reset/pull/fetch, `git worktree prune/remove/add` without separately approved plan, `npm install`, `npx wrangler`, deploys, D1 migrations, secrets and any finance writes. The safe integration GitHub branch is distinct from the local AP155 SSH-feature branch: original nonproduction remote `integration/trendos-easystore-verified-offline-no-go-20261025` HEAD `affaa4b6f47b637cbb51823743e3df5789255fb2`; production `main` HEAD `3bc83c0f809fb30e8a3aac1a724b6e949dd7bea9`. No user-approved new host checkout is yet created.
+
+**UBU-007 proposed, READ-ONLY and NOT YET EXECUTED:** Only check Git common-directory relationship for the unlisted ops-pilot worktree. Output contains local paths, not private remotes or secret contents. Proposed owner command:
+```bash
+echo '===== UBU-007 COMMON GIT DIRS ====='
+for d in "$HOME/TrendOs" "$HOME/TrendOs-ops-pilot"; do
+  echo "FOLDER: $(basename "$d")"
+  if git -C "$d" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo -n 'ROOT: '; git -C "$d" rev-parse --show-toplevel
+    echo -n 'COMMON GIT DIR: '; git -C "$d" rev-parse --path-format=absolute --git-common-dir
+    echo -n 'BRANCH: '; git -C "$d" symbolic-ref --quiet --short HEAD || echo 'DETACHED_OR_NO_BRANCH'
+    echo -n 'HEAD: '; git -C "$d" rev-parse --short HEAD
+  else
+    echo 'NOT A READABLE GIT WORKTREE'
+  fi
+done
+echo '===== UBU-007 END ====='
+```
+Record exact UBU-007 owner-supplied results in both original canonical books before any action that writes to the host. No production connection or finance release authorized.
+
+**Status:** `UBU-006=OWNER_READONLY_WORKTREE_REGISTRY_VERIFIED_7`, `OPS_PILOT_COMMON_GIT_DIR=UNVERIFIED`, `UBU-007=NOT_EXECUTED`, `SERVER_MUTATIONS=NONE`, `PRODUCTION_DEPLOY=NO`, `FINANCE_RELEASE=NO_GO`, `FINANCE_WRITES=OFF`.
