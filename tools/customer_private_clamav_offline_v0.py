@@ -122,6 +122,10 @@ def scan_private_quarantined_bytes_offline(
         return _outcome("SCAN_ENGINE_DIAGNOSTIC_OR_AMBIGUOUS", True)
     line = lines[0]
     if execution.returncode == 1 and BAD_RE.fullmatch(line):
+        if "Heuristics.Limits.Exceeded" in line:
+            # Incomplete scan is a LIMIT, not confirmed malware detection.
+            # The attachment stays quarantined and cannot reach T12.
+            return _outcome("SCAN_ENGINE_LIMIT_EXCEEDED", True)
         return _outcome("SCAN_LOCAL_THREAT_DETECTED", True, detected=True)
     if execution.returncode == 0 and GOOD_RE.fullmatch(line):
         return _outcome("SCAN_LOCAL_ENGINE_OBSERVED_CLEAN_UNTRUSTED", True,
