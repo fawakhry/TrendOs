@@ -10,6 +10,10 @@ on:
       - 'tests/customer_private_scan_signed_lease_offline.test.py'
       - 'cloudflare-d1/customer-stage/private-scan-lease-issuer-internal-v0.mjs'
       - 'tests/customer_private_scan_issuer_internal.test.mjs'
+      - 'cloudflare-d1/customer-stage/private-scan-lease-replay-d1-internal-v0.mjs'
+      - 'cloudflare-d1/migrations/0041_customer_private_scan_lease_replay_v0.sql'
+      - 'tests/customer_private_scan_lease_replay_d1_internal.test.mjs'
+      - 'tests/customer_private_scan_lease_replay_sqlite.test.py'
       - '.github/workflows/trendos-customer-private-clamav-offline-ci.yml'
   workflow_dispatch:
 permissions:
@@ -35,6 +39,8 @@ jobs:
           python3 tests/customer_private_r2_scan_handoff_offline.test.py -v
           python3 tests/customer_private_scan_signed_lease_offline.test.py -v
           node --test tests/customer_private_scan_issuer_internal.test.mjs
+          node --test tests/customer_private_scan_lease_replay_d1_internal.test.mjs
+          python3 tests/customer_private_scan_lease_replay_sqlite.test.py -v
       - name: Enforce scanner is not wired into production and Stage stays OFF
         run: |
           set -euo pipefail
@@ -50,6 +56,10 @@ jobs:
           ! grep -q 'private-scan-lease-issuer-internal-v0' cloudflare-d1/customer-stage/index.mjs
           ! grep -q 'private-scan-lease-issuer-internal-v0' cloudflare-d1/src/index_v2.js
           ! grep -q 'private-scan-lease-issuer-internal-v0' cloudflare-d1/production-shadow/index.js
+          ! grep -q 'private-scan-lease-replay-d1-internal-v0' cloudflare-d1/customer-stage/index.mjs
+          ! grep -q 'private-scan-lease-replay-d1-internal-v0' cloudflare-d1/src/index_v2.js
+          ! grep -q 'private-scan-lease-replay-d1-internal-v0' cloudflare-d1/production-shadow/index.js
+          ! grep -q '0041_customer_private_scan_lease_replay_v0' cloudflare-d1/wrangler.customer-stage.toml
           ! grep -Eq '\[\[d1_databases\]\]|\[\[r2_buckets\]\]' cloudflare-d1/wrangler.customer-stage.toml
           grep -q 'TRENDOS_CUSTOMER_PORTAL_STAGING_ENABLED = "false"' cloudflare-d1/wrangler.customer-stage.toml
           echo 'OFFLINE_SCANNER_NO_DEPLOY=YES'
