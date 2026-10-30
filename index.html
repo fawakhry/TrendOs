@@ -808,7 +808,11 @@
 
   <section id="customerView" class="hidden">
     <header class="topbar customer-topbar">
-      <div>
+      <div class="customer-matbagy-topline">
+        <div id="customerMatbagyIdentity" class="customer-matbagy-identity" aria-label="مطبعجي بنها" hidden>
+          <span class="customer-matbagy-mark" aria-hidden="true">م</span>
+          <span><strong>مطبعجي</strong><small>استوديو الطباعة والتصميم</small></span>
+        </div>
         <h2 id="customerWelcomeTitle">أهلاً بك</h2>
         <p id="customerMeta"></p>
     <p class="version-badge">TrendOS V1931 Trend Master</p>
@@ -821,16 +825,25 @@
     </header>
 
     <section id="customerHomePanel" class="card customer-home-card">
+      <div id="customerMatbagyHero" class="customer-matbagy-hero" hidden>
+        <div>
+          <span class="customer-matbagy-eyebrow">MATBAGY • DESIGN & PRINT</span>
+          <h3>فكرتك تبدأ بمحادثة</h3>
+          <p>اختار المنتج والمقاس، ارفع الصور، واكتب المطلوب. هتقدر تراجع أوردراتك من نفس حسابك.</p>
+          <span class="customer-matbagy-mini-note">◉ الملامح والكتابة والمقاس يحتاجوا مراجعة قبل الطباعة</span>
+        </div>
+        <span class="customer-matbagy-hero-mark" aria-hidden="true">م</span>
+      </div>
       <div id="customerAdsBoard" class="customer-ads-board hidden"></div>
-      <h3>خدماتك على Trend Mall</h3>
+      <h3>خدمات مطبعجي</h3>
       <div class="customer-service-grid">
         <button id="customerFastPrintFilesBtn" class="customer-service-card fast-print-card hidden" type="button">
           <b>⚡ رفع ملف جاهز للطباعة</b>
           <span>للعملاء المصرح لهم فقط: ارفع ملفات جاهزة للطباعة مباشرة في مسار التنفيذ السريع.</span>
         </button>
         <button id="customerShowNewOrderBtn" class="customer-service-card" type="button">
-          <b>+ طلب جديد</b>
-          <span>افتح مسودة شات، أضف كل البنود والملفات، ثم ابدأ التنفيذ واستلم رقم الأوردر.</span>
+          <b>＋ أوردر جديد — افتح المحادثة</b>
+          <span>اختار المنتج والمقاس وارفع الصور واكتب التفاصيل في محادثة واحدة.</span>
         </button>
         <button id="customerShowOrdersBtn" class="customer-service-card" type="button">
           <b>متابعة أوردراتي</b>
@@ -838,11 +851,11 @@
         </button>
         <button id="customerOpenMatbagySheetsBtn" class="customer-service-card" type="button">
           <b>Trend Mall شيتات</b>
-          <span>رص صور الطباعة بجودة HD 300DPI.</span>
+          <span>تجهيز شيتات الصور للطباعة مع مراجعة الدقة قبل التنفيذ.</span>
         </button>
         <button id="customerShowDesignerBtn" class="customer-service-card ai" type="button">
-          <b>اصنع تصميمك بنفسك</b>
-          <span>مساعد التصميم الذكي — قيد التجهيز داخل المنصة.</span>
+          <b>اطلب تصميمًا ذكيًا</b>
+          <span>افتح نفس محادثة الأوردر، اختار المنتج وابعث الصور والملاحظات.</span>
         </button>
       </div>
       <div class="customer-marketplace-panel">
@@ -872,7 +885,7 @@
 
     <section id="customerNewOrderPanel" class="card hidden customer-chat-card whatsapp-mode-card">
       <div class="table-tools wa-page-tools">
-        <h3>دردشة الطلب</h3>
+        <h3>محادثة أوردر مطبعجي</h3>
         <span id="customerOrderMsg"></span>
       </div>
 
@@ -888,10 +901,49 @@
         </div>
 
         <div id="customerDraftMessages" class="customer-chat-messages wa-chat-wall">
-          <div class="chat-bubble system">ابدأ بإضافة أول بند: اختر طباعة أو ليزر، ارفع الصور والملفات، واكتب المطلوب.</div>
+          <div class="chat-bubble system">أهلاً بيك في مطبعجي 👋 اختار المنتج ومقاسه، ابعت الصور واكتب المطلوب. كل بند بيتراجع قبل التنفيذ.</div>
         </div>
 
         <div class="customer-chat-composer wa-chat-composer">
+          <section id="customerDesignRecipe" class="matbagy-recipe" aria-label="تفاصيل المنتج وقواعد التصميم" hidden>
+            <div class="matbagy-recipe-title"><span>١</span><div><b>اختر المنتج والمقاس</b><small>بعدها ارفع الصور واكتب التفاصيل في نفس المحادثة</small></div></div>
+            <div class="matbagy-recipe-fields">
+              <label for="customerRecipeProduct">المنتج
+                <select id="customerRecipeProduct" required>
+                  <option value="">اختار المنتج...</option>
+                  <option value="tablo">تابلوه</option>
+                  <option value="frame">برواز</option>
+                  <option value="mug">مج</option>
+                  <option value="shirt">تيشيرت</option>
+                  <option value="scarf">منديل</option>
+                  <option value="bracelet">سوار</option>
+                  <option value="sticker">استيكر</option>
+                  <option value="invitation">دعوة / كارت</option>
+                  <option value="other">منتج آخر</option>
+                </select>
+              </label>
+              <label for="customerRecipeSize">المقاس
+                <select id="customerRecipeSize"><option value="">اختار المنتج الأول</option></select>
+              </label>
+              <label for="customerRecipeWidth" class="matbagy-recipe-dimension">العرض (سم)
+                <input id="customerRecipeWidth" type="number" min="1" max="500" step=".1" inputmode="decimal" placeholder="مثال 20">
+              </label>
+              <label for="customerRecipeHeight" class="matbagy-recipe-dimension">الارتفاع (سم)
+                <input id="customerRecipeHeight" type="number" min="1" max="500" step=".1" inputmode="decimal" placeholder="مثال 30">
+              </label>
+              <label for="customerRecipeGarment" id="customerRecipeGarmentWrap" class="hidden">مقاس التيشيرت
+                <select id="customerRecipeGarment"><option value="">حدد مقاس اللبس</option><option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>2XL</option><option>3XL</option><option>مقاس آخر يُحدد في التفاصيل</option></select>
+              </label>
+              <label for="customerRecipeOtherName" id="customerRecipeOtherWrap" class="hidden">اسم المنتج
+                <input id="customerRecipeOtherName" maxlength="80" placeholder="اكتب اسم المنتج">
+              </label>
+            </div>
+            <p id="customerRecipeHint" class="matbagy-recipe-hint" role="status" aria-live="polite">اختار المنتج علشان تظهر قواعده والمقاسات المتاحة.</p>
+            <label class="matbagy-recipe-keep"><input id="customerRecipeKeepOriginal" type="checkbox">
+              أؤكد أن الصور الأصلية يجب أن تظل بدون تغيير الملامح أو الأشخاص أو النصوص، وأي تعديل يكون على نسخة منفصلة للمراجعة.
+            </label>
+            <p class="matbagy-recipe-warning">الذكاء الاصطناعي قد يغيّر التفاصيل؛ لا يعتمد التصميم للطباعة تلقائيًا. يُراجع صاحب المطبعة الصورة والكتابة والمقاس والدقة الفعلية.</p>
+          </section>
           <div class="wa-composer-options">
             <select id="customerOrderDepartment" title="القسم">
               <option>طباعة</option>
@@ -936,16 +988,7 @@
       <div id="customerOrdersList" class="customer-orders-list"></div>
     </section>
 
-    <section id="customerDesignerPanel" class="card hidden">
-      <h3>اصنع تصميمك بنفسك</h3>
-      <div class="hint strong-hint">
-        هذه المرحلة تم تجهيز مكانها داخل المنصة. الإصدار القادم سيضيف مساعد التصميم الذكي: اختيار المنتج، رفع الصور، كتابة النصوص، ثم إرسال التصميم كأوردر.
-      </div>
-      <div class="designer-placeholder">
-        <b>مصمم مطبعجي الذكي</b>
-        <span>قريبًا: شات تصميم خاص بـ Trend Mall.</span>
-      </div>
-    </section>
+
   </section>
 
 
@@ -1317,6 +1360,8 @@
 <script src="trendos-return-traffic-quiet-v1.js?v=trendos-02cu-return-quiet-20260906a"></script>
 <script src="config.js?v=trendos-02cw-globalcounts-20260906d"></script>
 <script src="app.js?v=20260929-t12-a60-force-password-change"></script>
+<link rel="stylesheet" href="customer-design-guided-chat-v1.css?v=chat-recipe-20261031a">
+<script src="customer-design-guided-chat-v1.js?v=chat-recipe-20261031a" defer></script>
 <script src="employee-api-dispatcher-v1.js?v=20260929-t12-a61-dispatcher-foundation"></script>
 <script src="matbagy_theme_v1860.js?v=trendos-02cu-resume-20260906a"></script>
 
