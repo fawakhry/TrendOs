@@ -103,9 +103,13 @@ test('Apps Script proxy HMAC stale and replay controls must remain visible',()=>
   }
 });
 test('Google writer flag or local ScriptLock removal blocks inventory',()=>{
-  const w=mutate('workQueue','TRENDOS_WORK_QUEUE_V1_ENABLED','WORK_QUEUE_MUTATION_ALWAYS_ON');
+  const w=mutate('workQueue',
+    "const TRENDOS_WORK_QUEUE_ENABLED_PROP_V1='TRENDOS_WORK_QUEUE_V1_ENABLED';",
+    "const TRENDOS_WORK_QUEUE_ENABLED_PROP_V1='WORK_QUEUE_MUTATION_ALWAYS_ON';");
   assert.equal(w.sourceInventoryComplete,false);blocked(w);
-  const v=mutate('operatorV2','TRENDOS_OPERATOR_TASK_V2_ENABLED','OPERATOR_MUTATION_ALWAYS_ON');
+  const v=mutate('operatorV2',
+    "const TRENDOS_OPERATOR_TASK_V2_ENABLED_PROP='TRENDOS_OPERATOR_TASK_V2_ENABLED';",
+    "const TRENDOS_OPERATOR_TASK_V2_ENABLED_PROP='OPERATOR_MUTATION_ALWAYS_ON';");
   assert.equal(v.sourceInventoryComplete,false);blocked(v);
   for(const kind of ['workQueue','operatorV2']){
     const r=mutate(kind,'LockService.getScriptLock()','unsafeProjectLock()');
