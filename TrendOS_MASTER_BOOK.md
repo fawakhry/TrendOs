@@ -944,3 +944,29 @@ echo '===== UBU-005 END ====='
 Record exact owner screenshot results as UBU-005 *before* any further host action. This command only queries; it does not write tracked files, install, fetch, checkout or deploy.
 
 **GitHub baseline as of this documentation event:** Isolated integration `affaa4b6f47b637cbb51823743e3df5789255fb2`, TrendOS `main` `3bc83c0f809fb30e8a3aac1a724b6e949dd7bea9`, neither modified by this book-only append; EasyStore official accounting book separately receives mirrored UBU-004 trace. `UBU-004=PARTIAL_VIEW_LOGGED`, `UBU-005=NOT_EXECUTED`, `PRODUCTION_DEPLOY=NO`, `FINANCE_RELEASE=NO_GO`, `FINANCE_WRITES=OFF`.
+
+### TRENDOS-EASYSTORE-UBUNTU-HOST-PREFLIGHT-20261030 — UBU-005
+
+**Date/source:** 2026-10-30 Africa/Cairo, owner-supplied terminal screenshot from Ubuntu (`trend-main@TrendosShop:~$`), showing the output of the UBU-005 commands as proposed in UBU-004. These are **observations by the owner**, not commands run by the assistant over SSH. The screenshot shows the ending marker `===== UBU-005 END =====` and the following exact observed values.
+
+**Observed UBU-005 inventory of the three previously cropped worktrees:**
+- `$HOME/TrendOs`: `HEAD: a238ce5a`; `BRANCH: feature/ap155-imac-ssh-service-absent-owner-install-20261012`; `TRACKED: CLEAN`.
+- `$HOME/TrendOs-AP281-staging-66b64ab`: `HEAD: 66b64ab9`; `BRANCH: DETACHED_OR_NO_BRANCH`; `TRACKED: CLEAN`.
+- `$HOME/TrendOs-finance-inspect-acc238`: `HEAD: b216e91b`; `BRANCH: DETACHED_OR_NO_BRANCH`; `TRACKED: CLEAN`.
+- Explicit check `git -C "$HOME/TrendOs-finance-inspect-acc240" symbolic-ref --quiet --short HEAD || echo 'DETACHED_OR_NO_BRANCH'` -> `DETACHED_OR_NO_BRANCH`. The previously observed short HEAD `682aa001` and tracked status `CLEAN` were recorded in UBU-004; they were **not reprinted** in this UBU-005 screenshot.
+
+**Interpretation and limits:** `symbolic-ref --quiet --short HEAD` failing means HEAD is not presently attached to a named symbolic branch in the observed repositories, consistent with *detached HEAD*, rather than a named tracking branch. This does **not** imply repository corruption or permission to reset/check out. Original GitHub safe integration remains distinct from the local primary worktree's AP155 branch. The `TRACKED: CLEAN` labels exclude untracked and ignored files by explicit `--untracked-files=no`; do not call these directories wholly clean or safe for reuse. All SHA values observed are abbreviated. Original UBU-004 screenshot showed remaining worktree names and statuses but did not explicitly test symbolic-ref on their detached-looking entries. No live Cloudflare authorization or finance service access tested.
+
+**Host safety:** Do NOT overwrite the AP281, ACC238, ACC240 or any other staging/finance/ops worktree, run `git checkout`, `git switch`, `git reset`, `git pull`, `git fetch`, `npm install`, `npx wrangler` (may fetch/install), `wrangler login/deploy/d1`, sudo or any destructive action in existing worktrees. Existing project files and production have not been changed by this documented check.
+
+**UBU-006 proposed next read-only command, NOT YET EXECUTED:** Determine whether the inventory directories are linked Git worktrees of `$HOME/TrendOs`, before deciding whether a *new separate* worktree/clone is required. Run only:
+```bash
+echo '===== UBU-006 GIT WORKTREE RELATIONSHIPS ====='
+git -C "$HOME/TrendOs" worktree list
+echo '===== UBU-006 LOCAL REPOSITORY TOP LEVEL ====='
+git -C "$HOME/TrendOs" rev-parse --show-toplevel
+echo '===== UBU-006 END ====='
+```
+This prints local worktree paths, abbreviated SHAs and branches/detached labels, not remote URLs, tokens, file contents or configuration. It is read-only. If the owner's output contains any unexpected personal paths, redact those before sharing. Record actual results as UBU-006 in both books before further host actions. Only after relationship/permissions/safety review, ask owner for separate explicit authorization before creating a new isolated worktree or installing any tooling.
+
+**GitHub verification prior to book write:** Original active master book head `d25201509825a1acc5558edb1f4a9ba2d6bc08a3`; safe isolated integration branch `affaa4b6f47b637cbb51823743e3df5789255fb2`; TrendOS `main` `3bc83c0f809fb30e8a3aac1a724b6e949dd7bea9`. This update is append-only to the active master book branch; source/integration and production refs unchanged. `UBU-005=OBSERVED_READONLY`, `UBU-006=NOT_EXECUTED`, `HOST_WRITE=NONE`, `FINANCE_RELEASE=NO_GO`, `FINANCE_WRITES=OFF`, `PRODUCTION_DEPLOY=NO`.
