@@ -1,0 +1,59 @@
+name: TrendOS Zero Google operator BOOK24 Google writer inventory — SOURCE OFF
+on:
+  pull_request:
+    paths:
+      - 'tools/zero_google_operator_book24_source_audit_off_v0.mjs'
+      - 'tests/zero_google_operator_book24_source_audit_off_v0.test.mjs'
+      - 'cloudflare-d1/src/operator-task-edge-v2.mjs'
+      - 'operator-task-edge-proxy-v2.gs'
+      - 'operator-task-workflow-v2.gs'
+      - 'work-queue-backend-v1.gs'
+      - '.github/workflows/trendos-zero-google-operator-book24-source-audit-off-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-operator-task-book24-google-no-go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+      OPENAI_API_KEY: ''
+      TRENDOS_OPERATOR_TASK_V2_EDGE_ENABLED: 'false'
+      TRENDOS_OPERATOR_TASK_V2_ENABLED: 'false'
+      TRENDOS_WORK_QUEUE_V1_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run source-only six-route, 2-writer and fail-closed tests
+        run: |
+          set -euo pipefail
+          node --check tools/zero_google_operator_book24_source_audit_off_v0.mjs
+          node --test tests/zero_google_operator_book24_source_audit_off_v0.test.mjs
+          node tools/zero_google_operator_book24_source_audit_off_v0.mjs > "$RUNNER_TEMP/zg-book24-source.json"
+          node --input-type=module -e "
+            import fs from 'node:fs';
+            const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));
+            if(!r.sourceInventoryComplete||r.exactOperatorRouteCount!==6||
+              r.sourceRoutes.filter(x=>x.mutation).length!==2||
+              !r.googleAppsScriptProxyStillInSource||
+              r.book24OwnerSingleWriterApproved||r.operatorWriterActivationAllowed||
+              r.crossProjectScriptLockExclusivityProven||
+              r.operatorGoogleCallsRetiredLiveProven||r.stopAppsScriptNowAllowed||
+              r.productionTaskMutationsPerformed||r.productionGo||
+              r.productionGoogleCustomerActionsRetiredLastProven!==0)
+              process.exit(1);
+            console.log('OPERATOR_EDGE_SIX_ROUTES_INVENTORIED=YES');
+            console.log('OPERATOR_TASK_MUTATION_ROUTES=2');
+            console.log('BOOK24_SCRIPT_PROJECT_SINGLE_WRITER_LIVE_PROVEN=NO');
+            console.log('GOOGLE_APPS_SCRIPT_TASK_PROXY_STILL_REQUIRED=YES');
+            console.log('GOOGLE_OPERATOR_TASKS_RETIRED_LIVE=NOT_PROVEN');
+            console.log('CUSTOMER_GOOGLE_ACTIONS_RETIRED_LAST_PROVEN=0/9');
+            console.log('NO_REAL_TASKS_OR_WRITES_OR_DEPLOY=YES');
+          " "$RUNNER_TEMP/zg-book24-source.json"
