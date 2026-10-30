@@ -4,7 +4,7 @@
  */
 (function (root, factory) {
   "use strict";
-  var api = factory();
+  var api = factory(root);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root && root.document) {
     root.TrendOSCustomerRecipe = api;
@@ -16,7 +16,7 @@
       root.document.addEventListener("DOMContentLoaded", function () { api.mount(root.document); });
     } else { api.mount(root.document); }
   }
-}(typeof window === "undefined" ? null : window, function () {
+}(typeof window === "undefined" ? null : window, function (root) {
   "use strict";
   var KEEP = "لا تغيّر صورة العميل الأصلية، ولا ملامح أي وجه أو عدد الأشخاص أو ملامحهم أو أسماءهم أو النصوص الأصلية. أي تعديل في نسخة منفصلة مع بقاء الأصل محفوظًا، ولا يتم اعتمادها للطباعة قبل مراجعة بشرية.";
   var REVIEW = "مطلوب فحص الأبعاد الفعلية بالبكسل مقابل 300 DPI عند المقاس النهائي، وصحة الكتابة والألوان، والحفاظ على تفاصيل الصور. 300 DPI لا يتحقق بتعديل بيانات الملف وحدها. لا طباعة قبل مراجعة بشرية.";
