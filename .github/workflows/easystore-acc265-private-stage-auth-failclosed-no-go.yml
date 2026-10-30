@@ -1,0 +1,71 @@
+name: ACC265 Original EasyStore private Stage staff auth denial (SOURCE ONLY NO_GO)
+on:
+  push:
+    branches:
+      - test/acc265-private-stage-auth-read-failclosed-no-go-20261030
+    paths:
+      - 'cloudflare-d1/easystore-finance-stage/tests/acc265_private_stage_employee_auth_failclosed.test.mjs'
+      - '.github/workflows/easystore-acc265-private-stage-auth-failclosed-no-go.yml'
+  pull_request:
+    branches:
+      - fix/acc214-accounting-read-scope-precutover-no-go-20261020
+permissions:
+  contents: read
+concurrency:
+  group: acc265-private-stage-source-only-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  real-original-stage-failclosed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      FINANCE_RELEASE: NO_GO
+      FINANCE_WRITES: OFF
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pin original Stage OFF without deploying, credentials, or user data
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          test -z "$GOOGLE_APPLICATION_CREDENTIALS"
+          test "$FINANCE_RELEASE" = NO_GO
+          test "$FINANCE_WRITES" = OFF
+          python3 - <<'PY'
+          import pathlib,tomllib
+          stage=pathlib.Path('cloudflare-d1/easystore-finance-stage')
+          w=tomllib.loads((stage/'wrangler.toml').read_text())
+          assert w['name']=='easystore-accounting-staging-api'
+          assert w['workers_dev'] is False
+          v=w['vars']
+          assert v['FINANCE_RELEASE']=='NO_GO'
+          assert v['FINANCE_WRITES']=='OFF'
+          assert v['EASYSTORE_STAGE_READONLY_API_V1']=='OFF'
+          assert v['EASYSTORE_ACCOUNTING_D1_WRITE_MODE']=='OFF'
+          assert v['ACCOUNTING_FINANCE_GRANTS_V1']=='{"version":1,"grants":[]}'
+          assert len(w['d1_databases'])==1
+          assert w['d1_databases'][0]['database_name']=='easystore-accounting-staging'
+          assert not w.get('routes') and not w.get('route')
+          print('ACC265_PRIVATE_FINANCE_WORKER_UNEXPOSED_OFF=PASS')
+          PY
+      - name: Execute ORIGINAL private Stage against synthetic untrusted staff and fake DB
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/easystore-finance-stage/index.mjs
+          node --check cloudflare-d1/easystore-finance-stage/tests/acc265_private_stage_employee_auth_failclosed.test.mjs
+          node --test \
+            cloudflare-d1/easystore-finance-stage/tests/stage_gate.test.mjs \
+            cloudflare-d1/easystore-finance-stage/tests/acc265_private_stage_employee_auth_failclosed.test.mjs
+          echo 'ACC265_AUTH_DENIAL_ONLY_SOURCE_TESTS=PASS'
+          echo 'FINANCE_RELEASE=NO_GO'
+          echo 'FINANCE_WRITES=OFF'
