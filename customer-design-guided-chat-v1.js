@@ -112,7 +112,7 @@
   }
   function mount(doc) {
     if (!doc || !byId(doc,"customerDesignRecipe")) return false;
-    var send=byId(doc,"customerAddDraftItemBtn"),designer=byId(doc,"customerShowDesignerBtn");
+    var send=byId(doc,"customerAddDraftItemBtn");
     var product=byId(doc,"customerRecipeProduct"),size=byId(doc,"customerRecipeSize");
     if (!send || !product || send.dataset.recipeAttached==="1") return false;
     send.dataset.recipeAttached="1";
@@ -148,21 +148,22 @@
       // some products (e.g. bracelets) may be engraved rather than printed.
       announce(doc,"المواصفات وقواعد حماية الصورة أُضيفت لنفس مسودة الأوردر. رفع الملفات يتم من الأزرار الأصلية للمحادثة.",false);
     },true);
-    // The former designer teaser must open the exact same authenticated draft chat,
-    // never a second order system, network endpoint or inactive placeholder.
-    if (designer && designer.dataset.recipeAttached!=="1") {
-      designer.dataset.recipeAttached="1";
-      designer.addEventListener("click",function(event){
-        var newOrder=byId(doc,"customerShowNewOrderBtn");
-        if (!newOrder) return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        newOrder.click();
-      },true);
-    }
+    // The main TrendOS app now routes the designer card through the native
+    // authenticated customerShowNewOrderBtn handler; no duplicate click interceptor.
+    populate(doc);
+    return true;
+  }
+  function reset(doc) {
+    if (!doc || !byId(doc,"customerDesignRecipe")) return false;
+    byId(doc,"customerRecipeProduct").value="";
+    byId(doc,"customerRecipeGarment").value="";
+    byId(doc,"customerRecipeOtherName").value="";
+    byId(doc,"customerRecipeKeepOriginal").checked=false;
+    var item=byId(doc,"customerOrderItem");
+    if (item) item.dataset.recipeFilled="";
     populate(doc);
     return true;
   }
   return {RECIPES:RECIPES,KEEP:KEEP,REVIEW:REVIEW,START:START,END:END,
-          getRecipe:getRecipe,validate:validate,buildNotes:buildNotes,stripPrior:stripPrior,mount:mount};
+          getRecipe:getRecipe,validate:validate,buildNotes:buildNotes,stripPrior:stripPrior,mount:mount,reset:reset};
 }));
