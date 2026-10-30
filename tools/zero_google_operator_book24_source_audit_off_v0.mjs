@@ -62,12 +62,14 @@ export function inspectOperatorBook24SourceOnlyV0(sources={}){
     /await\s+callAppsScript\(/.test(edge||'')&&
     /return\s+json\(upstream\.body,\s*upstream\.status,\s*cors\)/.test(edge||''));
   pass('edgeTokenRolesAndMutationIdempotencySource',
-    /verifyEdgeSessionToken/.test(edge||'')&&
+    /import\s*\{[^}]*verifyEdgeSessionToken[^}]*\}\s*from\s*'\.\/edge-gateway\.mjs'/.test(edge||'')&&
+    /await\s+verifyEdgeSessionToken\s*\(/.test(edge||'')&&
     /OPERATOR_TASK_V2_EDGE_ENABLED/.test(edge||'')&&
     /OPERATOR_TASK_PROXY_SECRET/.test(edge||'')&&
     /roleFromSession/.test(edge||'')&&
     /IDEMPOTENCY_KEY_REQUIRED/.test(edge||'')&&
-    /signOperatorTaskAssertion/.test(edge||'')&&
+    /export\s+async\s+function\s+signOperatorTaskAssertion\s*\(/.test(edge||'')&&
+    /await\s+signOperatorTaskAssertion\s*\(/.test(edge||'')&&
     /HMAC/.test(edge||''));
   pass('appsScriptProxyVerifiesSignedDelegationAndLegacyActor',
     /function\s+operatorTaskEdgeProxyV2_\s*\(/.test(proxy||'')&&
@@ -78,8 +80,9 @@ export function inspectOperatorBook24SourceOnlyV0(sources={}){
     /otClaimNextV2_\(/.test(proxy||'')&&
     /otCompleteTaskV2_\(/.test(proxy||''));
   pass('bothLegacyTaskWriterCandidatesStillHaveIndependentFeatureFlags',
-    /TRENDOS_WORK_QUEUE_V1_ENABLED/.test(workQueue||'')&&
-    /TRENDOS_OPERATOR_TASK_V2_ENABLED/.test(operatorV2||''));
+    /const\s+TRENDOS_WORK_QUEUE_ENABLED_PROP_V1\s*=\s*'TRENDOS_WORK_QUEUE_V1_ENABLED'/.test(workQueue||'')&&
+    /const\s+TRENDOS_OPERATOR_TASK_V2_ENABLED_PROP\s*=\s*'TRENDOS_OPERATOR_TASK_V2_ENABLED'/.test(operatorV2||'')&&
+    /getProperty\(TRENDOS_OPERATOR_TASK_V2_ENABLED_PROP\)/.test(operatorV2||''));
   pass('bothLegacyScriptSourcesUseOnlyLocalScriptLocks',
     /LockService\.getScriptLock\(\)/.test(workQueue||'')&&
     /LockService\.getScriptLock\(\)/.test(operatorV2||'')&&
