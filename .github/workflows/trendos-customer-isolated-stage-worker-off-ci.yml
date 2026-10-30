@@ -73,7 +73,7 @@ jobs:
           node --check cloudflare-d1/src/customer-portal-native-file-quarantine-ro-v0.mjs
           node --test tests/customer_native_file_quarantine_off.test.mjs
           python3 tests/customer_native_file_quarantine_sqlite.test.py -v
-      - name: Offline scanner adapter fake engine: rejects all delivery and release claims
+      - name: Offline scanner fake engine tests rejecting all delivery and release claims
         run: |
           set -euo pipefail
           python3 -m py_compile tools/customer_private_clamav_offline_v0.py
