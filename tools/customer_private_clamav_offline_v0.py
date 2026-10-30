@@ -13,6 +13,7 @@ import hashlib
 import os
 import re
 import subprocess
+import time
 from pathlib import Path
 
 MAX_INPUT_BYTES = 5 * 1024 * 1024
@@ -23,6 +24,9 @@ SHA_RE = re.compile(r"^[0-9a-f]{64}$")
 GOOD_RE = re.compile(r"^stdin: OK$", re.ASCII)
 BAD_RE = re.compile(r"^stdin: .{1,200} FOUND$", re.ASCII)
 SIGNATURE_EXTENSIONS = (".cvd", ".cld", ".hdb", ".ndb", ".ldb")
+# Preliminary local timestamp guard, NOT signed DB authenticity or freshness proof.
+MAX_SIGNATURE_MTIME_AGE_SECONDS = 72 * 60 * 60
+MAX_SIGNATURE_FUTURE_SKEW_SECONDS = 5 * 60
 
 def _outcome(code: str, engine_executed: bool = False,
              observed_clean: bool = False, detected: bool = False) -> dict:
@@ -35,6 +39,7 @@ def _outcome(code: str, engine_executed: bool = False,
         "localEngineDetectedThreat": detected,
         "malwareScanComplete": False,
         "scanAttestationVerified": False,
+        "signatureDatabaseAuthenticityVerified": False,
         "fileQuarantineRemainsRequired": True,
         "printReleaseAuthorized": False,
         "eligibleForT12FileHandoff": False,
@@ -87,11 +92,26 @@ def scan_private_quarantined_bytes_offline(
         return _outcome("SCAN_SIGNATURE_DATABASE_NOT_CONFIGURED")
     db = Path(signature_db_dir)
     try:
-        if not db.is_dir() or not any(
-            entry.is_file() and entry.suffix in SIGNATURE_EXTENSIONS
-            for entry in db.iterdir()
-        ):
+        if db.is_symlink() or not db.is_dir():
             return _outcome("SCAN_SIGNATURE_DATABASE_UNAVAILABLE")
+        signatures = [
+            entry for entry in db.iterdir()
+            if entry.suffix in SIGNATURE_EXTENSIONS
+        ]
+        if not signatures:
+            return _outcome("SCAN_SIGNATURE_DATABASE_UNAVAILABLE")
+        observed_at = time.time()
+        for entry in signatures:
+            # Fail closed on local path tampering and obviously stale/future
+            # metadata. mtimes are NOT trusted vendor-signature attestations.
+            if entry.is_symlink() or not entry.is_file():
+                return _outcome("SCAN_SIGNATURE_DATABASE_UNTRUSTED_PATH")
+            st = entry.stat()
+            if st.st_size <= 0:
+                return _outcome("SCAN_SIGNATURE_DATABASE_EMPTY")
+            if (st.st_mtime < observed_at - MAX_SIGNATURE_MTIME_AGE_SECONDS
+                    or st.st_mtime > observed_at + MAX_SIGNATURE_FUTURE_SKEW_SECONDS):
+                return _outcome("SCAN_SIGNATURE_DATABASE_TIMESTAMP_REJECTED")
     except OSError:
         return _outcome("SCAN_SIGNATURE_DATABASE_UNAVAILABLE")
 
