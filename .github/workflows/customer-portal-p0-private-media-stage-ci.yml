@@ -20,6 +20,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Generate in-memory candidate from original Apps Script without writing
+        run: |
+          node --check customer-portal-p0-stage-patch.cjs
+          node customer-portal-p0-stage-patch.cjs --dry-run
+          git diff --exit-code -- Code.gs
       - name: Run isolated auth and file security mocks
         run: node --test tests/customer_portal_p0_private_media_stage.test.cjs
       - name: Confirm test-only no production mutation or Google credentials
