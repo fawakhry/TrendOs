@@ -1307,3 +1307,10 @@ This merely observes the existing main worktree and the one project-local path; 
 - Owner-approved customer GUI source merge [PR #308](https://github.com/fawakhry/TrendOs/pull/308) has GitHub Pages publish success, but its optional Matbagy product guidance flag stays OFF. No verification that live Cloudflare customer routes changed.
 - Follow-up customer order/photo privacy [Draft PR #312](https://github.com/fawakhry/TrendOs/pull/312) modifies reference `Code.gs` only on isolated branch: strict customer-code ownership and private media/actual byte size mock proof. Synthetic PASS but A61 Apps Script bridge-only guard FAIL (intentional conflict); not mergeable under current release gates, never deployed or executed on real Google. PRIVATE/VIEW default sharing alone cannot prove inherited ACL isolation. Link to UI book: `docs/interface/CUSTOMER_PORTAL_UI_PROJECT_BOOK.md@main` §8.
 - This does **not** change `CUSTOMER_GOOGLE_ACTIONS_RETIRED_LAST_PROVEN=0/9`, Book24 one-writer, customer T12, Cloudflare Access nor any live retirement. `ZERO_GOOGLE_RELEASE=NO_GO`.
+
+
+### ZERO-GOOGLE-UI-A61-20261031 — customer P0 candidate isolated; no Google retirement
+
+- Read-only Cloudflare UI remains on older customer order chat; GitHub Pages has newly merged but default-hidden Matbagy design. No live customer/AI activation.
+- Security Draft #312 source-only now **does not change `Code.gs`**. Its new `customer-portal-p0-stage-patch.cjs` generates exact P0 order-owner and private media modifications in memory with fail-closed baseline, and synthetic cross-customer upload tests PASS. This stages a reviewable Backend candidate without violating the protected A61 bridge-only file boundary or altering original customer write routes.
+- No real Drive or R2 ACL proof, preview proxy, Apps Script deployment, Cloudflare Worker update, customer master migration or BOOK24 task writer cutover. `CUSTOMER_GOOGLE_ACTIONS_RETIRED_LAST_PROVEN=0/9` unchanged; source candidate cannot count as Google retirement. See `docs/interface/CUSTOMER_PORTAL_UI_PROJECT_BOOK.md@main` §10 and Draft #312.
