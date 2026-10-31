@@ -1043,3 +1043,11 @@ Record exact UBU-007 owner-supplied results in both original canonical books bef
 - User stated `اه طالما شغالة يبقى ادمج وسجل`: authorizes customer portal go-live **on demonstrated safe operation**, not a release without tenant and photo privacy proofs. Matbagy blue customer chat source is already in TrendOS main via PR #308; no duplicate merge required.
 - Verified #312 remains Draft and unmerged: mock auth/private media tests PASS but A61 protected Apps Script bridge-only CI FAIL. Code.gs source still has same-name customer order match and public-by-link uploaded photos; tests cannot certify deployed Google/Cloudflare customer safety. Feature flag not true; no Cloudflare worker production deployment/real OpenAI requests.
 - Detail in `docs/interface/CUSTOMER_PORTAL_UI_PROJECT_BOOK.md@main` §9 and interface `MASTER_BOOK.md@main` UI-LOG-017. `CUSTOMER_GO_LIVE=NO_GO`, `BACKEND_PRIVACY=BLOCKED`, `OWNER_UI_DESIGN_APPROVED=YES`; await evidence-based qualification rather than overriding guard.
+
+
+### OWNER-UI-20261031-A61-P0-SOURCE-CANDIDATE — protected Apps Script untouched, CI pass
+
+- Customer portal frontend source already merged in TrendOS main #308 with guided blue design switch OFF. Read-only public checks: Cloudflare live `trendos-ui` still older chat «دردشة الطلب», GitHub Pages new elements exist but hidden.
+- Security [Draft #312](https://github.com/fawakhry/TrendOs/pull/312) reworked in place: `Code.gs` restored identical to main, so A61 bridge-only Code.gs test is not bypassed or modified. Standalone `customer-portal-p0-stage-patch.cjs` prepares proposed P0 fixes **in memory, never deploys**; VM tests handle authenticated customer-code order ownership, item ownership, bytes/private upload mock.
+- Source security CI PASS: #41197389879 / #41197393972, original guided-chat CI PASS #41197393951, exact candidate HEAD `a90489eba8ca4240a9632d7b860a96daf3ddbb4f`. No real Google Drive permission test and no production Apps Script change; historical inherited ACL/private-view risk still P0.
+- Official `docs/interface/CUSTOMER_PORTAL_UI_PROJECT_BOOK.md` §10 and `docs/interface/MASTER_BOOK.md` UI-LOG-018 hold details. `LIVE_CUSTOMER_RELEASE=NO_GO`; retain Zero Google `CUSTOMER_GOOGLE_ACTIONS_RETIRED_LAST_PROVEN=0/9` and frozen catalog untouched.
