@@ -116,20 +116,23 @@ test('ACC278 original authenticated native D1: OFF gate, draft commit/readback, 
     assert.equal((await call(base.action,base)).status,503,'READONLY cannot save draft');
     db.exec("UPDATE employee_accounting_control_v1 SET mode='GENERAL' WHERE singleton=1");
     db.exec("UPDATE employee_accounting_write_canary_v1 SET enabled=0,max_commands=0,commands_started=0 WHERE singleton=1");
-    assert.equal((await call(base.action,base)).code,'acc278-owner-draft-feature-disabled');
+    assert.equal((await call(base.action,base)).code,'acc278-finance-readonly-required');
     assert.equal(count('employee_accounting_opening_intake_batches_v1'),0);
     env.EASYSTORE_OPENING_DRAFT_INTAKE_V1='ENFORCE';
-    const denied=(await call(base.action,base,'INVALID_TOKEN'));
-    assert.equal(denied.status,401);
-    assert.equal(count('employee_accounting_opening_intake_batches_v1'),0);
-    // The original finance supplier master is required, never a speculative name match.
-    assert.equal((await call(base.action,base)).code,'acc278-original-supplier-id-not-registered');
+    assert.equal((await call(base.action,base)).code,'acc278-finance-readonly-required',
+      'feature ON must never permit draft save in finance GENERAL');
     const supplier=await call('saveEasyStoreSupplier',{
       requestId:'ACC278-SUPPLIER-ZERO-REQ-001',name:'ACC278 Synthetic Vendor',
       opening:0,phone:'',address:''
     });
     assert.equal(supplier.success,true,JSON.stringify(supplier));
     assert.match(supplier.supplierId,/^SUP-/);
+    // Lock actual finance posting before EVER allowing nonzero opening drafts.
+    db.exec("UPDATE employee_accounting_control_v1 SET mode='READONLY' WHERE singleton=1");
+    const denied=await call(base.action,base,'INVALID_TOKEN');
+    assert.equal(denied.status,401);
+    assert.equal(count('employee_accounting_opening_intake_batches_v1'),0);
+    assert.equal((await call(base.action,base)).code,'acc278-original-supplier-id-not-registered');
     const row=input(supplier.supplierId);
     // Reconcile target supplier account before any draft write.
     assert.equal(db.prepare("SELECT balance FROM employee_accounting_party_balances_v1 WHERE party_type='supplier' AND party_id=?").get(supplier.supplierId).balance,0);
