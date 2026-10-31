@@ -4,6 +4,8 @@ on:
     branches: ['feature/acc268-easystore-standalone-customer-source-off-20261030']
     paths:
       - 'tests/easystore_acc268_standalone_customer_cash_sale_sqlite_no_go.test.mjs'
+      - 'tests/easystore_acc277_opening_intake_sourceonly.test.mjs'
+      - 'cloudflare-d1/src/easystore-acc277-opening-intake-v1.mjs'
       - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
       - '.github/workflows/easystore-acc268-standalone-cash-first-no-go.yml'
   pull_request:
@@ -58,6 +60,8 @@ jobs:
         run: |
           set -euo pipefail
           node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --check cloudflare-d1/src/easystore-acc277-opening-intake-v1.mjs
+          node --test tests/easystore_acc277_opening_intake_sourceonly.test.mjs
           node --test tests/easystore_acc268_standalone_customer_cash_sale_sqlite_no_go.test.mjs
           node --test tests/easystore_acc211_delegated_safe_phase1_scope_real_native_sqlite_no_go.test.mjs
           echo 'ACC268_ACCOUNTING_FIRST_SOURCE_REGRESSION=PASS'
