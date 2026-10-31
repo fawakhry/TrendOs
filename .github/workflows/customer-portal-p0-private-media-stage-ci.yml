@@ -1,0 +1,34 @@
+name: Customer Portal P0 Private Media Security (Source Stage Only)
+
+on:
+  push:
+    branches:
+      - security/customer-portal-p0-private-media-stage-20261031
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  customer-private-media-mocks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate in-memory candidate from original Apps Script without writing
+        run: |
+          node --check customer-portal-p0-stage-patch.cjs
+          node customer-portal-p0-stage-patch.cjs --dry-run
+          git diff --exit-code -- Code.gs
+      - name: Run isolated auth and file security mocks
+        run: node --test tests/customer_portal_p0_private_media_stage.test.cjs
+      - name: Confirm test-only no production mutation or Google credentials
+        run: |
+          ! grep -q 'CLOUDFLARE_API_TOKEN' tests/customer_portal_p0_private_media_stage.test.cjs
+          ! grep -q 'SpreadsheetApp\.openById' tests/customer_portal_p0_private_media_stage.test.cjs
+          ! grep -q 'APP_SCRIPT_DEPLOY' tests/customer_portal_p0_private_media_stage.test.cjs
