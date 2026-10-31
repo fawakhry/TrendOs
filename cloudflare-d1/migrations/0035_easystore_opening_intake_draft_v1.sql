@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS employee_accounting_opening_intake_batches_v1 (
   separate_installment_total_cents INTEGER NOT NULL DEFAULT 0 CHECK(separate_installment_total_cents>=0),
   total_liability_cents INTEGER NOT NULL DEFAULT 0 CHECK(total_liability_cents>=0),
   request_key TEXT NOT NULL UNIQUE,
+  request_hash TEXT NOT NULL CHECK(length(request_hash)=64),
   created_at_ms INTEGER NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CHECK(total_liability_cents=supplier_total_cents+separate_installment_total_cents)
