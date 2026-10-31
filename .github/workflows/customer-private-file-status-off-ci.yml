@@ -24,6 +24,8 @@ jobs:
         run: node --check cloudflare-d1/customer-stage/private-file-status-ro-v0.mjs
       - name: Run customer A/B file-status isolation tests
         run: node --test tests/customer_private_file_status_off.test.mjs
+      - name: Verify status SQL against actual disposable D1 migrations
+        run: python3 tests/customer_private_file_status_sqlite.test.py -v
       - name: Protect Zero Google source-only boundary
         run: |
           ! grep -q 'private-file-status-ro-v0' cloudflare-d1/src/index_v2.js
