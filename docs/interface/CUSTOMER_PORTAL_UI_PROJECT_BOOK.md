@@ -78,3 +78,20 @@
 **الحقيقة:** `UI_SOURCE=MERGED` / `NEW_UI_ENABLED=OFF` / `P0_SECURITY_STAGE=MOCK_TEST_PASS_BUT_BRIDGE_GUARD_FAIL` / `APPS_SCRIPT_PRODUCTION_UNCHANGED` / `ZERO_GOOGLE_CUSTOMER_RETIRED=0/9` / `OPENAI_PAID=OFF` / `CUSTOMER_RELEASE=NO_GO`.
 
 **الأولوية التالية:** إعداد خدمة عرض صور خاصة بموافقة المالك أو استخدام عقد Zero Google R2 المؤهل عند جاهزيته؛ ثم مسار تصحيح Backend مؤهل واختبار حسابين وهميين متطابقي الاسم، واختبار صلاحيات الفولدر الموروثة، ثم إصدار Cloudflare guarded بعد تصريح جديد.
+
+
+## 9) قرار المالك: تفعيل ودمج الواجهة بشرط إثبات تشغيلها وأمانها — 2026-10-31
+
+**قرار المستخدم الصريح:** «اه طالما شغالة يبقى ادمج وسجل» بعد طلب عرض البوابة فعليًا داخل TrendOS. يُفسَّر هذا كاعتماد **مشروط** لتفعيل النسخة الجديدة عند إثبات نجاحها في التشغيل الحقيقي وفحوصات الخصوصية، لا كتنازل عن شروط الأمان ولا كإذن بتعديل قاعدة العملاء أو مشاركات صورهم أو الدفع تلقائيًا.
+
+**إعادة التحقق الفعلي في هذه النقطة:**
+- [PR #308](https://github.com/fawakhry/TrendOs/pull/308) = MERGED إلى `main`, merge SHA `f0a36fe40b757751bf98892fcaf771dd48641536`. صفحة GitHub Pages بنَت الملفات بنجاح، آخر Run مثبت #41142077873 عند Source HEAD `122fc695b1a74ec1995ca4abbb8a4822d61043f3`. لا يُساوي هذا اختبار تشغيل `trendos-ui` أو اعتماد Backend.
+- التصميم الجديد ما زال `TRENDOS_CUSTOMER_CHAT_V1_ENABLED !== true`، ولا توجد شهادة حماية ملفات العميل أو توجيه صلاحيات وسيط قراءة خاص به.
+- [Security PR #312](https://github.com/fawakhry/TrendOs/pull/312) = OPEN/DRAFT، لم يُدمج؛ Source Mock tests PASS ولكن `TrendOS T12 A61 Apps Script Bridge Main CI` FAIL على `Code.gs` bridge-only boundary (#41141920267). لم نعدّل الحارس ولم ننشر Apps Script.
+- مشكلتا P0 على Backend الأصلي كما وردتا في UI-LOG-012 و#312: مطابقة الاسم بدل كود العميل في بعض أوردرات `getCustomerOrders_`، وروابط صور عامة `ANYONE_WITH_LINK` في `uploadCustomerDraftFile_`. كما أن حفظ الصور في Google Drive لم يُرحّل ويُثبت عزله؛ Zero Google = 0/9 customer actions retired last proven.
+
+**قرار تنفيذ صالح الآن:** `UI_CODE_MERGED=YES`، `DESIGN_APPROVED=YES`، `FRONTEND_ACTIVATION=NO_GO`، `CLOUDFLARE_DEPLOY=NOT_DONE`، `BACKEND_PRIVACY=NOT_CERTIFIED`، `API_PAID=OFF`. لا يجوز استخدام نجاح CI أو Pages لإعلان البوابة الجديدة «شغالة للعملاء». لا نغير أي Customer/Order/Files production data.
+
+**اختبارات التفعيل المطلوبة:** (1) مراجعة صلاحيات ملكية الأوردرات مع عميلين وهميين لهما الاسم نفسه؛ (2) اختبار Google Drive/R2 بصور تركيبية وإثبات رفض الوصول غير المصرح وإصلاح المعاينات الخاصة؛ (3) تسوية تعارض A61 من جهة مالك Backend المعتمدة بدون تعطيل الحارس؛ (4) اختبار تسجيل الدخول ومحادثة المنتج والرفع وتسجيل الأوردر في Stage مع صورة وهمية؛ (5) بصمة أصول Cloudflare المباشرة ونسخة Rollback وخطة إصدار محددة؛ (6) بعد النجاح، تشغيل محادثة التصميم فقط، مع OpenAI المدفوع والطباعة الآلية OFF حتى اجتياز بوابات مستقلة.
+
+**سجل المالك:** الاعتماد المشروط محفوظ؛ لا حاجة لإعادة طلب موافقة على الألوان أو بنية الشات. أي قرار نشر فعلي عالي التأثير يراجع حالة الـStage والعميل/الصور والإنتاج وقت التنفيذ.
