@@ -3116,9 +3116,16 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
   const openingDraftSave=action==='saveEasyStoreOpeningDraftV1';
   const openingDraftAuthorized=openingDraftSave&&
     text(env&&env.EASYSTORE_OPENING_DRAFT_INTAKE_V1)==='ENFORCE';
+  // Only a zero-opening supplier MASTER is eligible for draft-only intake.
+  // This never authorizes supplier debt, payment, stock or financial posting.
+  const draftSupplierRaw=b.openingDebt??b.opening??b.debt??0;
+  const safeDraftSupplierMaster=action==='saveEasyStoreSupplier' &&
+    text(env&&env.EASYSTORE_OPENING_DRAFT_INTAKE_V1)==='ENFORCE' &&
+    Number.isFinite(Number(draftSupplierRaw))&&Number(draftSupplierRaw)===0;
   if(openingDraftSave&&c.mode!=='READONLY')return json({success:false,
     code:'acc278-finance-readonly-required',financeRelease:'NO_GO'},503,h);
-  if(c.mode==='READONLY'&&!READ_ACTIONS.has(action)&&!openingDraftAuthorized)
+  if(c.mode==='READONLY'&&!READ_ACTIONS.has(action)&&
+    !openingDraftAuthorized&&!safeDraftSupplierMaster)
     return json({success:false,code:'employee-accounting-readonly'},503,h);
   const auth=await authenticate(request,b,env);if(!auth.ok)return json({success:false,code:'employee-session-rejected',message:auth.message},auth.status||401,h);
   const acc211Denied=READ_ACTIONS.has(action)?'':acc211Phase1WriteRejectionV1(env,auth,action,b);
@@ -3162,7 +3169,11 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='archiveAccountingTemplate')out=await archiveAccountingTemplateV1(env,auth,b);
     else if(action==='recalcAccountingMaterialsCascade'||action==='recalculateAccountingMaterials'||action==='recalculateAccountingMaterialsCascade')out=await recalcAccountingMaterialsCascadeV1(env,auth,b);
     else if(action==='saveAccountingWaste')out=await saveAccountingWasteV1(env,auth,b);
-    else if(action==='saveEasyStoreSupplier')out=await saveSupplierV1(env,auth,b);
+    else if(action==='saveEasyStoreSupplier'){
+      if(c.mode==='READONLY'&&!acc278Ready(env,auth))
+        out=acc278Denied('acc278-supplier-draft-master-not-authorized');
+      else out=await saveSupplierV1(env,auth,b);
+    }
     else if(action==='saveEasyStoreOpeningDraftV1')out=await acc278SaveDraft(env,auth,b);
     else if(action==='saveEasyStoreCustomer')out=await saveStandaloneCustomerV1(env,auth,b);
     else if(action==='saveEasyStorePurchaseV2')out=await postPurchaseInvoiceV1(env,auth,b);
