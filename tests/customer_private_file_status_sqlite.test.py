@@ -85,6 +85,8 @@ class CustomerPrivateFileStatusSqlite(unittest.TestCase):
         self.assertIsNotNone(self.read())
 
     def test_quarantine_is_immutable_and_status_source_cannot_authorize_release(self):
+        baseline_orders = self.db.execute(
+            "SELECT COUNT(*) FROM t12_prod_orders").fetchone()[0]
         self.assertEqual(self.fx.reserve(), 1)
         for statement in (
             "UPDATE customer_portal_native_file_quarantine_v1 SET scan_completed=1",
@@ -100,7 +102,8 @@ class CustomerPrivateFileStatusSqlite(unittest.TestCase):
         self.assertNotIn("r2_object_key", SQL.lower())
         self.assertNotIn("customer_name", SQL.lower())
         self.assertEqual(
-            self.db.execute("SELECT COUNT(*) FROM t12_prod_orders").fetchone()[0], 0)
+            self.db.execute("SELECT COUNT(*) FROM t12_prod_orders").fetchone()[0],
+            baseline_orders)
 
     def test_missing_quarantine_schema_fails_closed(self):
         # A rolled-back disposable migration must not fall back to public files.
