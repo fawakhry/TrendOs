@@ -95,6 +95,23 @@ test('ACC268: original EasyStore finance party master supports standalone cash s
     assert.equal(disabled.success,false);
     assert.equal(disabled.code,'accounting-standalone-customer-source-off');
     assert.equal(count('employee_accounting_parties_v1'),0);
+    // ACC277: real historic supplier debt is not an ordinary new supplier.
+    // The ORIGINAL Worker must not create a party, balance or ledger entry.
+    const blockedOpening=await send('saveEasyStoreSupplier',{
+      requestId:'ACC277-SUPPLIER-OPENING-001',
+      name:'ACC277 Synthetic Supplier',opening:1250
+    });
+    assert.equal(blockedOpening.success,false,JSON.stringify(blockedOpening));
+    assert.equal(blockedOpening.code,'acc277-nonzero-opening-unqualified');
+    assert.equal(count('employee_accounting_parties_v1'),0);
+    assert.equal(count('employee_accounting_party_balances_v1'),0);
+    assert.equal(count('employee_accounting_party_ledger_v1'),0);
+    const negativeOpening=await send('saveEasyStoreSupplier',{
+      requestId:'ACC277-SUPPLIER-NEGATIVE-001',
+      name:'ACC277 Synthetic Supplier',opening:-5
+    });
+    assert.equal(negativeOpening.code,'acc277-nonzero-opening-unqualified');
+    assert.equal(count('employee_accounting_parties_v1'),0);
     settings.EASYSTORE_STANDALONE_CUSTOMERS_V1='ENFORCE';
     const forged=await send('saveEasyStoreCustomer',{requestId:'ACC268-CUSTOMER-FORGE-01',customerName:'Forgery'},'BAD_TOKEN');
     assert.equal(forged.status,401);
