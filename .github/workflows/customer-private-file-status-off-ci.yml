@@ -1,0 +1,31 @@
+name: Zero Google Customer Private File Status OFF (source only)
+
+on:
+  push:
+    branches:
+      - feature/customer-private-preview-status-off-20261031
+  pull_request:
+    branches:
+      - integration/zero-google-one-package-v1-20261031
+
+permissions:
+  contents: read
+
+jobs:
+  status-only-privacy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate stage module source
+        run: node --check cloudflare-d1/customer-stage/private-file-status-ro-v0.mjs
+      - name: Run customer A/B file-status isolation tests
+        run: node --test tests/customer_private_file_status_off.test.mjs
+      - name: Protect Zero Google source-only boundary
+        run: |
+          ! grep -q 'private-file-status-ro-v0' cloudflare-d1/src/index_v2.js
+          ! grep -q 'TRENDOS_CUSTOMER_PRIVATE_FILE_STATUS_RO_V0_ENABLED = "true"' cloudflare-d1/wrangler.toml
+          git diff --exit-code -- Code.gs app.js index.html cloudflare-d1/src/index_v2.js cloudflare-d1/wrangler.toml
