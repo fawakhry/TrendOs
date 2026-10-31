@@ -26,10 +26,10 @@ test('original finance D1 opening supplier + installment drafts retain real liab
     db.prepare(`INSERT INTO employee_accounting_opening_intake_batches_v1
       (batch_id,cutover_date,currency,status,preparer_ref,source_evidence_ref,
        supplier_total_cents,separate_installment_total_cents,total_liability_cents,
-       request_key,created_at_ms) VALUES (?,?,?,?,?,?,?,?,?,?,?)`).run(
+       request_key,request_hash,created_at_ms) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).run(
         'BATCH-FAKE-001','2026-11-01','EGP','DRAFT','FAKE-STAFF','FILE-FAKE-ALL',
         preview.supplierTotalCents,preview.separateInstallmentTotalCents,
-        preview.totalLiabilityCents,'FAKE-REQ-OPENING-0001',1761955200000);
+        preview.totalLiabilityCents,'FAKE-REQ-OPENING-0001','a'.repeat(64),1761955200000);
     db.prepare(`INSERT INTO employee_accounting_opening_supplier_drafts_v1
       (batch_id,supplier_id,balance_cents,evidence_ref) VALUES (?,?,?,?)`)
       .run('BATCH-FAKE-001','SUP-FAKE-001',125000,'FILE-FAKE-001');
