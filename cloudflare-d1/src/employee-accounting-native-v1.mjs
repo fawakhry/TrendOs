@@ -1455,6 +1455,12 @@ async function saveSupplierV1(env,auth,b){
   let existing=await env.DB.prepare("SELECT party_id AS partyId,display_name AS partyName FROM employee_accounting_parties_v1 WHERE party_type='supplier' AND normalized_name=? LIMIT 1").bind(normalized).first();
   const partyId=existing?text(existing.partyId):text(b.partyId||b.supplierId)||uid('SUP');
   const opening=Math.max(0,num(b.openingDebt||b.opening||b.debt));
+  // ACC277: historic nonzero opening is not an ordinary supplier upsert.
+  // It requires separately reconciled/signed cutover and approved original D1 posting.
+  // Never turn a user-entered old debt into a live ledger transaction here.
+  if(opening>0)return {success:false,code:'acc277-nonzero-opening-unqualified',
+    message:'الرصيد الافتتاحي غير الصفري ينتظر اعتماد الجرد والمطابقة والتوقيعات قبل ترحيله للحسابات النهائية.',
+    posted:false,postingAllowed:false,financeRelease:'NO_GO'};
   if(existing&&opening>0)return {success:false,message:'المورد موجود بالفعل. أضف المديونية من حركة حساب المورد بدل إعادة الرصيد الافتتاحي.'};
   const ctx=await beginCommandV1(env,auth,'supplier-master-upsert',{...b,partyId,supplierName:name});
   if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
