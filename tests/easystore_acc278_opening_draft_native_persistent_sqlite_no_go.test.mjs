@@ -121,14 +121,19 @@ test('ACC278 original authenticated native D1: OFF gate, draft commit/readback, 
     env.EASYSTORE_OPENING_DRAFT_INTAKE_V1='ENFORCE';
     assert.equal((await call(base.action,base)).code,'acc278-finance-readonly-required',
       'feature ON must never permit draft save in finance GENERAL');
+    // Register supplier master ONLY after switching monetary ledger READONLY.
+    db.exec("UPDATE employee_accounting_control_v1 SET mode='READONLY' WHERE singleton=1");
+    const forbiddenSupplier=await call('saveEasyStoreSupplier',{
+      requestId:'ACC278-SUPPLIER-REAL-DEBT-REQ-001',name:'Blocked Historical Debt',
+      opening:1250
+    });
+    assert.equal(forbiddenSupplier.status,503);
     const supplier=await call('saveEasyStoreSupplier',{
       requestId:'ACC278-SUPPLIER-ZERO-REQ-001',name:'ACC278 Synthetic Vendor',
       opening:0,phone:'',address:''
     });
     assert.equal(supplier.success,true,JSON.stringify(supplier));
     assert.match(supplier.supplierId,/^SUP-/);
-    // Lock actual finance posting before EVER allowing nonzero opening drafts.
-    db.exec("UPDATE employee_accounting_control_v1 SET mode='READONLY' WHERE singleton=1");
     const denied=await call(base.action,base,'INVALID_TOKEN');
     assert.equal(denied.status,401);
     assert.equal(count('employee_accounting_opening_intake_batches_v1'),0);
