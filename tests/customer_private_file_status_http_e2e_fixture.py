@@ -42,6 +42,14 @@ def create(output):
                WHERE customer_id IN ('C1','C2')""",
             (now - 60_000, now + 900_000)
         )
+        # C2's pre-existing fixture MAC is a placeholder for SQL tests.
+        # For HTTP E2E compute actual HMAC of a second fake bearer.
+        db.execute(
+            """UPDATE customer_portal_native_sessions_v1
+                  SET token_fingerprint_hex=?
+                WHERE customer_id='C2'""",
+            (fixture.fixture.fingerprint("cd"*32),)
+        )
         db.commit()
         with sqlite3.connect(output) as disk:
             db.backup(disk)
