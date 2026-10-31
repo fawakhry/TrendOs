@@ -41,6 +41,18 @@ function prepareCandidate(base) {
   const upload=segment(result,"uploadCustomerDraftFile_","collectDraftItems_");
   let content=upload.body;
   content=once(content,
+    '  const colItem = firstCol_(h, ["رقم بند المسودة"], 0);',
+    '  const colItem = firstCol_(h, ["رقم بند المسودة"], 0);\n' +
+    '  const colCustomerCode = firstCol_(h, ["كود الشات", "كود العميل", "Customer Code"], 0);\n' +
+    '  if (!colCustomerCode) return { success: false, message: "تعذر التحقق من ملكية بند المسودة." };',
+    "UPLOAD_REQUIRE_ITEM_OWNER_COLUMN");
+  content=once(content,
+    '    if (normalize_(valueAt_(row, colDraft)) === draftId && normalize_(valueAt_(row, colItem)) === itemId && normalize_(valueAt_(row, colRecord)) === "بند") {',
+    '    if (normalize_(valueAt_(row, colDraft)) === draftId && normalize_(valueAt_(row, colItem)) === itemId &&\n' +
+    '        normalize_(valueAt_(row, colCustomerCode)) === customer.customerCode &&\n' +
+    '        normalize_(valueAt_(row, colRecord)) === "بند") {',
+    "UPLOAD_ITEM_OWNER_MATCH");
+  content=once(content,
    '  const size = Number(payload.size || 0) || 0;\n' +
    '  if (!draftId || !itemId || !base64) return { success: false, message: "بيانات رفع الملف ناقصة." };\n' +
    '  if (size > CUSTOMER_UPLOAD_MAX_BYTES) return { success: false, message: "حجم الملف أكبر من الحد المسموح 25MB." };',
