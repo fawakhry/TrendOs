@@ -3111,7 +3111,15 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
   const b=parsed.body||{},action=text(b.action),c=await control(env);
   if(c.mode==='OFF')return json({success:false,code:'employee-accounting-off'},503,h);
   if(!['READONLY','CANARY','GENERAL'].includes(text(c.mode)))return json({success:false,code:'employee-accounting-mode-unsupported'},503,h);
-  if(c.mode==='READONLY'&&!READ_ACTIONS.has(action))return json({success:false,code:'employee-accounting-readonly'},503,h);
+  // ACC278: very narrow finance-READONLY exception for DRAFT storage only.
+  // Financial ledgers, cash and opening posts stay locked. No GENERAL mode needed.
+  const openingDraftSave=action==='saveEasyStoreOpeningDraftV1';
+  const openingDraftAuthorized=openingDraftSave&&
+    text(env&&env.EASYSTORE_OPENING_DRAFT_INTAKE_V1)==='ENFORCE';
+  if(openingDraftSave&&c.mode!=='READONLY')return json({success:false,
+    code:'acc278-finance-readonly-required',financeRelease:'NO_GO'},503,h);
+  if(c.mode==='READONLY'&&!READ_ACTIONS.has(action)&&!openingDraftAuthorized)
+    return json({success:false,code:'employee-accounting-readonly'},503,h);
   const auth=await authenticate(request,b,env);if(!auth.ok)return json({success:false,code:'employee-session-rejected',message:auth.message},auth.status||401,h);
   const acc211Denied=READ_ACTIONS.has(action)?'':acc211Phase1WriteRejectionV1(env,auth,action,b);
   if(acc211Denied)return json({success:false,code:acc211Denied,financeRelease:'NO_GO'},403,h);
