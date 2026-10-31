@@ -1,0 +1,38 @@
+name: Customer Portal Release Readiness NO-GO Audit
+
+on:
+  push:
+    branches:
+      - feature/customer-portal-release-readiness-off-20261031
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  offline-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: node --check customer-portal-readiness-audit-v1.cjs
+      - name: Test source and synthetic candidate
+        run: node --test tests/customer_portal_readiness_audit_v1.test.cjs
+      - name: Emit read-only NO GO report
+        run: |
+          node customer-portal-readiness-audit-v1.cjs --report > /tmp/customer-readiness-audit.json
+          node -e 'const x=require("/tmp/customer-readiness-audit.json");if(x.outcome!=="NO_GO" || x.productionReady!==false)process.exit(1);console.log("CUSTOMER_PORTAL_READINESS=NO_GO_CONFIRMED");console.log("BLOCKER_COUNT="+x.blockers.length);'
+          git diff --exit-code -- Code.gs index.html app.js config.js
+      - name: Confirm strict release gate refuses unsafe production
+        run: |
+          if node customer-portal-readiness-audit-v1.cjs --require-go >/tmp/strict-customer-gate.json; then
+            echo "Unsafe customer release gate returned GO"
+            exit 1
+          fi
+          echo "UNSAFE_RELEASE_BLOCKED=YES"
