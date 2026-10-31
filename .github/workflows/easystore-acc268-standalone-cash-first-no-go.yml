@@ -6,6 +6,7 @@ on:
       - 'tests/easystore_acc268_standalone_customer_cash_sale_sqlite_no_go.test.mjs'
       - 'tests/easystore_acc277_opening_intake_sourceonly.test.mjs'
       - 'tests/easystore_acc277_original_d1_opening_draft_sqlite_no_go.test.mjs'
+      - 'tests/easystore_acc278_opening_draft_native_persistent_sqlite_no_go.test.mjs'
       - 'cloudflare-d1/migrations/0035_easystore_opening_intake_draft_v1.sql'
       - 'cloudflare-d1/src/easystore-acc277-opening-intake-v1.mjs'
       - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
@@ -65,6 +66,7 @@ jobs:
           node --check cloudflare-d1/src/easystore-acc277-opening-intake-v1.mjs
           node --test tests/easystore_acc277_opening_intake_sourceonly.test.mjs
           node --test tests/easystore_acc277_original_d1_opening_draft_sqlite_no_go.test.mjs
+          node --test tests/easystore_acc278_opening_draft_native_persistent_sqlite_no_go.test.mjs
           node --test tests/easystore_acc268_standalone_customer_cash_sale_sqlite_no_go.test.mjs
           node --test tests/easystore_acc211_delegated_safe_phase1_scope_real_native_sqlite_no_go.test.mjs
           echo 'ACC268_ACCOUNTING_FIRST_SOURCE_REGRESSION=PASS'
