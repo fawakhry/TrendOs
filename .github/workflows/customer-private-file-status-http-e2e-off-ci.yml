@@ -1,0 +1,31 @@
+name: Customer Private File Status Local HTTP D1 E2E OFF
+
+on:
+  push:
+    branches:
+      - feature/customer-file-status-local-http-e2e-off-20261031
+  pull_request:
+    branches:
+      - integration/zero-google-one-package-v1-20261031
+
+permissions:
+  contents: read
+
+jobs:
+  fake-customer-private-status-local:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check and execute original handler with SQLite-native D1 fixture
+        run: |
+          node --check tests/customer_private_file_status_local_http_sqlite_e2e.test.mjs
+          node --test tests/customer_private_file_status_local_http_sqlite_e2e.test.mjs
+      - name: Assert no real Worker/Google/customer source is touched
+        run: |
+          git diff --exit-code -- Code.gs app.js index.html config.js
+          ! grep -q 'TRENDOS_CUSTOMER_PRIVATE_FILE_STATUS_RO_V0_ENABLED:.*true' cloudflare-d1/wrangler.toml
+          echo "TEST_SOURCE_ONLY=YES"
