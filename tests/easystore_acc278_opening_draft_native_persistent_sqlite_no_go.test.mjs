@@ -166,6 +166,15 @@ test('ACC278 original authenticated native D1: OFF gate, draft commit/readback, 
     assert.equal(replay.success,true,JSON.stringify(replay));
     assert.equal(replay.duplicatePrevented,true);
     assert.equal(count('employee_accounting_opening_intake_batches_v1'),1);
+    // ACC280: the real UI creates a fresh _ts on each retry. Financially
+    // identical retries (even with reordered line items) MUST be idempotent.
+    const timestampReplay=await call(row.action,{...row,_ts:Date.now()+60000,
+      name:'SYNTHETIC_DISPLAY_NAME_CHANGED',
+      suppliers:[...row.suppliers].reverse(),
+      installments:[...row.installments].reverse()});
+    assert.equal(timestampReplay.success,true,JSON.stringify(timestampReplay));
+    assert.equal(timestampReplay.duplicatePrevented,true);
+    assert.equal(count('employee_accounting_opening_intake_batches_v1'),1);
     const changed=await call(row.action,{...row,suppliers:[{...row.suppliers[0],balanceCents:126000}]});
     assert.equal(changed.success,false);
     assert.equal(changed.code,'acc278-idempotency-payload-conflict');
@@ -177,6 +186,17 @@ test('ACC278 original authenticated native D1: OFF gate, draft commit/readback, 
     assert.equal(persisted.suppliers[0].supplierId,supplier.supplierId);
     assert.equal(persisted.installments.length,2);
     assert.equal(persisted.posted,false);
+    // ACC280: an attacker or faulty maintenance job can change one stored
+    // evidence reference without changing totals. GET must now fail closed.
+    db.prepare('UPDATE employee_accounting_opening_supplier_drafts_v1 SET evidence_ref=? WHERE batch_id=? AND supplier_id=?')
+      .run('SYNTHETIC-TAMPERED-EVIDENCE',row.batchId,supplier.supplierId);
+    const tampered=await call('getEasyStoreOpeningDraftV1',{batchId:row.batchId});
+    assert.equal(tampered.success,false);
+    assert.equal(tampered.code,'acc280-draft-persisted-payload-integrity-mismatch');
+    assert.equal(count('employee_accounting_party_ledger_v1'),beforeLedger);
+    db.prepare('UPDATE employee_accounting_opening_supplier_drafts_v1 SET evidence_ref=? WHERE batch_id=? AND supplier_id=?')
+      .run(row.suppliers[0].evidenceRef,row.batchId,supplier.supplierId);
+    assert.equal((await call('getEasyStoreOpeningDraftV1',{batchId:row.batchId})).success,true);
     assert.equal(count('employee_accounting_party_ledger_v1'),beforeLedger);
     assert.equal(count('employee_accounting_cashbox_v1'),beforeCash);
     // A new legitimate call with same request but altered contract must fail after restart.
@@ -187,6 +207,7 @@ test('ACC278 original authenticated native D1: OFF gate, draft commit/readback, 
     env.EASYSTORE_OPENING_DRAFT_INTAKE_V1='OFF';
     assert.equal((await call('getEasyStoreOpeningDraftV1',{batchId:row.batchId})).code,'acc278-owner-draft-feature-disabled');
     console.log('ACC278_ORIGINAL_D1_AUTHENTICATED_DRAFT_WRITE_READ_REOPEN=PASS');
+    console.log('ACC280_STABLE_TIMESTAMP_REPLAY_AND_D1_ROW_HASH_INTEGRITY=PASS');
     console.log('ACC278_NO_DUPLICATE_LIABILITY_OR_CASH_POSTING=PASS');
     console.log('ACC278_STRICT_SIGNED_OPENING_POSTING_NOT_ENABLED=PASS');
     console.log('ACC278_PRODUCTION_DB_WRITES=ZERO');
