@@ -1,0 +1,74 @@
+name: ACC268 Existing EasyStore finance standalone cash-first (offline NO_GO)
+on:
+  push:
+    branches: ['feature/acc268-easystore-standalone-customer-source-off-20261030']
+    paths:
+      - 'tests/easystore_acc268_standalone_customer_cash_sale_sqlite_no_go.test.mjs'
+      - 'tests/easystore_acc277_opening_intake_sourceonly.test.mjs'
+      - 'tests/easystore_acc277_original_d1_opening_draft_sqlite_no_go.test.mjs'
+      - 'tests/easystore_acc278_opening_draft_native_persistent_sqlite_no_go.test.mjs'
+      - 'cloudflare-d1/migrations/0035_easystore_opening_intake_draft_v1.sql'
+      - 'cloudflare-d1/src/easystore-acc277-opening-intake-v1.mjs'
+      - 'cloudflare-d1/src/employee-accounting-native-v1.mjs'
+      - '.github/workflows/easystore-acc268-standalone-cash-first-no-go.yml'
+  pull_request:
+    branches: ['fix/acc214-accounting-read-scope-precutover-no-go-20261020']
+permissions:
+  contents: read
+concurrency:
+  group: acc268-original-accounting-cash-first-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  original-finance-no-money:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      FINANCE_RELEASE: NO_GO
+      FINANCE_WRITES: OFF
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check existing finance only, all public Stage controls OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$FINANCE_RELEASE" = NO_GO
+          test "$FINANCE_WRITES" = OFF
+          test -z "$CLOUDFLARE_API_TOKEN"
+          test -z "$CLOUDFLARE_ACCOUNT_ID"
+          python3 - <<'PY'
+          import pathlib,tomllib
+          cfg=tomllib.loads(pathlib.Path('cloudflare-d1/easystore-finance-stage/wrangler.toml').read_text())
+          assert cfg['workers_dev'] is False
+          assert cfg['vars']['FINANCE_RELEASE']=='NO_GO'
+          assert cfg['vars']['FINANCE_WRITES']=='OFF'
+          assert cfg['vars']['EASYSTORE_STAGE_READONLY_API_V1']=='OFF'
+          assert cfg['vars']['EASYSTORE_CUSTOMER_SOURCE_V1']=='REMOTE_REQUIRED'
+          assert cfg['vars']['ACCOUNTING_FINANCE_GRANTS_V1']=='{"version":1,"grants":[]}'
+          assert cfg['d1_databases'][0]['database_name']=='easystore-accounting-staging'
+          native=pathlib.Path('cloudflare-d1/src/employee-accounting-native-v1.mjs').read_text()
+          assert "text(env&&env.EASYSTORE_STANDALONE_CUSTOMERS_V1)==='ENFORCE'" in native
+          assert "text(env&&env.EASYSTORE_CUSTOMER_SOURCE_V1)==='FINANCE_LOCAL_ONLY'" in native
+          print('ACC268_REAL_CLOUDFLARE_STAGE_CONFIG_UNCHANGED_OFF=PASS')
+          PY
+      - name: Run actual ORIGINAL native accounting handler against isolated SQLite only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/employee-accounting-native-v1.mjs
+          node --check cloudflare-d1/src/easystore-acc277-opening-intake-v1.mjs
+          node --test tests/easystore_acc277_opening_intake_sourceonly.test.mjs
+          node --test tests/easystore_acc277_original_d1_opening_draft_sqlite_no_go.test.mjs
+          node --test tests/easystore_acc278_opening_draft_native_persistent_sqlite_no_go.test.mjs
+          node --test tests/easystore_acc268_standalone_customer_cash_sale_sqlite_no_go.test.mjs
+          node --test tests/easystore_acc211_delegated_safe_phase1_scope_real_native_sqlite_no_go.test.mjs
+          echo 'ACC268_ACCOUNTING_FIRST_SOURCE_REGRESSION=PASS'
+          echo 'FINANCE_WRITES=OFF'
+          echo 'FINANCE_RELEASE=NO_GO'

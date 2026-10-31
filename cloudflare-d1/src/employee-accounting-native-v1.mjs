@@ -12,7 +12,7 @@ const DEFAULT_ORIGINS=[
   'https://trendos-ui.trendmall-contact.workers.dev',
   'http://localhost:8000','http://127.0.0.1:8000','http://localhost:5500','http://127.0.0.1:5500'
 ];
-const READ_ACTIONS=new Set(['getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth','calculateAccountingLaserQuoteV1913','getDailyDepartmentReportV1920','previewAccountingAutomationV1921','previewCustomerCreditInvoiceReviewV1', 'previewCustomerCreditPreparedCommandV1','previewAccountingFinalInvoiceCommandV1','previewCustomerCreditLiabilityAuditV1','previewNativeInvoiceReturnExposureV1','previewInvoiceItemPaymentReviewV1']);
+const READ_ACTIONS=new Set(['getEasyStoreOpeningDraftV1','getAccounting','getDeptInvoiceDraftV1887','getPartyAccountV1858','getCustomerAccountV1915','getEasyStoreCustomers','searchCustomers','getEasyStoreSuppliers','easyStoreSystemHealth','calculateAccountingLaserQuoteV1913','getDailyDepartmentReportV1920','previewAccountingAutomationV1921','previewCustomerCreditInvoiceReviewV1', 'previewCustomerCreditPreparedCommandV1','previewAccountingFinalInvoiceCommandV1','previewCustomerCreditLiabilityAuditV1','previewNativeInvoiceReturnExposureV1','previewInvoiceItemPaymentReviewV1']);
 
 function text(v){return String(v==null?'':v).trim();}
 function key(v){return text(v).toLowerCase();}
@@ -386,6 +386,23 @@ async function getAccounting(env,auth){
 // TrendOS over a signed internal Worker service in the isolated EasyStore lane.
 // The legacy shared-D1 path remains unchanged when REMOTE_REQUIRED is absent;
 // isolated Stage must set REMOTE_REQUIRED and CANNOT fall back to local T12.
+// ACC268: standalone accounting uses the EXISTING finance party master only.
+// Two exact server-only switches and explicit IDs prevent legacy/T12 fallback.
+// OFF on all original production and isolated Stage configs.
+function standaloneFinanceCustomerSourceV1(env){
+  return text(env&&env.EASYSTORE_STANDALONE_CUSTOMERS_V1)==='ENFORCE' &&
+    text(env&&env.EASYSTORE_CUSTOMER_SOURCE_V1)==='FINANCE_LOCAL_ONLY';
+}
+function standaloneCustomerSelectV1(){
+  return `SELECT c.party_id AS customer_id,c.display_name AS customer_name,
+    '' AS manager,c.phone AS phone,'' AS extra_phone,'EasyStore' AS customer_type,
+    CASE WHEN c.active=1 THEN 'نعم' ELSE 'لا' END AS active,
+    0 AS credit_cents,
+    COALESCE((SELECT pb.balance FROM employee_accounting_party_balances_v1 pb
+      WHERE pb.party_type='customer' AND pb.party_id=c.party_id LIMIT 1),0) AS current_balance
+    FROM employee_accounting_parties_v1 c
+    WHERE c.party_type='customer' AND c.source_system='EasyStoreStandaloneV1'`;
+}
 function isolatedOfficialCustomerSourceV1(env){
   return text(env&&env.EASYSTORE_CUSTOMER_SOURCE_V1)==='REMOTE_REQUIRED';
 }
@@ -415,6 +432,13 @@ async function remoteCustomerDirectoryV1(env,auth,query){
     credit_cents:creditById.get(c.customer_id)||0}));
 }
 async function customerBalanceByName(env,name){
+  if(standaloneFinanceCustomerSourceV1(env)){
+    const matches=await rows(env,
+      "SELECT party_id FROM employee_accounting_parties_v1 WHERE party_type='customer' AND source_system='EasyStoreStandaloneV1' AND normalized_name=? AND active=1 LIMIT 2",
+      [key(name)]);
+    if(matches.length!==1)throw commandErrorV1('accounting-local-customer-ambiguous','العميل غير موجود أو غير محدد بشكل فريد.');
+    return partyBalanceV1(env,'customer',text(matches[0].party_id));
+  }
   if(isolatedOfficialCustomerSourceV1(env)){
     const matches=await readOfficialCustomersV1(env,{operation:'EXACT_NAME',name:text(name)});
     if(matches.length!==1)throw commandErrorV1('official-customer-name-unresolved','لا يمكن ربط رصيد عميل بالاسم بدون معرف رسمي واحد.');
@@ -443,6 +467,12 @@ function scopedCustomerViewV1(r,auth){
 }
 async function getEasyStoreCustomersV1(env,auth,b){
   const limit=Math.max(1,Math.min(Math.trunc((b.limit==null||b.limit==='')?500:num(b.limit,500)),1000));
+  if(standaloneFinanceCustomerSourceV1(env)){
+    const customers=await rows(env,standaloneCustomerSelectV1()+
+      " AND c.active=1 ORDER BY c.updated_at_ms DESC,c.display_name LIMIT ?",[limit]);
+    return {success:true,customers:customers.map(x=>scopedCustomerViewV1(x,auth)),
+      version:'EASYSTORE_STANDALONE_V1',identitySource:'EASYSTORE_FINANCE_LOCAL'};
+  }
   if(isolatedOfficialCustomerSourceV1(env)){
     const customers=await remoteCustomerDirectoryV1(env,auth,{operation:'LIST_ACTIVE',limit:Math.min(500,limit)});
     return {success:true,customers,version:'A1_D1_READ_MODEL_V1',identitySource:'TRENDOS_SIGNED_INTERNAL'};
@@ -464,6 +494,13 @@ async function getEasyStoreCustomersV1(env,auth,b){
 async function searchCustomersV1(env,auth,b){
   const q=key(b.q);
   if(!q)return {success:true,customers:[],version:'A1_D1_READ_MODEL_V1'};
+  if(standaloneFinanceCustomerSourceV1(env)){
+    const customers=await rows(env,standaloneCustomerSelectV1()+
+      " AND c.active=1 AND c.normalized_name LIKE ? ORDER BY c.updated_at_ms DESC,c.display_name LIMIT 12",
+      ['%'+q+'%']);
+    return {success:true,customers:customers.map(x=>scopedCustomerViewV1(x,auth)),
+      version:'EASYSTORE_STANDALONE_V1',identitySource:'EASYSTORE_FINANCE_LOCAL'};
+  }
   if(isolatedOfficialCustomerSourceV1(env)){
     // Search names only; the independent finance service never delegates
     // arbitrary contact/phone enumeration to the operational source.
@@ -520,7 +557,12 @@ async function getCustomerAccountV1915V1(env,auth,b){
   const customerId=text(b.customerId),requestedName=text(b.customerName||b.partyName||b.name);
   if(!customerId&&!requestedName)return {success:false,message:'اختر العميل أولًا.'};
   let customer;
-  if(isolatedOfficialCustomerSourceV1(env)){
+  if(standaloneFinanceCustomerSourceV1(env)){
+    if(!customerId)return {success:false,code:'accounting-local-customer-id-required',
+      message:'اختر العميل من دليل الحسابات بمعرّفه، وليس الاسم فقط.'};
+    customer=await env.DB.prepare(standaloneCustomerSelectV1()+
+      " AND c.party_id=? AND c.active=1 LIMIT 1").bind(customerId).first();
+  }else if(isolatedOfficialCustomerSourceV1(env)){
     const matches=await readOfficialCustomersV1(env,
       customerId?{operation:'BY_ID',customerId}:{operation:'EXACT_NAME',name:requestedName});
     if(!customerId&&matches.length>1)return {success:false,code:'accounting-customer-name-ambiguous',
@@ -1150,7 +1192,14 @@ async function resolvePartyV1(env,type,b){
   const partyId=text(b.partyId||b.customerId||b.supplierId),requested=text(b.partyName||b.customerName||b.supplierName||b.name);
   if(type==='customer'){
     let r;
-    if(isolatedOfficialCustomerSourceV1(env)){
+    if(standaloneFinanceCustomerSourceV1(env)){
+      if(!partyId)throw commandErrorV1('accounting-local-customer-id-required',
+        'لا يمكن تسجيل حركة عميل بالاسم فقط في الحسابات المستقلة.');
+      r=await env.DB.prepare(
+        "SELECT party_id AS partyId,display_name AS partyName FROM employee_accounting_parties_v1 "+
+        "WHERE party_type='customer' AND source_system='EasyStoreStandaloneV1' AND active=1 AND party_id=? LIMIT 1"
+      ).bind(partyId).first();
+    }else if(isolatedOfficialCustomerSourceV1(env)){
       const matches=await readOfficialCustomersV1(env,partyId?
         {operation:'BY_ID',customerId:partyId}:
         {operation:'EXACT_NAME',name:requested});
@@ -1361,6 +1410,43 @@ async function partyLedger(env,auth,b){
   await auditEventV1(env,ctx,'party-ledger',tx,'post',auth.user.username,{type,partyId:party.partyId,partyName:party.partyName,op,amount,before:response.balanceBefore,after:response.balance,balanceVersionBefore:version,balanceVersionAfter:version+1});
   return response;
 }
+// ACC268: original FINANCE D1 party master, never a second customer database.
+// No opening balance or guessed external/T12 owner. Default OFF everywhere.
+async function saveStandaloneCustomerV1(env,auth,b){
+  if(!standaloneFinanceCustomerSourceV1(env))
+    return {success:false,code:'accounting-standalone-customer-source-off'};
+  if(auth.mode!=='full')return {success:false,code:'accounting-customer-manager-required'};
+  const name=text(b.customerName||b.name),normalized=key(name);
+  if(name.length<2||name.length>120||/[\x00-\x1f<>]/u.test(name)||normalized.length<2)
+    return {success:false,code:'accounting-customer-name-invalid'};
+  if(text(b.customerId)||text(b.partyId)||text(b.externalId)||Number(b.openingDebt||0)!==0)
+    return {success:false,code:'accounting-customer-foreign-id-or-opening-denied'};
+  const requestId=text(b.requestId||b.idempotencyKey||b.clientRequestId);
+  if(!/^[\p{L}\p{N}_.:\-]{12,180}$/u.test(requestId))
+    return {success:false,code:'accounting-idempotency-key-required'};
+  const partyId='ESC-'+(await sha256HexV1(requestId)).slice(0,20).toUpperCase();
+  const existing=await env.DB.prepare(
+    "SELECT party_id FROM employee_accounting_parties_v1 WHERE party_type='customer' AND normalized_name=? LIMIT 1"
+  ).bind(normalized).first();
+  if(existing&&text(existing.party_id)!==partyId)
+    return {success:false,code:'accounting-customer-name-already-registered'};
+  const cmd={requestId,customerName:name,partyId};
+  const ctx=await beginCommandV1(env,auth,'standalone-customer-create',cmd,partyId);
+  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
+  const now=Date.now();
+  await env.DB.prepare(
+    "INSERT INTO employee_accounting_parties_v1 "+
+    "(party_id,party_type,display_name,normalized_name,external_id,source_system,phone,address,notes,active,created_by,created_at_ms,updated_at_ms) "+
+    "VALUES(?,'customer',?,?,'','EasyStoreStandaloneV1',?,?,?,1,?,?,?)"
+  ).bind(partyId,name,normalized,text(b.phone).slice(0,40),
+    text(b.address).slice(0,300),text(b.notes).slice(0,300),
+    auth.user.username,now,now).run();
+  const response={success:true,customerId:partyId,name,version:'EASYSTORE_STANDALONE_V1'};
+  await commitCommandV1(env,ctx,response);
+  await auditEventV1(env,ctx,'customer',partyId,'create',auth.user.username,
+    {source:'EasyStoreStandaloneV1',noOpeningBalance:true});
+  return response;
+}
 async function saveSupplierV1(env,auth,b){
   if(auth.mode!=='full')return {success:false,message:'إضافة الموردين عند ضياء فقط.'};
   const name=text(b.supplierName||b.supplier||b.name);
@@ -1368,8 +1454,15 @@ async function saveSupplierV1(env,auth,b){
   const normalized=key(name);
   let existing=await env.DB.prepare("SELECT party_id AS partyId,display_name AS partyName FROM employee_accounting_parties_v1 WHERE party_type='supplier' AND normalized_name=? LIMIT 1").bind(normalized).first();
   const partyId=existing?text(existing.partyId):text(b.partyId||b.supplierId)||uid('SUP');
-  const opening=Math.max(0,num(b.openingDebt||b.opening||b.debt));
-  if(existing&&opening>0)return {success:false,message:'المورد موجود بالفعل. أضف المديونية من حركة حساب المورد بدل إعادة الرصيد الافتتاحي.'};
+  const rawOpening=b.openingDebt??b.opening??b.debt??0;
+  const opening=Math.max(0,num(rawOpening));
+  // ACC277: historic nonzero opening is not an ordinary supplier upsert.
+  // It requires separately reconciled/signed cutover and approved original D1 posting.
+  // Never turn a user-entered old debt into a live ledger transaction here.
+  if(!Number.isFinite(Number(rawOpening))||Number(rawOpening)!==0||opening>0)
+    return {success:false,code:'acc277-nonzero-opening-unqualified',
+    message:'الرصيد الافتتاحي غير الصفري ينتظر اعتماد الجرد والمطابقة والتوقيعات قبل ترحيله للحسابات النهائية.',
+    posted:false,postingAllowed:false,financeRelease:'NO_GO'};
   const ctx=await beginCommandV1(env,auth,'supplier-master-upsert',{...b,partyId,supplierName:name});
   if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
   const now=Date.now(),active=/^(?:0|false|لا|موقوف|inactive)$/i.test(text(b.active))?0:1,ledgerId=uid('LED');
@@ -1936,8 +2029,11 @@ async function saveEasyStoreSaleV2A2(env,auth,b){
   const remaining=Math.max(0,total-paid),customer=await resolvePartyV1(env,'customer',{customerId:b.customerId,customerName:b.customer||b.customerName});
   const department=accountingDepartmentV1(b.department)||text(b.department)||'كل الأقسام',item=text(b.item||b.itemName)||'بند مطبعجي',workDate=workDateKeyV1(b.workDate||b.date);
   const invoiceNo=text(b.no||b.invoiceNo)||await nextInvoiceNo(env);
-  const duplicate=await env.DB.prepare("SELECT invoice_no FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? LIMIT 1").bind(invoiceNo).first();
-  if(duplicate)return {success:false,duplicatePrevented:true,message:'رقم فاتورة المبيعات مستخدم بالفعل: '+invoiceNo};
+  // ACC268: identical committed request may replay safely; a different
+  // request key must NEVER reuse the existing invoice number.
+  const duplicate=await env.DB.prepare("SELECT invoice_no,request_key AS requestKey FROM employee_accounting_final_invoices_v1 WHERE invoice_no=? LIMIT 1").bind(invoiceNo).first();
+  if(duplicate && text(duplicate.requestKey)!==text(b.requestId||b.idempotencyKey||b.clientRequestId))
+    return {success:false,duplicatePrevented:true,message:'رقم فاتورة المبيعات مستخدم بالفعل: '+invoiceNo};
   const req=await directSaleStockRequirementsV1(env,item,department==='كل الأقسام'?'':department,qty);
   let manualCost=0;
   for(const {material,qty:need} of req.values()){
@@ -2844,6 +2940,185 @@ async function acc212VerifyOpeningZeroEvidenceV1(env){
   }catch{return fail}
 }
 
+
+// ACC278 — original finance D1 opening DRAFT API, default OFF. No ledger posting.
+function acc278Ref(v){return typeof v==='string'&&/^[\p{L}\p{N}_.:-]{4,180}$/u.test(v);}
+function acc278Date(v){
+  if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(v))return false;
+  const x=new Date(v+'T00:00:00.000Z');
+  return Number.isFinite(x.getTime())&&x.toISOString().slice(0,10)===v;
+}
+function acc278Cents(v){return Number.isSafeInteger(v)&&v>=0;}
+function acc278Add(a,b){const n=a+b;return acc278Cents(a)&&acc278Cents(b)&&Number.isSafeInteger(n)?n:null;}
+function acc278Denied(code){return {success:false,code,posted:false,postingAllowed:false,financeRelease:'NO_GO'};}
+function acc278Ready(env,auth){
+  return text(env&&env.EASYSTORE_OPENING_DRAFT_INTAKE_V1)==='ENFORCE'
+    &&text(env&&env.ACCOUNTING_FINANCE_GRANTS_MODE_V1)==='ENFORCE'
+    &&auth&&auth.mode==='full';
+}
+function acc278Validate(b){
+  if(!acc278Ref(b.batchId)||!acc278Ref(b.requestId)||b.currency!=='EGP'||
+     !acc278Date(b.cutoverDate)||!acc278Ref(b.sourceEvidenceRef))
+    return {error:'acc278-batch-source-required'};
+  const suppliers=b.suppliers,installments=b.installments;
+  if(!Array.isArray(suppliers)||!Array.isArray(installments)||
+     suppliers.length+installments.length===0||
+     suppliers.length>200||installments.length>200)
+    return {error:'acc278-bounded-source-lines-required'};
+  let supplierCents=0,separateCents=0,includedCents=0;
+  const supplierIds=new Map(),contractIds=new Set(),covered=new Map();
+  for(const s of suppliers){
+    if(!s||!acc278Ref(s.supplierId)||!s.supplierId.startsWith('SUP-')||
+       !acc278Cents(s.balanceCents)||!acc278Ref(s.evidenceRef))
+      return {error:'acc278-supplier-row-invalid'};
+    if(supplierIds.has(s.supplierId))return {error:'acc278-duplicate-supplier'};
+    supplierIds.set(s.supplierId,s.balanceCents);
+    supplierCents=acc278Add(supplierCents,s.balanceCents);
+    if(supplierCents===null)return {error:'acc278-total-overflow'};
+  }
+  for(const i of installments){
+    if(!i||!acc278Ref(i.contractId)||!acc278Ref(i.creditorRef)||
+       !acc278Ref(i.evidenceRef)||!acc278Cents(i.contractTotalCents)||
+       !acc278Cents(i.paidToCutoverCents)||!acc278Cents(i.remainingCents)||
+       !acc278Cents(i.installmentCents)||!acc278Date(i.nextDueDate)||
+       !['weekly','monthly','quarterly','yearly'].includes(i.frequency)||
+       !['INCLUDED_IN_SUPPLIER_OPENING','SEPARATE_CREDITOR'].includes(i.liabilityTreatment))
+      return {error:'acc278-instalment-row-invalid'};
+    if(i.contractTotalCents<=0||i.remainingCents<=0||i.installmentCents<=0||
+       i.installmentCents>i.remainingCents||
+       acc278Add(i.paidToCutoverCents,i.remainingCents)!==i.contractTotalCents)
+      return {error:'acc278-instalment-reconciliation-invalid'};
+    if(contractIds.has(i.contractId))return {error:'acc278-duplicate-contract'};
+    contractIds.add(i.contractId);
+    if(i.liabilityTreatment==='INCLUDED_IN_SUPPLIER_OPENING'){
+      if(!acc278Ref(i.supplierId)||i.supplierId!==i.creditorRef||
+         !supplierIds.has(i.supplierId))return {error:'acc278-included-party-id-invalid'};
+      const v=acc278Add(covered.get(i.supplierId)||0,i.remainingCents);
+      if(v===null)return {error:'acc278-total-overflow'};
+      covered.set(i.supplierId,v);
+      includedCents=acc278Add(includedCents,i.remainingCents);
+    }else{
+      if(i.supplierId!==''&&i.supplierId!==null&&i.supplierId!==undefined)
+        return {error:'acc278-separate-creditor-supplier-id-invalid'};
+      if(supplierIds.has(i.creditorRef))return {error:'acc278-separate-creditor-double-count'};
+      separateCents=acc278Add(separateCents,i.remainingCents);
+    }
+    if(includedCents===null||separateCents===null)return {error:'acc278-total-overflow'};
+  }
+  for(const [id,used] of covered)if(used>supplierIds.get(id))
+    return {error:'acc278-included-exceeds-supplier-opening'};
+  const total=acc278Add(supplierCents,separateCents);
+  if(total===null)return {error:'acc278-total-overflow'};
+  return {supplierCents,separateCents,includedCents,total};
+}
+// ACC280: stable semantic identity for original-finance-D1 draft replay and proof.
+// Transport metadata (_ts, action, username/name) changes between retries;
+// none of it may turn an identical financial draft into a conflicting request.
+// The persisted hash must also verify the FULL original D1 rows on every GET.
+function acc280OpeningDraftCanonicalV1(b){
+  const suppliers=b.suppliers.map(s=>({
+    supplierId:s.supplierId,balanceCents:s.balanceCents,evidenceRef:s.evidenceRef
+  })).sort((a,c)=>a.supplierId<c.supplierId?-1:a.supplierId>c.supplierId?1:0);
+  const installments=b.installments.map(i=>({
+    contractId:i.contractId,creditorRef:i.creditorRef,
+    supplierId:i.supplierId||'',liabilityTreatment:i.liabilityTreatment,
+    contractTotalCents:i.contractTotalCents,paidToCutoverCents:i.paidToCutoverCents,
+    remainingCents:i.remainingCents,installmentCents:i.installmentCents,
+    frequency:i.frequency,nextDueDate:i.nextDueDate,evidenceRef:i.evidenceRef
+  })).sort((a,c)=>a.contractId<c.contractId?-1:a.contractId>c.contractId?1:0);
+  return canonicalCommandJsonV1({batchId:b.batchId,requestId:b.requestId,
+    cutoverDate:b.cutoverDate,currency:b.currency,
+    sourceEvidenceRef:b.sourceEvidenceRef,suppliers,installments});
+}
+async function acc278GetDraft(env,auth,b){
+  if(!acc278Ready(env,auth))return acc278Denied('acc278-owner-draft-feature-disabled');
+  const batchId=text(b.batchId);
+  if(!acc278Ref(batchId))return acc278Denied('acc278-batch-id-required');
+  const h=await env.DB.prepare(
+    "SELECT batch_id AS batchId,cutover_date AS cutoverDate,currency,status,"+
+    "preparer_ref AS preparerRef,source_evidence_ref AS sourceEvidenceRef,"+
+    "supplier_total_cents AS supplierTotalCents,"+
+    "separate_installment_total_cents AS separateInstallmentTotalCents,"+
+    "total_liability_cents AS totalLiabilityCents,request_key AS requestId,"+
+    "request_hash AS requestHash FROM employee_accounting_opening_intake_batches_v1 WHERE batch_id=?"
+  ).bind(batchId).first();
+  if(!h)return acc278Denied('acc278-draft-not-found');
+  const suppliers=await rows(env,"SELECT supplier_id AS supplierId,balance_cents AS balanceCents,evidence_ref AS evidenceRef FROM employee_accounting_opening_supplier_drafts_v1 WHERE batch_id=? ORDER BY supplier_id",[batchId]);
+  const installments=await rows(env,"SELECT contract_id AS contractId,creditor_ref AS creditorRef,supplier_id AS supplierId,liability_treatment AS liabilityTreatment,contract_total_cents AS contractTotalCents,paid_to_cutover_cents AS paidToCutoverCents,remaining_cents AS remainingCents,installment_cents AS installmentCents,frequency,next_due_date AS nextDueDate,evidence_ref AS evidenceRef FROM employee_accounting_opening_installment_drafts_v1 WHERE batch_id=? ORDER BY contract_id",[batchId]);
+  const p=acc278Validate({
+    ...h,requestId:h.requestId,sourceEvidenceRef:h.sourceEvidenceRef,suppliers,installments
+  });
+  if(p.error||p.supplierCents!==Number(h.supplierTotalCents)||
+     p.separateCents!==Number(h.separateInstallmentTotalCents)||
+     p.total!==Number(h.totalLiabilityCents)||
+     h.status!=='DRAFT')
+    return acc278Denied('acc278-draft-ledger-mismatch');
+  const actualHash=await sha256HexV1(acc280OpeningDraftCanonicalV1({
+    ...h,suppliers,installments
+  }));
+  if(actualHash!==h.requestHash)
+    return acc278Denied('acc280-draft-persisted-payload-integrity-mismatch');
+  return {success:true,code:'acc278-original-d1-draft-read',
+    batchId:h.batchId,cutoverDate:h.cutoverDate,currency:h.currency,status:'DRAFT',
+    supplierTotalCents:p.supplierCents,separateInstallmentTotalCents:p.separateCents,
+    includedInSupplierCents:p.includedCents,totalLiabilityCents:p.total,
+    suppliers,installments,sourceEvidenceRef:h.sourceEvidenceRef,
+    posted:false,postingAllowed:false,financeRelease:'NO_GO'};
+}
+async function acc278SaveDraft(env,auth,b){
+  if(!acc278Ready(env,auth))return acc278Denied('acc278-owner-draft-feature-disabled');
+  const check=acc278Validate(b);
+  if(check.error)return acc278Denied(check.error);
+  for(const s of b.suppliers){
+    const found=await env.DB.prepare("SELECT party_id FROM employee_accounting_parties_v1 WHERE party_type='supplier' AND active=1 AND party_id=? LIMIT 1").bind(s.supplierId).first();
+    if(!found)return acc278Denied('acc278-original-supplier-id-not-registered');
+  }
+  for(const i of b.installments){
+    if(i.liabilityTreatment==='SEPARATE_CREDITOR'){
+      const existing=await env.DB.prepare("SELECT party_id FROM employee_accounting_parties_v1 WHERE party_type='supplier' AND active=1 AND party_id=? LIMIT 1").bind(i.creditorRef).first();
+      if(existing)return acc278Denied('acc278-separate-creditor-double-count');
+    }
+  }
+  const requestHash=await sha256HexV1(acc280OpeningDraftCanonicalV1(b));
+  const lookup=async()=>{
+    const r=await env.DB.prepare("SELECT batch_id AS batchId,request_key AS requestId,request_hash AS requestHash,preparer_ref AS preparerRef FROM employee_accounting_opening_intake_batches_v1 WHERE batch_id=? OR request_key=? LIMIT 1").bind(b.batchId,b.requestId).first();
+    if(!r)return null;
+    if(r.batchId!==b.batchId||r.requestId!==b.requestId||
+       r.requestHash!==requestHash||r.preparerRef!==auth.user.username)
+      return acc278Denied('acc278-idempotency-payload-conflict');
+    const read=await acc278GetDraft(env,auth,{batchId:b.batchId});
+    return read.success?{...read,duplicatePrevented:true}:read;
+  };
+  const prior=await lookup();
+  if(prior)return prior;
+  const stmts=[env.DB.prepare("INSERT INTO employee_accounting_opening_intake_batches_v1 "+
+    "(batch_id,cutover_date,currency,status,preparer_ref,source_evidence_ref,"+
+    "supplier_total_cents,separate_installment_total_cents,total_liability_cents,"+
+    "request_key,request_hash,created_at_ms) VALUES (?,?,?,'DRAFT',?,?,?,?,?,?,?,?)"
+  ).bind(b.batchId,b.cutoverDate,'EGP',auth.user.username,b.sourceEvidenceRef,
+      check.supplierCents,check.separateCents,check.total,
+      b.requestId,requestHash,Date.now())];
+  for(const s of b.suppliers)stmts.push(env.DB.prepare(
+    "INSERT INTO employee_accounting_opening_supplier_drafts_v1 (batch_id,supplier_id,balance_cents,evidence_ref) VALUES (?,?,?,?)"
+  ).bind(b.batchId,s.supplierId,s.balanceCents,s.evidenceRef));
+  for(const i of b.installments)stmts.push(env.DB.prepare(
+    "INSERT INTO employee_accounting_opening_installment_drafts_v1 "+
+    "(batch_id,contract_id,creditor_ref,supplier_id,liability_treatment,"+
+    "contract_total_cents,paid_to_cutover_cents,remaining_cents,installment_cents,"+
+    "frequency,next_due_date,evidence_ref) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
+  ).bind(b.batchId,i.contractId,i.creditorRef,i.supplierId||'',i.liabilityTreatment,
+    i.contractTotalCents,i.paidToCutoverCents,i.remainingCents,i.installmentCents,
+    i.frequency,i.nextDueDate,i.evidenceRef));
+  try{await env.DB.batch(stmts);}
+  catch(err){
+    const replay=await lookup();
+    if(replay)return replay;
+    throw err;
+  }
+  const verified=await acc278GetDraft(env,auth,{batchId:b.batchId});
+  return verified.success?{...verified,code:'acc278-original-d1-draft-saved-and-read-back'}:verified;
+}
+
 export async function handleEmployeeAccountingNativeRequest(request,env){
   const h=cors(request,env);if(request.method==='OPTIONS')return new Response(null,{status:204,headers:h});
   if(!originAllowed(request,env))return json({success:false,code:'origin-not-allowed'},403,h);
@@ -2860,7 +3135,22 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
   const b=parsed.body||{},action=text(b.action),c=await control(env);
   if(c.mode==='OFF')return json({success:false,code:'employee-accounting-off'},503,h);
   if(!['READONLY','CANARY','GENERAL'].includes(text(c.mode)))return json({success:false,code:'employee-accounting-mode-unsupported'},503,h);
-  if(c.mode==='READONLY'&&!READ_ACTIONS.has(action))return json({success:false,code:'employee-accounting-readonly'},503,h);
+  // ACC278: very narrow finance-READONLY exception for DRAFT storage only.
+  // Financial ledgers, cash and opening posts stay locked. No GENERAL mode needed.
+  const openingDraftSave=action==='saveEasyStoreOpeningDraftV1';
+  const openingDraftAuthorized=openingDraftSave&&
+    text(env&&env.EASYSTORE_OPENING_DRAFT_INTAKE_V1)==='ENFORCE';
+  // Only a zero-opening supplier MASTER is eligible for draft-only intake.
+  // This never authorizes supplier debt, payment, stock or financial posting.
+  const draftSupplierRaw=b.openingDebt??b.opening??b.debt??0;
+  const safeDraftSupplierMaster=action==='saveEasyStoreSupplier' &&
+    text(env&&env.EASYSTORE_OPENING_DRAFT_INTAKE_V1)==='ENFORCE' &&
+    Number.isFinite(Number(draftSupplierRaw))&&Number(draftSupplierRaw)===0;
+  if(openingDraftSave&&c.mode!=='READONLY')return json({success:false,
+    code:'acc278-finance-readonly-required',financeRelease:'NO_GO'},503,h);
+  if(c.mode==='READONLY'&&!READ_ACTIONS.has(action)&&
+    !openingDraftAuthorized&&!safeDraftSupplierMaster)
+    return json({success:false,code:'employee-accounting-readonly'},503,h);
   const auth=await authenticate(request,b,env);if(!auth.ok)return json({success:false,code:'employee-session-rejected',message:auth.message},auth.status||401,h);
   const acc211Denied=READ_ACTIONS.has(action)?'':acc211Phase1WriteRejectionV1(env,auth,action,b);
   if(acc211Denied)return json({success:false,code:acc211Denied,financeRelease:'NO_GO'},403,h);
@@ -2879,6 +3169,7 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='getEasyStoreCustomers')out=await getEasyStoreCustomersV1(env,auth,b);
     else if(action==='searchCustomers')out=await searchCustomersV1(env,auth,b);
     else if(action==='getEasyStoreSuppliers')out=await getEasyStoreSuppliersV1(env,auth,b);
+    else if(action==='getEasyStoreOpeningDraftV1')out=await acc278GetDraft(env,auth,b);
     else if(action==='getCustomerAccountV1915')out=await getCustomerAccountV1915V1(env,auth,b);
     else if(action==='previewCustomerCreditInvoiceReviewV1')out=await previewCustomerCreditInvoiceReviewV1(env,auth,b);
     else if(action==='previewCustomerCreditPreparedCommandV1')out=await previewCustomerCreditPreparedCommandV1(env,auth,b);
@@ -2902,7 +3193,13 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='archiveAccountingTemplate')out=await archiveAccountingTemplateV1(env,auth,b);
     else if(action==='recalcAccountingMaterialsCascade'||action==='recalculateAccountingMaterials'||action==='recalculateAccountingMaterialsCascade')out=await recalcAccountingMaterialsCascadeV1(env,auth,b);
     else if(action==='saveAccountingWaste')out=await saveAccountingWasteV1(env,auth,b);
-    else if(action==='saveEasyStoreSupplier')out=await saveSupplierV1(env,auth,b);
+    else if(action==='saveEasyStoreSupplier'){
+      if(c.mode==='READONLY'&&!acc278Ready(env,auth))
+        out=acc278Denied('acc278-supplier-draft-master-not-authorized');
+      else out=await saveSupplierV1(env,auth,b);
+    }
+    else if(action==='saveEasyStoreOpeningDraftV1')out=await acc278SaveDraft(env,auth,b);
+    else if(action==='saveEasyStoreCustomer')out=await saveStandaloneCustomerV1(env,auth,b);
     else if(action==='saveEasyStorePurchaseV2')out=await postPurchaseInvoiceV1(env,auth,b);
     else if(action==='saveEasyStoreSaleV2')out=await saveEasyStoreSaleV2A2(env,auth,b);
     else if(action==='saveDeptDailyPurchaseV1917')out=await saveDeptDailyPurchaseV1(env,auth,b);
