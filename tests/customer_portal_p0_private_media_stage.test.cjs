@@ -5,7 +5,9 @@ const path=require("node:path");
 const vm=require("node:vm");
 const assert=require("node:assert/strict");
 const {test}=require("node:test");
-const source=fs.readFileSync(path.join(__dirname,"..","Code.gs"),"utf8");
+const {prepareCandidate,sha}=require("../customer-portal-p0-stage-patch.cjs");
+const baseline=fs.readFileSync(path.join(__dirname,"..","Code.gs"),"utf8");
+const source=prepareCandidate(baseline);
 function extract(start,next){
  const i=source.indexOf("function "+start+"(");
  const j=source.indexOf("function "+next+"(",i+9);
@@ -70,6 +72,15 @@ function createContext(options={}){
  vm.createContext(context);
  return context;
 }
+test("candidate is generated in memory; committed Code.gs stays unmodified",()=>{
+ const onDisk=fs.readFileSync(path.join(__dirname,"..","Code.gs"),"utf8");
+ assert.equal(onDisk,baseline);
+ assert.notEqual(sha(source),sha(onDisk));
+ assert.ok(onDisk.includes("rowNameKey !== nameKey"),"main stays at original state for protected A61");
+ assert.ok(onDisk.includes("DriveApp.Access.ANYONE_WITH_LINK"),"main unchanged; unsafe runtime still blocks release");
+ assert.throws(()=>prepareCandidate(source),/BASELINE_MISMATCH/,"cannot reapply over already patched source");
+ assert.throws(()=>prepareCandidate("not the real source"),/FUNCTION_BOUNDARY_MISMATCH/);
+});
 test("customer order list requires EXACT code even if customer names match",()=>{
  const ctx=createContext();
  vm.runInContext(extract("getCustomerOrders_","makeCustomerOrderSeparator_"),ctx);
