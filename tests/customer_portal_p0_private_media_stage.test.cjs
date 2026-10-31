@@ -24,13 +24,13 @@ function createContext(options={}){
  const colMap={
   "رقم الأوردر":1,"رقم البند":2,"كود الشات":3,"اسم الشات / المكتب":4,
   "القسم":5,"اسم البند / نوع الشغل":6,"الكمية":7,"الحالة":8,
-  "رقم المسودة":1,"رقم بند المسودة":2,"نوع السجل":3,
+  "رقم المسودة":1,"رقم بند المسودة":2,"نوع السجل":5,
   "معرف فولدر البند":4
  };
  const state={created:0,recorded:0,trashed:0,sharing:[],flush:0,folderPrivate:options.folderPrivate!==false};
  const orderSheet={getDataRange(){return{getValues:()=>orderData}}};
  const filesSheet={getDataRange(){return{getValues:()=>[
-  ["head"],["row","DR-1","ITEM-1","بند","PRIVATE-FOLDER"]
+  ["head"],["row","DR-1","ITEM-1","CODE1","PRIVATE-FOLDER","بند"]
  ]}}};
  const file={
   setSharing(a,b){state.sharing.push([a,b]);if(options.failSetSharing)throw Error("sharing unavailable");},
@@ -104,6 +104,13 @@ function runUpload(opts={}){
  const result=ctx.uploadCustomerDraftFile_(request);
  return{result,state:ctx.state};
 }
+test("file upload rejects cross-account draft ITEM even if a draft id was supplied",()=>{
+ const x=runUpload({original:"CODE2",payload:{customerCode:"CODE2"}});
+ assert.equal(x.result.success,false);
+ assert.match(x.result.message,/فولدر البند/);
+ assert.equal(x.state.created,0);
+ assert.equal(x.state.recorded,0);
+});
 test("uploaded byte length and syntax are verified, not trusted from caller",()=>{
  let v=runUpload({payload:{size:1}});
  assert.equal(v.result.success,false);assert.equal(v.state.created,0);
