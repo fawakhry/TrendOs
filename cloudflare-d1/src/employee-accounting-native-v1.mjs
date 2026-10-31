@@ -3011,6 +3011,25 @@ function acc278Validate(b){
   if(total===null)return {error:'acc278-total-overflow'};
   return {supplierCents,separateCents,includedCents,total};
 }
+// ACC280: stable semantic identity for original-finance-D1 draft replay and proof.
+// Transport metadata (_ts, action, username/name) changes between retries;
+// none of it may turn an identical financial draft into a conflicting request.
+// The persisted hash must also verify the FULL original D1 rows on every GET.
+function acc280OpeningDraftCanonicalV1(b){
+  const suppliers=b.suppliers.map(s=>({
+    supplierId:s.supplierId,balanceCents:s.balanceCents,evidenceRef:s.evidenceRef
+  })).sort((a,c)=>a.supplierId<c.supplierId?-1:a.supplierId>c.supplierId?1:0);
+  const installments=b.installments.map(i=>({
+    contractId:i.contractId,creditorRef:i.creditorRef,
+    supplierId:i.supplierId||'',liabilityTreatment:i.liabilityTreatment,
+    contractTotalCents:i.contractTotalCents,paidToCutoverCents:i.paidToCutoverCents,
+    remainingCents:i.remainingCents,installmentCents:i.installmentCents,
+    frequency:i.frequency,nextDueDate:i.nextDueDate,evidenceRef:i.evidenceRef
+  })).sort((a,c)=>a.contractId<c.contractId?-1:a.contractId>c.contractId?1:0);
+  return canonicalCommandJsonV1({batchId:b.batchId,requestId:b.requestId,
+    cutoverDate:b.cutoverDate,currency:b.currency,
+    sourceEvidenceRef:b.sourceEvidenceRef,suppliers,installments});
+}
 async function acc278GetDraft(env,auth,b){
   if(!acc278Ready(env,auth))return acc278Denied('acc278-owner-draft-feature-disabled');
   const batchId=text(b.batchId);
@@ -3034,6 +3053,11 @@ async function acc278GetDraft(env,auth,b){
      p.total!==Number(h.totalLiabilityCents)||
      h.status!=='DRAFT')
     return acc278Denied('acc278-draft-ledger-mismatch');
+  const actualHash=await sha256HexV1(acc280OpeningDraftCanonicalV1({
+    ...h,suppliers,installments
+  }));
+  if(actualHash!==h.requestHash)
+    return acc278Denied('acc280-draft-persisted-payload-integrity-mismatch');
   return {success:true,code:'acc278-original-d1-draft-read',
     batchId:h.batchId,cutoverDate:h.cutoverDate,currency:h.currency,status:'DRAFT',
     supplierTotalCents:p.supplierCents,separateInstallmentTotalCents:p.separateCents,
@@ -3055,7 +3079,7 @@ async function acc278SaveDraft(env,auth,b){
       if(existing)return acc278Denied('acc278-separate-creditor-double-count');
     }
   }
-  const requestHash=await sha256HexV1(canonicalCommandJsonV1(b));
+  const requestHash=await sha256HexV1(acc280OpeningDraftCanonicalV1(b));
   const lookup=async()=>{
     const r=await env.DB.prepare("SELECT batch_id AS batchId,request_key AS requestId,request_hash AS requestHash,preparer_ref AS preparerRef FROM employee_accounting_opening_intake_batches_v1 WHERE batch_id=? OR request_key=? LIMIT 1").bind(b.batchId,b.requestId).first();
     if(!r)return null;
