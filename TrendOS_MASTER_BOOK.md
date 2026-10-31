@@ -1328,3 +1328,10 @@ This merely observes the existing main worktree and the one project-local path; 
 - [Stacked Draft #314](https://github.com/fawakhry/TrendOs/pull/314) adds owner-scoped *status only* on existing Entry660 native HMAC session, Entry666 file IDs, 0038 file table and 0040 immutable quarantine under Zero Google parent #311. Does not touch Google 9 customer actions, Task BOOK24, T12 writer, EasyStore, Cloudflare Access or UI production flags.
 - Source Node+real ephemeral SQLite tests PASS on exact head `15a0e8ff69ff36830199388eb928ec401b7677ab` (Actions #41204473318 and #41204477642). Always `previewAvailable:false`, `scanCompleted:false`, `printReleaseAuthorized:false`; no bytes/R2/download URL. No native file endpoint live deployment or scanner clearance. 5MiB/25MB product limit mismatch and 0/9 customer Google retirement remain unchanged.
 - Keep parent PR #311 owner's review boundary: PR314 is Draft, OFF, and cannot be counted as customer cutover or photo viewer. Details in `docs/interface/CUSTOMER_PORTAL_UI_PROJECT_BOOK.md@main` §12.
+
+
+### ZERO-GOOGLE-CUSTOMER-UI-PR315 — private file status now tested through actual local D1 HTTP (2026-10-31)
+
+- Zero Google native customer file status PR #314 integrated into development branch only (merge `dc9068e06ecfb0e1fb56b1185bcfdfe57cdad251`), HTTP-to-real-disposable-SQLite Stage test PR #315 integrated into same branch (merge `7827ea06e68704ae518679a8c35da2d551384190`). HMAC native session and immutable quarantine/customer ownership were tested with fake accounts, no real R2/file bytes.
+- Exact-HEAD PR315 local HTTP/SQLite CI PASS #41220581158 and #41220603613; existing status #41220603610 and A61 transport #41220603665 PASS. **No claim** of live Stage Cloudflare worker, scanner certification, R2 ACL/private byte viewer, Google retirement, or T12/Book24 cutover. Parent PR311 remains Draft.
+- Official `docs/interface/CUSTOMER_PORTAL_UI_PROJECT_BOOK.md@main` §13 is project ledger. `CUSTOMER_GOOGLE_ACTIONS_RETIRED_LAST_PROVEN=0/9`, `ZERO_GOOGLE_RELEASE=NO_GO`.
