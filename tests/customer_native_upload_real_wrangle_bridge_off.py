@@ -14,6 +14,9 @@ from pathlib import Path
 import sqlite3
 import subprocess
 import tempfile
+from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+from threading import Thread
+from urllib.parse import urlsplit
 
 HERE=Path(__file__).resolve().parents[1]
 SOURCE_SHA="0ff6ce9f1dfcc5d9dba319c13bd6a6c553f40009"
@@ -77,6 +80,46 @@ def local_conf(m):
           "Stage exposure flags changed")
     return cfg
 
+def serve_native_customer_browser_stage(port):
+    """Serve ONLY the 4 known UI assets from THIS tested source; no arbitrary path."""
+    assets={
+        "/customer-portal-native-stage-v0.html":("customer-portal-native-stage-v0.html","text/html; charset=utf-8"),
+        "/customer-portal-native-browser-stage-v0.js":("customer-portal-native-browser-stage-v0.js","text/javascript; charset=utf-8"),
+        "/customer-native-upload-coordinator-off-v0.js":("customer-native-upload-coordinator-off-v0.js","text/javascript; charset=utf-8"),
+        "/customer-native-ui-stage-plan-off-v0.js":("customer-native-ui-stage-plan-off-v0.js","text/javascript; charset=utf-8"),
+    }
+    class Fixture(BaseHTTPRequestHandler):
+        def log_message(self,*_args):pass
+        def do_GET(self):
+            url=urlsplit(self.path)
+            if url.path=="/favicon.ico":
+                self.send_response(204);self.end_headers();return
+            if url.path not in assets:
+                self.send_error(404);return
+            filename,mime=assets[url.path]
+            blob=(HERE/filename).read_bytes()
+            # No browser behavior on any ordinary or public URL. Only this
+            # disposable local test opt-in inserts the Stage configuration.
+            if filename.endswith(".html") and url.query!="unconfigured=1":
+                shim=(
+                    '<script>window.TRENDOS_CUSTOMER_UI_NATIVE_STAGE_TEST_ONLY=true;'
+                    'window.TRENDOS_CUSTOMER_NATIVE_PORTAL_TEST_CONFIG='
+                    '{"enabled":true,"apiBase":"http://127.0.0.1:%d"};'
+                    '</script></head>'%port
+                ).encode()
+                check(blob.count(b"</head>")==1,"Expected single Stage HTML head")
+                blob=blob.replace(b"</head>",shim)
+            self.send_response(200)
+            self.send_header("Content-Type",mime)
+            self.send_header("Cache-Control","no-store")
+            self.send_header("X-Content-Type-Options","nosniff")
+            self.send_header("Content-Length",str(len(blob)))
+            self.end_headers();self.wfile.write(blob)
+    server=ThreadingHTTPServer(("127.0.0.1",8000),Fixture)
+    thread=Thread(target=server.serve_forever,daemon=True)
+    thread.start()
+    return server,thread
+
 def inspect_db(persist):
     databases=[]
     for file in persist.rglob("*.sqlite"):
@@ -95,18 +138,18 @@ def inspect_db(persist):
         def count(table):
             return db.execute("SELECT COUNT(*) FROM "+table).fetchone()[0]
         check(count("t12_prod_orders")==2,"Official production-shadow order table was modified")
-        check(count("customer_portal_native_drafts_v1")==2,"Native draft count unexpectedly changed")
-        check(count("customer_portal_native_draft_items_v1")==2,
+        check(count("customer_portal_native_drafts_v1")==3,"Native draft count unexpectedly changed")
+        check(count("customer_portal_native_draft_items_v1")==3,
               "Item idempotency failed in actual local D1")
-        check(count("customer_portal_native_draft_files_v1")==3,
+        check(count("customer_portal_native_draft_files_v1")==4,
               "File idempotency failed in actual local D1")
-        check(count("customer_portal_native_file_quarantine_v1")==3,
+        check(count("customer_portal_native_file_quarantine_v1")==4,
               "Quarantine ledger missing")
         assert db.execute("""SELECT COUNT(*) FROM customer_portal_native_draft_files_v1
-                             WHERE state='READY'""").fetchone()[0]==3
+                             WHERE state='READY'""").fetchone()[0]==4
         assert db.execute("""SELECT COUNT(*) FROM customer_portal_native_file_quarantine_v1
                              WHERE disposition='QUARANTINED' AND scan_completed=0
-                             AND print_release_authorized=0""").fetchone()[0]==3
+                             AND print_release_authorized=0""").fetchone()[0]==4
         # Physical owner from native account, not names/phones.
         assert db.execute("""SELECT COUNT(DISTINCT d.customer_id)
              FROM customer_portal_native_draft_files_v1 f
@@ -123,6 +166,8 @@ def main():
         cfg=m.CF/".wrangler-customer-upload-bridge-local-ci.toml"
         check(not cfg.exists(),"Refusing to overwrite existing Wrangler config")
         proc=None
+        browser_server=None
+        browser_thread=None
         try:
             cfg.write_text(local_conf(m))
             for migration in m.MIGRATIONS:
@@ -171,12 +216,36 @@ def main():
             assert '"stage":"REAL_LOCAL_WORKER_D1_R2"' in output
             assert '"customerGoLive":"NO_GO"' in output
             print("PASS: Original independent Native D1 login, main coordinator/adapter, real local Workerd+D1+R2 idempotent retries")
+            browser_server,browser_thread=serve_native_customer_browser_stage(port)
+            browser_env={
+                **bridge_env,
+                "CUSTOMER_NATIVE_BROWSER_UI_LOCAL_E2E":"1",
+                "CUSTOMER_UI_CODE_C1":m.CODE,
+                "CUSTOMER_UI_PASS_C1":m.PASSWORD,
+                "CUSTOMER_UI_CODE_C2":m.CODE2,
+                "CUSTOMER_UI_PASS_C2":m.PASSWORD2,
+            }
+            real_ui=subprocess.run(
+                ["node",str(HERE/"tests/customer_native_browser_full_ui_real_local.cjs")],
+                cwd=HERE,env=browser_env,capture_output=True,text=True,timeout=115)
+            public_log=real_ui.stdout+real_ui.stderr
+            for secret in [*map(lambda p:p[0],paths),m.PASSWORD,m.PASSWORD2,m.HMAC]:
+                check(secret not in public_log,"Browser E2E logs leaked a test-only credential")
+            check(real_ui.returncode==0,
+                  "Real Chromium customer stage UI failed (sanitized): "+public_log[-1800:])
+            check("NO_REMOTE_HTTP=YES" in public_log,
+                  "Real browser did not prove local-only network rule")
+            print("PASS: REAL Chromium full native customer portal Stage, private file upload, D1 owner history and no live order")
         finally:
+            if browser_server:
+                browser_server.shutdown()
+                browser_server.server_close()
+                if browser_thread:browser_thread.join(timeout=5)
             m.stop_dev(proc)
             try:cfg.unlink(missing_ok=True)
             except Exception:pass
         inspect_db(persist)
-        print("PASS: Disposable D1 exactly 2 customers' drafts, 2 items, 3 quarantined private files; original 2 official orders untouched")
+        print("PASS: Disposable D1 exactly 2 account owners, 3 drafts, 3 items, 4 quarantined private files; original 2 official orders untouched")
         print("NO_REMOTE_DEPLOY=YES; CUSTOMER_LIVE_ACTIVATION=OFF; CUSTOMER_RELEASE=NO_GO")
 
 if __name__=="__main__":main()
