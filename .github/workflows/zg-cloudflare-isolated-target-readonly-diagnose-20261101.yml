@@ -1,0 +1,68 @@
+name: "Zero Google Cloudflare isolated target diagnostic — READ ONLY"
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - ".github/workflows/zg-cloudflare-isolated-target-readonly-diagnose-20261101.yml"
+permissions:
+  contents: read
+jobs:
+  isolated-cloudflare-target-diagnosis:
+    if: ${{ github.repository == 'fawakhry/TrendOs' && github.event.pull_request.number == 316 && github.event.pull_request.head.repo.full_name == 'fawakhry/TrendOs' && github.head_ref == 'chore/zero-google-direct-cloudflare-stage-upload-v1-20261101' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: "false"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Source blob, account secret existence and OFF worker checks
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test "$(git hash-object cloudflare-d1/wrangler.customer-stage.toml)" = "4e0c7f8275ff9cd89740f97b9f00c6d4d6cc75dd"
+          test "$(git hash-object cloudflare-d1/customer-stage/index.mjs)" = "e5a4999934c774f70e555790b39f7eb0a19d9ddc"
+          python3 tools/zero_google_direct_stage_upload_guard_v1.py > "$RUNNER_TEMP/zg-cf-readonly-source.json"
+          npm install --prefix "$RUNNER_TEMP/zg-wrangler-lookup" --no-save --no-audit --no-fund wrangler@4
+          echo "ZG_WRANGLER=$RUNNER_TEMP/zg-wrangler-lookup/node_modules/.bin/wrangler" >> "$GITHUB_ENV"
+      - name: Read-only target Worker version lookup with redacted diagnostic
+        working-directory: cloudflare-d1
+        run: |
+          set -euo pipefail
+          rc=0
+          "$ZG_WRANGLER" versions list --config wrangler.customer-stage.toml             > "$RUNNER_TEMP/zg-cf-readonly-out"             2> "$RUNNER_TEMP/zg-cf-readonly-err" || rc=$?
+          python3 - "$RUNNER_TEMP/zg-cf-readonly-out" "$RUNNER_TEMP/zg-cf-readonly-err" "$rc" <<'PY'
+          import pathlib,re,sys
+          out=pathlib.Path(sys.argv[1]).read_text(errors='replace')[:30000]
+          err=pathlib.Path(sys.argv[2]).read_text(errors='replace')[:30000]
+          code=int(sys.argv[3])
+          text=(out+'\n'+err).lower()
+          m=re.search(r'(?:error\s*code|code|status)\s*[:\[ ]+([0-9]{3,6})',text)
+          sanitized_code=m.group(1) if m else 'NONE'
+          if code==0:
+              category='TARGET_EXISTING_READ_SUCCESS'
+          elif any(x in text for x in ('not found','does not exist','no worker found','no such worker','no such script','404')):
+              category='TARGET_NOT_FOUND_OR_NO_VERSIONS'
+          elif any(x in text for x in ('forbidden','unauthorized','permission','not authorized','authentication','invalid api token','403')):
+              category='ACCOUNT_TOKEN_SCOPE_OR_ACCESS_DENIED'
+          elif any(x in text for x in ('could not resolve','network error','connection refused','timeout','timed out')):
+              category='NETWORK_OR_DNS_ERROR'
+          else:
+              category='UNCLASSIFIED_READ_ONLY_WRANGLER_FAILURE'
+          print('CLOUDFLARE_ISOLATED_TARGET_READ_RESULT='+category)
+          print('WRANGLER_EXIT_NONZERO='+str(code!=0).lower())
+          print('CLOUDFLARE_ERROR_CODE_DIGITS='+sanitized_code)
+          print('CLOUDFLARE_REMOTE_WRITE_PERFORMED=NO')
+          print('CLOUDFLARE_DEPLOY_PERFORMED=NO')
+          print('UBUNTU_ACCESS_PROBE_PERFORMED=NO')
+          with open(__import__('os').environ['GITHUB_STEP_SUMMARY'],'a') as f:
+              f.write('Cloudflare isolated Worker read-only diagnosis: '+category+'; error code '+sanitized_code+'. No remote writes.\n')
+          PY
