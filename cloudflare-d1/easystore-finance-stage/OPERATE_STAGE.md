@@ -243,3 +243,41 @@ employee access tests; reconcile original Google history and backup recovery.
 The health-only finance Worker still **hard-denies all financial POSTs**.
 Finance gates remain `G1-G5=OPEN`, `FINANCE_RELEASE=NO_GO`,
 `FINANCE_WRITES=OFF`.
+
+### ACC283 — owner Ubuntu screenshot of real Stage 22-table backup, pending independent restore (2026-11-01 Cairo)
+
+The owner supplied a screenshot of the **local Ubuntu terminal result**, after running
+the ACC282 pinned detached-worktree Phase B3 command. Visible terminal JSON
+includes `result=STAGE_22_TABLE_SCHEMA_EXPORT_RESTORED_LOCALLY_ONLY`,
+`schemaApplied=true`, `workerDeployed=false`, the exact existing Stage
+database identity, and the terminal prompt returned without an error. The
+`backup-verify` code emits this success result only after export, local
+disposable SQLite restore, original 22-table parity/seed checks, SHA evidence,
+and the second read of the provider. The top portion of the JSON was outside
+the screenshot: the private SQL hash, individual `backup.restoredTables`
+and `privateLocalRestoreIntegrity` fields were **not independently read**
+from the protected evidence file by this assistant.
+
+**Evidence level:** `OWNER_TERMINAL_SCREENSHOT_PASS` (not independent
+provider access or second-host disaster-recovery attestation). Do not paste
+private SQL, hashes, tokens or paths into GitHub/chat. Keep all files under
+the owner's private 0700 directory, with SQL/evidence mode 0600. Do not rerun
+`apply` or `resume`; the 22-table Stage has already been migrated.
+
+**New checkpoint:** `REAL_OWNER_CURRENT_22_TABLE_STAGE_EXPORT=OWNER_SCREENSHOT_SUCCESS`;
+`PRIVATE_SQL_EVIDENCE_CROSSCHECK=OWNER_LOCAL_CHECK_PENDING`;
+`INDEPENDENT_SECOND_HOST_ENCRYPTED_RESTORE=NOT_RUN`;
+`STAGE_G1_REAL_EMPLOYEE=NOT_PROVISIONED`;
+`FINANCE_WRITES=OFF`; `FINANCE_RELEASE=NO_GO`.
+Earlier ACC281/ACC282 'NOT_RUN' entries are historical and superseded
+**only for the owner-local backup run**, not for independent recovery.
+
+**Next action:** Locally cross-check the private evidence file, backup SQL
+hash, restored table count and OFF flags without exposing the SQL. Then
+encrypt locally and copy only the encrypted backup through an owner-controlled
+channel to a physically separate machine. On that second device compare
+SHA-256 with the privately retained original and restore into disposable,
+unshared SQLite; check schema/rows/FK/integrity before G3 may qualify. Never
+claim independent recovery from the original machine's in-memory restore,
+a screenshot, offline GitHub Actions or an encrypted file merely copied but
+not actually restored.
