@@ -7,6 +7,8 @@ on:
       - 'tests/customer_native_upload_real_wrangle_bridge_off.py'
       - 'customer-native-upload-loopback-http-stage-off-v0.cjs'
       - 'customer-native-upload-coordinator-off-v0.js'
+      - 'customer-native-ui-stage-plan-off-v0.js'
+      - 'tests/customer_native_ui_stage_plan_off.test.cjs'
       - '.github/workflows/customer-native-upload-real-wrangler-bridge-off.yml'
   workflow_dispatch:
 
@@ -49,6 +51,8 @@ jobs:
           node --check tests/customer_native_upload_real_wrangle_bridge_off.cjs
           node --check customer-native-upload-loopback-http-stage-off-v0.cjs
           node --check customer-native-upload-coordinator-off-v0.js
+          node --check customer-native-ui-stage-plan-off-v0.js
+          node --test tests/customer_native_ui_stage_plan_off.test.cjs
           python3 -m py_compile tests/customer_native_upload_real_wrangle_bridge_off.py
       - name: Install isolated disposable Wrangler runtime only
         run: |
