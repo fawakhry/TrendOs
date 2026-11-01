@@ -2951,6 +2951,13 @@ function acc278Date(v){
 function acc278Cents(v){return Number.isSafeInteger(v)&&v>=0;}
 function acc278Add(a,b){const n=a+b;return acc278Cents(a)&&acc278Cents(b)&&Number.isSafeInteger(n)?n:null;}
 function acc278Denied(code){return {success:false,code,posted:false,postingAllowed:false,financeRelease:'NO_GO'};}
+// ACC281 R2: a separate OFF-by-default, nonmonetary supplier master switch.
+// Never turn on historical-liability drafts just to register a zero supplier.
+function acc281SupplierMasterReady(env,auth){
+  return text(env&&env.EASYSTORE_SUPPLIER_MASTER_INTAKE_V1)==='ENFORCE'
+    &&text(env&&env.ACCOUNTING_FINANCE_GRANTS_MODE_V1)==='ENFORCE'
+    &&auth&&auth.mode==='full';
+}
 function acc278Ready(env,auth){
   return text(env&&env.EASYSTORE_OPENING_DRAFT_INTAKE_V1)==='ENFORCE'
     &&text(env&&env.ACCOUNTING_FINANCE_GRANTS_MODE_V1)==='ENFORCE'
@@ -3144,7 +3151,8 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
   // This never authorizes supplier debt, payment, stock or financial posting.
   const draftSupplierRaw=b.openingDebt??b.opening??b.debt??0;
   const safeDraftSupplierMaster=action==='saveEasyStoreSupplier' &&
-    text(env&&env.EASYSTORE_OPENING_DRAFT_INTAKE_V1)==='ENFORCE' &&
+    (text(env&&env.EASYSTORE_OPENING_DRAFT_INTAKE_V1)==='ENFORCE' ||
+     text(env&&env.EASYSTORE_SUPPLIER_MASTER_INTAKE_V1)==='ENFORCE') &&
     Number.isFinite(Number(draftSupplierRaw))&&Number(draftSupplierRaw)===0;
   if(openingDraftSave&&c.mode!=='READONLY')return json({success:false,
     code:'acc278-finance-readonly-required',financeRelease:'NO_GO'},503,h);
@@ -3152,12 +3160,18 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     !openingDraftAuthorized&&!safeDraftSupplierMaster)
     return json({success:false,code:'employee-accounting-readonly'},503,h);
   const auth=await authenticate(request,b,env);if(!auth.ok)return json({success:false,code:'employee-session-rejected',message:auth.message},auth.status||401,h);
-  const acc211Denied=READ_ACTIONS.has(action)?'':acc211Phase1WriteRejectionV1(env,auth,action,b);
+  // The cash-only phase-1 guard is unrelated to changing a ZERO-finance
+  // supplier party master. Only an independently feature-gated READONLY
+  // master, with verified finance-full grant, may bypass that money guard.
+  const acc281SupplierOnly=c.mode==='READONLY'&&safeDraftSupplierMaster&&
+    acc281SupplierMasterReady(env,auth);
+  const acc211Denied=(READ_ACTIONS.has(action)||acc281SupplierOnly)?'':
+    acc211Phase1WriteRejectionV1(env,auth,action,b);
   if(acc211Denied)return json({success:false,code:acc211Denied,financeRelease:'NO_GO'},403,h);
   // A conditional zero opening is NOT a declaration that real finance is
   // empty. Require independently pinned server-side Ed25519 public keys
   // and two different signed zero assertions for EVERY ACC211 write.
-  if(!READ_ACTIONS.has(action)&&
+  if(!READ_ACTIONS.has(action)&&!acc281SupplierOnly&&
     text(env&&env.EASYSTORE_FINANCE_PHASE1_SCOPE_V1).toUpperCase()==='ENFORCE'){
     const openingProof=await acc212VerifyOpeningZeroEvidenceV1(env);
     if(!openingProof.ok)return json({success:false,code:openingProof.code,financeRelease:'NO_GO'},403,h);
@@ -3194,7 +3208,7 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     else if(action==='recalcAccountingMaterialsCascade'||action==='recalculateAccountingMaterials'||action==='recalculateAccountingMaterialsCascade')out=await recalcAccountingMaterialsCascadeV1(env,auth,b);
     else if(action==='saveAccountingWaste')out=await saveAccountingWasteV1(env,auth,b);
     else if(action==='saveEasyStoreSupplier'){
-      if(c.mode==='READONLY'&&!acc278Ready(env,auth))
+      if(c.mode==='READONLY'&&!acc278Ready(env,auth)&&!acc281SupplierOnly)
         out=acc278Denied('acc278-supplier-draft-master-not-authorized');
       else out=await saveSupplierV1(env,auth,b);
     }
