@@ -106,6 +106,63 @@ If export, restore, permissions, stage UUID, empty-schema check or
 post-export live schema recheck fails, STOP; leave the private evidence/
 partial file for secure local review. Do not retry `apply` as a fix.
 
+## ACC281 — Phase B3: backup and locally restore the EXISTING 22-table native Stage
+
+After ACC228-DB-31 already applied and verified **all 22 original accounting
+tables** on this exact Stage, do **NOT** rerun migration apply/resume or use
+Phase B2's historical expectation of an empty database. The EXISTING same
+`stage_d1_bootstrap.py backup-verify` action has been hardened on finance
+candidate commit `415a4540cdebbbbe0a8b4aebbdccb05b6c9087cc` for an exact,
+seed-only 22-table native Stage, while preserving its historic empty-Stage
+behavior. The same existing Stage/bootstrap regression suite qualified it
+offline; it has **NOT** made a current real Cloudflare backup yet.
+
+Run only from the owner's authenticated Ubuntu Wrangler, without touching
+the active `$HOME/TrendOs`, `TrendOs-ops-pilot`, server sandbox, or
+production D1. The following creates a fresh detached worktree with exact
+tested source (if not already present) and a protected backup folder.
+Never paste the export or account credentials into chat or GitHub:
+
+```bash
+git -C "$HOME/TrendOs" fetch origin feature/acc268-easystore-standalone-customer-source-off-20261030
+git -C "$HOME/TrendOs" worktree add --detach \
+  "$HOME/TrendOs-finance-backup-acc281" \
+  415a4540cdebbbbe0a8b4aebbdccb05b6c9087cc
+cd "$HOME/TrendOs-finance-backup-acc281"
+umask 077
+WRANGLER="$HOME/.local/share/trendos-finance-tools/node_modules/.bin/wrangler"
+test -x "$WRANGLER" || { echo "LOCAL_WRANGLER_NOT_PRESENT"; exit 1; }
+mkdir -p "$HOME/.private-easystore-stage"
+chmod 700 "$HOME/.private-easystore-stage"
+BACKUP_DIR="$HOME/.private-easystore-stage/current-verified-$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -m 700 "$BACKUP_DIR"
+PYTHONDONTWRITEBYTECODE=1 python3 \
+  cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py \
+  backup-verify --private-backup-dir "$BACKUP_DIR" \
+  --confirm-stage-uuid c2fe1a54-90f5-4e6f-9d51-80ce23e21328 \
+  --wrangler "$WRANGLER"
+```
+
+Expected **only after actual owner run**:
+`result=STAGE_22_TABLE_SCHEMA_EXPORT_RESTORED_LOCALLY_ONLY`,
+`backup.restoredTables=22`, `privateLocalRestoreIntegrity=PASS`,
+`schemaApplied=true`, `mayApplyMigrations=false`,
+`cloudflareWrites=false`, `financeRelease=NO_GO`,
+`independentSecondHostRestore=NOT_RUN`. The private 0600 SQL file is
+`stage_current_verified_original_schema.sql` and private 0600 summary is
+`stage_backup_evidence.json`. The protected SQL contains **real D1 export**
+content and must stay private. The script refuses incomplete/foreign tables,
+changed actual D1 finance control, missing baseline seed, any non-seed
+business rows, malformed export, schema mismatch, FK/integrity failures,
+changes during export and unapproved target UUID. It does not upload the
+SQL anywhere, encrypt it or certify backup on a **different host**.
+Additional independent encrypted transfer, second-device restore, and
+verified hash are separately required BEFORE a qualified R2 Stage write
+and eventual actual production release. Failure leaves finance OFF;
+never run `apply` to repair a backup failure.
+
+---
+
 **Phase C — EXPLICIT STAGE-ONLY SCHEMA APPLY.** Do this **only** after owner
 authorization for a dedicated exclusive Stage change window, confirmation that
 this is synthetic/not production data, and a recovery operator on Ubuntu.
