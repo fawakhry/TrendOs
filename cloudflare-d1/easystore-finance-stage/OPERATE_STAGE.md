@@ -112,7 +112,7 @@ After ACC228-DB-31 already applied and verified **all 22 original accounting
 tables** on this exact Stage, do **NOT** rerun migration apply/resume or use
 Phase B2's historical expectation of an empty database. The EXISTING same
 `stage_d1_bootstrap.py backup-verify` action has been hardened on finance
-candidate commit `415a4540cdebbbbe0a8b4aebbdccb05b6c9087cc` for an exact,
+candidate commit `1a7c2e2d36d3f301f798b74e12cc348566049235` for an exact,
 seed-only 22-table native Stage, while preserving its historic empty-Stage
 behavior. The same existing Stage/bootstrap regression suite qualified it
 offline; it has **NOT** made a current real Cloudflare backup yet.
@@ -127,7 +127,7 @@ Never paste the export or account credentials into chat or GitHub:
 git -C "$HOME/TrendOs" fetch origin feature/acc268-easystore-standalone-customer-source-off-20261030
 git -C "$HOME/TrendOs" worktree add --detach \
   "$HOME/TrendOs-finance-backup-acc281" \
-  415a4540cdebbbbe0a8b4aebbdccb05b6c9087cc
+  1a7c2e2d36d3f301f798b74e12cc348566049235
 cd "$HOME/TrendOs-finance-backup-acc281"
 umask 077
 WRANGLER="$HOME/.local/share/trendos-finance-tools/node_modules/.bin/wrangler"
@@ -160,6 +160,29 @@ Additional independent encrypted transfer, second-device restore, and
 verified hash are separately required BEFORE a qualified R2 Stage write
 and eventual actual production release. Failure leaves finance OFF;
 never run `apply` to repair a backup failure.
+
+### ACC282 — backup certification integrity hardening (OFFLINE CHECKS ONLY)
+
+The exact reviewed Stage source at commit `1a7c2e2d36d3f301f798b74e12cc348566049235`
+adds strict comparison of ALL user-defined SQLite objects (tables, indexes,
+triggers and views) before export, inside independently restored private SQL,
+and after export; it exempts only the exact Cloudflare-reserved `_cf_KV`
+storage table. The restored native write-canary record must itself equal
+`(enabled=1, max_commands=0, commands_started=0)` rather than merely have
+one row. Negative tests inject unexpected provider indexes/views/triggers,
+an export-only index, and an export-only raised finance write budget.
+The existing **20/20 source-only workflow runs** finished SUCCESS at
+`1a7c2e2d36d3f301f798b74e12cc348566049235`, including original ACC234 Stage test
+[#41299955291](https://github.com/fawakhry/TrendOs/actions/runs/41299955291).
+No provider connection, remote backup, encryption, second-host restore,
+financial POST, deployment, or merge occurred from these tests.
+
+The above detached-worktree command now pins this newer exact tested source.
+The earlier ACC281 initial qualification was at
+`415a4540cdebbbbe0a8b4aebbdccb05b6c9087cc`; historical evidence
+is retained in the canonical EasyStore book. Current owner-local Stage
+backup and independent encrypted recovery test are both still NOT RUN;
+`FINANCE_RELEASE=NO_GO`, `FINANCE_WRITES=OFF`.
 
 ---
 
