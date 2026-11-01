@@ -150,3 +150,53 @@ python3 tests/zero_google_direct_stage_upload_guard_v1.test.py -v
 proof that a Cloudflare version was actually uploaded.** The direct
 upload job is opt-in and not executed by the offline package tests.
 
+
+## Verified isolated Cloudflare D1 Stage — 2026-11-01
+
+The owner authorized initial isolated customer Stage D1 setup. Real direct
+Cloudflare run [#41305442428](https://github.com/fawakhry/TrendOs/actions/runs/41305442428)
+**SUCCESS** created database
+`trendos-zg-customer-stage-synthetic-20261101-v0` in the same Cloudflare
+account as the existing nonpublic Worker
+`trendos-customer-portal-isolated-stage-v0`. Ten original selected SQL
+migrations were applied **only to this fresh D1**, and a single synthetic
+`ZG-STAGE-SYNTHETIC-C1` customer (with no login account) was inserted.
+A remote D1 query confirmed `fake_customer_count=1`,
+`real_enrolled_accounts=0`, `portal_mode=OFF`, `t12_mode=OFF`.
+
+One new D1 binding named `DB` was deployed **only** on that existing isolated
+Worker. Separate post-write Cloudflare REST API reads verified that binding's
+actual D1 UUID matches the newly created database and that both
+`workers.dev` and preview URLs are still disabled. The Stage config still
+has zero custom routes, zero production D1/R2 or Google bindings, and all
+customer functions OFF. No customer portal login/invoice/T12/Printshop/Google
+production feature has been switched.
+
+### Safeguard on future uploads (required)
+
+The original checked-in `cloudflare-d1/wrangler.customer-stage.toml` is
+intentionally **without** any account-specific D1 UUID and must NOT be used
+directly for a future remote `wrangler deploy` or `wrangler versions upload`:
+doing so may drop the currently deployed isolated D1 binding.
+
+Instead the existing manual-only version-upload workflow calls
+`tools/zg_customer_stage_d1_binding_resolver_v1.py` before upload. The resolver
+performs ONLY authenticated read-only Cloudflare Worker subdomain/settings/D1
+inventory calls, independently verifies that the Worker is nonpublic, that
+there is exactly one `DB` D1 binding and it belongs to the exact isolated
+synthetic database, then writes a temporary Wrangler config with that UUID
+inside the CI runner's private filesystem. It never prints token values or
+database UUID, never updates Cloudflare, and deletes its temporary file after
+upload. If any identity, binding, route, token or database lookup fails,
+**do not upload** or fall back to public deployment.
+
+Run the offline negative test before changing any upload workflow:
+```bash
+python3 tests/zg_customer_stage_d1_binding_resolver_v1.test.py -v
+```
+
+This real remote Stage is not publicly accessible; remote browser/login E2E
+has **not** been performed. Such tests require a separate explicitly approved
+private Stage ingress, synthetic authenticated enrollment and policy gates.
+Ubuntu Access case `02394197` remains independent and unmodified.
+
