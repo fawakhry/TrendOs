@@ -50,7 +50,19 @@ button:disabled{opacity:.6;cursor:wait}.primary{background:var(--blue);color:#ff
  </section>
  <section id="portal" class="hidden" aria-label="مساحة العميل">
   <div class="actions" style="justify-content:space-between;margin:0 0 16px"><strong>أهلاً بيك في ترند مول <span id="clientCode"></span></strong>
-   <button id="logoutBtn" type="button" class="danger">تسجيل خروج</button></div>
+   <span class="actions" style="margin:0"><button id="changePasswordBtn" type="button" class="subtle">تغيير كلمة المرور</button><button id="logoutBtn" type="button" class="danger">تسجيل خروج</button></span></div>
+  <section id="passwordPanel" class="panel hidden" aria-labelledby="passwordTitle" style="margin-bottom:18px">
+   <div class="pad"><h2 class="title" id="passwordTitle">تغيير كلمة مرور العميل</h2>
+    <p class="hint">بعد نجاح التغيير هتنتهي كل جلسات الحساب القديمة، ولازم تسجل دخول بكلمة المرور الجديدة.</p>
+    <form id="changePasswordForm" autocomplete="off">
+     <label for="currentPassword">كلمة المرور الحالية</label><input id="currentPassword" type="password" minlength="12" maxlength="128" autocomplete="current-password" required>
+     <label for="newPassword">كلمة المرور الجديدة</label><input id="newPassword" type="password" minlength="12" maxlength="128" autocomplete="new-password" required>
+     <label for="confirmPassword">تأكيد كلمة المرور الجديدة</label><input id="confirmPassword" type="password" minlength="12" maxlength="128" autocomplete="new-password" required>
+     <div class="actions"><button id="savePasswordBtn" type="submit" class="primary">حفظ كلمة المرور وإلغاء الجلسات القديمة</button>
+      <button id="closePasswordBtn" class="subtle" type="button">إلغاء</button></div>
+    </form>
+   </div>
+  </section>
   <div class="dashboard">
    <section class="panel" aria-labelledby="draftTitle">
     <div class="head"><div><h2 id="draftTitle">شات الطلب الجديد</h2><small>احتفظ بالأصول، ولا تبدأ الطباعة قبل المراجعة</small></div><button class="subtle" id="newDraftBtn" type="button">مسودة جديدة</button></div>
