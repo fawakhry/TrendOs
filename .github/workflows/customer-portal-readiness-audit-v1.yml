@@ -21,9 +21,11 @@ jobs:
         with:
           node-version: '22'
       - name: Syntax check
-        run: node --check customer-portal-readiness-audit-v1.cjs
+        run: |
+          node --check customer-portal-readiness-audit-v1.cjs
+          node --check customer-native-upload-coordinator-off-v0.js
       - name: Test source and synthetic candidate
-        run: node --test tests/customer_portal_readiness_audit_v1.test.cjs tests/customer_portal_partial_upload_stage_audit.test.cjs
+        run: node --test tests/customer_portal_readiness_audit_v1.test.cjs tests/customer_portal_partial_upload_stage_audit.test.cjs tests/customer_native_upload_coordinator_off_v0.test.cjs
       - name: Emit read-only NO GO report
         run: |
           node customer-portal-readiness-audit-v1.cjs --report > /tmp/customer-readiness-audit.json

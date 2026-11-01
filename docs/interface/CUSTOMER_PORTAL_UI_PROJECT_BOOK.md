@@ -170,3 +170,22 @@
 - فُحصت وحدة `cloudflare-d1/src/customer-portal-native-draft-file-r2-v0.mjs` الحالية: Entry666 يستخدم مفتاح idempotency لكل ملف، ومراجعة مالك D1، وR2 خاص حتى 5MiB؛ التكرار المطابق لسجل `READY` يرجع `alreadyUploaded=true`. إذا بقي السجل `PENDING` تُرفض الإعادة التلقائية بـ409 `CUSTOMER_FILE_PENDING_RECONCILIATION` بدلاً من إعادة كتابة مشكوك فيها.
 - `cloudflare-d1/src/customer-portal-native-r2-pending-audit-v0.mjs` (Entry675) **موجود بالفعل**: فحص `PENDING` للملف في D1 و`R2.head` بعد مرور 15 دقيقة، للقراءة فقط؛ لا يفحص SHA للبايتات كاملة ولا يسمح بقلبه READY أو بحذفه.
 - **قرار منع الازدواج:** لا نبني نظام file writer أو pending reconciler مكررًا. المطلوب التالي ربط واجهة العميل بنفس requestKey/itemId من أول محاولة، مع تعليمات آمنة لحالات 409 والاحتفاظ بمعلومات الاستئناف دون token، ثم اختبار عميلين وهميين على Stage. الـNative handlers كلها source-only OFF وغير معتمدة أو منشورة. `CUSTOMER_GO_LIVE=NO_GO`.
+
+## 16) وحدة استئناف رفع Native معزولة عن الإنتاج — 2026-11-01
+
+**المالك طلب «كمل» بعد تسليم PR317.** تم قراءة الكتاب الحالي وتحديثات `main`، وفحص العقود الفعلية من Zero Google Draft #311 على `integration/zero-google-one-package-v1-20261031`. تم إنشاء فرع `feature/customer-native-upload-coordinator-off-20261101` من أحدث main بدون تعديل PR311 أو مسار Backend حي.
+
+**تطوير مصدر فعلي دون تفعيل:**
+- `customer-native-upload-coordinator-off-v0.js`: منسق محلي مستقِل **غير مربوط بـ index.html/app.js** ولا يحتوي أي fetch أو HTTP endpoint أو sessionStorage/localStorage. يطالب بحقن transport خارجي و`getActiveOwnerId` من جلسة Native موثقة مستقبلًا؛ مجرد التطابق المحلي لا يغني عن إثبات ملكية D1 على الخادم.
+- يُصدر requestKey عشوائيًا آمنًا (128-bit lowercase hex) *مرة واحدة* للبند وواحدًا منفصلًا لكل ملف، ولا يغيّره عند إعادة المحاولة اليدوية. يتبع عقد Entry665 `requestKey` داخل JSON لإنشاء البند وعقد Entry666 `x-idempotency-key` للملف في أي Adapter يُبنى لاحقًا.
+- يقبل فقط محتوى PNG/JPEG/PDF مطابقًا لتوقيع أول بايتات وبحد **5MiB لكل ملف و5 ملفات لكل بند** في نسخة R2 الحالية، ويحفظ نسخة من البايتات في الذاكرة فقط. لا تُنسخ بيانات/صور العملاء إلى تخزين دائم ولا تُحفظ صلاحيات bearer أو password.
+- لو فقدنا رد إنشاء البند، تسمح إعادة المحاولة **بنفس مفتاح البند**، مستندةً إلى عقد الخادم idempotent الموجود ولكن غير المنشور. لو فشل ملف بعد احتمال الكتابة، تتوقف عند `FILE_UNCERTAIN` وتحتاج إعادة محاولة صريحة *بنفس مفتاح الملف*، دون إنشاء بند إضافي أو إعادة ملفات ناجحة.
+- في حالة `CUSTOMER_FILE_PENDING_RECONCILIATION` (HTTP 409) أو تعارض ملكية/مفتاح، تغلق الإعادة التلقائية وتطالب بمراجعة مستقلة؛ لا تنتقل إلى الملف التالي. ترفض إيصالات الملفات التي تحتوي URL عام، أو لا تثبت `privateObject=true`، أو تطلب إنشاء أوردر رسمي من هذا المسار. تغيير صاحب الجلسة يُتلف النسخ المؤقتة ويوقف الاستكمال.
+- **مهم:** لا استئناف بعد Reload للصفحة؛ النسخة الحالية In-memory ومقفولة، فلا نُعلن وعدًا غير مثبت. تنفيذ Session reload مع إثبات هوية وملفات معاد اختيارها، وقيود scanner/quarantine والـStage R2/D1 الحقيقي ما زال مطلوبًا.
+- الاختبارات `tests/customer_native_upload_coordinator_off_v0.test.cjs` تستخدم بيانات تركيبية فقط، وتغطي ربط محاولتين بنفس المفتاح، ملف رقم N، حالة PENDING، عميل مختلف، فشل MIME/الحجم والتوقيع، تزامن ضغطة الإرسال، وعدم ربط الواجهة/عدم وجود API حي.
+- أُضيف الاختبار وSyntax check إلى workflow الجاهزية القائم. **مصدر تجريبي OFF؛ لا تفعيل عميل، لا Google fallback، لا Cloudflare، لا T12/EasyStore/Code.gs، لا Paid API.** لا يعتبر نجاح الاختبار وحده إثباتًا لعمل نقل ملفات في Worker أو Backend.
+- نتيجة CI والـPR والدمج تُسجّل بعد التنفيذ والتحقق. `NATIVE_UI_TRANSPORT=UNWIRED`، `CUSTOMER_PRODUCTION=NO_GO`.
+
+**مراجعة التوافق مع النقل الأصلي قبل الدمج:** تبين في فرع Zero Google #311 أن `customer-native-browser-transport-v0.js` موجود في **جذر المستودع** بالفعل، يفعّل فقط قراءة الطلبات/بعض البيانات العامة عند Flag منفصل ويمنع باقي عمليات الكتابة Native برسالة `CUSTOMER_NATIVE_ACTION_NOT_WIRED`. لا نعتمد على transport جديد منافس، ولا نربط coordinator بهذا dispatcher قبل أن يتأهل موجوده للكتابة ويثبت D1 session/owner/Worker routes. وحدة الاستئناف الجديدة مستقلة لتُستهلك لاحقًا داخل العقد الأصلي ولا تستخدم Token أو Google fallback.
+
+**CI على commit ابتدائي موثق:** [Readiness #41300139702](https://github.com/fawakhry/TrendOs/actions/runs/41300139702) PASS، [P0 Stage #41300139691](https://github.com/fawakhry/TrendOs/actions/runs/41300139691) PASS، [Guided Chat #41300139587](https://github.com/fawakhry/TrendOs/actions/runs/41300139587) PASS على HEAD `39d2fa9049f0208e54d47c197156cd27dc56aaf8`. مراجعة HEAD النهائية لازمة قبل الدمج.
