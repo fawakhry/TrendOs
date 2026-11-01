@@ -78,8 +78,14 @@ jobs:
           set -euo pipefail
           # STOP if this Worker cannot be version-uploaded (e.g. requires a
           # separately authorized first-time provision). NEVER fallback to deploy.
+          # This Stage NOW has a dedicated remote synthetic D1. Dynamically
+          # resolve and check the exact existing DB binding before any version
+          # upload; using the old no-DB source config would drop that binding.
+          cfg=".wrangler-zg-stage-d1-${GITHUB_RUN_ID}.toml"
+          trap 'rm -f "$cfg"' EXIT
+          python3 ../tools/zg_customer_stage_d1_binding_resolver_v1.py "$PWD/$cfg"
           "$ZG_CLOUDFLARE_WRANGLER" versions upload \
-            --config wrangler.customer-stage.toml \
+            --config "$cfg" \
             --strict \
             --message "Zero Google isolated OFF source candidate $GITHUB_SHA"
           echo 'ISOLATED_CLOUDFLARE_VERSION_UPLOADED=YES'
