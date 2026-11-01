@@ -23,7 +23,7 @@ jobs:
       - name: Syntax check
         run: node --check customer-portal-readiness-audit-v1.cjs
       - name: Test source and synthetic candidate
-        run: node --test tests/customer_portal_readiness_audit_v1.test.cjs
+        run: node --test tests/customer_portal_readiness_audit_v1.test.cjs tests/customer_portal_partial_upload_stage_audit.test.cjs
       - name: Emit read-only NO GO report
         run: |
           node customer-portal-readiness-audit-v1.cjs --report > /tmp/customer-readiness-audit.json
