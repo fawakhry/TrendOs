@@ -114,6 +114,49 @@ test('ACC278 original authenticated native D1: OFF gate, draft commit/readback, 
     assert.equal(count('employee_accounting_opening_intake_batches_v1'),0);
     db.exec("UPDATE employee_accounting_control_v1 SET mode='READONLY' WHERE singleton=1");
     assert.equal((await call(base.action,base)).status,503,'READONLY cannot save draft');
+    // ACC281 R2: re-use the ORIGINAL native handler and persisted SQLite.
+    // Supplier-only flag must NOT also permit historic opening DRAFT actions.
+    // Stage cash-only ENFORCE is allowed to coexist with this one ZERO-money
+    // supplier master; all monetary actions remain blocked.
+    env.EASYSTORE_SUPPLIER_MASTER_INTAKE_V1='ENFORCE';
+    env.EASYSTORE_FINANCE_PHASE1_SCOPE_V1='ENFORCE';
+    const supplierOnlyPayload={
+      requestId:'ACC281-ONLY-SUPPLIER-REQUEST-001',
+      name:'ACC281 Synthetic Active Supplier',opening:0,
+      phone:'SYNTHETIC-PHONE',address:'SYNTHETIC-ADDRESS',active:'yes'
+    };
+    const isolatedSupplier=await call('saveEasyStoreSupplier',supplierOnlyPayload);
+    assert.equal(isolatedSupplier.success,true,JSON.stringify(isolatedSupplier));
+    assert.match(isolatedSupplier.supplierId,/^SUP-/);
+    assert.equal(isolatedSupplier.openingBalance,0);
+    assert.equal(isolatedSupplier.active,true);
+    const isolatedDirectory=await call('getEasyStoreSuppliers');
+    assert.equal(isolatedDirectory.success,true,JSON.stringify(isolatedDirectory));
+    assert.ok(isolatedDirectory.suppliers.some(v=>v.partyId===isolatedSupplier.supplierId),
+      'Supplier-only creation must actually read back from the original D1');
+    const isolatedReplay=await call('saveEasyStoreSupplier',{
+      ...supplierOnlyPayload,_ts:Date.now()+40000
+    });
+    assert.equal(isolatedReplay.success,true,JSON.stringify(isolatedReplay));
+    assert.equal(isolatedReplay.duplicatePrevented,true);
+    assert.equal(count('employee_accounting_parties_v1'),1);
+    assert.equal((await call(base.action,base)).status,503,
+      'Supplier-only flag may NEVER open historical supplier/installment drafts');
+    assert.equal((await call('saveEasyStoreSaleV2',{
+      requestId:'ACC281-REAL-MONEY-DENY-REQUEST',invoiceNo:'FAKE-INVOICE',
+      customerId:'FAKE-CUSTOMER',paid:100
+    })).success,false,'supplier-only cannot turn on any sale');
+    assert.equal((await call('saveEasyStoreSupplier',{
+      requestId:'ACC281-NONZERO-BLOCKED-REQUEST',name:'Denied historical debt',opening:50
+    })).success,false,'supplier-only cannot create any historic payable');
+    assert.equal(count('employee_accounting_opening_intake_batches_v1'),0);
+    assert.equal(count('employee_accounting_party_ledger_v1'),0);
+    assert.equal(count('employee_accounting_cashbox_v1'),0);
+    env.EASYSTORE_SUPPLIER_MASTER_INTAKE_V1='OFF';
+    assert.equal((await call('saveEasyStoreSupplier',{
+      requestId:'ACC281-FLAG-OFF-REQUEST-001',name:'Denied after switch OFF',opening:0
+    })).success,false,'supplier-only kill switch must fail closed');
+    env.EASYSTORE_FINANCE_PHASE1_SCOPE_V1='OFF';
     db.exec("UPDATE employee_accounting_control_v1 SET mode='GENERAL' WHERE singleton=1");
     db.exec("UPDATE employee_accounting_write_canary_v1 SET enabled=0,max_commands=0,commands_started=0 WHERE singleton=1");
     assert.equal((await call(base.action,base)).code,'acc278-finance-readonly-required');
@@ -206,6 +249,8 @@ test('ACC278 original authenticated native D1: OFF gate, draft commit/readback, 
     // Feature kill switch even blocks reading private drafts.
     env.EASYSTORE_OPENING_DRAFT_INTAKE_V1='OFF';
     assert.equal((await call('getEasyStoreOpeningDraftV1',{batchId:row.batchId})).code,'acc278-owner-draft-feature-disabled');
+    console.log('ACC281_ZERO_SUPPLIER_ONLY_IN_ORIGINAL_D1_WITH_DRAFTS_OFF=PASS');
+    console.log('ACC281_FINANCE_PHASE1_CASH_LOCK_AND_SUPPLIER_INTAKE_COEXIST=PASS');
     console.log('ACC278_ORIGINAL_D1_AUTHENTICATED_DRAFT_WRITE_READ_REOPEN=PASS');
     console.log('ACC280_STABLE_TIMESTAMP_REPLAY_AND_D1_ROW_HASH_INTEGRITY=PASS');
     console.log('ACC278_NO_DUPLICATE_LIABILITY_OR_CASH_POSTING=PASS');
