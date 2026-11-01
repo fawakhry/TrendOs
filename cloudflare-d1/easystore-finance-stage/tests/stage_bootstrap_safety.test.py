@@ -161,6 +161,90 @@ class StageBootstrapTests(unittest.TestCase):
             self.assertEqual(proof["backup"]["restoredTables"], 0)
             self.assertEqual(cli.apply_files, [])
 
+    def test_acc281_real_native_stage_complete_22_table_backup_restore_without_money(self):
+        # Reuse original provider fixture path; absolutely NO live credentials.
+        class LocalOriginalStage:
+            def __init__(self):
+                self.db=sqlite3.connect(":memory:")
+                for filename in b.FILES:
+                    self.db.executescript((b.MIGRATIONS/filename).read_text())
+                self.calls=[]
+            def run(self,*cmd):
+                self.calls.append(cmd)
+                if cmd[:2]==("d1","list"):
+                    return json.dumps([{"name":b.STAGE_NAME,"uuid":b.STAGE_UUID}])
+                if cmd[:2]==("d1","export"):
+                    target=Path(cmd[cmd.index("--output")+1])
+                    target.write_text("\\n".join(self.db.iterdump())+"\\n",
+                                      encoding="utf-8")
+                    return ""
+                if cmd[:2]==("d1","execute") and "--command" in cmd:
+                    sql=cmd[cmd.index("--command")+1]
+                    cur=self.db.execute(sql)
+                    cols=[v[0] for v in (cur.description or [])]
+                    return json.dumps([{"success":True,"results":[
+                        dict(zip(cols,row)) for row in cur.fetchall()
+                    ]}])
+                raise AssertionError("NO_REMOTE_MUTATION_ALLOWED")
+            def close(self):
+                self.db.close()
+
+        with tempfile.TemporaryDirectory() as folder:
+            cli=LocalOriginalStage()
+            try:
+                result=b.backup_verify_stage(cli,folder,b.STAGE_UUID)
+                self.assertEqual(result["result"],
+                    "STAGE_22_TABLE_SCHEMA_EXPORT_RESTORED_LOCALLY_ONLY")
+                self.assertTrue(result["schemaApplied"])
+                self.assertFalse(result["mayApplyMigrations"])
+                self.assertFalse(result["cloudflareWrites"])
+                self.assertEqual(result["financeRelease"],"NO_GO")
+                self.assertEqual(result["financeWrites"],"OFF")
+                self.assertEqual(result["backup"]["restoredTables"],22)
+                self.assertEqual(result["independentSecondHostRestore"],"NOT_RUN")
+                self.assertEqual(result["userTables"],expected_tables())
+                exported=Path(folder)/"stage_current_verified_original_schema.sql"
+                evidence=Path(folder)/"stage_backup_evidence.json"
+                self.assertTrue(exported.is_file())
+                self.assertEqual(result["backup"]["sha256"],b.digest(exported))
+                self.assertEqual(exported.stat().st_mode & 0o077,0)
+                self.assertEqual(evidence.stat().st_mode & 0o077,0)
+                self.assertEqual(json.loads(evidence.read_text()),result)
+                self.assertFalse(any("--file" in cmd or "delete" in cmd or
+                    "deploy" in cmd for cmd in cli.calls))
+                self.assertEqual(sum(cmd[:2]==("d1","export")
+                                     for cmd in cli.calls),1)
+            finally:
+                cli.close()
+
+        # Before export, refuse a real accounting request, an unknown table,
+        # an unauthorized control mode, or any partial/changed original schema.
+        cases=[
+            ("business",lambda db:db.execute(
+                "INSERT INTO employee_accounting_request_ledger_v1 "
+                "(request_key,operation,actor,canonical_json,status) "
+                "VALUES ('SYNTHETIC-ROW','fake','FAKE','{}','COMMITTED')")),
+            ("foreign-table",lambda db:db.execute(
+                "CREATE TABLE t12_customers (id TEXT PRIMARY KEY)")),
+            ("finance-enabled",lambda db:db.execute(
+                "UPDATE employee_accounting_control_v1 SET mode='GENERAL' WHERE singleton=1")),
+            ("missing-original",lambda db:db.execute(
+                "DROP TABLE employee_accounting_events_v1")),
+        ]
+        for label,change in cases:
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as folder:
+                cli=LocalOriginalStage()
+                try:
+                    change(cli.db)
+                    with self.assertRaises(b.GateError):
+                        b.backup_verify_stage(cli,folder,b.STAGE_UUID)
+                    self.assertFalse(any(cmd[:2]==("d1","export")
+                                         for cmd in cli.calls),
+                                     "NO backup of unqualified Stage")
+                    self.assertFalse((Path(folder)/"stage_backup_evidence.json").exists())
+                finally:
+                    cli.close()
+
     def test_inspect_empty_has_no_false_positive_or_provider_write(self):
         cli = OfflineWrangler()
         report = b.inspect_stage(cli)
