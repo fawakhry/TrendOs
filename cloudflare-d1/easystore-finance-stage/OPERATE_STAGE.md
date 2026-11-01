@@ -448,3 +448,30 @@ EasyStore main config is `EASYSTORE_ACCOUNTING_D1_WRITE_MODE=OFF`.
 **Read-only/status preparation is not authorization to post a real cash
 receipt, create a real supplier/customer master or backfill opening amounts.**
 `FINANCE_WRITES=OFF`, `FINANCE_RELEASE=NO_GO`.
+
+### ACC286 R2 — finance pilot day-one truthful read-only UI (source tested, not deployed)
+
+Original EasyStore Draft PR #76 has now fixed false-positive customer POST
+success and uses explicit finance-OFF-only view mode across original customer
+statement/drawer and sales pages. Source [`8c976bbd`](https://github.com/fawakhry/EasyStore/commit/8c976bbde49e2e3b1d0666262895cf24bd0c9ab9)
+hides original payment/adjustment form under OFF, visibly labels
+read-only status, blocks invoice save button and action, and hides
+unreleased standalone customer-registration form. The original
+`tests/customer_accounts_ui_v1915.test.js` now validates OFF
+for both employee roles and old editable-form roles ONLY in synthetic
+CANARY fixture. Initial 3/12 CI failures at `91e884c2` due to
+test harness's function-not-called bug and old fixture expectations
+were resolved by `68961a4e`, `95d3e76a`. Exact final original
+EasyStore code HEAD `95d3e76a5d5ac0609aed3270c2e0fa5ba2015dd2`
+**12/12 Actions PASS**, all source-only and without deploying,
+logging into finance Stage, writing D1, changing server/client flags,
+or merging any PR. Original canonical EasyStore book ACC286 R2
+provides details. `FINANCE_RELEASE=NO_GO`, `FINANCE_WRITES=OFF`,
+`G3_SECOND_HOST_RESTORE=DEFERRED_OWNER_NO_DEVICE`, G1 role and
+true signed opening balance gates remain unqualified.
+
+**Do not equate previewing accounting values from a local/cache
+snapshot with a current, source-confirmed financial balance.** Actual
+authenticated finance D1 readback, employee role scope, original opening
+reconciliation and no-duplicate transaction protections must all be
+proved before any real finance release.
