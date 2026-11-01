@@ -301,6 +301,7 @@ def backup_verify_stage(cli, destination, confirmation):
             if len(expected_names) != EXPECTED_TABLES or initial_user_tables != expected_names:
                 stop("STAGE_USER_TABLES_PRESENT_BACKUP_ONLY_GATE_STOP")
             exact_schema_parity(cli, expected_db)
+            exact_backup_object_parity(cli, expected_db)
             ensure_baseline(cli, expected_names)
             first_stage_has_only_seed_rows(cli, expected_names)
         backup = folder / (
@@ -332,6 +333,19 @@ def backup_verify_stage(cli, destination, confirmation):
                     sorted(r[0] for r in db.execute(READ_TABLES))
                 ) != expected_names:
                     stop("STAGE_CURRENT_BACKUP_SCHEMA_NAMES_MISMATCH")
+                # A valid row count is not proof that the restored canary
+                # still denies finance writes. Check the actual exported seed.
+                if db.execute(CANARY_SQL).fetchall() != [(1, 0, 0)]:
+                    stop("STAGE_CURRENT_BACKUP_CANARY_NOT_DENY_DEFAULT")
+                # Reject extra indexes, triggers and views even if all 22
+                # tables and their finance-prefixed objects look correct.
+                expected_objects = local_schema_rows(
+                    expected_db, STRICT_BACKUP_OBJECT_SQL,
+                    ("type", "name", "tbl_name")
+                )
+                if local_schema_rows(db, STRICT_BACKUP_OBJECT_SQL,
+                                     ("type", "name", "tbl_name")) != expected_objects:
+                    stop("STAGE_CURRENT_BACKUP_EXTRA_OR_DRIFTED_OBJECTS")
                 for name in expected_names:
                     count = db.execute("SELECT COUNT(*) FROM " + name).fetchone()[0]
                     allowed = 1 if name in (
@@ -346,6 +360,7 @@ def backup_verify_stage(cli, destination, confirmation):
             stop("STAGE_CHANGED_DURING_BACKUP_STOP")
         if current_schema:
             exact_schema_parity(cli, expected_db)
+            exact_backup_object_parity(cli, expected_db)
             ensure_baseline(cli, expected_names)
             first_stage_has_only_seed_rows(cli, expected_names)
         evidence = {
@@ -468,10 +483,29 @@ FINANCE_COLUMN_SQL = (
     "WHERE m.type='table' AND m.name LIKE 'employee_accounting_%' "
     "ORDER BY m.name,p.cid"
 )
+# ACC282: backup certification also rejects unexpected objects whose names
+# do not start with employee_accounting_; only Cloudflare's exact documented
+# reserved storage table may be omitted from the application-object set.
+# The generic migration/resume gates are deliberately unchanged.
+STRICT_BACKUP_OBJECT_SQL = (
+    "SELECT type,name,tbl_name FROM sqlite_master "
+    "WHERE type IN ('table','index','trigger','view') "
+    "AND name NOT LIKE 'sqlite_%' AND name <> '_cf_KV' "
+    "ORDER BY type,name"
+)
 
 
 def local_schema_rows(db, sql, fields):
     return [dict(zip(fields, row)) for row in db.execute(sql)]
+
+
+def exact_backup_object_parity(cli, expected):
+    """No hidden user views/triggers/indexes on the real Stage backup path."""
+    expected_objects = local_schema_rows(
+        expected, STRICT_BACKUP_OBJECT_SQL, ("type", "name", "tbl_name")
+    )
+    if rows(cli, STRICT_BACKUP_OBJECT_SQL) != expected_objects:
+        stop("STAGE_CURRENT_BACKUP_UNAPPROVED_SCHEMA_OBJECT_STOP")
 
 
 def exact_schema_parity(cli, expected):
