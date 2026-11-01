@@ -61,7 +61,9 @@ async function main(){
     assert.ok((await page.locator("#messages").innerText()).includes("تابلوه 30×40"));
     await page.locator("#checkBtn").click();
     await page.getByText("لم يتم إنشاء أوردر رسمي.",{exact:false}).last().waitFor({timeout:25000});
-    assert.ok((await page.locator("#messages").innerText()).includes("T12_CUSTOMER_FILE_HANDOFF_NOT_YET_SUPPORTED"));
+    const preflightText=await page.locator("#messages").innerText();
+    assert.ok(preflightText.includes("T12_CUSTOMER_FILE_HANDOFF_NOT_YET_SUPPORTED"),
+      "PREFLIGHT_LOCAL_REASON_MISMATCH="+preflightText.slice(-350));
     await page.locator("#logoutBtn").click();
     await page.locator("#loginPanel").waitFor({state:"visible"});
     assert.equal(await page.locator("#portal").isVisible(),false);
