@@ -47,7 +47,7 @@ def inspect(override=None):
     check("stage_route_and_preview_disabled",
           bool(re.search(r'^workers_dev\s*=\s*false\s*$',cfg,re.M)) and
           bool(re.search(r'^preview_urls\s*=\s*false\s*$',cfg,re.M)) and
-          not re.search(r'^\s*(route|routes|workers_dev|custom_domains)\s*=\s*(?!false\s*$)',cfg,re.M))
+          not re.search(r'^\s*(route|routes|custom_domains)\s*=',cfg,re.M))
     check("all_stage_read_and_write_feature_flags_explicitly_false",
           all(bool(re.search(r'^'+re.escape(flag)+r'\s*=\s*"false"\s*$',cfg,re.M))
               for flag in REQUIRED_FALSE))
