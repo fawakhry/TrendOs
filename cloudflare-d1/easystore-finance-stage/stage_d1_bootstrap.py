@@ -274,10 +274,10 @@ def plan():
 
 
 def backup_verify_stage(cli, destination, confirmation):
-    """Owner-run, READ-ONLY provider export and offline SQLite restore.
+    """Owner-run protected export + local restore of EMPTY or EXACT 22-table Stage.
 
-    No remote schema DDL, no Worker route, no financial writes or release.
-    This is NOT a test of independent second-machine disaster recovery.
+    Never a CI action, remote mutation, financial release or second-host proof.
+    A populated/unknown/business-data Stage MUST fail before export.
     """
     if confirmation != STAGE_UUID:
         stop("OWNER_STAGE_UUID_BACKUP_ACK_REQUIRED")
@@ -285,40 +285,90 @@ def backup_verify_stage(cli, destination, confirmation):
     folder = safe_output_dir(destination)
     identity = list_identity(cli)
     initial_names = remote_names(cli)
-    if application_table_names(initial_names):
-        stop("STAGE_USER_TABLES_PRESENT_BACKUP_ONLY_GATE_STOP")
-    backup = folder / "stage_before_migration.sql"
-    # Wrangler creates the file; preserve private permissions from its first
-    # byte. A chmod after export alone is too late if process umask was 0022.
-    old_umask = os.umask(0o077)
+    initial_user_tables = application_table_names(initial_names)
+    current_schema = bool(initial_user_tables)
+    expected_db = None
     try:
-        cli.run("d1", "export", STAGE_NAME, "--remote",
-                "--output", str(backup), "--skip-confirmation")
+        if current_schema:
+            # ACC281: only the ALREADY migrated, exact original Stage, never
+            # a partial/foreign schema and never user or business records.
+            migration_files()
+            expected_db = sqlite3.connect(":memory:")
+            for file in FILES:
+                expected_db.executescript(
+                    (MIGRATIONS / file).read_text(encoding="utf-8"))
+            expected_names = sorted(r[0] for r in expected_db.execute(READ_TABLES))
+            if len(expected_names) != EXPECTED_TABLES or initial_user_tables != expected_names:
+                stop("STAGE_USER_TABLES_PRESENT_BACKUP_ONLY_GATE_STOP")
+            exact_schema_parity(cli, expected_db)
+            ensure_baseline(cli, expected_names)
+            first_stage_has_only_seed_rows(cli, expected_names)
+        backup = folder / (
+            "stage_current_verified_original_schema.sql" if current_schema
+            else "stage_before_migration.sql"
+        )
+        # Wrangler creates the file; preserve private permissions from its
+        # FIRST byte (chmod after the fact alone is insufficient).
+        old_umask = os.umask(0o077)
+        try:
+            cli.run("d1", "export", STAGE_NAME, "--remote",
+                    "--output", str(backup), "--skip-confirmation")
+        finally:
+            os.umask(old_umask)
+        if backup.is_symlink() or not backup.is_file():
+            stop("PRIVATE_STAGE_EXPORT_NOT_A_REGULAR_FILE")
+        backup.chmod(0o600)
+        proof = restore_private_export(backup, should_be_empty=not current_schema)
+        if current_schema:
+            if proof["restoredTables"] != EXPECTED_TABLES:
+                stop("STAGE_CURRENT_BACKUP_RESTORED_TABLE_COUNT_MISMATCH")
+            check_original_0015_export(backup, expected_db)
+            # An export may restore cleanly but still contain an extra financial
+            # row. Accept ONLY original two control seed rows in this Stage.
+            db = sqlite3.connect(":memory:")
+            try:
+                db.executescript(backup.read_text(encoding="utf-8"))
+                if application_table_names(
+                    sorted(r[0] for r in db.execute(READ_TABLES))
+                ) != expected_names:
+                    stop("STAGE_CURRENT_BACKUP_SCHEMA_NAMES_MISMATCH")
+                for name in expected_names:
+                    count = db.execute("SELECT COUNT(*) FROM " + name).fetchone()[0]
+                    allowed = 1 if name in (
+                        "employee_accounting_control_v1",
+                        "employee_accounting_write_canary_v1"
+                    ) else 0
+                    if count != allowed:
+                        stop("STAGE_CURRENT_BACKUP_BUSINESS_ROWS_PRESENT_STOP")
+            finally:
+                db.close()
+        if remote_names(cli) != initial_names:
+            stop("STAGE_CHANGED_DURING_BACKUP_STOP")
+        if current_schema:
+            exact_schema_parity(cli, expected_db)
+            ensure_baseline(cli, expected_names)
+            first_stage_has_only_seed_rows(cli, expected_names)
+        evidence = {
+            "result": ("STAGE_22_TABLE_SCHEMA_EXPORT_RESTORED_LOCALLY_ONLY"
+                       if current_schema else "STAGE_EXPORT_RESTORED_LOCALLY_ONLY"),
+            "target": identity, "providerTableNames": initial_names,
+            "userTables": initial_user_tables,
+            "backup": {"localFile": backup.name, **proof},
+            "privateLocalRestoreIntegrity": "PASS",
+            "independentSecondHostRestore": "NOT_RUN",
+            "schemaApplied": current_schema, "mayApplyMigrations": False,
+            "financeRelease": "NO_GO", "financeWrites": "OFF",
+            "cloudflareWrites": False, "workerDeployed": False
+        }
+        evidence_path = folder / "stage_backup_evidence.json"
+        fd = os.open(evidence_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(evidence, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+        return evidence
     finally:
-        os.umask(old_umask)
-    if backup.is_symlink() or not backup.is_file():
-        stop("PRIVATE_STAGE_EXPORT_NOT_A_REGULAR_FILE")
-    backup.chmod(0o600)
-    proof = restore_private_export(backup, should_be_empty=True)
-    if remote_names(cli) != initial_names:
-        stop("STAGE_CHANGED_DURING_BACKUP_STOP")
-    evidence = {
-        "result": "STAGE_EXPORT_RESTORED_LOCALLY_ONLY",
-        "target": identity, "providerTableNames": initial_names,
-        "userTables": application_table_names(initial_names),
-        "backup": {"localFile": backup.name, **proof},
-        "privateLocalRestoreIntegrity": "PASS",
-        "independentSecondHostRestore": "NOT_RUN",
-        "schemaApplied": False, "mayApplyMigrations": False,
-        "financeRelease": "NO_GO", "financeWrites": "OFF",
-        "cloudflareWrites": False, "workerDeployed": False
-    }
-    evidence_path = folder / "stage_backup_evidence.json"
-    fd = os.open(evidence_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        json.dump(evidence, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
-    return evidence
+        if expected_db is not None:
+            expected_db.close()
 
 
 def apply_stage(cli, destination, confirmation, exclusive):
