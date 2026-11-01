@@ -8,6 +8,9 @@ on:
       - 'customer-native-upload-loopback-http-stage-off-v0.cjs'
       - 'customer-native-upload-coordinator-off-v0.js'
       - 'customer-native-ui-stage-plan-off-v0.js'
+      - 'customer-portal-native-stage-v0.html'
+      - 'customer-portal-native-browser-stage-v0.js'
+      - 'tests/customer_native_browser_full_ui_real_local.cjs'
       - 'tests/customer_native_ui_stage_plan_off.test.cjs'
       - '.github/workflows/customer-native-upload-real-wrangler-bridge-off.yml'
   workflow_dispatch:
@@ -52,6 +55,8 @@ jobs:
           node --check customer-native-upload-loopback-http-stage-off-v0.cjs
           node --check customer-native-upload-coordinator-off-v0.js
           node --check customer-native-ui-stage-plan-off-v0.js
+          node --check customer-portal-native-browser-stage-v0.js
+          node --check tests/customer_native_browser_full_ui_real_local.cjs
           node --test tests/customer_native_ui_stage_plan_off.test.cjs
           python3 -m py_compile tests/customer_native_upload_real_wrangle_bridge_off.py
       - name: Install isolated disposable Wrangler runtime only
@@ -59,6 +64,14 @@ jobs:
           set -euo pipefail
           npm install --prefix "$RUNNER_TEMP/customer-upload-wrangler-local" --no-save --no-audit --no-fund wrangler@4
           echo "CUSTOMER_STAGE_LOCAL_WRANGLER=$RUNNER_TEMP/customer-upload-wrangler-local/node_modules/.bin/wrangler" >> "$GITHUB_ENV"
+      - name: Install disposable Chromium browser for actual customer UI verification
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/customer-native-playwright" --no-save --no-audit --no-fund playwright@1.56.1
+          export PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/customer-native-chromium"
+          echo "PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/customer-native-playwright/node_modules/.bin/playwright" install --with-deps chromium --only-shell
+          echo "CUSTOMER_STAGE_LOCAL_PLAYWRIGHT_MODULE=$RUNNER_TEMP/customer-native-playwright/node_modules/playwright" >> "$GITHUB_ENV"
       - name: Main coordinator + original Workerd/SQLite D1/private R2 actual LOCAL HTTP E2E
         run: |
           set -euo pipefail

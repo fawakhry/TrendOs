@@ -8,7 +8,12 @@
   "use strict";
   var api = factory();
   if (typeof module === "object" && module.exports) module.exports = api;
-  // No browser global, auto-mount, or network side effect.
+  // Browser-only LOCAL isolated stage seam. Never export on production host,
+  // and never export unless separately opted in by a disposable test fixture.
+  if (root && root.location && root.location.hostname === "127.0.0.1" &&
+      root.TRENDOS_CUSTOMER_UI_NATIVE_STAGE_TEST_ONLY === true)
+    root.TrendOSCustomerNativeUploadCoordinatorV0 = api;
+  // No automatic network, app mount, production export or side effect.
 }(typeof window === "undefined" ? null : window, function () {
   "use strict";
   var LIMIT = 5 * 1024 * 1024;
