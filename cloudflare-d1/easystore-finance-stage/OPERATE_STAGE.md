@@ -357,3 +357,46 @@ check `integrity_check`, `foreign_key_check`, 22 native tables, seed-only
 rows, OFF finance control and zero canary budget, then remove the temporary
 plaintext. Record **only PASS/FAIL**, exact host separation and date. Until
 this has really happened, G3 disaster recovery remains OPEN.
+
+### ACC285 — owner Ubuntu encrypted Stage recovery package created, transfer pending (2026-11-01 Cairo)
+
+The owner supplied a third Ubuntu terminal screenshot following ACC284 Phase B4.
+The final stdout visible in that screenshot is exactly:
+
+```text
+ENCRYPTED_BACKUP_READY=PASS
+TRANSFER_STATUS=NOT_RUN
+```
+
+The earlier ACC284 source command used a GnuPG AES256 symmetric-encryption
+stream from the two protected files (current native Stage SQL and private
+evidence) directly into a private `.tar.gpg` artifact, tested that the
+artifact is nonempty with mode `0600`, and exited successfully. Evidence
+classification: **owner terminal screenshot**, not agent access to source
+bytes, encryption key/passphrase, GnuPG logs or the second host.
+
+**Updated state:** `REAL_OWNER_CURRENT_22_TABLE_STAGE_EXPORT=OWNER_SCREENSHOT_SUCCESS`;
+`PRIVATE_SQL_EVIDENCE_CROSSCHECK=OWNER_LOCAL_PASS`;
+`ENCRYPTED_STAGE_RECOVERY_PACKAGE=OWNER_SCREENSHOT_SUCCESS`;
+`CIPHERTEXT_TRANSFER=NOT_RUN`;
+`SECOND_HOST_CIPHERTEXT_SHA256_MATCH=NOT_RUN`;
+`INDEPENDENT_SECOND_HOST_ENCRYPTED_RESTORE=NOT_RUN`;
+`FINANCE_WRITES=OFF`; `FINANCE_RELEASE=NO_GO`.
+Only ACC284's `ENCRYPTED_STAGE_RECOVERY_PACKAGE=NOT_RUN` historical flag
+is superseded. G3 remains **OPEN** until a physically independent device
+actually proves ciphertext digest parity, decrypts and restores the
+22-table original SQL, and validates its accounting seeds/schema and deny
+budget. Never claim that file encryption alone is an off-host restore.
+
+**Next owner action:** keep SQL, protected evidence and secret passphrase
+on the original machine, away from public repositories and chat; locate
+the newest `$HOME/.private-easystore-stage/easystore-stage-dr-*.tar.gpg`
+and copy this **ciphertext only** via owner-controlled removable media or
+authenticated SSH to an *independent* computer. Record the SHA256 of the
+ciphertext on both machines in separate private local terminals and
+compare it, without pasting the digest into GitHub/chat. On that
+independent computer, decrypt with the private passphrase, restore
+privately and validate original 22-table seed-only schema, exact OFF
+finance control, zero canary budget, SQLite integrity and FK checks,
+and SQL digest vs encrypted evidence. Do not create alternate Stage
+databases or re-run remote migrations, deploy Workers, or enable finance.
