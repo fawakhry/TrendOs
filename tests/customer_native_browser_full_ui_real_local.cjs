@@ -68,9 +68,46 @@ async function main(){
     await page.locator("#logoutBtn").click();
     await page.locator("#loginPanel").waitFor({state:"visible"});
     assert.equal(await page.locator("#portal").isVisible(),false);
+    let oldC2Bearer="";
+    page.on("request",req=>{
+      if(req.url().includes("/v1/customer/native/orders")&&
+         req.headers().authorization?.startsWith("Bearer "))
+        oldC2Bearer=req.headers().authorization;
+    });
     await assertUi(page,cfg.CUSTOMER_UI_CODE_C2,cfg.CUSTOMER_UI_PASS_C2,
       "LOCAL-ORDER-LOCAL-C2","LOCAL-ORDER-LOCAL-C1");
     assert.equal(await page.locator("#fileCount").innerText(),"0");
+    assert.match(oldC2Bearer,/^Bearer [a-f0-9]{64}$/);
+    await page.locator("#changePasswordBtn").click();
+    await page.locator("#passwordPanel").waitFor({state:"visible"});
+    await page.locator("#currentPassword").fill("LOCAL-WRONG-PASSWORD-ONLY-FIXTURE!");
+    await page.locator("#newPassword").fill(cfg.CUSTOMER_UI_PASS_C2_NEW);
+    await page.locator("#confirmPassword").fill(cfg.CUSTOMER_UI_PASS_C2_NEW);
+    await page.locator("#savePasswordBtn").click();
+    await page.getByText("لم تتغير كلمة المرور.",{exact:false}).waitFor();
+    assert.equal(await page.locator("#portal").isVisible(),true,
+      "Incorrect current password should not destroy a valid session");
+    assert.equal(await page.locator("#currentPassword").inputValue(),"");
+    await page.locator("#currentPassword").fill(cfg.CUSTOMER_UI_PASS_C2);
+    await page.locator("#newPassword").fill(cfg.CUSTOMER_UI_PASS_C2_NEW);
+    await page.locator("#confirmPassword").fill(cfg.CUSTOMER_UI_PASS_C2_NEW);
+    await page.locator("#savePasswordBtn").click();
+    await page.locator("#loginPanel").waitFor({state:"visible",timeout:30000});
+    assert.equal(await page.locator("#portal").isVisible(),false);
+    assert.equal(await page.locator("#passwordPanel").isVisible(),false);
+    const oldTokenAttempt=await fetch(
+      cfg.CUSTOMER_UPLOAD_LOCAL_BASE+"/v1/customer/native/orders?limit=40&offset=0",{
+        headers:{Origin:frontend,Authorization:oldC2Bearer},
+        redirect:"error",cache:"no-store"});
+    assert.equal(oldTokenAttempt.status,401,"Password CAS did not invalidate existing D1 bearer");
+    oldC2Bearer="";
+    await page.locator("#code").fill(cfg.CUSTOMER_UI_CODE_C2);
+    await page.locator("#password").fill(cfg.CUSTOMER_UI_PASS_C2);
+    await page.locator("#loginBtn").click();
+    await page.getByText("فشل الدخول أو قراءة الطلبات:",{exact:false}).waitFor();
+    assert.equal(await page.locator("#portal").isVisible(),false);
+    await assertUi(page,cfg.CUSTOMER_UI_CODE_C2,cfg.CUSTOMER_UI_PASS_C2_NEW,
+      "LOCAL-ORDER-LOCAL-C2","LOCAL-ORDER-LOCAL-C1");
     await page.locator("#logoutBtn").click();
     await page.locator("#loginPanel").waitFor({state:"visible"});
     // Default OFF: same assets without injected local configuration must not
@@ -81,7 +118,7 @@ async function main(){
     assert.equal(await off.locator("#loginPanel").isVisible(),false);
     assert.ok((await off.locator("#availability").innerText()).includes("مقفولة"));
     assert.equal(forbidden.length,0,forbidden.join(","));
-    console.log("PASS: REAL CHROMIUM blue customer chat, Native D1 login C1/C2 isolated orders, R2 private file, preflight denied, logout, default OFF");
+    console.log("PASS: REAL CHROMIUM blue customer chat, Native D1 login C1/C2 isolated orders, R2 private file, preflight denied, D1 password rotation+old-session revocation, logout, default OFF");
     console.log("NO_REMOTE_HTTP=YES; PRODUCTION_GO_LIVE=NO_GO; CUSTOMER_UI_STAGE_SOURCE_COMPLETE=YES");
   }finally{await browser.close()}
 }
