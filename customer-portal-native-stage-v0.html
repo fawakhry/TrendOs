@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>Trend Mall | بوابة العملاء التجريبية الخاصة</title>
+<style>
+:root{color-scheme:light;--ink:#17315c;--blue:#1768db;--navy:#09306a;--pale:#edf5ff;--line:#d9e6fa;--muted:#536887;--warn:#894b11;--good:#176a48}
+*{box-sizing:border-box}body{margin:0;font-family:Tahoma,Arial,sans-serif;background:linear-gradient(135deg,#f1f6fd,#e0edff);color:var(--ink);min-height:100vh}
+.wrap{max-width:1160px;margin:auto;padding:24px 16px 60px}
+header{background:#fff;border:1px solid var(--line);box-shadow:0 10px 32px #19468d12;padding:18px 22px;border-radius:22px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px}.logo{display:grid;place-items:center;background:var(--navy);color:#fff;font-weight:900;border-radius:16px;width:60px;height:60px}.brand h1{font-size:22px;margin:0}.brand p{margin:7px 0 0;color:var(--muted);font-size:13px}
+.tag{background:#fff0d8;border:1px solid #f2d7a5;color:#845315;padding:9px 12px;border-radius:999px;font-size:12px;font-weight:700}
+.panel{background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:0 12px 35px #19468d13;overflow:hidden}
+main{padding-top:22px}.login{max-width:500px;margin:32px auto}.pad{padding:22px}.title{font-size:20px;margin:0 0 12px}.hint{color:var(--muted);font-size:13px;line-height:1.8}
+label{font-weight:bold;font-size:13px;display:block;margin:15px 0 7px}
+input,textarea,select{width:100%;background:#fcfdff;border:1px solid #c8d9f2;border-radius:12px;padding:12px;color:var(--ink);font:inherit;min-width:0}
+textarea{min-height:72px;resize:vertical}input:focus,textarea:focus,select:focus{outline:3px solid #b1d5ff;border-color:var(--blue)}
+button{font:inherit;border:0;border-radius:12px;padding:12px 17px;cursor:pointer;font-weight:700}
+button:disabled{opacity:.6;cursor:wait}.primary{background:var(--blue);color:#fff}.subtle{color:var(--navy);background:var(--pale)}.danger{background:#fee9e6;color:#8c2e26}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px;align-items:center}.note{border-radius:12px;background:#eef5ff;padding:12px;color:#274b7d;font-size:13px;line-height:1.7}.note.warn{background:#fff4e3;color:#7d4e13}
+.dashboard{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(295px,.9fr);gap:18px}
+.head{background:var(--navy);color:white;padding:17px 20px;display:flex;justify-content:space-between;align-items:center}.head h2{font-size:17px;margin:0}.head small{opacity:.75}
+.stream{min-height:240px;max-height:405px;overflow:auto;padding:20px;background:linear-gradient(160deg,#f3f8ff,#e6f1ff)}
+.bubble{padding:12px 15px;background:#fff;border:1px solid var(--line);border-radius:17px 17px 5px 17px;margin-bottom:12px;line-height:1.8;font-size:14px;max-width:90%;overflow-wrap:anywhere}
+.bubble.user{margin-right:auto;background:#d5eaff;border-color:#bbdafd;border-radius:17px 17px 17px 5px}
+.mini{font-size:12px;color:var(--muted);display:block;margin-top:5px}
+.composer{padding:18px;border-top:1px solid var(--line)}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid2 label{margin-top:3px}
+.checks{display:flex;gap:16px;margin:10px 0}.checks label{display:flex;align-items:center;gap:7px}.checks input{width:auto}
+#filesHelp{margin:8px 0}.rows{padding:15px}.order{border-bottom:1px solid var(--line);padding:13px 4px;font-size:14px}.order:last-child{border:0}
+.notice{margin:17px 0;padding:13px 16px;border-radius:14px;background:#fff;border:1px solid #d8e3f5;line-height:1.8}.notice.error{background:#fff0ef;border-color:#f2bab4;color:#97392e}
+.notice.good{background:#e9faf0;border-color:#bce5cf;color:var(--good)}
+.hidden{display:none!important}@media(max-width:850px){.dashboard{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}.wrap{padding:12px 10px 50px}.login{margin:18px auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+ <div class="brand"><div class="logo" aria-hidden="true">TM</div><div><h1>Trend Mall | مطبعجي بنها</h1><p>بوابة طلبات العملاء — نسخة التشغيل المحلي المعزولة</p></div></div>
+ <div class="tag">STAGE محلية • غير متاحة للعملاء • لا أوردر رسمي</div>
+</header>
+<main>
+ <div id="availability" role="status" class="notice error">جاري فحص تفعيل البيئة المحلية المعزولة…</div>
+ <section id="loginPanel" class="panel login hidden" aria-labelledby="loginTitle">
+  <div class="pad"><h2 class="title" id="loginTitle">تسجيل دخول العميل</h2><p class="hint">ادخل كود حسابك وكلمة المرور. الاتصال مخصص لاختبار Workerd المحلي فقط، ولا يتصل بجوجل أو ببيانات الإنتاج.</p>
+  <form id="loginForm"><label for="code">كود العميل</label><input id="code" required autocomplete="username" maxlength="80">
+  <label for="password">كلمة المرور</label><input id="password" type="password" autocomplete="current-password" required minlength="12" maxlength="128">
+  <div class="actions"><button class="primary" id="loginBtn" type="submit">دخول آمن</button></div></form></div>
+ </section>
+ <section id="portal" class="hidden" aria-label="مساحة العميل">
+  <div class="actions" style="justify-content:space-between;margin:0 0 16px"><strong>أهلاً بيك في ترند مول <span id="clientCode"></span></strong>
+   <button id="logoutBtn" type="button" class="danger">تسجيل خروج</button></div>
+  <div class="dashboard">
+   <section class="panel" aria-labelledby="draftTitle">
+    <div class="head"><div><h2 id="draftTitle">شات الطلب الجديد</h2><small>احتفظ بالأصول، ولا تبدأ الطباعة قبل المراجعة</small></div><button class="subtle" id="newDraftBtn" type="button">مسودة جديدة</button></div>
+    <div class="stream" id="messages" aria-live="polite"><div class="bubble">أهلاً بيك 💙 اكتب نوع الشغل، المقاس، الكمية وأرفق الملفات. هنحفظ مسودة خاصة للمراجعة؛ ده مش إنشاء أوردر رسمي.<span class="mini">Trend Mall</span></div></div>
+    <div class="composer">
+      <form id="itemForm">
+       <div class="grid2"><div><label for="department">القسم</label><select id="department"><option value="طباعة">مطبعجي / طباعة</option><option value="ليزر">ليزر</option></select></div><div><label for="qty">الكمية</label><input id="qty" type="number" min="1" max="99" value="1" required></div></div>
+       <label for="itemName">نوع الشغل</label><input id="itemName" maxlength="120" required placeholder="مثال: تابلوه 30×40، مج، قص ليزر">
+       <label for="notes">المقاس / الجملة / تفاصيل التنفيذ</label><textarea id="notes" maxlength="1000" placeholder="اكتب المطلوب بدقة…"></textarea>
+       <div class="checks"><label><input id="heatPress" type="checkbox"> مكبس حراري</label><label><input id="flyPrint" type="checkbox"> طباعة على الطاير</label></div>
+       <label for="files">المرفقات الأصلية (PNG/JPG/PDF)</label><input id="files" type="file" accept="image/png,image/jpeg,application/pdf" multiple>
+       <p id="filesHelp" class="hint">حد أقصى ٥ ملفات للبند، كل ملف حتى ٥ ميجابايت. لن تُعرض الصور علنًا.</p>
+       <div class="actions"><button type="submit" class="primary" id="addBtn">حفظ بند في المسودة</button><button type="button" id="retryBtn" class="subtle hidden">إعادة محاولة آمنة</button></div>
+      </form>
+      <div class="note warn" style="margin-top:14px">الملفات المحفوظة تظل في الحجر الأمني حتى اعتماد المسح. لا يوجد زر «بدء تنفيذ» قبل اكتمال فحوص الأمان والربط بالأوردرات الرسمية.</div>
+      <div class="actions"><button id="checkBtn" type="button" class="subtle">فحص جاهزية المسودة (قراءة فقط)</button></div>
+    </div>
+   </section>
+   <aside class="panel"><div class="head"><h2>متابعة أوردراتي</h2></div>
+    <div class="pad"><p class="hint">تظهر الأوردرات المرتبطة بحسابك الموثّق فقط. الملفات الخاصة لا تُفتح من روابط عامة.</p>
+     <button id="refreshOrdersBtn" class="subtle" type="button">تحديث الطلبات</button>
+     <div id="orders" class="rows" aria-live="polite"></div>
+     <div class="actions"><button id="moreOrdersBtn" class="subtle hidden" type="button">عرض المزيد</button></div>
+    </div>
+    <div class="pad"><div class="note">حالة المسودة الحالية: <strong id="draftStatus">لم تبدأ</strong><br>الملفات المؤكدة: <strong id="fileCount">0</strong></div></div>
+   </aside>
+  </div>
+ </section>
+</main>
+</div>
+<script src="customer-native-upload-coordinator-off-v0.js"></script>
+<script src="customer-native-ui-stage-plan-off-v0.js"></script>
+<script src="customer-portal-native-browser-stage-v0.js"></script>
+</body>
+</html>
