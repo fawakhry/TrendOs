@@ -8,6 +8,8 @@ const assert=require("node:assert/strict");
 const crypto=require("node:crypto");
 const {createNativeCustomerUploadCoordinatorV0}=
   require("../customer-native-upload-coordinator-off-v0.js");
+const {createNativeCustomerUiStagePlanV0}=
+  require("../customer-native-ui-stage-plan-off-v0.js");
 const {createNativeCustomerLoopbackTransportV0}=
   require("../customer-native-upload-loopback-http-stage-off-v0.cjs");
 const env=process.env;
@@ -53,12 +55,24 @@ function transport(identity,{loss=false}={}){
     fetchImpl:injectedFetch,timeoutMs:12000
   });
 }
-function coordinator(identity,files,tx){
-  return createNativeCustomerUploadCoordinatorV0({
-    ownerId:identity.owner,draftId:identity.draft,item,
-    files:files.map(f=>({bytes:f.bytes,contentType:f.type})),
-    transport:tx,getActiveOwnerId:()=>identity.owner,random:crypto.webcrypto
+async function coordinator(identity,files,tx){
+  // Browser-like File input and CURRENT legacy form strings ("نعم"/"لا", qty text)
+  // are mapped through the isolated UI stage plan, not sent to Google.
+  const plan=createNativeCustomerUiStagePlanV0({
+    sourceOnlyLocalOptIn:true,
+    getVerifiedSession:()=>({ownerId:identity.owner,draftId:identity.draft,
+      authEpoch:1,verified:true,stage:"isolated-local"}),
+    coordinatorFactory:createNativeCustomerUploadCoordinatorV0,
+    transport:tx,random:crypto.webcrypto
   });
+  const inputs=files.map(f=>({size:f.bytes.byteLength,type:f.type,
+    arrayBuffer:async()=>f.bytes.slice().buffer}));
+  const ready=await plan.prepare({
+    department:item.department,itemName:item.itemName,qty:String(item.qty),
+    notes:item.notes,heatPress:"لا",flyPrint:"لا",files:inputs
+  });
+  assert.equal(ready.phase,"READY");
+  return plan;
 }
 async function getPrivateIntegrity(identity){
   const res=await fetch(BASE+"/v1/customer/native/drafts/"+
@@ -71,7 +85,7 @@ async function getPrivateIntegrity(identity){
 }
 async function main(){
   const txA=transport(ids[0],{loss:true});
-  const planA=coordinator(ids[0],[
+  const planA=await coordinator(ids[0],[
     {bytes:bytePng,type:"image/png"},{bytes:bytePdf,type:"application/pdf"}
   ],txA);
   assert.equal((await planA.resume()).phase,"ITEM_UNCERTAIN",
@@ -98,7 +112,7 @@ async function main(){
   assert.ok([403,404,409].includes(cross.status));
   assert.equal(cross.body.success,false);
   assert.equal(Object.hasOwn(cross.body,"fileId"),false);
-  const planB=coordinator(ids[1],[{bytes:bytePng,type:"image/png"}],txB);
+  const planB=await coordinator(ids[1],[{bytes:bytePng,type:"image/png"}],txB);
   const b=await planB.resume();
   assert.equal(b.phase,"STAGED_NOT_SUBMITTED");
   assert.equal(b.completedFiles,1);
@@ -135,7 +149,7 @@ async function main(){
   const serialized=JSON.stringify(output);
   assert.ok(ids.every(i=>!serialized.includes(i.bearer)));
   console.log(serialized);
-  planA.dispose();planB.dispose();
+  planA.cancel();planB.cancel();
 }
 main().catch(e=>{
   // Never print bearer, customer tokens or raw HTTP response.
