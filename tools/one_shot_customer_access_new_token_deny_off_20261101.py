@@ -110,6 +110,7 @@ target=[a for a in apps if isinstance(a,dict) and (
         a.get("name")==APP or any(
          isinstance(d,dict) and d.get("type")=="worker" and d.get("worker_id")==wid
          for d in (a.get("destinations") or [])))]
+require(len(target)==1 and target[0].get("name")==APP,"CREATED_APP_NOT_IN_INVENTORY_STOP")
 if target:
     require(len(target)==1 and target[0].get("name")==APP,"ACCESS_APP_CONFLICT")
     print("ACCESS_APP_ALREADY_PRESENT_NO_SECOND_POST",flush=True)
@@ -132,7 +133,7 @@ else:
 
 require(isinstance(appid,str) and
         bool(re.fullmatch(r"[a-fA-F0-9-]{32,36}",appid)),"ACCESS_ID_NOT_VERIFIED")
-actual,_=api("/access/apps/"+appid,reader)
+actual,_=api("/access/apps/"+appid,writer)
 require(isinstance(actual,dict) and actual.get("name")==APP,"ACCESS_READBACK_NAME")
 dest=actual.get("destinations")
 require(isinstance(dest,list) and len(dest)==1 and dest[0].get("type")=="worker" and
