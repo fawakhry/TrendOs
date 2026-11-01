@@ -185,3 +185,7 @@
 - الاختبارات `tests/customer_native_upload_coordinator_off_v0.test.cjs` تستخدم بيانات تركيبية فقط، وتغطي ربط محاولتين بنفس المفتاح، ملف رقم N، حالة PENDING، عميل مختلف، فشل MIME/الحجم والتوقيع، تزامن ضغطة الإرسال، وعدم ربط الواجهة/عدم وجود API حي.
 - أُضيف الاختبار وSyntax check إلى workflow الجاهزية القائم. **مصدر تجريبي OFF؛ لا تفعيل عميل، لا Google fallback، لا Cloudflare، لا T12/EasyStore/Code.gs، لا Paid API.** لا يعتبر نجاح الاختبار وحده إثباتًا لعمل نقل ملفات في Worker أو Backend.
 - نتيجة CI والـPR والدمج تُسجّل بعد التنفيذ والتحقق. `NATIVE_UI_TRANSPORT=UNWIRED`، `CUSTOMER_PRODUCTION=NO_GO`.
+
+**مراجعة التوافق مع النقل الأصلي قبل الدمج:** تبين في فرع Zero Google #311 أن `customer-native-browser-transport-v0.js` موجود في **جذر المستودع** بالفعل، يفعّل فقط قراءة الطلبات/بعض البيانات العامة عند Flag منفصل ويمنع باقي عمليات الكتابة Native برسالة `CUSTOMER_NATIVE_ACTION_NOT_WIRED`. لا نعتمد على transport جديد منافس، ولا نربط coordinator بهذا dispatcher قبل أن يتأهل موجوده للكتابة ويثبت D1 session/owner/Worker routes. وحدة الاستئناف الجديدة مستقلة لتُستهلك لاحقًا داخل العقد الأصلي ولا تستخدم Token أو Google fallback.
+
+**CI على commit ابتدائي موثق:** [Readiness #41300139702](https://github.com/fawakhry/TrendOs/actions/runs/41300139702) PASS، [P0 Stage #41300139691](https://github.com/fawakhry/TrendOs/actions/runs/41300139691) PASS، [Guided Chat #41300139587](https://github.com/fawakhry/TrendOs/actions/runs/41300139587) PASS على HEAD `39d2fa9049f0208e54d47c197156cd27dc56aaf8`. مراجعة HEAD النهائية لازمة قبل الدمج.
