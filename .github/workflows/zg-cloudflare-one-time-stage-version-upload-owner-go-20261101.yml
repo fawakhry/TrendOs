@@ -1,0 +1,85 @@
+name: "OWNER GO — one-time isolated OFF Cloudflare Worker VERSION upload (NOT deploy)"
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - ".github/workflows/zg-cloudflare-one-time-stage-version-upload-owner-go-20261101.yml"
+permissions:
+  contents: read
+concurrency:
+  group: owner-go-one-attempt-20261101-zero-google-cf-isolated
+  cancel-in-progress: false
+jobs:
+  isolated-version-upload-owner-authorized:
+    if: ${{ github.repository == 'fawakhry/TrendOs' && github.event.pull_request.number == 316 && github.event.pull_request.head.repo.full_name == 'fawakhry/TrendOs' && github.head_ref == 'chore/zero-google-direct-cloudflare-stage-upload-v1-20261101' && github.base_ref == 'integration/zero-google-one-package-v1-20261031' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: "false"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: FAIL-CLOSED intended Worker/commit source and Cloudflare secret presence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{commit})" = "$GITHUB_SHA" || {
+            echo "::error::Unexpected checkout commit"; exit 1;
+          }
+          test "$(git hash-object cloudflare-d1/wrangler.customer-stage.toml)" = "4e0c7f8275ff9cd89740f97b9f00c6d4d6cc75dd"
+          test "$(git hash-object cloudflare-d1/customer-stage/index.mjs)" = "e5a4999934c774f70e555790b39f7eb0a19d9ddc"
+          python3 tools/zero_google_direct_stage_upload_guard_v1.py > "$RUNNER_TEMP/zg-cloudflare-source-audit.json"
+          python3 tests/zero_google_direct_stage_upload_guard_v1.test.py -v
+          test -n "$CLOUDFLARE_API_TOKEN" || {
+            echo "::error::GitHub Actions CLOUDFLARE_API_TOKEN secret not available; no upload"; exit 1;
+          }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || {
+            echo "::error::GitHub Actions CLOUDFLARE_ACCOUNT_ID secret not available; no upload"; exit 1;
+          }
+          echo "SOURCE_CLOUDFLARE_STAGE_OFF_AND_SECRET_PRESENCE=PASS"
+      - name: Local only Wrangler build — NO DEPLOY
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/zg-wrangler-only" --no-save --no-audit --no-fund wrangler@4
+          echo "ZG_WRANGLER=$RUNNER_TEMP/zg-wrangler-only/node_modules/.bin/wrangler" >> "$GITHUB_ENV"
+          cd cloudflare-d1
+          "$RUNNER_TEMP/zg-wrangler-only/node_modules/.bin/wrangler" deploy --dry-run             --config wrangler.customer-stage.toml             --outdir "$RUNNER_TEMP/zg-cf-stage-bundle"
+          echo "WORKER_DRY_RUN_NO_DEPLOY=PASS"
+      - name: Verify isolated target Worker EXISTS before any remote write
+        working-directory: cloudflare-d1
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Read-only existing Worker version list. Require it exists already.
+          # Never create a Worker on an unverified account and never expose secrets.
+          if ! "$ZG_WRANGLER" versions list --config wrangler.customer-stage.toml             >"$RUNNER_TEMP/zg-cf-worker-existing.json" 2>"$RUNNER_TEMP/zg-cf-worker-check.err"; then
+            echo "::error::Isolated target not present / no Cloudflare permission. NO UPLOAD, NO DEPLOY.";
+            exit 1
+          fi
+          echo "ISOLATED_EXISTING_WORKER_TARGET=VERIFIED"
+      - name: Owner-authorized ONE Cloudflare OFF version upload (never deploy)
+        working-directory: cloudflare-d1
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$ZG_WRANGLER" versions upload             --config wrangler.customer-stage.toml             --strict             --message "TrendOS Zero Google isolated OFF, owner go 2026-11-01, commit $GITHUB_SHA"             > "$RUNNER_TEMP/zg-cf-version-upload.log" 2>&1 || {
+              echo "::error::Cloudflare version upload FAILED — NO deploy retry.";
+              exit 1;
+            }
+          # Deliberately show no possibly public version URL, token, or IDs.
+          echo "CLOUDFLARE_OFF_VERSION_UPLOAD=SUCCESS"
+          echo "WORKER_TRAFFIC_DEPLOYED=NO"
+          echo "CUSTOMER_D1_R2_BINDINGS_ADDED=NO"
+          echo "UBUNTU_ACCESS_CASE_02394197=UNCHANGED"
+          echo "GOOGLE_CUSTOMER_ACTIONS_RETIRED_LAST_PROVEN=0/9"
+          echo "PRINT_RELEASE=NO_GO"
+          echo "## One-time isolated OFF Worker version upload succeeded" >> "$GITHUB_STEP_SUMMARY"
+          echo "Only a version was uploaded. No production/preview/route deployment, customer D1/R2, or Google cutover." >> "$GITHUB_STEP_SUMMARY"
