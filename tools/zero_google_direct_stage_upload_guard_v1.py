@@ -71,7 +71,7 @@ def inspect(override=None):
           'test "$INPUT_EXPECTED_ACCOUNT_ID" = "$CLOUDFLARE_ACCOUNT_ID"' in workflow and
           "chore/zero-google-direct-cloudflare-stage-upload-v1-20261101" in workflow)
     check("upload_only_no_traffic_deploy_or_fallback",
-          bool(re.search(r'wrangler"?\s+versions\s+upload\s*\\',workflow)) and
+          bool(re.search(r'wrangler"?\s+versions\s+upload\s*\\',workflow,re.I)) and
           "wrangler.customer-stage.toml" in workflow and
           "WRANGLER_VERSIONS_DEPLOY_NOT_EXECUTED=YES" in workflow and
           "NEVER fallback to deploy" in workflow and
