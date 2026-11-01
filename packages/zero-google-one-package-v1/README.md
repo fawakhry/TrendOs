@@ -200,3 +200,68 @@ has **not** been performed. Such tests require a separate explicitly approved
 private Stage ingress, synthetic authenticated enrollment and policy gates.
 Ubuntu Access case `02394197` remains independent and unmodified.
 
+
+## Private ingress capability and Access API 403 — 2026-11-01
+
+After explicit owner `نفذ` authorization for a **private, authenticated**
+remote customer Stage test, we performed fresh *live Cloudflare read-only*
+checks and a narrowly scoped fail-closed attempt to create an Access
+**DENY ALL** policy for the already-existing isolated Worker. This is
+separate from the old Server68 Cloudflare↔Ubuntu support case #02394197.
+
+**Real findings:** [Access inventory run #41317011523](https://github.com/fawakhry/TrendOs/actions/runs/41317011523)
+`SUCCESS`: exact Worker `workers.dev=false`, previews=false,
+one exact synthetic D1 binding, account Access applications GET HTTP 200,
+Access service token inventory GET HTTP 200, and **zero existing
+Worker-specific Access applications**. No public URL enabled.
+
+[Access DENY ALL attempted run #41317159101](https://github.com/fawakhry/TrendOs/actions/runs/41317159101)
+`FAILURE`: exact Worker immutable ID and isolated D1 confirmed,
+no existing matching Access app, but `POST /accounts/{account_id}/access/apps`
+returned **HTTP 403**, **before any Access app was created**. Cloudflare
+requires `Access: Apps and Policies Write` permission for this endpoint.
+The current GitHub CI token has read access but its effective ability to
+create apps is denied. Do **not** use the unrelated production/Ubuntu
+Access app or bypass existing policies. Temporary read-only and
+single-attempt write workflows were removed after diagnosis; no retries.
+
+**Cloudflare documentation:** Worker-level `destinations:[{type:"worker",
+worker_id:<immutable Worker ID>}]` Access policy protects all requests to
+that exact Worker; preview/deployment URLs are **public by default** until
+Access protection is verified. We did not enable any URL, any Worker
+feature flag or test login/password.
+
+**Required controlled unblock (no secrets in code/chat):**
+1. Cloudflare account administrator should create a separate least-privilege
+   API token scoped to the **same Cloudflare account**, with
+   `Access: Apps and Policies Write`; for automated private Service Auth
+   testing also `Access: Service Tokens Write`. Store it as an appropriately
+   restricted GitHub Actions secret, preferably a new
+   `CLOUDFLARE_ACCESS_API_TOKEN`, **not** pasted into chat or committed.
+   Alternatively protect only the exact Worker via dashboard
+   Workers & Pages → isolated Worker → Access → Protect Worker.
+2. Protect the **immutable Worker ID**, not a production hostname or all
+   Workers. Require one narrowly approved **Service Auth** policy tied to
+   one dedicated, expiring Access service token. No `bypass`,
+   `any_valid_service_token`, everyone allow, public override or reusable
+   production token. Check Cloudflare API readback of app, Worker ID, policy
+   and token ID before any route enablement.
+3. Only after that may a separate approved run temporarily enable a private
+   route, enroll **two synthetic customers only**, and test real Worker
+   login, cross-tenant order and draft ownership, then disable the route and
+   test flags, clean temporary credentials and verify rollback. Never expose
+   synthetic passwords/tokens. Keep production D1/R2, Google tasks and T12
+   writers unchanged.
+
+**Permanent checked-in release guard:** 
+`tools/zg_customer_private_ingress_access_guard_off_v1.py` with
+`tests/zg_customer_private_ingress_access_guard_off_v1.test.py`
+fail-closes on missing Access, public bypass, wrong Worker ID, mismatched
+D1, public preview/routes or enabled customer features. Its synthetic PASS
+is only source validation; actual live private Access protection and
+remote original browser E2E are still **NOT VERIFIED**.
+
+**Current release gate:** Stage Worker/D1 remote = PASS, public URLs OFF,
+Cloudflare Access app write = 403 BLOCKED, real remote private customer E2E
+NOT EXECUTED, live customer Google actions retired last-proven 0/9.
+
