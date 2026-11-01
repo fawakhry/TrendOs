@@ -91,3 +91,62 @@ isolated Stage installation with matching SHA; prove all release gates in
 order. Re-run every negative test, original UI E2E and release checklist;
 only then propose canary/Google cutover. **Do not infer final completion
 from the ZIP artifact.**
+
+
+## Direct Cloudflare upload without Ubuntu (manual OFF version only)
+
+The cloud service can accept Worker code directly from GitHub Actions via
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, **without an SSH,
+Ubuntu host, Cloudflare Tunnel or Server68 Access Service Token**. The
+**separate** Cloudflare–Ubuntu authentication issue in support case
+`02394197` therefore does not block code upload.
+
+The dedicated, **manual-only** GitHub workflow
+`.github/workflows/trendos-zero-google-cloudflare-direct-stage-upload-only.yml`
+uses **`wrangler versions upload --strict`**, NOT `wrangler deploy` or
+`wrangler versions deploy`. It targets ONLY
+`cloudflare-d1/wrangler.customer-stage.toml` and the unique Worker
+`trendos-customer-portal-isolated-stage-v0`, which stays
+`workers_dev=false`, `preview_urls=false`, no routes, feature flags OFF,
+no D1 or R2 binding to production. A successful upload creates a Worker
+**version only**, does not publish client traffic or grant finance/T12/file
+printing approval. It does not make the original customer UI live.
+
+**Real prerequisites and operator steps:**
+1. Confirm the existing GitHub Actions Cloudflare secrets are **actually
+   configured** for the intended account. They are referenced by other
+   existing workflows but their existence/permissions is not verified by
+   source inspection. Never paste token values into source or the chat.
+2. The source is on an independently diverged Draft branch. To make
+   `workflow_dispatch` selectable in GitHub Actions, an authorized
+   maintainer must first put **only this manually triggered workflow** on
+   the repository's default branch by a conflict-aware reviewed change,
+   *not* merge the entire old source chain to current production `main`.
+3. Go to Actions → **TrendOS Zero Google — Direct Cloudflare ISOLATED STAGE
+   Version Upload ONLY** → Run workflow. Select source ref
+   `chore/zero-google-direct-cloudflare-stage-upload-v1-20261101`. Supply
+   exact current source SHA, expected Cloudflare account ID, and type
+   `UPLOAD_ISOLATED_ZERO_GOOGLE_VERSION_ONLY`.
+4. The job first checks exact ref, SHA, account, source tree, all Stage
+   OFF flags, zero public routes and no production data bindings. It runs
+   source guard tests and a local Wrangler bundle dry-run. Only then does
+   it attempt the one remote `versions upload`. If the isolated Worker
+   does not yet exist, the chosen Wrangler/account does not allow initial
+   version creation, or policy/bindings conflict, the job **stops**. It
+   **does not fall back to `deploy`**, does not create D1/R2, change
+   Access policy or send any customer data.
+5. Confirm Cloudflare dashboard has uploaded **version** only and that
+   no `workers.dev`/preview/custom route is accessible. Separately plan
+   controlled new Stage provisioning/Access/readback before live E2E.
+   Record exact version ID, account, SHA and status in ACTIVE_WRITE book.
+
+Check the read-only guard without cloud access:
+```bash
+python3 tools/zero_google_direct_stage_upload_guard_v1.py
+python3 tests/zero_google_direct_stage_upload_guard_v1.test.py -v
+```
+
+**Do not treat Source PR, CI green, ZIP, or GitHub Actions secret names as
+proof that a Cloudflare version was actually uploaded.** The direct
+upload job is opt-in and not executed by the offline package tests.
+
