@@ -32,6 +32,7 @@ test("synthetic failed file upload leaves created remote item; retry duplicates 
     $:id=>controls[id]||null,
     setMsg:(id,message,isError)=>{if(isError)recorded.errors.push(message);},
     ensureCustomerDraftOnServer:async()=>state.customerDraft.draftId,
+    ensureCustomerDraftStarted:()=>state.customerDraft,
     customerAuthParams:x=>x,
     api:async(name,params)=>{
       assert.equal(name,"addCustomerDraftItem");
