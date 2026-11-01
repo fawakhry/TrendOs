@@ -281,3 +281,79 @@ unshared SQLite; check schema/rows/FK/integrity before G3 may qualify. Never
 claim independent recovery from the original machine's in-memory restore,
 a screenshot, offline GitHub Actions or an encrypted file merely copied but
 not actually restored.
+
+### ACC284 — owner independently crosschecked the actual private backup on Ubuntu (2026-11-01 Cairo)
+
+The owner supplied a SECOND terminal screenshot after executing the local
+Python verifier in ACC283's handoff. Visible output:
+
+```text
+LOCAL_BACKUP_CHECK=PASS
+RESTORED_TABLES=22
+FINANCE=OFF
+```
+
+The verifier selected the latest `current-verified-*` protected owner folder,
+read its local `stage_backup_evidence.json`, required the exact native 22-table
+backup success result, 22 restored and 22 named original tables, local
+SQLite-restore integrity PASS, native finance OFF / NO_GO, no Cloudflare
+writes or Worker deploy, exact `0700` directory and `0600` private files,
+and independently recomputed the SQL's SHA-256 against its protected
+evidence hash. The terminal returned these three success lines without
+traceback. This **owner-local evidence crosscheck is now PASS**, superseding
+ACC283's PENDING flag. The assistant did not read the confidential SQL,
+hash or owner provider session.
+
+**Evidence state:** `REAL_OWNER_CURRENT_22_TABLE_STAGE_EXPORT=OWNER_SCREENSHOT_SUCCESS`;
+`PRIVATE_SQL_EVIDENCE_CROSSCHECK=OWNER_LOCAL_PASS`;
+`INDEPENDENT_SECOND_HOST_ENCRYPTED_RESTORE=NOT_RUN`;
+`FINANCE_WRITES=OFF`, `FINANCE_RELEASE=NO_GO`. No change to G1 staff
+provisioning, actual customer/supplier cash writes or production.
+
+**Next phase B4 is owner-local encryption, not a second-host test.**
+Do not send files, passphrases or raw hashes in chat or commit them. On the
+same Ubuntu source, select the same latest certified private folder and
+create an owner-only GnuPG AES256 encrypted tar stream containing ONLY
+`stage_current_verified_original_schema.sql` and
+`stage_backup_evidence.json`. This does not create an additional plaintext
+archive:
+
+```bash
+(
+set -euo pipefail
+command -v gpg >/dev/null || { echo "GPG_NOT_INSTALLED"; exit 1; }
+umask 077
+ROOT="$HOME/.private-easystore-stage"
+mapfile -t dirs < <(find "$ROOT" -mindepth 1 -maxdepth 1 -type d -name 'current-verified-*' | sort)
+test "${#dirs[@]}" -gt 0 || { echo "VERIFIED_BACKUP_FOLDER_NOT_FOUND"; exit 1; }
+BACKUP_DIR="${dirs[${#dirs[@]}-1]}"
+test -f "$BACKUP_DIR/stage_current_verified_original_schema.sql"
+test -f "$BACKUP_DIR/stage_backup_evidence.json"
+test ! -L "$BACKUP_DIR/stage_current_verified_original_schema.sql"
+test ! -L "$BACKUP_DIR/stage_backup_evidence.json"
+OUT="$ROOT/easystore-stage-dr-$(date -u +%Y%m%dT%H%M%SZ).tar.gpg"
+test ! -e "$OUT"
+tar -C "$BACKUP_DIR" -cf - \
+  stage_current_verified_original_schema.sql \
+  stage_backup_evidence.json \
+  | gpg --no-symkey-cache --symmetric --cipher-algo AES256 --output "$OUT"
+test -s "$OUT"
+test "$(stat -c %a "$OUT")" = 600
+printf 'ENCRYPTED_BACKUP_READY=PASS\nTRANSFER_STATUS=NOT_RUN\n'
+printf 'ENCRYPTED_ARCHIVE_NAME=%s\n' "$(basename "$OUT")"
+)
+```
+
+Use a **new long unique passphrase**, entered only in GnuPG's interactive
+pinentry UI, not the phone PBX PIN or any passphrase reused in another
+service. Save the passphrase securely away from the encrypted copy; do not
+place it in shell arguments, history, chat, GitHub, or in the same USB
+drive. Copy **only** the `.tar.gpg` ciphertext through an owner-controlled
+USB/SSH method to a truly different device; verify ciphertext SHA-256 source
+vs destination. On that *separate* machine decrypt to a temporary protected
+RAM-backed `/dev/shm` directory, compare the decrypted SQL SHA-256 to its
+protected evidence record, independently open SQL in fresh SQLite,
+check `integrity_check`, `foreign_key_check`, 22 native tables, seed-only
+rows, OFF finance control and zero canary budget, then remove the temporary
+plaintext. Record **only PASS/FAIL**, exact host separation and date. Until
+this has really happened, G3 disaster recovery remains OPEN.
