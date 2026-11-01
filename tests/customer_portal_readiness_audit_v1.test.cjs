@@ -15,6 +15,10 @@ test("real checked-in customer portal correctly fails readiness; no fabricated G
   assert.equal(result.sourceChecks.privateUpload,false);
   assert.equal(result.sourceChecks.uiDefaultOff,true);
   assert.equal(result.sourceChecks.existingOrderRoute,true);
+  assert.equal(result.sourceChecks.draftUploadRecovery,false);
+  assert.equal(result.sourceObservations.createsItemBeforeAttachmentUpload,true);
+  assert.ok(result.blockers.includes("CUSTOMER_DRAFT_PARTIAL_UPLOAD_RETRY_AND_ROLLBACK_UNVERIFIED"));
+  assert.ok(result.blockers.includes("DRAFT_UPLOAD_ATOMICITY_AND_IDEMPOTENT_RETRY_E2E_MISSING"));
   assert.ok(result.blockers.includes("DEPLOYED_BACKEND_VERSION_UNVERIFIED"));
   assert.ok(result.blockers.includes("TWO_CUSTOMER_AUTHENTICATED_STAGE_E2E_MISSING"));
   assert.ok(result.blockers.includes("PRIVATE_UPLOAD_AND_ITEM_OWNERSHIP_NOT_DEPLOYABLE_IN_SOURCE"));
