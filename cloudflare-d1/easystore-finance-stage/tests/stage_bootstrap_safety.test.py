@@ -230,6 +230,15 @@ class StageBootstrapTests(unittest.TestCase):
                 "UPDATE employee_accounting_control_v1 SET mode='GENERAL' WHERE singleton=1")),
             ("missing-original",lambda db:db.execute(
                 "DROP TABLE employee_accounting_events_v1")),
+            ("unapproved-index",lambda db:db.execute(
+                "CREATE INDEX unexpected_finance_idx ON "
+                "employee_accounting_control_v1(mode)")),
+            ("unapproved-view",lambda db:db.execute(
+                "CREATE VIEW unexpected_finance_view AS "
+                "SELECT * FROM employee_accounting_control_v1")),
+            ("unapproved-trigger",lambda db:db.execute(
+                "CREATE TRIGGER unexpected_finance_trigger AFTER UPDATE "
+                "ON employee_accounting_control_v1 BEGIN SELECT 1; END")),
         ]
         for label,change in cases:
             with self.subTest(label=label), tempfile.TemporaryDirectory() as folder:
@@ -242,6 +251,54 @@ class StageBootstrapTests(unittest.TestCase):
                                          for cmd in cli.calls),
                                      "NO backup of unqualified Stage")
                     self.assertFalse((Path(folder)/"stage_backup_evidence.json").exists())
+                finally:
+                    cli.close()
+
+        # ACC282: an exported SQLite file can contain altered deny-budget
+        # values or hidden objects while the live provider remains correct.
+        # Neither must produce signed-off local backup evidence.
+        class ExportTamper(LocalOriginalStage):
+            def __init__(self, mutate_sql):
+                super().__init__()
+                self.mutate_sql = mutate_sql
+
+            def run(self, *cmd):
+                result = super().run(*cmd)
+                if cmd[:2] == ("d1", "export"):
+                    target = Path(cmd[cmd.index("--output") + 1])
+                    independent = sqlite3.connect(":memory:")
+                    try:
+                        independent.executescript(
+                            target.read_text(encoding="utf-8"))
+                        independent.execute(self.mutate_sql)
+                        independent.commit()
+                        target.write_text(
+                            "\n".join(independent.iterdump()) + "\n",
+                            encoding="utf-8")
+                    finally:
+                        independent.close()
+                return result
+
+        for label, sql, expected_error in [
+            ("restored-canary-write-budget",
+             "UPDATE employee_accounting_write_canary_v1 SET max_commands=1",
+             "STAGE_CURRENT_BACKUP_CANARY_NOT_DENY_DEFAULT"),
+            ("restored-rogue-index",
+             "CREATE INDEX unexpected_export_idx "
+             "ON employee_accounting_control_v1(mode)",
+             "STAGE_CURRENT_BACKUP_EXTRA_OR_DRIFTED_OBJECTS"),
+        ]:
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as folder:
+                cli = ExportTamper(sql)
+                try:
+                    with self.assertRaisesRegex(b.GateError, expected_error):
+                        b.backup_verify_stage(cli, folder, b.STAGE_UUID)
+                    self.assertFalse(
+                        (Path(folder) / "stage_backup_evidence.json").exists())
+                    self.assertFalse(any("--file" in call or "deploy" in call
+                                         for call in cli.calls))
+                    self.assertEqual(sum(call[:2] == ("d1", "export")
+                                         for call in cli.calls), 1)
                 finally:
                     cli.close()
 
