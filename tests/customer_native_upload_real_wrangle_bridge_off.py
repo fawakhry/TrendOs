@@ -28,6 +28,7 @@ FLAGS=(
   "TRENDOS_CUSTOMER_PORTAL_NATIVE_LOGIN_HTTP_V0_ENABLED",
   "TRENDOS_CUSTOMER_PORTAL_NATIVE_ORDERS_READ_V0_ENABLED",
   "TRENDOS_CUSTOMER_PORTAL_NATIVE_LOGOUT_V0_ENABLED",
+  "TRENDOS_CUSTOMER_PORTAL_NATIVE_PASSWORD_CHANGE_V0_ENABLED",
   "TRENDOS_CUSTOMER_NATIVE_DRAFT_CREATE_V0_ENABLED",
   "TRENDOS_CUSTOMER_NATIVE_DRAFT_ITEM_V0_ENABLED",
   "TRENDOS_CUSTOMER_NATIVE_DRAFT_FILE_R2_V0_ENABLED",
@@ -225,12 +226,14 @@ def main():
                 "CUSTOMER_UI_PASS_C1":m.PASSWORD,
                 "CUSTOMER_UI_CODE_C2":m.CODE2,
                 "CUSTOMER_UI_PASS_C2":m.PASSWORD2,
+                "CUSTOMER_UI_PASS_C2_NEW":"LOCAL-C2-NEW-PASSWORD-2026-NOT-REAL!",
             }
             real_ui=subprocess.run(
                 ["node",str(HERE/"tests/customer_native_browser_full_ui_real_local.cjs")],
                 cwd=HERE,env=browser_env,capture_output=True,text=True,timeout=115)
             public_log=real_ui.stdout+real_ui.stderr
-            for secret in [*map(lambda p:p[0],paths),m.PASSWORD,m.PASSWORD2,m.HMAC]:
+            for secret in [*map(lambda p:p[0],paths),m.PASSWORD,m.PASSWORD2,
+                           "LOCAL-C2-NEW-PASSWORD-2026-NOT-REAL!",m.HMAC]:
                 check(secret not in public_log,"Browser E2E logs leaked a test-only credential")
             check(real_ui.returncode==0,
                   "Real Chromium customer stage UI failed (sanitized): "+public_log[-1800:])

@@ -147,7 +147,12 @@
    if($("messages"))$("messages").replaceChildren();
    appendBubble("مسودة جديدة. يمكنك إضافة البنود وحفظ ملفاتها بشكل خاص للمراجعة فقط.",false);
  }
+ function clearPasswordForm(){
+   var form=$("changePasswordForm");if(form)form.reset();
+   show("passwordPanel",false);
+ }
  function disposeSession(){
+   clearPasswordForm();
    state.epoch++;state.bearer="";state.session=null;
    state.clientCode="";state.rows=[];state.nextOffset=0;
    resetDraft();
@@ -269,6 +274,58 @@
    }catch(e){setNotice("فشل فحص المسودة: "+e.message,"error")}
    finally{busy(false)}
  }
+ async function changePassword(event){
+   event.preventDefault();
+   if(state.busy)return;
+   try{stageAuthority()}
+   catch(_){setNotice("سجل دخولك أولًا لتغيير كلمة المرور.","error");return;}
+   var oldPassword=$("currentPassword").value;
+   var newPassword=$("newPassword").value;
+   var confirmPassword=$("confirmPassword").value;
+   if(typeof oldPassword!=="string"||oldPassword.length<12||oldPassword.length>128||
+      typeof newPassword!=="string"||newPassword.length<12||newPassword.length>128||
+      !newPassword||newPassword.trim()!==newPassword||
+      newPassword!==confirmPassword||newPassword===oldPassword){
+      setNotice("راجع كلمة المرور الحالية والجديدة والتأكيد. الحد المسموح 12 إلى 128 حرفًا، ولا يجوز إعادة نفس الكلمة.","error");
+      return;
+   }
+   busy(true);
+   if($("savePasswordBtn"))$("savePasswordBtn").disabled=true;
+   var epoch=state.epoch;
+   try{
+     var response;
+     try{
+       response=await request("/v1/customer/native/change-password","POST",
+         {currentPassword:oldPassword,newPassword:newPassword});
+     }catch(_){
+       // A lost response might hide an already committed password CAS.
+       // Never continue using potentially revoked session after an uncertain write.
+       disposeSession();
+       setNotice("لم يصل تأكيد تغيير كلمة المرور من الخادم. أُغلقت الجلسة احتياطيًا؛ جرّب تسجيل الدخول من جديد.","error");
+       return;
+     }
+     if(epoch!==state.epoch){disposeSession();throw error("CUSTOMER_NATIVE_SESSION_STALE");}
+     if(response.status===200 && response.body.success===true &&
+        response.body.passwordChanged===true &&
+        response.body.forceRelogin===true &&
+        response.body.allPreviousSessionsInvalidated===true){
+       disposeSession();
+       setNotice("تم تغيير كلمة المرور وإبطال كل الجلسات القديمة. سجّل دخولك بالكلمة الجديدة.","good");
+       return;
+     }
+     if([400,401,429].includes(response.status)){
+       setNotice("لم تتغير كلمة المرور. تحقق من الكلمة الحالية وشروط الجديدة، ثم حاول بشكل صحيح. تكرار الخطأ قد يقفل الحساب مؤقتًا.","error");
+       return;
+     }
+     disposeSession();
+     setNotice("تعذّر التأكد من تغيير كلمة المرور. أُغلقت الجلسة احتياطيًا.","error");
+   }finally{
+     // Clear all sensitive input values also when the server rejects old password.
+     if($("changePasswordForm"))$("changePasswordForm").reset();
+     if($("savePasswordBtn"))$("savePasswordBtn").disabled=false;
+     busy(false);
+   }
+ }
  async function logout(){
    if(state.busy)return;
    var token=state.bearer;
@@ -285,6 +342,17 @@
    $("itemForm").addEventListener("submit",add);
    $("retryBtn").addEventListener("click",retry);
    $("checkBtn").addEventListener("click",preflight);
+   $("changePasswordForm").addEventListener("submit",changePassword);
+   $("changePasswordBtn").addEventListener("click",function(){
+     if(state.busy)return;
+     var shown=$("passwordPanel").classList.contains("hidden");
+     if(shown)$("changePasswordForm").reset();
+     show("passwordPanel",shown);
+   });
+   $("closePasswordBtn").addEventListener("click",function(){
+     if(state.busy)return;
+     clearPasswordForm();
+   });
    $("logoutBtn").addEventListener("click",logout);
    $("newDraftBtn").addEventListener("click",function(){
      if(state.busy)return;resetDraft();setNotice("تم تجهيز مسودة جديدة في المتصفح. المسودة القديمة في D1 لم تُحذف.","good");
