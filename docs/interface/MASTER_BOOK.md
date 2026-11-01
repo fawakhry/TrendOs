@@ -631,3 +631,10 @@
 - **UI-LOG-022 CI trace:** PR #317 initial exact-head `c2753fc02a172453f7599d6edb1056720bf800bb`: P0 Stage CI #41294021990 SUCCESS, Guided Chat CI #41294022011 SUCCESS, Readiness Audit CI #41294021988 FAILURE from **test-only VM missing `ensureCustomerDraftStarted()`**, not a production defect. Added test-only stub on follow-up commit; recheck before merge. Preserve failed run ID as engineering history.
 
 - **UI-LOG-022 corrected exact-head proof:** After test-only `ensureCustomerDraftStarted` stub, candidate HEAD `1cf5642b0ced98e4cb8c06d3e00f7e3d920344d3` CI PASS: readiness #41294089418, P0 private-media #41294089421, guided chat #41294089391. Existing `app.js` item-first upload flaw still real; tests detect it and readiness remains `NO_GO`. PR #317 awaits final review/merge. No production changes.
+
+### UI-LOG-023 — PR317 merged; P1 partial-upload hazard source-proven, release still OFF (2026-11-01)
+
+- Source-only [PR #317](https://github.com/fawakhry/TrendOs/pull/317) MERGED to main at `14c327570400113d78a425c5cb94f5cb2db79678`. Exact tested head `e66118af17567a5997b23b479238f783e59d8c74`: readiness #41294151193 SUCCESS, guided chat #41294151245 SUCCESS, P0 Stage #41294151219 SUCCESS.
+- Synthetic fault injection into the ORIGINAL customer `addCustomerDraftItem()` showed server item creation before file upload, and a retry created a second backend item after the first failed attachment. This is **unresolved legacy P1**, not an active repair. Readiness now emits an additional explicit blocker and preserves strict `NO_GO`.
+- No edits/deployment to `app.js`, `Code.gs`, Cloudflare, D1/R2, customer files, paid OpenAI, T12, EasyStore, or live user accounts. Source-only merge safely adds audit and regression evidence.
+- Next: use existing Zero Google Entry665/666 backend contract to build tenant-bound idempotent multi-file resume on isolated Stage and verify two-customer E2E and private media scanner/reader before any rollout. Continue in `CUSTOMER_PORTAL_UI_PROJECT_BOOK.md` §15. `CUSTOMER_PRODUCTION=NO_GO`.
