@@ -400,3 +400,51 @@ privately and validate original 22-table seed-only schema, exact OFF
 finance control, zero canary budget, SQLite integrity and FK checks,
 and SQL digest vs encrypted evidence. Do not create alternate Stage
 databases or re-run remote migrations, deploy Workers, or enable finance.
+
+### ACC286 — owner postpones second-host restore; accounting-first work resumes (2026-11-01 Cairo)
+
+The owner showed the original Ubuntu Files view containing the local private
+`current-verified-*` directory, prior `backup-only-*` directory and a
+nonempty GnuPG-encrypted `easystore-stage-dr-*.tar.gpg` artifact. The owner
+explicitly states **NO SECOND UBUNTU DEVICE CURRENTLY AVAILABLE** and wants
+the separate-machine backup validation resumed **later**, while prioritizing
+EasyStore accounting readiness today. Do not delete, rename, upload, decrypt
+or move any of these protected files as part of accounting development.
+No second-host archive transfer, SHA parity, or independent restore has run.
+
+**Owner pause checkpoint for later:** on a different physical computer,
+copy **ciphertext only** from original Ubuntu via trusted media/channel,
+compare ciphertext SHA-256 privately across devices, securely decrypt into
+private temporary storage, verify private SQL digest against the protected
+evidence, independent SQLite 22-table restore, exact original objects,
+two control seed rows only, finance `OFF`, zero write canary,
+`PRAGMA integrity_check`, `PRAGMA foreign_key_check`; do not transmit
+the passphrase, SQL, evidence or digest through chat/GitHub. Until this
+is complete `G3_RECOVERY_ACCEPTANCE=OPEN`,
+`INDEPENDENT_SECOND_HOST_ENCRYPTED_RESTORE=NOT_RUN`.
+
+**Accounting continuation (NO LIVE MONEY):** original EasyStore
+[Draft PR #76](https://github.com/fawakhry/EasyStore/pull/76) has
+a source-only ACC286 client improvement: when a finance-local
+`saveEasyStoreCustomer` POST returns success, the original customer
+action requires a fresh original D1 directory response with exact
+`customerId`, name, source and version before showing success.
+Timeout, missing/wrong ID or wrong source keeps the SAME idempotency
+request ID for retry, instead of prematurely generating a new one.
+Existing original EasyStore
+`tests/easystore_acc278_opening_draft_ui_route_no_go.test.cjs`
+exercises the real action via offline VM, including false readbacks,
+timeout-retry and OFF default. Original EasyStore code commits
+`efe8639eb5d854eac9e94b442ae2428c554541a0` and
+`81385aa36cfece00df652f7fa4a74100a98af7f4`,
+**12/12 GitHub Actions SUCCESS at tested code HEAD**; no live API
+posting or feature flag changes.
+
+The owner wishes to operate accounting on 2026-11-01, but the
+independent restored disaster-recovery G3, staff G1, original opening
+balances, actual live SSO+customer/provider release proof and other
+G2/G4/G5 requirements remain unqualified. The existing public
+EasyStore main config is `EASYSTORE_ACCOUNTING_D1_WRITE_MODE=OFF`.
+**Read-only/status preparation is not authorization to post a real cash
+receipt, create a real supplier/customer master or backfill opening amounts.**
+`FINANCE_WRITES=OFF`, `FINANCE_RELEASE=NO_GO`.
