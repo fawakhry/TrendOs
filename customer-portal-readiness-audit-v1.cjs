@@ -32,6 +32,20 @@ function assess(f){
     /colCustomerCode/.test(handlers.upload)&&
     /DriveApp\.Access\.PRIVATE/.test(handlers.upload),
     "PRIVATE_UPLOAD_AND_ITEM_OWNERSHIP_NOT_DEPLOYABLE_IN_SOURCE");
+  // The legacy flow creates the server item first, THEN uploads files.
+  // A failed later file upload leaves a remote partial item, while the retry
+  // issues a second addCustomerDraftItem request without an idempotency key.
+  // Source observations are NOT a substitute for atomic backend recovery proof.
+  const appText=f.app||"";
+  const draftBegin=appText.indexOf("async function addCustomerDraftItem()");
+  const draftEnd=appText.indexOf("async function submitCustomerDraft()",draftBegin);
+  const draftFlow=draftBegin>=0&&draftEnd>draftBegin?appText.slice(draftBegin,draftEnd):"";
+  const createIndex=draftFlow.indexOf('api("addCustomerDraftItem"');
+  const uploadIndex=draftFlow.indexOf("await uploadFilesForDraftItem(");
+  const createsItemBeforeAttachmentUpload=createIndex>=0&&uploadIndex>createIndex;
+  // No source-only inspection can certify idempotent server-side recovery.
+  const draftUploadRecovery=check(false,
+    "CUSTOMER_DRAFT_PARTIAL_UPLOAD_RETRY_AND_ROLLBACK_UNVERIFIED");
   // These two flags attest only to source behavior, not to deployed runtime.
   const uiDefaultOff=check(
     /TRENDOS_CUSTOMER_CHAT_V1_ENABLED\s*!==\s*true/.test(f.uiScript||"") &&
@@ -50,7 +64,8 @@ function assess(f){
     "TWO_CUSTOMER_AUTHENTICATED_STAGE_E2E_MISSING",
     "CLOUDFLARE_EXACT_LIVE_ASSET_AND_ROLLBACK_UNVERIFIED",
     "ZERO_GOOGLE_CUSTOMER_ACTIONS_RETIREMENT_UNPROVEN",
-    "PRIVATE_R2_SCANNER_ATTESTATION_AND_HUMAN_PRINT_QA_MISSING"
+    "PRIVATE_R2_SCANNER_ATTESTATION_AND_HUMAN_PRINT_QA_MISSING",
+    "DRAFT_UPLOAD_ATOMICITY_AND_IDEMPOTENT_RETRY_E2E_MISSING"
   ];
   return Object.freeze({
     schema:"trendos-customer-portal-readiness-audit-v1",
@@ -58,7 +73,8 @@ function assess(f){
     sourceOnly:true,productionReady:false,
     paidAiEnabledByThisTool:false,
     deployedBackendHardenedByThisTool:false,
-    sourceChecks:{orderCodeOnly,privateUpload,uiDefaultOff,existingOrderRoute},
+    sourceChecks:{orderCodeOnly,privateUpload,uiDefaultOff,existingOrderRoute,draftUploadRecovery},
+    sourceObservations:{createsItemBeforeAttachmentUpload},
     blockers:Object.freeze([...reasons,...externalRequired]),
     nextAction:"Independent backend remediation, private-media access and isolated authenticated E2E before guarded release"
   });
