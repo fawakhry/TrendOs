@@ -101,7 +101,7 @@ print("EXISTING_PRIVATE_STAGE_WORKER_AND_SYNTHETIC_D1=VERIFIED",flush=True)
 # Inventory using the known read-only account token, full pagination.
 apps=[]
 for page in range(1,21):
-    data,_=api("/access/apps?"+urllib.parse.urlencode({"page":page,"per_page":100}),reader)
+    data,_=api("/access/apps?"+urllib.parse.urlencode({"page":page,"per_page":100}),writer)
     require(isinstance(data,list),"APPS_RESPONSE_INVALID")
     apps.extend(data)
     if len(data)<100:break
