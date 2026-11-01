@@ -70,10 +70,10 @@ function createNativeCustomerLoopbackTransportV0(options={}){
     let parsed;
     try{parsed=JSON.parse(raw)}catch{throw fail("NATIVE_STAGE_RESPONSE_INVALID")}
     if(!parsed||typeof parsed!=="object"||Array.isArray(parsed)||
-       !parsed.body||typeof parsed.body!=="object"||Array.isArray(parsed.body))
+       typeof parsed.success!=="boolean")
       throw fail("NATIVE_STAGE_RESPONSE_SHAPE_INVALID");
-    // Local fixture protocol wraps the original handler body, never credentials.
-    return {status:response.status,body:parsed.body};
+    // Entry665/666 handlers respond with direct JSON body (no custom wrapper).
+    return {status:response.status,body:parsed};
   }
   async function addItem(fields){
     if(!fields||!DRAFT.test(fields.draftId)||!HEX32.test(fields.requestKey))
