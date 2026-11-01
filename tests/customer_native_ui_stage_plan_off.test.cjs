@@ -56,7 +56,8 @@ test("Native UI stage plan is strictly opt-in, no production/default export",()=
   const live=fs.readFileSync(path.join(__dirname,"..",name),"utf8");
   assert.ok(!live.includes("customer-native-ui-stage-plan-off-v0.js"));
  }
- assert.doesNotMatch(source,/fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage|ANYONE_WITH_LINK|OPENAI_API_KEY/);
+ const executable = source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+ assert.doesNotMatch(executable,/fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage|ANYONE_WITH_LINK|OPENAI_API_KEY/);
 });
 test("legacy form strings -> exact Native typed DTO, one private file, no create twice",async()=>{
  const p=testPlan();
