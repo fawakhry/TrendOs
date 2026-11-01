@@ -649,3 +649,9 @@
 - Do not touch Zero Google owner Draft #311, frozen catalogue, Apps Script, customer data, T12/EasyStore, or Cloudflare runtime. Future Stage connector must authenticate the real account and bind original Entry665/666 handlers; deploy only with security proof. `CUSTOMER_PRODUCTION=NO_GO`.
 
 - **UI-LOG-024 source-contract check & CI:** Existing Zero Google `customer-native-browser-transport-v0.js` is ROOT-level, default-OFF; customer Native writes remain explicitly unwired (`CUSTOMER_NATIVE_ACTION_NOT_WIRED`). The new coordinator adds no competing browser dispatcher. Candidate HEAD `39d2fa9049f0208e54d47c197156cd27dc56aaf8` tests PASS: readiness #41300139702, P0 #41300139691, chat #41300139587. Final HEAD verification required for safe source merge. No live HTTP, no customer data.
+
+### UI-LOG-025 — PR318 source-only native upload coordinator merged safely (2026-11-01)
+
+- [PR #318](https://github.com/fawakhry/TrendOs/pull/318) MERGED at `f9ae522e1d2414b6864d6de6c3154cd88fde728e`. Exact tested HEAD `0d7f248ceac2bf1ec4f9fb8b803bacefe90c1cab`: Readiness #41300255472 SUCCESS, P0 stage #41300255509 SUCCESS, Guided Chat #41300255606 SUCCESS.
+- The new unwired client coordinator and tests enforce stable 128-bit keys, ≤5 private files ≤5MiB, explicit same-key retries, no automatic replay of quarantined PENDING, strict owner change, and no automatic official order. The original Native browser dispatcher on Zero Google #311 is still default-OFF and blocks unimplemented writes. No `Code.gs`, `index.html`, `app.js`, actual R2/D1, migration, customer data, T12 or EasyStore changes.
+- Evidence only: synthetic source checks PASS; authentic Stage customer/file E2E, trusted private-scanner/preview, 5MiB vs 25MB parity, operator reconciliation, reload resume, and deployment remain unproven. Live customer UI stays OFF and production privacy gate NO_GO. See Customer Portal UI project book §16–17.
