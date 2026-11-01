@@ -175,7 +175,7 @@ class StageBootstrapTests(unittest.TestCase):
                     return json.dumps([{"name":b.STAGE_NAME,"uuid":b.STAGE_UUID}])
                 if cmd[:2]==("d1","export"):
                     target=Path(cmd[cmd.index("--output")+1])
-                    target.write_text("\\n".join(self.db.iterdump())+"\\n",
+                    target.write_text("\n".join(self.db.iterdump())+"\n",
                                       encoding="utf-8")
                     return ""
                 if cmd[:2]==("d1","execute") and "--command" in cmd:
