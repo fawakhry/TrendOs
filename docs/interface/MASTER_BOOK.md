@@ -629,3 +629,5 @@
 - Source-only test success must NOT authorize customer release. Backend source P0, inherited/private media permissions, scanner/preview, isolated two-user Stage, 5MiB/25MB mismatch, Zero Google 0/9, and exact-live Cloudflare evidence remain outstanding. No API spend, no customer launch.
 
 - **UI-LOG-022 CI trace:** PR #317 initial exact-head `c2753fc02a172453f7599d6edb1056720bf800bb`: P0 Stage CI #41294021990 SUCCESS, Guided Chat CI #41294022011 SUCCESS, Readiness Audit CI #41294021988 FAILURE from **test-only VM missing `ensureCustomerDraftStarted()`**, not a production defect. Added test-only stub on follow-up commit; recheck before merge. Preserve failed run ID as engineering history.
+
+- **UI-LOG-022 corrected exact-head proof:** After test-only `ensureCustomerDraftStarted` stub, candidate HEAD `1cf5642b0ced98e4cb8c06d3e00f7e3d920344d3` CI PASS: readiness #41294089418, P0 private-media #41294089421, guided chat #41294089391. Existing `app.js` item-first upload flaw still real; tests detect it and readiness remains `NO_GO`. PR #317 awaits final review/merge. No production changes.
