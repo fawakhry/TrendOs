@@ -4737,6 +4737,8 @@ Trend Mall`;
       if (!res.success) {
         // Data/read failures must never destroy the employee browser session.
         // Authentication is revoked only by explicit logout/password flows.
+        state.archiveEligibility = { available: false, code: "orders-read-failed" };
+        updateBulkStatusCount();
         setLoading(res.message || "فشل تحميل الأوردرات.", true);
         return;
       }
@@ -4747,8 +4749,30 @@ Trend Mall`;
       state.currentPage = Number(state.serverPaging.page || 1) || 1;
       state.serverStatusCounts = res.statusCounts || {};
       state.serverStatusOrderCounts = res.statusOrderCounts || {};
-      state.archiveEligibility = res.archiveEligibility &&
-        res.archiveEligibility.available === true ? res.archiveEligibility : { available: false };
+      // The dashboard rows and D1 archive count are independent read contracts.
+      // If rows originate from an older adapter missing the count, query the
+      // authenticated D1-only Core action explicitly, not a legacy mirror.
+      const currentScreen = state.screen;
+      let eligibility = res.archiveEligibility && res.archiveEligibility.available === true
+        ? res.archiveEligibility : null;
+      if (!eligibility) {
+        try {
+          const countResponse = await api("getArchiveEligibilityV1", authParams({ screen: currentScreen }));
+          if (countResponse && countResponse.success === true &&
+              countResponse.archiveEligibility && countResponse.archiveEligibility.available === true) {
+            eligibility = countResponse.archiveEligibility;
+          } else {
+            eligibility = { available: false,
+              code: (countResponse && countResponse.code) ||
+                (res.archiveEligibility && res.archiveEligibility.code) || "archive-count-read-failed" };
+          }
+        } catch (archiveCountError) {
+          eligibility = { available: false,
+            code: (archiveCountError && archiveCountError.code) || "archive-count-network-error" };
+        }
+      }
+      if (currentScreen === state.screen)
+        state.archiveEligibility = eligibility || { available: false, code: "archive-count-unavailable" };
       if (res.activeSummaryCounts && typeof res.activeSummaryCounts === "object") state.activeSummaryCounts = res.activeSummaryCounts;
       if (!state.bulkStatusSaving) state.bulkStatusRequestId = "";
       if (!state.archiveDeliveredSaving) state.archiveDeliveredRequestId = "";
@@ -4762,6 +4786,8 @@ Trend Mall`;
       applyFiltersAndRender();
       setLoading("آخر تحديث: " + new Date().toLocaleTimeString("ar-EG"));
     } catch (err) {
+      state.archiveEligibility = { available: false, code: "orders-load-exception" };
+      updateBulkStatusCount();
       setLoading(err.message || "خطأ في التحميل.", true);
     }
   }
@@ -4820,7 +4846,9 @@ Trend Mall`;
       ? ("جاهز للأرشفة على D1: " + archiveDetails.orderCount + " أوردر كامل" +
         (archiveDetails.partiallyArchivedOrders
           ? " — مؤرشف جزئيًا يحتاج مراجعة: " + archiveDetails.partiallyArchivedOrders : ""))
-      : "الجاهز للأرشفة: جاري التحقق من D1";
+      : (state.archiveEligibility && state.archiveEligibility.code
+        ? "تعذر قراءة عداد D1 (" + state.archiveEligibility.code + "). اضغط تحديث البيانات."
+        : "الجاهز للأرشفة: جاري التحقق من D1");
     if (archiveButton) archiveButton.disabled = state.archiveDeliveredSaving || state.bulkStatusSaving || !bulkStatusScreenAllowed() ||
       !archiveDetails.eligibleKnown || !archiveDetails.rowCount;
   }
