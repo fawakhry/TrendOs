@@ -1,9 +1,10 @@
 import { verifyEmployeeSessionCloudFirst } from './cloud-session-bridge-v3.mjs';
 import { closeAndArchiveT12OrderV1, nativeT12ArchiveWriteFenceV1, CLOSE_ARCHIVE_ACTION } from './t12-native-close-archive-v1.mjs';
+import { nativeBulkStatusEligibilityV2, nativeBulkStatusV2, T12_BULK_COUNT_ACTION, enabled as nativeBulkEnabled } from './t12-native-bulk-status-v2.mjs';
 
 const ROOT='/v1/employee/core';
 const HEALTH=ROOT+'/health';
-const READ_ACTIONS=new Set(['getRows','getRowsPageV1931','getDashboard','getActivityLog','getTrendMasterCenterV1931','getArchiveEligibilityV1']);
+const READ_ACTIONS=new Set(['getRows','getRowsPageV1931','getDashboard','getActivityLog','getTrendMasterCenterV1931','getArchiveEligibilityV1',T12_BULK_COUNT_ACTION]);
 const WRITE_ACTIONS=new Set(['bulkUpdateDepartmentStatusV1926','archiveDeliveredDepartmentV1926','updateLine','markCustomerNotified',CLOSE_ARCHIVE_ACTION]);
 const STATUSES=new Set(['طلب جديد','بدأ التنفيذ','تحت التنفيذ','جاهز للاستلام','تم التسليم','متوقف','مكرر','ملغى']);
 const DEFAULT_ORIGINS=[
@@ -217,6 +218,7 @@ async function trendMaster(env,user,body){
   };
 }
 async function bulkStatus(env,user,body){
+  if(nativeBulkEnabled(env))return nativeBulkStatusV2(env,user,body,coreRows,screenAllowed);
   const screen=text(body.screen),fromStatus=text(body.fromStatus),toStatus=text(body.toStatus),requestId=text(body.requestId);
   if(!screenAllowed(user,screen))return {success:false,message:'ليس لديك صلاحية تغيير حالات هذا القسم جماعيًا.'};
   if(!STATUSES.has(fromStatus)||!STATUSES.has(toStatus)||fromStatus===toStatus)return {success:false,message:'الحالة الحالية أو الجديدة غير مسموح بها.'};
@@ -486,6 +488,8 @@ export async function handleEmployeeCoreNativeRequest(request,env){
           ? {success:true,archiveEligibility,version:'T12_NATIVE_ARCHIVE_ELIGIBILITY_V4'}
           : {success:false,code:archiveEligibility.code||'native-archive-count-unavailable'};
       }
+    }else if(action===T12_BULK_COUNT_ACTION){
+      out=await nativeBulkStatusEligibilityV2(env,a.user,body,coreRows,screenAllowed);
     }else if(action==='getDashboard'){
       const screen=text(body.screen)||'service';if(!screenAllowed(a.user,screen))out={success:false,message:'غير مصرح لك بعرض أوردرات هذا القسم.'};
       else {const rows=await coreRows(env,screen);out={success:true,dashboard:dashboard(rows,screen),version:'ENTRY614_D1_EMPLOYEE_CORE_V1'};}

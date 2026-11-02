@@ -6,6 +6,7 @@ import {readFileSync} from 'node:fs';
 import {createServer} from 'node:http';
 import {handleEmployeeCoreNativeRequest} from '../cloudflare-d1/src/employee-core-native-v1.mjs';
 import {cloudAuthTokenFingerprint} from '../cloudflare-d1/src/cloud-auth-shadow-v1.mjs';
+import {T12_BULK_STATUS_V2} from '../cloudflare-d1/src/t12-native-bulk-status-v2.mjs';
 
 function fixture(){
   const db=new DatabaseSync(':memory:');
@@ -25,6 +26,8 @@ function fixture(){
     customer_notified TEXT NOT NULL DEFAULT '',notified_at TEXT NOT NULL DEFAULT '',
     notified_by TEXT NOT NULL DEFAULT '',last_whatsapp_message TEXT NOT NULL DEFAULT '',
     last_whatsapp_at TEXT NOT NULL DEFAULT '',last_whatsapp_by TEXT NOT NULL DEFAULT '',
+    updated_by TEXT NOT NULL DEFAULT '',
+    version INTEGER NOT NULL DEFAULT 1,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE employee_core_archive_orders_v1(order_id TEXT PRIMARY KEY,customer_name TEXT NOT NULL DEFAULT '',
     customer_phone TEXT NOT NULL DEFAULT '',department TEXT NOT NULL DEFAULT '',priority TEXT NOT NULL DEFAULT '',
@@ -36,6 +39,11 @@ function fixture(){
     qty REAL NOT NULL DEFAULT 1,priority TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT '',
     notes TEXT NOT NULL DEFAULT '',snapshot_json TEXT NOT NULL DEFAULT '{}',archived_by TEXT NOT NULL,
     request_key TEXT NOT NULL,archived_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+  CREATE TABLE t12_prod_runtime_events(event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id TEXT NOT NULL,line_id TEXT NOT NULL,event_type TEXT NOT NULL,
+    old_status TEXT NOT NULL DEFAULT '',new_status TEXT NOT NULL DEFAULT '',
+    actor TEXT NOT NULL,payload_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE employee_core_events_v1(event_id INTEGER PRIMARY KEY AUTOINCREMENT,
     action TEXT NOT NULL,entity_type TEXT NOT NULL DEFAULT '',entity_id TEXT NOT NULL DEFAULT '',
     actor TEXT NOT NULL,payload_json TEXT NOT NULL DEFAULT '{}',
@@ -58,6 +66,8 @@ function fixture(){
   db.prepare("UPDATE t12_native_archive_guard_control_v1 SET mode='GUARDED' WHERE singleton=1").run();
   const adapter={
     prepare(sql){return {
+      // D1.batch accepts prepared statements without bind() for zero placeholders.
+      sql,args:[],
       first:async()=>db.prepare(sql).get()||null,
       all:async()=>({results:db.prepare(sql).all()}),
       run:async()=>db.prepare(sql).run(),
@@ -526,6 +536,113 @@ test('frontend explicitly routes D1 count read and never shows endless checking 
   assert.match(app,/orders-read-failed/);
   assert.match(app,/تعذر قراءة عداد D1/);
   assert.doesNotMatch(app,/state\.archiveEligibility = res\.archiveEligibility\s*&&/);
+});
+test('native bulk preview + 45 original T12 lines becomes 20+20+7; never modifies imported historical or partially archived',async()=>{
+  const f=fixture();
+  for(const migration of ['0008_t12_customer_master.sql','0016_employee_core_zero_google_v1.sql',
+    '0017_employee_core_current_orders_v1.sql','0009_employee_auth_native_v1.sql'])
+    f.db.exec(readFileSync(new URL('../cloudflare-d1/migrations/'+migration,import.meta.url),'utf8'));
+  f.env.TRENDOS_T12_NATIVE_BULK_STATUS_V2_ENABLED='true';
+  f.env.EDGE_SESSION_SECRET='synthetic-status-batch-fixture-only';
+  f.env.TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1='true';
+  f.db.prepare(`INSERT INTO employee_auth_users_v1
+    (employee_id,username_key,canonical_username,must_change,active,role,department,screens_json,session_version)
+    VALUES('c1','rahma','Rahma',0,1,'service','service','["service"]',1)`).run();
+  const now=Date.now(),token='synthetic-status-batch-session';
+  const fp=await cloudAuthTokenFingerprint('rahma',token,f.env);
+  f.db.prepare(`INSERT INTO employee_auth_sessions_v1
+    (username_key,token_fingerprint,session_version,issued_at_ms,expires_at_ms,last_seen_at_ms)
+    VALUES('rahma',?,1,?,?,?)`).run(fp,now,now+60000,now);
+  for(let i=0;i<45;i++){
+    const id='9'+String(i).padStart(4,'0');
+    f.db.prepare("INSERT INTO t12_prod_orders(order_id,customer_name,customer_phone,department,priority,source,notes) VALUES(?,'Test Client','01100000000','طباعة','عادي','T12','')").run(id);
+    f.db.prepare("INSERT INTO t12_prod_lines(line_id,order_id,ordinal,department,item_name,qty,priority) VALUES(?,?,1,'طباعة','Test',1,'عادي')").run('L'+id,id);
+  }
+  // Historical imported active order remains untouched despite matching status.
+  f.db.prepare("INSERT INTO employee_core_orders_v1(order_id,customer_name,active) VALUES('OLD-G-1','old',1)").run();
+  f.db.prepare("INSERT INTO employee_core_lines_v1(line_id,order_id,customer_name,department,item_name,status,active) VALUES('OLD-L-1','OLD-G-1','old','طباعة','imported','طلب جديد',1)").run();
+  // Simulate a previously PARTIALLY archived original T12 order.
+  f.db.prepare("INSERT INTO employee_core_archive_lines_v1(line_id,order_id,archived_by,request_key) VALUES('L4322A','4322','old','partial-before')").run();
+  f.db.prepare("UPDATE t12_prod_lines SET department='طباعة' WHERE line_id='L4322B'").run();
+  const run=async(action,options={})=>{
+    const req=new Request('https://trendos-d1-api.example.test/v1/employee/core',{method:'POST',
+      headers:{origin:'https://fawakhry.github.io',authorization:'Bearer '+token,'content-type':'application/json'},
+      body:JSON.stringify({action,username:'rahma',screen:'print',fromStatus:'طلب جديد',toStatus:'بدأ التنفيذ',...options})});
+    const resp=await handleEmployeeCoreNativeRequest(req,f.env);
+    return {http:resp.status,data:await resp.json()};
+  };
+  const p=await run('getBulkStatusEligibilityV1');
+  assert.equal(p.http,200,JSON.stringify(p.data));
+  assert.equal(p.data.version,T12_BULK_STATUS_V2);
+  assert.equal(p.data.eligibleLines,45);
+  assert.equal(p.data.eligibleOrders,45);
+  assert.equal(p.data.excludedHistoricalLines,1);
+  assert.equal(p.data.excludedArchivedLines,1);
+  assert.equal((await run('bulkUpdateDepartmentStatusV1926',{requestId:'no'})).data.code,'bulk-request-id-invalid');
+  const r1=await run('bulkUpdateDepartmentStatusV1926',{requestId:'bulk-45-native-batch-1'});
+  assert.equal(r1.http,200,JSON.stringify(r1.data));assert.equal(r1.data.changed,20);
+  assert.equal(r1.data.remainingEligible,25);assert.equal(r1.data.hasMore,true);
+  const replay=await run('bulkUpdateDepartmentStatusV1926',{requestId:'bulk-45-native-batch-1'});
+  assert.equal(replay.http,200);assert.equal(replay.data.idempotent,true);assert.equal(replay.data.changed,20);
+  const r2=await run('bulkUpdateDepartmentStatusV1926',{requestId:'bulk-45-native-batch-2'});
+  assert.equal(r2.data.changed,20);assert.equal(r2.data.remainingEligible,5);
+  const r3=await run('bulkUpdateDepartmentStatusV1926',{requestId:'bulk-45-native-batch-3'});
+  assert.equal(r3.data.changed,5);assert.equal(r3.data.remainingEligible,0);assert.equal(r3.data.hasMore,false);
+  assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM t12_prod_line_runtime WHERE status='بدأ التنفيذ'").get().n,45);
+  assert.equal(f.db.prepare("SELECT status FROM employee_core_lines_v1 WHERE line_id='OLD-L-1'").get().status,'طلب جديد');
+  assert.equal(f.db.prepare("SELECT status FROM t12_prod_lines WHERE line_id='L4322B'").get().status,'طلب جديد');
+  assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM employee_core_request_ledger_v1 WHERE action='bulkUpdateDepartmentStatusV1926'").get().n,3);
+  assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM t12_prod_runtime_events WHERE event_type='bulk-status'").get().n,45);
+  const done=await run('getBulkStatusEligibilityV1');assert.equal(done.data.eligibleLines,0);
+});
+test('native bulk delivery respects active debt restrictions and fails closed on race without partial writes',async()=>{
+  const f=fixture();
+  for(const migration of ['0008_t12_customer_master.sql','0016_employee_core_zero_google_v1.sql',
+    '0017_employee_core_current_orders_v1.sql','0009_employee_auth_native_v1.sql'])
+    f.db.exec(readFileSync(new URL('../cloudflare-d1/migrations/'+migration,import.meta.url),'utf8'));
+  f.env.TRENDOS_T12_NATIVE_BULK_STATUS_V2_ENABLED='true';
+  f.env.EDGE_SESSION_SECRET='synthetic-bulk-debt-session-only';
+  f.env.TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1='true';
+  f.db.prepare(`INSERT INTO employee_auth_users_v1
+    (employee_id,username_key,canonical_username,must_change,active,role,department,screens_json,session_version)
+    VALUES('d1','rahma','Rahma',0,1,'service','service','["service"]',1)`).run();
+  const token='synthetic-bulk-debt-token',now=Date.now();
+  const fp=await cloudAuthTokenFingerprint('rahma',token,f.env);
+  f.db.prepare(`INSERT INTO employee_auth_sessions_v1
+    (username_key,token_fingerprint,session_version,issued_at_ms,expires_at_ms,last_seen_at_ms)
+    VALUES('rahma',?,1,?,?,?)`).run(fp,now,now+60000,now);
+  // Only restrictions + positive debt should prevent delivery.
+  f.db.prepare("INSERT INTO t12_customers(customer_id,customer_name,customer_name_key,phone,debt_amount,active,source) VALUES('c1','عميل تجريبي','عميل تجريبي','01000000000',50,'نعم','cloud-native')").run();
+  const key='عميل تجريبي';
+  f.db.prepare("INSERT INTO employee_core_delivery_restrictions_v1(customer_key,customer_name,reason,active) VALUES(?,?,?,1)").run(key,key,'unpaid');
+  f.db.prepare("UPDATE t12_prod_lines SET status='جاهز للاستلام' WHERE order_id='4322'").run();
+  const call=async(action,extra={})=>{
+    const req=new Request('https://trendos-d1-api.example.test/v1/employee/core',{method:'POST',
+      headers:{origin:'https://fawakhry.github.io',authorization:'Bearer '+token,'content-type':'application/json'},
+      body:JSON.stringify({action,username:'rahma',screen:'print',fromStatus:'جاهز للاستلام',toStatus:'تم التسليم',...extra})});
+    const r=await handleEmployeeCoreNativeRequest(req,f.env);
+    return {http:r.status,data:await r.json()};
+  };
+  const p=await call('getBulkStatusEligibilityV1');
+  assert.equal(p.data.eligibleLines,0);assert.equal(p.data.blockedDebtLines,1);
+  const result=await call('bulkUpdateDepartmentStatusV1926',{requestId:'native-bulk-debt-restrict-1'});
+  assert.equal(result.http,200);assert.equal(result.data.changed,0);
+  assert.equal(result.data.skippedDebt,1);
+  assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM t12_prod_line_runtime").get().n,0);
+});
+test('native bulk UI uses the exact D1 count and requests independent 20-line idempotent batches',()=>{
+  const app=readFileSync(new URL('../app.js',import.meta.url),'utf8');
+  const src=readFileSync(new URL('../cloudflare-d1/src/t12-native-bulk-status-v2.mjs',import.meta.url),'utf8');
+  const dispatcher=readFileSync(new URL('../employee-api-dispatcher-v1.js',import.meta.url),'utf8');
+  assert.match(app,/getBulkStatusEligibilityV1/);
+  assert.match(app,/T12_NATIVE_BULK_STATUS_BATCH_V2/);
+  assert.match(app,/bulkStatusNextBatch/);
+  assert.match(app,/Math\.max\(0, Number\(result\.remainingEligible/);
+  assert.match(app,/جاري تغيير الحالات على Cloudflare D1/);
+  assert.match(dispatcher,/getBulkStatusEligibilityV1/);
+  assert.match(src,/CASE WHEN EXISTS/);
+  assert.match(src,/THEN \? ELSE NULL END/);
+  assert.doesNotMatch(src,/employee_core_lines_v1|script.google.com|APPS_SCRIPT_API_URL/);
 });
 test('new archive action preserves original legacy bulk route only while feature OFF',()=>{
   const core=readFileSync(new URL('../cloudflare-d1/src/employee-core-native-v1.mjs',import.meta.url),'utf8');

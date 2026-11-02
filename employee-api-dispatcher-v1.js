@@ -70,7 +70,8 @@
     'getDashboard',
     'getActivityLog',
     'getTrendMasterCenterV1931',
-    'getArchiveEligibilityV1'
+    'getArchiveEligibilityV1',
+    'getBulkStatusEligibilityV1'
   ]);
 
   var CORE_WRITE_ACTIONS = new Set([
