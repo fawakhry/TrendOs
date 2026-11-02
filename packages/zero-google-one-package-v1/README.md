@@ -265,3 +265,21 @@ remote original browser E2E are still **NOT VERIFIED**.
 Cloudflare Access app write = 403 BLOCKED, real remote private customer E2E
 NOT EXECUTED, live customer Google actions retired last-proven 0/9.
 
+### 2026-11-02 source-only Access selector strictness
+
+The private-ingress qualification now rejects an Access policy include entry
+that mixes the single expected `service_token.token_id` with `everyone`,
+`any_valid_service_token`, or any other extra selector fields, including
+unexpected fields inside the token object. Cloudflare Access include selectors
+can create broader matches; a structurally valid token ID alone must never
+mask an extra potentially permissive selector. This is **fail-closed** even
+for unrecognized future API response shapes.
+
+This change is strictly source/test hardening on draft PR #316, not an Access
+permission grant, production deploy, private route opening, remote E2E,
+or customer Google retirement. The previously observed Access app create
+HTTP 403 remains the account-side blocker; do not retry it without the
+correct administrator-approved Access permission. Run
+`python3 tests/zg_customer_private_ingress_access_guard_off_v1.test.py -v`
+and the existing one-package CI for exact-head source evidence.
+

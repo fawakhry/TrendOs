@@ -77,12 +77,19 @@ def assess_private_customer_stage(*,worker,subdomain,settings,databases,access_a
         if full and len(p)==1 and isinstance(p[0],dict):
             policy=p[0]
             included=policy.get("include") or []
+            # Cloudflare include selectors are OR alternatives. Do not
+            # silently accept {"service_token": ..., "everyone": ...} or
+            # an unknown selector nested alongside the authorized token.
+            selector=included[0] if len(included)==1 and isinstance(included[0],dict) else None
+            token=selector.get("service_token") if isinstance(selector,dict) else None
+            exact_token_only=(isinstance(selector,dict) and
+                   set(selector)=={"service_token"} and
+                   isinstance(token,dict) and set(token)=={"token_id"} and
+                   bool(re.fullmatch(r"[0-9a-fA-F-]{32,36}",
+                                     str(token.get("token_id","")))))
             valid_policy=(policy.get("decision")=="non_identity" and
-                  len(included)==1 and isinstance(included[0],dict) and
-                  isinstance(included[0].get("service_token"),dict) and
-                  bool(re.fullmatch(r"[0-9a-fA-F-]{32,36}",
-                                   str(included[0]["service_token"].get("token_id","")))) and
-                  not policy.get("exclude") and not policy.get("require"))
+                          exact_token_only and
+                          not policy.get("exclude") and not policy.get("require"))
         need(full,"ACCESS_PUBLIC_PATH_OVERRIDE_OR_EXTRA_DESTINATION")
         need(valid_policy,"EXACT_TOKEN_SERVICE_AUTH_POLICY_NOT_PROVEN")
     return {

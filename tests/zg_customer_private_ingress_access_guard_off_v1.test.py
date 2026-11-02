@@ -62,6 +62,23 @@ class PrivateAccessFailClosed(unittest.TestCase):
         self.assertFalse(assess(wrangler_source=SOURCE.replace(
             'TRENDOS_CUSTOMER_PORTAL_STAGING_ENABLED = "false"',
             'TRENDOS_CUSTOMER_PORTAL_STAGING_ENABLED = "true"'))["remotePrivateIngressReady"])
+    def test_mixed_or_extra_selector_fields_never_qualify_as_private_service_auth(self):
+        # An extra OR selector can accidentally authorize everyone even while
+        # a valid-looking service_token ID is present in the same object.
+        bad_selectors=(
+          {"service_token":{"token_id":TID},"everyone":{}},
+          {"service_token":{"token_id":TID},"any_valid_service_token":{}},
+          {"service_token":{"token_id":TID,"any_valid_service_token":{}}},
+          {"service_token":{"token_id":TID,"unexpected_rule":"allow"}},
+          {"service_token":{"token_id":"not-a-real-id"}},
+        )
+        for selector in bad_selectors:
+            with self.subTest(selector=selector):
+                apps=[{"destinations":[{"type":"worker","worker_id":WID}],
+                       "policies":[{"decision":"non_identity","include":[selector]}]}]
+                report=assess(access_apps=apps)
+                self.assertFalse(report["remotePrivateIngressReady"])
+                self.assertIn("EXACT_TOKEN_SERVICE_AUTH_POLICY_NOT_PROVEN",report["failures"])
     def test_no_live_e2e_can_be_inferred_from_source_guard(self):
         j=guard.assess_private_customer_stage(worker=None,subdomain=None,
           settings=None,databases=None,access_apps=None,wrangler_source=SOURCE)
