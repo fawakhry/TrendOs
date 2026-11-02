@@ -33,7 +33,7 @@ jobs:
           print('LIVE_EQUALS_BASE='+str(live==base))
           print('LIVE_EQUALS_HEAD='+str(live==head))
           print('LIVE_CONTAINS_AUTO_LOOP='+str(b'T12_NATIVE_COMPLETE_ORDERS_AUTO_BATCH_V2' in live))
-          print('LIVE_CONTAINS_AUTHORITATIVE_COUNT='+str(b'T12_NATIVE_ARCHIVE_ELIGIBILITY_V3' in live or b'جاهز للأرشفة على D1' in live))
+          print('LIVE_CONTAINS_AUTHORITATIVE_COUNT='+str(b'T12_NATIVE_ARCHIVE_ELIGIBILITY_V3' in live or 'جاهز للأرشفة على D1'.encode('utf-8') in live))
           PY
           for name in trendos-d1-api trendos-ui; do
             curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$name/deployments" >/tmp/deploy.json
