@@ -25,7 +25,7 @@ function fixture(){
     notes TEXT NOT NULL DEFAULT '',snapshot_json TEXT NOT NULL DEFAULT '{}',archived_by TEXT NOT NULL,
     request_key TEXT NOT NULL,archived_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE employee_core_events_v1(event_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    action TEXT,entity_type TEXT,entity_id TEXT,actor TEXT,payload_json TEXT);
+    action TEXT NOT NULL,entity_type TEXT NOT NULL DEFAULT '',entity_id TEXT NOT NULL DEFAULT '',actor TEXT NOT NULL,payload_json TEXT NOT NULL DEFAULT '{}');
   CREATE TABLE employee_core_control_v1(singleton INTEGER PRIMARY KEY,data_version INTEGER,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
   INSERT INTO employee_core_control_v1(singleton,data_version) VALUES(1,1);
@@ -54,6 +54,12 @@ const count=(db,table)=>db.prepare('SELECT COUNT(*) AS n FROM '+table).get().n;
 function deliver(db,which=['L4322A','L4322B']){
   for(const id of which)db.prepare("INSERT INTO t12_prod_line_runtime(line_id,order_id,status) VALUES(?,'4322','تم التسليم')").run(id);
 }
+test('SQLite fixture exactly preserves original NOT NULL event actor safety constraint',()=>{
+  const {db}=fixture();
+  const columns=db.prepare("PRAGMA table_info(employee_core_events_v1)").all();
+  assert.equal(columns.find(c=>c.name==='actor')?.notnull,1);
+  assert.throws(()=>db.prepare("INSERT INTO employee_core_events_v1(action,entity_type,entity_id,actor,payload_json) VALUES('a','order','4322',NULL,'{}')").run(),/NOT NULL/);
+});
 test('default OFF, insufficient privilege, invalid request, and legacy-only ID never mutate',async()=>{
   const f=fixture();deliver(f.db);
   assert.equal((await closeAndArchiveT12OrderV1({...f.env,TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED:'false'},f.user,f.body)).code,'native-close-archive-off');
