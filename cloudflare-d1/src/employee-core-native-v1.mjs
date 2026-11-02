@@ -253,6 +253,46 @@ async function bulkStatus(env,user,body){
   const response={success:true,changed:changed.length,affectedOrders:new Set(changed.map(r=>r.orderId)).size,skippedDebt:Object.keys(skippedDebt).length,skippedFinance:0,financeReasons:{},screen,fromStatus,toStatus,requestId,version:'ENTRY614_D1_EMPLOYEE_CORE_V1'};
   await commitLedger(env,requestId,response);return response;
 }
+// Only original Cloudflare T12 orders. Counts and archive candidates share
+// this exact predicate; old/imported/partially archived orders never qualify.
+function nativeArchiveEligibilitySql(screen){
+  const match=screen==='print'?"instr(s.department,'طباعة')>0":
+    screen==='laser'?"instr(s.department,'ليزر')>0":
+    screen==='press'?"(s.heat_press=1 OR instr(s.department,'مكبس')>0)":
+    "1=1";
+  return `
+    FROM t12_prod_orders o
+    WHERE NOT EXISTS(SELECT 1 FROM employee_core_archive_orders_v1 a WHERE a.order_id=o.order_id)
+    AND EXISTS(SELECT 1 FROM t12_prod_lines s WHERE s.order_id=o.order_id AND ${match})
+    AND NOT EXISTS(
+      SELECT 1 FROM t12_prod_lines l
+      LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
+      LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+      WHERE l.order_id=o.order_id
+      AND (COALESCE(r.status,l.status)<>'تم التسليم' OR a.line_id IS NOT NULL)
+    )`;
+}
+async function nativeArchiveEligibility(env,screen){
+  if(env?.TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED!=='true')
+    return {available:false,code:'native-archive-off'};
+  try{
+    const eligible=await env.DB.prepare(`SELECT COUNT(*) AS n ${nativeArchiveEligibilitySql(screen)}`).bind().first();
+    const match=screen==='print'?"instr(l.department,'طباعة')>0":
+      screen==='laser'?"instr(l.department,'ليزر')>0":
+      screen==='press'?"(l.heat_press=1 OR instr(l.department,'مكبس')>0)":"1=1";
+    const partial=await env.DB.prepare(`
+      SELECT COUNT(*) AS n FROM t12_prod_orders o
+      WHERE NOT EXISTS(SELECT 1 FROM employee_core_archive_orders_v1 a WHERE a.order_id=o.order_id)
+      AND EXISTS(SELECT 1 FROM t12_prod_lines l WHERE l.order_id=o.order_id AND ${match})
+      AND EXISTS(SELECT 1 FROM employee_core_archive_lines_v1 a WHERE a.order_id=o.order_id)
+    `).bind().first();
+    return {available:true,eligibleOrders:num(eligible?.n),
+      partiallyArchivedOrders:num(partial?.n),source:'original-t12-d1',
+      version:'T12_NATIVE_ARCHIVE_ELIGIBILITY_V3'};
+  }catch{
+    return {available:false,code:'native-archive-count-unavailable',source:'original-t12-d1'};
+  }
+}
 async function archiveDelivered(env,user,body){
   // One-writer fence: once the dedicated native T12 close/archive is enabled,
   // never let the older bulk archive race and partially archive native orders.
@@ -268,25 +308,7 @@ async function archiveDelivered(env,user,body){
     // Query ONLY original native T12 IDs; no imported historical rows.
     // A whole order is eligible only if every original line is delivered.
     // Keep each HTTP call bounded; the UI continues the next batch itself.
-    const match=screen==='print'?"instr(s.department,'طباعة')>0":
-      screen==='laser'?"instr(s.department,'ليزر')>0":
-      screen==='press'?"(s.heat_press=1 OR instr(s.department,'مكبس')>0)":
-      "1=1";
-    const eligibility=`
-      FROM t12_prod_orders o
-      WHERE NOT EXISTS(
-        SELECT 1 FROM employee_core_archive_orders_v1 a WHERE a.order_id=o.order_id
-      )
-      AND EXISTS(
-        SELECT 1 FROM t12_prod_lines s WHERE s.order_id=o.order_id AND ${match}
-      )
-      AND NOT EXISTS(
-        SELECT 1 FROM t12_prod_lines l
-        LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
-        LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
-        WHERE l.order_id=o.order_id
-        AND (COALESCE(r.status,l.status)<>'تم التسليم' OR a.line_id IS NOT NULL)
-      )`;
+    const eligibility=nativeArchiveEligibilitySql(screen);
     const queue=(await env.DB.prepare(`
       SELECT o.order_id AS orderId ${eligibility}
       ORDER BY o.created_at ASC,o.order_id ASC LIMIT 20
@@ -313,6 +335,7 @@ async function archiveDelivered(env,user,body){
     const remainingEligible=num(remain?.n);
     return {success:true,archivedOrders,archivedLines,remainingEligible,
       hasMore:remainingEligible>0,batchSize:20,screen,requestId,
+      archiveEligibility:await nativeArchiveEligibility(env,screen),
       message:archivedOrders
         ?'تمت أرشفة '+archivedOrders+' أوردر جديد مكتمل التسليم. المتبقي المؤهل: '+remainingEligible+'.'
         :'لا توجد أوردرات سحابية مكتملة التسليم جاهزة للأرشفة في القسم الحالي.',
@@ -441,6 +464,7 @@ export async function handleEmployeeCoreNativeRequest(request,env){
           dashboard:dashboard(rows,screen),
           serverPaged:false,
           dataSource:'employee-core-d1',
+          archiveEligibility:await nativeArchiveEligibility(env,screen),
           version:'ENTRY650_D1_EMPLOYEE_CORE_PAGE_ALIAS_V1'
         };
       }
