@@ -257,8 +257,41 @@ async function archiveDelivered(env,user,body){
   // One-writer fence: once the dedicated native T12 close/archive is enabled,
   // never let the older bulk archive race and partially archive native orders.
   // Default OFF retains the currently deployed behavior unchanged.
-  if(env?.TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED==='true')
-    return {success:false,code:'legacy-bulk-archive-suspended-for-native-t12-close'};
+  if(env?.TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED==='true'){
+    // Existing employee UI action is preserved, but exclusively closes whole
+    // native T12 orders. Imported / historical Google orders are never written.
+    const screen=text(body.screen)||'service',requestId=text(body.requestId);
+    if(!screenAllowed(user,screen))
+      return {success:false,code:'native-archive-screen-forbidden',message:'لا توجد صلاحية أرشفة لهذا القسم.'};
+    if(!/^[a-zA-Z0-9:._-]{12,80}$/.test(requestId))
+      return {success:false,code:'request-id-invalid',message:'معرّف عملية الأرشفة غير صالح.'};
+    const delivered=(await coreRows(env,screen))
+      .filter(r=>r.sourceKind==='t12-prod'&&text(r.status)==='تم التسليم');
+    const orderIds=[...new Set(delivered.map(r=>r.orderId).filter(Boolean))].slice(0,20);
+    let archivedOrders=0,archivedLines=0,skippedIncomplete=0;
+    for(const orderId of orderIds){
+      const result=await closeAndArchiveT12OrderV1(env,user,{
+        orderId,requestId:requestId+'-'+orderId
+      });
+      if(result.success){
+        if(!result.idempotent){archivedOrders++;archivedLines+=num(result.archivedLines);}
+      }else if(result.code==='native-order-not-all-delivered'||
+        result.code==='native-order-partially-archived-review'){
+        skippedIncomplete++;
+      }else{
+        return {success:false,code:result.code||'native-archive-failed',
+          message:'توقفت الأرشفة الآمنة. راجع سجل الأوردرات قبل إعادة المحاولة.',
+          archivedOrders,archivedLines,skippedIncomplete};
+      }
+    }
+    return {success:true,archivedOrders,archivedLines,
+      skippedIncomplete,partialOrders:skippedIncomplete,screen,requestId,
+      message:archivedOrders
+        ?'تمت أرشفة '+archivedOrders+' أوردر جديد مكتمل التسليم على Cloudflare.'
+        :'لا توجد أوردرات جديدة مكتملة التسليم جاهزة للأرشفة في القسم الحالي.',
+      cloudNative:true,googleBusinessCalls:0,
+      version:'T12_NATIVE_COMPLETE_ORDERS_UI_COMPAT_V1'};
+  }
   const screen=text(body.screen),requestId=text(body.requestId);
   if(!screenAllowed(user,screen))return {success:false,message:'ليس لديك صلاحية أرشفة هذا القسم.'};
   const led=await requestLedger(env,requestId,'archiveDeliveredDepartmentV1926',user.username,{screen});
