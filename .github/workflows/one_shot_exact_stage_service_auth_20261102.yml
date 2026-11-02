@@ -1,0 +1,46 @@
+name: ONE SHOT Exact Customer Stage Service Auth Policy — DENY ALL retained
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/one_shot_exact_stage_service_auth_20261102.yml'
+permissions:
+  contents: read
+concurrency:
+  group: customer-stage-one-shot-policy-exact-20261102
+  cancel-in-progress: false
+jobs:
+  stage-exact-service-auth:
+    if: github.event.pull_request.head.repo.full_name == 'fawakhry/TrendOs' && github.head_ref == 'ops/customer-stage-exact-service-auth-once-20261102'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCESS_API_TOKEN: ${{ secrets.CLOUDFLARE_ACCESS_API_TOKEN }}
+      CLOUDFLARE_SERVICE_TOKENS_READ_API_TOKEN: ${{ secrets.CLOUDFLARE_SERVICE_TOKENS_READ_API_TOKEN }}
+      CF_STAGE_ACCESS_CLIENT_ID: ${{ secrets.CF_STAGE_ACCESS_CLIENT_ID }}
+      CF_STAGE_ACCESS_CLIENT_SECRET: ${{ secrets.CF_STAGE_ACCESS_CLIENT_SECRET }}
+      OPENAI_API_KEY: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check one-time exact Stage policy source gates (NO public ingress)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = pull_request
+          test "$GITHUB_HEAD_REF" = 'ops/customer-stage-exact-service-auth-once-20261102'
+          test -n "$CLOUDFLARE_SERVICE_TOKENS_READ_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCESS_API_TOKEN"
+          test -n "$CF_STAGE_ACCESS_CLIENT_ID"
+          test -n "$CF_STAGE_ACCESS_CLIENT_SECRET"
+          python3 -m py_compile tools/one_shot_exact_stage_service_auth_20261102.py
+          python3 tests/customer_stage_service_auth_policy_gate_off_v1.test.py
+          echo 'POLICY_STAGE_SOURCE_AND_SECRETS_PRESENT=PASS'
+      - name: Bind exactly one dedicated client, retain deny everyone and read back
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/one_shot_exact_stage_service_auth_20261102.py
