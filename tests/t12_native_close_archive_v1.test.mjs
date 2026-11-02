@@ -150,8 +150,15 @@ test('lost D1 response after a fully committed transaction recovers without dupl
 test('tampered archived line request ID rejects replay as incomplete rather than success',async()=>{
   const f=fixture();deliver(f.db);
   assert.equal((await closeAndArchiveT12OrderV1(f.env,f.user,f.body)).success,true);
+  // First prove the actual armed trigger prevents tampering.
+  assert.throws(()=>f.db.prepare(`UPDATE employee_core_archive_lines_v1 SET request_key='wrong-key'
+    WHERE line_id='L4322A'`).run(),/native-t12-order-already-archived/);
+  // Simulate earlier archival corruption from before the new migration was armed:
+  // deliberately OFF in fixture, inject old data, arm again, then verify replay.
+  f.db.prepare("UPDATE t12_native_archive_guard_control_v1 SET mode='OFF' WHERE singleton=1").run();
   f.db.prepare(`UPDATE employee_core_archive_lines_v1 SET request_key='wrong-key'
     WHERE line_id='L4322A'`).run();
+  f.db.prepare("UPDATE t12_native_archive_guard_control_v1 SET mode='GUARDED' WHERE singleton=1").run();
   assert.equal((await closeAndArchiveT12OrderV1(f.env,f.user,f.body)).code,
     'native-close-archive-existing-incomplete-review');
 });
