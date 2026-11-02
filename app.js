@@ -4887,33 +4887,60 @@ Trend Mall`;
     if (state.archiveDeliveredSaving || state.bulkStatusSaving || !bulkStatusScreenAllowed()) return;
     const details = archiveDeliveredDetails();
     if (!details.rowCount) return setMsg("bulkStatusMsg", "لا توجد بنود بحالة «تم التسليم» لأرشفتها في القسم الحالي.", true);
-    const warning = "سيتم نقل " + details.rowCount + " بند داخل " + details.orderCount + " أوردر من قسم " + bulkStatusDepartmentName() + " إلى شيت الأرشيف، ثم حذفها من شيت التشغيل لتسريع القراءة.\n\nيمكن الرجوع للبيانات داخل الأرشيف لاحقًا. هل تريد المتابعة؟";
+    const warning = "سيتم أرشفة الأوردرات الجديدة المكتملة التسليم فقط من قسم " + bulkStatusDepartmentName() +
+      " على Cloudflare D1.\n\nسيتم التنفيذ تلقائيًا على دفعات آمنة، وسيظهر لك عدد ما تم أرشفته والمتبقي. الأوردرات القديمة أو غير المكتملة لن تُؤرشف.\n\nهل تريد المتابعة؟";
     if (!confirm(warning)) return;
 
     const button = $("archiveDeliveredBtn");
     state.archiveDeliveredSaving = true;
     state.archiveDeliveredRequestId = state.archiveDeliveredRequestId || ("ARCHIVE-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9));
-    if (button) { button.disabled = true; button.textContent = "جاري الأرشفة..."; }
-    setMsg("bulkStatusMsg", "جاري نقل الأوردرات المسلّمة إلى الأرشيف...", false);
-    setLoading("جاري أرشفة تم التسليم في القسم...");
-
+    if (button) { button.disabled = true; button.textContent = "جاري الأرشفة 0..."; }
+    setMsg("bulkStatusMsg", "بدأت أرشفة الأوردرات المكتملة على Cloudflare D1...", false);
+    let totalOrders = 0, totalLines = 0, rounds = 0;
+    let allFinished = false;
     try {
-      const res = await api("archiveDeliveredDepartmentV1926", authParams({
-        screen: state.screen,
-        requestId: state.archiveDeliveredRequestId
-      }));
-      if (!res.success) {
-        setMsg("bulkStatusMsg", res.message || "تعذر أرشفة الأوردرات المسلّمة.", true);
-        alert(res.message || "تعذر أرشفة الأوردرات المسلّمة.");
-        return;
+      // One click, bounded 20 orders per HTTP call. Continue only while the
+      // backend confirms native T12-only qualified work remains.
+      for (;;) {
+        if (++rounds > 200) throw new Error("توقفت الأرشفة عند حد الأمان. تمت أرشفة " + totalOrders + " أوردر. افتح الشاشة وراجع الباقي.");
+        const res = await api("archiveDeliveredDepartmentV1926", authParams({
+          screen: state.screen,
+          requestId: state.archiveDeliveredRequestId
+        }));
+        totalOrders += Math.max(0, Number(res.archivedOrders || 0));
+        totalLines += Math.max(0, Number(res.archivedLines || 0));
+        if (!res.success) {
+          throw new Error((res.message || res.code || "تعذر إكمال الدفعة.") +
+            " تمت أرشفة " + totalOrders + " أوردر حتى الآن. لن نكرر أي أوردر مؤرشف.");
+        }
+        if (res.version !== "T12_NATIVE_COMPLETE_ORDERS_AUTO_BATCH_V2") {
+          throw new Error("نسخة السيرفر لا تدعم الاستكمال التلقائي بعد. تمت أرشفة " + totalOrders + " أوردر. راجع تحديث Cloudflare.");
+        }
+        const remaining = Math.max(0, Number(res.remainingEligible || 0));
+        const msg = "تمت أرشفة " + totalOrders + " أوردر (" + totalLines + " بند). المتبقي المؤهل: " + remaining + ".";
+        if (button) button.textContent = "جارٍ الأرشفة: " + totalOrders + " | باقي " + remaining;
+        setMsg("bulkStatusMsg", msg, false);
+        setLoading(msg);
+        if (!res.hasMore) { allFinished = true; break; }
+        if (Number(res.archivedOrders || 0) < 1) {
+          throw new Error("تم إيقاف الاستكمال لمنع الدوران بدون تقدم. تمت أرشفة " + totalOrders + " أوردر.");
+        }
+        await new Promise(function (resolve) { setTimeout(resolve, 100); });
       }
-      state.archiveDeliveredRequestId = "";
-      setMsg("bulkStatusMsg", res.message || "تمت الأرشفة بنجاح.", false);
-      alert(res.message || "تمت الأرشفة بنجاح.");
+      if (allFinished) state.archiveDeliveredRequestId = "";
+      const done = "اكتملت أرشفة الأوردرات السحابية المؤهلة: " + totalOrders + " أوردر (" + totalLines +
+        " بند). الأوردرات القديمة أو غير المكتملة لم تتغير.";
+      setMsg("bulkStatusMsg", done, false);
+      alert(done);
       await loadRows(true);
     } catch (err) {
-      setMsg("bulkStatusMsg", (err && err.message) || "تعذر الاتصال أثناء الأرشفة. اضغط الزر مرة أخرى لإعادة نفس الطلب بأمان.", true);
-      setLoading((err && err.message) || "خطأ أثناء الأرشفة.", true);
+      const message = (err && err.message) || "تعذر الاتصال أثناء الأرشفة. لا تحاول الاستكمال بأداة أخرى.";
+      setMsg("bulkStatusMsg", message, true);
+      setLoading(message, true);
+      alert(message);
+      if (totalOrders > 0) {
+        try { await loadRows(true); } catch (_) {}
+      }
     } finally {
       state.archiveDeliveredSaving = false;
       if (button) button.textContent = "أرشفة تم التسليم";
