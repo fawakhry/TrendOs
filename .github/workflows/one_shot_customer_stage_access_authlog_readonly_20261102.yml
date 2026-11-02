@@ -1,0 +1,28 @@
+name: ONE SHOT Customer Stage Access Authentication Log Counts READONLY
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/one_shot_customer_stage_access_authlog_readonly_20261102.yml'
+permissions:
+  contents: read
+jobs:
+  no-pii-access-log-audit:
+    if: github.event.pull_request.head.repo.full_name == 'fawakhry/TrendOs' && github.head_ref == 'ops/customer-stage-access-authlog-readonly-20261102'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCESS_API_TOKEN: ${{ secrets.CLOUDFLARE_ACCESS_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify read-only operator syntax
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/one_shot_customer_access_authlog_readonly_20261102.py
+          echo 'ACCESS_AUDIT_SOURCE_READ_ONLY=PASS'
+      - name: Access audit logs for exact synthetic Stage only with no PII
+        run: python3 tools/one_shot_customer_access_authlog_readonly_20261102.py
