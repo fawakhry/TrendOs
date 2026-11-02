@@ -15,6 +15,13 @@ assert os.environ.get("GITHUB_EVENT_NAME")=="pull_request"
 assert re.fullmatch(r"[A-Fa-f0-9]{32}",account)
 assert len(reader)>20 and len(access)>20 and reader!=access
 assert len(client)>20 and len(secret)>20
+# SHA-256 of the account ID visible in the user's own Cloudflare API Tokens
+# screenshot URL. Compare without publishing either account ID.
+import hashlib
+DASHBOARD_ACCOUNT_SHA256="c06325502840123b0349e3347d0e0a74bc0f229c2518e20b2846cc054e06724d"
+print("GITHUB_WORKER_ACCOUNT_MATCHES_USER_DASHBOARD="+str(
+    hmac.compare_digest(hashlib.sha256(account.lower().encode()).hexdigest(),
+                        DASHBOARD_ACCOUNT_SHA256)).upper())
 base="https://api.cloudflare.com/client/v4/accounts/"+account
 
 def get(path,token):
