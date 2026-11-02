@@ -254,6 +254,11 @@ async function bulkStatus(env,user,body){
   await commitLedger(env,requestId,response);return response;
 }
 async function archiveDelivered(env,user,body){
+  // One-writer fence: once the dedicated native T12 close/archive is enabled,
+  // never let the older bulk archive race and partially archive native orders.
+  // Default OFF retains the currently deployed behavior unchanged.
+  if(env?.TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED==='true')
+    return {success:false,code:'legacy-bulk-archive-suspended-for-native-t12-close'};
   const screen=text(body.screen),requestId=text(body.requestId);
   if(!screenAllowed(user,screen))return {success:false,message:'ليس لديك صلاحية أرشفة هذا القسم.'};
   const led=await requestLedger(env,requestId,'archiveDeliveredDepartmentV1926',user.username,{screen});
