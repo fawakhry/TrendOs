@@ -38,6 +38,16 @@ export async function closeAndArchiveT12OrderV1(env,user,body={}){
   if(!actor)return deny('actor-required');
   if(!env?.DB?.batch||!env?.DB?.prepare)return deny('native-db-unavailable');
   const db=env.DB;
+  // Requiring both explicit Worker flag and the separately armed original-D1
+  // trigger control prevents "successful" closure with editable archive rows.
+  let guard;
+  try{
+    guard=await db.prepare(`
+      SELECT mode FROM t12_native_archive_guard_control_v1
+       WHERE singleton=1 AND marker='T12_NATIVE_ARCHIVE_GUARD_V1'
+    `).first();
+  }catch{return deny('native-archive-db-guard-unavailable');}
+  if(text(guard?.mode)!=='GUARDED')return deny('native-archive-db-guard-not-armed');
   // Reconciliation must verify a complete archive; request ID alone is not proof.
   const archivedState=async()=>db.prepare(`
     SELECT a.request_key AS requestKey,a.status AS archiveStatus,
