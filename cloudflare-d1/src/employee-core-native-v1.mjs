@@ -3,7 +3,7 @@ import { closeAndArchiveT12OrderV1, nativeT12ArchiveWriteFenceV1, CLOSE_ARCHIVE_
 
 const ROOT='/v1/employee/core';
 const HEALTH=ROOT+'/health';
-const READ_ACTIONS=new Set(['getRows','getRowsPageV1931','getDashboard','getActivityLog','getTrendMasterCenterV1931']);
+const READ_ACTIONS=new Set(['getRows','getRowsPageV1931','getDashboard','getActivityLog','getTrendMasterCenterV1931','getArchiveEligibilityV1']);
 const WRITE_ACTIONS=new Set(['bulkUpdateDepartmentStatusV1926','archiveDeliveredDepartmentV1926','updateLine','markCustomerNotified',CLOSE_ARCHIVE_ACTION]);
 const STATUSES=new Set(['طلب جديد','بدأ التنفيذ','تحت التنفيذ','جاهز للاستلام','تم التسليم','متوقف','مكرر','ملغى']);
 const DEFAULT_ORIGINS=[
@@ -276,7 +276,7 @@ async function nativeArchiveEligibility(env,screen){
   if(env?.TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED!=='true')
     return {available:false,code:'native-archive-off'};
   try{
-    const eligible=await env.DB.prepare(`SELECT COUNT(*) AS n ${nativeArchiveEligibilitySql(screen)}`).bind().first();
+    const eligible=await env.DB.prepare(`SELECT COUNT(*) AS n ${nativeArchiveEligibilitySql(screen)}`).first();
     const match=screen==='print'?"instr(l.department,'طباعة')>0":
       screen==='laser'?"instr(l.department,'ليزر')>0":
       screen==='press'?"(l.heat_press=1 OR instr(l.department,'مكبس')>0)":"1=1";
@@ -285,7 +285,7 @@ async function nativeArchiveEligibility(env,screen){
       WHERE NOT EXISTS(SELECT 1 FROM employee_core_archive_orders_v1 a WHERE a.order_id=o.order_id)
       AND EXISTS(SELECT 1 FROM t12_prod_lines l WHERE l.order_id=o.order_id AND ${match})
       AND EXISTS(SELECT 1 FROM employee_core_archive_lines_v1 a WHERE a.order_id=o.order_id)
-    `).bind().first();
+    `).first();
     return {available:true,eligibleOrders:num(eligible?.n),
       partiallyArchivedOrders:num(partial?.n),source:'original-t12-d1',
       version:'T12_NATIVE_ARCHIVE_ELIGIBILITY_V3'};
@@ -442,7 +442,15 @@ export async function handleEmployeeCoreNativeRequest(request,env){
     let schemaReady=false;
     try{const r=await env.DB.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('employee_core_control_v1','employee_core_request_ledger_v1','employee_core_orders_v1','employee_core_lines_v1','employee_core_archive_orders_v1','employee_core_archive_lines_v1','employee_core_events_v1','employee_core_delivery_restrictions_v1')").first();schemaReady=num(r&&r.n)===8;}catch{}
     const c=schemaReady?await control(env):{mode:'OFF',policyEpoch:0,dataVersion:0};
-    return json({success:true,schemaReady,mode:text(c.mode)||'OFF',policyEpoch:num(c.policyEpoch),dataVersion:num(c.dataVersion),actions:[...READ_ACTIONS,...WRITE_ACTIONS],archiveEligibilityVersion:'T12_NATIVE_ARCHIVE_ELIGIBILITY_V3',googleBusinessCalls:0,appsScriptBusinessAuthority:false,authBridgeTemporary:true},schemaReady?200:503,cors(request,env));
+    const probe=url.searchParams.get('archiveProbe')==='1'
+      ? await nativeArchiveEligibility(env,'service') : null;
+    return json({success:true,schemaReady,mode:text(c.mode)||'OFF',
+      policyEpoch:num(c.policyEpoch),dataVersion:num(c.dataVersion),
+      actions:[...READ_ACTIONS,...WRITE_ACTIONS],
+      archiveEligibilityVersion:'T12_NATIVE_ARCHIVE_ELIGIBILITY_V4',
+      archiveProbe:probe?{available:probe.available===true,code:probe.code||null}:undefined,
+      googleBusinessCalls:0,appsScriptBusinessAuthority:false,authBridgeTemporary:true},
+      schemaReady?200:503,cors(request,env));
   }
   if(request.method!=='POST')return json({success:false,code:'method-not-allowed'},405,cors(request,env));
   if(!allowedOrigin(request,env))return json({success:false,code:'origin-forbidden'},403,cors(request,env));
@@ -467,6 +475,16 @@ export async function handleEmployeeCoreNativeRequest(request,env){
           archiveEligibility:await nativeArchiveEligibility(env,screen),
           version:'ENTRY650_D1_EMPLOYEE_CORE_PAGE_ALIAS_V1'
         };
+      }
+    }else if(action==='getArchiveEligibilityV1'){
+      const screen=text(body.screen)||'service';
+      if(!screenAllowed(a.user,screen))
+        out={success:false,code:'archive-screen-forbidden'};
+      else {
+        const archiveEligibility=await nativeArchiveEligibility(env,screen);
+        out=archiveEligibility.available
+          ? {success:true,archiveEligibility,version:'T12_NATIVE_ARCHIVE_ELIGIBILITY_V4'}
+          : {success:false,code:archiveEligibility.code||'native-archive-count-unavailable'};
       }
     }else if(action==='getDashboard'){
       const screen=text(body.screen)||'service';if(!screenAllowed(a.user,screen))out={success:false,message:'غير مصرح لك بعرض أوردرات هذا القسم.'};
