@@ -66,6 +66,8 @@ function fixture(){
   db.prepare("UPDATE t12_native_archive_guard_control_v1 SET mode='GUARDED' WHERE singleton=1").run();
   const adapter={
     prepare(sql){return {
+      // D1.batch accepts prepared statements without bind() for zero placeholders.
+      sql,args:[],
       first:async()=>db.prepare(sql).get()||null,
       all:async()=>({results:db.prepare(sql).all()}),
       run:async()=>db.prepare(sql).run(),
