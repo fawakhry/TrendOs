@@ -7,6 +7,7 @@ import {handleEmployeeAccountingNativeRequest} from '../../src/employee-accounti
 import {verifyEmployeeSessionIsolatedV1} from '../../src/accounting-employee-session-bridge-v1.mjs';
 import sessionWorker from '../trendos-native-session-source.mjs';
 import customerWorker from '../trendos-customer-facts-source.mjs';
+import stageWorker from '../index.mjs';
 
 function d1(db, log, forbid=''){
  return {prepare(sql){
@@ -19,6 +20,14 @@ function d1(db, log, forbid=''){
      async all(){return {results:db.prepare(q).all(...args)};},
      async run(){return db.prepare(q).run(...args);}
    };return stmt;
+ },async batch(stmts){
+   db.exec('BEGIN');
+   try {
+     const outcomes=[];
+     for (const s of stmts) outcomes.push(await s.run());
+     db.exec('COMMIT');
+     return outcomes;
+   } catch (e) { db.exec('ROLLBACK'); throw e; }
  }};
 }
 const FINANCE_SCHEMA=[
@@ -89,6 +98,54 @@ test('real native SSO + real native finance READONLY across physically separate 
   const forged=await send({action:'getCustomerAccountV1915',customerId:'FAKE-CUSTOMER-236',role:'admin'},'FAKE_WRONG_TOKEN');
   assert.equal(forged.status,401);
   assert.equal(forged.body.code,'employee-session-rejected');
+  // ACC291 new gateway gap: the ORIGINAL private Stage entrypoint, not only
+  // the engine, can accept ONE zero-only supplier master with authentic
+  // source-native session+full finance grant, while money remains locked.
+  const originalGrant=financeEnv.ACCOUNTING_FINANCE_GRANTS_V1;
+  financeEnv.ACCOUNTING_FINANCE_GRANTS_V1=JSON.stringify(
+    {version:1,grants:[{username:user,mode:'full'}]});
+  const stageEnv={...financeEnv,
+    EASYSTORE_STAGE_READONLY_API_V1:'ENFORCE',
+    FINANCE_RELEASE:'NO_GO',FINANCE_WRITES:'OFF',
+    EASYSTORE_ACCOUNTING_D1_WRITES:'false',EASYSTORE_ACCOUNTING_D1_WRITE_MODE:'OFF',
+    EASYSTORE_STAGE_SUPPLIER_MASTER_INTAKE_V1:'ENFORCE',
+    EASYSTORE_SUPPLIER_MASTER_INTAKE_V1:'ENFORCE',
+    EASYSTORE_OPENING_DRAFT_INTAKE_V1:'OFF'
+  };
+  const stageCall=async(action,payload={})=>{
+    const response=await stageWorker.fetch(new Request(
+      'https://accounting-stage.test/v1/employee/accounting',{
+      method:'POST',headers:{authorization:'Bearer '+tok},
+      body:JSON.stringify({action,username:user,...payload})
+    }),stageEnv);
+    return {status:response.status,body:await response.json()};
+  };
+  const supplierRequest={requestId:'ACC291-SUPPLIER-NATIVE-SESSION-PROOF-001',
+    name:'ACC291 Stage Gateway Synthetic Supplier',opening:0,phone:'000'};
+  const stageSaved=await stageCall('saveEasyStoreSupplier',supplierRequest);
+  assert.equal(stageSaved.status,200,JSON.stringify(stageSaved));
+  assert.equal(stageSaved.body.success,true);
+  assert.equal(stageSaved.body.openingBalance,0);
+  assert.match(stageSaved.body.partyId,/^SUP-/);
+  const readSupplier=await stageCall('getEasyStoreSuppliers');
+  assert.equal(readSupplier.status,200,JSON.stringify(readSupplier));
+  assert.equal(readSupplier.body.suppliers.some(x=>
+    x.partyId===stageSaved.body.partyId && x.currentBalance===0 && x.active===true),true);
+  const replay=await stageCall('saveEasyStoreSupplier',supplierRequest);
+  assert.equal(replay.status,200,JSON.stringify(replay));
+  assert.equal(replay.body.partyId,stageSaved.body.partyId);
+  assert.equal(replay.body.duplicatePrevented,true);
+  for (const blockedAction of ['saveAccountingFinalInvoice','saveEasyStoreSaleV2',
+    'saveEasyStoreOpeningDraftV1','saveCustomerAccountMovementV1915']){
+    const blocked=await stageCall(blockedAction,{amount:100});
+    assert.equal(blocked.status,503,blockedAction);
+  }
+  assert.equal(fin.prepare('SELECT COUNT(*) AS n FROM employee_accounting_party_ledger_v1').get().n,0);
+  assert.equal(fin.prepare('SELECT COUNT(*) AS n FROM employee_accounting_cashbox_v1').get().n,0);
+  assert.equal(fin.prepare("SELECT COUNT(*) AS n FROM employee_accounting_parties_v1 WHERE party_type='supplier'").get().n,1);
+  assert.ok(opSql.every(q=>!/(INSERT|UPDATE|DELETE)/i.test(q)),
+    'signed native session verifier must not mutate operational staff DB');
+  financeEnv.ACCOUNTING_FINANCE_GRANTS_V1=originalGrant;
   // Session still active, but no explicit independent finance grant => rejected.
   financeEnv.ACCOUNTING_FINANCE_GRANTS_V1=JSON.stringify({version:1,grants:[]});
   const noGrant=await send({action:'getEasyStoreCustomers'});
