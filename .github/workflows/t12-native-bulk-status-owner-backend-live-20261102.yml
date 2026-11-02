@@ -1,0 +1,153 @@
+name: T12 Native Bulk Status - Owner Backend Only Live 20261102
+on:
+  push:
+    branches: [candidate/t12-full-cloud-cutover-a56-20260929]
+    paths: ['.github/workflows/t12-native-bulk-status-owner-backend-live-20261102.yml']
+permissions: {contents: read}
+concurrency:
+  group: trendos-d1-api-production-t12-bulk-status
+  cancel-in-progress: false
+jobs:
+  backend-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EXPECTED_BRANCH_PARENT: 941d5188b578296ecf9bd2d0f2c69152c726234e
+      PRE_BACKEND_VERSION: 4ec47845-6045-468e-a464-531262f8a831
+      LIVE_UI_VERSION: 4bfbd9e9-f89f-4bc6-b436-64b30850ed54
+      LIVE_UI_APP_SHA: e48769d206e8c723d0e7164c92fa7c4cd9cd43b858575cf0f9b6d6beaef1a69f
+      LIVE_UI_DISPATCHER_SHA: cab74d638bf937f8f42a484db99eeffc9ebb097a01558856e70fd46a0cad44f6
+      BACKEND_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false,fetch-depth: 2}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Exact original source and 32 Cloudflare T12 bulk archive native-auth SQLite/HTTP tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_BRANCH_PARENT"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Fxq 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'main = "production-shadow/index.js"' cloudflare-d1/wrangler.toml
+          grep -Fq 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "true"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          ! grep -q '^TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED' cloudflare-d1/wrangler.toml
+          node --check cloudflare-d1/src/employee-core-native-v1.mjs
+          node --check cloudflare-d1/src/t12-native-bulk-status-v2.mjs
+          node --check app.js
+          node --check employee-api-dispatcher-v1.js
+          node --test --no-warnings tests/t12_native_close_archive_v1.test.mjs
+          echo T12_BULK_32_TESTS=PASS
+          npm install --no-save wrangler@4.33.2 >/dev/null 2>&1
+      - name: Require exact already-published UI auto-loop and PIN current UI/backend leases
+        shell: bash
+        run: |
+          set -euo pipefail
+          for spec in "trendos-d1-api:$PRE_BACKEND_VERSION" "trendos-ui:$LIVE_UI_VERSION"; do
+            name="${spec%%:*}";expected="${spec#*:}"
+            curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$name/deployments" >/tmp/lease.json
+            EXPECTED="$expected" node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/lease.json','utf8'));
+          if(!x.success)throw Error('CF API failed');
+          const a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(v.length!==1||v[0].version_id!==process.env.EXPECTED||Number(v[0].percentage)!==100)throw Error('Concurrent UI/backend deployment: fail closed');
+          console.log('PRODUCTION_LEASE='+v[0].version_id);
+          NODE
+          done
+          curl -fLsS "$UI_URL/app.js?archive-auto-pre=$GITHUB_SHA-$(date +%s%N)" >/tmp/app-live.js
+          echo "$LIVE_UI_APP_SHA  /tmp/app-live.js" | sha256sum --check
+          cmp /tmp/app-live.js app.js
+          curl -fLsS "$UI_URL/employee-api-dispatcher-v1.js?bulk-lease=$GITHUB_SHA-$(date +%s%N)" >/tmp/dispatcher-live.js
+          echo "$LIVE_UI_DISPATCHER_SHA  /tmp/dispatcher-live.js" | sha256sum --check
+          cmp /tmp/dispatcher-live.js employee-api-dispatcher-v1.js
+          node -e 'const s=require("fs").readFileSync("/tmp/app-live.js","utf8");if(!s.includes("T12_NATIVE_BULK_STATUS_BATCH_V2")||!s.includes("getBulkStatusEligibilityV1")||!s.includes("bulkStatusNextBatch"))process.exit(1)'
+          echo UI_ALREADY_UPDATED_NO_DEPLOY_REQUIRED=PASS
+          curl -fsS "$BACKEND_URL/v1/employee/core/health" >/tmp/core-before.json
+          curl -fsS "$BACKEND_URL/v1/employee/auth/health" >/tmp/auth-before.json
+          node <<'NODE'
+          const c=require('/tmp/core-before.json'),a=require('/tmp/auth-before.json');
+          if(!c.schemaReady||c.mode!=='GENERAL'||a.mode!=='NATIVE'||!a.nativeOnly)throw Error('Backend auth/core drift');
+          if(c.archiveEligibilityVersion!=='T12_NATIVE_ARCHIVE_ELIGIBILITY_V4'||c.bulkStatusEnabled===true)throw Error('Unexpected existing backend bulk version/flag');
+          console.log('BACKEND_ORIGINAL_HEALTH=PASS');
+          NODE
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT mode,(SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name LIKE 'trg_t12_native_archive_v1_%') AS n FROM t12_native_archive_guard_control_v1 WHERE singleton=1" >/tmp/guard.json
+          node <<'NODE'
+          const x=require('/tmp/guard.json'),r=(Array.isArray(x)?x:[x]).flatMap(a=>a.results||[])[0]||{};
+          if(r.mode!=='GUARDED'||Number(r.n)!==12)throw Error('Guard drift');
+          console.log('D1_GUARDED_12_TRIGGERS=PASS');
+          NODE
+      - name: Inject only existing approved feature flag, Wrangler dry-run and recheck backend lease
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i '/^TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "true"/a TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED = "true"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED = "true"' cloudflare-d1/wrangler.toml
+          sed -i '/^TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED = "true"/a TRENDOS_T12_NATIVE_BULK_STATUS_V2_ENABLED = "true"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'TRENDOS_T12_NATIVE_BULK_STATUS_V2_ENABLED = "true"' cloudflare-d1/wrangler.toml
+          test "$(grep -c '^TRENDOS_T12_NATIVE_BULK_STATUS_V2_ENABLED' cloudflare-d1/wrangler.toml)" = 1
+          test "$(grep -c '^TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED' cloudflare-d1/wrangler.toml)" = 1
+          npx wrangler deploy --dry-run --config cloudflare-d1/wrangler.toml --outdir /tmp/t12-only-backend-dry >/tmp/compile.txt
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/trendos-d1-api/deployments" >/tmp/lease-last.json
+          node <<'NODE'
+          let x=require('/tmp/lease-last.json'),a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(v.length!==1||v[0].version_id!==process.env.PRE_BACKEND_VERSION||Number(v[0].percentage)!==100)throw Error('Backend changed before deploy; stop');
+          NODE
+          echo T12_NATIVE_BULK_DRY_RUN_AND_LEASE=PASS
+      - name: Deploy original backend only, verify health and 100 percent version; rollback on failure
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = 1 ]; then
+              echo BACKEND_ROLLBACK_ATTEMPTED=YES
+              npx wrangler rollback "$PRE_BACKEND_VERSION" --config cloudflare-d1/wrangler.toml --message 'T12 native bulk backend failed health or D1 probe' || true
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+          DEPLOYED=1
+          npx wrangler deploy --config cloudflare-d1/wrangler.toml >/tmp/t12-backend-deploy.log
+          for i in $(seq 1 8); do
+            curl -fsS "$BACKEND_URL/v1/employee/core/health" >/tmp/post-core.json || true
+            if node -e 'const x=require("/tmp/post-core.json");process.exit(x.mode==="GENERAL"&&x.schemaReady===true&&x.actions?.includes("getBulkStatusEligibilityV1")&&x.bulkStatusEnabled===true&&x.bulkStatusVersion==="T12_NATIVE_BULK_STATUS_BATCH_V2"?0:1)'; then break;fi
+            sleep 2
+          done
+          node -e 'let x=require("/tmp/post-core.json");if(x.mode!=="GENERAL"||!x.schemaReady||!x.actions?.includes("getBulkStatusEligibilityV1")||x.bulkStatusEnabled!==true||x.bulkStatusVersion!=="T12_NATIVE_BULK_STATUS_BATCH_V2")process.exit(1)'
+          curl -fsS "$BACKEND_URL/v1/employee/core/health?archiveProbe=1" >/tmp/post-count-probe.json
+          node -e 'const x=require("/tmp/post-count-probe.json");if(x.archiveEligibilityVersion!=="T12_NATIVE_ARCHIVE_ELIGIBILITY_V4"||x.archiveProbe?.available!==true||x.archiveProbe?.eligibleOrders!==undefined)process.exit(1)'
+          curl -fsS "$BACKEND_URL/v1/employee/core/health?bulkProbe=1" >/tmp/post-bulk-probe.json
+          node -e 'const x=require("/tmp/post-bulk-probe.json");if(x.bulkStatusEnabled!==true||x.bulkProbe?.available!==true||x.bulkProbe?.eligibleLines!==undefined||x.archiveProbe!==undefined)process.exit(1)'
+          echo LIVE_NATIVE_BULK_D1_QUERY=PASS
+          curl -fsS "$BACKEND_URL/v1/employee/auth/health" >/tmp/post-auth.json
+          node -e 'let x=require("/tmp/post-auth.json");if(x.mode!=="NATIVE"||!x.nativeOnly)process.exit(1)'
+          status="$(curl -sS --output /tmp/anonymous.json --write-out '%{http_code}' -X POST -H 'Content-Type: application/json' --data '{"action":"archiveDeliveredDepartmentV1926","username":"anonymous","screen":"service","requestId":"ARCHIVE-NOAUTH-POSTCHECK"}' "$BACKEND_URL/v1/employee/core")"
+          test "$status" = 401
+          status="$(curl -sS --output /tmp/anonymous-bulk.json --write-out '%{http_code}' -X POST -H 'Content-Type: application/json' --data '{"action":"bulkUpdateDepartmentStatusV1926","username":"anonymous","screen":"print","fromStatus":"طلب جديد","toStatus":"بدأ التنفيذ","requestId":"bulk-noauth-owner-checked"}' "$BACKEND_URL/v1/employee/core")"
+          test "$status" = 401
+          echo BULK_AUTH_NEGATIVE_HTTP_401=PASS
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/trendos-d1-api/deployments" >/tmp/post-deploy.json
+          node <<'NODE'
+          let x=require('/tmp/post-deploy.json'),a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(v.length!==1||v[0].version_id===process.env.PRE_BACKEND_VERSION||Number(v[0].percentage)!==100)throw Error('New backend not live');
+          console.log('T12_BACKEND_NEW_ACTIVE_VERSION='+v[0].version_id);
+          NODE
+          # Do not touch UI; verify the current already-published loop is unchanged.
+          curl -fLsS "$UI_URL/app.js?archive-auto-post=$GITHUB_SHA-$(date +%s%N)" >/tmp/app-post.js
+          echo "$LIVE_UI_APP_SHA  /tmp/app-post.js" | sha256sum --check
+          curl -fLsS "$UI_URL/employee-api-dispatcher-v1.js?bulk-post=$GITHUB_SHA-$(date +%s%N)" >/tmp/dispatcher-post.js
+          echo "$LIVE_UI_DISPATCHER_SHA  /tmp/dispatcher-post.js" | sha256sum --check
+          trap - ERR
+          echo T12_NATIVE_BULK_STATUS_V2_LIVE=YES
+          echo UI_PRODUCTION_MUTATIONS=NO
+          echo HISTORICAL_GOOGLE_ORDER_MUTATIONS=NO
+          echo BACKEND_ROLLBACK_USED=NO
