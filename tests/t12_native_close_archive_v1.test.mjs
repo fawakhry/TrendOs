@@ -644,6 +644,30 @@ test('native bulk UI uses the exact D1 count and requests independent 20-line id
   assert.match(src,/THEN \? ELSE NULL END/);
   assert.doesNotMatch(src,/employee_core_lines_v1|script.google.com|APPS_SCRIPT_API_URL/);
 });
+test('native bulk health probe is boolean-only and rejects unavailable auth-free bulk mutation',async()=>{
+  const f=fixture();
+  for(const migration of ['0008_t12_customer_master.sql','0016_employee_core_zero_google_v1.sql',
+    '0017_employee_core_current_orders_v1.sql'])
+    f.db.exec(readFileSync(new URL('../cloudflare-d1/migrations/'+migration,import.meta.url),'utf8'));
+  f.env.TRENDOS_T12_NATIVE_BULK_STATUS_V2_ENABLED='true';
+  const req=new Request('https://trendos-d1-api.example.test/v1/employee/core/health?bulkProbe=1',{method:'GET'});
+  const result=await handleEmployeeCoreNativeRequest(req,f.env);
+  const data=await result.json();
+  assert.equal(result.status,200);
+  assert.equal(data.bulkStatusVersion,'T12_NATIVE_BULK_STATUS_BATCH_V2');
+  assert.equal(data.bulkStatusEnabled,true);
+  assert.equal(data.bulkProbe.available,true);
+  assert.equal(data.bulkProbe.eligibleLines,undefined);
+  assert.equal(data.bulkProbe.eligibleOrders,undefined);
+  const unauth=new Request('https://trendos-d1-api.example.test/v1/employee/core',{
+    method:'POST',headers:{origin:'https://fawakhry.github.io','content-type':'application/json'},
+    body:JSON.stringify({action:'bulkUpdateDepartmentStatusV1926',screen:'print',
+      fromStatus:'طلب جديد',toStatus:'بدأ التنفيذ',requestId:'bulk-noauth-deny-id'})
+  });
+  const denied=await handleEmployeeCoreNativeRequest(unauth,f.env);
+  assert.equal(denied.status,401);
+  assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM t12_prod_line_runtime").get().n,0);
+});
 test('new archive action preserves original legacy bulk route only while feature OFF',()=>{
   const core=readFileSync(new URL('../cloudflare-d1/src/employee-core-native-v1.mjs',import.meta.url),'utf8');
   assert.match(core,/if\(env\?\.TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED==='true'\)/);
