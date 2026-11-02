@@ -1,4 +1,4 @@
-name: T12 Archive UI Live Function Match Readonly 20261102
+name: T12 Archive UI Live Function Match Readonly 20261102 (lease refresh)
 on:
   push:
     branches: [candidate/t12-full-cloud-cutover-a56-20260929]
