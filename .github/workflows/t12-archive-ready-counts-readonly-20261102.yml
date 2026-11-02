@@ -21,13 +21,26 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN"
           grep -Fxq 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
           grep -Fq 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
-          SQL="SELECT 't12_order_all' AS k, COUNT(*) AS n FROM t12_prod_orders UNION ALL SELECT 't12_order_full_delivered_unarchived',COUNT(*) FROM t12_prod_orders o WHERE EXISTS(SELECT 1 FROM t12_prod_lines l WHERE l.order_id=o.order_id) AND NOT EXISTS(SELECT 1 FROM t12_prod_lines l LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id WHERE l.order_id=o.order_id AND COALESCE(r.status,l.status)<>'تم التسليم') AND NOT EXISTS(SELECT 1 FROM employee_core_archive_orders_v1 a WHERE a.order_id=o.order_id) UNION ALL SELECT 't12_order_any_delivered',COUNT(DISTINCT l.order_id) FROM t12_prod_lines l LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id WHERE COALESCE(r.status,l.status)='تم التسليم' UNION ALL SELECT 'imported_delivered_active_lines',COUNT(*) FROM employee_core_lines_v1 WHERE active=1 AND status='تم التسليم' UNION ALL SELECT 'imported_delivered_active_orders',COUNT(DISTINCT order_id) FROM employee_core_lines_v1 WHERE active=1 AND status='تم التسليم' UNION ALL SELECT 'native_archived_orders',COUNT(*) FROM employee_core_archive_orders_v1 a WHERE EXISTS(SELECT 1 FROM t12_prod_orders o WHERE o.order_id=a.order_id) UNION ALL SELECT 'archive_all_orders',COUNT(*) FROM employee_core_archive_orders_v1;"
-          npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "$SQL" >/tmp/diag.json
-          node <<'NODE'
-          const fs=require('node:fs'),x=JSON.parse(fs.readFileSync('/tmp/diag.json','utf8'));
-          const rows=(Array.isArray(x)?x:[x]).flatMap(o=>o.results||[]);
-          const m=Object.fromEntries(rows.map(r=>[r.k,Number(r.n)]));
-          console.log('ARCHIVE_AGGREGATES_NO_PII='+JSON.stringify(m));
-          if(rows.length!==7)process.exit(1);
+          for spec in \
+            "native_orders|SELECT COUNT(*) AS n FROM t12_prod_orders" \
+            "old_delivered_lines|SELECT COUNT(*) AS n FROM employee_core_lines_v1 WHERE active=1 AND status='تم التسليم'" \
+            "old_delivered_orders|SELECT COUNT(DISTINCT order_id) AS n FROM employee_core_lines_v1 WHERE active=1 AND status='تم التسليم'" \
+            "native_archived|SELECT COUNT(*) AS n FROM employee_core_archive_orders_v1 a WHERE EXISTS(SELECT 1 FROM t12_prod_orders o WHERE o.order_id=a.order_id)" \
+            "native_ready|SELECT COUNT(*) AS n FROM t12_prod_orders o WHERE EXISTS(SELECT 1 FROM t12_prod_lines l WHERE l.order_id=o.order_id) AND NOT EXISTS(SELECT 1 FROM t12_prod_lines l LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id WHERE l.order_id=o.order_id AND COALESCE(r.status,l.status)<>'تم التسليم') AND NOT EXISTS(SELECT 1 FROM employee_core_archive_orders_v1 a WHERE a.order_id=o.order_id)"; do
+            name="${spec%%|*}"; sql="${spec#*|}"
+            set +e
+            raw="$(npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "$sql" 2>&1)"
+            exit_code=$?
+            set -e
+            if [ "$exit_code" -ne 0 ]; then
+              echo "DIAG=${name} FAIL_EXIT_${exit_code}"
+              echo "$raw" | tail -c 1000
+              continue
+            fi
+            printf '%s' "$raw" >/tmp/count.json
+            NAME="$name" node <<'NODE'
+          const fs=require('fs');let j;try{j=JSON.parse(fs.readFileSync('/tmp/count.json','utf8'))}catch(e){console.log(process.env.NAME+'=invalid_json');process.exit(0)}
+          const arr=Array.isArray(j)?j:[j],z=arr.flatMap(x=>x.results||[]);console.log('ARCHIVE_COUNT_'+process.env.NAME.toUpperCase()+'='+String(z[0]?.n??'unknown'))
           NODE
+          done
           echo ARCHIVE_READONLY_ONLY=PASS
