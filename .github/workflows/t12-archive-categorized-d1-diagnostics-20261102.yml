@@ -1,0 +1,40 @@
+name: T12 Archive Accurate Eligible and Partial Diagnostics 20261102
+on:
+  push:
+    branches: [candidate/t12-full-cloud-cutover-a56-20260929]
+    paths: ['.github/workflows/t12-archive-categorized-d1-diagnostics-20261102.yml']
+permissions: { contents: read }
+jobs:
+  read-only-counts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Read-only 8 categorized counts without customer or order identifiers
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          grep -Fxq 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fq 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          raw="$(npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT COUNT(*) AS n FROM t12_prod_orders o WHERE EXISTS(SELECT 1 FROM t12_prod_lines l WHERE l.order_id=o.order_id) AND NOT EXISTS(SELECT 1 FROM t12_prod_lines l LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id WHERE l.order_id=o.order_id AND COALESCE(r.status,l.status)<>'تم التسليم') AND NOT EXISTS(SELECT 1 FROM employee_core_archive_orders_v1 a WHERE a.order_id=o.order_id) AND NOT EXISTS(SELECT 1 FROM employee_core_archive_lines_v1 al WHERE al.order_id=o.order_id)" 2>&1)" || { echo 'COUNT_QUERY_complete_no_archive_rows=ERROR'; exit 1; }
+          printf '%s' "$raw" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const x=JSON.parse(s),r=(Array.isArray(x)?x:[x]).flatMap(z=>z.results||[]);if(!Number.isInteger(Number(r[0]?.n)))process.exit(1);console.log("D1_COMPLETE_NO_ARCHIVE_ROWS="+r[0].n);});'
+          raw="$(npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT COUNT(*) AS n FROM t12_prod_orders o WHERE NOT EXISTS(SELECT 1 FROM employee_core_archive_orders_v1 a WHERE a.order_id=o.order_id) AND EXISTS(SELECT 1 FROM employee_core_archive_lines_v1 al WHERE al.order_id=o.order_id)" 2>&1)" || { echo 'COUNT_QUERY_complete_partially_archived=ERROR'; exit 1; }
+          printf '%s' "$raw" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const x=JSON.parse(s),r=(Array.isArray(x)?x:[x]).flatMap(z=>z.results||[]);if(!Number.isInteger(Number(r[0]?.n)))process.exit(1);console.log("D1_COMPLETE_PARTIALLY_ARCHIVED="+r[0].n);});'
+          raw="$(npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT COUNT(*) AS n FROM employee_core_archive_orders_v1 a JOIN t12_prod_orders o ON o.order_id=a.order_id WHERE (SELECT COUNT(*) FROM employee_core_archive_lines_v1 al WHERE al.order_id=a.order_id)=(SELECT COUNT(*) FROM t12_prod_lines l WHERE l.order_id=a.order_id)" 2>&1)" || { echo 'COUNT_QUERY_full_archive_order_plus_lines=ERROR'; exit 1; }
+          printf '%s' "$raw" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const x=JSON.parse(s),r=(Array.isArray(x)?x:[x]).flatMap(z=>z.results||[]);if(!Number.isInteger(Number(r[0]?.n)))process.exit(1);console.log("D1_FULL_ARCHIVE_ORDER_PLUS_LINES="+r[0].n);});'
+          raw="$(npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT COUNT(*) AS n FROM t12_prod_lines l JOIN t12_prod_orders o ON o.order_id=l.order_id LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id WHERE a.line_id IS NULL" 2>&1)" || { echo 'COUNT_QUERY_core_active_native_rows=ERROR'; exit 1; }
+          printf '%s' "$raw" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const x=JSON.parse(s),r=(Array.isArray(x)?x:[x]).flatMap(z=>z.results||[]);if(!Number.isInteger(Number(r[0]?.n)))process.exit(1);console.log("D1_CORE_ACTIVE_NATIVE_ROWS="+r[0].n);});'
+          raw="$(npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT COUNT(*) AS n FROM t12_prod_lines l JOIN t12_prod_orders o ON o.order_id=l.order_id LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id WHERE a.line_id IS NULL AND COALESCE(r.status,l.status)='تم التسليم'" 2>&1)" || { echo 'COUNT_QUERY_core_active_native_delivered=ERROR'; exit 1; }
+          printf '%s' "$raw" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const x=JSON.parse(s),r=(Array.isArray(x)?x:[x]).flatMap(z=>z.results||[]);if(!Number.isInteger(Number(r[0]?.n)))process.exit(1);console.log("D1_CORE_ACTIVE_NATIVE_DELIVERED="+r[0].n);});'
+          raw="$(npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT COUNT(*) AS n FROM employee_core_archive_lines_v1 al JOIN t12_prod_orders o ON o.order_id=al.order_id WHERE NOT EXISTS(SELECT 1 FROM employee_core_archive_orders_v1 a WHERE a.order_id=al.order_id)" 2>&1)" || { echo 'COUNT_QUERY_archive_lines_without_archive_order=ERROR'; exit 1; }
+          printf '%s' "$raw" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const x=JSON.parse(s),r=(Array.isArray(x)?x:[x]).flatMap(z=>z.results||[]);if(!Number.isInteger(Number(r[0]?.n)))process.exit(1);console.log("D1_ARCHIVE_LINES_WITHOUT_ARCHIVE_ORDER="+r[0].n);});'
+          raw="$(npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT COUNT(*) AS n FROM t12_prod_lines l LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id WHERE a.line_id IS NULL AND COALESCE(r.status,l.status)='تم التسليم' AND instr(l.department,'طباعة')>0" 2>&1)" || { echo 'COUNT_QUERY_active_delivered_print=ERROR'; exit 1; }
+          printf '%s' "$raw" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const x=JSON.parse(s),r=(Array.isArray(x)?x:[x]).flatMap(z=>z.results||[]);if(!Number.isInteger(Number(r[0]?.n)))process.exit(1);console.log("D1_ACTIVE_DELIVERED_PRINT="+r[0].n);});'
+          raw="$(npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT COUNT(*) AS n FROM t12_prod_lines l LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id WHERE a.line_id IS NULL AND COALESCE(r.status,l.status)='تم التسليم' AND instr(l.department,'ليزر')>0" 2>&1)" || { echo 'COUNT_QUERY_active_delivered_laser=ERROR'; exit 1; }
+          printf '%s' "$raw" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const x=JSON.parse(s),r=(Array.isArray(x)?x:[x]).flatMap(z=>z.results||[]);if(!Number.isInteger(Number(r[0]?.n)))process.exit(1);console.log("D1_ACTIVE_DELIVERED_LASER="+r[0].n);});'
+          echo ORIGINAL_D1_COUNTS_ONLY_NO_MUTATION=PASS
