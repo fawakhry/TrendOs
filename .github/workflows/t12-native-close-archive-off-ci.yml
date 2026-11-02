@@ -1,5 +1,15 @@
 name: T12 Native New-Order Close and Archive (Source OFF / SQLite)
 on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'cloudflare-d1/src/t12-native-close-archive-v1.mjs'
+      - 'cloudflare-d1/src/employee-core-native-v1.mjs'
+      - 'cloudflare-d1/src/t12-operational-runtime-handler.mjs'
+      - 'cloudflare-d1/migrations/0032_t12_native_archive_guard_v1.sql'
+      - 'tests/t12_native_close_archive_v1.test.mjs'
+      - '.github/workflows/t12-native-close-archive-off-ci.yml'
   pull_request:
     branches:
       - candidate/t12-full-cloud-cutover-a56-20260929
