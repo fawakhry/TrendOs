@@ -22,6 +22,9 @@ on:
       - 'tests/entry614_employee_accounting_native.test.mjs'
       - 'tests/entry614_zero_google_employee_business_coverage.test.mjs'
       - '.github/workflows/trendos-entry614-zero-google-business-coverage-ci.yml'
+  pull_request:
+    paths:
+      - '.github/workflows/trendos-entry614-zero-google-business-coverage-ci.yml'
   workflow_dispatch:
 
 permissions:
@@ -73,7 +76,7 @@ jobs:
           grep -Fq "ENTRY614_EMPLOYEE_CORE_V1','OFF" cloudflare-d1/migrations/0016_employee_core_zero_google_v1.sql
           echo 'ENTRY614_ALL_NEW_CONTROLS_DEFAULT_OFF=YES'
 
-      - name: Production remains unchanged
+      - name: Read-only production cutover truth (Native Auth, bridge OFF, order and customer baseline)
         shell: bash
         run: |
           set -euo pipefail
@@ -88,12 +91,23 @@ jobs:
           const b=JSON.parse(fs.readFileSync('/tmp/bridge.json','utf8'));
           const o=JSON.parse(fs.readFileSync('/tmp/orders.json','utf8'));
           const c=JSON.parse(fs.readFileSync('/tmp/customers.json','utf8'));
-          if(a.mode!=='OFF'||a.envEnabled!==false) throw new Error('Auth drift');
-          if(b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('Bridge drift');
+          // Employee auth was cut over to Cloudflare Native. Old OFF expectation is obsolete.
+          // No credentials, session tokens or employee identities are returned in logs.
+          console.log('ENTRY614_PROD_HEALTH_SAFE='+JSON.stringify({
+            auth:{mode:a.mode,nativeOnly:a.nativeOnly,schemaReady:a.schemaReady},
+            bridge:{enabled:b.enabled,secretConfigured:b.secretConfigured,allowedPolicyCount:b.allowedPolicyCount},
+            orders:{success:o.success,mode:o.mode,duplicateGuardReady:o.duplicateGuardReady},
+            customers:{success:c.success,mode:c.mode}
+          }));
+          if(a.mode!=='NATIVE'||a.nativeOnly!==true||a.schemaReady!==true) throw new Error('Auth not native-only, or schema missing');
+          // Retained credential != enabled bridge. Retirement is a separate Zero-Google gate.
+          if(b.enabled!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('Legacy bridge execution drift');
           if(!o.success||String(o.mode||'').toUpperCase()!=='GENERAL'||o.duplicateGuardReady!==true) throw new Error('Orders drift');
           if(!c.success||String(c.mode||'').toUpperCase()!=='GENERAL') throw new Error('Customer drift');
-          console.log('ENTRY614_PRODUCTION_AUTH_OFF=YES');
-          console.log('ENTRY614_PRODUCTION_BRIDGE_OFF=YES');
+          console.log('ENTRY614_PRODUCTION_NATIVE_AUTH_CUTOVER=PASS');
+          console.log('ENTRY614_PRODUCTION_LEGACY_BRIDGE_OFF=PASS');
+          console.log('ENTRY614_LEGACY_BRIDGE_CREDENTIAL_RETAINED='+String(b.secretConfigured===true));
+          console.log('ENTRY614_APPS_SCRIPT_CREDENTIAL_RETIREMENT=NOT_CLAIMED');
           console.log('ENTRY614_ORDER_BASELINE=PASS');
           console.log('ENTRY614_CUSTOMER_BASELINE=PASS');
           NODE
