@@ -179,6 +179,7 @@
     bulkStatusRequestId: "",
     archiveDeliveredSaving: false,
     archiveDeliveredRequestId: "",
+    archiveEligibility: { available: false },
     serverPaging: { enabled: true, page: 1, pageSize: 5, totalRows: 0, totalPages: 1 },
     serverStatusCounts: {},
     serverStatusOrderCounts: {},
@@ -4746,6 +4747,8 @@ Trend Mall`;
       state.currentPage = Number(state.serverPaging.page || 1) || 1;
       state.serverStatusCounts = res.statusCounts || {};
       state.serverStatusOrderCounts = res.statusOrderCounts || {};
+      state.archiveEligibility = res.archiveEligibility &&
+        res.archiveEligibility.available === true ? res.archiveEligibility : { available: false };
       if (res.activeSummaryCounts && typeof res.activeSummaryCounts === "object") state.activeSummaryCounts = res.activeSummaryCounts;
       if (!state.bulkStatusSaving) state.bulkStatusRequestId = "";
       if (!state.archiveDeliveredSaving) state.archiveDeliveredRequestId = "";
@@ -4790,10 +4793,16 @@ Trend Mall`;
   }
 
   function archiveDeliveredDetails() {
+    const eligible = state.archiveEligibility || {};
     const rows = state.rows.filter(function (row) { return text(row.status) === "تم التسليم"; });
-    const orders = {};
-    rows.forEach(function (row) { orders[text(row.orderId || row.lineId || "-")] = true; });
-    return { rows: rows, rowCount: state.serverPaging.enabled ? Number(state.serverStatusCounts["تم التسليم"] || 0) : rows.length, orderCount: state.serverPaging.enabled ? Number(state.serverStatusOrderCounts["تم التسليم"] || 0) : Object.keys(orders).length };
+    if (eligible.available === true) return {
+      rows: rows, rowCount: Math.max(0, Number(eligible.eligibleOrders || 0)),
+      orderCount: Math.max(0, Number(eligible.eligibleOrders || 0)),
+      partiallyArchivedOrders: Math.max(0, Number(eligible.partiallyArchivedOrders || 0)),
+      eligibleKnown: true
+    };
+    return { rows: rows, rowCount: 0, orderCount: 0,
+      partiallyArchivedOrders: 0, eligibleKnown: false };
   }
 
   function updateBulkStatusCount() {
@@ -4807,8 +4816,13 @@ Trend Mall`;
     const archiveDetails = archiveDeliveredDetails();
     if (count) count.textContent = from ? ("المطابق حاليًا: " + details.rowCount + " بند داخل " + details.orderCount + " أوردر") : "اختر الحالة الحالية";
     if (button) button.disabled = state.bulkStatusSaving || !bulkStatusScreenAllowed() || !details.rowCount || !from || !to || from === to;
-    if (archiveCount) archiveCount.textContent = "جاهز للأرشفة: " + archiveDetails.rowCount + " بند داخل " + archiveDetails.orderCount + " أوردر";
-    if (archiveButton) archiveButton.disabled = state.archiveDeliveredSaving || state.bulkStatusSaving || !bulkStatusScreenAllowed() || !archiveDetails.rowCount;
+    if (archiveCount) archiveCount.textContent = archiveDetails.eligibleKnown
+      ? ("جاهز للأرشفة على D1: " + archiveDetails.orderCount + " أوردر كامل" +
+        (archiveDetails.partiallyArchivedOrders
+          ? " — مؤرشف جزئيًا يحتاج مراجعة: " + archiveDetails.partiallyArchivedOrders : ""))
+      : "الجاهز للأرشفة: جاري التحقق من D1";
+    if (archiveButton) archiveButton.disabled = state.archiveDeliveredSaving || state.bulkStatusSaving || !bulkStatusScreenAllowed() ||
+      !archiveDetails.eligibleKnown || !archiveDetails.rowCount;
   }
 
   function syncBulkStatusTool() {
@@ -4886,7 +4900,8 @@ Trend Mall`;
   async function archiveDeliveredDepartment() {
     if (state.archiveDeliveredSaving || state.bulkStatusSaving || !bulkStatusScreenAllowed()) return;
     const details = archiveDeliveredDetails();
-    if (!details.rowCount) return setMsg("bulkStatusMsg", "لا توجد بنود بحالة «تم التسليم» لأرشفتها في القسم الحالي.", true);
+    if (!details.eligibleKnown) return setMsg("bulkStatusMsg", "عداد الأرشفة غير متاح من D1؛ اضغط تحديث البيانات أولًا.", true);
+    if (!details.rowCount) return setMsg("bulkStatusMsg", "لا توجد أوردرات سحابية مكتملة وغير مؤرشفة جاهزة للأرشفة في هذا القسم.", true);
     const warning = "سيتم أرشفة الأوردرات الجديدة المكتملة التسليم فقط من قسم " + bulkStatusDepartmentName() +
       " على Cloudflare D1.\n\nسيتم التنفيذ تلقائيًا على دفعات آمنة، وسيظهر لك عدد ما تم أرشفته والمتبقي. الأوردرات القديمة أو غير المكتملة لن تُؤرشف.\n\nهل تريد المتابعة؟";
     if (!confirm(warning)) return;
@@ -4909,6 +4924,8 @@ Trend Mall`;
         }));
         totalOrders += Math.max(0, Number(res.archivedOrders || 0));
         totalLines += Math.max(0, Number(res.archivedLines || 0));
+        if (res.archiveEligibility && res.archiveEligibility.available === true)
+          state.archiveEligibility = res.archiveEligibility;
         if (!res.success) {
           throw new Error((res.message || res.code || "تعذر إكمال الدفعة.") +
             " تمت أرشفة " + totalOrders + " أوردر حتى الآن. لن نكرر أي أوردر مؤرشف.");

@@ -413,6 +413,83 @@ test('auto-archive UI loops only on hasMore with 200 batch guard and explicit pr
   assert.match(block,/T12_NATIVE_COMPLETE_ORDERS_AUTO_BATCH_V2/);
   assert.doesNotMatch(block,/شيت الأرشيف/);
 });
+test('original Core read returns exact D1 whole-order count, hides partially archived orders from ready',async()=>{
+  const f=fixture();deliver(f.db);
+  for(const migration of ['0008_t12_customer_master.sql','0016_employee_core_zero_google_v1.sql',
+    '0017_employee_core_current_orders_v1.sql','0009_employee_auth_native_v1.sql']){
+    f.db.exec(readFileSync(new URL('../cloudflare-d1/migrations/'+migration,import.meta.url),'utf8'));
+  }
+  // One T12 order is completely delivered but has an earlier line archived
+  // WITHOUT its whole order archive: must be classified as partial, not ready.
+  f.db.prepare(`INSERT INTO employee_core_archive_lines_v1
+    (line_id,order_id,qty,archived_by,request_key)
+    VALUES('L4322A','4322',1,'previous-legacy-writer','old-archive')`).run();
+  f.db.prepare(`INSERT INTO t12_prod_orders
+    (order_id,customer_name,customer_phone,department,priority,source,notes)
+    VALUES('54321','New Synthetic','01000000000','ليزر','عادي','T12','')`).run();
+  f.db.prepare(`INSERT INTO t12_prod_lines
+    (line_id,order_id,ordinal,department,item_name,qty,priority,status)
+    VALUES('L54321','54321',1,'ليزر','جاهز',1,'عادي','تم التسليم')`).run();
+  f.db.prepare(`INSERT INTO t12_prod_orders
+    (order_id,customer_name,customer_phone,department,priority,source,notes)
+    VALUES('54322','Incomplete Synthetic','01000000000','ليزر','عادي','T12','')`).run();
+  f.db.prepare(`INSERT INTO t12_prod_lines
+    (line_id,order_id,ordinal,department,item_name,qty,priority,status)
+    VALUES('L54322','54322',1,'ليزر','غير جاهز',1,'عادي','بدأ التنفيذ')`).run();
+  const now=Date.now(),token='synthetic-archive-counter-employee';
+  f.env.EDGE_SESSION_SECRET='local-fixture-counter-only';
+  f.env.TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1='true';
+  f.db.prepare(`INSERT INTO employee_auth_users_v1
+    (employee_id,username_key,canonical_username,must_change,active,role,department,screens_json,session_version)
+    VALUES('ec1','rahma','Rahma',0,1,'service','service','["service"]',1)`).run();
+  const fingerprint=await cloudAuthTokenFingerprint('rahma',token,f.env);
+  f.db.prepare(`INSERT INTO employee_auth_sessions_v1
+    (username_key,token_fingerprint,session_version,issued_at_ms,expires_at_ms,last_seen_at_ms)
+    VALUES('rahma',?,1,?,?,?)`).run(fingerprint,now,now+60000,now);
+  const call=async(action,extra={})=>{
+    const request=new Request('https://trendos-d1-api.example.test/v1/employee/core',{
+      method:'POST',
+      headers:{'content-type':'application/json','authorization':'Bearer '+token,
+        'origin':'https://fawakhry.github.io'},
+      body:JSON.stringify({action,username:'rahma',screen:'service',...extra})
+    });
+    const r=await handleEmployeeCoreNativeRequest(request,f.env);
+    return {code:r.status,data:await r.json()};
+  };
+  const before=await call('getRows');
+  assert.equal(before.code,200,JSON.stringify(before.data));
+  assert.equal(before.data.archiveEligibility?.available,true);
+  assert.equal(before.data.archiveEligibility.eligibleOrders,1);
+  assert.equal(before.data.archiveEligibility.partiallyArchivedOrders,1);
+  assert.ok(before.data.rows.some(x=>x.lineId==='L4322B'&&x.status==='تم التسليم'));
+  assert.ok(!before.data.rows.some(x=>x.lineId==='L4322A'));
+  const archived=await call('archiveDeliveredDepartmentV1926',{
+    requestId:'ARCHIVE-CORRECT-COUNT-SINGLE'
+  });
+  assert.equal(archived.code,200,JSON.stringify(archived.data));
+  assert.equal(archived.data.archivedOrders,1);
+  assert.equal(archived.data.remainingEligible,0);
+  assert.equal(archived.data.hasMore,false);
+  const after=await call('getRows');
+  assert.equal(after.code,200,JSON.stringify(after.data));
+  assert.equal(after.data.archiveEligibility.eligibleOrders,0);
+  assert.equal(after.data.archiveEligibility.partiallyArchivedOrders,1);
+  assert.ok(!after.data.rows.some(x=>x.lineId==='L54321'));
+  assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM employee_core_archive_orders_v1 WHERE order_id='4322'").get().n,0);
+});
+test('UI renders D1 eligible whole-order counter after reload, not stale delivered lines',()=>{
+  const app=readFileSync(new URL('../app.js',import.meta.url),'utf8');
+  const idx=app.indexOf('  function archiveDeliveredDetails() {');
+  const end=app.indexOf('  function updateBulkStatusCount()',idx);
+  assert.ok(idx>0&&end>idx);
+  const calc=app.slice(idx,end);
+  assert.match(app,/state.archiveEligibility = res.archiveEligibility/);
+  assert.match(calc,/eligible\.eligibleOrders/);
+  assert.match(calc,/eligible\.partiallyArchivedOrders/);
+  assert.match(app,/جاهز للأرشفة على D1/);
+  assert.match(app,/!archiveDetails\.eligibleKnown/);
+  assert.doesNotMatch(calc,/serverStatusCounts\["تم التسليم"\]/);
+});
 test('new archive action preserves original legacy bulk route only while feature OFF',()=>{
   const core=readFileSync(new URL('../cloudflare-d1/src/employee-core-native-v1.mjs',import.meta.url),'utf8');
   assert.match(core,/if\(env\?\.TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED==='true'\)/);
