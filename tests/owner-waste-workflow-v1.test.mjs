@@ -1,0 +1,17 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {prepareWasteRequest,reviewWasteRequest} from '../cloudflare-d1/src/owner-waste-workflow-v1.mjs';
+const staff={authenticated:true,principalRef:'employee-1',accountingMode:'print',role:'print'};
+const owner={authenticated:true,principalRef:'owner-1',accountingMode:'full',role:'admin',ownerVerified:true};
+const input={requestRef:'w-1',orderId:'o-1',department:'print',materialId:'m-1',reason:'damaged',quantity:2};
+const decision={requestRef:'w-1',action:'APPROVE',evidenceRef:'proof-1'};
+test('employee creates preview pending only',()=>{const r=prepareWasteRequest(input,staff);assert.equal(r.request.state,'PENDING');assert.equal(r.stockPosted,false)});
+test('unverified employee blocked',()=>assert.equal(prepareWasteRequest(input,{...staff,authenticated:false}).success,false));
+test('invalid quantity blocked',()=>assert.equal(prepareWasteRequest({...input,quantity:0},staff).success,false));
+test('employee cannot approve',()=>assert.equal(reviewWasteRequest(prepareWasteRequest(input,staff).request,decision,staff).code,'VERIFIED_OWNER_REQUIRED'));
+test('admin not verified owner blocked',()=>assert.equal(reviewWasteRequest(prepareWasteRequest(input,staff).request,decision,{...owner,ownerVerified:false}).success,false));
+test('owner approval preview never posts',()=>{const r=reviewWasteRequest(prepareWasteRequest(input,staff).request,decision,owner);assert.equal(r.nextState,'APPROVED');assert.equal(r.stockPosted,false)});
+test('owner rejection preview never posts',()=>{const r=reviewWasteRequest(prepareWasteRequest(input,staff).request,{...decision,action:'REJECT'},owner);assert.equal(r.nextState,'REJECTED');assert.equal(r.ledgerPosted,false)});
+test('already approved request blocked',()=>assert.equal(reviewWasteRequest({...prepareWasteRequest(input,staff).request,state:'APPROVED'},decision,owner).code,'WASTE_NOT_PENDING'));
+test('owner cannot approve own request',()=>assert.equal(reviewWasteRequest({...prepareWasteRequest(input,staff).request,employeeRef:'owner-1'},decision,owner).success,false));
+test('evidence mandatory',()=>assert.equal(reviewWasteRequest(prepareWasteRequest(input,staff).request,{...decision,evidenceRef:''},owner).success,false));

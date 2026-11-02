@@ -954,38 +954,10 @@ async function archiveAccountingTemplateV1(env,auth,b){
 }
 
 async function saveAccountingWasteV1(env,auth,b){
-  if(!['full','print','laser'].includes(auth.mode))return {success:false,message:'تسجيل هوالك الأقسام متاح لضياء ومسؤول القسم فقط.'};
-  const orderId=text(b.orderId),reason=text(b.reason||b.wasteType),amount=num(b.amount||b.damageCost),recovered=num(b.paid||b.damageCovered);
-  if(!orderId||!reason)return {success:false,message:'رقم الأوردر وسبب الهالك مطلوبان.'};
-  if(!(amount>0)||recovered<0||recovered>amount)return {success:false,message:'قيمة التالف يجب أن تكون أكبر من صفر والتعويض بين صفر وقيمة التالف.'};
-  let department=accountingDepartmentV1(b.department)||text(b.department)||auth.department||'عام';
-  if(auth.mode==='print')department='طباعة';if(auth.mode==='laser')department='ليزر';
-  const materialQty=num(b.materialQty||b.qtyWaste||b.wasteQty),hasMaterial=!!text(b.materialId||b.materialName||b.material);
-  let material=null;
-  if(materialQty>0||hasMaterial){
-    material=await resolveMaterialV1(env,b,department==='كل الأقسام'?'':department);
-    if(materialQty>0&&material.stock+0.000001<materialQty)return {success:false,message:'رصيد المخزون لا يكفي لتسجيل كمية الهالك المطلوبة.'};
-  }
-  const id=text(b.wasteId||b.id)||uid('WASTE'),workDate=workDateKeyV1(b.workDate||b.date),ctx=await beginCommandV1(env,auth,'waste-create',{...b,wasteId:id,department,workDate,materialId:material&&material.materialId||''});
-  if(ctx.replay)return {...ctx.response,success:true,duplicatePrevented:true};
-  const now=Date.now(),statements=[],moveId=uid('STK');
-  if(material&&materialQty>0){
-    statements.push(env.DB.prepare("UPDATE employee_accounting_materials_v1 SET stock_qty=stock_qty-?,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE material_id=? AND version=? AND stock_qty>=?").bind(materialQty,auth.user.username,material.materialId,material.version,materialQty));
-  }
-  let wasteSql="INSERT INTO employee_accounting_waste_v1(waste_id,request_key,work_date,department,order_id,line_id,material_id,material_name,reason_code,amount,recovered_amount,evidence_ref,notes,actor,created_at_ms) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?";
-  const wasteBind=[id,ctx.requestKey,workDate,department,orderId,text(b.lineId),material&&material.materialId||'',material&&material.materialName||text(b.materialName||b.material),reason,amount,recovered,text(b.evidenceRef||b.evidence),text(b.notes),auth.user.username,now];
-  if(material&&materialQty>0){wasteSql+=" WHERE EXISTS(SELECT 1 FROM employee_accounting_materials_v1 WHERE material_id=? AND version=?)";wasteBind.push(material.materialId,material.version+1);}
-  statements.push(env.DB.prepare(wasteSql).bind(...wasteBind));
-  if(material&&materialQty>0){
-    statements.push(env.DB.prepare("INSERT INTO employee_accounting_stock_moves_v1(stock_move_id,material_id,move_type,order_id,line_id,department,item_name,qty_in,qty_out,balance_before,balance_after,actor,notes,request_key,created_at_ms) SELECT ?,?,'هالك',?,?,?,?,0,?,?,?,?,?,?,? FROM employee_accounting_waste_v1 WHERE request_key=?").bind(moveId,material.materialId,orderId,text(b.lineId),department,text(b.itemName),materialQty,material.stock,material.stock-materialQty,auth.user.username,reason+' | '+text(b.notes),ctx.requestKey,now,ctx.requestKey));
-  }
-  await env.DB.batch(statements);
-  const written=await env.DB.prepare("SELECT waste_id AS id,amount,recovered_amount AS recovered FROM employee_accounting_waste_v1 WHERE request_key=?").bind(ctx.requestKey).first();
-  if(!written)throw commandErrorV1('accounting-waste-stock-guard','تعذر تثبيت الهالك والمخزون بشكل ذري. الطلب محفوظ PREPARED للمراجعة.');
-  const response={success:true,id:text(written.id),department,amount:num(written.amount),paid:num(written.recovered),remaining:Math.max(0,num(written.amount)-num(written.recovered)),materialId:material&&material.materialId||'',stockBefore:material&&materialQty>0?material.stock:null,stockAfter:material&&materialQty>0?material.stock-materialQty:null,version:'A2_D1_ACCOUNTING_V1'};
-  await commitCommandV1(env,ctx,response);
-  await auditEventV1(env,ctx,'waste',id,'create',auth.user.username,{orderId,department,reason,amount,recovered,materialId:response.materialId,materialQty});
-  return response;
+  // OWNER POLICY 2026-10-16: old route posted stock immediately for staff.
+  // Fail closed until persisted PENDING and verified OWNER approve/reject exist.
+  // No D1 reads/writes or command/audit mutations are performed by this route.
+  return {success:false,code:'WASTE_OWNER_APPROVAL_WORKFLOW_REQUIRED',message:'تسجيل الهالك معطل مؤقتًا: يلزم طلب معلّق وموافقة المالك الموثقة قبل خصم المخزون.',stockPosted:false,ledgerPosted:false,financeRelease:'NO_GO'};
 }
 
 async function saveDeptLine(env,auth,b){

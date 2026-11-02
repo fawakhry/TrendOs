@@ -1,0 +1,16 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const src=fs.readFileSync(path.join(__dirname,'../cloudflare-d1/src/employee-accounting-native-v1.mjs'),'utf8');
+const start=src.indexOf('async function saveAccountingWasteV1(env,auth,b){');
+const end=src.indexOf('\nasync function saveDeptLine(',start);
+const body=src.slice(start,end);
+test('legacy waste handler exists',()=>assert.ok(start>=0&&end>start));
+test('owner approval denial is first statement',()=>assert.match(body,/^async function saveAccountingWasteV1\(env,auth,b\)\{[\s\S]*?return \{success:false,code:'WASTE_OWNER_APPROVAL_WORKFLOW_REQUIRED'/));
+test('no D1 access precedes fail-closed return',()=>{const before=body.slice(0,body.indexOf("return {success:false,code:'WASTE_OWNER_APPROVAL_WORKFLOW_REQUIRED'"));assert.doesNotMatch(before,/env\.DB|beginCommandV1|await |\.run\(/)});
+test('no source route can claim successful posting',()=>{const before=body.slice(0,body.indexOf("return {success:false,code:'WASTE_OWNER_APPROVAL_WORKFLOW_REQUIRED'"));assert.doesNotMatch(before,/success:true|stockPosted:true/)});
+
+test('waste handler contains no DB or command mutation at all',()=>{assert.doesNotMatch(body,/env\.DB|beginCommandV1|commitCommandV1|auditEventV1|\.batch\(/)});
+test('waste handler reports zero posting',()=>{assert.match(body,/stockPosted:false,ledgerPosted:false,financeRelease:'NO_GO'/)});
