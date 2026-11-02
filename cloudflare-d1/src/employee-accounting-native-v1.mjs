@@ -1454,12 +1454,12 @@ async function saveSupplierV1(env,auth,b){
   const normalized=key(name);
   let existing=await env.DB.prepare("SELECT party_id AS partyId,display_name AS partyName FROM employee_accounting_parties_v1 WHERE party_type='supplier' AND normalized_name=? LIMIT 1").bind(normalized).first();
   const partyId=existing?text(existing.partyId):text(b.partyId||b.supplierId)||uid('SUP');
-  const rawOpening=b.openingDebt??b.opening??b.debt??0;
-  const opening=Math.max(0,num(rawOpening));
+  // All aliases must independently attest ZERO: opening:0 never masks debt:500.
+  const opening=0;
   // ACC277: historic nonzero opening is not an ordinary supplier upsert.
   // It requires separately reconciled/signed cutover and approved original D1 posting.
   // Never turn a user-entered old debt into a live ledger transaction here.
-  if(!Number.isFinite(Number(rawOpening))||Number(rawOpening)!==0||opening>0)
+  if(!acc290SupplierMasterAllOpeningAliasesZero(b))
     return {success:false,code:'acc277-nonzero-opening-unqualified',
     message:'الرصيد الافتتاحي غير الصفري ينتظر اعتماد الجرد والمطابقة والتوقيعات قبل ترحيله للحسابات النهائية.',
     posted:false,postingAllowed:false,financeRelease:'NO_GO'};
@@ -2953,6 +2953,17 @@ function acc278Add(a,b){const n=a+b;return acc278Cents(a)&&acc278Cents(b)&&Numbe
 function acc278Denied(code){return {success:false,code,posted:false,postingAllowed:false,financeRelease:'NO_GO'};}
 // ACC281 R2: a separate OFF-by-default, nonmonetary supplier master switch.
 // Never turn on historical-liability drafts just to register a zero supplier.
+// ACC290: reject conflicting financial opening aliases rather than trusting
+// the first non-null alias. Zero-value supplier master is NOT debt cutover.
+function acc290SupplierMasterAllOpeningAliasesZero(b){
+  return ['openingDebt','opening','debt','openingBalance','balance','currentBalance']
+    .every(k=>{
+      if(!Object.prototype.hasOwnProperty.call(b||{},k)||b[k]==null)return true;
+      const v=b[k];
+      return (typeof v==='string'||typeof v==='number') &&
+        String(v).trim()!=='' && Number.isFinite(Number(v)) && Number(v)===0;
+    });
+}
 function acc281SupplierMasterReady(env,auth){
   return text(env&&env.EASYSTORE_SUPPLIER_MASTER_INTAKE_V1)==='ENFORCE'
     &&text(env&&env.ACCOUNTING_FINANCE_GRANTS_MODE_V1)==='ENFORCE'
@@ -3149,11 +3160,10 @@ export async function handleEmployeeAccountingNativeRequest(request,env){
     text(env&&env.EASYSTORE_OPENING_DRAFT_INTAKE_V1)==='ENFORCE';
   // Only a zero-opening supplier MASTER is eligible for draft-only intake.
   // This never authorizes supplier debt, payment, stock or financial posting.
-  const draftSupplierRaw=b.openingDebt??b.opening??b.debt??0;
   const safeDraftSupplierMaster=action==='saveEasyStoreSupplier' &&
     (text(env&&env.EASYSTORE_OPENING_DRAFT_INTAKE_V1)==='ENFORCE' ||
      text(env&&env.EASYSTORE_SUPPLIER_MASTER_INTAKE_V1)==='ENFORCE') &&
-    Number.isFinite(Number(draftSupplierRaw))&&Number(draftSupplierRaw)===0;
+    acc290SupplierMasterAllOpeningAliasesZero(b);
   if(openingDraftSave&&c.mode!=='READONLY')return json({success:false,
     code:'acc278-finance-readonly-required',financeRelease:'NO_GO'},503,h);
   if(c.mode==='READONLY'&&!READ_ACTIONS.has(action)&&
