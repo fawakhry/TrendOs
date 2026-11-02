@@ -295,11 +295,54 @@ test('actual native Employee Core Request over local HTTP: deny bad session/orig
     r=await post(req);assert.equal(r.status,400);assert.equal(r.data.code,'order-already-archived');
   }finally{await new Promise(resolve=>srv.close(resolve));}
 });
+test('existing employee archive button calls only complete original T12 orders, never imported Google orders',async()=>{
+  const f=fixture();deliver(f.db);
+  for(const migration of [
+    '0008_t12_customer_master.sql','0016_employee_core_zero_google_v1.sql',
+    '0017_employee_core_current_orders_v1.sql'
+  ])f.db.exec(readFileSync(new URL('../cloudflare-d1/migrations/'+migration,import.meta.url),'utf8'));
+  // Deliberate historical/imported row that MUST remain active and unarchived.
+  f.db.prepare(`INSERT INTO employee_core_orders_v1(order_id,customer_name,active)
+    VALUES('GOOGLE-OLDER-100','Old Imported',1)`).run();
+  f.db.prepare(`INSERT INTO employee_core_lines_v1(line_id,order_id,customer_name,department,item_name,status,active)
+    VALUES('OLD-L100','GOOGLE-OLDER-100','Old Imported','طباعة','Old Item','تم التسليم',1)`).run();
+  f.env.EDGE_SESSION_SECRET='synthetic-local-only-not-production-auth-fingerprint';
+  f.env.TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1='true';
+  f.db.exec(readFileSync(new URL('../cloudflare-d1/migrations/0009_employee_auth_native_v1.sql',import.meta.url),'utf8'));
+  f.db.prepare(`INSERT INTO employee_auth_users_v1
+    (employee_id,username_key,canonical_username,must_change,active,role,department,screens_json,session_version)
+    VALUES('e1','rahma','Rahma',0,1,'service','service','["service"]',1)`).run();
+  const now=Date.now(),token='synthetic-archive-button-session';
+  const fingerprint=await cloudAuthTokenFingerprint('rahma',token,f.env);
+  f.db.prepare(`INSERT INTO employee_auth_sessions_v1
+    (username_key,token_fingerprint,session_version,issued_at_ms,expires_at_ms,last_seen_at_ms)
+    VALUES('rahma',?,1,?,?,?)`).run(fingerprint,now,now+60000,now);
+  const req=new Request('https://trendos-d1-api.example.test/v1/employee/core',{
+    method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+token,
+      'origin':'https://fawakhry.github.io'},
+    body:JSON.stringify({action:'archiveDeliveredDepartmentV1926',username:'rahma',
+      screen:'service',requestId:'ARCHIVE-20261102-ui-button-test'})
+  });
+  const response=await handleEmployeeCoreNativeRequest(req,f.env),out=await response.json();
+  assert.equal(response.status,200,JSON.stringify(out));
+  assert.equal(out.success,true);assert.equal(out.archivedOrders,1);
+  assert.equal(out.archivedLines,2);assert.equal(out.cloudNative,true);
+  assert.equal(count(f.db,'employee_core_archive_orders_v1'),1);
+  assert.equal(f.db.prepare("SELECT active FROM employee_core_orders_v1 WHERE order_id='GOOGLE-OLDER-100'").get().active,1);
+  assert.equal(f.db.prepare("SELECT active FROM employee_core_lines_v1 WHERE line_id='OLD-L100'").get().active,1);
+  assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM employee_core_archive_lines_v1 WHERE line_id='OLD-L100'").get().n,0);
+});
+test('new archive action preserves original legacy bulk route only while feature OFF',()=>{
+  const core=readFileSync(new URL('../cloudflare-d1/src/employee-core-native-v1.mjs',import.meta.url),'utf8');
+  assert.match(core,/if\(env\?\.TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED==='true'\)/);
+  assert.match(core,/sourceKind==='t12-prod'/);
+  assert.match(core,/closeAndArchiveT12OrderV1\(env,user/);
+});
 test('source integration prevents competing bulk archive writer in native-only mode',()=>{
   const core=readFileSync(new URL('../cloudflare-d1/src/employee-core-native-v1.mjs',import.meta.url),'utf8');
   assert.match(core,/CLOSE_ARCHIVE_ACTION\)out=await closeAndArchiveT12OrderV1/);
   assert.match(core,/archiveDeliveredDepartmentV1926'\)out=await archiveDelivered/);
-  assert.match(core,/legacy-bulk-archive-suspended-for-native-t12-close/);
+  assert.match(core,/T12_NATIVE_COMPLETE_ORDERS_UI_COMPAT_V1/);
   assert.match(core,/if\(env\?\.TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED==='true'\)/);
   const runtime=readFileSync(new URL('../cloudflare-d1/src/t12-operational-runtime-handler.mjs',import.meta.url),'utf8');
   assert.match(runtime,/nativeT12ArchiveWriteFenceV1\(env,orderId,lineId\)/);
