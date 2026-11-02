@@ -140,6 +140,9 @@ matches=[t for t in tokens if isinstance(t,dict) and
          (t.get("name")==TOKEN_NAME or
           isinstance(t.get("client_id"),str) and
           hmac.compare_digest(t["client_id"],client_id))]
+status("DEDICATED_TOKEN_NAME_MATCH_COUNT="+str(len([t for t in tokens if isinstance(t,dict) and t.get("name")==TOKEN_NAME])))
+status("STORED_CLIENT_ID_IN_ACCOUNT_MATCH_COUNT="+str(len([t for t in tokens if isinstance(t,dict) and isinstance(t.get("client_id"),str) and hmac.compare_digest(t["client_id"],client_id)])))
+status("SERVICE_TOKENS_INVENTORY_READ=PASS")
 must(len(matches)==1 and matches[0].get("name")==TOKEN_NAME,
      "DEDICATED_TOKEN_MISSING_OR_DUPLICATE_OR_WRONG_ID")
 tok=matches[0]
