@@ -333,6 +333,8 @@ async function markNotified(env,user,body){
   }
   const cloud=await env.DB.prepare("SELECT order_id AS orderId,status FROM t12_prod_lines WHERE line_id=?").bind(lineId).first();
   if(!cloud)return {success:false,code:'line-not-found',message:'البند غير موجود في D1.'};
+  const archiveGate=await nativeT12ArchiveWriteFenceV1(env,cloud.orderId,lineId);
+  if(!archiveGate.allowed)return {success:false,code:archiveGate.code};
   await env.DB.prepare(`
     INSERT INTO t12_prod_line_runtime(line_id,order_id,status,customer_notified,notified_at,notified_by,last_whatsapp_message,last_whatsapp_at,last_whatsapp_by,updated_by,version,updated_at)
     VALUES(?,?,?,'نعم',?,?,?,?,?,?,1,CURRENT_TIMESTAMP)
