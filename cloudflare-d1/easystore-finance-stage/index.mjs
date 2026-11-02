@@ -46,6 +46,47 @@ function readGatewayConfigured(env) {
   } catch { return false; }
 }
 
+// ACC291: isolated Stage exception is NOT a finance-write switch. It is
+// independently armed, requires the original remote native SSO+full grant,
+// and delegates only zero-opening supplier master to the ORIGINAL handler.
+// Every checked-in Stage flag stays OFF. No customer or monetary POST route.
+function supplierMasterRequestZeroOnly(body) {
+  if (!body || typeof body!=='object' || Array.isArray(body)) return false;
+  for (const field of ['openingDebt','opening','debt','openingBalance','balance','currentBalance']) {
+    if (!Object.prototype.hasOwnProperty.call(body,field) || body[field]==null) continue;
+    const value=body[field];
+    if ((typeof value!=='string' && typeof value!=='number') ||
+        String(value).trim()==='' ||
+        !Number.isFinite(Number(value)) || Number(value)!==0) return false;
+  }
+  return true;
+}
+function supplierMasterStageConfigured(env) {
+  if (!readGatewayConfigured(env) ||
+      env?.EASYSTORE_STAGE_SUPPLIER_MASTER_INTAKE_V1!=='ENFORCE' ||
+      env?.EASYSTORE_SUPPLIER_MASTER_INTAKE_V1!=='ENFORCE' ||
+      env?.EASYSTORE_OPENING_DRAFT_INTAKE_V1==='ENFORCE') return false;
+  // Do not let an irrelevant final/print/laser-only roster expose a save.
+  // The ORIGINAL native handler independently verifies actual user+grant.
+  try {
+    const g=JSON.parse(env.ACCOUNTING_FINANCE_GRANTS_V1);
+    return g.version===1 && Array.isArray(g.grants) &&
+      g.grants.some(x=>x&&x.mode==='full'&&typeof x.username==='string' &&
+        x.username.trim().length>0 && !x.username.includes('*'));
+  } catch {return false;}
+}
+async function supplierMasterCanaryIsUnarmed(env) {
+  const row=await env.DB.prepare(
+    "SELECT max_commands AS maxCommands,commands_started AS commandsStarted,"+
+    "allowed_usernames_json AS allowedUsers,allowed_actions_json AS allowedActions "+
+    "FROM employee_accounting_write_canary_v1 "+
+    "WHERE singleton=1 AND marker='EASYSTORE_A2_WRITE_CANARY_V1'"
+  ).first();
+  return row && Number(row.maxCommands)===0 &&
+    Number(row.commandsStarted)===0 &&
+    row.allowedUsers==='[]' && row.allowedActions==='[]';
+}
+
 async function stageSchema(env) {
   const stage = await env.DB.prepare(
     "SELECT mode FROM employee_accounting_control_v1 WHERE singleton=1 AND marker='ENTRY614_ACCOUNTING_V1'"
@@ -112,10 +153,22 @@ export default {
         let body; try { body = JSON.parse(raw); } catch {
           return reply('isolated-stage-invalid-json', 400);
         }
-        if (!body || Array.isArray(body) || !READ_ACTIONS.has(body.action))
+        const supplierRequest=body && !Array.isArray(body) &&
+          body.action==='saveEasyStoreSupplier';
+        if (!body || Array.isArray(body) ||
+            (!READ_ACTIONS.has(body.action) &&
+             !(supplierRequest && supplierMasterStageConfigured(env))))
           return reply('isolated-stage-financial-routes-disabled');
         const mode = await stageSchema(env);
         if (mode !== 'READONLY') return reply('isolated-stage-readonly-control-required');
+        if (supplierRequest) {
+          if (!supplierMasterRequestZeroOnly(body))
+            return reply('isolated-stage-supplier-must-be-zero-opening');
+          if (!await supplierMasterCanaryIsUnarmed(env))
+            return reply('isolated-stage-supplier-canary-must-be-unarmed');
+        }
+        // Auth and exact full finance grant are checked by the original
+        // handleEmployeeAccountingNativeRequest, never user-supplied role.
         return handleEmployeeAccountingNativeRequest(request, env);
       } catch { return reply('isolated-stage-read-unavailable'); }
     }
