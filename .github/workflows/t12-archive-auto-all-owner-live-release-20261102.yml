@@ -1,4 +1,4 @@
-name: T12 Archive One-Click All Native Orders - Owner Exact Live Fix 20261102
+name: T12 D1 Archive Counter Stuck - Owner Backend and UI Exact Release 20261102
 on:
   push:
     branches: [candidate/t12-full-cloud-cutover-a56-20260929]
@@ -14,11 +14,12 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      PRE_CANDIDATE_SHA: f6b8366e7c033c3c12b472f8d2b783792f8fd00f
-      PRE_BACKEND_VERSION: 593895d6-d134-4357-82a0-991075b06353
-      PRE_UI_VERSION: 8c5ccf6e-b002-4efb-858b-e0e609cdc730
-      PRE_UI_APP_SHA: 715017cf4d21f3fb7f6b55eecd83c3c6c4d504f7f6d05561bcaa6656dca5ecd5
-      PRE_UI_ARCHIVE_SHA: 98aa0863aabbcd7c8fc2be772143e04d7618d2676476dd7c49886cc3582cbe04
+      PRE_CANDIDATE_SHA: 67ffe48255648ed3a722bd12022e8d1c64f44d4c
+      PRE_BACKEND_VERSION: 18daa9c8-b5aa-4a5a-b435-96b561f21714
+      PRE_UI_VERSION: 462f5bf3-c7b3-4af8-b653-c0c04f11bc2e
+      PRE_UI_APP_SHA: d142346e5ff9e564cd1e9a5b2341fd5f38a9d5a3aafabe487e73d50bd07ea2dc
+      PRE_UI_DISPATCHER_SHA: 2490e3b36fdf88c101977387ab0fe05c5d6e023afba73cc107a505852332e4a4
+      PRE_UI_SOURCE_COMMIT: 3399f47a238cbc2da92dd8c5091aac1a82b131ed
       UI_ASSETS_MANIFEST_BASE: 2da755ca910b84911378c018d050cf806d8349d5
       BACKEND_URL: https://trendos-d1-api.trendmall-contact.workers.dev
       UI_URL: https://trendos-ui.trendmall-contact.workers.dev
@@ -29,7 +30,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with: {node-version: '22'}
-      - name: Exact owner scope, 24 source SQLite+HTTP tests and pinned old worker versions
+      - name: Original 28 local SQLite authenticated Core HTTP tests and pinned production version leases
         shell: bash
         run: |
           set -euo pipefail
@@ -44,8 +45,9 @@ jobs:
           ! grep -q '^TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED' cloudflare-d1/wrangler.toml
           node --check cloudflare-d1/src/employee-core-native-v1.mjs
           node --check app.js
+          node --check employee-api-dispatcher-v1.js
           node --test --no-warnings tests/t12_native_close_archive_v1.test.mjs
-          echo T12_AUTO_ARCHIVE_TESTS=PASS
+          echo T12_D1_COUNT_FIX_28_TESTS=PASS
           npm install --no-save wrangler@4.33.2 >/dev/null 2>&1
       - name: Verify currently running backend/UI leases and native schema without mutation
         shell: bash
@@ -77,7 +79,7 @@ jobs:
           if(v.mode!=='GUARDED'||Number(v.n)!==12)throw Error('Archive D1 guard not armed as approved');
           console.log('D1_GUARD_12_ACTIVE=PASS');
           NODE
-      - name: Capture all 46 exact LIVE UI assets and patch ONLY original archive button function
+      - name: Preserve all live UI assets; update only approved archive-counter app and dispatcher
         shell: bash
         run: |
           set -euo pipefail
@@ -93,42 +95,40 @@ jobs:
             esac
             test -s "cloudflare-d1/frontend-dist/$asset"
           done </tmp/live-ui-assets.txt
-          cp cloudflare-d1/frontend-dist/app.js /tmp/live-ui-app.js
           python3 - <<'PY'
-          import hashlib,re,os
+          import hashlib,os,re,subprocess
           from pathlib import Path
           root=Path('cloudflare-d1/frontend-dist')
-          current=Path('/tmp/live-ui-app.js').read_bytes()
-          assert hashlib.sha256(current).hexdigest()==os.environ['PRE_UI_APP_SHA'],'UI app.js changed: stop'
-          pattern=r'  async function archiveDeliveredDepartment\(\) \{[\s\S]*?\n  \}\n\n  function applyFiltersAndRender'
-          old=re.search(pattern,current.decode('utf-8'))
-          src=re.search(pattern,Path('app.js').read_text())
-          assert old and src, 'Archive function not found'
-          assert hashlib.sha256(old.group(0).encode()).hexdigest()==os.environ['PRE_UI_ARCHIVE_SHA'],'Archive function changed'
-          oldpart=old.group(0)
-          newpart=src.group(0)
-          assert oldpart!=newpart
-          assert 'T12_NATIVE_COMPLETE_ORDERS_AUTO_BATCH_V2' in newpart
-          assert 'hasMore' in newpart
-          patched=current.decode().replace(oldpart,newpart,1).encode()
-          assert patched.replace(newpart.encode(),oldpart.encode(),1)==current,'Non-archive portion changed'
-          (root/'app.js').write_bytes(patched)
-          index=(root/'index.html').read_text()
-          names=[x.strip() for x in Path('/tmp/live-ui-assets.txt').read_text().splitlines()]
+          sha=lambda x: hashlib.sha256(x).hexdigest()
+          approved=[
+            ('app.js','PRE_UI_APP_SHA'),
+            ('employee-api-dispatcher-v1.js','PRE_UI_DISPATCHER_SHA')
+          ]
+          for name,expected_key in approved:
+            original=(root/name).read_bytes()
+            assert sha(original)==os.environ[expected_key],name+' changed since preflight'
+            previous=subprocess.check_output(['git','show',os.environ['PRE_UI_SOURCE_COMMIT']+':'+name])
+            assert previous==original,name+' does not match reviewed previous source'
+            current=Path(name).read_bytes()
+            assert current!=previous,name+' source unexpectedly unchanged'
+            (root/name).write_bytes(current)
+            assert (root/name).read_bytes()==current
+            print('UI_EXACT_APPROVED_PATCH='+name+' '+sha(current))
+          names=Path('/tmp/live-ui-assets.txt').read_text().splitlines()
           assert len(names)==46 and len(set(names))==46
-          # Refuse missing JS/CSS references. All other assets are the exact downloaded live bytes.
-          refs=re.findall(r'(?:src|href)="([^"]+\.(?:js|css))(?:\?[^"]*)?"',index)
-          missing=[x.rsplit('/',1)[-1] for x in refs if x.rsplit('/',1)[-1] not in names and not x.startswith('http')]
-          assert not missing,'Unexpected live dependencies: '+repr(missing)
-          print('UI_ONLY_ARCHIVE_FUNCTION_PATCHED=PASS')
-          print('UI_PATCHED_APP_SHA='+hashlib.sha256(patched).hexdigest())
+          index=(root/'index.html').read_text()
+          refs=re.findall(r'(?:src|href)="([^"]+\\.(?:js|css))(?:\\?[^"]*)?"',index)
+          missing=[x.rsplit('/',1)[-1] for x in refs if not x.startswith('http') and x.rsplit('/',1)[-1] not in names]
+          assert not missing,'Unexpected UI dependencies: '+repr(missing)
+          print('UI_PREVIOUS_ASSET_COUNT_PRESERVED='+str(len(names)-2))
           PY
           node --check cloudflare-d1/frontend-dist/app.js
+          node --check cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
           npx wrangler deploy --dry-run --config cloudflare-d1/wrangler.frontend.toml --outdir /tmp/t12-ui-dry >/tmp/t12-ui-drylog.txt
           sed -i '/^TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "true"/a TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED = "true"' cloudflare-d1/wrangler.toml
           grep -Fxq 'TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED = "true"' cloudflare-d1/wrangler.toml
           npx wrangler deploy --dry-run --config cloudflare-d1/wrangler.toml --outdir /tmp/t12-backend-dry >/tmp/t12-backend-drylog.txt
-          echo BACKEND_UI_DRY_RUN=PASS
+          echo D1_COUNTER_BACKEND_AND_UI_DRY_RUN=PASS
       - name: Recheck both versions then deploy ONLY original backend code and verify
         shell: bash
         run: |
@@ -156,13 +156,22 @@ jobs:
           npx wrangler deploy --config cloudflare-d1/wrangler.toml >/tmp/t12-backend-deploy.log
           curl -fsS "$BACKEND_URL/v1/employee/core/health" >/tmp/t12-b-health.json
           curl -fsS "$BACKEND_URL/v1/employee/auth/health" >/tmp/t12-b-auth.json
+          curl -fsS "$BACKEND_URL/v1/employee/core/health?archiveProbe=1" >/tmp/t12-b-count-probe.json
           node <<'NODE'
           let c=require('/tmp/t12-b-health.json'),a=require('/tmp/t12-b-auth.json');
-          if(c.mode!=='GENERAL'||!c.actions.includes('closeAndArchiveT12OrderV1')||a.mode!=='NATIVE'||!a.nativeOnly)throw Error('Backend failed qualification');
+          let p=require('/tmp/t12-b-count-probe.json');
+          if(c.mode!=='GENERAL'||!c.actions.includes('getArchiveEligibilityV1')||
+            c.archiveEligibilityVersion!=='T12_NATIVE_ARCHIVE_ELIGIBILITY_V4'||
+            a.mode!=='NATIVE'||!a.nativeOnly)throw Error('Backend Core Auth V4 failed');
+          if(!p.archiveProbe||p.archiveProbe.available!==true)throw Error('LIVE D1 COUNT SQL DID NOT WORK');
+          if(p.archiveProbe.eligibleOrders!==undefined)throw Error('Health exposed protected count');
+          console.log('LIVE_WORKER_D1_ARCHIVE_SQL=PASS');
           NODE
           status="$(curl -sS --output /tmp/unauth.json --write-out '%{http_code}' -X POST -H 'Content-Type: application/json' --data '{"action":"archiveDeliveredDepartmentV1926","username":"anonymous","screen":"service","requestId":"ARCHIVE-UNAUTHENTICATED-TEST"}' "$BACKEND_URL/v1/employee/core")"
           test "$status" = 401
-          echo BACKEND_AUTH_AND_CODE_DEPLOY=PASS
+          status2="$(curl -sS --output /tmp/unauth-count.json --write-out '%{http_code}' -X POST -H 'Content-Type: application/json' --data '{"action":"getArchiveEligibilityV1","username":"unauth","screen":"service"}' "$BACKEND_URL/v1/employee/core")"
+          test "$status2" = 401
+          echo BACKEND_AUTH_AND_LIVE_D1_COUNT_PROBE=PASS
           trap - ERR
       - name: Publish only archive-function live UI change; exact postflight, automated rollback
         shell: bash
@@ -184,8 +193,11 @@ jobs:
           let x=JSON.parse(require('fs').readFileSync('/tmp/ui-last-lease.json','utf8')),a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
           if(v.length!==1||v[0].version_id!==process.env.PRE_UI_VERSION||Number(v[0].percentage)!==100)throw Error('UI changed since snapshot: refuse overwrite');
           NODE
-          curl -fLsS "$UI_URL/app.js?lastlease=$GITHUB_SHA-$(date +%s%N)" >/tmp/ui-last-app.js
+          for filename in app.js employee-api-dispatcher-v1.js; do
+            curl -fLsS "$UI_URL/$filename?lastlease=$GITHUB_SHA-$(date +%s%N)" >"/tmp/ui-last-$filename"
+          done
           echo "$PRE_UI_APP_SHA  /tmp/ui-last-app.js" | sha256sum --check
+          echo "$PRE_UI_DISPATCHER_SHA  /tmp/ui-last-employee-api-dispatcher-v1.js" | sha256sum --check
           UI_DEPLOYED=1
           npx wrangler deploy --config cloudflare-d1/wrangler.frontend.toml >/tmp/t12-ui-deploy.log
           OK=0
@@ -195,6 +207,8 @@ jobs:
             sleep 2
           done
           test "$OK" = 1
+          curl -fLsS "$UI_URL/employee-api-dispatcher-v1.js?verify=$GITHUB_SHA-$(date +%s%N)" >/tmp/t12-ui-dispatcher-post.js
+          cmp /tmp/t12-ui-dispatcher-post.js cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
           while IFS= read -r asset; do
             [ "$asset" = app.js ] && continue
             curl -fLsS "$UI_URL/$asset?postcheck=$GITHUB_SHA-$(date +%s%N)" -o "/tmp/check-$asset"
@@ -207,7 +221,7 @@ jobs:
           console.log('T12_ARCHIVE_NEW_UI_VERSION='+v[0].version_id);
           NODE
           trap - ERR
-          echo T12_ARCHIVE_UI_ONLY_APP_FUNCTION_CHANGED=PASS
-          echo T12_ARCHIVE_ALL_ELIGIBLE_ONE_CLICK_LIVE=YES
+          echo T12_ARCHIVE_COUNTER_APP_AND_DISPATCHER_ONLY_CHANGED=PASS
+          echo T12_ARCHIVE_COUNTER_D1_INDEPENDENT_READ_LIVE=YES
           echo T12_OLD_GOOGLE_ORDERS_WRITTEN=NO
           echo UI_AUTO_ROLLBACK_USED=NO
