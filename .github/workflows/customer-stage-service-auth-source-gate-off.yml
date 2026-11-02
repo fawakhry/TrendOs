@@ -1,0 +1,36 @@
+name: Customer Stage Service Auth Strict Source Gate (OFF)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/customer_stage_service_auth_policy_gate_off_v1.py'
+      - 'tests/customer_stage_service_auth_policy_gate_off_v1.test.py'
+      - '.github/workflows/customer-stage-service-auth-source-gate-off.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check-strict-private-access-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      CLOUDFLARE_API_TOKEN: ''
+      CLOUDFLARE_ACCESS_API_TOKEN: ''
+      CLOUDFLARE_ACCOUNT_ID: ''
+      OPENAI_API_KEY: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Source-only strict Cloudflare service auth policy gate
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/customer_stage_service_auth_policy_gate_off_v1.py
+          python3 tests/customer_stage_service_auth_policy_gate_off_v1.test.py
+          ! grep -Eq 'urllib|requests|httpx|socket|subprocess' tools/customer_stage_service_auth_policy_gate_off_v1.py
+          echo 'CUSTOMER_STAGE_SERVICE_AUTH_SOURCE_GATE=PASS'
+          echo 'CLOUDFLARE_REMOTE_MUTATIONS=NONE'
+          echo 'CUSTOMER_PRODUCTION=NO_GO'
