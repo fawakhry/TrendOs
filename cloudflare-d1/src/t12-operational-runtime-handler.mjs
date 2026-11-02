@@ -233,6 +233,9 @@ async function notifyLine(req,env,payload){
   const line=await readLine(env.DB,lineId,orderId);
   if(!line)return json({success:false,code:'cloud-native-line-not-found'},404,req,env);
   if(!actorAllowed(payload,line))return json({success:false,code:'line-screen-forbidden'},403,req,env);
+  const archiveGate=await nativeT12ArchiveWriteFenceV1(env,orderId,lineId);
+  if(!archiveGate.allowed)return json({success:false,code:archiveGate.code},
+    archiveGate.code==='native-archive-write-state-unavailable'?503:409,req,env);
   const actor=text(payload.sub),state=currentState(line);
   const notified=type==='ready_notify'?'نعم':text(line.customerNotified);
 
