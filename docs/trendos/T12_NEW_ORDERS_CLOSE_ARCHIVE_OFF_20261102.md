@@ -35,3 +35,10 @@
 - If D1 commits but the HTTP/driver ACK is lost, a single readback reconciles a complete matching archive without reissuing any write.
 - Existing employee Core bulk archive is fenced when the new native flag is ON, preserving the one-writer invariant; OFF runtime remains unchanged.
 - Scope stays source-only; no actual Cloudflare activation, finance clearance or legacy order modification.
+
+## Post-archive immutability gate — 2026-11-02
+- The closure must be terminal: when the exact native-only flag is ON, `nativeT12ArchiveWriteFenceV1` reads the existing D1 archive order/line tables and blocks subsequent direct `updateLine` mutations to archived T12 orders.
+- Both existing Cloudflare native write paths are covered: `/v1/t12/orders/line-runtime/update` and Employee Core `updateLine`; both retain their normal behavior when the flag is OFF.
+- The archive-state read fails closed (no writes) if the D1/archive tables are missing while enabled. Existing old/imported order handling stays outside this new feature scope.
+- This is a JS request-level fence, **not yet a DB-trigger-certified concurrency guarantee**. Before production enablement, verify any other T12 writers cannot edit after archival, and prove no race between this read and a concurrent commit using Workerd/D1 synthetic E2E. No live authorization or deployment in this PR.
+- Full test count extended to 15 synthetic in-memory SQLite/source tests; final exact-head CI result must be linked before marking source PASS.
