@@ -34,6 +34,10 @@ function fixture(){
   INSERT INTO t12_prod_lines(line_id,order_id,ordinal,department,item_name,qty,priority)
     VALUES('L4322A','4322',1,'طباعة','لوحة',1,'عادي'),
           ('L4322B','4322',2,'ليزر','قص',1,'عادي');`);
+  // Execute the actual additive original-D1 migration, NOT a mock of its guards.
+  const migration=readFileSync(new URL('../cloudflare-d1/migrations/0032_t12_native_archive_guard_v1.sql',import.meta.url),'utf8');
+  db.exec(migration);
+  db.prepare("UPDATE t12_native_archive_guard_control_v1 SET mode='GUARDED' WHERE singleton=1").run();
   const adapter={
     prepare(sql){return {bind(...args){return {
       first:async()=>db.prepare(sql).get(...args)||null,
@@ -174,6 +178,51 @@ test('enabled archive gate fails closed on absent or broken database',async()=>{
     DB:{prepare(){throw new Error('table missing');}}};
   assert.equal((await nativeT12ArchiveWriteFenceV1(bad,'4322','L4322A')).allowed,false);
 });
+test('migration defaults OFF; worker flag true cannot archive until D1 guard independently armed',async()=>{
+  const f=fixture();deliver(f.db);
+  f.db.prepare("UPDATE t12_native_archive_guard_control_v1 SET mode='OFF' WHERE singleton=1").run();
+  assert.equal((await closeAndArchiveT12OrderV1(f.env,f.user,f.body)).code,'native-archive-db-guard-not-armed');
+  assert.equal(count(f.db,'employee_core_archive_orders_v1'),0);
+  assert.equal(count(f.db,'employee_core_archive_lines_v1'),0);
+  f.db.prepare("UPDATE t12_native_archive_guard_control_v1 SET mode='GUARDED' WHERE singleton=1").run();
+  assert.equal((await closeAndArchiveT12OrderV1(f.env,f.user,f.body)).success,true);
+});
+test('archive requires original D1 trigger schema: no control means fail closed',async()=>{
+  const f=fixture();deliver(f.db);
+  f.db.exec("DROP TABLE t12_native_archive_guard_control_v1");
+  assert.equal((await closeAndArchiveT12OrderV1(f.env,f.user,f.body)).code,'native-archive-db-guard-unavailable');
+  assert.equal(count(f.db,'employee_core_archive_orders_v1'),0);
+});
+test('actual D1 triggers seal the T12 original order, its lines, runtime, archive snapshots',async()=>{
+  const f=fixture();deliver(f.db);
+  assert.equal((await closeAndArchiveT12OrderV1(f.env,f.user,f.body)).success,true);
+  const sql=[
+    "UPDATE t12_prod_line_runtime SET status='متوقف' WHERE line_id='L4322A'",
+    "DELETE FROM t12_prod_line_runtime WHERE line_id='L4322A'",
+    "INSERT INTO t12_prod_line_runtime(line_id,order_id,status) VALUES('L4322A','4322','متوقف')",
+    "UPDATE t12_prod_lines SET item_name='Tamper' WHERE line_id='L4322A'",
+    "DELETE FROM t12_prod_lines WHERE line_id='L4322A'",
+    "INSERT INTO t12_prod_lines(line_id,order_id,ordinal,department,item_name,qty,priority) VALUES('L4322C','4322',3,'طباعة','Tamper',1,'عادي')",
+    "UPDATE t12_prod_orders SET notes='Tamper' WHERE order_id='4322'",
+    "DELETE FROM t12_prod_orders WHERE order_id='4322'",
+    "UPDATE employee_core_archive_orders_v1 SET notes='Tamper' WHERE order_id='4322'",
+    "DELETE FROM employee_core_archive_orders_v1 WHERE order_id='4322'",
+    "UPDATE employee_core_archive_lines_v1 SET notes='Tamper' WHERE line_id='L4322A'",
+    "DELETE FROM employee_core_archive_lines_v1 WHERE line_id='L4322A'"
+  ];
+  for(const statement of sql)assert.throws(()=>f.db.exec(statement),/native-t12-order-already-archived/,
+    'D1 trigger must reject: '+statement);
+  assert.equal(count(f.db,'employee_core_archive_orders_v1'),1);
+  assert.equal(count(f.db,'employee_core_archive_lines_v1'),2);
+  assert.equal(f.db.prepare("SELECT status FROM t12_prod_line_runtime WHERE line_id='L4322A'").get().status,'تم التسليم');
+});
+test('non-archived new T12 order remains editable with D1 guard armed',()=>{
+  const f=fixture();
+  f.db.exec("UPDATE t12_prod_orders SET notes='safe-edit' WHERE order_id='4322'");
+  f.db.exec("UPDATE t12_prod_lines SET item_name='safe-edit' WHERE line_id='L4322A'");
+  f.db.exec("INSERT INTO t12_prod_line_runtime(line_id,order_id,status) VALUES('L4322A','4322','تحت التنفيذ')");
+  assert.equal(f.db.prepare("SELECT status FROM t12_prod_line_runtime WHERE line_id='L4322A'").get().status,'تحت التنفيذ');
+});
 test('source integration prevents competing bulk archive writer in native-only mode',()=>{
   const core=readFileSync(new URL('../cloudflare-d1/src/employee-core-native-v1.mjs',import.meta.url),'utf8');
   assert.match(core,/CLOSE_ARCHIVE_ACTION\)out=await closeAndArchiveT12OrderV1/);
@@ -185,5 +234,9 @@ test('source integration prevents competing bulk archive writer in native-only m
   assert.match(core,/nativeT12ArchiveWriteFenceV1\(env,cloud.orderId,lineId\)/);
   const source=readFileSync(new URL('../cloudflare-d1/src/t12-native-close-archive-v1.mjs',import.meta.url),'utf8');
   assert.match(source,/TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED!=='true'/);
+  assert.match(source,/native-archive-db-guard-not-armed/);
+  const migration=readFileSync(new URL('../cloudflare-d1/migrations/0032_t12_native_archive_guard_v1.sql',import.meta.url),'utf8');
+  assert.equal((migration.match(/CREATE TRIGGER IF NOT EXISTS/g)||[]).length,12);
+  assert.match(migration,/VALUES\(1,'T12_NATIVE_ARCHIVE_GUARD_V1','OFF'\)/);
   assert.doesNotMatch(source,/APPS_SCRIPT_API_URL|script.google.com|employee_core_lines_v1/);
 });
