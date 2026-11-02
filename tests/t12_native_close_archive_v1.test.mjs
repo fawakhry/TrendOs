@@ -12,11 +12,20 @@ function fixture(){
   db.exec(`PRAGMA foreign_keys=ON;
   CREATE TABLE t12_prod_orders(order_id TEXT PRIMARY KEY,customer_name TEXT NOT NULL,
     customer_phone TEXT NOT NULL,department TEXT NOT NULL,priority TEXT NOT NULL,
-    source TEXT NOT NULL,notes TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'طلب جديد');
+    source TEXT NOT NULL,notes TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'طلب جديد',
+    customer_mode TEXT NOT NULL DEFAULT 'registered',external_customer_id TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE t12_prod_lines(line_id TEXT PRIMARY KEY,order_id TEXT REFERENCES t12_prod_orders(order_id),
-    ordinal INTEGER,department TEXT,item_name TEXT,qty REAL,priority TEXT,status TEXT NOT NULL DEFAULT 'طلب جديد');
+    ordinal INTEGER,department TEXT,item_name TEXT,qty REAL,priority TEXT,status TEXT NOT NULL DEFAULT 'طلب جديد',
+    assigned_to TEXT NOT NULL DEFAULT '',heat_press INTEGER NOT NULL DEFAULT 0,
+    fly_print INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE t12_prod_line_runtime(line_id TEXT PRIMARY KEY REFERENCES t12_prod_lines(line_id),
-    order_id TEXT,status TEXT NOT NULL,notes TEXT NOT NULL DEFAULT '');
+    order_id TEXT,status TEXT NOT NULL,notes TEXT NOT NULL DEFAULT '',
+    customer_notified TEXT NOT NULL DEFAULT '',notified_at TEXT NOT NULL DEFAULT '',
+    notified_by TEXT NOT NULL DEFAULT '',last_whatsapp_message TEXT NOT NULL DEFAULT '',
+    last_whatsapp_at TEXT NOT NULL DEFAULT '',last_whatsapp_by TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE employee_core_archive_orders_v1(order_id TEXT PRIMARY KEY,customer_name TEXT NOT NULL DEFAULT '',
     customer_phone TEXT NOT NULL DEFAULT '',department TEXT NOT NULL DEFAULT '',priority TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT '',source TEXT NOT NULL DEFAULT '',notes TEXT NOT NULL DEFAULT '',
@@ -28,7 +37,9 @@ function fixture(){
     notes TEXT NOT NULL DEFAULT '',snapshot_json TEXT NOT NULL DEFAULT '{}',archived_by TEXT NOT NULL,
     request_key TEXT NOT NULL,archived_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE employee_core_events_v1(event_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    action TEXT NOT NULL,entity_type TEXT NOT NULL DEFAULT '',entity_id TEXT NOT NULL DEFAULT '',actor TEXT NOT NULL,payload_json TEXT NOT NULL DEFAULT '{}');
+    action TEXT NOT NULL,entity_type TEXT NOT NULL DEFAULT '',entity_id TEXT NOT NULL DEFAULT '',
+    actor TEXT NOT NULL,payload_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE employee_core_control_v1(singleton INTEGER PRIMARY KEY,
     marker TEXT NOT NULL DEFAULT 'ENTRY614_EMPLOYEE_CORE_V1',
     mode TEXT NOT NULL DEFAULT 'GENERAL',
