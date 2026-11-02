@@ -618,3 +618,78 @@ PYTHONDONTWRITEBYTECODE=1 python3 "$TARGET/cloudflare-d1/easystore-finance-stage
 `ACC292_SIGNER_KEY_CUSTODY=NOT_VERIFIED`;
 `FINANCE_STAGE_SUPPLIER_WRITE=OFF`;
 `FINANCE_WRITES=OFF`; `FINANCE_RELEASE=NO_GO`.
+
+### ACC293 — real owner ACC292 probe STOP: native Stage source signer name missing (2026-11-02 Cairo)
+
+**Observed owner terminal screenshot on their existing Ubuntu, not agent
+access to Cloudflare credentials:** original G1 helper was run from the
+pinned detached worktree `f76ee6be8d7c6069e2d8918ca61c5175fb5d5bbc`.
+Output shown:
+
+```text
+ACC292_EXACT_SEPARATE_STAGE_IDENTITIES=PASS
+ACC292_REQUIRED_SECRET_NAMES=MISSING
+ACC292_MISSING_SECRET_NAMES=trendos-native-session-stage-source:EDGE_SESSION_SECRET
+ACC292_G1_REAL_SESSION=NOT_QUALIFIED
+ACC292_FINANCE_WRITES=OFF
+ACC292_STOP=REQUIRED_SECRET_NAMES_MISSING_STOP
+```
+
+The command finished at the shell prompt. STOP was INTENTIONAL
+fail-closed, not failed DB migration, not a Wrangler connection failure,
+not a missing HMAC pair, and not proof of a successful real staff session.
+Both exact existing Stage D1 identities checked OK. The separate native
+source Worker `trendos-native-session-stage-source` is **missing the
+`EDGE_SESSION_SECRET` key name**. Original distinct service HMAC pair
+names were not reported missing. The owner did not disclose any values,
+real username/session, passwords, SQL or ciphertext; no D1 write,
+control update, deployment, or supplier test occurred.
+
+**Code/audit confirmed key purpose:** `cloudAuthTokenFingerprint()`
+in original `cloudflare-d1/src/cloud-auth-shadow-v1.mjs` uses
+`EDGE_SESSION_SECRET` to HMAC the real username+token fingerprint.
+`employee-auth-native-v1.mjs` uses that fingerprint to issue/verify
+original native sessions. This is NOT the
+`TRENDOS_EMPLOYEE_SESSION_HMAC_V1` service-to-service request signer.
+Never substitute one for the other. The deployed secret's **value**
+cannot be read back from Cloudflare; a matching name alone is not proof
+of matching values. The original Stage native auth tables were still
+OFF and 0 users/sessions on the last provider observation ACC266, but
+ACC293's helper stopped BEFORE fresh aggregate counts, so DO NOT claim
+fresh user/session counts.
+
+**Safe next controlled step (no unapproved mutation):**
+1. Owner should locate the original native session fingerprint signer
+   in their private approved secrets custody, not chat/GitHub, and
+   confirm its actual issuer/source relationship for this isolated
+   Stage. Never guess an alternative, rotate production or copy
+   production employee identities into Stage.
+2. To install a verified, owner-approved signer, use only the exact
+   private Stage Worker `trendos-native-session-stage-source` and
+   version-aware secret change with rollback; Cloudflare docs confirm
+   `wrangler secret put` immediately creates/deploys a Worker
+   version, so it is NOT a read-only command. Merely opening Cloudflare
+   dashboard and checking settings is read-only; the final
+   **Deploy** action changes the Worker version.
+3. Only after legitimate signer custody and explicit owner approval
+   to change that exact Stage Worker, separately qualify source
+   operational native users/sessions/auth control and a genuine
+   employee finance-full grant. The current Stage controlled
+   `ACCOUNTING_FINANCE_GRANTS_V1` remains empty and the signed
+   session system is not provisioned.
+4. G3 independent host encrypted backup restore remains deferred at
+   owner's direction; supplier-only real Stage POST, general money
+   writes and production GO remain strictly prohibited.
+
+**Acceptance facts:**
+`ACC293_OWNER_G1_PROBE=EXECUTED_STOP`;
+`ACC293_STAGE_D1_IDENTITIES=PASS`;
+`ACC293_NATIVE_SOURCE_EDGE_SESSION_SECRET=NAME_MISSING`;
+`ACC293_NATIVE_STAFF_AUTH_FRESH_COUNTS=NOT_READ`;
+`ACC293_G1_REAL_STAFF_SESSION=NOT_QUALIFIED`;
+`ACC293_SECRET_DEPLOY=NOT_DONE`;
+`G3_SECOND_HOST_BACKUP=DEFERRED`;
+`FINANCE_WRITES=OFF`; `FINANCE_RELEASE=NO_GO`.
+Book-first replay rule remains: do not repeat old full finance
+bootstrap/migration/canaries. A later ACC292 verification is justified
+ONLY after an actual approved change in the missing-secret state.
