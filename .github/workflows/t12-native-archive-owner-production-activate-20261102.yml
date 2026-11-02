@@ -1,0 +1,159 @@
+name: T12 Native New-Order Archive - OWNER ONE SHOT Production Activate 20261102
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/t12-native-archive-owner-production-activate-20261102.yml'
+permissions:
+  contents: read
+concurrency:
+  group: trendos-d1-api-production-deploy-t12-native-archive-20261102
+  cancel-in-progress: false
+jobs:
+  activate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WORKER: trendos-d1-api
+      URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      PRE_VERSION: 2b40f622-60ce-4d70-83d1-b334ddc42833
+      PRE_SOURCE: f6648035d58ec8af66a9c5403e554227226c3a57
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Re-prove exact authorized source, local auth and SQLite cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$PRE_SOURCE"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Fxq 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'main = "production-shadow/index.js"' cloudflare-d1/wrangler.toml
+          grep -Fq 'database_name = "trendos-main"' cloudflare-d1/wrangler.toml
+          grep -Fq 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "true"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          ! grep -q '^TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED' cloudflare-d1/wrangler.toml
+          node --check cloudflare-d1/src/employee-core-native-v1.mjs
+          node --check cloudflare-d1/src/t12-native-close-archive-v1.mjs
+          node --check cloudflare-d1/src/t12-operational-runtime-handler.mjs
+          node --test --no-warnings tests/t12_native_close_archive_v1.test.mjs
+          echo OWNER_SOURCE_AND_TESTS=PASS
+      - name: Pin Wrangler then verify current production app, native sessions, D1 and immutable lease
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save wrangler@4.33.2 >/dev/null 2>&1
+          curl -fsS "$URL/v1/employee/core/health" >/tmp/t12-core-pre.json
+          curl -fsS "$URL/v1/employee/auth/health" >/tmp/t12-auth-pre.json
+          node <<'NODE'
+          const fs=require('fs'),c=JSON.parse(fs.readFileSync('/tmp/t12-core-pre.json','utf8')),a=JSON.parse(fs.readFileSync('/tmp/t12-auth-pre.json','utf8'));
+          if(c.success!==true||c.schemaReady!==true||c.mode!=='GENERAL'||a.schemaReady!==true||a.mode!=='NATIVE'||a.nativeOnly!==true)throw Error('unexpected deployed auth/core production state');
+          console.log('EXACT_NATIVE_CORE_AUTH_PREDEPLOY=PASS');
+          NODE
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('t12_prod_orders','t12_prod_lines','t12_prod_line_runtime','employee_core_archive_orders_v1','employee_core_archive_lines_v1','employee_core_events_v1','employee_core_control_v1','employee_core_delivery_restrictions_v1','t12_native_archive_guard_control_v1') ORDER BY name;" >/tmp/t12-pre-schema.json
+          node <<'NODE'
+          let x=JSON.parse(require('fs').readFileSync('/tmp/t12-pre-schema.json','utf8'));const arr=Array.isArray(x)?x:[x],names=arr.flatMap(y=>y.results||[]).map(y=>y.name);
+          const needed=['t12_prod_orders','t12_prod_lines','t12_prod_line_runtime','employee_core_archive_orders_v1','employee_core_archive_lines_v1','employee_core_events_v1','employee_core_control_v1','employee_core_delivery_restrictions_v1'];
+          if(!needed.every(x=>names.includes(x)))throw Error('original D1 schema mismatch');
+          if(names.includes('t12_native_archive_guard_control_v1'))throw Error('archive schema already installed: do not blindly reapply');
+          console.log('D1_ORIGINAL_SCHEMA_AND_NEW_GUARD_ABSENT=PASS');
+          NODE
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER/deployments" >/tmp/t12-live-lease.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/t12-live-lease.json','utf8'));
+          if(!x.success)throw Error('Cloudflare API lease failed');
+          const a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(v.length!==1||v[0].version_id!==process.env.PRE_VERSION||Number(v[0].percentage)!==100)throw Error('Production worker changed; stop to avoid overwriting concurrent work');
+          console.log('PINNED_PREDEPLOY_WORKER_LEASE=PASS');
+          NODE
+      - name: Install only exact additive archive seal migration (OFF by default)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --file cloudflare-d1/migrations/0032_t12_native_archive_guard_v1.sql --yes >/tmp/t12-migration.txt
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT mode, (SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name LIKE 'trg_t12_native_archive_v1_%') AS trigger_count FROM t12_native_archive_guard_control_v1 WHERE singleton=1;" >/tmp/t12-installed.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/t12-installed.json','utf8')),r=(Array.isArray(x)?x:[x]).flatMap(y=>y.results||[])[0]||{};
+          if(r.mode!=='OFF'||Number(r.trigger_count)!==12)throw Error('Exact inert D1 archive seal missing');
+          console.log('D1_GUARD_INSTALLED_INERT_OFF_TRIGGERS_12=PASS');
+          NODE
+      - name: Lease again and prepare source-only flag for the exact original Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER/deployments" >/tmp/t12-prepromotion-lease.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/t12-prepromotion-lease.json','utf8'));
+          if(!x.success)throw Error('Deployment lease read failure');
+          const d=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=d[0]?.versions||[];
+          if(v.length!==1||v[0].version_id!==process.env.PRE_VERSION||Number(v[0].percentage)!==100)throw Error('Another Worker deployment happened; refuse overwrite');
+          console.log('WORKER_LEASE_RECHECK=PASS');
+          NODE
+          sed -i '/^TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "true"/a TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED = "true"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED = "true"' cloudflare-d1/wrangler.toml
+          test "$(grep -c '^TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED' cloudflare-d1/wrangler.toml)" = 1
+          npx wrangler deploy --dry-run --config cloudflare-d1/wrangler.toml --outdir /tmp/t12-native-archive-candidate >/tmp/t12-native-dry-run.txt
+          echo GUARDED_WORKER_DRY_RUN=PASS
+      - name: Publish only pinned original Worker; arm D1 seal; postflight with rollback on any error
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            echo "T12_ARCHIVE_PUBLISH_FAILED_ROLLBACK_ATTEMPT=YES"
+            # Inert the additive triggers before returning original Worker.
+            npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --command "UPDATE t12_native_archive_guard_control_v1 SET mode='OFF',updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_NATIVE_ARCHIVE_GUARD_V1';" >/dev/null || true
+            if [ "$DEPLOYED" = "1" ]; then
+              npx wrangler rollback "$PRE_VERSION" --config cloudflare-d1/wrangler.toml --message 'T12 native archive owner test rollback' || true
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+          DEPLOYED=1
+          npx wrangler deploy --config cloudflare-d1/wrangler.toml >/tmp/t12-deploy.log
+          echo T12_ARCHIVE_DEPLOY_COMMANDED=YES
+          for i in $(seq 1 12); do
+            code="$(curl --silent --show-error --output /tmp/t12-post-core.json --write-out '%{http_code}' "$URL/v1/employee/core/health" || true)"
+            if [ "$code" = "200" ] && node -e 'const x=require("/tmp/t12-post-core.json");process.exit(x.mode==="GENERAL"&&x.schemaReady===true&&x.actions.includes("closeAndArchiveT12OrderV1")?0:1)'; then
+              break
+            fi
+            sleep 2
+          done
+          node -e 'const x=require("/tmp/t12-post-core.json");if(x.mode!=="GENERAL"||!x.actions.includes("closeAndArchiveT12OrderV1"))process.exit(1)'
+          curl -fsS "$URL/v1/employee/auth/health" > /tmp/t12-post-auth.json
+          node -e 'const x=require("/tmp/t12-post-auth.json");if(x.mode!=="NATIVE"||x.nativeOnly!==true)process.exit(1)'
+          echo NATIVE_ROUTE_POST_DEPLOYED_AUTH_PASS=YES
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --command "UPDATE t12_native_archive_guard_control_v1 SET mode='GUARDED',updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_NATIVE_ARCHIVE_GUARD_V1' AND mode='OFF';" >/tmp/t12-arm.txt
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT mode,(SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name LIKE 'trg_t12_native_archive_v1_%') AS trigger_count FROM t12_native_archive_guard_control_v1 WHERE singleton=1;" >/tmp/t12-armed.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/t12-armed.json','utf8')),r=(Array.isArray(x)?x:[x]).flatMap(z=>z.results||[])[0]||{};
+          if(r.mode!=='GUARDED'||Number(r.trigger_count)!==12)throw Error('Native archive D1 not armed');
+          console.log('D1_GUARDED_12_TRIGGERS=PASS');
+          NODE
+          code="$(curl --silent --show-error --output /tmp/t12-unauth.json --write-out '%{http_code}' -X POST -H 'Content-Type: application/json' --data '{"action":"archiveDeliveredDepartmentV1926","username":"synthetic-unauth","screen":"service","requestId":"ARCHIVE-SYNTHETIC-NOAUTH"}' "$URL/v1/employee/core")"
+          test "$code" = 401
+          echo UNAUTHENTICATED_ARCHIVE_WRITE_DENIED=PASS
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER/deployments" >/tmp/t12-new-deploy.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/t12-new-deploy.json','utf8'));
+          if(!x.success)throw Error('Production active-version readback failed');
+          const a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(v.length!==1||Number(v[0].percentage)!==100||v[0].version_id===process.env.PRE_VERSION)throw Error('Worker new version not active');
+          console.log('T12_ARCHIVE_LIVE_VERSION='+v[0].version_id);
+          NODE
+          trap - ERR
+          echo T12_NEW_ORDERS_CLOSE_AND_ARCHIVE_LIVE=YES
+          echo LEGACY_GOOGLE_ORDERS_ARCHIVED=NO
+          echo AUTO_ROLLBACK_USED=NO
