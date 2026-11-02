@@ -462,6 +462,11 @@ test('original Core read returns exact D1 whole-order count, hides partially arc
   assert.equal(before.data.archiveEligibility.eligibleOrders,1);
   assert.equal(before.data.archiveEligibility.partiallyArchivedOrders,1);
   assert.ok(before.data.rows.some(x=>x.lineId==='L4322B'&&x.status==='تم التسليم'));
+  const separate=await call('getArchiveEligibilityV1');
+  assert.equal(separate.code,200,JSON.stringify(separate.data));
+  assert.equal(separate.data.archiveEligibility.available,true);
+  assert.equal(separate.data.archiveEligibility.eligibleOrders,1);
+  assert.equal(separate.data.archiveEligibility.partiallyArchivedOrders,1);
   assert.ok(!before.data.rows.some(x=>x.lineId==='L4322A'));
   const archived=await call('archiveDeliveredDepartmentV1926',{
     requestId:'ARCHIVE-CORRECT-COUNT-SINGLE'
@@ -474,6 +479,9 @@ test('original Core read returns exact D1 whole-order count, hides partially arc
   assert.equal(after.code,200,JSON.stringify(after.data));
   assert.equal(after.data.archiveEligibility.eligibleOrders,0);
   assert.equal(after.data.archiveEligibility.partiallyArchivedOrders,1);
+  const separateAfter=await call('getArchiveEligibilityV1');
+  assert.equal(separateAfter.code,200);
+  assert.equal(separateAfter.data.archiveEligibility.eligibleOrders,0);
   assert.ok(!after.data.rows.some(x=>x.lineId==='L54321'));
   assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM employee_core_archive_orders_v1 WHERE order_id='4322'").get().n,0);
 });
@@ -483,12 +491,37 @@ test('UI renders D1 eligible whole-order counter after reload, not stale deliver
   const end=app.indexOf('  function updateBulkStatusCount()',idx);
   assert.ok(idx>0&&end>idx);
   const calc=app.slice(idx,end);
-  assert.match(app,/state.archiveEligibility = res.archiveEligibility/);
+  assert.match(app,/state.archiveEligibility = eligibility/);
+  assert.match(app,/api\("getArchiveEligibilityV1"/);
+  assert.match(app,/تعذر قراءة عداد D1/);
   assert.match(calc,/eligible\.eligibleOrders/);
   assert.match(calc,/eligible\.partiallyArchivedOrders/);
   assert.match(app,/جاهز للأرشفة على D1/);
   assert.match(app,/!archiveDetails\.eligibleKnown/);
   assert.doesNotMatch(calc,/serverStatusCounts\["تم التسليم"\]/);
+});
+test('archive health probe executes D1 SQL but never leaks eligible counts without authentication',async()=>{
+  const f=fixture();deliver(f.db);
+  const req=new Request('https://trendos-d1-api.example.test/v1/employee/core/health?archiveProbe=1',{method:'GET'});
+  const r=await handleEmployeeCoreNativeRequest(req,f.env),body=await r.json();
+  assert.equal(r.status,200);
+  assert.equal(body.archiveProbe?.available,true);
+  assert.equal(body.archiveEligibilityVersion,'T12_NATIVE_ARCHIVE_ELIGIBILITY_V4');
+  assert.equal(body.archiveProbe?.eligibleOrders,undefined);
+  assert.equal(body.archiveProbe?.partiallyArchivedOrders,undefined);
+  assert.ok(body.actions.includes('getArchiveEligibilityV1'));
+});
+test('frontend explicitly routes D1 count read and never shows endless checking after a failed response',()=>{
+  const core=readFileSync(new URL('../cloudflare-d1/src/employee-core-native-v1.mjs',import.meta.url),'utf8');
+  const dispatch=readFileSync(new URL('../employee-api-dispatcher-v1.js',import.meta.url),'utf8');
+  const app=readFileSync(new URL('../app.js',import.meta.url),'utf8');
+  assert.match(core,/getArchiveEligibilityV1/);
+  assert.match(dispatch,/getArchiveEligibilityV1/);
+  assert.match(core,/nativeArchiveEligibilitySql\(screen\)\}\`\)\.first\(\)/);
+  assert.match(app,/archive-count-network-error/);
+  assert.match(app,/orders-read-failed/);
+  assert.match(app,/تعذر قراءة عداد D1/);
+  assert.doesNotMatch(app,/state\.archiveEligibility = res\.archiveEligibility\s*&&/);
 });
 test('new archive action preserves original legacy bulk route only while feature OFF',()=>{
   const core=readFileSync(new URL('../cloudflare-d1/src/employee-core-native-v1.mjs',import.meta.url),'utf8');
