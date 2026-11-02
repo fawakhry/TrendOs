@@ -1,0 +1,213 @@
+name: T12 Archive One-Click All Native Orders - Owner Exact Live Fix 20261102
+on:
+  push:
+    branches: [candidate/t12-full-cloud-cutover-a56-20260929]
+    paths: ['.github/workflows/t12-archive-auto-all-owner-live-release-20261102.yml']
+permissions: {contents: read}
+concurrency:
+  group: trendos-ui-frontend-production-guarded
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PRE_CANDIDATE_SHA: f6b8366e7c033c3c12b472f8d2b783792f8fd00f
+      PRE_BACKEND_VERSION: 593895d6-d134-4357-82a0-991075b06353
+      PRE_UI_VERSION: 8c5ccf6e-b002-4efb-858b-e0e609cdc730
+      PRE_UI_APP_SHA: 715017cf4d21f3fb7f6b55eecd83c3c6c4d504f7f6d05561bcaa6656dca5ecd5
+      PRE_UI_ARCHIVE_SHA: 98aa0863aabbcd7c8fc2be772143e04d7618d2676476dd7c49886cc3582cbe04
+      UI_ASSETS_MANIFEST_BASE: 2da755ca910b84911378c018d050cf806d8349d5
+      BACKEND_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Exact owner scope, 24 source SQLite+HTTP tests and pinned old worker versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$PRE_CANDIDATE_SHA"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Fxq 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'main = "production-shadow/index.js"' cloudflare-d1/wrangler.toml
+          grep -Fq 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "true"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'TRENDOS_CLOUD_WRITE_V1_ENABLED = "false"' cloudflare-d1/wrangler.toml
+          ! grep -q '^TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED' cloudflare-d1/wrangler.toml
+          node --check cloudflare-d1/src/employee-core-native-v1.mjs
+          node --check app.js
+          node --test --no-warnings tests/t12_native_close_archive_v1.test.mjs
+          echo T12_AUTO_ARCHIVE_TESTS=PASS
+          npm install --no-save wrangler@4.33.2 >/dev/null 2>&1
+      - name: Verify currently running backend/UI leases and native schema without mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          check_lease(){
+            name="$1";expected="$2";dest="$3"
+            curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$name/deployments" >"$dest"
+            EXPECTED="$expected" WORKER_NAME="$name" JSON_FILE="$dest" node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync(process.env.JSON_FILE,'utf8'));if(!x.success)throw Error('CF API lease read failed');
+          const a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(v.length!==1||v[0].version_id!==process.env.EXPECTED||Number(v[0].percentage)!==100)
+            throw Error(process.env.WORKER_NAME+' changed or traffic split; refuse deployment');
+          console.log('VERSION_LEASE='+process.env.WORKER_NAME+' '+v[0].version_id);
+          NODE
+          }
+          check_lease trendos-d1-api "$PRE_BACKEND_VERSION" /tmp/backend-before.json
+          check_lease trendos-ui "$PRE_UI_VERSION" /tmp/ui-before.json
+          curl -fsS "$BACKEND_URL/v1/employee/core/health" >/tmp/core.json
+          curl -fsS "$BACKEND_URL/v1/employee/auth/health" >/tmp/auth.json
+          node <<'NODE'
+          const fs=require('fs'),c=JSON.parse(fs.readFileSync('/tmp/core.json')),a=JSON.parse(fs.readFileSync('/tmp/auth.json'));
+          if(!c.success||!c.schemaReady||c.mode!=='GENERAL'||!a.nativeOnly||a.mode!=='NATIVE')throw Error('Core/Auth original production drift');
+          console.log('BACKEND_GENERAL_NATIVE_HEALTH=PASS');
+          NODE
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT mode,(SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name LIKE 'trg_t12_native_archive_v1_%') AS n FROM t12_native_archive_guard_control_v1 WHERE singleton=1" >/tmp/guard.json
+          node <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/guard.json','utf8')),v=(Array.isArray(x)?x:[x]).flatMap(z=>z.results||[])[0]||{};
+          if(v.mode!=='GUARDED'||Number(v.n)!==12)throw Error('Archive D1 guard not armed as approved');
+          console.log('D1_GUARD_12_ACTIVE=PASS');
+          NODE
+      - name: Capture all 46 exact LIVE UI assets and patch ONLY original archive button function
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git ls-tree -r --name-only "$UI_ASSETS_MANIFEST_BASE" | grep -E '^[^/]+\.(html|js|css)$' | wc -l)" = 46
+          mkdir -p cloudflare-d1/frontend-dist
+          git ls-tree -r --name-only "$UI_ASSETS_MANIFEST_BASE" | grep -E '^[^/]+\.(html|js|css)$' >/tmp/live-ui-assets.txt
+          while IFS= read -r asset; do
+            mime="$(curl -fLsS --max-time 25 --output "cloudflare-d1/frontend-dist/$asset" --write-out '%{content_type}' "$UI_URL/$asset?t12snapshot=$GITHUB_SHA-$(date +%s%N)")"
+            case "$asset" in
+              *.js) case "$mime" in *javascript*|*ecmascript*) ;; *) echo "UNSAFE_MIME $asset"; exit 20;; esac ;;
+              *.css) case "$mime" in *css*) ;; *) echo "UNSAFE_MIME $asset"; exit 21;; esac ;;
+              *.html) case "$mime" in *html*) ;; *) echo "UNSAFE_MIME $asset"; exit 22;; esac ;;
+            esac
+            test -s "cloudflare-d1/frontend-dist/$asset"
+          done </tmp/live-ui-assets.txt
+          cp cloudflare-d1/frontend-dist/app.js /tmp/live-ui-app.js
+          python3 - <<'PY'
+          import hashlib,re,os
+          from pathlib import Path
+          root=Path('cloudflare-d1/frontend-dist')
+          current=Path('/tmp/live-ui-app.js').read_bytes()
+          assert hashlib.sha256(current).hexdigest()==os.environ['PRE_UI_APP_SHA'],'UI app.js changed: stop'
+          pattern=r'  async function archiveDeliveredDepartment\(\) \{[\s\S]*?\n  \}\n\n  function applyFiltersAndRender'
+          old=re.search(pattern,current.decode('utf-8'))
+          src=re.search(pattern,Path('app.js').read_text())
+          assert old and src, 'Archive function not found'
+          assert hashlib.sha256(old.group(0).encode()).hexdigest()==os.environ['PRE_UI_ARCHIVE_SHA'],'Archive function changed'
+          oldpart=old.group(0)
+          newpart=src.group(0)
+          assert oldpart!=newpart
+          assert 'T12_NATIVE_COMPLETE_ORDERS_AUTO_BATCH_V2' in newpart
+          assert 'hasMore' in newpart
+          patched=current.decode().replace(oldpart,newpart,1).encode()
+          assert patched.replace(newpart.encode(),oldpart.encode(),1)==current,'Non-archive portion changed'
+          (root/'app.js').write_bytes(patched)
+          index=(root/'index.html').read_text()
+          names=[x.strip() for x in Path('/tmp/live-ui-assets.txt').read_text().splitlines()]
+          assert len(names)==46 and len(set(names))==46
+          # Refuse missing JS/CSS references. All other assets are the exact downloaded live bytes.
+          refs=re.findall(r'(?:src|href)="([^"]+\.(?:js|css))(?:\?[^"]*)?"',index)
+          missing=[x.rsplit('/',1)[-1] for x in refs if x.rsplit('/',1)[-1] not in names and not x.startswith('http')]
+          assert not missing,'Unexpected live dependencies: '+repr(missing)
+          print('UI_ONLY_ARCHIVE_FUNCTION_PATCHED=PASS')
+          print('UI_PATCHED_APP_SHA='+hashlib.sha256(patched).hexdigest())
+          PY
+          node --check cloudflare-d1/frontend-dist/app.js
+          npx wrangler deploy --dry-run --config cloudflare-d1/wrangler.frontend.toml --outdir /tmp/t12-ui-dry >/tmp/t12-ui-drylog.txt
+          sed -i '/^TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "true"/a TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED = "true"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED = "true"' cloudflare-d1/wrangler.toml
+          npx wrangler deploy --dry-run --config cloudflare-d1/wrangler.toml --outdir /tmp/t12-backend-dry >/tmp/t12-backend-drylog.txt
+          echo BACKEND_UI_DRY_RUN=PASS
+      - name: Recheck both versions then deploy ONLY original backend code and verify
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = 1 ]; then
+              echo BACKEND_ROLLBACK_ATTEMPTED=YES
+              npx wrangler rollback "$PRE_BACKEND_VERSION" --config cloudflare-d1/wrangler.toml --message 'T12 archive auto-all backend failed health' || true
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+          for pair in "trendos-d1-api:$PRE_BACKEND_VERSION" "trendos-ui:$PRE_UI_VERSION"; do
+            name="${pair%%:*}";expected="${pair#*:}"
+            curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$name/deployments" >/tmp/release-lease.json
+            EXPECTED="$expected" node <<'NODE'
+          let x=JSON.parse(require('fs').readFileSync('/tmp/release-lease.json','utf8')),a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(v.length!==1||v[0].version_id!==process.env.EXPECTED||Number(v[0].percentage)!==100)throw Error('Concurrent deployment: abort');
+          NODE
+          done
+          DEPLOYED=1
+          npx wrangler deploy --config cloudflare-d1/wrangler.toml >/tmp/t12-backend-deploy.log
+          curl -fsS "$BACKEND_URL/v1/employee/core/health" >/tmp/t12-b-health.json
+          curl -fsS "$BACKEND_URL/v1/employee/auth/health" >/tmp/t12-b-auth.json
+          node <<'NODE'
+          let c=require('/tmp/t12-b-health.json'),a=require('/tmp/t12-b-auth.json');
+          if(c.mode!=='GENERAL'||!c.actions.includes('closeAndArchiveT12OrderV1')||a.mode!=='NATIVE'||!a.nativeOnly)throw Error('Backend failed qualification');
+          NODE
+          status="$(curl -sS --output /tmp/unauth.json --write-out '%{http_code}' -X POST -H 'Content-Type: application/json' --data '{"action":"archiveDeliveredDepartmentV1926","username":"anonymous","screen":"service","requestId":"ARCHIVE-UNAUTHENTICATED-TEST"}' "$BACKEND_URL/v1/employee/core")"
+          test "$status" = 401
+          echo BACKEND_AUTH_AND_CODE_DEPLOY=PASS
+          trap - ERR
+      - name: Publish only archive-function live UI change; exact postflight, automated rollback
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          UI_DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$UI_DEPLOYED" = 1 ]; then
+              echo UI_ROLLBACK_ATTEMPTED=YES
+              npx wrangler rollback "$PRE_UI_VERSION" --config cloudflare-d1/wrangler.frontend.toml --message 'T12 archive UI function-only failed verification' || true
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/trendos-ui/deployments" >/tmp/ui-last-lease.json
+          node <<'NODE'
+          let x=JSON.parse(require('fs').readFileSync('/tmp/ui-last-lease.json','utf8')),a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(v.length!==1||v[0].version_id!==process.env.PRE_UI_VERSION||Number(v[0].percentage)!==100)throw Error('UI changed since snapshot: refuse overwrite');
+          NODE
+          curl -fLsS "$UI_URL/app.js?lastlease=$GITHUB_SHA-$(date +%s%N)" >/tmp/ui-last-app.js
+          echo "$PRE_UI_APP_SHA  /tmp/ui-last-app.js" | sha256sum --check
+          UI_DEPLOYED=1
+          npx wrangler deploy --config cloudflare-d1/wrangler.frontend.toml >/tmp/t12-ui-deploy.log
+          OK=0
+          for i in $(seq 1 15); do
+            curl -fLsS "$UI_URL/app.js?verify=$GITHUB_SHA-$(date +%s%N)" >/tmp/t12-ui-post.js || true
+            if cmp -s /tmp/t12-ui-post.js cloudflare-d1/frontend-dist/app.js; then OK=1;break;fi
+            sleep 2
+          done
+          test "$OK" = 1
+          while IFS= read -r asset; do
+            [ "$asset" = app.js ] && continue
+            curl -fLsS "$UI_URL/$asset?postcheck=$GITHUB_SHA-$(date +%s%N)" -o "/tmp/check-$asset"
+            cmp "/tmp/check-$asset" "cloudflare-d1/frontend-dist/$asset"
+          done </tmp/live-ui-assets.txt
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/trendos-ui/deployments" >/tmp/ui-after-deploy.json
+          node <<'NODE'
+          let x=JSON.parse(require('fs').readFileSync('/tmp/ui-after-deploy.json','utf8')),a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(v.length!==1||v[0].version_id===process.env.PRE_UI_VERSION||Number(v[0].percentage)!==100)throw Error('New UI Worker version not fully active');
+          console.log('T12_ARCHIVE_NEW_UI_VERSION='+v[0].version_id);
+          NODE
+          trap - ERR
+          echo T12_ARCHIVE_UI_ONLY_APP_FUNCTION_CHANGED=PASS
+          echo T12_ARCHIVE_ALL_ELIGIBLE_ONE_CLICK_LIVE=YES
+          echo T12_OLD_GOOGLE_ORDERS_WRITTEN=NO
+          echo UI_AUTO_ROLLBACK_USED=NO
