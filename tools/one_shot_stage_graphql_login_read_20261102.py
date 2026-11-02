@@ -71,6 +71,13 @@ for label,key in [("GENERIC",token),("SCOPED_ACCESS",access)]:
     except (TypeError,KeyError):
         print(label+"_GRAPHQL_DATASET=UNAVAILABLE")
         continue
+    print(label+"_ACCESS_LOGIN_EVENTS_TOTAL="+str(len(groups)))
+    print(label+"_NONIDENTITY_LOGIN_EVENTS="+str(sum(
+      isinstance(x,dict) and isinstance(x.get("dimensions"),dict) and
+      x["dimensions"].get("identityProvider")=="nonidentity" for x in groups)))
+    print(label+"_LOGIN_EVENT_SERVICE_TOKEN_ID_PRESENT="+str(sum(
+      isinstance(x,dict) and isinstance(x.get("dimensions"),dict) and
+      bool(x["dimensions"].get("serviceTokenId")) for x in groups)))
     matches=[x["dimensions"] for x in groups if isinstance(x,dict) and
       isinstance(x.get("dimensions"),dict) and
       x["dimensions"].get("serviceTokenId")==target and target]
