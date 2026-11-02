@@ -502,6 +502,10 @@ test('UI renders D1 eligible whole-order counter after reload, not stale deliver
 });
 test('archive health probe executes D1 SQL but never leaks eligible counts without authentication',async()=>{
   const f=fixture();deliver(f.db);
+  // Original Employee Core health requires its full schema (8 tables).
+  for(const migration of ['0008_t12_customer_master.sql','0016_employee_core_zero_google_v1.sql',
+    '0017_employee_core_current_orders_v1.sql'])
+    f.db.exec(readFileSync(new URL('../cloudflare-d1/migrations/'+migration,import.meta.url),'utf8'));
   const req=new Request('https://trendos-d1-api.example.test/v1/employee/core/health?archiveProbe=1',{method:'GET'});
   const r=await handleEmployeeCoreNativeRequest(req,f.env),body=await r.json();
   assert.equal(r.status,200);
