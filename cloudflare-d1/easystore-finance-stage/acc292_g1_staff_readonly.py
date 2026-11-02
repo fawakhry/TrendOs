@@ -129,7 +129,7 @@ def select_aggregate(cli, sql, allowed):
             set(rows[0]) == set(allowed), "STAGE_AGGREGATE_ROW_UNEXPECTED")
     return rows[0]
 
-def audit(cli):
+def audit(cli, *, inventory_despite_missing_signer=False):
     check_local_config()
     require(Path(cli).is_file(), "LOCAL_WRANGLER_BINARY_NOT_FOUND")
     provider_identity(cli)
@@ -141,13 +141,16 @@ def audit(cli):
         print("ACC292_MISSING_SECRET_NAMES=" + ",".join(missing))
         print("ACC292_G1_REAL_SESSION=NOT_QUALIFIED")
         print("ACC292_FINANCE_WRITES=OFF")
-        raise Stop("REQUIRED_SECRET_NAMES_MISSING_STOP")
-    print("ACC292_REQUIRED_SECRET_NAMES=PRESENT_NOT_VALUE_MATCH_PROOF")
+        if not inventory_despite_missing_signer:
+            raise Stop("REQUIRED_SECRET_NAMES_MISSING_STOP")
+        print("ACC294_AGGREGATE_INVENTORY_ONLY=YES")
+    else:
+        print("ACC292_REQUIRED_SECRET_NAMES=PRESENT_NOT_VALUE_MATCH_PROOF")
     ctrl = select_aggregate(cli, CONTROL_SQL, ("mode",))
     counts = select_aggregate(cli, COUNT_SQL,
                               ("users", "eligible_users", "live_sessions"))
     require(ctrl["mode"] in ("OFF", "TRANSITIONAL", "NATIVE") and
-            all(isinstance(counts[k], int) and counts[k] >= 0
+            all(type(counts[k]) is int and counts[k] >= 0
                 for k in ("users", "eligible_users", "live_sessions")),
             "STAGE_AUTH_COUNTS_INVALID")
     print("ACC292_STAGE_AUTH_MODE=" + ctrl["mode"])
@@ -158,14 +161,19 @@ def audit(cli):
     print("ACC292_REAL_EMPLOYEE_SSO=NOT_TESTED")
     print("ACC292_G1_REAL_SESSION=NOT_QUALIFIED")
     print("ACC292_FINANCE_WRITES=OFF")
+    if missing:
+        raise Stop("REQUIRED_SECRET_NAMES_MISSING_STOP")
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--wrangler", default=str(Path.home() /
         ".local/share/trendos-finance-tools/node_modules/.bin/wrangler"))
+    parser.add_argument("--inventory-despite-missing-signer", action="store_true",
+        help="Read only fixed Stage auth mode/count aggregates; missing secrets still exit STOP. No key recovery or G1 clearance.")
     args = parser.parse_args()
     try:
-        audit(args.wrangler)
+        audit(args.wrangler, inventory_despite_missing_signer=
+              args.inventory_despite_missing_signer)
     except (Stop, OSError, ValueError, tomllib.TOMLDecodeError) as e:
         # Do not echo provider stdout, stderr, exception backtraces or secrets.
         print("ACC292_STOP=" + (str(e) if isinstance(e, Stop)

@@ -693,3 +693,25 @@ fresh user/session counts.
 Book-first replay rule remains: do not repeat old full finance
 bootstrap/migration/canaries. A later ACC292 verification is justified
 ONLY after an actual approved change in the missing-secret state.
+
+
+### ACC294 — optional aggregate inventory despite missing signer (2026-11-02 Cairo; source only)
+
+The owner requested autonomous completion. The default ACC292 check retains its
+original STOP before SQL on missing names. An explicit
+`--inventory-despite-missing-signer` option now permits ONLY its existing two
+allowlisted operational Stage SELECTs (mode and aggregate user/session counts)
+after exact local config and both provider D1 identity checks. This resolves the
+ACC293 diagnostic blind spot without needing the unavailable fingerprint key.
+Missing names STILL return REQUIRED_SECRET_NAMES_MISSING_STOP/nonzero after the
+inventory; G1 remains NOT_QUALIFIED even with positive counts. No key generation,
+secret recovery, provisioning, finance grants or mode changes are performed.
+JSON boolean counts are rejected rather than accepted as integers.
+
+Existing stage_bootstrap_safety.test.py: 36/36 local tests PASS, with new
+missing-signer zero/nonzero inventory, write-metadata rejection and boolean-count
+rejection scenarios. Provider inventory NOT RUN in this workspace; no Cloudflare
+authenticated operator environment is available here. This option does not prove
+that replacing a key is safe, that all historical sessions are absent, or that a
+new native issuer is provisioned. Do not enable finance or replace any key from
+this result alone. Original ACC293 provenance and recovery prerequisites remain.

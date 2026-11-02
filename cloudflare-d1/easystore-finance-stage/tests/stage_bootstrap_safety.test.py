@@ -763,6 +763,34 @@ class Acc292OriginalStageStaffGateTests(unittest.TestCase):
         self.assertIn("EDGE_SESSION_SECRET", output.getvalue())
         self.assertFalse(any(x[:2] == ["d1", "execute"] for x in calls))
 
+    def test_missing_signer_inventory_reads_aggregates_but_still_stops(self):
+        for users, sessions in ((0, 0), (2, 3)):
+            calls, fake = self.fake_command(missing_key=True, users=users,
+                                            sessions=sessions)
+            with patch.object(g, "run", side_effect=fake):
+                with redirect_stdout(io.StringIO()) as output:
+                    with self.assertRaisesRegex(g.Stop, "REQUIRED_SECRET_NAMES_MISSING_STOP"):
+                        g.audit(sys.executable, inventory_despite_missing_signer=True)
+            self.assertEqual(sum(x[:2] == ["d1", "execute"] for x in calls), 2)
+            self.assertIn("ACC294_AGGREGATE_INVENTORY_ONLY=YES", output.getvalue())
+            self.assertIn("ACC292_STAGE_USER_COUNT=" + str(users), output.getvalue())
+            self.assertIn("ACC292_G1_REAL_SESSION=NOT_QUALIFIED", output.getvalue())
+            self.assertNotIn("=PASS", output.getvalue().split("ACC294_")[-1])
+
+    def test_missing_signer_inventory_still_rejects_write_metadata(self):
+        _, fake = self.fake_command(missing_key=True, unexpected_write=True)
+        with patch.object(g, "run", side_effect=fake):
+            with redirect_stdout(io.StringIO()):
+                with self.assertRaisesRegex(g.Stop, "STAGE_SQL_METADATA_WRITES"):
+                    g.audit(sys.executable, inventory_despite_missing_signer=True)
+
+    def test_aggregate_counts_reject_json_booleans(self):
+        _, fake = self.fake_command(users=True)
+        with patch.object(g, "run", side_effect=fake):
+            with redirect_stdout(io.StringIO()):
+                with self.assertRaisesRegex(g.Stop, "STAGE_AUTH_COUNTS_INVALID"):
+                    g.audit(sys.executable)
+
     def test_acc292_wrong_stage_identity_stops_before_secret_queries(self):
         calls, fake = self.fake_command(wrong_uuid=True)
         with patch.object(g, "run", side_effect=fake):
