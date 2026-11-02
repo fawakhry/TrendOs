@@ -26,6 +26,9 @@ jobs:
             "old_delivered_lines|SELECT COUNT(*) AS n FROM employee_core_lines_v1 WHERE active=1 AND status='تم التسليم'" \
             "old_delivered_orders|SELECT COUNT(DISTINCT order_id) AS n FROM employee_core_lines_v1 WHERE active=1 AND status='تم التسليم'" \
             "native_archived|SELECT COUNT(*) AS n FROM employee_core_archive_orders_v1 a WHERE EXISTS(SELECT 1 FROM t12_prod_orders o WHERE o.order_id=a.order_id)" \
+            "active_native_delivered_lines|SELECT COUNT(*) AS n FROM t12_prod_lines l LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id WHERE a.line_id IS NULL AND COALESCE(r.status,l.status)='تم التسليم'" \
+            "all_native_delivered_lines|SELECT COUNT(*) AS n FROM t12_prod_lines l LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id WHERE COALESCE(r.status,l.status)='تم التسليم'" \
+            "native_archived_lines|SELECT COUNT(*) AS n FROM employee_core_archive_lines_v1 a WHERE EXISTS(SELECT 1 FROM t12_prod_lines l WHERE l.line_id=a.line_id)" \
             "native_ready|SELECT COUNT(*) AS n FROM t12_prod_orders o WHERE EXISTS(SELECT 1 FROM t12_prod_lines l WHERE l.order_id=o.order_id) AND NOT EXISTS(SELECT 1 FROM t12_prod_lines l LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id WHERE l.order_id=o.order_id AND COALESCE(r.status,l.status)<>'تم التسليم') AND NOT EXISTS(SELECT 1 FROM employee_core_archive_orders_v1 a WHERE a.order_id=o.order_id)"; do
             name="${spec%%|*}"; sql="${spec#*|}"
             set +e
