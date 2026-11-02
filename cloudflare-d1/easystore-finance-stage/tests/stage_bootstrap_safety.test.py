@@ -1,14 +1,18 @@
 """ACC237 stage bootstrap fixture tests: NO network, NO live Cloudflare."""
 import json
+import io
 import sqlite3
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from contextlib import redirect_stdout
+from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(HERE))
 import stage_d1_bootstrap as b
+import acc292_g1_staff_readonly as g
 
 
 def expected_tables():
@@ -691,6 +695,95 @@ class StageBootstrapTests(unittest.TestCase):
                 return super().run(*cmd)
         with self.assertRaisesRegex(b.GateError, "RESULT_SHAPE"):
             b.remote_names(Invalid())
+
+
+
+class Acc292OriginalStageStaffGateTests(unittest.TestCase):
+    """Only new G1 readiness auditor boundaries; all provider calls mocked."""
+
+    def fake_command(self, *, missing_key=False, wrong_uuid=False,
+                     unexpected_write=False, users=0, sessions=0):
+        calls = []
+        def fake(cli, args):
+            self.assertEqual(cli, sys.executable)
+            self.assertNotIn("--file", args)
+            self.assertNotIn("put", args)
+            self.assertNotIn("deploy", args)
+            calls.append(args)
+            if args[:2] == ["d1", "list"]:
+                return [
+                    {"name": g.OP_NAME,
+                     "uuid": "wrong" if wrong_uuid else g.OP_UUID},
+                    {"name": g.FIN_NAME, "uuid": g.FIN_UUID}
+                ]
+            if args[:2] == ["secret", "list"]:
+                worker = args[args.index("--name") + 1]
+                names = list(g.SECRET_SETS[worker])
+                if missing_key and worker == "trendos-native-session-stage-source":
+                    names.remove("EDGE_SESSION_SECRET")
+                return [{"name": name, "type": "secret_text"}
+                        for name in names]
+            if args[:2] == ["d1", "execute"]:
+                self.assertIn("--remote", args)
+                sql = args[args.index("--command") + 1]
+                self.assertIn(sql, (g.CONTROL_SQL, g.COUNT_SQL))
+                row = ({"mode": "OFF"} if sql == g.CONTROL_SQL else
+                       {"users": users, "eligible_users": users,
+                        "live_sessions": sessions})
+                return [{"success": True, "results": [row],
+                         "meta": {"rows_written": 1 if unexpected_write else 0,
+                                  "changes": 0}}]
+            self.fail("ACC292_UNEXPECTED_PROVIDER_ACTION")
+        return calls, fake
+
+    def test_original_stage_g1_preflight_never_claims_live_user(self):
+        calls, fake = self.fake_command()
+        with patch.object(g, "run", side_effect=fake):
+            out = io.StringIO()
+            with redirect_stdout(out):
+                g.audit(sys.executable)
+        self.assertIn("ACC292_EXACT_SEPARATE_STAGE_IDENTITIES=PASS", out.getvalue())
+        self.assertIn("ACC292_STAGE_AUTH_MODE=OFF", out.getvalue())
+        self.assertIn("ACC292_STAGE_USER_COUNT=0", out.getvalue())
+        self.assertIn("ACC292_G1_REAL_SESSION=NOT_QUALIFIED", out.getvalue())
+        self.assertNotIn("SIGNER_EQUALITY=PASS", out.getvalue())
+        self.assertEqual(sum(x[:2] == ["d1", "execute"] for x in calls), 2)
+        self.assertEqual(sum(x[:2] == ["secret", "list"] for x in calls), 3)
+        self.assertFalse(any("UPDATE" in " ".join(x) or "INSERT" in " ".join(x)
+                             for x in calls))
+
+    def test_acc292_missing_original_signer_stops_without_employee_sql(self):
+        calls, fake = self.fake_command(missing_key=True)
+        with patch.object(g, "run", side_effect=fake):
+            with redirect_stdout(io.StringIO()) as output:
+                with self.assertRaisesRegex(
+                    g.Stop, "REQUIRED_SECRET_NAMES_MISSING_STOP"
+                ):
+                    g.audit(sys.executable)
+        self.assertIn("EDGE_SESSION_SECRET", output.getvalue())
+        self.assertFalse(any(x[:2] == ["d1", "execute"] for x in calls))
+
+    def test_acc292_wrong_stage_identity_stops_before_secret_queries(self):
+        calls, fake = self.fake_command(wrong_uuid=True)
+        with patch.object(g, "run", side_effect=fake):
+            with self.assertRaisesRegex(g.Stop, "D1_STAGE_IDENTITY_DRIFT_STOP"):
+                with redirect_stdout(io.StringIO()):
+                    g.audit(sys.executable)
+        self.assertEqual(len(calls), 1)
+
+    def test_acc292_wrong_select_metadata_fails_closed(self):
+        _, fake = self.fake_command(unexpected_write=True)
+        with patch.object(g, "run", side_effect=fake):
+            with self.assertRaisesRegex(g.Stop, "STAGE_SQL_METADATA_WRITES"):
+                with redirect_stdout(io.StringIO()):
+                    g.audit(sys.executable)
+
+    def test_acc292_sql_allowlist_rejects_provision_or_raw_user_rows(self):
+        for sql in ("UPDATE employee_auth_control_v1 SET mode='NATIVE'",
+                    "SELECT canonical_username FROM employee_auth_users_v1",
+                    "SELECT token_fingerprint FROM employee_auth_sessions_v1"):
+            with self.assertRaisesRegex(g.Stop, "NON_AGGREGATE_QUERY_FORBIDDEN"):
+                g.select_aggregate(sys.executable, sql, ("any",))
 
 
 if __name__ == "__main__":
