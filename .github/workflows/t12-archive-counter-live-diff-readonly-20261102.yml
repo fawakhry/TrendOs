@@ -1,0 +1,49 @@
+name: T12 Native Archive Counter Readonly Live Diff 20261102
+on:
+  push:
+    branches: [candidate/t12-full-cloud-cutover-a56-20260929]
+    paths: ['.github/workflows/t12-archive-counter-live-diff-readonly-20261102.yml']
+permissions: {contents: read}
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false,fetch-depth: 0}
+      - name: Compare actual production app with only previous signed base, check both Worker versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          curl -fLsS --max-time 30 "https://trendos-ui.trendmall-contact.workers.dev/app.js?check=$GITHUB_SHA" >/tmp/live-app.js
+          git show 0ade8a4a09ff69c9369dbcb50a90a507d9bd271e:app.js >/tmp/base-app.js
+          python3 - <<'PY'
+          import hashlib
+          from pathlib import Path
+          live=Path('/tmp/live-app.js').read_bytes()
+          base=Path('/tmp/base-app.js').read_bytes()
+          head=Path('app.js').read_bytes()
+          print('LIVE_APP_SHA='+hashlib.sha256(live).hexdigest())
+          print('BASE_APP_SHA='+hashlib.sha256(base).hexdigest())
+          print('HEAD_APP_SHA='+hashlib.sha256(head).hexdigest())
+          print('LIVE_EQUALS_BASE='+str(live==base))
+          print('LIVE_EQUALS_HEAD='+str(live==head))
+          print('LIVE_CONTAINS_AUTO_LOOP='+str(b'T12_NATIVE_COMPLETE_ORDERS_AUTO_BATCH_V2' in live))
+          print('LIVE_CONTAINS_AUTHORITATIVE_COUNT='+str(b'T12_NATIVE_ARCHIVE_ELIGIBILITY_V3' in live or b'جاهز للأرشفة على D1' in live))
+          PY
+          for name in trendos-d1-api trendos-ui; do
+            curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$name/deployments" >/tmp/deploy.json
+            NAME="$name" node <<'NODE'
+          const fs=require('fs'),x=JSON.parse(fs.readFileSync('/tmp/deploy.json','utf8'));
+          if(x.success!==true)throw Error('Cloudflare API not ready');
+          const d=Array.isArray(x.result)?x.result:x.result?.deployments||[];
+          const versions=d[0]?.versions||[];
+          if(versions.length!==1||Number(versions[0].percentage)!==100)throw Error('Traffic split; no deploy');
+          console.log('ACTIVE_'+process.env.NAME+'='+versions[0].version_id);
+          NODE
+          done
+          echo READONLY_LIVE_DIFF_PASS=YES
