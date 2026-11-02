@@ -475,3 +475,84 @@ snapshot with a current, source-confirmed financial balance.** Actual
 authenticated finance D1 readback, employee role scope, original opening
 reconciliation and no-duplicate transaction protections must all be
 proved before any real finance release.
+
+### ACC289–290 — supplier registration launch package (2026-11-02 Cairo; SAFE, NOT DEPLOYED)
+
+**Original canonical EasyStore accounting book ACC281 R0/R1/R2 and ACC288
+reused before changing anything.** ACC-107's one-time real synthetic
+inactive supplier command already succeeded in October and ACC-108 explicitly
+closed its limited write authority. It must NOT be replayed just because
+the owner starts another chat. Published EasyStore R0 is still read-only
+and verified. Private Stage G1 actual employee sessions/grants remain
+unqualified, G3 second-host restore deferred by owner (no second Ubuntu),
+finance write control OFF.
+
+**Bundle A — original EasyStore Draft PR #76, not an R0 overwrite.**
+[Exact client head `58dcc391473cd119b62bd43d24c3c106a2506b1b`](https://github.com/fawakhry/EasyStore/commit/58dcc391473cd119b62bd43d24c3c106a2506b1b):
+original `saveSupplier` only attempts supplier-master intake if the
+independent supplier flag is true and client finance-mode is OFF; demands
+original backend `A2_D1_ACCOUNTING_V1`, exact SUP partyId/supplierId,
+returned name, `openingBalance=0` and `active=true`; then requires
+original `A1_D1_READ_MODEL_V1` response with exact same partyId,
+normalized submitted name, active supplier row and current balance
+exactly ZERO. Existing request ID survives all ambiguous returns/GET
+errors so retry does not create another record. A false-positive same-name
+lookup is no longer accepted. The existing ACC277 invariant file and
+existing ACC278 UI offline VM now have *gap-only* negative fixtures for
+wrong versions/IDs/name/active/zero balance/timeouts/feature OFF. **Original
+EasyStore CI 12/12 exact-head SUCCESS**. Previously approved ACC281 R0
+verified original-D1 supplier screen remains preserved by ACC288.
+No frontend flag switched ON, no public Pages build deployed.
+
+**Bundle B — original TrendOS finance Draft PR #303 source only.**
+[Exact backend head `86be68b58fbcf9ec873af3a8ce9c786e7161a58d`](https://github.com/fawakhry/TrendOs/commit/86be68b58fbcf9ec873af3a8ce9c786e7161a58d):
+previous code preferred the first populated alias of
+`openingDebt / opening / debt`, so `opening=0,debt=500` might have
+passed its supplier zero-only predicate. ACC290 checks **ALL present**
+opening/debt/balance aliases independently, rejecting nonnumeric,
+negative, positive or conflicting values both in the original
+READONLY supplier-only exception and the actual native `saveSupplierV1`
+handler. Existing persistent SQLite D1 handler suite adds only the
+uncovered conflicting-alias negative cases, checking zero new
+supplier rows, request commands, financial ledgers/cashbox.
+**Original TrendOS CI 20/20 exact-head SUCCESS**. No cloud deploy or
+original Stage/prod finance mutation.
+
+**Gated actual launch order (no invented owner identities):**
+1. Keep public `main` R0 read-only intact. Never blindly merge older
+   PR #76 candidate branch (base is not main) or wholesale PR #303
+   into operational production: preserve all shipped post-base fixes.
+2. Privately verify **specific real staff identities**, user sessions,
+   `auth.mode=full` and finance grants on the **correct operational
+   employee native source and finance Stage service binding**. Current
+   checked-in finance Stage `ACCOUNTING_FINANCE_GRANTS_V1` is an empty
+   array, `EASYSTORE_STAGE_READONLY_API_V1=OFF`, and
+   `FINANCE_RELEASE=NO_GO`; cannot self-certify a fake session from CI.
+   An employee name/role from a client form alone is not authority.
+3. Independently restore protected ACC283–285 GnuPG encrypted 22-table
+   backup on another physically separate host, compare private hashes
+   and SQLite integrity; owner has deferred this step because there
+   is currently only one Ubuntu device. Original local backup success
+   does **not** close off-host G3.
+4. Before any Stage write, obtain explicitly reviewed narrow private
+   original Worker version, server supplier-only flag and individual
+   full-role finance grant with zero monetary writing. Cash, drafts,
+   supplier historical debt, installments, invoice and global CANARY/
+   GENERAL modes remain denied. Preserve remote finance D1 UUID and
+   original saved data; never reapply existing 13 migrations.
+5. Only after independent rollback, bounded Stage authorized zero
+   supplier POST->fresh canonical D1 GET exact ID/status/zero balance,
+   idempotent repeated same request ID, relogin and OFF kill switch
+   are proven, produce an owner-reviewed pinned production rollout
+   version and rollback plan. Do **not** repeat October production
+   canary and do not infer actual current supplier GO from source CI.
+
+**Currently runnable without secrets or financial DML:** source review,
+existing CI, public read-only Worker health, browser authenticated
+supplier GET, original Stage identity/schema read-only inspection.
+**Currently forbidden:** provider supplier POST, writes to any finance
+D1, enabling public button by editing only the client, false zero
+openings, production deploy/merge or auto role provisioning. Terminal
+outcome: `R2_CLIENT_SOURCE_PASS`, `R2_SERVER_SOURCE_PASS`,
+`G1_REAL_STAFF_NOT_QUALIFIED`, `G3_SECOND_HOST_DEFERRED_BY_OWNER`,
+`FINANCE_WRITES=OFF`, `FINANCE_RELEASE=NO_GO`.
