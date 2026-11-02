@@ -69,7 +69,10 @@ def check_config():
             vars_.get("FINANCE_WRITES") != "OFF" or
             vars_.get("EASYSTORE_ACCOUNTING_D1_WRITE_MODE") != "OFF" or
             vars_.get("ACCOUNTING_FINANCE_GRANTS_MODE_V1") != "ENFORCE" or
-            json.loads(vars_.get("ACCOUNTING_FINANCE_GRANTS_V1", "{}")) != {"version": 1, "grants": []}):
+            json.loads(vars_.get("ACCOUNTING_FINANCE_GRANTS_V1", "{}")) != {"version": 1, "grants": []} or
+            vars_.get("EASYSTORE_STAGE_SUPPLIER_MASTER_INTAKE_V1") != "OFF" or
+            vars_.get("EASYSTORE_SUPPLIER_MASTER_INTAKE_V1") != "OFF" or
+            vars_.get("EASYSTORE_OPENING_DRAFT_INTAKE_V1") != "OFF"):
         stop("FINANCIAL_AUTHORITY_MUST_STAY_OFF")
     if (vars_.get("EASYSTORE_CUSTOMER_SOURCE_V1") != "REMOTE_REQUIRED" or
             vars_.get("EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1") != "REMOTE_NATIVE_REQUIRED"):
