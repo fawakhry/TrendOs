@@ -43,3 +43,17 @@
 5. When each critical active path is demonstrably no-Google under actual Worker+UI traffic, retire Google credentials and Apps Script in a controlled, rollback-capable sequence. `ZERO_GOOGLE_COMPLETE=NO` until all zero-runtime-dependency gates pass.
 
 **Excluded per owner:** legacy/historical Google order migration or archiving, attendance and HR now, finance changes in this stream, unrelated UI redesign, Cloudflare auth-policy relaxation, and any private customer records or secrets in CI.
+
+
+## 5. Live five-family controls and metadata inventory (2026-11-02)
+- **Source-only [PR #341](https://github.com/fawakhry/TrendOs/pull/341) merged** squash `c59d18e664aa0d80fa2247c5eff0e50800b1e353`. Read-only original D1 inventory workflow modernized to assert real Native-only Auth, disabled zero-policy legacy bridge, and report five safe public health rows; removed expensive remote COUNT union (failed previous run) in favor of schema metadata identity check. No production deploy or Google writes.
+- First observational run [#41432272652](https://github.com/fawakhry/TrendOs/actions/runs/41432272652) reached production auth and five-family health successfully but later failed at legacy expensive `COUNT UNION` step. That failure did **not** invalidate already observed health rows and did **not** mutate anything. Query step replaced by metadata-only identity validation; exact final-head [#41432477407](https://github.com/fawakhry/TrendOs/actions/runs/41432477407) **COMPLETED/SUCCESS** with every step including original D1 `sqlite_master` metadata, legacy mirror catalog metadata and safe boundary checks.
+- Original live production family health, observed 2026-11-02:
+  - **Employee Ops** `GENERAL`, `schemaReady=true`, `googleBusinessCalls=0`, `appsScriptBusinessAuthority=false`. This does **not** itself authorize employee HR/attendance feature activation, which owner deferred.
+  - **Employee Core / current order control** `GENERAL`, `schemaReady=true`, `googleBusinessCalls=0`.
+  - **Employee Content** `READONLY`, `schemaReady=true`, **`r2Ready=false`**; source has no Google business calls but mutable workflows are not active.
+  - **Employee Comms** `READONLY`, `schemaReady=true`, **`r2Ready=false`**, **`whatsappReady=false`**, **`openAiReady=false`**; not a live communications cutover.
+  - **Employee Accounting** `READONLY`, `schemaReady=true`, **`authoritativeWrites=false`**. EasyStore is owned in separate accounting workstream; don't flip mode or use source-only D1 accounting handler for real money.
+- Remote original D1 schema metadata enumerated **119** table/view objects and mirror catalog **87** catalog records, many with historic sync dates. Mirror catalog `status=ready` is **not** proof that Google mirroring is still running, nor proof of current data authority, freshness, or safe deletion. No row counts of real customer data were retrieved by final run. Required native identity tables were PRESENT.
+- This narrows next active priorities: **Content + Comms** need correct original R2, WhatsApp and OpenAI secrets/bindings and controlled parity on a separate isolated Stage before any real writes. Do not pretend `READONLY` is Zero Google production completion. **BOOK24** single-writer + nine customer sessions still unproven; isolated Cloudflare Access case #02394197 remains an independently blocking remote test.
+- `ZERO_GOOGLE_COMPLETE=NO`; source/family CI PASS and D1 metadata are evidence, **not** authorization to disable Apps Script, remove secrets or change active production modes.
