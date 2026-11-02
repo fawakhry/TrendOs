@@ -7,6 +7,28 @@ const permitted=user=>{
   const role=text(user?.role).toLowerCase(),screens=Array.isArray(user?.screens)?user.screens.map(text):[];
   return role==='admin'||(role==='service'&&(!screens.length||screens.includes('service')));
 };
+/** Freeze post-close line writes through either existing Native/T12 endpoint.
+ * Fail closed on missing archive tables while explicitly enabled.
+ * No Google, no legacy original order query. Does not mutate D1.
+ */
+export async function nativeT12ArchiveWriteFenceV1(env,orderId,lineId){
+  if(env?.TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED!=='true')
+    return {allowed:true,featureOff:true};
+  if(!text(orderId)||!text(lineId)||!env?.DB?.prepare)
+    return {allowed:false,code:'native-archive-write-state-unavailable'};
+  try{
+    const archived=await env.DB.prepare(`
+      SELECT 'order-archived' AS reason FROM employee_core_archive_orders_v1
+        WHERE order_id=?
+      UNION ALL
+      SELECT 'line-archived' AS reason FROM employee_core_archive_lines_v1
+        WHERE order_id=? AND line_id=?
+      LIMIT 1
+    `).bind(text(orderId),text(orderId),text(lineId)).first();
+    return archived?{allowed:false,code:'native-archived-order-immutable'}:{allowed:true};
+  }catch{return {allowed:false,code:'native-archive-write-state-unavailable'};}
+}
+
 export async function closeAndArchiveT12OrderV1(env,user,body={}){
   if(env?.TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED!=='true')return deny('native-close-archive-off');
   if(!permitted(user))return deny('native-close-archive-forbidden');
