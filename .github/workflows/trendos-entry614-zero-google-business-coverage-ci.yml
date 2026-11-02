@@ -100,11 +100,14 @@ jobs:
             customers:{success:c.success,mode:c.mode}
           }));
           if(a.mode!=='NATIVE'||a.nativeOnly!==true||a.schemaReady!==true) throw new Error('Auth not native-only, or schema missing');
-          if(b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('Bridge drift');
+          // Retained credential != enabled bridge. Retirement is a separate Zero-Google gate.
+          if(b.enabled!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('Legacy bridge execution drift');
           if(!o.success||String(o.mode||'').toUpperCase()!=='GENERAL'||o.duplicateGuardReady!==true) throw new Error('Orders drift');
           if(!c.success||String(c.mode||'').toUpperCase()!=='GENERAL') throw new Error('Customer drift');
           console.log('ENTRY614_PRODUCTION_NATIVE_AUTH_CUTOVER=PASS');
           console.log('ENTRY614_PRODUCTION_LEGACY_BRIDGE_OFF=PASS');
+          console.log('ENTRY614_LEGACY_BRIDGE_CREDENTIAL_RETAINED='+String(b.secretConfigured===true));
+          console.log('ENTRY614_APPS_SCRIPT_CREDENTIAL_RETIREMENT=NOT_CLAIMED');
           console.log('ENTRY614_ORDER_BASELINE=PASS');
           console.log('ENTRY614_CUSTOMER_BASELINE=PASS');
           NODE
