@@ -1,4 +1,5 @@
 import { verifyOrdersEdgeToken } from './edge-orders-read-v1.mjs';
+import { nativeT12ArchiveWriteFenceV1 } from './t12-native-close-archive-v1.mjs';
 import { enrichFromMirrors02CR } from './edge-orders-operational-enrichment-02cr.mjs';
 import {
   legacyRuntimeSchemaReady,
@@ -136,6 +137,9 @@ async function updateLine(req,env,payload){
   const line=await readLine(env.DB,lineId,orderId);
   if(!line)return json({success:false,code:'cloud-native-line-not-found'},404,req,env);
   if(!actorAllowed(payload,line))return json({success:false,code:'line-screen-forbidden'},403,req,env);
+  const archiveGate=await nativeT12ArchiveWriteFenceV1(env,orderId,lineId);
+  if(!archiveGate.allowed)return json({success:false,code:archiveGate.code},
+    archiveGate.code==='native-archive-write-state-unavailable'?503:409,req,env);
 
   const actor=text(payload.sub),before=currentState(line);
   if(before.status===status&&before.notes===notes){
