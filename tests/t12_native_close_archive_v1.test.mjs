@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {closeAndArchiveT12OrderV1} from '../cloudflare-d1/src/t12-native-close-archive-v1.mjs';
+import {closeAndArchiveT12OrderV1,nativeT12ArchiveWriteFenceV1} from '../cloudflare-d1/src/t12-native-close-archive-v1.mjs';
 import {readFileSync} from 'node:fs';
 
 function fixture(){
@@ -151,12 +151,38 @@ test('tampered archived line request ID rejects replay as incomplete rather than
   assert.equal((await closeAndArchiveT12OrderV1(f.env,f.user,f.body)).code,
     'native-close-archive-existing-incomplete-review');
 });
+test('native archive write fence blocks status edits after closure and lets open orders edit',async()=>{
+  const f=fixture();deliver(f.db);
+  assert.equal((await nativeT12ArchiveWriteFenceV1(f.env,'4322','L4322A')).allowed,true);
+  assert.equal((await closeAndArchiveT12OrderV1(f.env,f.user,f.body)).success,true);
+  const gate=await nativeT12ArchiveWriteFenceV1(f.env,'4322','L4322A');
+  assert.equal(gate.allowed,false);assert.equal(gate.code,'native-archived-order-immutable');
+  assert.equal((await nativeT12ArchiveWriteFenceV1({...f.env,TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED:'false'},'4322','L4322A')).allowed,true);
+});
+test('partial previous archive already blocks status updates in native close mode',async()=>{
+  const f=fixture();deliver(f.db);
+  f.db.prepare("INSERT INTO employee_core_archive_lines_v1(line_id,order_id,qty,archived_by,request_key) VALUES('L4322A','4322',1,'other','earlier')").run();
+  const a=await nativeT12ArchiveWriteFenceV1(f.env,'4322','L4322A');
+  assert.equal(a.allowed,false);assert.equal(a.code,'native-archived-order-immutable');
+  assert.equal((await nativeT12ArchiveWriteFenceV1(f.env,'4322','L4322B')).allowed,true);
+});
+test('enabled archive gate fails closed on absent or broken database',async()=>{
+  const f=fixture();
+  assert.equal((await nativeT12ArchiveWriteFenceV1({TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED:'true'},'4322','L4322A')).code,
+    'native-archive-write-state-unavailable');
+  const bad={TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED:'true',
+    DB:{prepare(){throw new Error('table missing');}}};
+  assert.equal((await nativeT12ArchiveWriteFenceV1(bad,'4322','L4322A')).allowed,false);
+});
 test('source integration prevents competing bulk archive writer in native-only mode',()=>{
   const core=readFileSync(new URL('../cloudflare-d1/src/employee-core-native-v1.mjs',import.meta.url),'utf8');
   assert.match(core,/CLOSE_ARCHIVE_ACTION\)out=await closeAndArchiveT12OrderV1/);
   assert.match(core,/archiveDeliveredDepartmentV1926'\)out=await archiveDelivered/);
   assert.match(core,/legacy-bulk-archive-suspended-for-native-t12-close/);
   assert.match(core,/if\(env\?\.TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED==='true'\)/);
+  const runtime=readFileSync(new URL('../cloudflare-d1/src/t12-operational-runtime-handler.mjs',import.meta.url),'utf8');
+  assert.match(runtime,/nativeT12ArchiveWriteFenceV1\(env,orderId,lineId\)/);
+  assert.match(core,/nativeT12ArchiveWriteFenceV1\(env,cloud.orderId,lineId\)/);
   const source=readFileSync(new URL('../cloudflare-d1/src/t12-native-close-archive-v1.mjs',import.meta.url),'utf8');
   assert.match(source,/TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED!=='true'/);
   assert.doesNotMatch(source,/APPS_SCRIPT_API_URL|script.google.com|employee_core_lines_v1/);
