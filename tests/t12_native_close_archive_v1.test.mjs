@@ -93,7 +93,7 @@ test('status race between preflight and D1 batch never closes an unfinished orde
     f.db.prepare("UPDATE t12_prod_line_runtime SET status='متوقف' WHERE line_id='L4322B'").run();
     return batch(stmts);
   };
-  assert.equal((await closeAndArchiveT12OrderV1(f.env,f.user,f.body)).code,'native-close-archive-cas-lost-check-d1');
+  assert.equal((await closeAndArchiveT12OrderV1(f.env,f.user,f.body)).code,'native-close-archive-outcome-unknown-check-d1');
   assert.equal(count(f.db,'employee_core_archive_orders_v1'),0);
   assert.equal(count(f.db,'employee_core_archive_lines_v1'),0);
 });
@@ -103,6 +103,47 @@ test('mid-batch SQLite SQL error rolls back all archive rows',async()=>{
   assert.equal((await closeAndArchiveT12OrderV1(f.env,f.user,f.body)).code,'native-close-archive-outcome-unknown-check-d1');
   assert.equal(count(f.db,'employee_core_archive_orders_v1'),0);
   assert.equal(count(f.db,'employee_core_archive_lines_v1'),0);
+});
+test('new fully-delivered T12 line added after preflight forces atomic rollback, not partial archive',async()=>{
+  const f=fixture();deliver(f.db);const batch=f.env.DB.batch;
+  f.env.DB.batch=async(stmts)=>{
+    f.db.prepare(`INSERT INTO t12_prod_lines
+      (line_id,order_id,ordinal,department,item_name,qty,priority)
+      VALUES('L4322C','4322',3,'طباعة','إضافي',1,'عادي')`).run();
+    f.db.prepare(`INSERT INTO t12_prod_line_runtime(line_id,order_id,status)
+      VALUES('L4322C','4322','تم التسليم')`).run();
+    return batch(stmts);
+  };
+  assert.equal((await closeAndArchiveT12OrderV1(f.env,f.user,f.body)).code,'native-close-archive-outcome-unknown-check-d1');
+  assert.equal(count(f.db,'employee_core_archive_orders_v1'),0);
+  assert.equal(count(f.db,'employee_core_archive_lines_v1'),0);
+  assert.equal(count(f.db,'employee_core_events_v1'),0);
+});
+test('same request ID does not falsely accept missing archive lines or audit event',async()=>{
+  const f=fixture();deliver(f.db);
+  f.db.prepare(`INSERT INTO employee_core_archive_orders_v1
+    (order_id,status,archived_by,request_key)
+    VALUES('4322','تم التسليم','رحمة',?)`).run(f.body.requestId);
+  const result=await closeAndArchiveT12OrderV1(f.env,f.user,f.body);
+  assert.equal(result.code,'native-close-archive-existing-incomplete-review');
+  assert.equal(count(f.db,'employee_core_archive_lines_v1'),0);
+});
+test('lost D1 response after a fully committed transaction recovers without duplicate writes',async()=>{
+  const f=fixture();deliver(f.db);const batch=f.env.DB.batch;
+  f.env.DB.batch=async(stmts)=>{await batch(stmts);throw new Error('simulated ACK loss');};
+  const r=await closeAndArchiveT12OrderV1(f.env,f.user,f.body);
+  assert.equal(r.success,true);assert.equal(r.ambiguousAckRecovered,true);
+  assert.equal(count(f.db,'employee_core_archive_orders_v1'),1);
+  assert.equal(count(f.db,'employee_core_archive_lines_v1'),2);
+  assert.equal(count(f.db,'employee_core_events_v1'),1);
+});
+test('tampered archived line request ID rejects replay as incomplete rather than success',async()=>{
+  const f=fixture();deliver(f.db);
+  assert.equal((await closeAndArchiveT12OrderV1(f.env,f.user,f.body)).success,true);
+  f.db.prepare(`UPDATE employee_core_archive_lines_v1 SET request_key='wrong-key'
+    WHERE line_id='L4322A'`).run();
+  assert.equal((await closeAndArchiveT12OrderV1(f.env,f.user,f.body)).code,
+    'native-close-archive-existing-incomplete-review');
 });
 test('source integration only: action wired with protected flag; existing archives remain separate',()=>{
   const core=readFileSync(new URL('../cloudflare-d1/src/employee-core-native-v1.mjs',import.meta.url),'utf8');
