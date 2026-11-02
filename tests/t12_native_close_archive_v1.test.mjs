@@ -561,6 +561,7 @@ test('native bulk preview + 45 original T12 lines becomes 20+20+7; never modifie
   f.db.prepare("INSERT INTO employee_core_lines_v1(line_id,order_id,customer_name,department,item_name,status,active) VALUES('OLD-L-1','OLD-G-1','old','طباعة','imported','طلب جديد',1)").run();
   // Simulate a previously PARTIALLY archived original T12 order.
   f.db.prepare("INSERT INTO employee_core_archive_lines_v1(line_id,order_id,archived_by,request_key) VALUES('L4322A','4322','old','partial-before')").run();
+  f.db.prepare("UPDATE t12_prod_lines SET department='طباعة' WHERE line_id='L4322B'").run();
   const run=async(action,options={})=>{
     const req=new Request('https://trendos-d1-api.example.test/v1/employee/core',{method:'POST',
       headers:{origin:'https://fawakhry.github.io',authorization:'Bearer '+token,'content-type':'application/json'},
