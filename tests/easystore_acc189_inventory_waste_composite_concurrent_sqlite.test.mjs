@@ -132,15 +132,29 @@ try{
  assert.equal(sale.success,true,JSON.stringify(sale));
  assert.equal(sale.manualCost,46,'composite cost of two units is 46');
  assert.equal(stock(a),6);assert.equal(stock(z),8);
- const beforeWaste=count('employee_accounting_waste_v1');
+ // Owner approval supersedes historical immediate waste posting.
+ const accountingSnapshot=()=>JSON.stringify(db.prepare(
+   "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'employee_accounting_%' ORDER BY name"
+ ).all().map(({name})=>[name,db.prepare('SELECT * FROM "'+name+'" ORDER BY rowid').all()]));
+ const beforeWaste=accountingSnapshot();
  const waste=await send('saveAccountingWaste',{
    requestId:'ACC189-STOCK-WASTE-0001',orderId:'ACC189-ORDER-01',
    department:'طباعة',materialId:a,materialQty:1,amount:10,paid:0,
    reason:'ACC189 synthetic paper scrap',workDate:'2099-12-31'
  });
- assert.equal(waste.success,true,JSON.stringify(waste));
- assert.equal(stock(a),5);assert.equal(stock(z),8);
- assert.equal(count('employee_accounting_waste_v1'),beforeWaste+1);
+ assert.equal(waste.status,400);
+ assert.equal(waste.success,false,JSON.stringify(waste));
+ assert.equal(waste.code,'WASTE_OWNER_APPROVAL_WORKFLOW_REQUIRED');
+ assert.equal(waste.stockPosted,false);assert.equal(waste.ledgerPosted,false);
+ assert.equal(accountingSnapshot(),beforeWaste,'denial must preserve all accounting tables');
+ const forgedOwnerWaste=await send('saveAccountingWaste',{
+   requestId:'ACC189-STOCK-WASTE-0001',orderId:'ACC189-ORDER-01',
+   department:'طباعة',materialId:a,materialQty:1,amount:10,
+   reason:'fake approved waste',ownerVerified:true,approved:true,role:'admin'
+ });
+ assert.equal(forgedOwnerWaste.code,'WASTE_OWNER_APPROVAL_WORKFLOW_REQUIRED');
+ assert.equal(accountingSnapshot(),beforeWaste,'client approval and retry cannot post waste');
+ assert.equal(stock(a),6);assert.equal(stock(z),8);
  const beforeOverdraw={
    a:stock(a),b:stock(z),sales:count('employee_accounting_final_invoices_v1'),
    waste:count('employee_accounting_waste_v1'),
@@ -154,10 +168,11 @@ try{
  });
  assert.equal(overdrawWaste.success,false);
  assert.equal(overdrawWaste.status,400);
+ assert.equal(overdrawWaste.code,'WASTE_OWNER_APPROVAL_WORKFLOW_REQUIRED');
  const overdrawSale=await send('saveEasyStoreSaleV2',{
    requestId:'ACC189-SALE-OVERDRAW-0001',customerId:customer,department:'طباعة',
    item:'ACC189_SYNTHETIC_PRINT',invoiceNo:'ACC189-OVERDRAW-INVOICE-1',
-   qty:3,unitPrice:60,total:180,paid:0,workDate:'2099-12-31'
+   qty:4,unitPrice:60,total:240,paid:0,workDate:'2099-12-31'
  });
  assert.equal(overdrawSale.success,false);
  assert.equal(overdrawSale.status,400);
@@ -174,7 +189,7 @@ try{
    req:count('employee_accounting_request_ledger_v1'),
    cash:count('employee_accounting_cashbox_v1')
  },beforeOverdraw,'insufficient waste, sale and negative manual stock must not alter D1 fake ledgers');
- // Two concurrent fake sales together require 8 sheets while only 5 remain.
+ // Two concurrent fake sales together require 8 sheets while only 6 remain.
  // The native version-gated SQL batch must allow at most one success.
  const concurrentPayload=i=>({
    requestId:'ACC189-RACE-SALE-000'+i,customerId:customer,department:'طباعة',
@@ -185,9 +200,9 @@ try{
    send('saveEasyStoreSaleV2',concurrentPayload(1)),
    send('saveEasyStoreSaleV2',concurrentPayload(2))
  ]);
- assert.equal(outcomes.filter(x=>x.success===true).length,1,'two competing stock commands cannot both consume same five sheets '+JSON.stringify(outcomes));
+ assert.equal(outcomes.filter(x=>x.success===true).length,1,'two competing stock commands cannot both consume same six sheets '+JSON.stringify(outcomes));
  assert.equal(outcomes.filter(x=>x.success===false).length,1);
- assert.equal(stock(a),1);assert.equal(stock(z),6);
+ assert.equal(stock(a),2);assert.equal(stock(z),6);
  assert.equal(count('employee_accounting_final_invoices_v1'),2,'one original + one successful concurrent credit sale');
  assert.equal(count('employee_accounting_cashbox_v1'),1,'concurrent credit sale cannot duplicate cash receipt');
  assert.equal(balance('customer',customer),120,'only one credit sale increases receivable');
@@ -202,7 +217,7 @@ try{
  assert.equal(stock(a),originalStockA);assert.equal(stock(z),originalStockB);
  console.log('ACC189_COMPOSITE_TEMPLATE_REAL_SQL_COST_23_SALE_COST_46=PASS');
  console.log('ACC189_COMPOSITE_SALE_STOCK_MULTI_MATERIAL=PASS');
- console.log('ACC189_WASTE_STOCK_DEDUCT_AND_OVERDRAW_NO_SIDE_EFFECT=PASS');
+ console.log('ACC189_WASTE_OWNER_APPROVAL_DENIAL_NO_DB_SIDE_EFFECT=PASS');
  console.log('ACC189_NEGATIVE_MANUAL_STOCK_REJECTED=PASS');
  console.log('ACC189_CONCURRENT_CREDIT_SALE_STOCK_VERSION_GUARD=PASS');
  console.log('ACC189_PARTY_CASHBOX_AFTER_CONCURRENCY_RECONCILED=PASS');
