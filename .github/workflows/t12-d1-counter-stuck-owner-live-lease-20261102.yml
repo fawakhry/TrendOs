@@ -1,4 +1,4 @@
-name: T12 D1 Counter Stuck Owner Live Worker/UI Lease Readonly
+name: T12 D1 Counter Stuck Owner Live Worker/UI Lease Readonly (refresh 2)
 on:
   push:
     branches: [candidate/t12-full-cloud-cutover-a56-20260929]
