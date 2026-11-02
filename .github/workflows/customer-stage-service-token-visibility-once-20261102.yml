@@ -1,0 +1,33 @@
+name: ONE SHOT Cloudflare Service Token Visibility Diagnostic READONLY
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/customer-stage-service-token-visibility-once-20261102.yml'
+permissions:
+  contents: read
+jobs:
+  verify-exact-token-visibility:
+    if: github.event.pull_request.head.repo.full_name == 'fawakhry/TrendOs' && github.head_ref == 'ops/access-service-token-visibility-audit-20261102'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCESS_API_TOKEN: ${{ secrets.CLOUDFLARE_ACCESS_API_TOKEN }}
+      CF_STAGE_ACCESS_CLIENT_ID: ${{ secrets.CF_STAGE_ACCESS_CLIENT_ID }}
+      CF_STAGE_ACCESS_CLIENT_SECRET: ${{ secrets.CF_STAGE_ACCESS_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Assert no network writes, zero secret echo
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_HEAD_REF" = "ops/access-service-token-visibility-audit-20261102"
+          python3 -m py_compile tools/customer_access_token_visibility_readonly_once_20261102.py
+          ! grep -Eq 'method="(POST|DELETE|PUT|PATCH)"|print\(.*secret\)' tools/customer_access_token_visibility_readonly_once_20261102.py
+          echo 'READ_ONLY_OPERATOR=PASS'
+      - name: Check both Cloudflare Access service-token inventories without logging values
+        run: python3 tools/customer_access_token_visibility_readonly_once_20261102.py
