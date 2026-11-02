@@ -14,7 +14,7 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      EXPECTED_BRANCH_PARENT: b02df328248203fca2579ba3f9f78c79b4007645
+      EXPECTED_BRANCH_PARENT: 430e40c6929c1643ef6371f654e46aa108c51084
       PRE_BACKEND_VERSION: 18daa9c8-b5aa-4a5a-b435-96b561f21714
       LIVE_UI_VERSION: d577fae3-2e5f-4be5-8f01-a39617de6ccf
       LIVE_UI_APP_SHA: 6de62ca721e4237a13dde05d549b7ae11b906f6da836b0dd307a89b66145cde4
@@ -62,7 +62,7 @@ jobs:
           curl -fLsS "$UI_URL/app.js?archive-auto-pre=$GITHUB_SHA-$(date +%s%N)" >/tmp/app-live.js
           echo "$LIVE_UI_APP_SHA  /tmp/app-live.js" | sha256sum --check
           cmp /tmp/app-live.js app.js
-          node -e 'const s=require("fs").readFileSync("/tmp/app-live.js","utf8");if(!s.includes("T12_NATIVE_COMPLETE_ORDERS_AUTO_BATCH_V2")||!s.includes('api("getArchiveEligibilityV1"')||!s.includes("تعذر قراءة عداد D1"))process.exit(1)'
+          node -e 'const s=require("fs").readFileSync("/tmp/app-live.js","utf8");if(!s.includes("T12_NATIVE_COMPLETE_ORDERS_AUTO_BATCH_V2")||!s.includes("getArchiveEligibilityV1")||!s.includes("تعذر قراءة عداد D1"))process.exit(1)'
           echo UI_ALREADY_UPDATED_NO_DEPLOY_REQUIRED=PASS
           curl -fsS "$BACKEND_URL/v1/employee/core/health" >/tmp/core-before.json
           curl -fsS "$BACKEND_URL/v1/employee/auth/health" >/tmp/auth-before.json
