@@ -149,6 +149,27 @@ test('ACC278 original authenticated native D1: OFF gate, draft commit/readback, 
     assert.equal((await call('saveEasyStoreSupplier',{
       requestId:'ACC281-NONZERO-BLOCKED-REQUEST',name:'Denied historical debt',opening:50
     })).success,false,'supplier-only cannot create any historic payable');
+    // ACC290: conflict between aliases must never be silently interpreted
+    // as zero-opening supplier intake, nor create any request/event/ledger.
+    const partyCountBefore=count('employee_accounting_parties_v1');
+    const commandCountBefore=count('employee_accounting_request_ledger_v1');
+    for(const [i,aliases] of [
+      {opening:0,debt:500},
+      {openingDebt:0,opening:0,openingBalance:100},
+      {opening:0,currentBalance:-25},
+      {opening:0,balance:'not-a-number'},
+      {opening:0,debt:[]}
+    ].entries()){
+      const denied=await call('saveEasyStoreSupplier',{
+        requestId:'ACC290-ALIAS-CONFLICT-REQ-'+String(i).padStart(3,'0'),
+        name:'ACC290 Denied Conflicting Supplier '+i,...aliases
+      });
+      assert.equal(denied.success,false,'conflicting opening alias '+i+' must fail');
+      assert.equal(count('employee_accounting_parties_v1'),partyCountBefore);
+      assert.equal(count('employee_accounting_request_ledger_v1'),commandCountBefore);
+      assert.equal(count('employee_accounting_party_ledger_v1'),0);
+      assert.equal(count('employee_accounting_cashbox_v1'),0);
+    }
     assert.equal(count('employee_accounting_opening_intake_batches_v1'),0);
     assert.equal(count('employee_accounting_party_ledger_v1'),0);
     assert.equal(count('employee_accounting_cashbox_v1'),0);
