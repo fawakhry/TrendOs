@@ -1,4 +1,4 @@
-name: T12 Archive Accurate D1 Counter - OWNER Backend Only Live 20261102
+name: T12 D1 Counter Stuck Fix - OWNER Backend Only Live 20261102
 on:
   push:
     branches: [candidate/t12-full-cloud-cutover-a56-20260929]
@@ -14,10 +14,10 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      EXPECTED_BRANCH_PARENT: 5013cbcd668c332d7806c06b39b7138cf060d04d
-      PRE_BACKEND_VERSION: 080a23f0-8c49-4cd5-8c98-c66aade7c67b
-      LIVE_UI_VERSION: 462f5bf3-c7b3-4af8-b653-c0c04f11bc2e
-      LIVE_UI_APP_SHA: d142346e5ff9e564cd1e9a5b2341fd5f38a9d5a3aafabe487e73d50bd07ea2dc
+      EXPECTED_BRANCH_PARENT: b02df328248203fca2579ba3f9f78c79b4007645
+      PRE_BACKEND_VERSION: 18daa9c8-b5aa-4a5a-b435-96b561f21714
+      LIVE_UI_VERSION: d577fae3-2e5f-4be5-8f01-a39617de6ccf
+      LIVE_UI_APP_SHA: 6de62ca721e4237a13dde05d549b7ae11b906f6da836b0dd307a89b66145cde4
       BACKEND_URL: https://trendos-d1-api.trendmall-contact.workers.dev
       UI_URL: https://trendos-ui.trendmall-contact.workers.dev
     steps:
@@ -25,7 +25,7 @@ jobs:
         with: {persist-credentials: false,fetch-depth: 2}
       - uses: actions/setup-node@v4
         with: {node-version: '22'}
-      - name: Exact candidate source, zero-ui-change verification and all 26 auth/SQLite tests
+      - name: Exact source and all 28 native D1 count auth/SQLite tests
         shell: bash
         run: |
           set -euo pipefail
@@ -40,8 +40,9 @@ jobs:
           ! grep -q '^TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED' cloudflare-d1/wrangler.toml
           node --check cloudflare-d1/src/employee-core-native-v1.mjs
           node --check app.js
+          node --check employee-api-dispatcher-v1.js
           node --test --no-warnings tests/t12_native_close_archive_v1.test.mjs
-          echo T12_26_TESTS=PASS
+          echo T12_28_D1_COUNT_TESTS=PASS
           npm install --no-save wrangler@4.33.2 >/dev/null 2>&1
       - name: Require exact already-published UI auto-loop and PIN current UI/backend leases
         shell: bash
@@ -61,14 +62,14 @@ jobs:
           curl -fLsS "$UI_URL/app.js?archive-auto-pre=$GITHUB_SHA-$(date +%s%N)" >/tmp/app-live.js
           echo "$LIVE_UI_APP_SHA  /tmp/app-live.js" | sha256sum --check
           cmp /tmp/app-live.js app.js
-          node -e 'const s=require("fs").readFileSync("/tmp/app-live.js","utf8");if(!s.includes("T12_NATIVE_COMPLETE_ORDERS_AUTO_BATCH_V2")||!s.includes("if (!res.hasMore)")||!s.includes("rounds > 200")||!s.includes("جاهز للأرشفة على D1"))process.exit(1)'
+          node -e 'const s=require("fs").readFileSync("/tmp/app-live.js","utf8");if(!s.includes("T12_NATIVE_COMPLETE_ORDERS_AUTO_BATCH_V2")||!s.includes('api("getArchiveEligibilityV1"')||!s.includes("تعذر قراءة عداد D1"))process.exit(1)'
           echo UI_ALREADY_UPDATED_NO_DEPLOY_REQUIRED=PASS
           curl -fsS "$BACKEND_URL/v1/employee/core/health" >/tmp/core-before.json
           curl -fsS "$BACKEND_URL/v1/employee/auth/health" >/tmp/auth-before.json
           node <<'NODE'
           const c=require('/tmp/core-before.json'),a=require('/tmp/auth-before.json');
           if(!c.schemaReady||c.mode!=='GENERAL'||a.mode!=='NATIVE'||!a.nativeOnly)throw Error('Backend auth/core drift');
-          if(c.archiveEligibilityVersion==='T12_NATIVE_ARCHIVE_ELIGIBILITY_V3')throw Error('Expected old archive counter backend, lease changed');
+          if(c.archiveEligibilityVersion!=='T12_NATIVE_ARCHIVE_ELIGIBILITY_V3')throw Error('Unexpected previous archive counter version');
           console.log('BACKEND_ORIGINAL_HEALTH=PASS');
           NODE
           npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT mode,(SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name LIKE 'trg_t12_native_archive_v1_%') AS n FROM t12_native_archive_guard_control_v1 WHERE singleton=1" >/tmp/guard.json
@@ -110,10 +111,13 @@ jobs:
           npx wrangler deploy --config cloudflare-d1/wrangler.toml >/tmp/t12-backend-deploy.log
           for i in $(seq 1 8); do
             curl -fsS "$BACKEND_URL/v1/employee/core/health" >/tmp/post-core.json || true
-            if node -e 'const x=require("/tmp/post-core.json");process.exit(x.mode==="GENERAL"&&x.schemaReady===true&&x.actions?.includes("archiveDeliveredDepartmentV1926")&&x.archiveEligibilityVersion==="T12_NATIVE_ARCHIVE_ELIGIBILITY_V3"?0:1)'; then break;fi
+            if node -e 'const x=require("/tmp/post-core.json");process.exit(x.mode==="GENERAL"&&x.schemaReady===true&&x.actions?.includes("getArchiveEligibilityV1")&&x.archiveEligibilityVersion==="T12_NATIVE_ARCHIVE_ELIGIBILITY_V4"?0:1)'; then break;fi
             sleep 2
           done
-          node -e 'let x=require("/tmp/post-core.json");if(x.mode!=="GENERAL"||!x.schemaReady||!x.actions?.includes("archiveDeliveredDepartmentV1926")||x.archiveEligibilityVersion!=="T12_NATIVE_ARCHIVE_ELIGIBILITY_V3")process.exit(1)'
+          node -e 'let x=require("/tmp/post-core.json");if(x.mode!=="GENERAL"||!x.schemaReady||!x.actions?.includes("getArchiveEligibilityV1")||x.archiveEligibilityVersion!=="T12_NATIVE_ARCHIVE_ELIGIBILITY_V4")process.exit(1)'
+          curl -fsS "$BACKEND_URL/v1/employee/core/health?archiveProbe=1" >/tmp/post-count-probe.json
+          node -e 'const x=require("/tmp/post-count-probe.json");if(x.archiveEligibilityVersion!=="T12_NATIVE_ARCHIVE_ELIGIBILITY_V4"||x.archiveProbe?.available!==true||x.archiveProbe?.eligibleOrders!==undefined)process.exit(1)'
+          echo LIVE_ORIGINAL_D1_COUNT_QUERIES=PASS
           curl -fsS "$BACKEND_URL/v1/employee/auth/health" >/tmp/post-auth.json
           node -e 'let x=require("/tmp/post-auth.json");if(x.mode!=="NATIVE"||!x.nativeOnly)process.exit(1)'
           status="$(curl -sS --output /tmp/anonymous.json --write-out '%{http_code}' -X POST -H 'Content-Type: application/json' --data '{"action":"archiveDeliveredDepartmentV1926","username":"anonymous","screen":"service","requestId":"ARCHIVE-NOAUTH-POSTCHECK"}' "$BACKEND_URL/v1/employee/core")"
@@ -128,7 +132,7 @@ jobs:
           curl -fLsS "$UI_URL/app.js?archive-auto-post=$GITHUB_SHA-$(date +%s%N)" >/tmp/app-post.js
           echo "$LIVE_UI_APP_SHA  /tmp/app-post.js" | sha256sum --check
           trap - ERR
-          echo T12_ARCHIVE_CORRECT_D1_COUNTER_BACKEND_LIVE=YES
+          echo T12_D1_COUNTER_BACKEND_V4_LIVE=YES
           echo UI_PRODUCTION_MUTATIONS=NO
           echo LEGACY_GOOGLE_ARCHIVE_MUTATIONS=NO
           echo BACKEND_ROLLBACK_USED=NO
