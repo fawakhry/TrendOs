@@ -141,7 +141,7 @@ def audit(cli):
         print("ACC292_MISSING_SECRET_NAMES=" + ",".join(missing))
         print("ACC292_G1_REAL_SESSION=NOT_QUALIFIED")
         print("ACC292_FINANCE_WRITES=OFF")
-        return
+        raise Stop("REQUIRED_SECRET_NAMES_MISSING_STOP")
     print("ACC292_REQUIRED_SECRET_NAMES=PRESENT_NOT_VALUE_MATCH_PROOF")
     ctrl = select_aggregate(cli, CONTROL_SQL, ("mode",))
     counts = select_aggregate(cli, COUNT_SQL,
