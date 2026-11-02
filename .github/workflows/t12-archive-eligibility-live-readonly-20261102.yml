@@ -1,0 +1,78 @@
+name: T12 Archive Eligibility LIVE Readonly SQL and UI Route Diagnostic
+on:
+  push:
+    branches: [candidate/t12-full-cloud-cutover-a56-20260929]
+    paths: ['.github/workflows/t12-archive-eligibility-live-readonly-20261102.yml']
+permissions: {contents: read}
+jobs:
+  read-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Probe live backend health and deployed frontend route without sessions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in /v1/employee/core/health /v1/employee/auth/health; do
+            curl -fsS "https://trendos-d1-api.trendmall-contact.workers.dev$path" >/tmp/health.json
+            ROUTE="$path" node <<'NODE'
+          const v=require('/tmp/health.json');
+          console.log('BACKEND_READONLY_HEALTH='+JSON.stringify({path:process.env.ROUTE,mode:v.mode,version:v.archiveEligibilityVersion,
+            enabled:v.envEnabled,nativeOnly:v.nativeOnly,schemaReady:v.schemaReady}));
+          NODE
+          done
+          for file in config.js employee-api-dispatcher-v1.js app.js; do
+            curl -fLsS "https://trendos-ui.trendmall-contact.workers.dev/$file?probe=$GITHUB_SHA" >"/tmp/live-$file"
+          done
+          node <<'NODE'
+          const fs=require('fs'),c=fs.readFileSync('/tmp/live-config.js','utf8'),d=fs.readFileSync('/tmp/live-employee-api-dispatcher-v1.js','utf8'),a=fs.readFileSync('/tmp/live-app.js','utf8');
+          const checks={
+            coreGeneral:/MATBAGY_EMPLOYEE_CORE_CUTOVER_MODE\s*=\s*['"]GENERAL['"]/.test(c),
+            nativeAuth:/MATBAGY_EMPLOYEE_NATIVE_AUTH_V1\s*=\s*true/.test(c),
+            hasDispatcher:/shouldRouteCoreNative/.test(d),
+            aliasGetRows:/requestedAction === 'getRowsPageV1931' \? 'getRows'/.test(d),
+            uiArchives:/archiveEligibility = res.archiveEligibility/.test(a),
+            uiCounter:/جاهز للأرشفة على D1/.test(a),
+            backendD1URL:/trendos-d1-api\.trendmall-contact\.workers\.dev/.test(c)
+          };
+          console.log('CURRENT_LIVE_UI_ROUTE_CHECKS='+JSON.stringify(checks));
+          NODE
+      - name: Probe EXACT remote D1 eligibility SQL for service print laser no changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.33.2 --version
+          for scope in service print laser; do
+            case "$scope" in
+              service) match='1=1';;
+              print) match="instr(s.department,'طباعة')>0";;
+              laser) match="instr(s.department,'ليزر')>0";;
+            esac
+            sql="SELECT COUNT(*) AS n FROM t12_prod_orders o WHERE NOT EXISTS(SELECT 1 FROM employee_core_archive_orders_v1 a WHERE a.order_id=o.order_id) AND EXISTS(SELECT 1 FROM t12_prod_lines s WHERE s.order_id=o.order_id AND $match) AND NOT EXISTS(SELECT 1 FROM t12_prod_lines l LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id WHERE l.order_id=o.order_id AND (COALESCE(r.status,l.status)<>'تم التسليم' OR a.line_id IS NOT NULL))"
+            npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "$sql" >"/tmp/d1-$scope.json"
+            SCOPE="$scope" node <<'NODE'
+          const v=JSON.parse(require('fs').readFileSync('/tmp/d1-'+process.env.SCOPE+'.json','utf8'));
+          const r=(Array.isArray(v)?v:[v]).flatMap(x=>x.results||[]);
+          console.log('ACTUAL_D1_ELIGIBLE_'+process.env.SCOPE.toUpperCase()+'='+String(r[0]?.n??'missing'));
+          if(!r.length)process.exit(1);
+          NODE
+            case "$scope" in
+              service) match='1=1';;
+              print) match="instr(l.department,'طباعة')>0";;
+              laser) match="instr(l.department,'ليزر')>0";;
+            esac
+            sql="SELECT COUNT(*) AS n FROM t12_prod_orders o WHERE NOT EXISTS(SELECT 1 FROM employee_core_archive_orders_v1 a WHERE a.order_id=o.order_id) AND EXISTS(SELECT 1 FROM t12_prod_lines l WHERE l.order_id=o.order_id AND $match) AND EXISTS(SELECT 1 FROM employee_core_archive_lines_v1 a WHERE a.order_id=o.order_id)"
+            npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "$sql" >"/tmp/partial-$scope.json"
+            SCOPE="$scope" node <<'NODE'
+          const v=JSON.parse(require('fs').readFileSync('/tmp/partial-'+process.env.SCOPE+'.json','utf8'));
+          const r=(Array.isArray(v)?v:[v]).flatMap(x=>x.results||[]);
+          console.log('ACTUAL_D1_PARTIAL_'+process.env.SCOPE.toUpperCase()+'='+String(r[0]?.n??'missing'));
+          if(!r.length)process.exit(1);
+          NODE
+          done
+          echo NO_D1_MUTATIONS=YES
