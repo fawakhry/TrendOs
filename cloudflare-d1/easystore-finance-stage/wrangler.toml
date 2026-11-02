@@ -13,6 +13,12 @@ FINANCE_WRITES = "OFF"
 # finance READONLY D1 control, private service bindings and nonempty grants.
 # Never set ENFORCE in a build or migrate production as a shortcut.
 EASYSTORE_STAGE_READONLY_API_V1 = "OFF"
+# ACC291: independent supplier master ONLY is deliberately unarmed.
+# Never publish ENFORCE without real native Stage staff+grant, restored off-host
+# backup and separately approved limited Stage plan. No money routes.
+EASYSTORE_STAGE_SUPPLIER_MASTER_INTAKE_V1 = "OFF"
+EASYSTORE_SUPPLIER_MASTER_INTAKE_V1 = "OFF"
+EASYSTORE_OPENING_DRAFT_INTAKE_V1 = "OFF"
 # ACC253 temporary signed-source diagnostic always OFF in checked-in config.
 EASYSTORE_STAGE_SIGNED_SOURCE_SMOKE_V1 = "OFF"
 EASYSTORE_ACCOUNTING_D1_WRITES = "false"

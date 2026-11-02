@@ -106,6 +106,86 @@ If export, restore, permissions, stage UUID, empty-schema check or
 post-export live schema recheck fails, STOP; leave the private evidence/
 partial file for secure local review. Do not retry `apply` as a fix.
 
+## ACC281 — Phase B3: backup and locally restore the EXISTING 22-table native Stage
+
+After ACC228-DB-31 already applied and verified **all 22 original accounting
+tables** on this exact Stage, do **NOT** rerun migration apply/resume or use
+Phase B2's historical expectation of an empty database. The EXISTING same
+`stage_d1_bootstrap.py backup-verify` action has been hardened on finance
+candidate commit `1a7c2e2d36d3f301f798b74e12cc348566049235` for an exact,
+seed-only 22-table native Stage, while preserving its historic empty-Stage
+behavior. The same existing Stage/bootstrap regression suite qualified it
+offline; it has **NOT** made a current real Cloudflare backup yet.
+
+Run only from the owner's authenticated Ubuntu Wrangler, without touching
+the active `$HOME/TrendOs`, `TrendOs-ops-pilot`, server sandbox, or
+production D1. The following creates a fresh detached worktree with exact
+tested source (if not already present) and a protected backup folder.
+Never paste the export or account credentials into chat or GitHub:
+
+```bash
+git -C "$HOME/TrendOs" fetch origin feature/acc268-easystore-standalone-customer-source-off-20261030
+git -C "$HOME/TrendOs" worktree add --detach \
+  "$HOME/TrendOs-finance-backup-acc281" \
+  1a7c2e2d36d3f301f798b74e12cc348566049235
+cd "$HOME/TrendOs-finance-backup-acc281"
+umask 077
+WRANGLER="$HOME/.local/share/trendos-finance-tools/node_modules/.bin/wrangler"
+test -x "$WRANGLER" || { echo "LOCAL_WRANGLER_NOT_PRESENT"; exit 1; }
+mkdir -p "$HOME/.private-easystore-stage"
+chmod 700 "$HOME/.private-easystore-stage"
+BACKUP_DIR="$HOME/.private-easystore-stage/current-verified-$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -m 700 "$BACKUP_DIR"
+PYTHONDONTWRITEBYTECODE=1 python3 \
+  cloudflare-d1/easystore-finance-stage/stage_d1_bootstrap.py \
+  backup-verify --private-backup-dir "$BACKUP_DIR" \
+  --confirm-stage-uuid c2fe1a54-90f5-4e6f-9d51-80ce23e21328 \
+  --wrangler "$WRANGLER"
+```
+
+Expected **only after actual owner run**:
+`result=STAGE_22_TABLE_SCHEMA_EXPORT_RESTORED_LOCALLY_ONLY`,
+`backup.restoredTables=22`, `privateLocalRestoreIntegrity=PASS`,
+`schemaApplied=true`, `mayApplyMigrations=false`,
+`cloudflareWrites=false`, `financeRelease=NO_GO`,
+`independentSecondHostRestore=NOT_RUN`. The private 0600 SQL file is
+`stage_current_verified_original_schema.sql` and private 0600 summary is
+`stage_backup_evidence.json`. The protected SQL contains **real D1 export**
+content and must stay private. The script refuses incomplete/foreign tables,
+changed actual D1 finance control, missing baseline seed, any non-seed
+business rows, malformed export, schema mismatch, FK/integrity failures,
+changes during export and unapproved target UUID. It does not upload the
+SQL anywhere, encrypt it or certify backup on a **different host**.
+Additional independent encrypted transfer, second-device restore, and
+verified hash are separately required BEFORE a qualified R2 Stage write
+and eventual actual production release. Failure leaves finance OFF;
+never run `apply` to repair a backup failure.
+
+### ACC282 — backup certification integrity hardening (OFFLINE CHECKS ONLY)
+
+The exact reviewed Stage source at commit `1a7c2e2d36d3f301f798b74e12cc348566049235`
+adds strict comparison of ALL user-defined SQLite objects (tables, indexes,
+triggers and views) before export, inside independently restored private SQL,
+and after export; it exempts only the exact Cloudflare-reserved `_cf_KV`
+storage table. The restored native write-canary record must itself equal
+`(enabled=1, max_commands=0, commands_started=0)` rather than merely have
+one row. Negative tests inject unexpected provider indexes/views/triggers,
+an export-only index, and an export-only raised finance write budget.
+The existing **20/20 source-only workflow runs** finished SUCCESS at
+`1a7c2e2d36d3f301f798b74e12cc348566049235`, including original ACC234 Stage test
+[#41299955291](https://github.com/fawakhry/TrendOs/actions/runs/41299955291).
+No provider connection, remote backup, encryption, second-host restore,
+financial POST, deployment, or merge occurred from these tests.
+
+The above detached-worktree command now pins this newer exact tested source.
+The earlier ACC281 initial qualification was at
+`415a4540cdebbbbe0a8b4aebbdccb05b6c9087cc`; historical evidence
+is retained in the canonical EasyStore book. Current owner-local Stage
+backup and independent encrypted recovery test are both still NOT RUN;
+`FINANCE_RELEASE=NO_GO`, `FINANCE_WRITES=OFF`.
+
+---
+
 **Phase C — EXPLICIT STAGE-ONLY SCHEMA APPLY.** Do this **only** after owner
 authorization for a dedicated exclusive Stage change window, confirmation that
 this is synthetic/not production data, and a recovery operator on Ubuntu.
@@ -163,3 +243,475 @@ employee access tests; reconcile original Google history and backup recovery.
 The health-only finance Worker still **hard-denies all financial POSTs**.
 Finance gates remain `G1-G5=OPEN`, `FINANCE_RELEASE=NO_GO`,
 `FINANCE_WRITES=OFF`.
+
+### ACC283 — owner Ubuntu screenshot of real Stage 22-table backup, pending independent restore (2026-11-01 Cairo)
+
+The owner supplied a screenshot of the **local Ubuntu terminal result**, after running
+the ACC282 pinned detached-worktree Phase B3 command. Visible terminal JSON
+includes `result=STAGE_22_TABLE_SCHEMA_EXPORT_RESTORED_LOCALLY_ONLY`,
+`schemaApplied=true`, `workerDeployed=false`, the exact existing Stage
+database identity, and the terminal prompt returned without an error. The
+`backup-verify` code emits this success result only after export, local
+disposable SQLite restore, original 22-table parity/seed checks, SHA evidence,
+and the second read of the provider. The top portion of the JSON was outside
+the screenshot: the private SQL hash, individual `backup.restoredTables`
+and `privateLocalRestoreIntegrity` fields were **not independently read**
+from the protected evidence file by this assistant.
+
+**Evidence level:** `OWNER_TERMINAL_SCREENSHOT_PASS` (not independent
+provider access or second-host disaster-recovery attestation). Do not paste
+private SQL, hashes, tokens or paths into GitHub/chat. Keep all files under
+the owner's private 0700 directory, with SQL/evidence mode 0600. Do not rerun
+`apply` or `resume`; the 22-table Stage has already been migrated.
+
+**New checkpoint:** `REAL_OWNER_CURRENT_22_TABLE_STAGE_EXPORT=OWNER_SCREENSHOT_SUCCESS`;
+`PRIVATE_SQL_EVIDENCE_CROSSCHECK=OWNER_LOCAL_CHECK_PENDING`;
+`INDEPENDENT_SECOND_HOST_ENCRYPTED_RESTORE=NOT_RUN`;
+`STAGE_G1_REAL_EMPLOYEE=NOT_PROVISIONED`;
+`FINANCE_WRITES=OFF`; `FINANCE_RELEASE=NO_GO`.
+Earlier ACC281/ACC282 'NOT_RUN' entries are historical and superseded
+**only for the owner-local backup run**, not for independent recovery.
+
+**Next action:** Locally cross-check the private evidence file, backup SQL
+hash, restored table count and OFF flags without exposing the SQL. Then
+encrypt locally and copy only the encrypted backup through an owner-controlled
+channel to a physically separate machine. On that second device compare
+SHA-256 with the privately retained original and restore into disposable,
+unshared SQLite; check schema/rows/FK/integrity before G3 may qualify. Never
+claim independent recovery from the original machine's in-memory restore,
+a screenshot, offline GitHub Actions or an encrypted file merely copied but
+not actually restored.
+
+### ACC284 — owner independently crosschecked the actual private backup on Ubuntu (2026-11-01 Cairo)
+
+The owner supplied a SECOND terminal screenshot after executing the local
+Python verifier in ACC283's handoff. Visible output:
+
+```text
+LOCAL_BACKUP_CHECK=PASS
+RESTORED_TABLES=22
+FINANCE=OFF
+```
+
+The verifier selected the latest `current-verified-*` protected owner folder,
+read its local `stage_backup_evidence.json`, required the exact native 22-table
+backup success result, 22 restored and 22 named original tables, local
+SQLite-restore integrity PASS, native finance OFF / NO_GO, no Cloudflare
+writes or Worker deploy, exact `0700` directory and `0600` private files,
+and independently recomputed the SQL's SHA-256 against its protected
+evidence hash. The terminal returned these three success lines without
+traceback. This **owner-local evidence crosscheck is now PASS**, superseding
+ACC283's PENDING flag. The assistant did not read the confidential SQL,
+hash or owner provider session.
+
+**Evidence state:** `REAL_OWNER_CURRENT_22_TABLE_STAGE_EXPORT=OWNER_SCREENSHOT_SUCCESS`;
+`PRIVATE_SQL_EVIDENCE_CROSSCHECK=OWNER_LOCAL_PASS`;
+`INDEPENDENT_SECOND_HOST_ENCRYPTED_RESTORE=NOT_RUN`;
+`FINANCE_WRITES=OFF`, `FINANCE_RELEASE=NO_GO`. No change to G1 staff
+provisioning, actual customer/supplier cash writes or production.
+
+**Next phase B4 is owner-local encryption, not a second-host test.**
+Do not send files, passphrases or raw hashes in chat or commit them. On the
+same Ubuntu source, select the same latest certified private folder and
+create an owner-only GnuPG AES256 encrypted tar stream containing ONLY
+`stage_current_verified_original_schema.sql` and
+`stage_backup_evidence.json`. This does not create an additional plaintext
+archive:
+
+```bash
+(
+set -euo pipefail
+command -v gpg >/dev/null || { echo "GPG_NOT_INSTALLED"; exit 1; }
+umask 077
+ROOT="$HOME/.private-easystore-stage"
+mapfile -t dirs < <(find "$ROOT" -mindepth 1 -maxdepth 1 -type d -name 'current-verified-*' | sort)
+test "${#dirs[@]}" -gt 0 || { echo "VERIFIED_BACKUP_FOLDER_NOT_FOUND"; exit 1; }
+BACKUP_DIR="${dirs[${#dirs[@]}-1]}"
+test -f "$BACKUP_DIR/stage_current_verified_original_schema.sql"
+test -f "$BACKUP_DIR/stage_backup_evidence.json"
+test ! -L "$BACKUP_DIR/stage_current_verified_original_schema.sql"
+test ! -L "$BACKUP_DIR/stage_backup_evidence.json"
+OUT="$ROOT/easystore-stage-dr-$(date -u +%Y%m%dT%H%M%SZ).tar.gpg"
+test ! -e "$OUT"
+tar -C "$BACKUP_DIR" -cf - \
+  stage_current_verified_original_schema.sql \
+  stage_backup_evidence.json \
+  | gpg --no-symkey-cache --symmetric --cipher-algo AES256 --output "$OUT"
+test -s "$OUT"
+test "$(stat -c %a "$OUT")" = 600
+printf 'ENCRYPTED_BACKUP_READY=PASS\nTRANSFER_STATUS=NOT_RUN\n'
+printf 'ENCRYPTED_ARCHIVE_NAME=%s\n' "$(basename "$OUT")"
+)
+```
+
+Use a **new long unique passphrase**, entered only in GnuPG's interactive
+pinentry UI, not the phone PBX PIN or any passphrase reused in another
+service. Save the passphrase securely away from the encrypted copy; do not
+place it in shell arguments, history, chat, GitHub, or in the same USB
+drive. Copy **only** the `.tar.gpg` ciphertext through an owner-controlled
+USB/SSH method to a truly different device; verify ciphertext SHA-256 source
+vs destination. On that *separate* machine decrypt to a temporary protected
+RAM-backed `/dev/shm` directory, compare the decrypted SQL SHA-256 to its
+protected evidence record, independently open SQL in fresh SQLite,
+check `integrity_check`, `foreign_key_check`, 22 native tables, seed-only
+rows, OFF finance control and zero canary budget, then remove the temporary
+plaintext. Record **only PASS/FAIL**, exact host separation and date. Until
+this has really happened, G3 disaster recovery remains OPEN.
+
+### ACC285 — owner Ubuntu encrypted Stage recovery package created, transfer pending (2026-11-01 Cairo)
+
+The owner supplied a third Ubuntu terminal screenshot following ACC284 Phase B4.
+The final stdout visible in that screenshot is exactly:
+
+```text
+ENCRYPTED_BACKUP_READY=PASS
+TRANSFER_STATUS=NOT_RUN
+```
+
+The earlier ACC284 source command used a GnuPG AES256 symmetric-encryption
+stream from the two protected files (current native Stage SQL and private
+evidence) directly into a private `.tar.gpg` artifact, tested that the
+artifact is nonempty with mode `0600`, and exited successfully. Evidence
+classification: **owner terminal screenshot**, not agent access to source
+bytes, encryption key/passphrase, GnuPG logs or the second host.
+
+**Updated state:** `REAL_OWNER_CURRENT_22_TABLE_STAGE_EXPORT=OWNER_SCREENSHOT_SUCCESS`;
+`PRIVATE_SQL_EVIDENCE_CROSSCHECK=OWNER_LOCAL_PASS`;
+`ENCRYPTED_STAGE_RECOVERY_PACKAGE=OWNER_SCREENSHOT_SUCCESS`;
+`CIPHERTEXT_TRANSFER=NOT_RUN`;
+`SECOND_HOST_CIPHERTEXT_SHA256_MATCH=NOT_RUN`;
+`INDEPENDENT_SECOND_HOST_ENCRYPTED_RESTORE=NOT_RUN`;
+`FINANCE_WRITES=OFF`; `FINANCE_RELEASE=NO_GO`.
+Only ACC284's `ENCRYPTED_STAGE_RECOVERY_PACKAGE=NOT_RUN` historical flag
+is superseded. G3 remains **OPEN** until a physically independent device
+actually proves ciphertext digest parity, decrypts and restores the
+22-table original SQL, and validates its accounting seeds/schema and deny
+budget. Never claim that file encryption alone is an off-host restore.
+
+**Next owner action:** keep SQL, protected evidence and secret passphrase
+on the original machine, away from public repositories and chat; locate
+the newest `$HOME/.private-easystore-stage/easystore-stage-dr-*.tar.gpg`
+and copy this **ciphertext only** via owner-controlled removable media or
+authenticated SSH to an *independent* computer. Record the SHA256 of the
+ciphertext on both machines in separate private local terminals and
+compare it, without pasting the digest into GitHub/chat. On that
+independent computer, decrypt with the private passphrase, restore
+privately and validate original 22-table seed-only schema, exact OFF
+finance control, zero canary budget, SQLite integrity and FK checks,
+and SQL digest vs encrypted evidence. Do not create alternate Stage
+databases or re-run remote migrations, deploy Workers, or enable finance.
+
+### ACC286 — owner postpones second-host restore; accounting-first work resumes (2026-11-01 Cairo)
+
+The owner showed the original Ubuntu Files view containing the local private
+`current-verified-*` directory, prior `backup-only-*` directory and a
+nonempty GnuPG-encrypted `easystore-stage-dr-*.tar.gpg` artifact. The owner
+explicitly states **NO SECOND UBUNTU DEVICE CURRENTLY AVAILABLE** and wants
+the separate-machine backup validation resumed **later**, while prioritizing
+EasyStore accounting readiness today. Do not delete, rename, upload, decrypt
+or move any of these protected files as part of accounting development.
+No second-host archive transfer, SHA parity, or independent restore has run.
+
+**Owner pause checkpoint for later:** on a different physical computer,
+copy **ciphertext only** from original Ubuntu via trusted media/channel,
+compare ciphertext SHA-256 privately across devices, securely decrypt into
+private temporary storage, verify private SQL digest against the protected
+evidence, independent SQLite 22-table restore, exact original objects,
+two control seed rows only, finance `OFF`, zero write canary,
+`PRAGMA integrity_check`, `PRAGMA foreign_key_check`; do not transmit
+the passphrase, SQL, evidence or digest through chat/GitHub. Until this
+is complete `G3_RECOVERY_ACCEPTANCE=OPEN`,
+`INDEPENDENT_SECOND_HOST_ENCRYPTED_RESTORE=NOT_RUN`.
+
+**Accounting continuation (NO LIVE MONEY):** original EasyStore
+[Draft PR #76](https://github.com/fawakhry/EasyStore/pull/76) has
+a source-only ACC286 client improvement: when a finance-local
+`saveEasyStoreCustomer` POST returns success, the original customer
+action requires a fresh original D1 directory response with exact
+`customerId`, name, source and version before showing success.
+Timeout, missing/wrong ID or wrong source keeps the SAME idempotency
+request ID for retry, instead of prematurely generating a new one.
+Existing original EasyStore
+`tests/easystore_acc278_opening_draft_ui_route_no_go.test.cjs`
+exercises the real action via offline VM, including false readbacks,
+timeout-retry and OFF default. Original EasyStore code commits
+`efe8639eb5d854eac9e94b442ae2428c554541a0` and
+`81385aa36cfece00df652f7fa4a74100a98af7f4`,
+**12/12 GitHub Actions SUCCESS at tested code HEAD**; no live API
+posting or feature flag changes.
+
+The owner wishes to operate accounting on 2026-11-01, but the
+independent restored disaster-recovery G3, staff G1, original opening
+balances, actual live SSO+customer/provider release proof and other
+G2/G4/G5 requirements remain unqualified. The existing public
+EasyStore main config is `EASYSTORE_ACCOUNTING_D1_WRITE_MODE=OFF`.
+**Read-only/status preparation is not authorization to post a real cash
+receipt, create a real supplier/customer master or backfill opening amounts.**
+`FINANCE_WRITES=OFF`, `FINANCE_RELEASE=NO_GO`.
+
+### ACC286 R2 — finance pilot day-one truthful read-only UI (source tested, not deployed)
+
+Original EasyStore Draft PR #76 has now fixed false-positive customer POST
+success and uses explicit finance-OFF-only view mode across original customer
+statement/drawer and sales pages. Source [`8c976bbd`](https://github.com/fawakhry/EasyStore/commit/8c976bbde49e2e3b1d0666262895cf24bd0c9ab9)
+hides original payment/adjustment form under OFF, visibly labels
+read-only status, blocks invoice save button and action, and hides
+unreleased standalone customer-registration form. The original
+`tests/customer_accounts_ui_v1915.test.js` now validates OFF
+for both employee roles and old editable-form roles ONLY in synthetic
+CANARY fixture. Initial 3/12 CI failures at `91e884c2` due to
+test harness's function-not-called bug and old fixture expectations
+were resolved by `68961a4e`, `95d3e76a`. Exact final original
+EasyStore code HEAD `95d3e76a5d5ac0609aed3270c2e0fa5ba2015dd2`
+**12/12 Actions PASS**, all source-only and without deploying,
+logging into finance Stage, writing D1, changing server/client flags,
+or merging any PR. Original canonical EasyStore book ACC286 R2
+provides details. `FINANCE_RELEASE=NO_GO`, `FINANCE_WRITES=OFF`,
+`G3_SECOND_HOST_RESTORE=DEFERRED_OWNER_NO_DEVICE`, G1 role and
+true signed opening balance gates remain unqualified.
+
+**Do not equate previewing accounting values from a local/cache
+snapshot with a current, source-confirmed financial balance.** Actual
+authenticated finance D1 readback, employee role scope, original opening
+reconciliation and no-duplicate transaction protections must all be
+proved before any real finance release.
+
+### ACC289–290 — supplier registration launch package (2026-11-02 Cairo; SAFE, NOT DEPLOYED)
+
+**Original canonical EasyStore accounting book ACC281 R0/R1/R2 and ACC288
+reused before changing anything.** ACC-107's one-time real synthetic
+inactive supplier command already succeeded in October and ACC-108 explicitly
+closed its limited write authority. It must NOT be replayed just because
+the owner starts another chat. Published EasyStore R0 is still read-only
+and verified. Private Stage G1 actual employee sessions/grants remain
+unqualified, G3 second-host restore deferred by owner (no second Ubuntu),
+finance write control OFF.
+
+**Bundle A — original EasyStore Draft PR #76, not an R0 overwrite.**
+[Exact client head `58dcc391473cd119b62bd43d24c3c106a2506b1b`](https://github.com/fawakhry/EasyStore/commit/58dcc391473cd119b62bd43d24c3c106a2506b1b):
+original `saveSupplier` only attempts supplier-master intake if the
+independent supplier flag is true and client finance-mode is OFF; demands
+original backend `A2_D1_ACCOUNTING_V1`, exact SUP partyId/supplierId,
+returned name, `openingBalance=0` and `active=true`; then requires
+original `A1_D1_READ_MODEL_V1` response with exact same partyId,
+normalized submitted name, active supplier row and current balance
+exactly ZERO. Existing request ID survives all ambiguous returns/GET
+errors so retry does not create another record. A false-positive same-name
+lookup is no longer accepted. The existing ACC277 invariant file and
+existing ACC278 UI offline VM now have *gap-only* negative fixtures for
+wrong versions/IDs/name/active/zero balance/timeouts/feature OFF. **Original
+EasyStore CI 12/12 exact-head SUCCESS**. Previously approved ACC281 R0
+verified original-D1 supplier screen remains preserved by ACC288.
+No frontend flag switched ON, no public Pages build deployed.
+
+**Bundle B — original TrendOS finance Draft PR #303 source only.**
+[Exact backend head `86be68b58fbcf9ec873af3a8ce9c786e7161a58d`](https://github.com/fawakhry/TrendOs/commit/86be68b58fbcf9ec873af3a8ce9c786e7161a58d):
+previous code preferred the first populated alias of
+`openingDebt / opening / debt`, so `opening=0,debt=500` might have
+passed its supplier zero-only predicate. ACC290 checks **ALL present**
+opening/debt/balance aliases independently, rejecting nonnumeric,
+negative, positive or conflicting values both in the original
+READONLY supplier-only exception and the actual native `saveSupplierV1`
+handler. Existing persistent SQLite D1 handler suite adds only the
+uncovered conflicting-alias negative cases, checking zero new
+supplier rows, request commands, financial ledgers/cashbox.
+**Original TrendOS CI 20/20 exact-head SUCCESS**. No cloud deploy or
+original Stage/prod finance mutation.
+
+**Gated actual launch order (no invented owner identities):**
+1. Keep public `main` R0 read-only intact. Never blindly merge older
+   PR #76 candidate branch (base is not main) or wholesale PR #303
+   into operational production: preserve all shipped post-base fixes.
+2. Privately verify **specific real staff identities**, user sessions,
+   `auth.mode=full` and finance grants on the **correct operational
+   employee native source and finance Stage service binding**. Current
+   checked-in finance Stage `ACCOUNTING_FINANCE_GRANTS_V1` is an empty
+   array, `EASYSTORE_STAGE_READONLY_API_V1=OFF`, and
+   `FINANCE_RELEASE=NO_GO`; cannot self-certify a fake session from CI.
+   An employee name/role from a client form alone is not authority.
+3. Independently restore protected ACC283–285 GnuPG encrypted 22-table
+   backup on another physically separate host, compare private hashes
+   and SQLite integrity; owner has deferred this step because there
+   is currently only one Ubuntu device. Original local backup success
+   does **not** close off-host G3.
+4. Before any Stage write, obtain explicitly reviewed narrow private
+   original Worker version, server supplier-only flag and individual
+   full-role finance grant with zero monetary writing. Cash, drafts,
+   supplier historical debt, installments, invoice and global CANARY/
+   GENERAL modes remain denied. Preserve remote finance D1 UUID and
+   original saved data; never reapply existing 13 migrations.
+5. Only after independent rollback, bounded Stage authorized zero
+   supplier POST->fresh canonical D1 GET exact ID/status/zero balance,
+   idempotent repeated same request ID, relogin and OFF kill switch
+   are proven, produce an owner-reviewed pinned production rollout
+   version and rollback plan. Do **not** repeat October production
+   canary and do not infer actual current supplier GO from source CI.
+
+**Currently runnable without secrets or financial DML:** source review,
+existing CI, public read-only Worker health, browser authenticated
+supplier GET, original Stage identity/schema read-only inspection.
+**Currently forbidden:** provider supplier POST, writes to any finance
+D1, enabling public button by editing only the client, false zero
+openings, production deploy/merge or auto role provisioning. Terminal
+outcome: `R2_CLIENT_SOURCE_PASS`, `R2_SERVER_SOURCE_PASS`,
+`G1_REAL_STAFF_NOT_QUALIFIED`, `G3_SECOND_HOST_DEFERRED_BY_OWNER`,
+`FINANCE_WRITES=OFF`, `FINANCE_RELEASE=NO_GO`.
+
+### ACC291 — Stage supplier-only entrypoint prepared with real native session boundary (2026-11-02 Cairo; SOURCE-ONLY, NO DEPLOY)
+
+**Original-book-first and no historical re-test:** The canonical EasyStore accounting book was read through ACC289–290 before this change. ACC107 real October one-shot inactive vendor registration, ACC108 closure, ACC281 R0 verified public D1 supplier list, ACC281 R1 owner browser acceptance, ACC283–285 owner's 22-table private backup/export/restore/encryption, ACC288–290 supplier UI and native handler checks were REUSED, not reenacted. No Cloudflare credentials, owner DB data, or supplier POST accessed.
+
+**Precise new gap discovered:** the existing original `cloudflare-d1/easystore-finance-stage/index.mjs` API accepted only READ_ACTIONS, even though original native `saveSupplierV1` and `EASYSTORE_SUPPLIER_MASTER_INTAKE_V1=ENFORCE` zero-only READONLY exception were already implemented/tested in ACC281 R2/ACC290. No supplier-only POST could pass through the isolated Stage entrypoint. Simply enabling the frontend button would still fail.
+
+**Changes in same original TrendOS finance PR #303:**
+- Original [Stage gateway `7722075f`](https://github.com/fawakhry/TrendOs/commit/7722075fccf07b20834ec4a6b93b8ca53b2899a5): allow ONLY the pre-existing `saveEasyStoreSupplier` action through an **independently gated** Stage exception requiring `EASYSTORE_STAGE_READONLY_API_V1=ENFORCE`, `EASYSTORE_STAGE_SUPPLIER_MASTER_INTAKE_V1=ENFORCE`, `EASYSTORE_SUPPLIER_MASTER_INTAKE_V1=ENFORCE`, independent customer/native SSO service bindings+HMACs, nonempty exact original G1 finance-full grant roster and original finance control `READONLY`; general finance authority `NO_GO/OFF`, explicit disabled original opening draft, all present opening/debt/balance alias values exactly zero, **unarmed financial canary budget and zero allowlists**. No client-provided role can replace signed native employee session; original finance handler authenticates and checks `full`/grants again. All invoices, receipts, purchases, adjustments, customer saves and nonzero supplier debt remain blocked, even with supplier-only flags in a synthetic test.
+- Original checked-in [Stage Wrangler config `971d1557`](https://github.com/fawakhry/TrendOs/commit/971d1557b75f9152cddf6fd728f3afbb49c8501c) explicitly has **ALL THREE** Stage supplier/draft switches `OFF` and `workers_dev=false`; no live stage authority or Worker deploy.
+- [Existing original Stage bootstrap `38832188`](https://github.com/fawakhry/TrendOs/commit/38832188836471ea87e0cdccde16a9d6bf6de314) `check_config()` now rejects accidental activation of those flags in the source preflight. Never reapply Stage's already-present 13 migrations/22 original finance tables.
+- [Existing original stage_gate test `24ed000c`](https://github.com/fawakhry/TrendOs/commit/24ed000c4c4a95f0783e700947457c6dc1828031) checks supplier path fail-closed with missing dual switches, missing full grant, customer/SSO reader, finance OFF control, conflicting historical balances, armed canary budget and every monetary API denied; even with all synthetic source flags armed, missing native session returns 401.
+- Existing `native_session_cross_d1.test.mjs` now exercises an **original private Stage → original signed native-session source → original finance D1** synthetic full-role route, exact supplier ZERO POST and GET by partyId, same-idempotency replay, unchanged operational staff DB, and no cash/ledger posting. Initial source CI Stage suite failed at `fff9fb00` because the existing fake D1 adapter prohibited even the legitimate `sqlite_master` *name-check* for forbidden employee/t12 tables. The adapter's isolation policy was corrected to permit only that exact metadata name-only audit, while still prohibiting actual cross-D1 operational table SQL. Temporary diagnostic logging was removed. [Final exact code/test head `ef06aea2`](https://github.com/fawakhry/TrendOs/commit/ef06aea272a5b9d781a303d92bd0189790e303af) **20/20 original GitHub Actions SUCCESS, including ACC234 isolated Stage suite**.
+
+**Current provider reality and owner constraints:** This source/test success DOES NOT qualify G1. Original operational Stage previously recorded **0 real native employees/sessions and employee auth control OFF** (ACC266/ACC270); no real employee session, HMAC/private finance grant or signed full-role source approval has been proven today. The original checked-in `ACCOUNTING_FINANCE_GRANTS_V1={"version":1,"grants":[]}` remains unmodified, Stage read gate and Stage supplier flags remain OFF, Finance Stage D1 control remains OFF; production remains its independent READONLY Worker with authority OFF. Do NOT claim G1=PASS or turn server flags on before a separate owner/operator authenticated real-user and independent grant review. No secret, password, bearer token, HMAC, SQL export or passphrase may be entered in chat/GitHub.
+
+**Next real G1 prerequisite:** operator must prove on the OWNER controlled operational Stage, with authentic existing native auth (not production accounts blindly copied) the actual username/role/session, active account, change-password=false, native auth control `NATIVE`, current non-expired/revoked session, and a separately approved individual original finance full grant. Observe only minimal redacted pass/fail; check exact operational Stage D1 UUID is `bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6` and finance Stage D1 UUID remains `c2fe1a54-90f5-4e6f-9d51-80ce23e21328`. Existing service source must remain private. If Stage staff auth still OFF / zero members, STOP and qualify original staff provisioning separately; do not invent a fake user, turn ON a Worker, or copy real production credentials. Owner's independent second-device AES256 backup restore (G3) is still deferred because no second Ubuntu device is available; before any Stage writes, complete the required recovery and explicit change-window approval.
+
+**Checkpoint:** `ACC291_STAGE_GATEWAY_SOURCE=PASS_20_OF_20`; `ACC291_STAGE_CODE_DEPLOY=NO`; `ACC291_STAGE_SUPPLIER_FLAGS=OFF`; `ACC291_NATIVE_STAFF_G1_REAL_PROVIDER=NOT_QUALIFIED`; `ACC291_G3_SECOND_HOST_RESTORE=DEFERRED`; `ACC291_G4_REAL_STAGE_SUPPLIER_POST=NOT_RUN`; `FINANCE_WRITES=OFF`; `FINANCE_RELEASE=NO_GO`. No merge, deployment, real D1 save, staff provisioning, cash transfer, new DB, migrations or business transaction.
+
+### ACC292 — owner-only native staff G1 prerequisite check (2026-11-02 Cairo; READONLY / PROVIDER NOT RUN)
+
+**BOOK FIRST, NO REPEAT:** canonical EasyStore book consulted through ACC291, notably ACC250 (original Stage 0008/0009 and paired HMAC provisioning), ACC266/270 (real signed provider aggregate `trendos-staging` auth OFF, 0 staff and 0 sessions), ACC283–285 (owner encrypted 22-table finance backup ready), ACC286 (second-host restore deferred by owner). Neither the historic ACC107 production synthetic supplier insert nor the ACC266 authenticated provider inventory was re-run in GitHub. This stage is the new user-executable **current G1 prerequisite** check, not staff provisioning.
+
+**Critical blocker that cannot be solved by code CI:** ACC250 identified `EDGE_SESSION_SECRET` missing/unverified by NAME on private `trendos-native-session-stage-source`; the separate pairing `TRENDOS_EMPLOYEE_SESSION_HMAC_V1` was already provisioned on the appropriate two private Workers. The original native staff source is intentionally disabled until signer custody and authentic individual staff session can be verified. Cloudflare Worker secret VALUES cannot be inferred, safely copied from production, guessed or rotated to fabricate a Stage account. A name-only presence result is NOT key equality, and employee aggregate counts are NOT a signed native login.
+
+**Actual source-only implementation on existing TrendOS finance Draft PR #303:**
+- [Original source commit `32ee0780`](https://github.com/fawakhry/TrendOs/commit/32ee0780aa1e7b4d90b854ec9946109905757ce6) adds ONE operator helper `cloudflare-d1/easystore-finance-stage/acc292_g1_staff_readonly.py` (no new API/Worker/DB/CI workflow, no secrets, no write method): exact checked-in private Worker and original operational/finance Stage D1 UUID matching, all finance/supplier/draft flags OFF, empty grants; Wrangler `d1 list --json`; exact existing private Worker `secret list --format json` **names only**; **only if names complete**, remote operational Stage `SELECT` for original native auth control mode and aggregate users/eligible_users/unrevoked-unexpired sessions. It examines SQL metadata for zero `rows_written` and zero `changes` and rejects any other query shape. No user IDs, usernames, personal rows, passwords, fingerprints, session tokens, HMAC key values, financial balances or finance database rows are fetched or printed. No `--file`, `deploy`, `secret put` or D1 UPDATE.
+- [Missing-name fail-closed fix `58158178`](https://github.com/fawakhry/TrendOs/commit/581581789a31c0ea4a6c174e0dc9bbc5d73f63c8): missing `EDGE_SESSION_SECRET` or any required private HMAC NAME prints the **missing name(s) only**, stops with nonzero exit, and does not even query operational employee tables.
+- [Same original Stage safety test file `f76ee6be`](https://github.com/fawakhry/TrendOs/commit/f76ee6be8d7c6069e2d8918ca61c5175fb5d5bbc) adds only NEW `acc292` hermetic fake-Wrangler cases for missing signer names, exact D1 UUID drift, forbidden raw employee/session query, fake SQL meta write, and no false G1 proof. **20/20 original TrendOS GitHub Actions SUCCESS at exact source HEAD**; this is source-only test of the helper, NOT provider acceptance.
+
+**Owner Ubuntu operation (the existing original connected Wrangler only, no additional Ubuntu):** source below is pinned to exact tested commit, uses a different worktree from protected ACC282 financial backup. If the worktree already exists, use it as-is only if `git rev-parse HEAD` equals the pin; do not forcibly replace/delete anything:
+
+```bash
+(
+set -euo pipefail
+SOURCE="$HOME/TrendOs"
+TARGET="$HOME/TrendOs-finance-g1-acc292"
+PIN=f76ee6be8d7c6069e2d8918ca61c5175fb5d5bbc
+WRANGLER="$HOME/.local/share/trendos-finance-tools/node_modules/.bin/wrangler"
+test -x "$WRANGLER" || { echo LOCAL_WRANGLER_NOT_FOUND; exit 1; }
+git -C "$SOURCE" fetch origin feature/acc268-easystore-standalone-customer-source-off-20261030
+if test -e "$TARGET"; then
+  test "$(git -C "$TARGET" rev-parse HEAD)" = "$PIN" || {
+    echo DIFFERENT_G1_WORKTREE_EXISTS_STOP
+    exit 1
+  }
+else
+  git -C "$SOURCE" worktree add --detach "$TARGET" "$PIN"
+fi
+PYTHONDONTWRITEBYTECODE=1 python3 "$TARGET/cloudflare-d1/easystore-finance-stage/acc292_g1_staff_readonly.py" --wrangler "$WRANGLER"
+)
+```
+
+**Share only the printed ACC292 statuses, not a native username, secret, login, token or raw `wrangler` output.** Expected historic likely STOP is missing source `EDGE_SESSION_SECRET` (name-only check from ACC250), but this is NOT assumed current; actual current run must decide. If stopped, do NOT blindly create an account, set `employee_auth_control=NATIVE`, enable supplier flags or stage/read financial control. Recover original authenticated session signer only from owner-controlled authoritative secure custody, and separately qualify owner-approved Stage employee enrollment on the original existing operational D1. If no authenticated user exists, mark G1 BLOCKED rather than invent a fake staff grant. Independent second-machine finance backup restore G3 remains owner-deferred and must be addressed before any Stage supplier write.
+
+**Checkpoint:** `ACC292_G1_READONLY_SOURCE_HELPER=PASS_20_OF_20`;
+`ACC292_OWNER_ACTUAL_PROVIDER_RUN=NOT_RUN`;
+`ACC292_REAL_STAFF_NATIVE_SSO=NOT_QUALIFIED`;
+`ACC292_SIGNER_KEY_CUSTODY=NOT_VERIFIED`;
+`FINANCE_STAGE_SUPPLIER_WRITE=OFF`;
+`FINANCE_WRITES=OFF`; `FINANCE_RELEASE=NO_GO`.
+
+### ACC293 — real owner ACC292 probe STOP: native Stage source signer name missing (2026-11-02 Cairo)
+
+**Observed owner terminal screenshot on their existing Ubuntu, not agent
+access to Cloudflare credentials:** original G1 helper was run from the
+pinned detached worktree `f76ee6be8d7c6069e2d8918ca61c5175fb5d5bbc`.
+Output shown:
+
+```text
+ACC292_EXACT_SEPARATE_STAGE_IDENTITIES=PASS
+ACC292_REQUIRED_SECRET_NAMES=MISSING
+ACC292_MISSING_SECRET_NAMES=trendos-native-session-stage-source:EDGE_SESSION_SECRET
+ACC292_G1_REAL_SESSION=NOT_QUALIFIED
+ACC292_FINANCE_WRITES=OFF
+ACC292_STOP=REQUIRED_SECRET_NAMES_MISSING_STOP
+```
+
+The command finished at the shell prompt. STOP was INTENTIONAL
+fail-closed, not failed DB migration, not a Wrangler connection failure,
+not a missing HMAC pair, and not proof of a successful real staff session.
+Both exact existing Stage D1 identities checked OK. The separate native
+source Worker `trendos-native-session-stage-source` is **missing the
+`EDGE_SESSION_SECRET` key name**. Original distinct service HMAC pair
+names were not reported missing. The owner did not disclose any values,
+real username/session, passwords, SQL or ciphertext; no D1 write,
+control update, deployment, or supplier test occurred.
+
+**Code/audit confirmed key purpose:** `cloudAuthTokenFingerprint()`
+in original `cloudflare-d1/src/cloud-auth-shadow-v1.mjs` uses
+`EDGE_SESSION_SECRET` to HMAC the real username+token fingerprint.
+`employee-auth-native-v1.mjs` uses that fingerprint to issue/verify
+original native sessions. This is NOT the
+`TRENDOS_EMPLOYEE_SESSION_HMAC_V1` service-to-service request signer.
+Never substitute one for the other. The deployed secret's **value**
+cannot be read back from Cloudflare; a matching name alone is not proof
+of matching values. The original Stage native auth tables were still
+OFF and 0 users/sessions on the last provider observation ACC266, but
+ACC293's helper stopped BEFORE fresh aggregate counts, so DO NOT claim
+fresh user/session counts.
+
+**Safe next controlled step (no unapproved mutation):**
+1. Owner should locate the original native session fingerprint signer
+   in their private approved secrets custody, not chat/GitHub, and
+   confirm its actual issuer/source relationship for this isolated
+   Stage. Never guess an alternative, rotate production or copy
+   production employee identities into Stage.
+2. To install a verified, owner-approved signer, use only the exact
+   private Stage Worker `trendos-native-session-stage-source` and
+   version-aware secret change with rollback; Cloudflare docs confirm
+   `wrangler secret put` immediately creates/deploys a Worker
+   version, so it is NOT a read-only command. Merely opening Cloudflare
+   dashboard and checking settings is read-only; the final
+   **Deploy** action changes the Worker version.
+3. Only after legitimate signer custody and explicit owner approval
+   to change that exact Stage Worker, separately qualify source
+   operational native users/sessions/auth control and a genuine
+   employee finance-full grant. The current Stage controlled
+   `ACCOUNTING_FINANCE_GRANTS_V1` remains empty and the signed
+   session system is not provisioned.
+4. G3 independent host encrypted backup restore remains deferred at
+   owner's direction; supplier-only real Stage POST, general money
+   writes and production GO remain strictly prohibited.
+
+**Acceptance facts:**
+`ACC293_OWNER_G1_PROBE=EXECUTED_STOP`;
+`ACC293_STAGE_D1_IDENTITIES=PASS`;
+`ACC293_NATIVE_SOURCE_EDGE_SESSION_SECRET=NAME_MISSING`;
+`ACC293_NATIVE_STAFF_AUTH_FRESH_COUNTS=NOT_READ`;
+`ACC293_G1_REAL_STAFF_SESSION=NOT_QUALIFIED`;
+`ACC293_SECRET_DEPLOY=NOT_DONE`;
+`G3_SECOND_HOST_BACKUP=DEFERRED`;
+`FINANCE_WRITES=OFF`; `FINANCE_RELEASE=NO_GO`.
+Book-first replay rule remains: do not repeat old full finance
+bootstrap/migration/canaries. A later ACC292 verification is justified
+ONLY after an actual approved change in the missing-secret state.
+
+
+### ACC294 — optional aggregate inventory despite missing signer (2026-11-02 Cairo; source only)
+
+The owner requested autonomous completion. The default ACC292 check retains its
+original STOP before SQL on missing names. An explicit
+`--inventory-despite-missing-signer` option now permits ONLY its existing two
+allowlisted operational Stage SELECTs (mode and aggregate user/session counts)
+after exact local config and both provider D1 identity checks. This resolves the
+ACC293 diagnostic blind spot without needing the unavailable fingerprint key.
+Missing names STILL return REQUIRED_SECRET_NAMES_MISSING_STOP/nonzero after the
+inventory; G1 remains NOT_QUALIFIED even with positive counts. No key generation,
+secret recovery, provisioning, finance grants or mode changes are performed.
+JSON boolean counts are rejected rather than accepted as integers.
+
+Existing stage_bootstrap_safety.test.py: 36/36 local tests PASS, with new
+missing-signer zero/nonzero inventory, write-metadata rejection and boolean-count
+rejection scenarios. Provider inventory NOT RUN in this workspace; no Cloudflare
+authenticated operator environment is available here. This option does not prove
+that replacing a key is safe, that all historical sessions are absent, or that a
+new native issuer is provisioned. Do not enable finance or replace any key from
+this result alone. Original ACC293 provenance and recovery prerequisites remain.

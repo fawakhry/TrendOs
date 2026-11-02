@@ -1,14 +1,18 @@
 """ACC237 stage bootstrap fixture tests: NO network, NO live Cloudflare."""
 import json
+import io
 import sqlite3
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from contextlib import redirect_stdout
+from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(HERE))
 import stage_d1_bootstrap as b
+import acc292_g1_staff_readonly as g
 
 
 def expected_tables():
@@ -160,6 +164,147 @@ class StageBootstrapTests(unittest.TestCase):
             self.assertEqual(proof["backup"]["restoredReservedTables"], 1)
             self.assertEqual(proof["backup"]["restoredTables"], 0)
             self.assertEqual(cli.apply_files, [])
+
+    def test_acc281_real_native_stage_complete_22_table_backup_restore_without_money(self):
+        # Reuse original provider fixture path; absolutely NO live credentials.
+        class LocalOriginalStage:
+            def __init__(self):
+                self.db=sqlite3.connect(":memory:")
+                for filename in b.FILES:
+                    self.db.executescript((b.MIGRATIONS/filename).read_text())
+                self.calls=[]
+            def run(self,*cmd):
+                self.calls.append(cmd)
+                if cmd[:2]==("d1","list"):
+                    return json.dumps([{"name":b.STAGE_NAME,"uuid":b.STAGE_UUID}])
+                if cmd[:2]==("d1","export"):
+                    target=Path(cmd[cmd.index("--output")+1])
+                    target.write_text("\n".join(self.db.iterdump())+"\n",
+                                      encoding="utf-8")
+                    return ""
+                if cmd[:2]==("d1","execute") and "--command" in cmd:
+                    sql=cmd[cmd.index("--command")+1]
+                    cur=self.db.execute(sql)
+                    cols=[v[0] for v in (cur.description or [])]
+                    return json.dumps([{"success":True,"results":[
+                        dict(zip(cols,row)) for row in cur.fetchall()
+                    ]}])
+                raise AssertionError("NO_REMOTE_MUTATION_ALLOWED")
+            def close(self):
+                self.db.close()
+
+        with tempfile.TemporaryDirectory() as folder:
+            cli=LocalOriginalStage()
+            try:
+                result=b.backup_verify_stage(cli,folder,b.STAGE_UUID)
+                self.assertEqual(result["result"],
+                    "STAGE_22_TABLE_SCHEMA_EXPORT_RESTORED_LOCALLY_ONLY")
+                self.assertTrue(result["schemaApplied"])
+                self.assertFalse(result["mayApplyMigrations"])
+                self.assertFalse(result["cloudflareWrites"])
+                self.assertEqual(result["financeRelease"],"NO_GO")
+                self.assertEqual(result["financeWrites"],"OFF")
+                self.assertEqual(result["backup"]["restoredTables"],22)
+                self.assertEqual(result["independentSecondHostRestore"],"NOT_RUN")
+                self.assertEqual(result["userTables"],expected_tables())
+                exported=Path(folder)/"stage_current_verified_original_schema.sql"
+                evidence=Path(folder)/"stage_backup_evidence.json"
+                self.assertTrue(exported.is_file())
+                self.assertEqual(result["backup"]["sha256"],b.digest(exported))
+                self.assertEqual(exported.stat().st_mode & 0o077,0)
+                self.assertEqual(evidence.stat().st_mode & 0o077,0)
+                self.assertEqual(json.loads(evidence.read_text()),result)
+                self.assertFalse(any("--file" in cmd or "delete" in cmd or
+                    "deploy" in cmd for cmd in cli.calls))
+                self.assertEqual(sum(cmd[:2]==("d1","export")
+                                     for cmd in cli.calls),1)
+            finally:
+                cli.close()
+
+        # Before export, refuse a real accounting request, an unknown table,
+        # an unauthorized control mode, or any partial/changed original schema.
+        cases=[
+            ("business",lambda db:db.execute(
+                "INSERT INTO employee_accounting_request_ledger_v1 "
+                "(request_key,operation,actor,canonical_json,status) "
+                "VALUES ('SYNTHETIC-ROW','fake','FAKE','{}','COMMITTED')")),
+            ("foreign-table",lambda db:db.execute(
+                "CREATE TABLE t12_customers (id TEXT PRIMARY KEY)")),
+            ("finance-enabled",lambda db:db.execute(
+                "UPDATE employee_accounting_control_v1 SET mode='GENERAL' WHERE singleton=1")),
+            ("missing-original",lambda db:db.execute(
+                "DROP TABLE employee_accounting_events_v1")),
+            ("unapproved-index",lambda db:db.execute(
+                "CREATE INDEX unexpected_finance_idx ON "
+                "employee_accounting_control_v1(mode)")),
+            ("unapproved-view",lambda db:db.execute(
+                "CREATE VIEW unexpected_finance_view AS "
+                "SELECT * FROM employee_accounting_control_v1")),
+            ("unapproved-trigger",lambda db:db.execute(
+                "CREATE TRIGGER unexpected_finance_trigger AFTER UPDATE "
+                "ON employee_accounting_control_v1 BEGIN SELECT 1; END")),
+        ]
+        for label,change in cases:
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as folder:
+                cli=LocalOriginalStage()
+                try:
+                    change(cli.db)
+                    with self.assertRaises(b.GateError):
+                        b.backup_verify_stage(cli,folder,b.STAGE_UUID)
+                    self.assertFalse(any(cmd[:2]==("d1","export")
+                                         for cmd in cli.calls),
+                                     "NO backup of unqualified Stage")
+                    self.assertFalse((Path(folder)/"stage_backup_evidence.json").exists())
+                finally:
+                    cli.close()
+
+        # ACC282: an exported SQLite file can contain altered deny-budget
+        # values or hidden objects while the live provider remains correct.
+        # Neither must produce signed-off local backup evidence.
+        class ExportTamper(LocalOriginalStage):
+            def __init__(self, mutate_sql):
+                super().__init__()
+                self.mutate_sql = mutate_sql
+
+            def run(self, *cmd):
+                result = super().run(*cmd)
+                if cmd[:2] == ("d1", "export"):
+                    target = Path(cmd[cmd.index("--output") + 1])
+                    independent = sqlite3.connect(":memory:")
+                    try:
+                        independent.executescript(
+                            target.read_text(encoding="utf-8"))
+                        independent.execute(self.mutate_sql)
+                        independent.commit()
+                        target.write_text(
+                            "\n".join(independent.iterdump()) + "\n",
+                            encoding="utf-8")
+                    finally:
+                        independent.close()
+                return result
+
+        for label, sql, expected_error in [
+            ("restored-canary-write-budget",
+             "UPDATE employee_accounting_write_canary_v1 SET max_commands=1",
+             "STAGE_CURRENT_BACKUP_CANARY_NOT_DENY_DEFAULT"),
+            ("restored-rogue-index",
+             "CREATE INDEX unexpected_export_idx "
+             "ON employee_accounting_control_v1(mode)",
+             "STAGE_CURRENT_BACKUP_EXTRA_OR_DRIFTED_OBJECTS"),
+        ]:
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as folder:
+                cli = ExportTamper(sql)
+                try:
+                    with self.assertRaisesRegex(b.GateError, expected_error):
+                        b.backup_verify_stage(cli, folder, b.STAGE_UUID)
+                    self.assertFalse(
+                        (Path(folder) / "stage_backup_evidence.json").exists())
+                    self.assertFalse(any("--file" in call or "deploy" in call
+                                         for call in cli.calls))
+                    self.assertEqual(sum(call[:2] == ("d1", "export")
+                                         for call in cli.calls), 1)
+                finally:
+                    cli.close()
 
     def test_inspect_empty_has_no_false_positive_or_provider_write(self):
         cli = OfflineWrangler()
@@ -550,6 +695,123 @@ class StageBootstrapTests(unittest.TestCase):
                 return super().run(*cmd)
         with self.assertRaisesRegex(b.GateError, "RESULT_SHAPE"):
             b.remote_names(Invalid())
+
+
+
+class Acc292OriginalStageStaffGateTests(unittest.TestCase):
+    """Only new G1 readiness auditor boundaries; all provider calls mocked."""
+
+    def fake_command(self, *, missing_key=False, wrong_uuid=False,
+                     unexpected_write=False, users=0, sessions=0):
+        calls = []
+        def fake(cli, args):
+            self.assertEqual(cli, sys.executable)
+            self.assertNotIn("--file", args)
+            self.assertNotIn("put", args)
+            self.assertNotIn("deploy", args)
+            calls.append(args)
+            if args[:2] == ["d1", "list"]:
+                return [
+                    {"name": g.OP_NAME,
+                     "uuid": "wrong" if wrong_uuid else g.OP_UUID},
+                    {"name": g.FIN_NAME, "uuid": g.FIN_UUID}
+                ]
+            if args[:2] == ["secret", "list"]:
+                worker = args[args.index("--name") + 1]
+                names = list(g.SECRET_SETS[worker])
+                if missing_key and worker == "trendos-native-session-stage-source":
+                    names.remove("EDGE_SESSION_SECRET")
+                return [{"name": name, "type": "secret_text"}
+                        for name in names]
+            if args[:2] == ["d1", "execute"]:
+                self.assertIn("--remote", args)
+                sql = args[args.index("--command") + 1]
+                self.assertIn(sql, (g.CONTROL_SQL, g.COUNT_SQL))
+                row = ({"mode": "OFF"} if sql == g.CONTROL_SQL else
+                       {"users": users, "eligible_users": users,
+                        "live_sessions": sessions})
+                return [{"success": True, "results": [row],
+                         "meta": {"rows_written": 1 if unexpected_write else 0,
+                                  "changes": 0}}]
+            self.fail("ACC292_UNEXPECTED_PROVIDER_ACTION")
+        return calls, fake
+
+    def test_original_stage_g1_preflight_never_claims_live_user(self):
+        calls, fake = self.fake_command()
+        with patch.object(g, "run", side_effect=fake):
+            out = io.StringIO()
+            with redirect_stdout(out):
+                g.audit(sys.executable)
+        self.assertIn("ACC292_EXACT_SEPARATE_STAGE_IDENTITIES=PASS", out.getvalue())
+        self.assertIn("ACC292_STAGE_AUTH_MODE=OFF", out.getvalue())
+        self.assertIn("ACC292_STAGE_USER_COUNT=0", out.getvalue())
+        self.assertIn("ACC292_G1_REAL_SESSION=NOT_QUALIFIED", out.getvalue())
+        self.assertNotIn("SIGNER_EQUALITY=PASS", out.getvalue())
+        self.assertEqual(sum(x[:2] == ["d1", "execute"] for x in calls), 2)
+        self.assertEqual(sum(x[:2] == ["secret", "list"] for x in calls), 3)
+        self.assertFalse(any("UPDATE" in " ".join(x) or "INSERT" in " ".join(x)
+                             for x in calls))
+
+    def test_acc292_missing_original_signer_stops_without_employee_sql(self):
+        calls, fake = self.fake_command(missing_key=True)
+        with patch.object(g, "run", side_effect=fake):
+            with redirect_stdout(io.StringIO()) as output:
+                with self.assertRaisesRegex(
+                    g.Stop, "REQUIRED_SECRET_NAMES_MISSING_STOP"
+                ):
+                    g.audit(sys.executable)
+        self.assertIn("EDGE_SESSION_SECRET", output.getvalue())
+        self.assertFalse(any(x[:2] == ["d1", "execute"] for x in calls))
+
+    def test_missing_signer_inventory_reads_aggregates_but_still_stops(self):
+        for users, sessions in ((0, 0), (2, 3)):
+            calls, fake = self.fake_command(missing_key=True, users=users,
+                                            sessions=sessions)
+            with patch.object(g, "run", side_effect=fake):
+                with redirect_stdout(io.StringIO()) as output:
+                    with self.assertRaisesRegex(g.Stop, "REQUIRED_SECRET_NAMES_MISSING_STOP"):
+                        g.audit(sys.executable, inventory_despite_missing_signer=True)
+            self.assertEqual(sum(x[:2] == ["d1", "execute"] for x in calls), 2)
+            self.assertIn("ACC294_AGGREGATE_INVENTORY_ONLY=YES", output.getvalue())
+            self.assertIn("ACC292_STAGE_USER_COUNT=" + str(users), output.getvalue())
+            self.assertIn("ACC292_G1_REAL_SESSION=NOT_QUALIFIED", output.getvalue())
+            self.assertNotIn("=PASS", output.getvalue().split("ACC294_")[-1])
+
+    def test_missing_signer_inventory_still_rejects_write_metadata(self):
+        _, fake = self.fake_command(missing_key=True, unexpected_write=True)
+        with patch.object(g, "run", side_effect=fake):
+            with redirect_stdout(io.StringIO()):
+                with self.assertRaisesRegex(g.Stop, "STAGE_SQL_METADATA_WRITES"):
+                    g.audit(sys.executable, inventory_despite_missing_signer=True)
+
+    def test_aggregate_counts_reject_json_booleans(self):
+        _, fake = self.fake_command(users=True)
+        with patch.object(g, "run", side_effect=fake):
+            with redirect_stdout(io.StringIO()):
+                with self.assertRaisesRegex(g.Stop, "STAGE_AUTH_COUNTS_INVALID"):
+                    g.audit(sys.executable)
+
+    def test_acc292_wrong_stage_identity_stops_before_secret_queries(self):
+        calls, fake = self.fake_command(wrong_uuid=True)
+        with patch.object(g, "run", side_effect=fake):
+            with self.assertRaisesRegex(g.Stop, "D1_STAGE_IDENTITY_DRIFT_STOP"):
+                with redirect_stdout(io.StringIO()):
+                    g.audit(sys.executable)
+        self.assertEqual(len(calls), 1)
+
+    def test_acc292_wrong_select_metadata_fails_closed(self):
+        _, fake = self.fake_command(unexpected_write=True)
+        with patch.object(g, "run", side_effect=fake):
+            with self.assertRaisesRegex(g.Stop, "STAGE_SQL_METADATA_WRITES"):
+                with redirect_stdout(io.StringIO()):
+                    g.audit(sys.executable)
+
+    def test_acc292_sql_allowlist_rejects_provision_or_raw_user_rows(self):
+        for sql in ("UPDATE employee_auth_control_v1 SET mode='NATIVE'",
+                    "SELECT canonical_username FROM employee_auth_users_v1",
+                    "SELECT token_fingerprint FROM employee_auth_sessions_v1"):
+            with self.assertRaisesRegex(g.Stop, "NON_AGGREGATE_QUERY_FORBIDDEN"):
+                g.select_aggregate(sys.executable, sql, ("any",))
 
 
 if __name__ == "__main__":
