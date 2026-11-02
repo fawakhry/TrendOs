@@ -1,5 +1,5 @@
 import { verifyEmployeeSessionCloudFirst } from './cloud-session-bridge-v3.mjs';
-import { closeAndArchiveT12OrderV1, CLOSE_ARCHIVE_ACTION } from './t12-native-close-archive-v1.mjs';
+import { closeAndArchiveT12OrderV1, nativeT12ArchiveWriteFenceV1, CLOSE_ARCHIVE_ACTION } from './t12-native-close-archive-v1.mjs';
 
 const ROOT='/v1/employee/core';
 const HEALTH=ROOT+'/health';
@@ -309,6 +309,8 @@ async function updateSingleLine(env,user,body){
   }
   const cloud=await env.DB.prepare("SELECT order_id AS orderId,status FROM t12_prod_lines WHERE line_id=?").bind(lineId).first();
   if(!cloud)return {success:false,code:'line-not-found',message:'البند غير موجود في D1.'};
+  const archiveGate=await nativeT12ArchiveWriteFenceV1(env,cloud.orderId,lineId);
+  if(!archiveGate.allowed)return {success:false,code:archiveGate.code};
   await env.DB.prepare(`
     INSERT INTO t12_prod_line_runtime(line_id,order_id,status,notes,updated_by,version,updated_at)
     VALUES(?,?,?,?,?,1,CURRENT_TIMESTAMP)
