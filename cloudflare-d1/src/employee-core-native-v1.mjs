@@ -1,6 +1,6 @@
 import { verifyEmployeeSessionCloudFirst } from './cloud-session-bridge-v3.mjs';
 import { closeAndArchiveT12OrderV1, nativeT12ArchiveWriteFenceV1, CLOSE_ARCHIVE_ACTION } from './t12-native-close-archive-v1.mjs';
-import { nativeBulkStatusEligibilityV2, nativeBulkStatusV2, T12_BULK_COUNT_ACTION, enabled as nativeBulkEnabled } from './t12-native-bulk-status-v2.mjs';
+import { nativeBulkStatusEligibilityV2, nativeBulkStatusV2, T12_BULK_COUNT_ACTION, T12_BULK_STATUS_V2, enabled as nativeBulkEnabled } from './t12-native-bulk-status-v2.mjs';
 
 const ROOT='/v1/employee/core';
 const HEALTH=ROOT+'/health';
@@ -446,10 +446,17 @@ export async function handleEmployeeCoreNativeRequest(request,env){
     const c=schemaReady?await control(env):{mode:'OFF',policyEpoch:0,dataVersion:0};
     const probe=url.searchParams.get('archiveProbe')==='1'
       ? await nativeArchiveEligibility(env,'service') : null;
+    const bulkProbe=url.searchParams.get('bulkProbe')==='1'
+      ? await nativeBulkStatusEligibilityV2(env,{username:'health-probe',role:'service',screens:['service']},{
+          screen:'print',fromStatus:'طلب جديد',toStatus:'بدأ التنفيذ'
+        },coreRows,screenAllowed) : null;
     return json({success:true,schemaReady,mode:text(c.mode)||'OFF',
       policyEpoch:num(c.policyEpoch),dataVersion:num(c.dataVersion),
       actions:[...READ_ACTIONS,...WRITE_ACTIONS],
       archiveEligibilityVersion:'T12_NATIVE_ARCHIVE_ELIGIBILITY_V4',
+      bulkStatusVersion:T12_BULK_STATUS_V2,
+      bulkStatusEnabled:nativeBulkEnabled(env),
+      bulkProbe:bulkProbe?{available:bulkProbe.available===true,code:bulkProbe.code||null}:undefined,
       archiveProbe:probe?{available:probe.available===true,code:probe.code||null}:undefined,
       googleBusinessCalls:0,appsScriptBusinessAuthority:false,authBridgeTemporary:true},
       schemaReady?200:503,cors(request,env));
