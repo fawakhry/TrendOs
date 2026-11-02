@@ -45,7 +45,7 @@ export async function closeAndArchiveT12OrderV1(env,user,body={}){
     guard=await db.prepare(`
       SELECT mode FROM t12_native_archive_guard_control_v1
        WHERE singleton=1 AND marker='T12_NATIVE_ARCHIVE_GUARD_V1'
-    `).first();
+    `).bind().first();
   }catch{return deny('native-archive-db-guard-unavailable');}
   if(text(guard?.mode)!=='GUARDED')return deny('native-archive-db-guard-not-armed');
   // Reconciliation must verify a complete archive; request ID alone is not proof.
