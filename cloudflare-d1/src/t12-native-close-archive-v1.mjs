@@ -16,9 +16,25 @@ export async function closeAndArchiveT12OrderV1(env,user,body={}){
   if(!actor)return deny('actor-required');
   if(!env?.DB?.batch||!env?.DB?.prepare)return deny('native-db-unavailable');
   const db=env.DB;
-  const existing=await db.prepare(`SELECT order_id AS orderId,request_key AS requestKey FROM employee_core_archive_orders_v1 WHERE order_id=? LIMIT 1`).bind(orderId).first();
+  // Reconciliation must verify a complete archive; request ID alone is not proof.
+  const archivedState=async()=>db.prepare(`
+    SELECT a.request_key AS requestKey,a.status AS archiveStatus,
+      (SELECT COUNT(*) FROM employee_core_archive_lines_v1 x WHERE x.order_id=a.order_id) AS archivedLines,
+      (SELECT COUNT(*) FROM employee_core_archive_lines_v1 x
+        WHERE x.order_id=a.order_id AND x.request_key=a.request_key
+          AND x.status='تم التسليم') AS matchingLines,
+      (SELECT COUNT(*) FROM t12_prod_lines l WHERE l.order_id=a.order_id) AS totalLines,
+      (SELECT COUNT(*) FROM employee_core_events_v1 e
+        WHERE e.action=? AND e.entity_type='order' AND e.entity_id=a.order_id) AS closeEvents
+    FROM employee_core_archive_orders_v1 a WHERE a.order_id=? LIMIT 1
+  `).bind(CLOSE_ARCHIVE_ACTION,orderId).first();
+  const complete=post=>!!post&&post.archiveStatus==='تم التسليم'&&
+    Number(post.totalLines)>0&&Number(post.archivedLines)===Number(post.totalLines)&&
+    Number(post.matchingLines)===Number(post.totalLines)&&Number(post.closeEvents)===1;
+  const existing=await archivedState();
   if(existing){
     if(text(existing.requestKey)!==requestId)return deny('order-already-archived');
+    if(!complete(existing))return deny('native-close-archive-existing-incomplete-review');
     return {success:true,cloudNative:true,idempotent:true,closed:true,archived:true,orderId,requestId};
   }
   // ONLY original T12-native authority. Legacy/core-import rows are never queried.
@@ -46,7 +62,7 @@ export async function closeAndArchiveT12OrderV1(env,user,body={}){
     notes:order.notes,lineIds:lines.map(l=>text(l.lineId)),closedReason:'all-native-lines-delivered'});
   // Guard at SQL execution, not just preflight; D1.batch is transactional.
   const statements=[db.prepare(`
-    INSERT OR IGNORE INTO employee_core_archive_orders_v1
+    INSERT INTO employee_core_archive_orders_v1
       (order_id,customer_name,customer_phone,department,priority,status,source,notes,
        snapshot_json,archived_by,request_key)
     SELECT o.order_id,o.customer_name,o.customer_phone,o.department,o.priority,
@@ -63,7 +79,7 @@ export async function closeAndArchiveT12OrderV1(env,user,body={}){
        AND NOT EXISTS(SELECT 1 FROM employee_core_archive_orders_v1 a WHERE a.order_id=o.order_id)
     `).bind(snapshot,actor,requestId,orderId)];
   for(const l of lines)statements.push(db.prepare(`
-    INSERT OR IGNORE INTO employee_core_archive_lines_v1
+    INSERT INTO employee_core_archive_lines_v1
       (line_id,order_id,department,item_name,qty,priority,status,notes,
        snapshot_json,archived_by,request_key)
     SELECT l.line_id,l.order_id,l.department,l.item_name,l.qty,l.priority,
@@ -74,24 +90,52 @@ export async function closeAndArchiveT12OrderV1(env,user,body={}){
       WHERE l.order_id=? AND l.line_id=? AND a.request_key=?
       AND COALESCE(r.status,l.status)='تم التسليم'
     `).bind(JSON.stringify({...l,archivedLineId:undefined}),actor,requestId,orderId,text(l.lineId),requestId));
+  // A NOT NULL actor constraint makes any stale/missing/new line or another
+  // archiver a transactional SQLite ABORT. D1.batch must roll back ALL rows.
+  // In particular, check original line COUNT again: a newly-added delivered
+  // line after initial preflight must not produce a silently partial archive.
   statements.push(db.prepare(`
     INSERT INTO employee_core_events_v1(action,entity_type,entity_id,actor,payload_json)
-    SELECT ?, 'order', ?, ?, ? FROM employee_core_archive_orders_v1 a
-    WHERE a.order_id=? AND a.request_key=?
-    `).bind(CLOSE_ARCHIVE_ACTION,orderId,actor,JSON.stringify({lineCount:lines.length,requestId}),orderId,requestId));
+    VALUES(?, 'order', ?,
+      CASE WHEN
+        (SELECT COUNT(*) FROM employee_core_archive_orders_v1 a
+          WHERE a.order_id=? AND a.request_key=?)=1
+        AND (SELECT COUNT(*) FROM t12_prod_lines WHERE order_id=?)=?
+        AND (SELECT COUNT(*) FROM employee_core_archive_lines_v1
+          WHERE order_id=? AND request_key=? AND status='تم التسليم')=?
+        AND NOT EXISTS(
+          SELECT 1 FROM t12_prod_lines l
+          LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
+          WHERE l.order_id=? AND COALESCE(r.status,l.status)<>'تم التسليم'
+        )
+        AND NOT EXISTS(
+          SELECT 1 FROM employee_core_archive_lines_v1 a
+          WHERE a.order_id=? AND (a.request_key<>? OR a.status<>'تم التسليم')
+        )
+      THEN ? ELSE NULL END,?)
+    `).bind(CLOSE_ARCHIVE_ACTION,orderId,
+      orderId,requestId,orderId,lines.length,
+      orderId,requestId,lines.length,
+      orderId,orderId,requestId,actor,JSON.stringify({lineCount:lines.length,requestId})));
   statements.push(db.prepare(`
     UPDATE employee_core_control_v1 SET data_version=data_version+1,
       updated_at=CURRENT_TIMESTAMP WHERE singleton=1
       AND EXISTS(SELECT 1 FROM employee_core_archive_orders_v1 WHERE order_id=? AND request_key=?)
     `).bind(orderId,requestId));
-  try{await db.batch(statements);}catch{return deny('native-close-archive-outcome-unknown-check-d1');}
-  const post=await db.prepare(`
-    SELECT a.request_key AS requestKey,
-      (SELECT COUNT(*) FROM employee_core_archive_lines_v1 l WHERE l.order_id=a.order_id) AS archivedLines,
-      (SELECT COUNT(*) FROM t12_prod_lines l WHERE l.order_id=a.order_id) AS totalLines
-    FROM employee_core_archive_orders_v1 a WHERE a.order_id=?`).bind(orderId).first();
+  try{await db.batch(statements);}catch{
+    // Ambiguous D1 ACK: reconcile exactly once. Do not issue a second write.
+    try{
+      const uncertain=await archivedState();
+      if(uncertain&&text(uncertain.requestKey)===requestId&&complete(uncertain))
+        return {success:true,cloudNative:true,closed:true,archived:true,
+          ambiguousAckRecovered:true,orderId,requestId,archivedOrders:1,
+          archivedLines:Number(uncertain.totalLines)};
+    }catch{}
+    return deny('native-close-archive-outcome-unknown-check-d1');
+  }
+  const post=await archivedState();
   if(!post||text(post.requestKey)!==requestId)return deny('native-close-archive-cas-lost-check-d1');
-  if(Number(post.archivedLines)!==Number(post.totalLines)||Number(post.totalLines)!==lines.length)
+  if(!complete(post)||Number(post.totalLines)!==lines.length)
     return deny('native-close-archive-inconsistent-check-d1');
   return {success:true,cloudNative:true,closed:true,archived:true,
     orderId,requestId,archivedOrders:1,archivedLines:lines.length};
