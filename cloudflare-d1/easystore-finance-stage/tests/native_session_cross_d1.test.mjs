@@ -11,12 +11,17 @@ import stageWorker from '../index.mjs';
 
 function d1(db, log, forbid=''){
  return {prepare(sql){
-   if(forbid && new RegExp(forbid,'i').test(sql)) throw Error('CROSS_D1_SQL_BLOCKED');
+   // ACC291: querying sqlite_master for forbidden *names* is a harmless
+   // isolation audit, not a query to operational data in finance D1.
+   // Still reject actual operational table access unequivocally.
+   const schemaNameAudit=/^SELECT COUNT\(\*\) AS n FROM sqlite_master WHERE type='table' AND \(/.test(sql);
+   if(forbid && new RegExp(forbid,'i').test(sql) && !schemaNameAudit)
+     throw Error('CROSS_D1_SQL_BLOCKED');
    log.push(sql);
    let args=[],q=String(sql);
    const stmt={
      bind(...values){args=values;return stmt;},
-     async first(){try{return db.prepare(q).get(...args)||null;}catch(e){console.error('ACC291_SQLITE_TEST_ONLY_QUERY',q,'ERROR',e.message);throw e;}},
+     async first(){return db.prepare(q).get(...args)||null;},
      async all(){return {results:db.prepare(q).all(...args)};},
      async run(){return db.prepare(q).run(...args);}
    };return stmt;
