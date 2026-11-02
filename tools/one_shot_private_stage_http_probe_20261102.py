@@ -169,8 +169,8 @@ finally:
         api("POST","/workers/scripts/"+SCRIPT+"/subdomain",WORKER_TOKEN,
             {"enabled":False,"previews_enabled":False})
         check=get("/workers/scripts/"+SCRIPT+"/subdomain",WORKER_TOKEN)
-        verified_closed=isinstance(check,dict) and
-            check.get("enabled") is False and check.get("previews_enabled") is False
+        verified_closed=(isinstance(check,dict) and
+            check.get("enabled") is False and check.get("previews_enabled") is False)
         log("STAGE_PUBLIC_SUBDOMAIN_RESTORED_OFF="+("PASS" if verified_closed else "FAIL"))
     except Exception:
         log("STAGE_PUBLIC_SUBDOMAIN_RESTORED_OFF=FAILED_REQUIRES_OPERATOR")
