@@ -575,3 +575,46 @@ outcome: `R2_CLIENT_SOURCE_PASS`, `R2_SERVER_SOURCE_PASS`,
 **Next real G1 prerequisite:** operator must prove on the OWNER controlled operational Stage, with authentic existing native auth (not production accounts blindly copied) the actual username/role/session, active account, change-password=false, native auth control `NATIVE`, current non-expired/revoked session, and a separately approved individual original finance full grant. Observe only minimal redacted pass/fail; check exact operational Stage D1 UUID is `bfe05bde-a3a1-49bc-ad3d-3f0b94a8f8a6` and finance Stage D1 UUID remains `c2fe1a54-90f5-4e6f-9d51-80ce23e21328`. Existing service source must remain private. If Stage staff auth still OFF / zero members, STOP and qualify original staff provisioning separately; do not invent a fake user, turn ON a Worker, or copy real production credentials. Owner's independent second-device AES256 backup restore (G3) is still deferred because no second Ubuntu device is available; before any Stage writes, complete the required recovery and explicit change-window approval.
 
 **Checkpoint:** `ACC291_STAGE_GATEWAY_SOURCE=PASS_20_OF_20`; `ACC291_STAGE_CODE_DEPLOY=NO`; `ACC291_STAGE_SUPPLIER_FLAGS=OFF`; `ACC291_NATIVE_STAFF_G1_REAL_PROVIDER=NOT_QUALIFIED`; `ACC291_G3_SECOND_HOST_RESTORE=DEFERRED`; `ACC291_G4_REAL_STAGE_SUPPLIER_POST=NOT_RUN`; `FINANCE_WRITES=OFF`; `FINANCE_RELEASE=NO_GO`. No merge, deployment, real D1 save, staff provisioning, cash transfer, new DB, migrations or business transaction.
+
+### ACC292 — owner-only native staff G1 prerequisite check (2026-11-02 Cairo; READONLY / PROVIDER NOT RUN)
+
+**BOOK FIRST, NO REPEAT:** canonical EasyStore book consulted through ACC291, notably ACC250 (original Stage 0008/0009 and paired HMAC provisioning), ACC266/270 (real signed provider aggregate `trendos-staging` auth OFF, 0 staff and 0 sessions), ACC283–285 (owner encrypted 22-table finance backup ready), ACC286 (second-host restore deferred by owner). Neither the historic ACC107 production synthetic supplier insert nor the ACC266 authenticated provider inventory was re-run in GitHub. This stage is the new user-executable **current G1 prerequisite** check, not staff provisioning.
+
+**Critical blocker that cannot be solved by code CI:** ACC250 identified `EDGE_SESSION_SECRET` missing/unverified by NAME on private `trendos-native-session-stage-source`; the separate pairing `TRENDOS_EMPLOYEE_SESSION_HMAC_V1` was already provisioned on the appropriate two private Workers. The original native staff source is intentionally disabled until signer custody and authentic individual staff session can be verified. Cloudflare Worker secret VALUES cannot be inferred, safely copied from production, guessed or rotated to fabricate a Stage account. A name-only presence result is NOT key equality, and employee aggregate counts are NOT a signed native login.
+
+**Actual source-only implementation on existing TrendOS finance Draft PR #303:**
+- [Original source commit `32ee0780`](https://github.com/fawakhry/TrendOs/commit/32ee0780aa1e7b4d90b854ec9946109905757ce6) adds ONE operator helper `cloudflare-d1/easystore-finance-stage/acc292_g1_staff_readonly.py` (no new API/Worker/DB/CI workflow, no secrets, no write method): exact checked-in private Worker and original operational/finance Stage D1 UUID matching, all finance/supplier/draft flags OFF, empty grants; Wrangler `d1 list --json`; exact existing private Worker `secret list --format json` **names only**; **only if names complete**, remote operational Stage `SELECT` for original native auth control mode and aggregate users/eligible_users/unrevoked-unexpired sessions. It examines SQL metadata for zero `rows_written` and zero `changes` and rejects any other query shape. No user IDs, usernames, personal rows, passwords, fingerprints, session tokens, HMAC key values, financial balances or finance database rows are fetched or printed. No `--file`, `deploy`, `secret put` or D1 UPDATE.
+- [Missing-name fail-closed fix `58158178`](https://github.com/fawakhry/TrendOs/commit/581581789a31c0ea4a6c174e0dc9bbc5d73f63c8): missing `EDGE_SESSION_SECRET` or any required private HMAC NAME prints the **missing name(s) only**, stops with nonzero exit, and does not even query operational employee tables.
+- [Same original Stage safety test file `f76ee6be`](https://github.com/fawakhry/TrendOs/commit/f76ee6be8d7c6069e2d8918ca61c5175fb5d5bbc) adds only NEW `acc292` hermetic fake-Wrangler cases for missing signer names, exact D1 UUID drift, forbidden raw employee/session query, fake SQL meta write, and no false G1 proof. **20/20 original TrendOS GitHub Actions SUCCESS at exact source HEAD**; this is source-only test of the helper, NOT provider acceptance.
+
+**Owner Ubuntu operation (the existing original connected Wrangler only, no additional Ubuntu):** source below is pinned to exact tested commit, uses a different worktree from protected ACC282 financial backup. If the worktree already exists, use it as-is only if `git rev-parse HEAD` equals the pin; do not forcibly replace/delete anything:
+
+```bash
+(
+set -euo pipefail
+SOURCE="$HOME/TrendOs"
+TARGET="$HOME/TrendOs-finance-g1-acc292"
+PIN=f76ee6be8d7c6069e2d8918ca61c5175fb5d5bbc
+WRANGLER="$HOME/.local/share/trendos-finance-tools/node_modules/.bin/wrangler"
+test -x "$WRANGLER" || { echo LOCAL_WRANGLER_NOT_FOUND; exit 1; }
+git -C "$SOURCE" fetch origin feature/acc268-easystore-standalone-customer-source-off-20261030
+if test -e "$TARGET"; then
+  test "$(git -C "$TARGET" rev-parse HEAD)" = "$PIN" || {
+    echo DIFFERENT_G1_WORKTREE_EXISTS_STOP
+    exit 1
+  }
+else
+  git -C "$SOURCE" worktree add --detach "$TARGET" "$PIN"
+fi
+PYTHONDONTWRITEBYTECODE=1 python3 "$TARGET/cloudflare-d1/easystore-finance-stage/acc292_g1_staff_readonly.py" --wrangler "$WRANGLER"
+)
+```
+
+**Share only the printed ACC292 statuses, not a native username, secret, login, token or raw `wrangler` output.** Expected historic likely STOP is missing source `EDGE_SESSION_SECRET` (name-only check from ACC250), but this is NOT assumed current; actual current run must decide. If stopped, do NOT blindly create an account, set `employee_auth_control=NATIVE`, enable supplier flags or stage/read financial control. Recover original authenticated session signer only from owner-controlled authoritative secure custody, and separately qualify owner-approved Stage employee enrollment on the original existing operational D1. If no authenticated user exists, mark G1 BLOCKED rather than invent a fake staff grant. Independent second-machine finance backup restore G3 remains owner-deferred and must be addressed before any Stage supplier write.
+
+**Checkpoint:** `ACC292_G1_READONLY_SOURCE_HELPER=PASS_20_OF_20`;
+`ACC292_OWNER_ACTUAL_PROVIDER_RUN=NOT_RUN`;
+`ACC292_REAL_STAFF_NATIVE_SSO=NOT_QUALIFIED`;
+`ACC292_SIGNER_KEY_CUSTODY=NOT_VERIFIED`;
+`FINANCE_STAGE_SUPPLIER_WRITE=OFF`;
+`FINANCE_WRITES=OFF`; `FINANCE_RELEASE=NO_GO`.
