@@ -177,6 +177,9 @@
     saving: false,
     bulkStatusSaving: false,
     bulkStatusRequestId: "",
+    bulkStatusNextBatch: 1,
+    bulkStatusPreview: { available: false, code: "not-loaded" },
+    bulkStatusPreviewSerial: 0,
     archiveDeliveredSaving: false,
     archiveDeliveredRequestId: "",
     archiveEligibility: { available: false },
@@ -4812,10 +4815,43 @@ Trend Mall`;
 
   function bulkStatusMatchDetails() {
     const from = $("bulkFromStatus") ? text($("bulkFromStatus").value) : "";
-    const rows = !from ? [] : state.rows.filter(function (row) { return text(row.status) === from; });
-    const orders = {};
-    rows.forEach(function (row) { orders[text(row.orderId || row.lineId || "-")] = true; });
-    return { rows: rows, rowCount: from && state.serverPaging.enabled ? Number(state.serverStatusCounts[from] || 0) : rows.length, orderCount: from && state.serverPaging.enabled ? Number(state.serverStatusOrderCounts[from] || 0) : Object.keys(orders).length };
+    const to = $("bulkToStatus") ? text($("bulkToStatus").value) : "";
+    const p = state.bulkStatusPreview || {};
+    const current = p.available === true && p.screen === state.screen &&
+      p.fromStatus === from && p.toStatus === to;
+    return {
+      rowCount: current ? Math.max(0, Number(p.eligibleLines || 0)) : 0,
+      orderCount: current ? Math.max(0, Number(p.eligibleOrders || 0)) : 0,
+      blockedDebtLines: current ? Math.max(0, Number(p.blockedDebtLines || 0)) : 0,
+      excludedHistoricalLines: current ? Math.max(0, Number(p.excludedHistoricalLines || 0)) : 0,
+      excludedArchivedLines: current ? Math.max(0, Number(p.excludedArchivedLines || 0)) : 0,
+      eligibleKnown: current, code: p.code || "count-pending"
+    };
+  }
+
+  async function refreshBulkStatusPreview() {
+    const screen = state.screen;
+    const fromStatus = $("bulkFromStatus") ? text($("bulkFromStatus").value) : "";
+    const toStatus = $("bulkToStatus") ? text($("bulkToStatus").value) : "";
+    const serial = ++state.bulkStatusPreviewSerial;
+    state.bulkStatusPreview = { available: false, code: "" };
+    updateBulkStatusCount();
+    if (!bulkStatusScreenAllowed() || !fromStatus || !toStatus || fromStatus === toStatus) return;
+    try {
+      const response = await api("getBulkStatusEligibilityV1",
+        authParams({ screen: screen, fromStatus: fromStatus, toStatus: toStatus }));
+      if (serial !== state.bulkStatusPreviewSerial || state.screen !== screen ||
+          text(($("bulkFromStatus") || {}).value) !== fromStatus ||
+          text(($("bulkToStatus") || {}).value) !== toStatus) return;
+      state.bulkStatusPreview = response && response.success && response.available &&
+        response.version === "T12_NATIVE_BULK_STATUS_BATCH_V2" ? response :
+        { available: false, code: (response && response.code) || "bulk-preview-not-available" };
+    } catch (err) {
+      if (serial !== state.bulkStatusPreviewSerial) return;
+      state.bulkStatusPreview = { available: false,
+        code: (err && err.code) || "bulk-preview-network-failed" };
+    }
+    updateBulkStatusCount();
   }
 
   function archiveDeliveredDetails() {
@@ -4840,8 +4876,16 @@ Trend Mall`;
     const to = $("bulkToStatus") ? text($("bulkToStatus").value) : "";
     const details = bulkStatusMatchDetails();
     const archiveDetails = archiveDeliveredDetails();
-    if (count) count.textContent = from ? ("المطابق حاليًا: " + details.rowCount + " بند داخل " + details.orderCount + " أوردر") : "اختر الحالة الحالية";
-    if (button) button.disabled = state.bulkStatusSaving || !bulkStatusScreenAllowed() || !details.rowCount || !from || !to || from === to;
+    if (count) count.textContent = !from ? "اختر الحالة الحالية" :
+      details.eligibleKnown
+        ? ("مطابق على D1: " + details.rowCount + " بند في " + details.orderCount + " أوردر" +
+          (details.blockedDebtLines ? " | ممنوع تسليمها بالمديونية: " + details.blockedDebtLines : "") +
+          (details.excludedHistoricalLines ? " | أوردرات قديمة مستبعدة: " + details.excludedHistoricalLines : "") +
+          (details.excludedArchivedLines ? " | مرتبطة بأرشيف سابق: " + details.excludedArchivedLines : ""))
+        : (details.code === "count-pending" ? "جاري حساب المطابق على D1..." :
+          (details.code ? "تعذر عد المطابق على D1 (" + details.code + ")" : "جاري حساب المطابق على D1..."));
+    if (button) button.disabled = state.bulkStatusSaving || !bulkStatusScreenAllowed() ||
+      !details.eligibleKnown || !details.rowCount || !from || !to || from === to;
     if (archiveCount) archiveCount.textContent = archiveDetails.eligibleKnown
       ? ("جاهز للأرشفة على D1: " + archiveDetails.orderCount + " أوردر كامل" +
         (archiveDetails.partiallyArchivedOrders
@@ -4877,51 +4921,80 @@ Trend Mall`;
     }
     const label = $("bulkDepartmentLabel");
     if (label) label.textContent = "القسم الحالي: " + bulkStatusDepartmentName();
-    updateBulkStatusCount();
+    refreshBulkStatusPreview();
   }
 
   async function runBulkStatusChange() {
     if (state.bulkStatusSaving || !bulkStatusScreenAllowed()) return;
+    const screen = state.screen;
     const from = text(($("bulkFromStatus") || {}).value);
     const to = text(($("bulkToStatus") || {}).value);
-    const details = bulkStatusMatchDetails();
-    if (!from || !to) return setMsg("bulkStatusMsg", "اختر الحالة الحالية والحالة الجديدة.", true);
-    if (from === to) return setMsg("bulkStatusMsg", "الحالتان متطابقتان؛ اختر حالة جديدة مختلفة.", true);
-    if (!details.rowCount) return setMsg("bulkStatusMsg", "لا توجد بنود بهذه الحالة في القسم الحالي.", true);
-
-    const warning = "سيتم تحويل " + details.rowCount + " بند داخل " + details.orderCount + " أوردر في قسم " + bulkStatusDepartmentName() + " من «" + from + "» إلى «" + to + "».\n\nهذا يشمل البنود غير الظاهرة في الصفحة الحالية. هل تريد المتابعة؟";
+    const preview = bulkStatusMatchDetails();
+    if (!from || !to || from === to) return setMsg("bulkStatusMsg", "اختر حالتين مختلفتين.", true);
+    if (!preview.eligibleKnown) return setMsg("bulkStatusMsg",
+      "العداد السحابي غير جاهز؛ اضغط تحديث البيانات ولا تغيّر الحالات بدون عدّ مؤكد.", true);
+    if (!preview.rowCount) return setMsg("bulkStatusMsg",
+      "لا توجد بنود سحابية مؤهلة لهذه النقلة في القسم الحالي.", true);
+    const warning = "سيتم تحويل " + preview.rowCount + " بند في " + preview.orderCount +
+      " أوردر جديد على Cloudflare D1 من «" + from + "» إلى «" + to + "» بقسم " +
+      bulkStatusDepartmentName() + ".\\n\\nسيتم التنفيذ تلقائيًا على دفعات من 20؛" +
+      " لن تُعدل الأوردرات المستوردة القديمة أو المؤرشفة." +
+      (preview.blockedDebtLines ? "\\nبنود محظورة بسبب قيود المديونية: " + preview.blockedDebtLines : "") +
+      "\\nهل تريد المتابعة؟";
     if (!confirm(warning)) return;
-
     const button = $("bulkStatusBtn");
     state.bulkStatusSaving = true;
-    state.bulkStatusRequestId = state.bulkStatusRequestId || ("BULK-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9));
+    state.bulkStatusRequestId = state.bulkStatusRequestId ||
+      ("BULK-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9));
+    state.bulkStatusNextBatch = state.bulkStatusNextBatch || 1;
     if (button) { button.disabled = true; button.textContent = "جاري التحويل..."; }
-    setMsg("bulkStatusMsg", "جاري تغيير الحالات في الشيت...", false);
-    setLoading("جاري تغيير حالات القسم جماعيًا...");
-
+    let totalLines = 0, totalOrders = 0, done = false;
+    setMsg("bulkStatusMsg", "جاري تغيير الحالات على Cloudflare D1...", false);
     try {
-      const res = await api("bulkUpdateDepartmentStatusV1926", authParams({
-        screen: state.screen,
-        fromStatus: from,
-        toStatus: to,
-        requestId: state.bulkStatusRequestId
-      }));
-      if (!res.success) {
-        setMsg("bulkStatusMsg", res.message || "تعذر تغيير الحالات.", true);
-        alert(res.message || "تعذر تغيير الحالات.");
-        return;
+      for (let round = 0; round < 200; round++) {
+        const batchId = state.bulkStatusRequestId + "-" + state.bulkStatusNextBatch;
+        const result = await api("bulkUpdateDepartmentStatusV1926", authParams({
+          screen: screen, fromStatus: from, toStatus: to, requestId: batchId
+        }));
+        if (!result || !result.success || result.version !== "T12_NATIVE_BULK_STATUS_BATCH_V2") {
+          throw new Error((result && (result.message || result.code)) ||
+            "نسخة Backend غير متوافقة أو حصل خطأ في التحويل. لا نكرر الدفعة تلقائيًا.");
+        }
+        totalLines += Math.max(0, Number(result.changed || 0));
+        totalOrders += Math.max(0, Number(result.affectedOrders || 0));
+        const remaining = Math.max(0, Number(result.remainingEligible || 0));
+        const progress = "تم تحويل " + totalLines + " بند. المتبقي المؤهل: " + remaining +
+          (result.skippedDebt ? " | محظور بسبب المديونية: " + result.skippedDebt : "");
+        if (button) button.textContent = "تم " + totalLines + " | باقي " + remaining;
+        setMsg("bulkStatusMsg", progress, false);
+        setLoading(progress);
+        state.bulkStatusNextBatch++;
+        if (!result.hasMore) { done = true; break; }
+        if (Number(result.changed || 0) === 0)
+          throw new Error("توقفت العملية بأمان لعدم وجود تقدم؛ لا تُكرر الطلب بمُعرّف مختلف.");
+        await new Promise(function (resolve) { setTimeout(resolve, 100); });
       }
+      if (!done) throw new Error("تم الوصول إلى حد الأمان 200 دفعة. حدث البيانات قبل الاستكمال.");
       state.bulkStatusRequestId = "";
-      setMsg("bulkStatusMsg", res.message || "تم تغيير الحالات بنجاح.", false);
-      alert(res.message || "تم تغيير الحالات بنجاح.");
+      state.bulkStatusNextBatch = 1;
+      const resultText = "اكتمل التحويل: " + totalLines + " بند سحابي من «" + from +
+        "» إلى «" + to + "» في قسم " + bulkStatusDepartmentName() +
+        ". الأوردرات القديمة والمؤرشفة لم تتغير.";
+      setMsg("bulkStatusMsg", resultText, false);
+      alert(resultText);
       await loadRows(true);
     } catch (err) {
-      setMsg("bulkStatusMsg", (err && err.message) || "تعذر الاتصال أثناء تغيير الحالات. اضغط الزر مرة أخرى لإعادة نفس الطلب بأمان.", true);
-      setLoading((err && err.message) || "خطأ أثناء التغيير الجماعي.", true);
+      const message = ((err && err.message) || "تعذر الاتصال") +
+        "؛ الدفعة الجارية لن تُكرر بإجراء آخر. راجع الحالة قبل الاستكمال.";
+      setMsg("bulkStatusMsg", message, true);
+      setLoading(message, true);
+      if (totalLines) {
+        try { await loadRows(true); } catch (_) {}
+      }
     } finally {
       state.bulkStatusSaving = false;
       if (button) button.textContent = "تحويل كل المطابق";
-      updateBulkStatusCount();
+      refreshBulkStatusPreview();
     }
   }
 
@@ -7632,7 +7705,8 @@ Trend Mall`;
       $(id).addEventListener("change", function () {
         setMsg("bulkStatusMsg", "", false);
         state.bulkStatusRequestId = "";
-        updateBulkStatusCount();
+        state.bulkStatusNextBatch = 1;
+        refreshBulkStatusPreview();
       });
     });
     const bulkStatusButton = $("bulkStatusBtn");
