@@ -16,7 +16,7 @@ function d1(db, log, forbid=''){
    let args=[],q=String(sql);
    const stmt={
      bind(...values){args=values;return stmt;},
-     async first(){return db.prepare(q).get(...args)||null;},
+     async first(){try{return db.prepare(q).get(...args)||null;}catch(e){console.error('ACC291_SQLITE_TEST_ONLY_QUERY',q,'ERROR',e.message);throw e;}},
      async all(){return {results:db.prepare(q).all(...args)};},
      async run(){return db.prepare(q).run(...args);}
    };return stmt;
