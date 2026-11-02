@@ -609,7 +609,7 @@ test('native bulk delivery respects active debt restrictions and fails closed on
     (username_key,token_fingerprint,session_version,issued_at_ms,expires_at_ms,last_seen_at_ms)
     VALUES('rahma',?,1,?,?,?)`).run(fp,now,now+60000,now);
   // Only restrictions + positive debt should prevent delivery.
-  f.db.prepare("INSERT INTO t12_customers(customer_id,customer_name,phone,debt_amount,active) VALUES('c1','عميل تجريبي','01000000000',50,'نعم')").run();
+  f.db.prepare("INSERT INTO t12_customers(customer_id,customer_name,customer_name_key,phone,debt_amount,active,source) VALUES('c1','عميل تجريبي','عميل تجريبي','01000000000',50,'نعم','cloud-native')").run();
   const key='عميل تجريبي';
   f.db.prepare("INSERT INTO employee_core_delivery_restrictions_v1(customer_key,customer_name,reason,active) VALUES(?,?,?,1)").run(key,key,'unpaid');
   f.db.prepare("UPDATE t12_prod_lines SET status='جاهز للاستلام' WHERE order_id='4322'").run();
