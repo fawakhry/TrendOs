@@ -1,0 +1,82 @@
+name: T12 Native Bulk Status - Owner Production Readonly Qualification
+on:
+  push:
+    branches: [candidate/t12-full-cloud-cutover-a56-20260929]
+    paths: ['.github/workflows/t12-native-bulk-status-release-preflight-20261102.yml']
+permissions: {contents: read}
+jobs:
+  read-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Verify source tests and exact existing backend/Cloudflare mode without changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Fxq 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fq 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          node --check cloudflare-d1/src/t12-native-bulk-status-v2.mjs
+          node --check cloudflare-d1/src/employee-core-native-v1.mjs
+          node --check app.js
+          node --check employee-api-dispatcher-v1.js
+          node --test --no-warnings tests/t12_native_close_archive_v1.test.mjs
+          echo LOCAL_T12_BULK_AND_ARCHIVE_31_TESTS=PASS
+          for p in /v1/employee/core/health?archiveProbe=1 /v1/employee/auth/health; do
+            curl -fsS "https://trendos-d1-api.trendmall-contact.workers.dev$p" >/tmp/corehealth.json
+            NAME="$p" node <<'NODE'
+          const x=require('/tmp/corehealth.json');
+          console.log('LIVE_HEALTH='+JSON.stringify({path:process.env.NAME,mode:x.mode,
+            schemaReady:x.schemaReady,archiveEligibilityVersion:x.archiveEligibilityVersion,
+            archiveProbe:x.archiveProbe,nativeOnly:x.nativeOnly}));
+          NODE
+          done
+          for f in app.js employee-api-dispatcher-v1.js config.js; do
+            curl -fLsS "https://trendos-ui.trendmall-contact.workers.dev/$f?newcheck=$GITHUB_SHA-$(date +%s%N)" >"/tmp/live-$f"
+          done
+          node <<'NODE'
+          const fs=require('fs'),crypto=require('crypto');
+          const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+          for(const f of ['app.js','employee-api-dispatcher-v1.js','config.js']){
+            const source=fs.readFileSync(f),live=fs.readFileSync('/tmp/live-'+f);
+            console.log('UI_SOURCE='+JSON.stringify({file:f,identical:source.equals(live),liveSha:sha(live),headSha:sha(source)}));
+          }
+          const a=fs.readFileSync('/tmp/live-app.js','utf8'),d=fs.readFileSync('/tmp/live-employee-api-dispatcher-v1.js','utf8');
+          console.log('UI_BULK_SOURCE='+JSON.stringify({hasD1Preview:a.includes('getBulkStatusEligibilityV1'),
+            nativeBatchClient:a.includes('T12_NATIVE_BULK_STATUS_BATCH_V2'),
+            dispatcherNative:d.includes("'getBulkStatusEligibilityV1'")}));
+          NODE
+          for w in trendos-ui trendos-d1-api; do
+            curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$w/deployments" >"/tmp/$w.json"
+            W="$w" node <<'NODE'
+          const x=require('/tmp/'+process.env.W+'.json'),a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(!x.success||v.length!==1||Number(v[0].percentage)!==100)throw Error('split or Cloudflare API unavailable');
+          console.log('WORKER_VERSION='+JSON.stringify({name:process.env.W,version:v[0].version_id}));
+          NODE
+          done
+          echo SOURCE_AND_WORKERS_READONLY_QUALIFIED=PASS
+      - name: Verify current archive D1 guard and status scope counts read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT mode,(SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name LIKE 'trg_t12_native_archive_v1_%') AS guards FROM t12_native_archive_guard_control_v1 WHERE singleton=1" >/tmp/guard.json
+          node <<'NODE'
+          const x=require('/tmp/guard.json'),r=(Array.isArray(x)?x:[x]).flatMap(t=>t.results||[])[0]||{};
+          if(r.mode!=='GUARDED'||Number(r.guards)!==12)throw Error('Archive protection missing');
+          console.log('NATIVE_D1_ARCHIVE_PROTECTED=PASS');
+          NODE
+          sql="SELECT l.status AS status,COUNT(*) AS n FROM t12_prod_lines l LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id WHERE a.line_id IS NULL AND NOT EXISTS(SELECT 1 FROM employee_core_archive_orders_v1 ao WHERE ao.order_id=l.order_id) AND NOT EXISTS(SELECT 1 FROM employee_core_archive_lines_v1 part WHERE part.order_id=l.order_id) GROUP BY COALESCE(r.status,l.status) ORDER BY n DESC"
+          npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "$sql" >/tmp/bulk-counts.json
+          node <<'NODE'
+          const x=require('/tmp/bulk-counts.json'),rows=(Array.isArray(x)?x:[x]).flatMap(y=>y.results||[]);
+          console.log('D1_NATIVE_BULK_STATUS_DISTRIBUTION_NO_PII='+JSON.stringify(rows));
+          NODE
+          echo D1_READONLY_NO_MUTATION=PASS
