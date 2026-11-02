@@ -1,9 +1,10 @@
 import { verifyEmployeeSessionCloudFirst } from './cloud-session-bridge-v3.mjs';
+import { closeAndArchiveT12OrderV1, nativeT12ArchiveWriteFenceV1, CLOSE_ARCHIVE_ACTION } from './t12-native-close-archive-v1.mjs';
 
 const ROOT='/v1/employee/core';
 const HEALTH=ROOT+'/health';
 const READ_ACTIONS=new Set(['getRows','getRowsPageV1931','getDashboard','getActivityLog','getTrendMasterCenterV1931']);
-const WRITE_ACTIONS=new Set(['bulkUpdateDepartmentStatusV1926','archiveDeliveredDepartmentV1926','updateLine','markCustomerNotified']);
+const WRITE_ACTIONS=new Set(['bulkUpdateDepartmentStatusV1926','archiveDeliveredDepartmentV1926','updateLine','markCustomerNotified',CLOSE_ARCHIVE_ACTION]);
 const STATUSES=new Set(['طلب جديد','بدأ التنفيذ','تحت التنفيذ','جاهز للاستلام','تم التسليم','متوقف','مكرر','ملغى']);
 const DEFAULT_ORIGINS=[
   'https://fawakhry.github.io',
@@ -253,6 +254,11 @@ async function bulkStatus(env,user,body){
   await commitLedger(env,requestId,response);return response;
 }
 async function archiveDelivered(env,user,body){
+  // One-writer fence: once the dedicated native T12 close/archive is enabled,
+  // never let the older bulk archive race and partially archive native orders.
+  // Default OFF retains the currently deployed behavior unchanged.
+  if(env?.TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED==='true')
+    return {success:false,code:'legacy-bulk-archive-suspended-for-native-t12-close'};
   const screen=text(body.screen),requestId=text(body.requestId);
   if(!screenAllowed(user,screen))return {success:false,message:'ليس لديك صلاحية أرشفة هذا القسم.'};
   const led=await requestLedger(env,requestId,'archiveDeliveredDepartmentV1926',user.username,{screen});
@@ -303,6 +309,8 @@ async function updateSingleLine(env,user,body){
   }
   const cloud=await env.DB.prepare("SELECT order_id AS orderId,status FROM t12_prod_lines WHERE line_id=?").bind(lineId).first();
   if(!cloud)return {success:false,code:'line-not-found',message:'البند غير موجود في D1.'};
+  const archiveGate=await nativeT12ArchiveWriteFenceV1(env,cloud.orderId,lineId);
+  if(!archiveGate.allowed)return {success:false,code:archiveGate.code};
   await env.DB.prepare(`
     INSERT INTO t12_prod_line_runtime(line_id,order_id,status,notes,updated_by,version,updated_at)
     VALUES(?,?,?,?,?,1,CURRENT_TIMESTAMP)
@@ -325,6 +333,8 @@ async function markNotified(env,user,body){
   }
   const cloud=await env.DB.prepare("SELECT order_id AS orderId,status FROM t12_prod_lines WHERE line_id=?").bind(lineId).first();
   if(!cloud)return {success:false,code:'line-not-found',message:'البند غير موجود في D1.'};
+  const archiveGate=await nativeT12ArchiveWriteFenceV1(env,cloud.orderId,lineId);
+  if(!archiveGate.allowed)return {success:false,code:archiveGate.code};
   await env.DB.prepare(`
     INSERT INTO t12_prod_line_runtime(line_id,order_id,status,customer_notified,notified_at,notified_by,last_whatsapp_message,last_whatsapp_at,last_whatsapp_by,updated_by,version,updated_at)
     VALUES(?,?,?,'نعم',?,?,?,?,?,?,1,CURRENT_TIMESTAMP)
@@ -381,6 +391,7 @@ export async function handleEmployeeCoreNativeRequest(request,env){
     else if(action==='getTrendMasterCenterV1931')out=await trendMaster(env,a.user,body);
     else if(action==='bulkUpdateDepartmentStatusV1926')out=await bulkStatus(env,a.user,body);
     else if(action==='archiveDeliveredDepartmentV1926')out=await archiveDelivered(env,a.user,body);
+    else if(action===CLOSE_ARCHIVE_ACTION)out=await closeAndArchiveT12OrderV1(env,a.user,body);
     else if(action==='updateLine')out=await updateSingleLine(env,a.user,body);
     else if(action==='markCustomerNotified')out=await markNotified(env,a.user,body);
     else out={success:false,code:'employee-core-action-unknown'};

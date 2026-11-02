@@ -1,0 +1,37 @@
+name: T12 Native New-Order Close and Archive (Source OFF / SQLite)
+on:
+  pull_request:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - 'cloudflare-d1/src/t12-native-close-archive-v1.mjs'
+      - 'cloudflare-d1/migrations/0032_t12_native_archive_guard_v1.sql'
+      - 'cloudflare-d1/src/employee-core-native-v1.mjs'
+      - 'cloudflare-d1/src/t12-operational-runtime-handler.mjs'
+      - 'tests/t12_native_close_archive_v1.test.mjs'
+      - '.github/workflows/t12-native-close-archive-off-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-close-archive-local-sqlite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Original native-auth HTTP loopback + guarded D1 SQLite transaction tests (no production calls)
+        run: |
+          set -euo pipefail
+          node --check cloudflare-d1/src/t12-native-close-archive-v1.mjs
+          node --check cloudflare-d1/src/employee-core-native-v1.mjs
+          node --check cloudflare-d1/src/t12-operational-runtime-handler.mjs
+          node --test --no-warnings tests/t12_native_close_archive_v1.test.mjs
+          echo "T12_NATIVE_NEW_ORDERS_CLOSE_ARCHIVE_LOCAL=PASS"
+          echo "GOOGLE_LEGACY_ORDERS_MODIFIED=NO"
+          echo "CLOUDFLARE_REMOTE_WRITES=NONE"
+          echo "PRODUCTION_CLOSE_ARCHIVE=OFF"
