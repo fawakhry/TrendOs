@@ -69,7 +69,8 @@
     'getRowsPageV1931',
     'getDashboard',
     'getActivityLog',
-    'getTrendMasterCenterV1931'
+    'getTrendMasterCenterV1931',
+    'getArchiveEligibilityV1'
   ]);
 
   var CORE_WRITE_ACTIONS = new Set([
