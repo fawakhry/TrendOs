@@ -442,7 +442,7 @@ export async function handleEmployeeCoreNativeRequest(request,env){
     let schemaReady=false;
     try{const r=await env.DB.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('employee_core_control_v1','employee_core_request_ledger_v1','employee_core_orders_v1','employee_core_lines_v1','employee_core_archive_orders_v1','employee_core_archive_lines_v1','employee_core_events_v1','employee_core_delivery_restrictions_v1')").first();schemaReady=num(r&&r.n)===8;}catch{}
     const c=schemaReady?await control(env):{mode:'OFF',policyEpoch:0,dataVersion:0};
-    return json({success:true,schemaReady,mode:text(c.mode)||'OFF',policyEpoch:num(c.policyEpoch),dataVersion:num(c.dataVersion),actions:[...READ_ACTIONS,...WRITE_ACTIONS],googleBusinessCalls:0,appsScriptBusinessAuthority:false,authBridgeTemporary:true},schemaReady?200:503,cors(request,env));
+    return json({success:true,schemaReady,mode:text(c.mode)||'OFF',policyEpoch:num(c.policyEpoch),dataVersion:num(c.dataVersion),actions:[...READ_ACTIONS,...WRITE_ACTIONS],archiveEligibilityVersion:'T12_NATIVE_ARCHIVE_ELIGIBILITY_V3',googleBusinessCalls:0,appsScriptBusinessAuthority:false,authBridgeTemporary:true},schemaReady?200:503,cors(request,env));
   }
   if(request.method!=='POST')return json({success:false,code:'method-not-allowed'},405,cors(request,env));
   if(!allowedOrigin(request,env))return json({success:false,code:'origin-forbidden'},403,cors(request,env));
