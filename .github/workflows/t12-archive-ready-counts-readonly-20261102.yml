@@ -1,0 +1,33 @@
+name: T12 Archive Ready Counts Readonly Diagnosis 20261102
+on:
+  push:
+    branches: [candidate/t12-full-cloud-cutover-a56-20260929]
+    paths: ['.github/workflows/t12-archive-ready-counts-readonly-20261102.yml']
+permissions: { contents: read }
+jobs:
+  query-counts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Read-only D1 aggregate counts, never return customer rows
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          grep -Fxq 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fq 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          SQL="SELECT 't12_order_all' AS k, COUNT(*) AS n FROM t12_prod_orders UNION ALL SELECT 't12_order_full_delivered_unarchived',COUNT(*) FROM t12_prod_orders o WHERE EXISTS(SELECT 1 FROM t12_prod_lines l WHERE l.order_id=o.order_id) AND NOT EXISTS(SELECT 1 FROM t12_prod_lines l LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id WHERE l.order_id=o.order_id AND COALESCE(r.status,l.status)<>'تم التسليم') AND NOT EXISTS(SELECT 1 FROM employee_core_archive_orders_v1 a WHERE a.order_id=o.order_id) UNION ALL SELECT 't12_order_any_delivered',COUNT(DISTINCT l.order_id) FROM t12_prod_lines l LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id WHERE COALESCE(r.status,l.status)='تم التسليم' UNION ALL SELECT 'imported_delivered_active_lines',COUNT(*) FROM employee_core_lines_v1 WHERE active=1 AND status='تم التسليم' UNION ALL SELECT 'imported_delivered_active_orders',COUNT(DISTINCT order_id) FROM employee_core_lines_v1 WHERE active=1 AND status='تم التسليم' UNION ALL SELECT 'native_archived_orders',COUNT(*) FROM employee_core_archive_orders_v1 a WHERE EXISTS(SELECT 1 FROM t12_prod_orders o WHERE o.order_id=a.order_id) UNION ALL SELECT 'archive_all_orders',COUNT(*) FROM employee_core_archive_orders_v1;"
+          npx --yes wrangler@4.33.2 d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "$SQL" >/tmp/diag.json
+          node <<'NODE'
+          const fs=require('node:fs'),x=JSON.parse(fs.readFileSync('/tmp/diag.json','utf8'));
+          const rows=(Array.isArray(x)?x:[x]).flatMap(o=>o.results||[]);
+          const m=Object.fromEntries(rows.map(r=>[r.k,Number(r.n)]));
+          console.log('ARCHIVE_AGGREGATES_NO_PII='+JSON.stringify(m));
+          if(rows.length!==7)process.exit(1);
+          NODE
+          echo ARCHIVE_READONLY_ONLY=PASS
