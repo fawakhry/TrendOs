@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import worker from '../index.mjs';
 
 const health = 'https://example.invalid/v1/employee/accounting/health';
 const api = 'https://example.invalid/v1/employee/accounting';
-function fakeDb(mode='OFF',tableCount=22,operationalTables=0) {
+function fakeDb(mode='OFF',tableCount=22,operationalTables=0,canaryArmed=false) {
   return {
     prepare(sql) {
       return {
@@ -20,7 +21,8 @@ function fakeDb(mode='OFF',tableCount=22,operationalTables=0) {
           if (sql.includes("FROM employee_accounting_write_canary_v1")) return {
             enabled:1, allowedUsersJson:'[]', allowedActionsJson:'[]',
             maxAmount:0, expiresAtMs:0, policyEpoch:1,
-            maxCommands:0, commandsStarted:0
+            maxCommands:canaryArmed?1:0, commandsStarted:0,
+            allowedUsers:'[]', allowedActions:'[]'
           };
           throw new Error('unexpected SQL: '+sql.slice(0,110));
         }
@@ -143,4 +145,83 @@ test('ACC253 Stage signed bridge has no money-authority under READONLY D1',async
   });
   assert.equal(res.status,503);
   assert.equal((await res.json()).code,'isolated-stage-signed-source-smoke-control-not-off');
+});
+
+
+// ACC291 supplier-only Stage preflight: only previously missing gateway path.
+// Existing original native D1/role tests remain the source of truth.
+test('ACC291 supplier-only Stage preflight defaults OFF and refuses ALL money',async()=>{
+  const cfg=fs.readFileSync('cloudflare-d1/easystore-finance-stage/wrangler.toml','utf8');
+  for(const key of ['EASYSTORE_STAGE_SUPPLIER_MASTER_INTAKE_V1',
+    'EASYSTORE_SUPPLIER_MASTER_INTAKE_V1','EASYSTORE_OPENING_DRAFT_INTAKE_V1'])
+    assert.match(cfg,new RegExp('^'+key+'\\s*=\\s*"OFF"','m'));
+  const hmac='ACC291_SYNTHETIC_KEY_NOT_REAL_'.repeat(3);
+  const safe={
+    DB:fakeDb('READONLY'),
+    EASYSTORE_STAGE_READONLY_API_V1:'ENFORCE',
+    FINANCE_RELEASE:'NO_GO',FINANCE_WRITES:'OFF',
+    EASYSTORE_ACCOUNTING_D1_WRITES:'false',
+    EASYSTORE_ACCOUNTING_D1_WRITE_MODE:'OFF',
+    EASYSTORE_CUSTOMER_SOURCE_V1:'REMOTE_REQUIRED',
+    EASYSTORE_EMPLOYEE_AUTH_SOURCE_V1:'REMOTE_NATIVE_REQUIRED',
+    ACCOUNTING_FINANCE_GRANTS_MODE_V1:'ENFORCE',
+    ACCOUNTING_FINANCE_GRANTS_V1:JSON.stringify(
+      {version:1,grants:[{username:'acc291_synthetic_owner',mode:'full'}]}),
+    TRENDOS_EMPLOYEE_SESSION_HMAC_V1:hmac,
+    TRENDOS_CUSTOMER_FACTS_HMAC_V1:hmac,
+    TRENDOS_EMPLOYEE_SESSION:{fetch:async()=>new Response(null,{status:401})},
+    TRENDOS_CUSTOMER_FACTS:{fetch:async()=>new Response(null,{status:401})},
+    EASYSTORE_STAGE_SUPPLIER_MASTER_INTAKE_V1:'ENFORCE',
+    EASYSTORE_SUPPLIER_MASTER_INTAKE_V1:'ENFORCE',
+    EASYSTORE_OPENING_DRAFT_INTAKE_V1:'OFF'
+  };
+  async function call(env,action,data={}){
+    const r=await worker.fetch(new Request(api,{method:'POST',
+      body:JSON.stringify({action,username:'acc291_synthetic_owner',...data})}),env);
+    return {status:r.status,...await r.json()};
+  }
+  const payload={name:'ACC291 SYNTHETIC',opening:0,requestId:'ACC291-SYNTH-REQUEST-00001'};
+  for(const updated of [
+    {EASYSTORE_STAGE_SUPPLIER_MASTER_INTAKE_V1:'OFF'},
+    {EASYSTORE_SUPPLIER_MASTER_INTAKE_V1:'OFF'},
+    {EASYSTORE_STAGE_READONLY_API_V1:'OFF'},
+    {ACCOUNTING_FINANCE_GRANTS_V1:'{"version":1,"grants":[]}'},
+    {ACCOUNTING_FINANCE_GRANTS_V1:JSON.stringify(
+      {version:1,grants:[{username:'acc291_synthetic_owner',mode:'final'}]})},
+    {EASYSTORE_OPENING_DRAFT_INTAKE_V1:'ENFORCE'},
+    {FINANCE_WRITES:'ON'}
+  ]){
+    const out=await call({...safe,...updated},'saveEasyStoreSupplier',payload);
+    assert.equal(out.status,503,'supplier must be off unless all independent gates match');
+    assert.equal(out.code,'isolated-stage-financial-routes-disabled');
+  }
+  const badInputs=[
+    {opening:0,debt:500},{opening:0,openingDebt:-200},
+    {opening:0,balance:'malformed'},{opening:0,currentBalance:{}},
+    {opening:5}
+  ];
+  for(const invalid of badInputs){
+    const out=await call(safe,'saveEasyStoreSupplier',{...payload,...invalid});
+    assert.equal(out.status,503);
+    assert.equal(out.code,'isolated-stage-supplier-must-be-zero-opening');
+  }
+  const armed=await call({...safe,DB:fakeDb('READONLY',22,0,true)},
+    'saveEasyStoreSupplier',payload);
+  assert.equal(armed.status,503);
+  assert.equal(armed.code,'isolated-stage-supplier-canary-must-be-unarmed');
+  const noToken=await call(safe,'saveEasyStoreSupplier',payload);
+  assert.equal(noToken.status,401);
+  assert.equal(noToken.code,'employee-session-rejected');
+  // Even with all supplier-only switches on, no money or unrelated drafts.
+  for(const action of ['saveEasyStoreSaleV2','saveAccountingFinalInvoice',
+    'saveEasyStoreOpeningDraftV1','saveCustomerAccountMovementV1915',
+    'saveEasyStoreCustomer','saveAccountingDeptLine']){
+    const rejected=await call(safe,action,{...payload,amount:90});
+    assert.equal(rejected.status,503,action);
+    assert.equal(rejected.code,'isolated-stage-financial-routes-disabled',action);
+  }
+  const notReadOnly=await call({...safe,DB:fakeDb('OFF')},
+    'saveEasyStoreSupplier',payload);
+  assert.equal(notReadOnly.status,503);
+  assert.equal(notReadOnly.code,'isolated-stage-readonly-control-required');
 });
