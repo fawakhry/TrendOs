@@ -1,0 +1,88 @@
+name: T12 New-Order Archive — Production Read-Only Qualification 20261102
+on:
+  push:
+    branches:
+      - candidate/t12-full-cloud-cutover-a56-20260929
+    paths:
+      - '.github/workflows/t12-native-archive-production-readonly-preflight-20261102.yml'
+permissions:
+  contents: read
+concurrency:
+  group: t12-native-archive-production-20261102
+  cancel-in-progress: false
+jobs:
+  read-only-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Qualify exact source and original target without touching D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Fxq 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fq 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          grep -Fq 'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "true"' cloudflare-d1/wrangler.toml
+          test -f cloudflare-d1/migrations/0032_t12_native_archive_guard_v1.sql
+          test -f cloudflare-d1/src/t12-native-close-archive-v1.mjs
+          node --check cloudflare-d1/src/employee-core-native-v1.mjs
+          node --check cloudflare-d1/src/t12-native-close-archive-v1.mjs
+          node --check cloudflare-d1/src/t12-operational-runtime-handler.mjs
+          node --test --no-warnings tests/t12_native_close_archive_v1.test.mjs
+          echo T12_ARCHIVE_SOURCE=PASS
+      - name: Read original deployed Worker health without credentials in logs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for p in /v1/edge/health /v1/employee/core/health /v1/employee/auth/health /v1/t12/orders/line-runtime/health; do
+            code="$(curl --max-time 20 --silent --show-error --output /tmp/health.json --write-out '%{http_code}' "https://trendos-d1-api.trendmall-contact.workers.dev$p" || true)"
+            node - "$p" "$code" <<'NODE'
+          const fs=require('fs'), [path,code]=process.argv.slice(2);
+          let obj={};try{obj=JSON.parse(fs.readFileSync('/tmp/health.json','utf8'))}catch{}
+          const fields=['success','schemaReady','mode','enabled','nativeOnly','googleBusinessCalls','appsScriptBusinessAuthority'];
+          const s={};for(const f of fields)if(obj[f]!==undefined)s[f]=obj[f];
+          console.log('PROD_HEALTH='+JSON.stringify({path,http:Number(code),...s}));
+          NODE
+          done
+      - name: Read remote D1 structural identity and EXACT mode only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save wrangler@4.33.2 >/dev/null 2>&1
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('t12_prod_orders','t12_prod_lines','t12_prod_line_runtime','employee_core_archive_orders_v1','employee_core_archive_lines_v1','employee_core_events_v1','employee_core_control_v1','employee_core_delivery_restrictions_v1','t12_native_archive_guard_control_v1') ORDER BY name;" >/tmp/tables.json
+          node - <<'NODE'
+          const fs=require('fs');let x=JSON.parse(fs.readFileSync('/tmp/tables.json','utf8'));
+          const a=Array.isArray(x)?x:[x];const rows=a.flatMap(x=>x.results||[]);
+          console.log('D1_SCHEMA_TABLE_NAMES='+JSON.stringify(rows.map(r=>r.name)));
+          const need=['t12_prod_orders','t12_prod_lines','t12_prod_line_runtime','employee_core_archive_orders_v1','employee_core_archive_lines_v1','employee_core_events_v1','employee_core_control_v1','employee_core_delivery_restrictions_v1'];
+          console.log('D1_ARCHIVE_REQUIRED_SCHEMA_READY='+need.every(v=>rows.some(r=>r.name===v)));
+          NODE
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT mode FROM employee_core_control_v1 WHERE singleton=1;" >/tmp/core.json
+          node - <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/core.json','utf8'));
+          const a=Array.isArray(x)?x:[x];console.log('D1_CORE_MODE='+String(a.flatMap(r=>r.results||[])[0]?.mode||'NONE'));
+          NODE
+          echo D1_READ_ONLY_NO_MUTATION=YES
+      - name: Read exact original Worker version and binding names
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/trendos-d1-api/deployments" >/tmp/deps.json
+          node - <<'NODE'
+          const x=JSON.parse(require('fs').readFileSync('/tmp/deps.json','utf8'));if(!x.success)throw Error('Cloudflare deployments API not authorized');
+          const a=Array.isArray(x.result)?x.result:x.result?.deployments||[];
+          const d=a[0]||{},v=d.versions||[];
+          console.log('D1_WORKER_ACTIVE='+JSON.stringify({deploymentId:d.id,versions:v.map(x=>({id:x.version_id,percent:x.percentage}))}));
+          if(v.length!==1||Number(v[0].percentage)!==100)throw Error('Worker traffic is split; cannot assume safe deployment');
+          NODE
+          echo T12_ARCHIVE_REMOTE_PROBE_READONLY=PASS
