@@ -1,9 +1,10 @@
 import { verifyEmployeeSessionCloudFirst } from './cloud-session-bridge-v3.mjs';
+import { closeAndArchiveT12OrderV1, CLOSE_ARCHIVE_ACTION } from './t12-native-close-archive-v1.mjs';
 
 const ROOT='/v1/employee/core';
 const HEALTH=ROOT+'/health';
 const READ_ACTIONS=new Set(['getRows','getRowsPageV1931','getDashboard','getActivityLog','getTrendMasterCenterV1931']);
-const WRITE_ACTIONS=new Set(['bulkUpdateDepartmentStatusV1926','archiveDeliveredDepartmentV1926','updateLine','markCustomerNotified']);
+const WRITE_ACTIONS=new Set(['bulkUpdateDepartmentStatusV1926','archiveDeliveredDepartmentV1926','updateLine','markCustomerNotified',CLOSE_ARCHIVE_ACTION]);
 const STATUSES=new Set(['طلب جديد','بدأ التنفيذ','تحت التنفيذ','جاهز للاستلام','تم التسليم','متوقف','مكرر','ملغى']);
 const DEFAULT_ORIGINS=[
   'https://fawakhry.github.io',
@@ -381,6 +382,7 @@ export async function handleEmployeeCoreNativeRequest(request,env){
     else if(action==='getTrendMasterCenterV1931')out=await trendMaster(env,a.user,body);
     else if(action==='bulkUpdateDepartmentStatusV1926')out=await bulkStatus(env,a.user,body);
     else if(action==='archiveDeliveredDepartmentV1926')out=await archiveDelivered(env,a.user,body);
+    else if(action===CLOSE_ARCHIVE_ACTION)out=await closeAndArchiveT12OrderV1(env,a.user,body);
     else if(action==='updateLine')out=await updateSingleLine(env,a.user,body);
     else if(action==='markCustomerNotified')out=await markNotified(env,a.user,body);
     else out={success:false,code:'employee-core-action-unknown'};
