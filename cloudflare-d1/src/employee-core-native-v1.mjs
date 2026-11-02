@@ -265,32 +265,59 @@ async function archiveDelivered(env,user,body){
       return {success:false,code:'native-archive-screen-forbidden',message:'لا توجد صلاحية أرشفة لهذا القسم.'};
     if(!/^[a-zA-Z0-9:._-]{12,80}$/.test(requestId))
       return {success:false,code:'request-id-invalid',message:'معرّف عملية الأرشفة غير صالح.'};
-    const delivered=(await coreRows(env,screen))
-      .filter(r=>r.sourceKind==='t12-prod'&&text(r.status)==='تم التسليم');
-    const orderIds=[...new Set(delivered.map(r=>r.orderId).filter(Boolean))].slice(0,20);
-    let archivedOrders=0,archivedLines=0,skippedIncomplete=0;
-    for(const orderId of orderIds){
+    // Query ONLY original native T12 IDs; no imported historical rows.
+    // A whole order is eligible only if every original line is delivered.
+    // Keep each HTTP call bounded; the UI continues the next batch itself.
+    const match=screen==='print'?"instr(s.department,'طباعة')>0":
+      screen==='laser'?"instr(s.department,'ليزر')>0":
+      screen==='press'?"(s.heat_press=1 OR instr(s.department,'مكبس')>0)":
+      "1=1";
+    const eligibility=`
+      FROM t12_prod_orders o
+      WHERE NOT EXISTS(
+        SELECT 1 FROM employee_core_archive_orders_v1 a WHERE a.order_id=o.order_id
+      )
+      AND EXISTS(
+        SELECT 1 FROM t12_prod_lines s WHERE s.order_id=o.order_id AND ${match}
+      )
+      AND NOT EXISTS(
+        SELECT 1 FROM t12_prod_lines l
+        LEFT JOIN t12_prod_line_runtime r ON r.line_id=l.line_id
+        LEFT JOIN employee_core_archive_lines_v1 a ON a.line_id=l.line_id
+        WHERE l.order_id=o.order_id
+        AND (COALESCE(r.status,l.status)<>'تم التسليم' OR a.line_id IS NOT NULL)
+      )`;
+    const queue=(await env.DB.prepare(`
+      SELECT o.order_id AS orderId ${eligibility}
+      ORDER BY o.created_at ASC,o.order_id ASC LIMIT 20
+    `).bind().all()).results||[];
+    let archivedOrders=0,archivedLines=0;
+    for(const row of queue){
+      const orderId=text(row.orderId);
       const result=await closeAndArchiveT12OrderV1(env,user,{
         orderId,requestId:requestId+'-'+orderId
       });
       if(result.success){
         if(!result.idempotent){archivedOrders++;archivedLines+=num(result.archivedLines);}
-      }else if(result.code==='native-order-not-all-delivered'||
-        result.code==='native-order-partially-archived-review'){
-        skippedIncomplete++;
       }else{
+        const remain=await env.DB.prepare(`SELECT COUNT(*) AS n ${eligibility}`).bind().first();
         return {success:false,code:result.code||'native-archive-failed',
-          message:'توقفت الأرشفة الآمنة. راجع سجل الأوردرات قبل إعادة المحاولة.',
-          archivedOrders,archivedLines,skippedIncomplete};
+          message:'توقفت الأرشفة الآمنة. لا تعِد المحاولة تلقائيًا قبل فحص الحالة.',
+          archivedOrders,archivedLines,remainingEligible:num(remain?.n),
+          hasMore:true,screen,requestId};
       }
     }
-    return {success:true,archivedOrders,archivedLines,
-      skippedIncomplete,partialOrders:skippedIncomplete,screen,requestId,
+    // Current count is a fresh D1 read, never inferred from the frontend's
+    // potentially stale 1371 row/order count.
+    const remain=await env.DB.prepare(`SELECT COUNT(*) AS n ${eligibility}`).bind().first();
+    const remainingEligible=num(remain?.n);
+    return {success:true,archivedOrders,archivedLines,remainingEligible,
+      hasMore:remainingEligible>0,batchSize:20,screen,requestId,
       message:archivedOrders
-        ?'تمت أرشفة '+archivedOrders+' أوردر جديد مكتمل التسليم على Cloudflare.'
-        :'لا توجد أوردرات جديدة مكتملة التسليم جاهزة للأرشفة في القسم الحالي.',
+        ?'تمت أرشفة '+archivedOrders+' أوردر جديد مكتمل التسليم. المتبقي المؤهل: '+remainingEligible+'.'
+        :'لا توجد أوردرات سحابية مكتملة التسليم جاهزة للأرشفة في القسم الحالي.',
       cloudNative:true,googleBusinessCalls:0,
-      version:'T12_NATIVE_COMPLETE_ORDERS_UI_COMPAT_V1'};
+      version:'T12_NATIVE_COMPLETE_ORDERS_AUTO_BATCH_V2'};
   }
   const screen=text(body.screen),requestId=text(body.requestId);
   if(!screenAllowed(user,screen))return {success:false,message:'ليس لديك صلاحية أرشفة هذا القسم.'};

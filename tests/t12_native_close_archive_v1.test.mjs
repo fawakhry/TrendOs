@@ -343,17 +343,89 @@ test('existing employee archive button calls only complete original T12 orders, 
   assert.equal(f.db.prepare("SELECT active FROM employee_core_lines_v1 WHERE line_id='OLD-L100'").get().active,1);
   assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM employee_core_archive_lines_v1 WHERE line_id='OLD-L100'").get().n,0);
 });
+test('one archive click can continue 45 complete original T12 orders in exactly 3 bounded requests',async()=>{
+  const f=fixture();deliver(f.db);
+  f.db.exec(readFileSync(new URL('../cloudflare-d1/migrations/0009_employee_auth_native_v1.sql',import.meta.url),'utf8'));
+  const now=Date.now(),token='synthetic-batched-archive-token';
+  f.env.EDGE_SESSION_SECRET='synthetic-batch-test-only';
+  f.env.TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1='true';
+  f.db.prepare(`INSERT INTO employee_auth_users_v1
+    (employee_id,username_key,canonical_username,must_change,active,role,department,screens_json,session_version)
+    VALUES('e1','rahma','Rahma',0,1,'service','service','["service"]',1)`).run();
+  const fingerprint=await cloudAuthTokenFingerprint('rahma',token,f.env);
+  f.db.prepare(`INSERT INTO employee_auth_sessions_v1
+    (username_key,token_fingerprint,session_version,issued_at_ms,expires_at_ms,last_seen_at_ms)
+    VALUES('rahma',?,1,?,?,?)`).run(fingerprint,now,now+60000,now);
+  for(let i=0;i<44;i++){
+    const id=String(5000+i);
+    f.db.prepare(`INSERT INTO t12_prod_orders(order_id,customer_name,customer_phone,department,priority,source,notes)
+      VALUES(?,'عميل افتراضي','01000000000','طباعة','عادي','T12','')`).run(id);
+    f.db.prepare(`INSERT INTO t12_prod_lines(line_id,order_id,ordinal,department,item_name,qty,priority,status)
+      VALUES(?,?,1,'طباعة','ملصق',1,'عادي','تم التسليم')`).run('L-'+id,id);
+  }
+  f.db.prepare(`INSERT INTO t12_prod_orders(order_id,customer_name,customer_phone,department,priority,source,notes)
+    VALUES('9000','غير مكتمل','01000000000','طباعة','عادي','T12','')`).run();
+  f.db.prepare(`INSERT INTO t12_prod_lines(line_id,order_id,ordinal,department,item_name,qty,priority,status)
+    VALUES('L9000','9000',1,'طباعة','غير مكتمل',1,'عادي','بدأ التنفيذ')`).run();
+  const requestId='ARCHIVE-20261102-45-orders-one-click';
+  async function run(){
+    const req=new Request('https://trendos-d1-api.example.test/v1/employee/core',{
+      method:'POST',
+      headers:{'content-type':'application/json','authorization':'Bearer '+token,
+        'origin':'https://fawakhry.github.io'},
+      body:JSON.stringify({action:'archiveDeliveredDepartmentV1926',username:'rahma',screen:'service',requestId})
+    });
+    const response=await handleEmployeeCoreNativeRequest(req,f.env);
+    return {status:response.status,body:await response.json()};
+  }
+  const first=await run();
+  assert.equal(first.status,200,JSON.stringify(first.body));
+  assert.equal(first.body.archivedOrders,20);
+  assert.equal(first.body.remainingEligible,25);
+  assert.equal(first.body.hasMore,true);
+  assert.equal(first.body.version,'T12_NATIVE_COMPLETE_ORDERS_AUTO_BATCH_V2');
+  assert.equal(count(f.db,'employee_core_archive_orders_v1'),20);
+  const second=await run();
+  assert.equal(second.body.archivedOrders,20);
+  assert.equal(second.body.remainingEligible,5);
+  assert.equal(second.body.hasMore,true);
+  const third=await run();
+  assert.equal(third.body.archivedOrders,5);
+  assert.equal(third.body.remainingEligible,0);
+  assert.equal(third.body.hasMore,false);
+  assert.equal(count(f.db,'employee_core_archive_orders_v1'),45);
+  const fourth=await run();
+  assert.equal(fourth.body.archivedOrders,0);
+  assert.equal(fourth.body.hasMore,false);
+  assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM employee_core_archive_orders_v1 WHERE order_id='9000'").get().n,0);
+  assert.equal(count(f.db,'employee_core_events_v1'),45);
+});
+test('auto-archive UI loops only on hasMore with 200 batch guard and explicit progress',()=>{
+  const app=readFileSync(new URL('../app.js',import.meta.url),'utf8');
+  const start=app.indexOf('  async function archiveDeliveredDepartment() {');
+  const end=app.indexOf('  function applyFiltersAndRender(',start);
+  assert.ok(start>0&&end>start);
+  const block=app.slice(start,end);
+  assert.match(block,/if \(!res.hasMore\)/);
+  assert.match(block,/if \(Number\(res.archivedOrders \|\| 0\) < 1\)/);
+  assert.match(block,/if \(\+\+rounds > 200\)/);
+  assert.match(block,/remainingEligible/);
+  assert.match(block,/T12_NATIVE_COMPLETE_ORDERS_AUTO_BATCH_V2/);
+  assert.doesNotMatch(block,/شيت الأرشيف/);
+});
 test('new archive action preserves original legacy bulk route only while feature OFF',()=>{
   const core=readFileSync(new URL('../cloudflare-d1/src/employee-core-native-v1.mjs',import.meta.url),'utf8');
   assert.match(core,/if\(env\?\.TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED==='true'\)/);
-  assert.match(core,/sourceKind==='t12-prod'/);
+  assert.match(core,/FROM t12_prod_orders o/);
+  assert.match(core,/COALESCE\(r.status,l.status\)<>'تم التسليم'/);
+  assert.match(core,/remainingEligible>0/);
   assert.match(core,/closeAndArchiveT12OrderV1\(env,user/);
 });
 test('source integration prevents competing bulk archive writer in native-only mode',()=>{
   const core=readFileSync(new URL('../cloudflare-d1/src/employee-core-native-v1.mjs',import.meta.url),'utf8');
   assert.match(core,/CLOSE_ARCHIVE_ACTION\)out=await closeAndArchiveT12OrderV1/);
   assert.match(core,/archiveDeliveredDepartmentV1926'\)out=await archiveDelivered/);
-  assert.match(core,/T12_NATIVE_COMPLETE_ORDERS_UI_COMPAT_V1/);
+  assert.match(core,/T12_NATIVE_COMPLETE_ORDERS_AUTO_BATCH_V2/);
   assert.match(core,/if\(env\?\.TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED==='true'\)/);
   const runtime=readFileSync(new URL('../cloudflare-d1/src/t12-operational-runtime-handler.mjs',import.meta.url),'utf8');
   assert.match(runtime,/nativeT12ArchiveWriteFenceV1\(env,orderId,lineId\)/);
