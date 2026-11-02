@@ -1,0 +1,96 @@
+name: TrendOS Zero Google — Direct Cloudflare ISOLATED STAGE Version Upload ONLY
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type UPLOAD_ISOLATED_ZERO_GOOGLE_VERSION_ONLY'
+        required: true
+        type: string
+      expected_sha:
+        description: 'Full source commit SHA for the reviewed one-package branch'
+        required: true
+        type: string
+      expected_account_id:
+        description: 'Cloudflare account ID (must match Actions secret; never log token)'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: zero-google-cloudflare-isolated-version-upload
+  cancel-in-progress: false
+jobs:
+  cloudflare-version-upload-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+      TRENDOS_CUSTOMER_PORTAL_STAGING_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Mandatory explicit source SHA and account gates
+        shell: bash
+        env:
+          INPUT_CONFIRMATION: ${{ inputs.confirmation }}
+          INPUT_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          INPUT_EXPECTED_ACCOUNT_ID: ${{ inputs.expected_account_id }}
+        run: |
+          set -euo pipefail
+          test "$INPUT_CONFIRMATION" = 'UPLOAD_ISOLATED_ZERO_GOOGLE_VERSION_ONLY'
+          test "$GITHUB_REF_NAME" = 'chore/zero-google-direct-cloudflare-stage-upload-v1-20261101'
+          test "${#INPUT_EXPECTED_SHA}" -eq 40
+          test "$INPUT_EXPECTED_SHA" = "$(git rev-parse HEAD)"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test "$INPUT_EXPECTED_ACCOUNT_ID" = "$CLOUDFLARE_ACCOUNT_ID"
+          echo 'EXPLICIT_ACCOUNT_SHA_AND_SCOPE_GUARD=PASS'
+      - name: Recheck one-package and isolated Worker OFF before uploading version
+        run: |
+          set -euo pipefail
+          python3 tools/zero_google_direct_stage_upload_guard_v1.py
+          node tools/zero_google_one_package_v1.mjs > "$RUNNER_TEMP/zero-google-read-only-report.json"
+          python3 tests/zero_google_direct_stage_upload_guard_v1.test.py -v
+          node --test tests/zero_google_one_package_v1.test.mjs
+          echo 'CUSTOMER_DATA_NO_GO_AND_PROD_UNTOUCHED=PASS'
+      - name: Install pinned command-line uploader in temporary CI directory
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/zg-cloudflare-uploader" \
+            --no-save --no-audit --no-fund wrangler@4
+          echo "ZG_CLOUDFLARE_WRANGLER=$RUNNER_TEMP/zg-cloudflare-uploader/node_modules/.bin/wrangler" >> "$GITHUB_ENV"
+      - name: Build isolated Worker locally without any Cloudflare write
+        working-directory: cloudflare-d1
+        run: |
+          set -euo pipefail
+          "$ZG_CLOUDFLARE_WRANGLER" deploy --dry-run \
+            --config wrangler.customer-stage.toml --outdir "$RUNNER_TEMP/zg-isolated-stage-built-only"
+          echo 'ISOLATED_WORKER_BUILD_PASS_NO_TRAFFIC=YES'
+      - name: Upload ONLY a version of the isolated OFF Worker — no deployment
+        working-directory: cloudflare-d1
+        run: |
+          set -euo pipefail
+          # STOP if this Worker cannot be version-uploaded (e.g. requires a
+          # separately authorized first-time provision). NEVER fallback to deploy.
+          # This Stage NOW has a dedicated remote synthetic D1. Dynamically
+          # resolve and check the exact existing DB binding before any version
+          # upload; using the old no-DB source config would drop that binding.
+          cfg=".wrangler-zg-stage-d1-${GITHUB_RUN_ID}.toml"
+          trap 'rm -f "$cfg"' EXIT
+          python3 ../tools/zg_customer_stage_d1_binding_resolver_v1.py "$PWD/$cfg"
+          "$ZG_CLOUDFLARE_WRANGLER" versions upload \
+            --config "$cfg" \
+            --strict \
+            --message "Zero Google isolated OFF source candidate $GITHUB_SHA"
+          echo 'ISOLATED_CLOUDFLARE_VERSION_UPLOADED=YES'
+          echo 'WRANGLER_VERSIONS_DEPLOY_NOT_EXECUTED=YES'
+          echo 'WORKERS_DEV_DISABLED=YES'
+          echo 'CUSTOMER_MASTER_D1_R2_PRODUCTION_UNTOUCHED=YES'
+          echo 'ACTUAL_LIVE_ZERO_GOOGLE_CUSTOMER_ACTIONS_RETIRED_LAST_PROVEN=0/9'
+          echo 'CUSTOMER_PRINT_RELEASE=NO_GO'

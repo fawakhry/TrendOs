@@ -99,7 +99,14 @@
     "tools/build_zero_google_one_package_v1.py",
     "tests/zero_google_one_package_v1.test.mjs",
     "tests/zero_google_one_package_build_v1.test.py",
-    ".github/workflows/trendos-zero-google-one-package-v1-ci.yml"
+    ".github/workflows/trendos-zero-google-one-package-v1-ci.yml",
+    ".github/workflows/trendos-zero-google-cloudflare-direct-stage-upload-only.yml",
+    "tools/zero_google_direct_stage_upload_guard_v1.py",
+    "tests/zero_google_direct_stage_upload_guard_v1.test.py",
+    "tools/zg_customer_stage_d1_binding_resolver_v1.py",
+    "tests/zg_customer_stage_d1_binding_resolver_v1.test.py",
+    "tools/zg_customer_private_ingress_access_guard_off_v1.py",
+    "tests/zg_customer_private_ingress_access_guard_off_v1.test.py"
   ],
   "sourceBranch": "integration/zero-google-one-package-v1-20261031",
   "sourceBranchBase": "chore/zero-google-operator-book24-google-proxy-audit-off-20261031",

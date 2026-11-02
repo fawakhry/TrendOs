@@ -47,6 +47,11 @@ jobs:
         run: |
           set -euo pipefail
           python3 tests/zero_google_easystore_statement_source_audit_v0.test.py -v
+          python3 tests/zero_google_direct_stage_upload_guard_v1.test.py -v
+          python3 tests/zg_customer_stage_d1_binding_resolver_v1.test.py -v
+          python3 tests/zg_customer_private_ingress_access_guard_off_v1.test.py -v
+          python3 tools/zg_customer_private_ingress_access_guard_off_v1.py > "$RUNNER_TEMP/zg-private-access-off-source.json"
+          python3 tools/zero_google_direct_stage_upload_guard_v1.py > "$RUNNER_TEMP/zero-google-cloudflare-direct-stage-source.json"
           node --test tests/zero_google_operator_book24_source_audit_off_v0.test.mjs
           node --test tests/customer_isolated_stage_worker_off.test.mjs
           node --test tests/customer_native_browser_transport_off.test.mjs
