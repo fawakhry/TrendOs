@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {closeAndArchiveT12OrderV1,nativeT12ArchiveWriteFenceV1} from '../cloudflare-d1/src/t12-native-close-archive-v1.mjs';
 import {readFileSync} from 'node:fs';
+import {createServer} from 'node:http';
+import {handleEmployeeCoreNativeRequest} from '../cloudflare-d1/src/employee-core-native-v1.mjs';
+import {cloudAuthTokenFingerprint} from '../cloudflare-d1/src/cloud-auth-shadow-v1.mjs';
 
 function fixture(){
   const db=new DatabaseSync(':memory:');
@@ -26,7 +29,11 @@ function fixture(){
     request_key TEXT NOT NULL,archived_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE employee_core_events_v1(event_id INTEGER PRIMARY KEY AUTOINCREMENT,
     action TEXT NOT NULL,entity_type TEXT NOT NULL DEFAULT '',entity_id TEXT NOT NULL DEFAULT '',actor TEXT NOT NULL,payload_json TEXT NOT NULL DEFAULT '{}');
-  CREATE TABLE employee_core_control_v1(singleton INTEGER PRIMARY KEY,data_version INTEGER,
+  CREATE TABLE employee_core_control_v1(singleton INTEGER PRIMARY KEY,
+    marker TEXT NOT NULL DEFAULT 'ENTRY614_EMPLOYEE_CORE_V1',
+    mode TEXT NOT NULL DEFAULT 'GENERAL',
+    policy_epoch INTEGER NOT NULL DEFAULT 1,
+    data_version INTEGER NOT NULL DEFAULT 1,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
   INSERT INTO employee_core_control_v1(singleton,data_version) VALUES(1,1);
   INSERT INTO t12_prod_orders(order_id,customer_name,customer_phone,department,priority,source,notes)
@@ -39,7 +46,11 @@ function fixture(){
   db.exec(migration);
   db.prepare("UPDATE t12_native_archive_guard_control_v1 SET mode='GUARDED' WHERE singleton=1").run();
   const adapter={
-    prepare(sql){return {bind(...args){return {
+    prepare(sql){return {
+      first:async()=>db.prepare(sql).get()||null,
+      all:async()=>({results:db.prepare(sql).all()}),
+      run:async()=>db.prepare(sql).run(),
+      bind(...args){return {
       first:async()=>db.prepare(sql).get(...args)||null,
       all:async()=>({results:db.prepare(sql).all(...args)}),
       run:async()=>db.prepare(sql).run(...args),
@@ -229,6 +240,60 @@ test('non-archived new T12 order remains editable with D1 guard armed',()=>{
   f.db.exec("UPDATE t12_prod_lines SET item_name='safe-edit' WHERE line_id='L4322A'");
   f.db.exec("INSERT INTO t12_prod_line_runtime(line_id,order_id,status) VALUES('L4322A','4322','تحت التنفيذ')");
   assert.equal(f.db.prepare("SELECT status FROM t12_prod_line_runtime WHERE line_id='L4322A'").get().status,'تحت التنفيذ');
+});
+test('actual native Employee Core Request over local HTTP: deny bad session/origin/role then archive+replay',async()=>{
+  const f=fixture();deliver(f.db);
+  const nativeMigration=readFileSync(new URL('../cloudflare-d1/migrations/0009_employee_auth_native_v1.sql',import.meta.url),'utf8');
+  f.db.exec(nativeMigration);
+  const now=Date.now();
+  f.env.EDGE_SESSION_SECRET='synthetic-local-only-not-production-auth-fingerprint';
+  f.env.TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1='true';
+  f.db.prepare(`INSERT INTO employee_auth_users_v1
+    (employee_id,username_key,canonical_username,must_change,active,role,department,screens_json,session_version)
+    VALUES('e1','rahma','Rahma',0,1,'service','service','["service"]',1)`).run();
+  const token='synthetic-local-employee-session';
+  const fingerprint=await cloudAuthTokenFingerprint('rahma',token,f.env);
+  f.db.prepare(`INSERT INTO employee_auth_sessions_v1
+    (username_key,token_fingerprint,session_version,issued_at_ms,expires_at_ms,last_seen_at_ms)
+    VALUES('rahma',?,1,?,?,?)`).run(fingerprint,now,now+60_000,now);
+  const srv=createServer(async(req,res)=>{
+    try{
+      const bytes=[];for await(const piece of req)bytes.push(piece);
+      const request=new Request('http://127.0.0.1'+req.url,{
+        method:req.method,headers:req.headers,
+        body:req.method==='GET'||req.method==='HEAD'?undefined:Buffer.concat(bytes)
+      });
+      const result=await handleEmployeeCoreNativeRequest(request,f.env);
+      res.writeHead(result.status,Object.fromEntries(result.headers));
+      res.end(Buffer.from(await result.arrayBuffer()));
+    }catch(err){res.writeHead(500);res.end(String(err?.message||'failed'));}
+  });
+  await new Promise(resolve=>srv.listen(0,'127.0.0.1',resolve));
+  const url='http://127.0.0.1:'+srv.address().port+'/v1/employee/core';
+  const post=async(body,auth=token,origin='https://fawakhry.github.io')=>{
+    const headers={'content-type':'application/json','origin':origin};
+    if(auth)headers.authorization='Bearer '+auth;
+    const resp=await fetch(url,{method:'POST',headers,body:JSON.stringify(body)});
+    return {status:resp.status,data:await resp.json()};
+  };
+  try{
+    let req={...f.body,username:'rahma',action:'closeAndArchiveT12OrderV1'};
+    let r=await post(req,'bad-session');
+    assert.equal(r.status,401);assert.equal(count(f.db,'employee_core_archive_orders_v1'),0);
+    r=await post(req,token,'https://untrusted.example');
+    assert.equal(r.status,403);assert.equal(count(f.db,'employee_core_archive_orders_v1'),0);
+    f.db.prepare("UPDATE employee_auth_users_v1 SET role='print',department='print',screens_json='[\"print\"]' WHERE username_key='rahma'").run();
+    r=await post(req);
+    assert.equal(r.status,400);assert.equal(r.data.code,'native-close-archive-forbidden');
+    f.db.prepare("UPDATE employee_auth_users_v1 SET role='service',department='service',screens_json='[\"service\"]' WHERE username_key='rahma'").run();
+    r=await post(req);assert.equal(r.status,200);
+    assert.equal(r.data.success,true);assert.equal(r.data.archivedLines,2);
+    assert.equal(count(f.db,'employee_core_archive_orders_v1'),1);
+    r=await post(req);assert.equal(r.status,200);assert.equal(r.data.idempotent,true);
+    assert.equal(count(f.db,'employee_core_events_v1'),1);
+    req={...req,requestId:'another-live-local-request'};
+    r=await post(req);assert.equal(r.status,400);assert.equal(r.data.code,'order-already-archived');
+  }finally{await new Promise(resolve=>srv.close(resolve));}
 });
 test('source integration prevents competing bulk archive writer in native-only mode',()=>{
   const core=readFileSync(new URL('../cloudflare-d1/src/employee-core-native-v1.mjs',import.meta.url),'utf8');
