@@ -6,6 +6,7 @@ on:
     paths:
       - 'cloudflare-d1/src/t12-native-close-archive-v1.mjs'
       - 'cloudflare-d1/src/employee-core-native-v1.mjs'
+      - 'cloudflare-d1/src/t12-operational-runtime-handler.mjs'
       - 'tests/t12_native_close_archive_v1.test.mjs'
       - '.github/workflows/t12-native-close-archive-off-ci.yml'
   workflow_dispatch:
@@ -27,6 +28,7 @@ jobs:
           set -euo pipefail
           node --check cloudflare-d1/src/t12-native-close-archive-v1.mjs
           node --check cloudflare-d1/src/employee-core-native-v1.mjs
+          node --check cloudflare-d1/src/t12-operational-runtime-handler.mjs
           node --test --no-warnings tests/t12_native_close_archive_v1.test.mjs
           echo "T12_NATIVE_NEW_ORDERS_CLOSE_ARCHIVE_LOCAL=PASS"
           echo "GOOGLE_LEGACY_ORDERS_MODIFIED=NO"
