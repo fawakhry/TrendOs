@@ -151,10 +151,12 @@ test('tampered archived line request ID rejects replay as incomplete rather than
   assert.equal((await closeAndArchiveT12OrderV1(f.env,f.user,f.body)).code,
     'native-close-archive-existing-incomplete-review');
 });
-test('source integration only: action wired with protected flag; existing archives remain separate',()=>{
+test('source integration prevents competing bulk archive writer in native-only mode',()=>{
   const core=readFileSync(new URL('../cloudflare-d1/src/employee-core-native-v1.mjs',import.meta.url),'utf8');
   assert.match(core,/CLOSE_ARCHIVE_ACTION\)out=await closeAndArchiveT12OrderV1/);
   assert.match(core,/archiveDeliveredDepartmentV1926'\)out=await archiveDelivered/);
+  assert.match(core,/legacy-bulk-archive-suspended-for-native-t12-close/);
+  assert.match(core,/if\(env\?\.TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED==='true'\)/);
   const source=readFileSync(new URL('../cloudflare-d1/src/t12-native-close-archive-v1.mjs',import.meta.url),'utf8');
   assert.match(source,/TRENDOS_T12_NATIVE_CLOSE_ARCHIVE_V1_ENABLED!=='true'/);
   assert.doesNotMatch(source,/APPS_SCRIPT_API_URL|script.google.com|employee_core_lines_v1/);
