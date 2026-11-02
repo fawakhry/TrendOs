@@ -6,6 +6,9 @@ on:
       - candidate/t12-full-cloud-cutover-a56-20260929
     paths:
       - '.github/workflows/trendos-entry614-zero-google-d1-inventory-readonly.yml'
+  pull_request:
+    paths:
+      - '.github/workflows/trendos-entry614-zero-google-d1-inventory-readonly.yml'
   workflow_dispatch:
 
 permissions:
@@ -45,15 +48,36 @@ jobs:
           const b=JSON.parse(fs.readFileSync('/tmp/bridge.json','utf8'));
           const o=JSON.parse(fs.readFileSync('/tmp/orders.json','utf8'));
           const c=JSON.parse(fs.readFileSync('/tmp/customers.json','utf8'));
-          if(a.mode!=='OFF'||a.envEnabled!==false) throw new Error('Auth drift');
-          if(b.enabled!==false||b.secretConfigured!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('Bridge drift');
+          if(a.mode!=='NATIVE'||a.nativeOnly!==true||a.schemaReady!==true) throw new Error('Native-only Auth baseline lost');
+          if(b.enabled!==false||Number(b.allowedPolicyCount||0)!==0) throw new Error('Legacy employee bridge reenabled');
+          console.log('ENTRY614_LEGACY_BRIDGE_SECRET_RETAINED='+String(b.secretConfigured===true));
           if(!o.success||String(o.mode||'').toUpperCase()!=='GENERAL') throw new Error('Order baseline drift');
           if(!c.success||String(c.mode||'').toUpperCase()!=='GENERAL') throw new Error('Customer baseline drift');
-          console.log('ENTRY614_PRE_AUTH_OFF=YES');
-          console.log('ENTRY614_PRE_BRIDGE_OFF=YES');
+          console.log('ENTRY614_NATIVE_AUTH_PRODUCTION=PASS');
+          console.log('ENTRY614_EMPLOYEE_LEGACY_BRIDGE_OFF=PASS');
           console.log('ENTRY614_ORDER_BASELINE=PASS');
           console.log('ENTRY614_CUSTOMER_BASELINE=PASS');
           NODE
+
+      - name: Live five employee-native family controls (read-only, safe health fields only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for family in ops content comms accounting core; do
+            http="$(curl --silent --show-error --output /tmp/employee-family-health.json --write-out '%{http_code}' "$PROD_API_URL/v1/employee/$family/health" || true)"
+            FAMILY="$family" HTTP="$http" node <<'NODE'
+          const fs=require('fs');let x={};
+          try{x=JSON.parse(fs.readFileSync('/tmp/employee-family-health.json','utf8'))}catch{}
+          const supported=['success','schemaReady','mode','r2Ready','whatsappReady',
+            'openAiReady','authoritativeWrites','googleBusinessCalls','appsScriptBusinessAuthority'];
+          const state={family:process.env.FAMILY,http:Number(process.env.HTTP)};
+          for(const k of supported)if(Object.prototype.hasOwnProperty.call(x,k))state[k]=x[k];
+          state.liveCutoverProven=state.http===200&&state.success===true&&
+            state.schemaReady===true&&state.mode==='GENERAL';
+          console.log('ENTRY614_LIVE_EMPLOYEE_FAMILY='+JSON.stringify(state));
+          NODE
+          done
+          echo ENTRY614_FAMILY_MODES_OBSERVED_NOT_AUTO_ENABLED=YES
 
       - name: Read D1 schema catalog
         shell: bash
@@ -81,16 +105,30 @@ jobs:
           for(const r of rows) console.log('ENTRY614_MIRROR='+String(r.sheet_name)+'|'+Number(r.row_count||0)+'|'+String(r.status||'')+'|'+String(r.synced_at||''));
           NODE
 
-      - name: Read key table counts
+      - name: Confirm key source table identities (metadata only, no expensive customer counts)
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes wrangler@$WRANGLER_VERSION d1 execute "$DATABASE" --remote --config "$CONFIG" --json             --command "SELECT 'customers' AS table_name,COUNT(*) AS n FROM customers UNION ALL SELECT 't12_customers',COUNT(*) FROM t12_customers UNION ALL SELECT 't12_prod_orders',COUNT(*) FROM t12_prod_orders UNION ALL SELECT 't12_prod_lines',COUNT(*) FROM t12_prod_lines UNION ALL SELECT 'employee_auth_users_v1',COUNT(*) FROM employee_auth_users_v1 UNION ALL SELECT 'employee_auth_sessions_v1',COUNT(*) FROM employee_auth_sessions_v1;"             > /tmp/counts.json
           node <<'NODE'
-          const fs=require('fs'); const raw=JSON.parse(fs.readFileSync('/tmp/counts.json','utf8'));
-          const rows=[]; const walk=v=>{if(Array.isArray(v)) return v.forEach(walk); if(v&&typeof v==='object'){ if(v.table_name) rows.push(v); Object.values(v).forEach(walk); }}; walk(raw);
-          for(const r of rows) console.log('ENTRY614_COUNT='+r.table_name+'|'+Number(r.n||0));
+          const fs=require('fs');
+          const raw=JSON.parse(fs.readFileSync('/tmp/schema.json','utf8'));
+          const rows=[];const walk=x=>{
+            if(Array.isArray(x))return x.forEach(walk);
+            if(x&&typeof x==='object'){
+              if(x.type==='table'&&x.name)rows.push(x.name);
+              Object.values(x).forEach(walk);
+            }
+          };walk(raw);
+          const names=new Set(rows);
+          const required=['t12_customers','t12_prod_orders','t12_prod_lines',
+            'employee_auth_users_v1','employee_auth_sessions_v1'];
+          const optional=['customers'];
+          for(const t of required)console.log('ENTRY614_KEY_TABLE='+t+'|'+(names.has(t)?'PRESENT':'MISSING'));
+          for(const t of optional)console.log('ENTRY614_LEGACY_TABLE='+t+'|'+(names.has(t)?'PRESENT':'ABSENT'));
+          console.log('ENTRY614_CUSTOMER_ROW_COUNTS=NOT_QUERIED_METADATA_ONLY');
+          if(required.some(t=>!names.has(t)))process.exit(1);
           NODE
+          echo ENTRY614_SCHEMA_IDENTITY_PASS=YES
 
       - name: Boundary
         run: |
