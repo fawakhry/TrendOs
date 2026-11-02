@@ -43,6 +43,19 @@ def api(method,path,token,payload=None):
               body.get("success") is True,"API_NO_SUCCESS")
     return body.get("result")
 def get(path,token):return api("GET",path,token)
+if "--cleanup-only" in sys.argv:
+    try:
+        api("POST","/workers/scripts/"+SCRIPT+"/subdomain",WORKER_TOKEN,
+            {"enabled":False,"previews_enabled":False})
+        final=get("/workers/scripts/"+SCRIPT+"/subdomain",WORKER_TOKEN)
+        safecheck(isinstance(final,dict) and final.get("enabled") is False and
+            final.get("previews_enabled") is False,
+            "CLEANUP_INDEPENDENT_READBACK_FAILED")
+        log("INDEPENDENT_STAGE_CLEANUP=CONFIRMED_OFF")
+        sys.exit(0)
+    except Exception:
+        log("INDEPENDENT_STAGE_CLEANUP=FAILED_REQUIRES_OPERATOR")
+        sys.exit(2)
 worker=get("/workers/workers/"+SCRIPT,WORKER_TOKEN)
 safecheck(isinstance(worker,dict) and worker.get("name")==SCRIPT and
     isinstance(worker.get("id"),str) and
