@@ -1,4 +1,4 @@
-name: ONE SHOT Customer Stage HTTP trace — RESTORE OFF
+name: ONE SHOT Customer Stage HTTP descriptive client — RESTORE OFF
 on:
   pull_request:
     branches: [main]

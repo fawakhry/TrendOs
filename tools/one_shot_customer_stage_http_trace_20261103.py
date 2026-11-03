@@ -123,6 +123,11 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,req,fp,code,msg,headers,newurl):return None
 opener=urllib.request.build_opener(NoRedirect())
 def http(headers):
+    # Cloudflare's documented workers.dev client contract: identify our app,
+    # never impersonate a browser, change security policies or redirect secrets.
+    headers=dict(headers)
+    headers["User-Agent"]="TrendOS-Customer-Stage-Qualification/1.0"
+    headers["Accept"]="application/json"
     req=urllib.request.Request(url,headers=headers,method="GET")
     try:
         with opener.open(req,timeout=12) as response:
@@ -150,6 +155,7 @@ try:
     safecheck(isinstance(result,dict) and result.get("enabled") is True
         and result.get("previews_enabled") is False,"ENABLE_UNVERIFIED")
     log("TEMPORARY_PROTECTED_STAGE_URL=ENABLED_FOR_PROBE_ONLY")
+    log("HTTP_CLIENT_IDENTIFICATION=TrendOS-Customer-Stage-Qualification/1.0")
     log("ROUTE_PROPAGATION_WAIT_SECONDS=10")
     time.sleep(10)
 
