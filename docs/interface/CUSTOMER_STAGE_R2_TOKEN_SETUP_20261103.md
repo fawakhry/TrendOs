@@ -47,3 +47,8 @@ A new empty private bucket is only the next Stage prerequisite. Native two-accou
 ## Verified source checkpoint
 
 [PR348](https://github.com/fawakhry/TrendOs/pull/348) merged to main at `a058653c8a394821e66571960f44ca15205566f1`, tested source `cce86a627d6e2098da026b0007a1de6554fc3121`. Source Actions chat41695917100, readiness41695917092 and P0 mocks41695917087 succeeded; readiness includes all11 Python tests. A separate existing tasks-v3-t1-preview Workers Builds check fails on both source and base; no claim that all external checks passed. At that source checkpoint the manual provisioning workflow had not been dispatched and no dedicated secret or bucket existed; the later verified success above supersedes that historical status. Any later documentation-only main SHA differs: read/verify the full workflow source SHA at dispatch rather than copying this merge SHA blindly.
+
+
+## Binding verifier source closure
+
+PR349 merged main `be10fde890217e3eff900e26823550ea482effbd`, tested head `44af3f2eda8f523a7268d732a4224a1bf1bea412`. Source Actions chat41706465709/readiness41706465821/P0mocks41706465944 succeeded, including17 Python postbind and7 AST tests plus original32 Node/11 bootstrap tests. Temporary credentialed wrapper removed; original Worker/config/no-R2 resolver untouched. The existing tasks-preview external build failure remains unresolved. See the binding report for actual Cloudflare evidence and remaining customer-release gates; production remains OFF.

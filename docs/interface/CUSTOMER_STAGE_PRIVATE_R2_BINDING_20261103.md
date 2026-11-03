@@ -40,3 +40,8 @@ The alternative witness parses current code as data using acorn8.15.0 and compar
 Qualify actual Native HTTP with two synthetic users: login/logout/session isolation, ownership of orders/drafts/items/private files, quarantine, upload/resume/failure behavior. Qualify scanner and authorized private viewer, official original T12 single-writer handoff, exact-live UI fingerprint and rollback. The prior local E2E/root Access GET and this control-plane witness do not establish those paths. Legacy P0 ownership/public Drive ACL concerns remain independent.
 
 Customer project book §48 and interface master UI-LOG-053 record the change. Source CI/merge closure is appended after exact-head checks; the existing unrelated tasks-v3-t1-preview Workers Builds failure is not claimed fixed. No access audience expansion, public publish, paid AI or production customer/staff/finance data operation.
+
+
+## Final source closure
+
+PR349 merged normally to main at `be10fde890217e3eff900e26823550ea482effbd`, tested final head `44af3f2eda8f523a7268d732a4224a1bf1bea412`, tree `7cb83699718740a87044c1c9423e7e0a0fd3c2e7`. Exact9 changed files include helpers/tests/readiness/docs; temporary credentialed workflow absent; original runtime/config/resolver unchanged. Chat41706465709/readiness41706465821/P0mocks41706465944 SUCCESS. Readiness19:47:28–32UTC confirms32 existing Node+7 AST and11 bootstrap+17 postbind Python tests, strict NO_GO and unsafe-release blocking. External tasks-preview Workers Builds126163062288 failed as previously disclosed on the base; no claim of all checks green and no rule/check override. This merge does not deploy or certify real customer journeys.
