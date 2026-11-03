@@ -55,6 +55,7 @@ html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-dialog #cust
 html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-dialog .matbagy-recipe-warning{display:none}
 html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-summary-line{border:1px solid var(--cm-line);padding:17px;border-radius:10px;margin:12px 0;white-space:pre-line;font-size:12px;line-height:1.9}
 html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-summary-line small{display:block;color:var(--cm-muted)}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-submit-blocker{padding:18px;color:#881337;background:#fff1f2;border:1px solid #fda4af;border-radius:10px;font-size:15px;line-height:1.9}
 html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-dialog .wa-submit-row{display:block;font-size:11px;line-height:1.9;padding-top:15px}
 html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-dialog .wa-submit-row button{display:block;margin-top:12px;width:100%;background:var(--cm-blue);color:#fff;border:0;border-radius:9px;padding:13px}
 html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-settings #customerWelcomeTitle{font-size:16px}

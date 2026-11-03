@@ -1484,6 +1484,7 @@ Trend Mall`;
     if (messenger) messenger.resetDraft();
     revokeCustomerPendingFiles();
     state.customerDraft = { draftId: "", items: [], submitted: false, orderId: "" };
+    state.customerDraftBusy = false;
     // A fresh draft must not inherit the previous product or photo-consent state.
     if (window.TrendOSCustomerRecipe && typeof window.TrendOSCustomerRecipe.reset === "function") {
       window.TrendOSCustomerRecipe.reset(document);
@@ -1755,6 +1756,7 @@ Trend Mall`;
     if ($("customerImageViewerImg")) $("customerImageViewerImg").removeAttribute("src");
     if ($("customerImageViewerModal")) $("customerImageViewerModal").classList.add("hidden");
     state.customer = null;
+    state.customerDraftBusy = false;
     state.customerOrders = [];
     state.customerDraft = null;
     state.customerViewMode = "home";
@@ -1769,6 +1771,17 @@ Trend Mall`;
   function customerAuthParams(extra) {
     const c = state.customer || {};
     return Object.assign({ customerCode: c.customerCode || c.code || "", token: c.token || "" }, extra || {});
+  }
+
+  function customerRequestFence(draft) {
+    const customer = state.customer;
+    const code = customer && (customer.customerCode || customer.code);
+    const token = customer && customer.token;
+    return function () {
+      return !!customer && state.customer === customer &&
+        (customer.customerCode || customer.code) === code && customer.token === token &&
+        (!draft || state.customerDraft === draft);
+    };
   }
 
   async function doLogin() {
@@ -3369,10 +3382,12 @@ Trend Mall`;
   async function loadCustomerOrders() {
     if (state.visitorPreview) { state.customerOrders = []; renderCustomerOrders(); const status = $("customerOrdersStatus"); if (status) status.textContent = "المعاينة لا تعرض أوردرات حقيقية."; return; }
     if (!state.customer) return;
+    const isActive = customerRequestFence();
     const status = $("customerOrdersStatus");
     if (status) status.textContent = "جاري تحميل أوردراتك...";
     try {
       const res = await api("getCustomerOrders", customerAuthParams({}));
+      if (!isActive()) return;
       if (!res.success) {
         if (status) status.textContent = res.message || "تعذر تحميل الأوردرات.";
         return;
@@ -3381,7 +3396,7 @@ Trend Mall`;
       renderCustomerOrders();
       if (status) status.textContent = "تم تحميل " + state.customerOrders.length + " أوردر.";
     } catch (err) {
-      if (status) status.textContent = err.message || "خطأ أثناء تحميل الأوردرات.";
+      if (isActive() && status) status.textContent = err.message || "خطأ أثناء تحميل الأوردرات.";
     }
   }
 
@@ -3718,6 +3733,7 @@ Trend Mall`;
 
   function renderCustomerDraft() {
     const draft = ensureCustomerDraftStarted();
+    if ($("customerSubmitDraftBtn")) $("customerSubmitDraftBtn").disabled = !!draft.writeUncertain || !!draft.submitted || !!state.customerDraftBusy;
     const messenger = customerMessengerApi();
     if (messenger && messenger.renderDraft({draft: draft, pendingFiles: state.customerPendingFiles || []})) {
       attachCustomerImageHandlers();
@@ -3777,6 +3793,9 @@ Trend Mall`;
         '<div class="design-offer-actions"><button type="button" class="primary design-offer-yes">نعم، ساعدني في التصميم</button><button type="button" class="ghost design-offer-no">لا، الملف جاهز</button></div>' +
       '</div>';
     }
+    if (draft.writeUncertain) {
+      html += '<div class="chat-bubble">نتيجة الحفظ غير مؤكدة. توقف الإرسال لحين مراجعة خدمة العملاء، حتى لا يتكرر البند أو الطلب.</div>';
+    }
     if (draft.submitted) {
       html += '<div class="chat-bubble done wa-done-bubble">تم استلام الطلب بنجاح ✅<br>رقم الأوردر: <b>' + escapeHtml(draft.orderId || "-") + '</b><br>تابع الحالة من أوردراتي.</div>';
     }
@@ -3799,8 +3818,10 @@ Trend Mall`;
 
   async function ensureCustomerDraftOnServer() {
     const draft = ensureCustomerDraftStarted();
+    const isActive = customerRequestFence(draft);
     if (draft.draftId) return draft.draftId;
     const res = await api("createCustomerDraft", customerAuthParams({}));
+    if (!isActive()) throw new Error("تغيرت جلسة العميل؛ تم إيقاف العملية.");
     if (!res.success) throw new Error(res.message || "تعذر إنشاء مسودة الطلب.");
     draft.draftId = res.draftId;
     draft.folderUrl = res.folderUrl || "";
@@ -3808,14 +3829,17 @@ Trend Mall`;
     return draft.draftId;
   }
 
-  async function uploadFilesForDraftItem(draftId, itemId, files) {
+  async function uploadFilesForDraftItem(draftId, itemId, files, isActive) {
+    isActive = isActive || customerRequestFence(state.customerDraft);
     const uploaded = [];
     const list = Array.prototype.slice.call(files || []);
     for (let i = 0; i < list.length; i++) {
+      if (!isActive()) throw new Error("تغيرت جلسة العميل؛ تم إيقاف الرفع.");
       const file = list[i];
       if (file.size > 25 * 1024 * 1024) throw new Error("الملف أكبر من 25MB: " + file.name);
       setMsg("customerOrderMsg", "جاري رفع الملف " + (i + 1) + " من " + list.length + ": " + file.name, false);
       const base64 = await fileToBase64(file);
+      if (!isActive()) throw new Error("تغيرت جلسة العميل؛ تم إيقاف الرفع.");
       const res = await apiPost("uploadCustomerDraftFile", customerAuthParams({
         draftId: draftId,
         itemId: itemId,
@@ -3824,6 +3848,7 @@ Trend Mall`;
         size: file.size || 0,
         base64: base64
       }));
+      if (!isActive()) throw new Error("تغيرت جلسة العميل؛ تم إيقاف الرفع.");
       if (!res.success) throw new Error(res.message || "فشل رفع الملف: " + file.name);
       uploaded.push({ name: file.name, url: res.fileUrl || "", fileId: res.fileId || "", mimeType: file.type || res.mimeType || "" });
     }
@@ -3833,6 +3858,12 @@ Trend Mall`;
   async function addCustomerDraftItem() {
     if (state.visitorPreview) { setMsg("customerOrderMsg", "هذه معاينة فقط؛ لا تُنشأ طلبات حقيقية ولا تُرسل ملفات من هذا المسار.", true); return; }
     if (!state.customer || state.customerDraftBusy) return;
+    const draft = ensureCustomerDraftStarted();
+    const isActive = customerRequestFence(draft);
+    if (draft.writeUncertain) {
+      setMsg("customerOrderMsg", "نتيجة الحفظ السابقة غير مؤكدة. توقف الإرسال لحين مراجعة خدمة العملاء، حتى لا يتكرر البند أو الطلب.", true);
+      return;
+    }
     setMsg("customerOrderMsg", "", false);
     const dep = ($("customerOrderDepartment") || {}).value || "طباعة";
     const itemName = (($("customerOrderItem") || {}).value || "").trim();
@@ -3841,6 +3872,11 @@ Trend Mall`;
     const heatPress = dep === "طباعة" && $("customerHeatPress") && $("customerHeatPress").checked ? "نعم" : "لا";
     const flyPrint = dep === "طباعة" && $("customerFlyPrint") && $("customerFlyPrint").checked ? "نعم" : "لا";
     const files = (state.customerPendingFiles || []).map(function (f) { return f.file || f; });
+
+    if (files.some(function (file) { return !Number.isSafeInteger(file.size) || file.size <= 0 || file.size > 25 * 1024 * 1024; })) {
+      setMsg("customerOrderMsg", "اختار ملفات صالحة، لا يزيد حجم الملف الواحد عن 25MB، قبل حفظ البند.", true);
+      return;
+    }
 
     if (!itemName && !notes && !files.length) {
       setMsg("customerOrderMsg", "اكتب نوع الشغل أو ارفع ملفات البند.", true);
@@ -3855,11 +3891,16 @@ Trend Mall`;
 
     try {
       const draftId = await ensureCustomerDraftOnServer();
+      if (!isActive()) return;
       const selectedBranch = state.customerSelectedFranchise;
       const selectedVendor = state.customerSelectedMarketVendor;
       const selectedProduct = state.customerSelectedMarketProduct;
       const branchNote = selectedBranch ? ("\nفرع مطبعجي المختار: " + branchPublicName(selectedBranch) + " | كود الفرع: " + (selectedBranch.branchCode || "")) : "";
       const marketNote = selectedVendor ? ("\nكتالوج Trend Mall: " + (selectedVendor.vendorName || "") + " | كود البائع: " + (selectedVendor.vendorCode || "") + (selectedProduct ? " | المنتج: " + (selectedProduct.productName || "") : "")) : "";
+      // The legacy writer has no idempotency contract. Once a mutation may
+      // have reached it, neither retries nor official submit are safe until
+      // EVERY attachment response is confirmed in this same draft/session.
+      draft.writeUncertain = true;
       const res = await api("addCustomerDraftItem", customerAuthParams({
         draftId: draftId,
         department: dep,
@@ -3870,9 +3911,11 @@ Trend Mall`;
         flyPrint: flyPrint,
         franchiseBranchCode: selectedBranch ? (selectedBranch.branchCode || "") : ""
       }));
+      if (!isActive()) return;
       if (!res.success) throw new Error(res.message || "تعذر إضافة البند.");
-      const uploaded = await uploadFilesForDraftItem(draftId, res.itemId, files);
-      const draft = ensureCustomerDraftStarted();
+      if (typeof res.itemId !== "string" || !res.itemId.trim()) throw new Error("لم يتأكد رقم البند المحفوظ؛ تواصل مع خدمة العملاء.");
+      const uploaded = await uploadFilesForDraftItem(draftId, res.itemId, files, isActive);
+      if (!isActive()) return;
       draft.items.push({
         itemId: res.itemId,
         department: dep,
@@ -3883,16 +3926,22 @@ Trend Mall`;
         flyPrint: flyPrint,
         files: uploaded
       });
+      draft.writeUncertain = false;
       renderCustomerDraft();
       clearCustomerDraftInputs();
       if (messenger) renderCustomerDraft();
       setMsg("customerOrderMsg", "تم إضافة البند للمسودة. أضف بند آخر أو اضغط بدء التنفيذ.", false);
     } catch (err) {
-      setMsg("customerOrderMsg", err.message || "خطأ أثناء إضافة البند.", true);
+      if (!isActive()) return;
+      renderCustomerDraft();
+      setMsg("customerOrderMsg", draft.writeUncertain ? "لم نتأكد من اكتمال حفظ البند وملفاته. توقف الإرسال لحين مراجعة خدمة العملاء؛ لم يبدأ التنفيذ من الواجهة." : (err.message || "خطأ أثناء إضافة البند."), true);
     } finally {
-      state.customerDraftBusy = false;
-      if (messenger) messenger.setBusy(false);
-      if (btn) { btn.disabled = false; btn.textContent = "➤"; }
+      if (isActive()) {
+        state.customerDraftBusy = false;
+        if (messenger) messenger.setBusy(false);
+        if (btn) { btn.disabled = false; btn.textContent = "➤"; }
+        if ($("customerSubmitDraftBtn")) $("customerSubmitDraftBtn").disabled = !!draft.writeUncertain || !!draft.submitted;
+      }
     }
   }
 
@@ -3900,6 +3949,11 @@ Trend Mall`;
     if (state.visitorPreview) { setMsg("customerOrderMsg", "هذه معاينة فقط؛ لا تُنشأ طلبات حقيقية ولا تُرسل ملفات من هذا المسار.", true); return; }
     if (!state.customer || state.customerDraftBusy) return;
     const draft = ensureCustomerDraftStarted();
+    const isActive = customerRequestFence(draft);
+    if (draft.writeUncertain || draft.submitted) {
+      setMsg("customerOrderMsg", draft.submitted ? "تم إرسال هذه المسودة بالفعل." : "نتيجة حفظ البند أو الطلب غير مؤكدة؛ راجع خدمة العملاء قبل بدء التنفيذ أو إعادة الإرسال.", true);
+      return;
+    }
     if (!draft.draftId || !draft.items.length) {
       setMsg("customerOrderMsg", "أضف بند واحد على الأقل قبل بدء التنفيذ.", true);
       return;
@@ -3908,25 +3962,39 @@ Trend Mall`;
 
     const btn = $("customerSubmitDraftBtn");
     state.customerDraftBusy = true;
+    const messenger = customerMessengerApi();
+    if (messenger) messenger.setBusy(true);
     if (btn) { btn.disabled = true; btn.textContent = "جاري إنشاء رقم الأوردر..."; }
     try {
+      draft.writeUncertain = true;
       const res = await api("submitCustomerDraft", customerAuthParams({ draftId: draft.draftId }));
+      if (!isActive()) return;
       if (!res.success) throw new Error(res.message || "تعذر بدء التنفيذ.");
+      if (typeof res.orderId !== "string" || !res.orderId.trim()) throw new Error("لم يتأكد رقم الأوردر الناتج.");
       draft.submitted = true;
       draft.orderId = res.orderId || "";
+      draft.writeUncertain = false;
       renderCustomerDraft();
       setMsg("customerOrderMsg", "تم استلام طلبك. رقم الأوردر: " + (res.orderId || "-"), false);
       await loadCustomerOrders();
     } catch (err) {
-      setMsg("customerOrderMsg", err.message || "خطأ أثناء بدء التنفيذ.", true);
+      if (!isActive()) return;
+      renderCustomerDraft();
+      setMsg("customerOrderMsg", "نتيجة إرسال الطلب غير مؤكدة. راجع أوردراتي أو خدمة العملاء قبل أي إرسال جديد، حتى لا يتكرر الأوردر.", true);
     } finally {
-      state.customerDraftBusy = false;
-      if (btn) { btn.disabled = false; btn.textContent = "بدء التنفيذ واستلام رقم الأوردر"; }
+      if (isActive()) {
+        state.customerDraftBusy = false;
+        if (messenger) messenger.setBusy(false);
+        if (btn) { btn.disabled = !!draft.writeUncertain || !!draft.submitted; btn.textContent = "بدء التنفيذ واستلام رقم الأوردر"; }
+      }
     }
   }
 
   function startNewCustomerDraft() {
-    if (state.customerDraft && state.customerDraft.items && state.customerDraft.items.length && !state.customerDraft.submitted) {
+    if (state.customerDraft && state.customerDraft.writeUncertain) {
+      if (!confirm("نتيجة الحفظ السابقة غير مؤكدة. فتح مسودة جديدة لا يلغي ما قد حُفظ؛ راجع خدمة العملاء. هل تريد مسودة جديدة مستقلة؟")) return;
+    }
+    else if (state.customerDraft && state.customerDraft.items && state.customerDraft.items.length && !state.customerDraft.submitted) {
       if (!confirm("المسودة الحالية لم يتم بدء تنفيذها. هل تريد فتح مسودة جديدة؟")) return;
     }
     resetCustomerDraft();

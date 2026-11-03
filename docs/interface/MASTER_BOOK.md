@@ -814,3 +814,15 @@ Owner approved the WhatsApp-like blue chat reviewed on the owner-private Site, t
 - **نقطة الاستكمال:** مصدر الواجهة أصبح في main. تأهيل Native النقل الخاص والمرفقات والأوردر الرسمي ومقارنة بصمة أصل Worker الحي جزء من إصدار لاحق مستقل؛ لا تستبدل app.js الحي أو فرع T12 candidate تلقائيًا بنسخة main. معاينة Site الخاصة v2 تبقى للمراجعة ببيانات وهمية وحساب المالك فقط.
 
 `CUSTOMER_MESSENGER_SOURCE=MERGED`; `CUSTOMER_LIVE_ACTIVATION=OFF`; `CUSTOMER_GO_LIVE=NO_GO`; `OPENAI_PAID=OFF`.
+
+
+### UI-LOG-048 — Customer release remediation, request fencing and uncertain-write stop (2026-11-03)
+
+Owner requested fixing blockers and activating customers; release preparation is authorized, design is already approved. Actual original app now rejects late cross-session order/draft/item/file/submit responses and prevents ambiguous legacy item/upload/official-submit retries in the same draft. Invalid file size stops before creating a server item; summary shows an accessible stop reason and blocks official submit. These source changes do not give the legacy backend idempotency, rollback, private Drive ACLs, or remote release certification.
+
+64 local Node tests PASS including12 actual-function race/fault tests; Chrome synthetic offline fixture verified a single server-item attempt after two clicks and disabled official-submit. Actual GET-only Cloudflare preflight PR343 / Run41683153912 / Job126081816538 verified original isolated Stage+D1, public/preview OFF, all11 features OFF, R2 bindings=0, exact Access app with Deny Everyone + one Service Auth. No public HTTP or remote mutation. Temporary workflow deleted478838c0; PR343 closed unmerged. Follow-up PR344 tests hostname precedence/token metadata read-only; result pending. See customer book §43 and `CUSTOMER_RELEASE_REMEDIATION_20261103.md`. Production activation remains OFF until original backend/media/T12/remote E2E and exact-live rollout qualify; private Site access/paid AI unchanged.
+
+
+### UI-LOG-049 — Actual customer Stage403 diagnosed as1010 and authenticated GET fixed (2026-11-03)
+
+Read-only PR344 / Run41687721840 / Job126097793498 excluded matching root hostname policy and obvious stored credential formatting/expiry issues; no credential values logged. PR345 initial Run41688398842 / Job126100169660 captured actual1010 for all3 GETs. Per official Cloudflare Error1010 guidance, using descriptive app User-Agent `TrendOS-Customer-Stage-Qualification/1.0` resolved this client's workers.dev admission. Final source8d7804b / Run41688741445 / Job126101362369 SUCCESS: no auth302, wrong secret302, correct token404 original Worker JSON; valid Ray a54d3f4f185f6ee6-DFW at17:54:59UTC. No policy/token change, BIC disable or browser impersonation. Both cleanup layers verified workers.dev/preview OFF. Temporary tools removed62c9f002; PR345 closed unmerged. Customer book §44/report record exact evidence. Stage root GET admission is PASS; full Native customer/media/T12/production remains NO_GO, private Site unchanged.
