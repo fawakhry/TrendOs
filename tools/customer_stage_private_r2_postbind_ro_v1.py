@@ -5,6 +5,7 @@ An optional local OFF configuration is rendered from the immutable original
 checkout only after the deployed code, bindings and private storage qualify.
 """
 import importlib.util
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -145,6 +146,16 @@ def read_inventory(api):
     raise Stop("POSTBIND_D1_INVENTORY_CAP")
 
 
+def version_diagnostic(version):
+    resources = version.get("resources", {}) if isinstance(version, dict) else {}
+    script = resources.get("script", {}) if isinstance(resources, dict) else {}
+    value = script.get("etag") if isinstance(script, dict) else None
+    return {"etagType": type(value).__name__,
+            "etagLength": len(value) if isinstance(value, str) else None,
+            "etagIsHex": bool(re.fullmatch(r"[a-fA-F0-9]{32,128}", value or "")) if isinstance(value, str) else False,
+            "etagFingerprint": hashlib.sha256(value.encode()).hexdigest()[:16] if isinstance(value, str) else None}
+
+
 def verify(root, worker_api, r2_api):
     source, resolver = load_original(root)
     source_text = resolver.SOURCE.read_text(encoding="utf-8")
@@ -170,7 +181,23 @@ def verify(root, worker_api, r2_api):
          "POSTBIND_BASELINE_VERSION_NOT_UNIQUE")
     old = worker_api.get(ROOT_PATH + "/versions/" + candidates[0])
     current = worker_api.get(ROOT_PATH + "/versions/" + current_id)
-    etag = compare_versions(settings, old, current)
+    try:
+        etag = compare_versions(settings, old, current)
+    except Stop:
+        # Diagnostics remain read-only and never print provider messages,
+        # settings values, account IDs or secrets. Keep the original failure.
+        previous_id, previous = None, None
+        if len(deployed["deployments"]) > 1:
+            previous_id = active_version({"deployments": deployed["deployments"][1:]})
+            previous = old if previous_id == candidates[0] else worker_api.get(
+                ROOT_PATH + "/versions/" + previous_id)
+        print("POSTBIND_VERSION_DIAGNOSTIC=" + json.dumps({
+            "currentDeployedVersion": current_id, "selectedBaselineVersion": candidates[0],
+            "previousDeployedVersion": previous_id,
+            "selectedBaseline": version_diagnostic(old),
+            "current": version_diagnostic(current), "previous": version_diagnostic(previous),
+            "originalOffVarsAndSyntheticD1Preflight": True}), flush=True)
+        raise
     managed = r2_api.get(base.TARGET + "/domains/managed")
     custom = r2_api.get(base.TARGET + "/domains/custom")
     need(isinstance(managed, dict) and managed.get("enabled") is False and
