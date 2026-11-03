@@ -1,0 +1,63 @@
+name: Customer Release Readonly Preflight ONCE
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/customer-release-readonly-preflight-once.yml']
+permissions:
+  contents: read
+jobs:
+  readonly:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'ops/customer-release-readonly-preflight-20261103'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 6b31228887f9073c1aa8c6f2c06597b194f567df
+      - name: Exact existing isolated Stage GET only - no public HTTP or writes
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCESS_API_TOKEN: ${{ secrets.CLOUDFLARE_ACCESS_API_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import os,re,json,sys,datetime,importlib.util,hashlib,urllib.request,urllib.error
+          from pathlib import Path
+          spec=importlib.util.spec_from_file_location("original","tools/zg_customer_stage_d1_binding_resolver_v1.py")
+          original=importlib.util.module_from_spec(spec);spec.loader.exec_module(original)
+          account=os.environ.get("CLOUDFLARE_ACCOUNT_ID","")
+          token=os.environ.get("CLOUDFLARE_API_TOKEN","")
+          if not re.fullmatch(r"[a-fA-F0-9]{32}",account) or len(token)<20:
+              raise SystemExit("RELEASE_PREFLIGHT_CREDENTIALS_MISSING")
+          print("PREFLIGHT_UTC="+datetime.datetime.now(datetime.timezone.utc).isoformat())
+          root="/workers/scripts/"+original.WORKER
+          sub=original.api_get(account,token,root+"/subdomain")["result"]
+          settings=original.api_get(account,token,root+"/settings")["result"]
+          databases=original.read_d1_inventory(account,token)
+          original.resolved_config(original.SOURCE.read_text(),settings,sub,databases)
+          print("EXACT_EXISTING_STAGE_WORKER_SYNTHETIC_D1=PASS")
+          print("WORKERS_DEV_AND_PREVIEW=OFF")
+          bindings=settings["bindings"]
+          flags={x.get("name"):x.get("text") for x in bindings if x.get("type")=="plain_text"}
+          enabled=[k for k in original.REQUIRED_OFF if flags.get(k)!="false"]
+          print("REMOTE_CUSTOMER_FLAGS_ALL_OFF="+str(not enabled))
+          print("REMOTE_R2_BINDINGS="+str(sum(x.get("type")=="r2_bucket" for x in bindings)))
+          access=os.environ.get("CLOUDFLARE_ACCESS_API_TOKEN","")
+          try:
+              apps=original.api_get(account,access,"/access/apps?per_page=100")["result"]
+              matches=[x for x in apps if hashlib.sha256(str(x.get("id","")).encode()).hexdigest().startswith("34134951077e")]
+              print("PINNED_STAGE_ACCESS_APP_MATCHES="+str(len(matches)))
+              if len(matches)==1:
+                  app=matches[0]
+                  print("ACCESS_SINGLE_HEADER_MODE="+str(bool(app.get("read_service_tokens_from_header"))))
+                  policies=original.api_get(account,access,"/access/apps/"+app["id"]+"/policies")["result"]
+                  print("ACCESS_POLICY_COUNT="+str(len(policies)))
+                  print("ACCESS_HAS_DENY_EVERYONE="+str(any(p.get("decision")=="deny" and p.get("include")==[{"everyone":{}}] for p in policies)))
+                  print("ACCESS_SERVICE_AUTH_POLICY_COUNT="+str(sum(p.get("decision")=="non_identity" for p in policies)))
+          except ValueError as e:
+              print("ACCESS_READ_STATUS="+str(e))
+          print("CONTROL_PLANE_ONLY=YES")
+          print("PUBLIC_HTTP_REQUESTS=NONE")
+          print("REMOTE_WRITES_DEPLOY_OR_POLICY_CHANGES=NONE")
+          print("CUSTOMER_PRODUCTION_RELEASE=NOT_QUALIFIED")
+          PY
