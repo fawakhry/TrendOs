@@ -121,10 +121,13 @@
   bubble(stream,'أهلاً بيك في مطبعجي! اكتب فكرتك، وضيف المنتج والمقاس والصور من تفاصيل الطلب.',false);
   const items=draft.items||[];
   items.forEach((item,index)=>{const spec=recipeSummary(item.notes),b=bubble(stream,text(item.itemName)+'\nالكمية: '+text(item.qty)+' · القسم: '+text(item.department)+(spec?'\n'+spec:''),true);const notes=instructions(item.notes);if(notes)b.append(node('div','cm-item-notes',notes));attachList(b,item.files,'draftItem',index);localLabel(b,'بند محفوظ في المسودة');const row=node('article','cm-summary-line');row.append(node('b','',text(item.itemName)),node('p','',text(item.qty)+' قطعة'),node('p','',spec),node('p','',notes));(item.files||[]).forEach(f=>row.append(node('small','',text(f.name||f.fileName||'مرفق'))));summary.append(row);});
-  if(!items.length)summary.append(node('p','cm-empty','أضف بندًا للمسودة عشان يظهر ملخصه هنا.'));
+  if(draft.writeUncertain){const warning=node('p','cm-submit-blocker','نتيجة الحفظ غير مؤكدة. توقف بدء التنفيذ لحين مراجعة خدمة العملاء، حتى لا يتكرر البند أو الطلب.');warning.setAttribute('role','alert');summary.append(warning);}
+  else if(!items.length)summary.append(node('p','cm-empty','أضف بندًا للمسودة عشان يظهر ملخصه هنا.'));
+  const submitHint=$('customerMessengerReview').querySelector('.wa-submit-row > span');if(submitHint)submitHint.hidden=!!draft.writeUncertain;
   const pendingNotes=instructions($(ids.notes).value),pendingFiles=data.pendingFiles||[],pendingName=$(ids.item).value.trim();
   if(pendingNotes||pendingFiles.length||pendingName){const pending=bubble(stream,pendingNotes||pendingName||'المرفقات المختارة',true);attachList(pending,pendingFiles,'pending','');localLabel(pending,'تفاصيل لم تُحفظ كبند بعد');const choose=button('اختيار المنتج والمقاس','','cm-inline-action');choose.addEventListener('click',openDetails);pending.append(choose);}
   if(draft.submitted)bubble(stream,'تم إنشاء الأوردر: '+text(draft.orderId)+'\nتقدر تتابع حالته من قائمة طلباتك.',false);
+  if(draft.writeUncertain)bubble(stream,'نتيجة الحفظ غير مؤكدة. توقف الإرسال لحين مراجعة خدمة العملاء، حتى لا يتكرر البند أو الطلب.',false);
   $('customerMessengerDraft').firstChild.textContent='طلبك الجديد'+(items.length?' · '+items.length+' بنود':'');
   if(items.length>lastCount){close('customerMessengerDetails');selectDraft();}
   lastCount=items.length;stream.scrollTop=stream.scrollHeight;return true;

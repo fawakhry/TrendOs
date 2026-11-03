@@ -11,7 +11,7 @@ const begin=app.indexOf("async function addCustomerDraftItem()");
 const end=app.indexOf("async function submitCustomerDraft()",begin);
 assert.ok(begin>=0&&end>begin,"Original customer draft functions must exist");
 const original=app.slice(begin,end);
-test("synthetic failed file upload leaves created remote item; retry duplicates it",async()=>{
+test("synthetic failed file upload leaves an uncertain item; repeat add is blocked",async()=>{
   const recorded={remoteItems:[],uploadAttempts:0,errors:[]};
   const controls={
     customerOrderDepartment:{value:"طباعة"},
@@ -29,6 +29,7 @@ test("synthetic failed file upload leaves created remote item; retry duplicates 
   };
   const sandbox={
     state,
+    customerRequestFence:()=>()=>true,
     customerMessengerApi:()=>null,
     $:id=>controls[id]||null,
     setMsg:(id,message,isError)=>{if(isError)recorded.errors.push(message);},
@@ -55,11 +56,11 @@ test("synthetic failed file upload leaves created remote item; retry duplicates 
   await add();
   assert.equal(recorded.remoteItems.length,1,"server item exists after failed upload");
   assert.equal(state.customerDraft.items.length,0,"client cannot see partial server item");
-  assert.equal(recorded.errors[0],"SYNTHETIC_SECOND_FILE_FAILURE");
+  assert.equal(state.customerDraft.writeUncertain,true);
+  assert.match(recorded.errors[0],/لم نتأكد/);
   assert.equal(state.customerDraftBusy,false);
   await add();
-  assert.equal(recorded.remoteItems.length,2,"retry created a distinct server item");
-  assert.equal(recorded.uploadAttempts,2);
-  assert.equal(state.customerDraft.items.length,1,"only the later item appears in local draft");
-  assert.notEqual(recorded.remoteItems[0].itemId,recorded.remoteItems[1].itemId);
+  assert.equal(recorded.remoteItems.length,1,"repeat add cannot create another server item");
+  assert.equal(recorded.uploadAttempts,1,"ambiguous file is not automatically uploaded again");
+  assert.equal(state.customerDraft.items.length,0,"uncertain item is not falsely reported complete");
 });
