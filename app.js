@@ -1473,7 +1473,15 @@ Trend Mall`;
     });
   }
 
+  function customerMessengerApi() {
+    const presenter = window.TrendOSCustomerMessenger;
+    return window.TRENDOS_CUSTOMER_CHAT_V1_ENABLED === true && presenter &&
+      presenter.mount(document) ? presenter : null;
+  }
+
   function resetCustomerDraft() {
+    const messenger = customerMessengerApi();
+    if (messenger) messenger.resetDraft();
     revokeCustomerPendingFiles();
     state.customerDraft = { draftId: "", items: [], submitted: false, orderId: "" };
     // A fresh draft must not inherit the previous product or photo-consent state.
@@ -1733,6 +1741,8 @@ Trend Mall`;
     try { localStorage.removeItem("matbagy_platform_customer_session"); } catch (e) {}
     // Tenant/user boundary: never leave selected photos or their local preview URLs
     // available to the next customer using the same browser tab.
+    const messenger = customerMessengerApi();
+    if (messenger) messenger.clearSession();
     clearCustomerDraftInputs();
     if (window.TrendOSCustomerRecipe && typeof window.TrendOSCustomerRecipe.reset === "function") {
       window.TrendOSCustomerRecipe.reset(document);
@@ -1742,6 +1752,7 @@ Trend Mall`;
     });
     state.customerImageViewerFiles = [];
     state.customerImageViewerIndex = 0;
+    if ($("customerImageViewerImg")) $("customerImageViewerImg").removeAttribute("src");
     if ($("customerImageViewerModal")) $("customerImageViewerModal").classList.add("hidden");
     state.customer = null;
     state.customerOrders = [];
@@ -1833,6 +1844,8 @@ Trend Mall`;
     renderCustomerHeader();
     renderCustomerHome();
     loadCustomerOrders();
+    // Chat-first mode omits the retired home catalogue/ads/GPS requests.
+    if (customerMessengerApi()) return;
     loadPlatformAds(false);
     loadPlatformSections(false);
     loadFranchiseBranches(false);
@@ -3329,6 +3342,13 @@ Trend Mall`;
     const home = $("customerHomePanel");
     const orderPanel = $("customerNewOrderPanel");
     const ordersPanel = $("customerOrdersPanel");
+    const messenger = customerMessengerApi();
+    if (messenger) {
+      state.customerViewMode = "newOrder";
+      if (!state.customerDraft) resetCustomerDraft();
+      renderCustomerDraft();
+      return;
+    }
     // Backward-compatible in-memory designer view opens the same customer chat.
     if (state.customerViewMode === "designer") state.customerViewMode = "newOrder";
     [home, orderPanel, ordersPanel].forEach(function (el) { if (el) el.classList.add("hidden"); });
@@ -3369,6 +3389,12 @@ Trend Mall`;
     const list = $("customerOrdersList");
     if (!list) return;
     const rows = state.customerOrders || [];
+    const messenger = customerMessengerApi();
+    if (messenger && messenger.renderOrders(rows.map(function (row) {
+      return {orderId: row.orderId, itemName: row.itemName, department: row.department,
+        displayStatus: publicStatus(row.status), notes: row.notes,
+        deliveryText: formatDisplayDate(row.expectedDeliveryText || row.expectedDeliveryAt || row.expectedDelivery)};
+    }))) return;
     if (!rows.length) {
       list.innerHTML = '<div class="dash-empty">لا توجد أوردرات مسجلة على كود الشات حتى الآن.</div>';
       return;
@@ -3453,7 +3479,7 @@ Trend Mall`;
   }
 
   function refreshCustomerPendingPreview() {
-    if (state.customerPendingFiles && state.customerPendingFiles.length) renderCustomerDraft();
+    if (customerMessengerApi() || (state.customerPendingFiles && state.customerPendingFiles.length)) renderCustomerDraft();
   }
 
   function ensureCustomerDraftStarted() {
@@ -3692,6 +3718,11 @@ Trend Mall`;
 
   function renderCustomerDraft() {
     const draft = ensureCustomerDraftStarted();
+    const messenger = customerMessengerApi();
+    if (messenger && messenger.renderDraft({draft: draft, pendingFiles: state.customerPendingFiles || []})) {
+      attachCustomerImageHandlers();
+      return;
+    }
     const title = $("customerDraftTitle");
     const meta = $("customerDraftMeta");
     const box = $("customerDraftMessages");
@@ -3800,7 +3831,7 @@ Trend Mall`;
   }
 
   async function addCustomerDraftItem() {
-    if (state.visitorPreview) { setMsg("customerOrderMsg", "هذه معاينة فقط. استخدم عميل التجربة ضياء / 1234 لإرسال طلب حقيقي للتجربة.", true); return; }
+    if (state.visitorPreview) { setMsg("customerOrderMsg", "هذه معاينة فقط؛ لا تُنشأ طلبات حقيقية ولا تُرسل ملفات من هذا المسار.", true); return; }
     if (!state.customer || state.customerDraftBusy) return;
     setMsg("customerOrderMsg", "", false);
     const dep = ($("customerOrderDepartment") || {}).value || "طباعة";
@@ -3818,6 +3849,8 @@ Trend Mall`;
 
     const btn = $("customerAddDraftItemBtn");
     state.customerDraftBusy = true;
+    const messenger = customerMessengerApi();
+    if (messenger) messenger.setBusy(true);
     if (btn) { btn.disabled = true; btn.textContent = "جاري الإضافة..."; }
 
     try {
@@ -3852,17 +3885,19 @@ Trend Mall`;
       });
       renderCustomerDraft();
       clearCustomerDraftInputs();
+      if (messenger) renderCustomerDraft();
       setMsg("customerOrderMsg", "تم إضافة البند للمسودة. أضف بند آخر أو اضغط بدء التنفيذ.", false);
     } catch (err) {
       setMsg("customerOrderMsg", err.message || "خطأ أثناء إضافة البند.", true);
     } finally {
       state.customerDraftBusy = false;
+      if (messenger) messenger.setBusy(false);
       if (btn) { btn.disabled = false; btn.textContent = "➤"; }
     }
   }
 
   async function submitCustomerDraft() {
-    if (state.visitorPreview) { setMsg("customerOrderMsg", "هذه معاينة فقط. استخدم عميل التجربة ضياء / 1234 لإرسال طلب حقيقي للتجربة.", true); return; }
+    if (state.visitorPreview) { setMsg("customerOrderMsg", "هذه معاينة فقط؛ لا تُنشأ طلبات حقيقية ولا تُرسل ملفات من هذا المسار.", true); return; }
     if (!state.customer || state.customerDraftBusy) return;
     const draft = ensureCustomerDraftStarted();
     if (!draft.draftId || !draft.items.length) {
@@ -4025,6 +4060,8 @@ Trend Mall`;
 
   function closeVisitorPreview() {
     state.visitorPreview = false;
+    const messenger = customerMessengerApi();
+    if (messenger) messenger.clearSession();
     // Preview mode may stage in-browser objects; never carry them to a customer session.
     clearCustomerDraftInputs();
     if (window.TrendOSCustomerRecipe && typeof window.TrendOSCustomerRecipe.reset === "function") {

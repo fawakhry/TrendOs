@@ -29,6 +29,7 @@ test("synthetic failed file upload leaves created remote item; retry duplicates 
   };
   const sandbox={
     state,
+    customerMessengerApi:()=>null,
     $:id=>controls[id]||null,
     setMsg:(id,message,isError)=>{if(isError)recorded.errors.push(message);},
     ensureCustomerDraftOnServer:async()=>state.customerDraft.draftId,
