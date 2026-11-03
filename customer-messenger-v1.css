@@ -1,0 +1,76 @@
+/* All rules are scoped to the explicitly enabled customer view. */
+html.matbagy-ui-enabled #customerView.customer-messenger-active [hidden]{display:none!important}
+html.matbagy-ui-enabled #customerView.customer-messenger-active{--cm-blue:#176fe7;--cm-line:#e2e9ef;--cm-muted:#8194a6;--cm-ink:#24415b;direction:rtl;color:var(--cm-ink)}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-shell{display:grid;grid-template-columns:320px minmax(0,1fr);height:calc(100dvh - 110px);min-height:520px;max-height:1000px;overflow:hidden;background:#fff;border:1px solid var(--cm-line);border-radius:12px;box-shadow:0 8px 35px #163d5810;margin:14px auto}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-sidebar{display:flex;flex-direction:column;min-height:0;background:#fff;border-left:1px solid var(--cm-line)}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-side-head{display:flex;align-items:center;gap:12px;padding:15px 17px;min-height:73px;background:#f6f9fc;border-bottom:1px solid var(--cm-line)}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-side-head>b{flex:1;font-size:15px}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-avatar{display:grid;place-items:center;flex-shrink:0;width:42px;height:42px;border-radius:50%;background:#e4edf7;color:#557c9e;font-size:22px;font-weight:bold}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-shop{background:var(--cm-blue);color:#fff}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-icon{display:grid;place-items:center;min-width:33px;height:33px;background:transparent;color:#6f879d;font-size:21px;padding:5px;border:0;border-radius:50%;box-shadow:none}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-icon:hover{background:#e9eff6}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-search{margin:14px 15px;width:calc(100% - 30px);padding:11px 13px;border:0;background:#f0f4f8;border-radius:8px;font-size:12px}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-conversation{display:block;width:100%;text-align:right;border:0;border-bottom:1px solid #edf2f6;border-radius:0;background:#fff;color:var(--cm-ink);padding:18px 22px;min-height:83px;box-shadow:none;font-size:13px;font-weight:600;line-height:1.8}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-conversation:hover{background:#f4f8fc}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-conversation.selected{background:#e8f1fc}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-conversation small{display:block;color:var(--cm-muted);font-size:10px;font-weight:400;margin-top:5px}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-order-code{display:inline-block;float:left;font-size:9px;color:#9aabba;font-weight:400}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-list-heading{display:flex;align-items:center;justify-content:space-between;padding:15px 20px 8px;font-size:10px;color:#96a7b6}
+html.matbagy-ui-enabled #customerView.customer-messenger-active #customerRefreshOrdersBtn{font-size:10px;padding:5px 8px;border:0;background:transparent;color:#6282a4;box-shadow:none}
+html.matbagy-ui-enabled #customerView.customer-messenger-active #customerOrdersStatus{font-size:10px;line-height:1.8;margin:0;padding:4px 20px;color:var(--cm-muted)}
+html.matbagy-ui-enabled #customerView.customer-messenger-active #customerOrdersList{display:block;overflow:auto;flex:1;padding:0;min-height:0}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-empty{padding:20px;text-align:center;font-size:12px;line-height:1.9;color:#8b9eaf}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-workspace{display:flex;flex-direction:column;position:relative;min-width:0;min-height:0;background:#eaf0f5}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-head{min-height:73px;display:flex;align-items:center;gap:12px;padding:13px 21px;background:#f7fafc;border-bottom:1px solid var(--cm-line)}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-head-copy{flex:1}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-head-copy b{display:block;font-size:14px}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-head-copy small{display:block;color:#8a9dae;font-size:10px;margin-top:6px}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-date{position:absolute;top:87px;align-self:center;border-radius:6px;background:#f7fafc;color:#8ca0b2;font-size:9px;padding:6px 12px;z-index:1}
+html.matbagy-ui-enabled #customerView.customer-messenger-active #customerDraftMessages,
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-history{padding:57px clamp(20px,4vw,65px) 25px;overflow:auto;min-height:0;max-height:none;flex:1;background-color:#eaf0f5;background-image:radial-gradient(#c5d3df60 .8px,transparent .8px);background-size:23px 23px;overscroll-behavior:contain}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-bubble{white-space:pre-line;overflow-wrap:anywhere;width:fit-content;max-width:85%;background:#fff;color:var(--cm-ink);border-radius:10px 2px 10px 10px;box-shadow:0 1px 2px #18354c15;padding:12px 15px 8px;margin:0 auto 13px 0;font-size:13px;line-height:1.9}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-out{background:#dcecff;border-radius:2px 10px 10px 10px;margin-right:0;margin-left:auto}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-message-label{display:block;font-size:8px;color:#90a2b3;text-align:left;margin-top:9px}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-item-notes{font-size:11px;line-height:1.9;margin-top:9px;color:#6b8399}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-image{border:0;background:transparent;padding:0;display:block;margin-top:10px;border-radius:8px;overflow:hidden;max-width:260px}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-image img{display:block;width:100%;max-height:230px;object-fit:contain}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-file-name{display:block;font-size:10px;overflow-wrap:anywhere;padding:5px 0;color:#6d8ba8}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-actions{padding:10px 18px 8px;display:flex;gap:9px;background:#f8fafc;border-top:1px solid var(--cm-line)}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-chip,
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-inline-action{font-size:11px;color:#4c7fb8;background:#fff;border:1px solid #dae5ef;border-radius:17px;padding:7px 13px;box-shadow:none}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-inline-action{display:block;border-radius:7px;background:#eff6ff;width:100%;margin-top:10px}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-type-row{display:flex;align-items:end;gap:11px;padding:7px 18px 12px;background:#f8fafc}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-type-row textarea{resize:none;min-height:43px;max-height:110px;flex:1;border:1px solid #e2e9ef;border-radius:9px;font-size:12px;line-height:1.7;background:#fff;padding:10px 14px}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-send{background:var(--cm-blue);color:#fff;border:0;border-radius:50%;width:43px;height:43px;padding:8px;font-size:23px;box-shadow:0 3px 8px #176fe722}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-readonly{padding:15px 20px;background:#f8fafc;color:#8296a8;font-size:11px;line-height:1.8;display:flex;justify-content:space-between;align-items:center;gap:15px;border-top:1px solid var(--cm-line)}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-local-note{padding:0 20px 9px;font-size:8px;color:#9caebb;background:#f8fafc;text-align:center}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-dialog{border:0;border-radius:16px;padding:23px;width:min(660px,calc(100% - 30px));max-height:90dvh;overflow:auto;color:var(--cm-ink);background:#fff;box-shadow:0 20px 100px #102b4d33}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-dialog::backdrop{background:#122b4a99}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-dialog-head{display:flex;justify-content:space-between;align-items:center;gap:14px;padding-bottom:16px;border-bottom:1px solid var(--cm-line);margin-bottom:15px}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-dialog-head h3{font-size:20px;margin:0}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-dialog .wa-chat-composer{padding:0;border:0;background:#fff}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-dialog .wa-type-row{flex-wrap:wrap}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-dialog #customerOrderItem{font-size:12px;flex-basis:70%;min-width:0}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-dialog #customerOrderNotes{font-size:12px;margin-top:13px}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-dialog .matbagy-recipe-warning{display:none}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-summary-line{border:1px solid var(--cm-line);padding:17px;border-radius:10px;margin:12px 0;white-space:pre-line;font-size:12px;line-height:1.9}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-summary-line small{display:block;color:var(--cm-muted)}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-dialog .wa-submit-row{display:block;font-size:11px;line-height:1.9;padding-top:15px}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-dialog .wa-submit-row button{display:block;margin-top:12px;width:100%;background:var(--cm-blue);color:#fff;border:0;border-radius:9px;padding:13px}
+html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-settings #customerWelcomeTitle{font-size:16px}
+html.matbagy-ui-enabled #customerView.customer-messenger-active #customerMessengerBack{display:none}
+@media(max-width:800px){
+ html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-shell{display:block;height:calc(100dvh - 80px);min-height:420px;margin:0;border-radius:0;box-shadow:none}
+ html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-sidebar,
+ html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-workspace{height:100%;width:100%}
+ html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-workspace{display:none}
+ html.matbagy-ui-enabled #customerView.customer-messenger-active[data-messenger-pane=thread] .cm-sidebar{display:none}
+ html.matbagy-ui-enabled #customerView.customer-messenger-active[data-messenger-pane=thread] .cm-workspace{display:flex}
+ html.matbagy-ui-enabled #customerView.customer-messenger-active #customerMessengerBack{display:grid}
+ html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-head{gap:8px;padding:11px 12px;min-height:66px}
+ html.matbagy-ui-enabled #customerView.customer-messenger-active #customerDraftMessages,
+ html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-history{padding:52px 15px 18px}
+ html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-bubble{max-width:90%;font-size:12px;padding:10px 12px 7px}
+ html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-type-row{padding:7px 12px 9px;gap:8px}
+ html.matbagy-ui-enabled #customerView.customer-messenger-active .cm-dialog{width:100%;margin:0;top:auto;bottom:0;border-radius:18px 18px 0 0;padding:20px;max-height:92dvh}
+}
