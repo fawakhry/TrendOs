@@ -275,7 +275,8 @@ def verify(root, worker_api, r2_api):
          "POSTBIND_SNAPSHOT_CHANGED_DURING_READ")
     config += '\n[[r2_buckets]]\nbinding = "' + BINDING + '"\nbucket_name = "' + base.BUCKET + '"\n'
     return {"worker": WORKER, "deployedVersion": current_id,
-            "baselineVersion": candidates[0], "scriptContentEtag": etag,
+            "baselineVersion": candidates[0], "baselineScriptContentEtag": etag,
+            "deployedScriptContentEtag": current_etag,
             "deployedCodeQualifiedAndNonR2BindingsUnchanged": True, "all11FlagsOff": True,
             "priorVersionEtagMatches": old_etag == current_etag,
             "pinnedSourceAstWitness": source_witness,

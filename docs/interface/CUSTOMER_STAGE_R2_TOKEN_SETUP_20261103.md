@@ -3,7 +3,7 @@
 The owner explicitly replied **“agree”** to creating/providing a dedicated same-account Cloudflare token with `Workers R2 Storage Write` and saving it in GitHub Secrets. Approval is recorded; do not ask again for the same scope. This is not approval for public R2, production customer activation, broader account access or replacing the existing Worker/D1 token.
 
 
-## Latest verified state — private bootstrap completed
+## Latest verified state — private bucket and original Stage binding verified
 
 The owner completed the secure manual setup in their own authenticated sessions, selected one Trend Mall account and R2 Edit only, expiration **November 10, 2026**, and confirmed the repository Actions secret was saved. The assistant never received the token value. The following real run proves the separate secret was available to Actions and authorized this operation.
 
@@ -11,7 +11,9 @@ The owner completed the secure manual setup in their own authenticated sessions,
 - Actual log:11 tests PASS; original nonpublic OFF Stage and synthetic D1 preflight PASS19:05:31UTC; `ONE_EMPTY_STAGE_BUCKET_CREATED=YES`19:05:32; private readback19:05:34.
 - Bucket `trendos-customer-stage-private-synthetic-20261103-v0` exists. Managed r2.dev disabled; custom domains empty; no objects written; no Worker binding/deploy or customer activation.
 - **Do not rerun bootstrap or create another bucket.** Keep the existing approved bucket; the runner rejects the same-name existing bucket instead of recreating/adopting it.
-- The old missing-token/403 blocker is resolved for this operation. Next is exact-original OFF Stage binding qualification, then Native two-account/private-media/scanner/viewer/T12 E2E and exact-live rollout. Customer production remains OFF/NO_GO.
+- The owner subsequently saved CUSTOMER_DRAFT_FILES_BUCKET on the original isolated Stage using Cloudflare Deploy. GET-only Run41705383110 / Job126159193400 (source08e05b7eb53a9540c29b47017d8d78cd8d332a5c) independently verified exact binding, private domain settings, all11 flags OFF, original synthetic D1/DO/runtime, and full AST equality with freshly bundled immutable original6b312288. Provider etag differed; cause unknown and no byte-equality claim. See [binding report](CUSTOMER_STAGE_PRIVATE_R2_BINDING_20261103.md) and customer book §48.
+- Source helper customer_stage_private_r2_postbind_ro_v1.py can render a verified disposable OFF configuration with exact existing R2. The original tracked config/resolver are unchanged; never remove the original no-R2 guard or run an old deployment that drops this binding. No new token/bucket or public URL is needed.
+- The old missing-token/403 blocker is resolved for this operation. Next are Native two-account/private-media/scanner/viewer/T12 E2E and exact-live rollout. Customer production remains OFF/NO_GO.
 
 ## Earlier browser blocker — historical, superseded by secure owner setup
 
