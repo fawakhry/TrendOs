@@ -2,11 +2,22 @@
 
 The owner explicitly replied **“agree”** to creating/providing a dedicated same-account Cloudflare token with `Workers R2 Storage Write` and saving it in GitHub Secrets. Approval is recorded; do not ask again for the same scope. This is not approval for public R2, production customer activation, broader account access or replacing the existing Worker/D1 token.
 
-## Current external blocker
+
+## Latest verified state — private bootstrap completed
+
+The owner completed the secure manual setup in their own authenticated sessions, selected one Trend Mall account and R2 Edit only, expiration **November 10, 2026**, and confirmed the repository Actions secret was saved. The assistant never received the token value. The following real run proves the separate secret was available to Actions and authorized this operation.
+
+- [Run41699904718](https://github.com/fawakhry/TrendOs/actions/runs/41699904718), Job126140166953, workflow_dispatch, exact source `3bcf2c6a892efff5711bb78d05ee28debf55c493`: **SUCCESS**, started November 3 at19:05:02UTC /21:05:02 Cairo.
+- Actual log:11 tests PASS; original nonpublic OFF Stage and synthetic D1 preflight PASS19:05:31UTC; `ONE_EMPTY_STAGE_BUCKET_CREATED=YES`19:05:32; private readback19:05:34.
+- Bucket `trendos-customer-stage-private-synthetic-20261103-v0` exists. Managed r2.dev disabled; custom domains empty; no objects written; no Worker binding/deploy or customer activation.
+- **Do not rerun bootstrap or create another bucket.** Keep the existing approved bucket; the runner rejects the same-name existing bucket instead of recreating/adopting it.
+- The old missing-token/403 blocker is resolved for this operation. Next is exact-original OFF Stage binding qualification, then Native two-account/private-media/scanner/viewer/T12 E2E and exact-live rollout. Customer production remains OFF/NO_GO.
+
+## Earlier browser blocker — historical, superseded by secure owner setup
 
 Browser Google sign-in was attempted with secure credential entry. Cloudflare returned `Unable to sign in. Try again or use your email and password.` A fresh tab to the intended API-token page still required sign-in. No signed-in Cloudflare session was established; no API token was created or copied, and no GitHub secret was added. This is the observed result in this browser, not proof of an outage, wrong password or bot detection. Do not repeat the failed sign-in automatically.
 
-## Secure one-time setup
+## Secure one-time setup — completed, retained as operator reference
 
 An account administrator can complete the following in their normal authenticated Cloudflare and GitHub sessions; this procedure does not rely on sharing browser cookies with the assistant.
 
@@ -26,11 +37,11 @@ An account administrator can complete the following in their normal authenticate
 - No object writes, Worker binding/deploy, token/policy modification, billing enrollment, public domain enablement or production data operation. Redirects are disabled so authorization is never forwarded to another host. R2 errors expose only status/numeric codes, never provider messages/credentials.
 - Missing/reused secret, nonmanual context, wrong repo/SHA/confirmation, forbidden endpoint, existing bucket or uncertain privacy readback stops; no fallback to the broad token.
 
-11 synthetic tests execute actual helper functions and cover plan-only behavior, missing/separate credentials, incorrect manual context, forbidden storage/ACL/deletion operations, the original 403/10000 condition stopping before create, existing-name rejection, private successful create, public-domain rejection, redirects and the original-source pin. This is not remote R2 success; this execution workflow has **NOT RUN** with a dedicated credential yet.
+11 synthetic tests execute actual helper functions and cover plan-only behavior, missing/separate credentials, incorrect manual context, forbidden storage/ACL/deletion operations, the original 403/10000 condition stopping before create, existing-name rejection, private successful create, public-domain rejection, redirects and the original-source pin. At the earlier source checkpoint there had been no credentialed run; the actual successful run in Latest verified state above supersedes that status.
 
 A new empty private bucket is only the next Stage prerequisite. Native two-account login/draft/private-media E2E, scanner/private viewer and original T12 official-order handoff still need qualification before any customer production activation. Owner-private Sites and paid AI remain unchanged/OFF.
 
 
 ## Verified source checkpoint
 
-[PR348](https://github.com/fawakhry/TrendOs/pull/348) merged to main at `a058653c8a394821e66571960f44ca15205566f1`, tested source `cce86a627d6e2098da026b0007a1de6554fc3121`. Source Actions chat41695917100, readiness41695917092 and P0 mocks41695917087 succeeded; readiness includes all11 Python tests. A separate existing tasks-v3-t1-preview Workers Builds check fails on both source and base; no claim that all external checks passed. The manual provisioning workflow was not dispatched and no dedicated secret or bucket exists from this work. Any later documentation-only main SHA differs: read/verify the full workflow source SHA at dispatch rather than copying this merge SHA blindly.
+[PR348](https://github.com/fawakhry/TrendOs/pull/348) merged to main at `a058653c8a394821e66571960f44ca15205566f1`, tested source `cce86a627d6e2098da026b0007a1de6554fc3121`. Source Actions chat41695917100, readiness41695917092 and P0 mocks41695917087 succeeded; readiness includes all11 Python tests. A separate existing tasks-v3-t1-preview Workers Builds check fails on both source and base; no claim that all external checks passed. At that source checkpoint the manual provisioning workflow had not been dispatched and no dedicated secret or bucket existed; the later verified success above supersedes that historical status. Any later documentation-only main SHA differs: read/verify the full workflow source SHA at dispatch rather than copying this merge SHA blindly.

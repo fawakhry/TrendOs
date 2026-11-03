@@ -15,7 +15,7 @@
 | المعاينة الخاصة عبر Sites | v2 منشورة لحساب المالك وحده؛ بيانات تركيبية وذاكرة متصفح؛ انظر §39–40 |
 | Native Stage السابق | PR322/323 محلي E2E مثبت سابقًا؛ لا يساوي تشغيل العملاء على Cloudflare |
 | إطلاق العملاء الحقيقيين | NO_GO حتى إثبات ملكية الأوردرات والملفات، الاستئناف، المسح وNative/T12؛ Service Auth root GET اجتاز فعليًا §44 |
-| اعتماد التخزين الخاص R2 | موافقة المالك محفوظة؛ PR348 يدوي مدمج ومختبر؛ التوكن/Secret غير متاحين بعد فشل الدخول، ولا bucket جديد؛ §46 |
+| اعتماد التخزين الخاص R2 | Run41699904718 نجح؛ الحاوية الخاصة موجودة وr2.dev OFF؛ لم تُربط بالـWorker بعد؛ §47 |
 | Google retirement | آخر رقم مثبت 0/9 **لمسارات العملاء فقط**؛ لا يصف الموظفين أو الحسابات أو كامل نظام الطلبات |
 
 آخر توجيه صريح من المالك بعد الدمج: «طيب خلص المشاكل دى وشغلها للعملاء»، ثم وافق صراحة على اعتماد R2 المخصص؛ انظر §46. التفويض الحالي يشمل إصلاح العوائق وتأهيل التشغيل؛ لا حاجة لإعادة اعتماد التصميم. لم يثبت اجتياز أمان الخادم أو التشغيل البعيد حتى الآن؛ انظر §43. تظل صلاحيات Site الخاصة وAI المدفوع كما هي، ولا يُستبدل Worker حي بمصدر قديم. السجل التاريخي أدناه محفوظ، والحالة الحالية فوقه هي مرجع الاستكمال.
@@ -566,3 +566,18 @@ node tests/customer_messenger_browser_fixture.cjs /absolute/disposable/qa
 
 
 **إغلاق المصدر الموثق:** [PR348](https://github.com/fawakhry/TrendOs/pull/348) دُمج إلى main في `a058653c8a394821e66571960f44ca15205566f1`؛ source HEAD المختبر `cce86a627d6e2098da026b0007a1de6554fc3121`. جميع بصمات الملفات7 مطابقة للنسخة المحلية. Actions Chat41695917100 / Readiness41695917092 / P0 mocks41695917087 = SUCCESS على نفس المصدر؛ Log الجاهزية يثبت32 Node و11 Python PASS وUNSAFE_RELEASE_BLOCKED=YES. فحص Workers Builds الخارجي tasks-v3-t1-preview يفشل على المصدر check126126415484 وكذلك الأساس47c5c22 check126126278536؛ لا ندعي أن كل CI أخضر أو أن هذا البناء عولج. الدمج العادي لم يعطل guard. مسار الإنشاء اليدوي لم نشغله، ولا توكن/Secret/bucket جديد؛ العائق الحالي توفير الاعتماد المخصص بعد تعذر الدخول، وليس انتظار موافقة جديدة. CUSTOMER_PRODUCTION=NO_GO.
+
+
+## 47) نجاح إنشاء التخزين الخاص الحقيقي بعد توفير التوكن — 2026-11-03
+
+**تم حل مانع اعتماد R2 فعليًا:** المالك تابع الإعداد خطوة بخطوة في جلسته؛ ملخص Cloudflare الظاهر أثبت الاسم `TrendOS Customer Stage R2 Bootstrap 20261103`، صلاحية Account / Workers R2 Storage / Edit فقط، حساب Trend Mall الواحد، وانتهاء 10 نوفمبر 2026. أكد «تم النسخ» ثم «تم الحفظ» بعد حفظ القيمة مباشرة في GitHub Repository Actions secret باسم `CLOUDFLARE_R2_STAGE_API_TOKEN`. لم تظهر قيمة التوكن أو تُنقل إلى المساعد أو الكتب/الكود/الصور؛ التوكن العام Worker/D1 لم يُوسّع أو يُستبدل.
+
+**التشغيل اليدوي:** موصل GitHub لا يوفر dispatch، ومتصفح المساعد عرض صفحة Actions بلا جلسة GitHub مصدقة، لذلك شغّل المالك الـWorkflow من متصفحه. محاولة النموذج الظاهرة أولًا أظهرت Workflow dispatch failed والخانتان المطلوبتان فارغتان و0 runs؛ لا تُحسب تشغيل Cloudflare. بعد مراجعة HEAD الحالي أعطينا confirmation=`CREATE_ONE_EMPTY_PRIVATE_CUSTOMER_STAGE_R2` وexpected_source_sha=`3bcf2c6a892efff5711bb78d05ee28debf55c493` على main. [Run41699904718](https://github.com/fawakhry/TrendOs/actions/runs/41699904718)، Job126140166953، event=workflow_dispatch، attempt1، النتيجة SUCCESS؛ بدأ19:05:02UTC (21:05:02 القاهرة). راجع المساعد السجل نفسه، وليس لقطة النجاح فقط.
+
+**الدليل من Log:** عند19:05:30UTC نجحت11 Python tests. عند19:05:31 `ORIGINAL_NONPUBLIC_OFF_STAGE_SYNTHETIC_D1=PASS`؛ فحص resolver الأصلي6b312288 الـWorker المعزول وD1 الصناعية وجميع11 flags OFF وworkers.dev/preview OFF. عند19:05:32 `ONE_EMPTY_STAGE_BUCKET_CREATED=YES`. عند19:05:34 readback أكد bucket=`trendos-customer-stage-private-synthetic-20261103-v0`، managedPublicAccess=false، customDomains=[]، objectWrites=false، workerBindingChanged=false، customerProductionReady=false. هذا أول نجاح R2 بهذا الاعتماد المخصص ويُغلق403/10000 الموثق في §45 لهذا الإجراء. التوكن منفصل عن Worker token ومتاح للتشغيل كما تثبت حراسة الكود الناجحة، من غير قراءة قيمته.
+
+**لا تعِد bootstrap:** الحاوية موجودة فعلًا؛ إعادة التشغيل غير مطلوبة والكود يرفض إعادة الإنشاء/اعتماد اسم موجود. لا objects ولا ربط R2 بالـWorker ولا deploy ولا تشغيل عميل أو تعديل Access حصل في هذا التشغيل. التحذير الظاهر عن انتقال checkout@v4 من Node20→24 وإشعار ubuntu-latest هما تنبيهات runner؛ الخطوات كلها SUCCESS وليسا فشل تخزين.
+
+**نقطة الاستكمال الدقيقة:** ربط **الحاوية الحالية** بالـWorker المعزول الأصلي تحت اسم binding `CUSTOMER_DRAFT_FILES_BUCKET` بعد فحص read-only حديث للإصدار المنتشر/آخر إصدار وإعدادات D1/DO/الأسرار، والحفاظ على source/runtime OFF والوصول الخاص. لا تورّث secret أو binding من latest غير منتشرة بلا مطابقة؛ API inherit قد تختار آخر نسخة مرفوعة وليس النسخة الحية. بعدها اختبار Native HTTP بحسابين صناعيين وعزل المسودات والملفات والحجر/الاستئناف، وتأهيل scanner/private viewer وكاتب T12 الرسمي والبصمة الحية/rollback قبل تشغيل العملاء. لا تستبدل UI المرشح الحي من main القديم ولا تعدّل Code.gs لتجاوز A61. هذه البوابات لم يُنجزها bootstrap.
+
+`R2_DEDICATED_SECRET_AVAILABLE_TO_ACTIONS=VERIFIED`; `STAGE_PRIVATE_R2_CREATED=YES`; `R2_MANAGED_PUBLIC_ACCESS=OFF_VERIFIED`; `R2_CUSTOM_DOMAINS=EMPTY_VERIFIED`; `R2_STAGE_WORKER_BINDING=NOT_ADDED`; `NATIVE_REMOTE_CUSTOMER_E2E=NOT_RUN`; `CUSTOMER_PRODUCTION=NO_GO_OFF`; `PRIVATE_SITE_ACCESS=OWNER_ONLY_UNCHANGED`; `OPENAI_PAID=OFF`.
