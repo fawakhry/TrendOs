@@ -29,6 +29,12 @@ jobs:
         run: node --test tests/customer_portal_readiness_audit_v1.test.cjs tests/customer_portal_partial_upload_stage_audit.test.cjs tests/customer_portal_request_safety.test.cjs tests/customer_native_upload_coordinator_off_v0.test.cjs tests/customer_native_upload_loopback_http_stage_off.test.cjs
       - name: Test dedicated Stage R2 scope without any credentials or network
         run: python3 tests/customer_stage_private_r2_bootstrap_v1.test.py
+      - name: Test deployed Stage R2 configuration witness without network
+        run: python3 tests/customer_stage_private_r2_postbind_ro_v1.test.py
+      - name: Install pinned JavaScript parser for offline source-witness tests
+        run: npm install --prefix "$RUNNER_TEMP/customer-code-parser" --no-save --no-audit --no-fund acorn@8.15.0
+      - name: Test full-program source witness with synthetic code only
+        run: NODE_PATH="$RUNNER_TEMP/customer-code-parser/node_modules" node --test tests/customer_stage_code_ast_witness_v1.test.cjs
       - name: Emit read-only NO GO report
         run: |
           node customer-portal-readiness-audit-v1.cjs --report > /tmp/customer-readiness-audit.json
