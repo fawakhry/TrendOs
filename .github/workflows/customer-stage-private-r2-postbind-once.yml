@@ -1,0 +1,39 @@
+name: Customer Stage R2 post-binding GET-only witness - temporary
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+concurrency:
+  group: customer-stage-private-r2-postbind-readonly
+  cancel-in-progress: false
+jobs:
+  readonly-original-stage-and-private-r2:
+    if: github.event.pull_request.head.repo.full_name == 'fawakhry/TrendOs' && github.head_ref == 'feature/customer-stage-private-r2-preserve-off-20261103'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 6b31228887f9073c1aa8c6f2c06597b194f567df
+          path: original-stage-source
+          persist-credentials: false
+      - name: Exercise actual read-only verifier with synthetic responses
+        run: python3 tests/customer_stage_private_r2_postbind_ro_v1.test.py
+      - name: Verify exact deployed OFF Stage and existing private R2 - GET only
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_R2_STAGE_API_TOKEN: ${{ secrets.CLOUDFLARE_R2_STAGE_API_TOKEN }}
+          POSTBIND_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          POSTBIND_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          cfg="original-stage-source/cloudflare-d1/.wrangler-customer-r2-verified-off-${GITHUB_RUN_ID}.toml"
+          trap 'rm -f "$cfg"' EXIT
+          python3 tools/customer_stage_private_r2_postbind_ro_v1.py --verify original-stage-source --write-config "$cfg"
+          python3 -c 'import pathlib,tomllib,sys;v=tomllib.loads(pathlib.Path(sys.argv[1]).read_text());assert v["workers_dev"] is False and v["preview_urls"] is False;assert len(v["r2_buckets"])==1;assert v["r2_buckets"][0]["binding"]=="CUSTOMER_DRAFT_FILES_BUCKET";print("DISPOSABLE_CONFIG_HAS_APPROVED_R2_AND_REMAINS_OFF=PASS")' "$cfg"
