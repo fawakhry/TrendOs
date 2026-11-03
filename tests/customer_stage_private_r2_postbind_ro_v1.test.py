@@ -121,7 +121,7 @@ class Tests(unittest.TestCase):
 
     def test_verified_binding_renders_off_configuration_without_secret(self):
         report, config, source = self.verify()
-        self.assertTrue(report["originalCodeAndNonR2BindingsUnchanged"])
+        self.assertTrue(report["deployedCodeQualifiedAndNonR2BindingsUnchanged"])
         self.assertFalse(report["remoteWrites"])
         self.assertFalse(report["customerProductionReady"])
         self.assertNotIn("SESSION_SECRET", config)
@@ -161,6 +161,53 @@ class Tests(unittest.TestCase):
         settings["bindings"][0]["text"] = "true"
         with self.assertRaisesRegex(m.Stop, "SETTINGS_DEPLOYED_VERSION_MISMATCH"):
             m.compare_versions(settings, version(ORIGINAL_BINDINGS), version(SETTINGS["bindings"]))
+
+    def test_independent_exact_source_witness_never_excuses_binding_drift(self):
+        after = version(SETTINGS["bindings"])
+        after["resources"]["script"]["etag"] = "e" * 64
+        m.compare_versions(SETTINGS, version(ORIGINAL_BINDINGS), after, source_ast_witness=True)
+        after["resources"]["bindings"][0]["text"] = "true"
+        with self.assertRaisesRegex(m.Stop, "NON_R2_BINDING_DRIFT"):
+            m.compare_versions(SETTINGS, version(ORIGINAL_BINDINGS), after, source_ast_witness=True)
+
+    def test_content_reader_is_worker_only_and_never_executes_downloaded_code(self):
+        response = Response()
+        response.headers = {"Content-Type": "application/javascript; charset=utf-8"}
+        response.read = lambda limit: b'export default {fetch(){throw new Error("never run");}};'
+        opener = Mock()
+        opener.open.return_value = response
+        actual = m.ReadOnlyApi(ACCOUNT, WORKER_TOKEN, "worker", opener).script_content()
+        request = opener.open.call_args.args[0]
+        self.assertTrue(actual.startswith(b"export default"))
+        self.assertEqual(request.method, "GET")
+        self.assertTrue(request.full_url.endswith(m.ROOT_PATH + "/content/v2"))
+        with self.assertRaisesRegex(m.Stop, "REQUIRES_WORKER_SCOPE"):
+            m.ReadOnlyApi(ACCOUNT, R2_TOKEN, "r2", opener).script_content()
+
+    def test_uncertain_content_type_or_multiple_js_modules_are_rejected(self):
+        response = Response()
+        response.headers = {"Content-Type": "text/html"}
+        opener = Mock()
+        opener.open.return_value = response
+        with self.assertRaisesRegex(m.Stop, "CONTENT_TYPE_UNVERIFIED"):
+            m.ReadOnlyApi(ACCOUNT, WORKER_TOKEN, "worker", opener).script_content()
+        response.headers = {"Content-Type": "multipart/form-data; boundary=fixture"}
+        def part(code):
+            return b'--fixture\r\nContent-Type: application/javascript+module\r\n\r\n' + code + b'\r\n'
+        response.read = lambda limit: part(b'export default {};') + part(b'export const extra=true;') + b'--fixture--\r\n'
+        with self.assertRaisesRegex(m.Stop, "SINGLE_JS_MODULE_REQUIRED"):
+            m.ReadOnlyApi(ACCOUNT, WORKER_TOKEN, "worker", opener).script_content()
+
+    def test_pinned_code_mismatch_remains_closed_and_does_not_log_source(self):
+        built = self.root / "cloudflare-d1/.postbind-local-build/index.js"
+        built.parent.mkdir()
+        built.write_text('export default {};')
+        reply = SimpleNamespace(returncode=3, stdout='{"sameAst":false,"actualAstSha256":"x","expectedAstSha256":"y"}')
+        with patch.object(m.subprocess, "run", return_value=reply), \
+                contextlib.redirect_stdout(io.StringIO()) as out:
+            with self.assertRaisesRegex(m.Stop, "DIFFERS_FROM_PINNED_SOURCE"):
+                m.attest_pinned_code(b'SYNTHETIC_PRIVATE_CODE_DO_NOT_LOG', self.root)
+            self.assertNotIn("SYNTHETIC_PRIVATE_CODE_DO_NOT_LOG", out.getvalue())
 
     def test_reject_flag_on_and_unexpected_plaintext_var_before_version_reads(self):
         for bindings in [deepcopy(SETTINGS["bindings"]), deepcopy(SETTINGS["bindings"])]:

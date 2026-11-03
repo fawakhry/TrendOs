@@ -25,6 +25,23 @@ jobs:
           persist-credentials: false
       - name: Exercise actual read-only verifier with synthetic responses
         run: python3 tests/customer_stage_private_r2_postbind_ro_v1.test.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install recognized local parser and builder - no provider credentials
+        run: |
+          npm install --prefix "$RUNNER_TEMP/postbind-tools" --no-save --no-audit --no-fund wrangler@4 acorn@8.15.0
+          echo "NODE_PATH=$RUNNER_TEMP/postbind-tools/node_modules" >> "$GITHUB_ENV"
+          node -p 'require(process.env.RUNNER_TEMP+"/postbind-tools/node_modules/wrangler/package.json").version'
+      - name: Test exact AST witness and build immutable original source locally - no deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ''
+          CLOUDFLARE_ACCOUNT_ID: ''
+        run: |
+          node --test tests/customer_stage_code_ast_witness_v1.test.cjs
+          git -C original-stage-source diff --exit-code
+          cd original-stage-source/cloudflare-d1
+          "$RUNNER_TEMP/postbind-tools/node_modules/.bin/wrangler" deploy --dry-run --config wrangler.customer-stage.toml --outdir .postbind-local-build
       - name: Verify exact deployed OFF Stage and existing private R2 - GET only
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -32,6 +49,7 @@ jobs:
           CLOUDFLARE_R2_STAGE_API_TOKEN: ${{ secrets.CLOUDFLARE_R2_STAGE_API_TOKEN }}
           POSTBIND_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           POSTBIND_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+          POSTBIND_COMPARE_PINNED_CODE: 'true'
         run: |
           cfg="original-stage-source/cloudflare-d1/.wrangler-customer-r2-verified-off-${GITHUB_RUN_ID}.toml"
           trap 'rm -f "$cfg"' EXIT

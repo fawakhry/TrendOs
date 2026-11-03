@@ -6,12 +6,15 @@ checkout only after the deployed code, bindings and private storage qualify.
 """
 import importlib.util
 import hashlib
+from email.parser import BytesParser
+from email import policy
 import json
 import os
 from pathlib import Path
 import re
 import subprocess
 import sys
+import tempfile
 import tomllib
 import urllib.error
 import urllib.request
@@ -65,6 +68,36 @@ class ReadOnlyApi:
              "POSTBIND_PROVIDER_SUCCESS_UNVERIFIED")
         return value.get("result")
 
+    def script_content(self):
+        need(self.scope == "worker", "POSTBIND_CONTENT_REQUIRES_WORKER_SCOPE")
+        req = urllib.request.Request(self.origin + ROOT_PATH + "/content/v2", method="GET",
+            headers={"Authorization": "Bearer " + self.token, "User-Agent": base.CLIENT})
+        try:
+            with self.opener.open(req, timeout=25) as response:
+                content_type = response.headers.get("Content-Type", "")
+                raw = response.read(4_000_001)
+        except urllib.error.HTTPError as error:
+            raise Stop("POSTBIND_CONTENT_HTTP_" + str(error.code)) from None
+        except OSError:
+            raise Stop("POSTBIND_CONTENT_UNAVAILABLE") from None
+        need(len(raw) <= 4_000_000, "POSTBIND_CONTENT_SIZE_EXCEEDED")
+        if content_type.startswith("multipart/"):
+            msg = BytesParser(policy=policy.default).parsebytes(
+                ("Content-Type: " + content_type + "\r\nMIME-Version: 1.0\r\n\r\n").encode() + raw)
+            need(msg.is_multipart(), "POSTBIND_CONTENT_MULTIPART_UNVERIFIED")
+            parts = list(msg.iter_parts())
+            scripts = [p for p in parts if p.get_content_type() in
+                ("application/javascript", "application/javascript+module", "text/javascript")]
+            need(len(scripts) == 1 and all(p in scripts or p.get_content_type() == "application/json"
+                 for p in parts), "POSTBIND_SINGLE_JS_MODULE_REQUIRED")
+            raw = scripts[0].get_payload(decode=True)
+        else:
+            need(content_type.split(";", 1)[0] in
+                 ("application/javascript", "application/javascript+module", "text/javascript"),
+                 "POSTBIND_CONTENT_TYPE_UNVERIFIED")
+        need(isinstance(raw, bytes) and raw, "POSTBIND_CONTENT_EMPTY")
+        return raw
+
 
 def load_original(root):
     source = Path(root).resolve()
@@ -112,14 +145,16 @@ def active_version(deployments):
     return versions[0]["version_id"]
 
 
-def compare_versions(settings, old, current):
+def compare_versions(settings, old, current, source_ast_witness=False):
     before = old.get("resources") if isinstance(old, dict) else None
     after = current.get("resources") if isinstance(current, dict) else None
     need(isinstance(before, dict) and isinstance(after, dict), "POSTBIND_VERSION_RESOURCES_UNVERIFIED")
     before_script, after_script = before.get("script", {}), after.get("script", {})
     etag = before_script.get("etag")
-    need(isinstance(etag, str) and bool(re.fullmatch(r"[a-fA-F0-9]{32,128}", etag)) and
-         after_script.get("etag") == etag, "POSTBIND_SCRIPT_CONTENT_ETAG_CHANGED_OR_UNKNOWN")
+    same_etag = (isinstance(etag, str) and bool(re.fullmatch(r"[a-fA-F0-9]{32,128}", etag)) and
+                 after_script.get("etag") == etag)
+    need(same_etag or source_ast_witness is True,
+         "POSTBIND_SCRIPT_CONTENT_ETAG_CHANGED_OR_UNKNOWN")
     need(isinstance(before.get("script_runtime"), dict) and
          before.get("script_runtime") == after.get("script_runtime"),
          "POSTBIND_WORKER_RUNTIME_CHANGED_OR_UNKNOWN")
@@ -131,6 +166,26 @@ def compare_versions(settings, old, current):
     need(binding_map(settings.get("bindings")) == binding_map(after.get("bindings")),
          "POSTBIND_SETTINGS_DEPLOYED_VERSION_MISMATCH")
     return etag
+
+
+def attest_pinned_code(actual_bytes, source):
+    built = source / "cloudflare-d1/.postbind-local-build/index.js"
+    need(built.is_file(), "POSTBIND_PINNED_LOCAL_BUILD_REQUIRED")
+    with tempfile.TemporaryDirectory(prefix="customer-postbind-code-") as tmp:
+        downloaded = Path(tmp) / "current-worker.js"
+        downloaded.write_bytes(actual_bytes)
+        result = subprocess.run(["node", str(Path(__file__).with_name(
+            "customer_stage_code_ast_witness_v1.cjs")), str(downloaded), str(built)],
+            text=True, capture_output=True, timeout=30)
+    try:
+        witness = json.loads(result.stdout)
+    except ValueError:
+        raise Stop("POSTBIND_PINNED_SOURCE_AST_UNAVAILABLE") from None
+    print("POSTBIND_CURRENT_CONTENT_BYTES=" + str(len(actual_bytes)), flush=True)
+    print("POSTBIND_PINNED_SOURCE_AST=" + json.dumps(witness, sort_keys=True), flush=True)
+    need(result.returncode == 0 and isinstance(witness, dict) and witness.get("sameAst") is True,
+         "POSTBIND_DEPLOYED_CODE_DIFFERS_FROM_PINNED_SOURCE")
+    return witness
 
 
 def read_inventory(api):
@@ -181,8 +236,18 @@ def verify(root, worker_api, r2_api):
          "POSTBIND_BASELINE_VERSION_NOT_UNIQUE")
     old = worker_api.get(ROOT_PATH + "/versions/" + candidates[0])
     current = worker_api.get(ROOT_PATH + "/versions/" + current_id)
+    source_witness = None
+    old_etag = old.get("resources", {}).get("script", {}).get("etag")
+    current_etag = current.get("resources", {}).get("script", {}).get("etag")
+    if old_etag != current_etag and os.environ.get("POSTBIND_COMPARE_PINNED_CODE") == "true":
+        need(versions and versions[0].get("id") == current_id,
+             "POSTBIND_CONTENT_LATEST_IS_NOT_DEPLOYED")
+        source_witness = attest_pinned_code(worker_api.script_content(), source)
+        latest = worker_api.get(ROOT_PATH + "/versions")
+        need(latest.get("items", [{}])[0].get("id") == current_id,
+             "POSTBIND_CONTENT_VERSION_CHANGED")
     try:
-        etag = compare_versions(settings, old, current)
+        etag = compare_versions(settings, old, current, source_witness is not None)
     except Stop:
         # Diagnostics remain read-only and never print provider messages,
         # settings values, account IDs or secrets. Keep the original failure.
@@ -211,7 +276,9 @@ def verify(root, worker_api, r2_api):
     config += '\n[[r2_buckets]]\nbinding = "' + BINDING + '"\nbucket_name = "' + base.BUCKET + '"\n'
     return {"worker": WORKER, "deployedVersion": current_id,
             "baselineVersion": candidates[0], "scriptContentEtag": etag,
-            "originalCodeAndNonR2BindingsUnchanged": True, "all11FlagsOff": True,
+            "deployedCodeQualifiedAndNonR2BindingsUnchanged": True, "all11FlagsOff": True,
+            "priorVersionEtagMatches": old_etag == current_etag,
+            "pinnedSourceAstWitness": source_witness,
             "workersDevAndPreviewOff": True, "managedPublicAccess": False,
             "customDomains": [], "binding": BINDING, "bucket": base.BUCKET,
             "remoteWrites": False, "customerProductionReady": False}, config, source
