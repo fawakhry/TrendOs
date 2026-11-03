@@ -11,7 +11,7 @@
 | المسار | الحالة المثبتة |
 |---|---|
 | التصميم | تجربة محادثات بهوية مطبعجي الزرقاء، معتمدة من المالك |
-| مصدر TrendOS الأصلي | تم الدمج عبر PR342 فوق نفس تسجيل الدخول/الفورم/كاتب الأوردر؛ flag ما زال OFF؛ انظر §41–42 |
+| مصدر TrendOS الأصلي | PR342 للشات وPR347 لعزل الردود ومنع التكرار غير المؤكد؛ نفس تسجيل الدخول/الفورم/الكاتب؛ flag OFF؛ انظر §41–45 |
 | المعاينة الخاصة عبر Sites | v2 منشورة لحساب المالك وحده؛ بيانات تركيبية وذاكرة متصفح؛ انظر §39–40 |
 | Native Stage السابق | PR322/323 محلي E2E مثبت سابقًا؛ لا يساوي تشغيل العملاء على Cloudflare |
 | إطلاق العملاء الحقيقيين | NO_GO حتى إثبات ملكية الأوردرات والملفات، الاستئناف، المسح وNative/T12؛ Service Auth root GET اجتاز فعليًا §44 |
@@ -532,3 +532,20 @@ node tests/customer_messenger_browser_fixture.cjs /absolute/disposable/qa
 **الاختبار الحقيقي النهائي:** source8d7804b756abd6ac107a2b4f06ef3fcb38e4269d، [Run41688741445](https://github.com/fawakhry/TrendOs/actions/runs/41688741445) / Job126101362369 = **SUCCESS**. عند19:54:59 القاهرة: بدون اعتماد302 نحو تسجيل الدخول؛ سر خاطئ302؛ **التوكن الأصلي الصحيح404 JSON من Worker الأصلي** بكود CUSTOMER_STAGE_ROUTE_NOT_FOUND ومصدرcustomer-stage-isolated-v0، Ray `a54d3f4f185f6ee6-DFW`. `PRIVATE_STAGE_AUTHENTICATED_HTTP=PASS`. لم يتغير أي Token أو Policy أو Code/Worker أو D1/R2؛ جميع feature flags OFF. أُعيد workers.dev/preview OFF وتأكد مرتين. أُزيل المصدر المؤقت وWorkflow في62c9f00226cf3090cfce5a17949b10659ef3395b وأُغلق PR345 دون دمج.
 
 **تحديث الحالة:** العائق القديم لمرور Service Auth إلى جذر Worker **محلول لهذا Stage**؛ تسجيل دخول عميل Native/عزل مسودات وملفات/T12 على Cloudflare ما زال يحتاج E2E مستقلاً. لا نقول إن العميل بدأ العمل بمجرد404 مصدق. `REMOTE_SERVICE_AUTH_ROOT_GET=PASS`; `PUBLIC_STAGE_INGRESS=OFF_VERIFIED`; `CUSTOMER_PRODUCTION=NO_GO`; `OPENAI_PAID=OFF`.
+
+
+## 45) إغلاق إصلاحات الواجهة ومانع صلاحية R2 — 2026-11-03
+
+**مصدر الواجهة دُمج فعليًا:** [PR347](https://github.com/fawakhry/TrendOs/pull/347) → main، Squash SHA `fc54fa7f18d594f0db1b31aafa446cc56f46fe6f`، source HEAD `31392a74b0e8240e424eb13164ab91d302090ef9`. تحققت بصمات جميع الملفات11 المرفوعة مع الملفات المختبرة، بما فيها لقطة اختبار توقف الإرسال. 64 اختبارًا محليًا PASS وChrome فعلي ببيانات تركيبية؛ حساب C2 بعد فشل C1 ينشئ بندًا طبيعيًا ويُفتح له زر التنفيذ، ولا يرث حالة التوقف السابقة.
+
+**CI الدقيقة:** Customer Chat Run41689971403، Readiness Run41689971306، P0 mocks Run41689971462 = **SUCCESS** على المصدر نفسه. يوجد فشل خارجي منفصل `Workers Builds: trendos-tasks-v3-t1-preview-20260914` على المصدر (check126105760662 / buildcf1150ac-0726-48dc-b2fb-4922c85fcc00) وعلى main الأساس07096fa (check126105595926 / build975fd155-38da-470b-ae2d-d4d6bcb42fbe) أيضًا. لا توجد تفاصيل Log في مخرجات check. **ليست جميع الفحوص الخارجية خضراء**، ولا ندعي حلّ Build ذلك Worker أو نشره. تم الدمج العادي المتوقع المصدر دون تعطيل فحص أو تجاوز branch rule؛ الجديد OFF.
+
+**محاولة تجهيز R2 الأصلية:** [PR346](https://github.com/fawakhry/TrendOs/pull/346)، source38b871b5b5d91e416bc834e3ce4ee05479e828a2؛ [Run41689690324](https://github.com/fawakhry/TrendOs/actions/runs/41689690324) / Job126104701440 = **FAILURE** عند20:01:07 القاهرة. Preflight اجتاز تطابق الـWorker المعزول وD1 الصناعية، جميع11 flags OFF، public/preview OFF، وسياسات Access الأصلية. **أول عملية R2، GET inventory، رُفضت HTTP403 / Cloudflare error10000 بالتوكن CLOUDFLARE_API_TOKEN الحالي. توقف الكود قبل POST create.** لم يُنشأ bucket أو يُرفع object أو يُضاف binding أو Deploy. هذا رفض صلاحية Control Plane لـR2 مختلف عن HTTP1010 الذي عولج في §44، وليس دليلًا أن R2 غير مفعّل أو أن حساب الدفع غير صالح.
+
+**تنظيف مؤكد:** Workflow الخاص بـR2 أزيل في `5769f38db263133787f53bdbeb81eb294765b36d` وأغلق PR346 دون دمج. كل أدوات PR343–346 المؤقتة أزيلت من أحدث فروعها؛ Access policies/tokens لم تُغير، وworkers.dev/preview مقفولان. لم نطلب أو نُظهر أي قيمة secret، ولم نُوسّع صلاحية الحساب.
+
+**خطوة فك العائق المطلوبة:** إتاحة اعتماد R2 صالح لنفس حساب المشروع بصلاحية API `Workers R2 Storage Write` لإنشاء/قراءة إعداد حاوية Stage الخاصة المحددة `trendos-customer-stage-private-synthetic-20261103-v0`، مع التحقق أن r2.dev OFF وcustom domains فارغة. يفضّل توكن مخصص قصير العمر يُحفظ فقط في GitHub Actions secret باسم `CLOUDFLARE_R2_STAGE_API_TOKEN`، مع إبقاء توكن Worker/D1 الحالي كما هو، ثم تعديل التشغيل المؤقت لاستخدام المخصص في R2 فقط. **هذا التوكن لم يُنشأ ولم تُوسّع أي صلاحية؛ يلزم اعتماد المالك وتوفيره عبر القناة الآمنة، وليس في الشات.** مرجع API الرسمي: https://developers.cloudflare.com/api/resources/r2/subresources/buckets/methods/create/ .
+
+بعد فك صلاحية R2 نكمل ربط التخزين واختبار عميلين وهميين وعزل الملفات/الحجر والمشاهدة الخاصة، وتأهيل كاتب T12 الرسمي وبصمة الإصدار الحي. لا تُنشر أو تُفعّل واجهة الإنتاج لمجرد نجاح source tests أو جذر GET؛ P0 Backend القديم لم يتغير وNative full E2E لم يُنجز.
+
+`SOURCE_REQUEST_SAFETY=MERGED_PR347`; `PRIVATE_STAGE_SERVICE_AUTH_ROOT=PASS`; `R2_CONTROL_PLANE_AUTHORIZATION=BLOCKED_403_10000`; `STAGE_PRIVATE_R2_CREATED=NO`; `CUSTOMER_LIVE_ACTIVATION=OFF`; `CUSTOMER_PRODUCTION=NO_GO`; `PRIVATE_SITE_ACCESS=OWNER_ONLY_UNCHANGED`; `OPENAI_PAID=OFF`.
