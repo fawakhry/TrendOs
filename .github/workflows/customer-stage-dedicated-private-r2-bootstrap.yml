@@ -1,0 +1,40 @@
+name: Customer Stage dedicated private R2 bootstrap - MANUAL ONLY
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'CREATE_ONE_EMPTY_PRIVATE_CUSTOMER_STAGE_R2'
+        type: string
+        required: true
+      expected_source_sha:
+        description: 'Full reviewed workflow source SHA (must match this run)'
+        type: string
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: customer-stage-dedicated-private-r2-bootstrap
+  cancel-in-progress: false
+jobs:
+  exact-empty-private-stage-bucket:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 6b31228887f9073c1aa8c6f2c06597b194f567df
+          path: original-stage-source
+          persist-credentials: false
+      - name: Test the restricted operation without credentials or network
+        run: python3 tests/customer_stage_private_r2_bootstrap_v1.test.py
+      - name: Create exactly one empty private Stage bucket using its dedicated token
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_R2_STAGE_API_TOKEN: ${{ secrets.CLOUDFLARE_R2_STAGE_API_TOKEN }}
+          R2_STAGE_CONFIRMATION: ${{ inputs.confirmation }}
+          R2_EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+        run: python3 tools/customer_stage_private_r2_bootstrap_v1.py --execute original-stage-source
