@@ -801,4 +801,16 @@ Owner approved the WhatsApp-like blue chat reviewed on the owner-private Site, t
 
 `customer-messenger-v1.js/css` reuse the original customer markup, recipe, upload selectors, authenticated draft actions and image viewer. App hooks are presentation-only and default OFF. New view omits duplicated service/designer entry points, ads/catalogue/GPS and hypothetical design fees. Original functions remain for legacy OFF compatibility. Only explicit local blob image previews are rendered by the new view; remote file URLs are not exposed automatically. Notes, dimensions, quantity and original-image policy survive summary and storage. No staff/finance/T12/backend changes.
 
-52 local source/regression/security tests PASS; actual Chrome source-function fixture verifies typed text, dimensions, original image viewer, add-item flow, summary, order history and account cleanup, with no network. Legacy P1 partial-upload retry remains reproduced and NO_GO. See `CUSTOMER_PORTAL_UI_PROJECT_BOOK.md` §39–41 and `CUSTOMER_MESSENGER_INTEGRATION_20261103.md` for changes, QA failures/fixes and release boundaries. GitHub merge/CI evidence to follow actual outcome.
+52 local source/regression/security tests PASS; actual Chrome source-function fixture verifies typed text, dimensions, original image viewer, add-item flow, summary, order history and account cleanup, with no network. Legacy P1 partial-upload retry remains reproduced and NO_GO. See `CUSTOMER_PORTAL_UI_PROJECT_BOOK.md` §39–41 and `CUSTOMER_MESSENGER_INTEGRATION_20261103.md` for changes, QA failures/fixes and release boundaries. GitHub merge and CI evidence are recorded below after actual verification.
+
+
+## 42) إغلاق دمج واجهة المحادثة الأصلية — 2026-11-03
+
+- **الدمج منفذ فعليًا:** [PR #342](https://github.com/fawakhry/TrendOs/pull/342) → `main`، Squash SHA `fa43a5a1ca64c5e65c45978db907a8f9ebae6265`؛ Source HEAD المختبر `bb24a4579a01f0acb76cc592bb77047be2cd3a88`.
+- **CI على نفس Source HEAD:** [Customer Chat #41676225597](https://github.com/fawakhry/TrendOs/actions/runs/41676225597) SUCCESS، [Readiness NO_GO #41676225770](https://github.com/fawakhry/TrendOs/actions/runs/41676225770) SUCCESS، [P0 source #41676225774](https://github.com/fawakhry/TrendOs/actions/runs/41676225774) SUCCESS، [A61 employee dispatcher #41676225950](https://github.com/fawakhry/TrendOs/actions/runs/41676225950) SUCCESS. 52 اختبارًا محليًا وChrome source-function fixture نجحوا قبل الرفع.
+- تحققنا من تطابق Git blob SHA لكل الملفات الـ12 المرفوعة مع الملفات المختبرة محليًا، بما فيها لقطة الاختبار. لا إعادة بناء من مصدر مختلف.
+- **تنظيف الواجهة:** الشات هو المدخل الأساسي عند اعتماد flag؛ لا إعلانات أو فروع/GPS أو كتالوج أو دخول مصمم مكرر أو رسوم تصميم مفترضة في هذا العرض. IDs والمستمعات ومسارات تسجيل الدخول ورفع الملفات وإضافة البند والإرسال الأصلية محفوظة؛ لا Backend أو fixture بديل.
+- **حدود حقيقية:** `TRENDOS_CUSTOMER_CHAT_V1_ENABLED` بقي OFF في الإعدادات. لا تغيير Code.gs/config/D1/R2/كاتب T12/الحسابات أو صلاحيات Sites؛ ولم يُنفذ Deploy Cloudflare. مشاكل Backend القديمة P0/P1 واختبار Access 403 ما زالت مانعة لإطلاق العملاء. نجاح CI حارس NO_GO لا يحوله إلى GO.
+- **نقطة الاستكمال:** مصدر الواجهة أصبح في main. تأهيل Native النقل الخاص والمرفقات والأوردر الرسمي ومقارنة بصمة أصل Worker الحي جزء من إصدار لاحق مستقل؛ لا تستبدل app.js الحي أو فرع T12 candidate تلقائيًا بنسخة main. معاينة Site الخاصة v2 تبقى للمراجعة ببيانات وهمية وحساب المالك فقط.
+
+`CUSTOMER_MESSENGER_SOURCE=MERGED`; `CUSTOMER_LIVE_ACTIVATION=OFF`; `CUSTOMER_GO_LIVE=NO_GO`; `OPENAI_PAID=OFF`.
