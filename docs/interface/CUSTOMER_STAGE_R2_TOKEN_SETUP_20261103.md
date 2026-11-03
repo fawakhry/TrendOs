@@ -29,3 +29,8 @@ An account administrator can complete the following in their normal authenticate
 11 synthetic tests execute actual helper functions and cover plan-only behavior, missing/separate credentials, incorrect manual context, forbidden storage/ACL/deletion operations, the original 403/10000 condition stopping before create, existing-name rejection, private successful create, public-domain rejection, redirects and the original-source pin. This is not remote R2 success; this execution workflow has **NOT RUN** with a dedicated credential yet.
 
 A new empty private bucket is only the next Stage prerequisite. Native two-account login/draft/private-media E2E, scanner/private viewer and original T12 official-order handoff still need qualification before any customer production activation. Owner-private Sites and paid AI remain unchanged/OFF.
+
+
+## Verified source checkpoint
+
+[PR348](https://github.com/fawakhry/TrendOs/pull/348) merged to main at `a058653c8a394821e66571960f44ca15205566f1`, tested source `cce86a627d6e2098da026b0007a1de6554fc3121`. Source Actions chat41695917100, readiness41695917092 and P0 mocks41695917087 succeeded; readiness includes all11 Python tests. A separate existing tasks-v3-t1-preview Workers Builds check fails on both source and base; no claim that all external checks passed. The manual provisioning workflow was not dispatched and no dedicated secret or bucket exists from this work. Any later documentation-only main SHA differs: read/verify the full workflow source SHA at dispatch rather than copying this merge SHA blindly.
