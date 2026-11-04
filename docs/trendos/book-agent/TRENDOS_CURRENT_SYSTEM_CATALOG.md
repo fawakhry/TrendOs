@@ -368,6 +368,21 @@
 **الخلاصة:** شرط القسم والأولوية **موجودان في كود الخادم**؛ شرط موعد التسليم في نفس اليوم **غير مثبت ومحل تعارض محتمل في fallback المصدر**. لا تعديل لمنطق التشغيل أو قاعدة البيانات في هذه الجولة، والمطلوب التحقق قبل اعتبار الخاصية مكتملة.
 
 
+## 12.5 إصلاح ثبات موعد التسليم — 4 نوفمبر 2026
+
+### OWNER-20261104-ORDER-DELIVERY-DATE-IMMUTABILITY — علاج الانجراف اليومي لموعد تسليم الأوردر
+- **أمر المالك المباشر 2026-11-04:** «صلح وسجله فى الكتاب الموحد». هذا اعتماد محدد لتوثيق الحادثة في هذا القسم، **لا يعني** رفع تجميد بقية الكتاب الموحد أو اعتماد نشر Backend/Production بلا تحقق. اتُّبع COPY→VERIFY→REMOVE للمدخل من الكتاب القديم إلى الموحد، ولا يجوز مساواة المصدر بالحالة الحية.
+- **العَرَض:** كل صباح يظهر موعد التسليم المتوقع للأوردر متأخرًا يومًا آخر، دون طلب تأجيل موثق من العميل.
+- **سبب مصدر مؤكد (مسار العرض):** `app.js:displayExpectedDelivery` كان يستخدم `expectedDeliveryTextFromNow()` (= اليوم + يومين) عندما يغيب `expectedDeliveryText/At`. لذلك **العرض** يتحرك يومًا كل صباح إذا جاءت حقول التاريخ فارغة؛ ليس دليلًا أن صف قاعدة البيانات نفسه تغير.
+- **سبب مصدر محتمل مستقل (مسار الكتابة Legacy):** `Code.gs:trendosV1922TouchOpenOrder_` كان يكتب `تاريخ الاستلام` و`تاريخ التسليم المتوقع` على صفوف الأوردر وبنوده عند إضافة بند إلى أوردر مفتوح في عمر 1–2 يوم. هذا تغيير فعلي مشروط بحدث إضافة بند؛ **ليس** trigger يومي مثبت.
+- **المُنجز والمُدمج في main:** [PR #351](https://github.com/fawakhry/TrendOs/pull/351) MERGED، commit [`4402a8067e3d4a2f01d70d2ce3d54fdbfa5eedf4`](https://github.com/fawakhry/TrendOs/commit/4402a8067e3d4a2f01d70d2ce3d54fdbfa5eedf4). تغييرات `app.js`: يعرض فقط التاريخ المخزن، وإلا `غير محدد` بدل موعد متجدد؛ كذلك استجابة إنشاء أوردر بلا تاريخ لا تختلق اليوم + يومين. لا تغييرات في أوردرات/شيتات/عملاء الإنتاج.
+- **الاختبارات المثبتة:** `tests/order_delivery_display_stable.test.cjs` محاكاة تواريخ 2026-11-04 و05 و20، تاريخ محفوظ/ناقص، وإنشاء بدون تاريخ؛ [GitHub Actions #41794038071](https://github.com/fawakhry/TrendOs/actions/runs/41794038071) = SUCCESS. فحوصات أمن واجهة العميل وNO-GO Audit في نفس PR = SUCCESS؛ هذا لا يثبت GO حقيقيًا.
+- **مرشح Backend غير مدمج:** [Draft PR #350](https://github.com/fawakhry/TrendOs/pull/350) source branch `fix/order-delivery-date-drift-20261104` يعدل `Code.gs` لتعطيل إعادة جدولة الأوردر عند إعادة استخدامه، ويضيف اختبار [#41793860004](https://github.com/fawakhry/TrendOs/actions/runs/41793860004) = SUCCESS. لكن حارس [T12 A61 #41793859981](https://github.com/fawakhry/TrendOs/actions/runs/41793859981) = FAILURE نتيجة حدود `Code.gs` المحمية. **لا يُدمج ولا تُعطّل الحماية** حتى تحديد مالك ومسار نشر Legacy المعتمد وإعادة الاختبار.
+- **فجوة Cloud Native منفصلة:** فحص `candidate/t12-full-cloud-cutover-a56-20260929/cloudflare-d1/src/t12-general-create.mjs` يبين أن INSERT لأوردر `t12_prod_orders` وبنوده لا يحمل `expected_delivery` صراحةً في الموضع المفحوص؛ يلزم تأهيل writer/reader/date policy وإثبات DB readback قبل الإعلان أن T12 يحفظ وعد التسليم أصلًا. لا يُصلح ذلك بتخمين تاريخ من المتصفح.
+- **حالة Runtime/الإصدار:** `FRONTEND_MAIN_SOURCE=MERGED`؛ `FRONTEND_GITHUB_ACTIONS=PASS`؛ `LEGACY_BACKEND_SOURCE=DRAFT_BLOCKED_A61`؛ `CLOUDFLARE_DEPLOYED_ASSET_PARITY=UNVERIFIED`؛ `T12_PERSISTED_DELIVERY_CONTRACT=UNVERIFIED`؛ `PRODUCTION_ORDER_DATA_CHANGED=NO`؛ `FULL_LIVE_FIX=NOT_YET_PROVEN`.
+- **الإكمال المقيد:** تحقق read-only من أصول Cloudflare المنشورة وبصماتها، ثم صلاحية تفعيل الواجهة بالـrollback؛ أصلح عقد T12 عبر فرع المالك مع اختبارات date/timezone/immutability؛ وجد مسار Backend مصرحًا لتغيير Legacy المحمي، ثم شاهد أوردرًا وهميًا مؤرخًا في أيام متتابعة وقارن DB vs UI. لا تُعدل تواريخ قديمة جماعيًا بلا backup + مراجعة صريحة من المالك.
+
+
 ---
 
 # 13. مسار Pagination: من شاشة الأوردرات إلى D1 ونتيجة الصفحة (16 أكتوبر 2026)
