@@ -1142,3 +1142,7 @@ Verified deployed `57b43cd5-cdb0-4a76-b245-bdcf16305651` at100%, baseline `eba1c
 ### OWNER-20261104-ORDER-DELIVERY-DATE-IMMUTABILITY — تم الترحيل المراجَع إلى الكتاب الموحد
 - `COPY→VERIFY→REMOVE=PASS`؛ القسم الكامل محفوظ دون تعديل في [الكتاب الموحد §12.5](https://github.com/fawakhry/TrendOs/blob/agent/trendos-book-audit-v1-20261014/docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md) على commit `c85eb4d21cd50f0992f44b828b5a040e59b6d11c`، طول النص 3329 حرفًا، والتحقق قبل حذف النسخة المرحلية PASS. الكتاب القديم يظل ACTIVE_WRITE لباقي المحتوى؛ هذا طلب توثيق محدد من المالك ولا يرفع تجميد الكتاب كله.
 - الإصلاح المدمج Frontend PR351 فقط؛ إصلاح Backend في Draft PR350 محجوز بواسطة A61؛ Cloudflare live parity غير مثبت.
+
+### OWNER-20261104-ORDER-NOV1-INCIDENT — Unified §12.6
+- أُضيفت متابعة حادثة «جميع مواعيد التسليم 1 نوفمبر» إلى [الكتاب الموحد §12.6](https://github.com/fawakhry/TrendOs/blob/agent/trendos-book-audit-v1-20261014/docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md) بأمر المالك ضمن نفس نطاق إصلاح موعد التسليم. لُخّصت هنا للحفاظ على سجل ACTIVE_WRITE؛ تفاصيل المصدر والتحقق في الموحد.
+- Issue #353 OPEN؛ PR352 Draft/Source CI PASS؛ Cloudflare منشور قديم؛ تاريخ D1 الحديث غير مقروء؛ عدم تغيير أي موعد بقاعدة البيانات. لا اعتماد Full Live Fix.
