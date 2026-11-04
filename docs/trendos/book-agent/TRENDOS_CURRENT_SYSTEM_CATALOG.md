@@ -383,6 +383,18 @@
 - **الإكمال المقيد:** تحقق read-only من أصول Cloudflare المنشورة وبصماتها، ثم صلاحية تفعيل الواجهة بالـrollback؛ أصلح عقد T12 عبر فرع المالك مع اختبارات date/timezone/immutability؛ وجد مسار Backend مصرحًا لتغيير Legacy المحمي، ثم شاهد أوردرًا وهميًا مؤرخًا في أيام متتابعة وقارن DB vs UI. لا تُعدل تواريخ قديمة جماعيًا بلا backup + مراجعة صريحة من المالك.
 
 
+## 12.6 حادثة عرض 1 نوفمبر لجميع الأوردرات — متابعة 4 نوفمبر 2026
+
+- **بلاغ المالك:** «ميعاد التسليم بق كله 1 نوفمبر». العرض المرئي لجميع الأوردرات بتاريخ 2026-11-01 **بلاغ ولم يُتحقق من قيم D1 الحية**. لا يجوز افتراض أن مواعيد التسليم المخزنة تغيّرت أو إجراء تصحيح جماعي.
+- **تدقيق أصول الواجهات مباشرة read-only:** GitHub Pages `fawakhry.github.io/TrendOs/app.js` يحتوي PR351؛ Cloudflare `trendos-ui.trendmall-contact.workers.dev/app.js` ما زال يستخدم `expectedDeliveryTextFromNow()` القديم. يثبت `CLOUDFLARE_ASSET_NOT_UPDATED_TO_PR351`. لا يُفسّر وحده ثبات 1 نوفمبر لأنه يحسب اليوم+2 فقط عند تاريخ مفقود.
+- **تدقيق Google Sheets التاريخي المتصل read-only:** ملف `TrendOS_Operations_CLEAN_START_CUSTOMERS_ONLY` (اسم فقط؛ لا نشر ID/عميل) يحتوي عمودي `تاريخ التسليم المتوقع` و`الوقت المتوقع`. في `بنود الأوردرات` 250 زوجًا مملوءًا، 65 اختلافًا حقيقيًا بعد تسوية صيغة التاريخ؛ توجد ثلاثة رؤوس `الوقت المتوقع` (اثنان فارغان، الأخير يحوي قيمًا) وفي `الأوردرات` 221 زوجًا مع 69 اختلافًا خامًا بين نصوص/تواريخ. لم يرد 2026-11-01 في الأعمدة المراجعة تاريخيًا، وآخر سجلاتها في سبتمبر؛ لذلك **لا تُعتبر مصدر أوردرات نوفمبر الحالي**. المنطقة الزمنية لهذا الشيت `America/Los_Angeles` مقابل تشغيل `Africa/Cairo` مخاطرة إضافية للفحص وليست دليلًا على سبب يوم 1.
+- **سبب محتمل مدعوم بالمصدر:** `app.js` يقدّم `expectedDeliveryText` على `expectedDeliveryAt` حتى لو تعارض النص مع التاريخ الأساسي. `cloudflare-d1/src/edge-orders-read-v1.mjs` يوفر الحقلين من مرآة البنود؛ لذلك الاختلاف يمكن أن يظهر للموظف. لا نستنتج أن هذا يفسر **كل** أوردرات نوفمبر قبل تحقق readback D1.
+- **مرشح التصحيح:** [Draft PR352](https://github.com/fawakhry/TrendOs/pull/352) مصدر frontend فقط، يقدّم `expectedDeliveryAt` على `expectedDeliveryText` ويحافظ على علامة `نفس اليوم`. الاختبارات: [#41795337636](https://github.com/fawakhry/TrendOs/actions/runs/41795337636) PASS، [#41795337594](https://github.com/fawakhry/TrendOs/actions/runs/41795337594) PASS بعد تحديث اختبار PR351؛ لا دمج/نشر حتى إثبات أي حقل يحمل الوعد الأصلي المتفق عليه.
+- **تذكرة P0:** [Issue #353](https://github.com/fawakhry/TrendOs/issues/353) مع الأعراض والدليل وخطة التحقق، دون أي كتابة في الأوردرات.
+- **بوابة الإغلاق:** تحصيل مثالين برقمَي أوردر وتاريخَي الوعد الأصلي، مقارنة `UI → D1 rows.expectedDeliveryAt/Text → Google المصدر الصحيح → activity log` بقراءة فقط ومرجع نشر حي، ثم إصدار محدود ذي rollback وإعادة فحص ثبات التاريخ عبر الأيام. ممنوع bulk rewrite أو اعتبار مجرد green CI إصلاح إنتاج.
+- **الحالة:** `NOV1_ALL_OWNER_REPORTED`، `SOURCE_COLUMN_MISMATCH_CONFIRMED_HISTORICAL`، `ROOT_CAUSE_RUNTIME=UNVERIFIED`، `PR352=DRAFT_SOURCE_TESTED`، `PRODUCTION_DATA_MUTATED=NO`، `CLOUDFLARE_RELEASE=NOT_DONE`.
+
+
 ---
 
 # 13. مسار Pagination: من شاشة الأوردرات إلى D1 ونتيجة الصفحة (16 أكتوبر 2026)
