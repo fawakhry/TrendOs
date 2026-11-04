@@ -344,9 +344,11 @@
   }
 
   function displayExpectedDelivery(row) {
+    // Never invent a moving delivery promise from the current day for an existing order.
+    // A missing persisted deadline must remain visibly unknown until corrected at source.
     return formatDisplayDate(row.expectedDeliveryText) ||
       formatDisplayDate(row.expectedDeliveryAt || row.expectedDelivery) ||
-      expectedDeliveryTextFromNow();
+      "غير محدد";
   }
 
   function parseRowDate(value) {
@@ -430,10 +432,6 @@
     const d = new Date(date.getTime());
     d.setDate(d.getDate() + days);
     return d;
-  }
-
-  function expectedDeliveryTextFromNow() {
-    return addDays(new Date(), 2).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
   }
 
   function buildWhatsAppMessage(row, mode) {
@@ -5833,7 +5831,7 @@ Trend Mall`;
         return;
       }
 
-      const expectedText = formatDisplayDate(res.expectedDeliveryText) || formatDisplayDate(res.expectedDeliveryAt) || expectedDeliveryTextFromNow();
+      const expectedText = formatDisplayDate(res.expectedDeliveryText) || formatDisplayDate(res.expectedDeliveryAt) || "غير محدد";
       const resDebtInfo = res.debtInfo || {};
       const resDebtAmount = numericAmount(res.debtAmount || resDebtInfo.amount || 0);
       const resHasDebt = !external && (res.debtHold === "نعم" || resDebtInfo.hasDebt || resDebtAmount > 0);

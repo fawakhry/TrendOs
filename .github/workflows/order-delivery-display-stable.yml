@@ -1,0 +1,23 @@
+name: Order delivery display date regression
+
+on:
+  pull_request:
+    paths:
+      - 'app.js'
+      - 'tests/order_delivery_display_stable.test.cjs'
+      - '.github/workflows/order-delivery-display-stable.yml'
+  push:
+    branches:
+      - 'fix/order-delivery-display-stable-20261104'
+permissions:
+  contents: read
+jobs:
+  delivery-display-stable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify delivery dates are immutable on display
+        run: node --test tests/order_delivery_display_stable.test.cjs
