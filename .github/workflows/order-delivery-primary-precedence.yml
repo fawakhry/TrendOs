@@ -1,0 +1,22 @@
+name: TrendOS canonical delivery date precedence regression
+
+on:
+  pull_request:
+    paths:
+      - 'app.js'
+      - 'tests/order_delivery_primary_precedence.test.cjs'
+      - '.github/workflows/order-delivery-primary-precedence.yml'
+  push:
+    branches:
+      - 'fix/order-delivery-primary-date-precedence-20261104'
+permissions:
+  contents: read
+jobs:
+  date-precedence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/order_delivery_primary_precedence.test.cjs
