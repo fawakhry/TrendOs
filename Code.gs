@@ -11248,24 +11248,9 @@ function trendosV1923OpenOrderMessage_(openOrder, requestedDepartment) {
 }
 
 function trendosV1922TouchOpenOrder_(orders, lines, orderId, now) {
-  const expected = expectedDeliveryDate_(now);
-  [orders, lines].forEach(function(sheet){
-    if (!sheet || sheet.getLastRow() < 2) return;
-    const h = headersMap_(sheet);
-    const colOrder = firstCol_(h, ["رقم الأوردر", "Order ID"], 1);
-    const colReceived = firstCol_(h, ["تاريخ الاستلام", "Received At"], 0);
-    const colExpected = firstCol_(h, ["تاريخ التسليم المتوقع", "موعد التسليم المتوقع", "Expected Delivery"], 0);
-    const colUpdated = firstCol_(h, ["آخر تحديث", "Updated At"], 0);
-    if (!colOrder) return;
-    const ids = sheet.getRange(2, colOrder, sheet.getLastRow() - 1, 1).getValues();
-    ids.forEach(function(row, index){
-      if (normalize_(row[0]) !== orderId) return;
-      const rowNumber = index + 2;
-      if (colReceived) sheet.getRange(rowNumber, colReceived).setValue(now);
-      if (colExpected) sheet.getRange(rowNumber, colExpected).setValue(expected);
-      if (colUpdated) sheet.getRange(rowNumber, colUpdated).setValue(now);
-    });
-  });
+  // Compatibility guard: do not change an existing order's received/delivery dates.
+  // Adding a new line is not an authorized customer delivery reschedule.
+  return { changed: false, reason: 'delivery-date-immutable' };
 }
 
 function trendosV1922NextLineNumber_(lines, orderId) {
@@ -11386,9 +11371,9 @@ function createManualOrder_(e) {
     return { success: false, version: "V1926_BULK_STATUS", duplicateBlocked: true, openOrder: openOrder, orderId: openOrder.orderId, message: trendosV1923OpenOrderMessage_(openOrder, department) };
   }
   const reusedOrder = !!openOrder;
-  const dateMoved = !!(openOrder && openOrder.ageDays >= 1 && openOrder.ageDays <= 2);
+  // A reused order retains its originally agreed delivery date. Never roll it forward.
+  const dateMoved = false;
   const orderId = reusedOrder ? openOrder.orderId : makeOrderId_(lines, now, true);
-  if (dateMoved) trendosV1922TouchOpenOrder_(orders, lines, orderId, now);
   const firstLineNumber = reusedOrder ? trendosV1922NextLineNumber_(lines, orderId) : 1; // V1932: مصدر الحقيقة هو الشيت لمنع إعادة استخدام Line ID قديم.
 
   let departments = [];

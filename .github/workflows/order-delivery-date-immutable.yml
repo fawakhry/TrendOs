@@ -1,0 +1,29 @@
+name: Order delivery date immutability regression
+
+on:
+  pull_request:
+    paths:
+      - 'app.js'
+      - 'Code.gs'
+      - 'tests/order_delivery_date_immutable.test.cjs'
+      - '.github/workflows/order-delivery-date-immutable.yml'
+  push:
+    branches:
+      - 'fix/order-delivery-date-drift-20261104'
+    paths:
+      - 'app.js'
+      - 'Code.gs'
+      - 'tests/order_delivery_date_immutable.test.cjs'
+      - '.github/workflows/order-delivery-date-immutable.yml'
+permissions:
+  contents: read
+jobs:
+  immutable-date:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify dates are not re-derived from today
+        run: node --test tests/order_delivery_date_immutable.test.cjs
