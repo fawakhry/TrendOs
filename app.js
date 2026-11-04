@@ -344,11 +344,15 @@
   }
 
   function displayExpectedDelivery(row) {
-    // Never invent a moving delivery promise from the current day for an existing order.
-    // A missing persisted deadline must remain visibly unknown until corrected at source.
-    return formatDisplayDate(row.expectedDeliveryText) ||
-      formatDisplayDate(row.expectedDeliveryAt || row.expectedDelivery) ||
-      "غير محدد";
+    // The canonical delivery date takes precedence over legacy free-text "الوقت المتوقع",
+    // which can be stale or contradictory. Never derive an existing deadline from today.
+    row = row || {};
+    const primary = formatDisplayDate(row.expectedDeliveryAt || row.expectedDelivery);
+    const note = text(row.expectedDeliveryText || "").trim();
+    if (primary) {
+      return /نفس اليوم/.test(note) ? (primary + " - نفس اليوم") : primary;
+    }
+    return formatDisplayDate(note) || "غير محدد";
   }
 
   function parseRowDate(value) {
@@ -3406,7 +3410,7 @@ Trend Mall`;
     if (messenger && messenger.renderOrders(rows.map(function (row) {
       return {orderId: row.orderId, itemName: row.itemName, department: row.department,
         displayStatus: publicStatus(row.status), notes: row.notes,
-        deliveryText: formatDisplayDate(row.expectedDeliveryText || row.expectedDeliveryAt || row.expectedDelivery)};
+        deliveryText: displayExpectedDelivery(row)};
     }))) return;
     if (!rows.length) {
       list.innerHTML = '<div class="dash-empty">لا توجد أوردرات مسجلة على كود الشات حتى الآن.</div>';
@@ -3417,7 +3421,7 @@ Trend Mall`;
         '<div class="customer-order-head"><b>أوردر ' + escapeHtml(r.orderId || "-") + '</b><span>' + escapeHtml(publicStatus(r.status)) + '</span></div>' +
         '<div class="muted-line">القسم: ' + escapeHtml(r.department || "-") + '</div>' +
         '<div class="muted-line">نوع الشغل: ' + escapeHtml(r.itemName || "-") + '</div>' +
-        '<div class="muted-line">التسليم المتوقع: ' + escapeHtml(formatDisplayDate(r.expectedDeliveryText || r.expectedDeliveryAt || r.expectedDelivery) || "-") + '</div>' +
+        '<div class="muted-line">التسليم المتوقع: ' + escapeHtml(displayExpectedDelivery(r)) + '</div>' +
         (r.notes ? '<div class="customer-note">' + escapeHtml(r.notes) + '</div>' : '') +
       '</div>';
     }).join("");
@@ -5831,7 +5835,7 @@ Trend Mall`;
         return;
       }
 
-      const expectedText = formatDisplayDate(res.expectedDeliveryText) || formatDisplayDate(res.expectedDeliveryAt) || "غير محدد";
+      const expectedText = displayExpectedDelivery(res);
       const resDebtInfo = res.debtInfo || {};
       const resDebtAmount = numericAmount(res.debtAmount || resDebtInfo.amount || 0);
       const resHasDebt = !external && (res.debtHold === "نعم" || resDebtInfo.hasDebt || resDebtAmount > 0);
