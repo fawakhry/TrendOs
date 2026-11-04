@@ -1146,3 +1146,7 @@ Verified deployed `57b43cd5-cdb0-4a76-b245-bdcf16305651` at100%, baseline `eba1c
 ### OWNER-20261104-ORDER-NOV1-INCIDENT — Unified §12.6
 - أُضيفت متابعة حادثة «جميع مواعيد التسليم 1 نوفمبر» إلى [الكتاب الموحد §12.6](https://github.com/fawakhry/TrendOs/blob/agent/trendos-book-audit-v1-20261014/docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md) بأمر المالك ضمن نفس نطاق إصلاح موعد التسليم. لُخّصت هنا للحفاظ على سجل ACTIVE_WRITE؛ تفاصيل المصدر والتحقق في الموحد.
 - Issue #353 OPEN؛ PR352 Draft/Source CI PASS؛ Cloudflare منشور قديم؛ تاريخ D1 الحديث غير مقروء؛ عدم تغيير أي موعد بقاعدة البيانات. لا اعتماد Full Live Fix.
+
+### OWNER-20261104-ORDER-D1-CREATION-READBACK — Unified §12.7
+- قراءة D1 من صورة المالك أثبتت أوقات إنشاء الأوردرات 5685 و5724 و5741 و5743 و5744؛ التفاصيل الدقيقة محفوظة بـ[الكتاب الموحد §12.7](https://github.com/fawakhry/TrendOs/blob/agent/trendos-book-audit-v1-20261014/docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md) على commit `de955aff7833ac6c3c1d9350e943f28ed0f71495`.
+- حقل موعد التسليم غير موجود في `t12_prod_orders` المصدرية، وصفوف native overlay تترك الموعد فارغًا. `CREATED_AT_VERIFIED`، `DUE_DATE_NOT_PROVEN`، `NO_PRODUCTION_WRITE`.
