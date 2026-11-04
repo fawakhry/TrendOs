@@ -395,6 +395,21 @@
 - **الحالة:** `NOV1_ALL_OWNER_REPORTED`، `SOURCE_COLUMN_MISMATCH_CONFIRMED_HISTORICAL`، `ROOT_CAUSE_RUNTIME=UNVERIFIED`، `PR352=DRAFT_SOURCE_TESTED`، `PRODUCTION_DATA_MUTATED=NO`، `CLOUDFLARE_RELEASE=NOT_DONE`.
 
 
+## 12.7 قراءة D1 المؤكدة للأوردرات 5685 و5724 و5741 و5743 و5744
+
+- **قراءة موثقة بتاريخ 2026-11-04:** أرسل المالك صورة من Cloudflare D1 Console لتنفيذ استعلام `SELECT order_id,created_at,datetime(created_at,'+2 hours')...` على جدول `t12_prod_orders` في `trendos-main`. النتائج الفعلية (`created_at` UTC / تحويل القاهرة +02:00):
+  - `5685`: 2026-11-01 15:40:11 UTC = 2026-11-01 17:40:11 القاهرة.
+  - `5724`: 2026-11-01 14:14:09 UTC = 2026-11-01 16:14:09 القاهرة.
+  - `5741`: 2026-11-02 18:49:04 UTC = 2026-11-02 20:49:04 القاهرة.
+  - `5743`: 2026-11-02 18:59:22 UTC = 2026-11-02 20:59:22 القاهرة.
+  - `5744`: 2026-11-02 19:02:22 UTC = 2026-11-02 21:02:22 القاهرة.
+- **حد الدليل:** الاستعلام يؤكد **وقت إنشاء الأوردر**، وليس `expected_delivery` ولا أي وعد تسليم متفق عليه. ظهور 1 نوفمبر للجميع على UI يتعارض مع اختلاف تواريخ إنشاء الأوردرات، لكنه لا يثبت أن قاعدة D1 كتبت موعد التسليم 1 نوفمبر.
+- **عقد المصدر T12:** `cloudflare-d1/migrations/0005_t12_production_create_canary.sql` يحوي `t12_prod_orders.created_at` و`t12_prod_lines.created_at/fly_print` **ولا يحوي تاريخ تسليم متوقع**. `cloudflare-d1/src/t12-read-overlay.mjs` يرجع `expectedDeliveryAt:''` و`expectedDeliveryText:''` لصفوف Cloud-native، وبالتالي موعد التسليم **غير محفوظ** في مسار T12 هذا. هذا نقص عقد Persistence صريح يتطلب حلًا، ولا يصح اعتماد fallback من ساعة المتصفح ولا تحويل وقت الإنشاء إلى وعد عميل دون تحقق من حالة الاستثناءات.
+- **اشتقاق غير ملزم للمراجعة فقط:** سياسة Legacy `expectedDeliveryDate_(createdAt)` = تاريخ إنشاء + يومين، وطباعة على الطاير نفس اليوم. لو ثبتت السياسة على T12 الحالي ولم يوجد أي تعديل/استثناء؛ الأوامر المنشأة 1 نوفمبر ستكون 3 نوفمبر، والمنشأة 2 نوفمبر ستكون 4 نوفمبر؛ **لا تُدرج هذه التواريخ كالتزامات تسليم ولا تُكتب إلى D1** قبل فحص `t12_prod_lines.fly_print` وسجل أي تعديل خاص.
+- **استعلام فحص لاحق read-only:** `SELECT o.order_id,l.line_id,l.fly_print,o.created_at,l.created_at FROM t12_prod_orders o LEFT JOIN t12_prod_lines l ON l.order_id=o.order_id WHERE o.order_id IN ('5685','5724','5741','5743','5744') ORDER BY o.order_id,l.ordinal;`. يليه تأهيل أعمدة موعد التسليم الجديدة مع source-of-truth واضح ودليل انعدام محو التواريخ القديمة. لا تطلب أسماء أو هواتف العملاء في التشخيص.
+- **الحالة:** `D1_ORDER_CREATED_AT_SCREENSHOT_VERIFIED`, `ORDER_PROMISED_DUE_AT=UNKNOWN_NOT_PERSISTED_IN_T12_SCHEMA`, `NOV1_UI_BUG_REMAINS`, `PROD_DB_MUTATIONS=NONE`, `ISSUE_353=OPEN`, `PR_352=DRAFT`, `CLOUDFLARE_RELEASE=UNVERIFIED`.
+
+
 ---
 
 # 13. مسار Pagination: من شاشة الأوردرات إلى D1 ونتيجة الصفحة (16 أكتوبر 2026)
