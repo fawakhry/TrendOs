@@ -63,6 +63,15 @@ async function customerLaneClaimReady(db){
     return !!found;
   }catch{return false;}
 }
+async function deliverySchemaReady(db){
+  try{
+    const order=await db.prepare("SELECT 1 FROM pragma_table_info('t12_prod_orders') WHERE name='expected_delivery_date' LIMIT 1").first();
+    const line=await db.prepare("SELECT 1 FROM pragma_table_info('t12_prod_lines') WHERE name='expected_delivery_date' LIMIT 1").first();
+    const orderSource=await db.prepare("SELECT 1 FROM pragma_table_info('t12_prod_orders') WHERE name='expected_delivery_source' LIMIT 1").first();
+    const lineSource=await db.prepare("SELECT 1 FROM pragma_table_info('t12_prod_lines') WHERE name='expected_delivery_source' LIMIT 1").first();
+    return !!(order&&line&&orderSource&&lineSource);
+  }catch{return false;}
+}
 async function readback(db,orderId){
   const id=text(orderId);
   if(!id)return {success:false,code:'order-id-required'};
@@ -101,7 +110,8 @@ export async function handleT12GeneralCreateRequest(req,env){
     const ctl=await control(env.DB);
     const guardReady=await duplicateGuardReady(env.DB);
     const laneReady=await customerLaneClaimReady(env.DB);
-    const schemaReady=!!ctl&&text(ctl.marker)==='T12_GENERAL_CREATE_V1'&&guardReady&&laneReady;
+    const dateReady=await deliverySchemaReady(env.DB);
+    const schemaReady=!!ctl&&text(ctl.marker)==='T12_GENERAL_CREATE_V1'&&guardReady&&laneReady&&dateReady;
     return json({
       success:schemaReady,
       service:'t12-general-create',
@@ -109,6 +119,7 @@ export async function handleT12GeneralCreateRequest(req,env){
       schemaReady,
       duplicateGuardReady:guardReady,
       customerLaneClaimReady:laneReady,
+      deliverySchemaReady:dateReady,
       mode:schemaReady?text(ctl.mode):'UNKNOWN',
       canaryRemaining:schemaReady?Number(ctl.canaryRemaining||0):0,
       nextOrderNumber:schemaReady?Number(ctl.nextOrderNumber||0):0,
@@ -130,6 +141,7 @@ export async function handleT12GeneralCreateRequest(req,env){
   if(!ctl||text(ctl.marker)!=='T12_GENERAL_CREATE_V1')return json({success:false,code:'general-create-schema-unavailable'},503,req,env);
   const mode=text(ctl.mode);
   if(mode==='OFF')return json({success:false,code:'general-create-off',mode,generalCutover:false},423,req,env);
+  if(!await deliverySchemaReady(env.DB))return json({success:false,code:'expected-delivery-schema-not-migrated'},503,req,env);
 
   const role=text(a.payload&&a.payload.role).toLowerCase();
   const isCanary=mode==='CANARY';
