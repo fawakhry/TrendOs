@@ -350,7 +350,10 @@
     const primary = formatDisplayDate(row.expectedDeliveryAt || row.expectedDelivery);
     const note = text(row.expectedDeliveryText || "").trim();
     if (primary) {
-      return /نفس اليوم/.test(note) ? (primary + " - نفس اليوم") : primary;
+      const sameDay = /نفس اليوم/.test(note) ? " - نفس اليوم" : "";
+      const policyEstimate = row.deliveryDateSource === "policy-derived-legacy-unverified"
+        ? " (محسوب حسب سياسة النظام)" : "";
+      return primary + sameDay + policyEstimate;
     }
     return formatDisplayDate(note) || "غير محدد";
   }
