@@ -20,6 +20,7 @@ test('canonical expectedDeliveryAt wins over contradictory legacy expectedDelive
   for(const today of ['2026-11-04','2026-11-05','2026-11-15']){
     const display=displayWith(today);
     assert.equal(display({expectedDeliveryAt:'2026/11/07',expectedDeliveryText:'2026/11/01'}),'2026/11/07');
+    assert.equal(display({expectedDeliveryAt:'2026/11/07',expectedDeliveryText:'2026/11/01',deliveryDateSource:'policy-derived-legacy-unverified'}),'2026/11/07 (محسوب حسب سياسة النظام)');
     assert.equal(display({expectedDeliveryAt:'2026/11/07',expectedDeliveryText:'2026/11/07 - نفس اليوم'}),'2026/11/07 - نفس اليوم');
     assert.equal(display({expectedDeliveryText:'2026/11/01'}),'2026/11/01');
     assert.equal(display({receivedAt:'2026/11/03'}),'غير محدد');
