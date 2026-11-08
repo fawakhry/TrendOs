@@ -1,0 +1,28 @@
+name: Print and Laser Operational Queue Regression
+on:
+  pull_request:
+    paths:
+      - app.js
+      - cloudflare-d1/src/edge-orders-read-02cr-canary.mjs
+      - cloudflare-d1/src/t12-read-overlay.mjs
+      - tests/operational_queue_print_laser_v1.test.mjs
+      - .github/workflows/operational-queue-print-laser-v1.yml
+  push:
+    branches: [fix/t12-print-laser-operational-queue-20261108]
+permissions: {contents: read}
+jobs:
+  queue:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Validate priority queues and native deadlines
+        run: |
+          node --check app.js
+          node --test tests/operational_queue_print_laser_v1.test.mjs
+          node tests/cloudflare_edge_orders_operational_ordering_02cs.test.mjs
+          node tests/cloudflare_edge_orders_02cr_canary.test.mjs
+          node tests/t12_read_overlay.test.mjs
+          node tests/t12_read_overlay_handler.test.mjs
+          node tests/frontend_order_status_ux_02cv.test.mjs
