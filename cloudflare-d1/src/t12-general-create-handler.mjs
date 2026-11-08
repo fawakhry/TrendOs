@@ -70,13 +70,17 @@ async function readback(db,orderId){
     SELECT order_id AS orderId,request_key AS requestKey,customer_mode AS customerMode,
            customer_name AS customerName,customer_phone AS customerPhone,
            external_customer_id AS externalCustomerId,department,priority,status,source,notes,
-           actor,created_at AS createdAt,updated_at AS updatedAt
+           actor,expected_delivery_date AS expectedDeliveryDate,
+           expected_delivery_source AS deliveryDateSource,
+           created_at AS createdAt,updated_at AS updatedAt
       FROM t12_prod_orders WHERE order_id=? LIMIT 1
   `).bind(id).first();
   if(!order)return {success:false,code:'order-not-found'};
   const lines=await db.prepare(`
     SELECT line_id AS lineId,ordinal,department,assigned_to AS assignedTo,item_name AS itemName,
            qty,priority,status,heat_press AS heatPress,fly_print AS flyPrint,
+           expected_delivery_date AS expectedDeliveryDate,
+           expected_delivery_source AS deliveryDateSource,
            created_at AS createdAt,updated_at AS updatedAt
       FROM t12_prod_lines WHERE order_id=? ORDER BY ordinal
   `).bind(id).all();
