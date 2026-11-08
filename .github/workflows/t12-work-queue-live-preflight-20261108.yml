@@ -1,0 +1,68 @@
+name: T12 Work Queue - Live read-only deployment preflight 20261108
+on:
+  push:
+    branches: [fix/t12-print-laser-operational-queue-20261108]
+    paths:
+      - .github/workflows/t12-work-queue-live-preflight-20261108.yml
+permissions: {contents: read}
+concurrency:
+  group: trendos-work-queue-readonly-preflight
+  cancel-in-progress: false
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PREVIOUS_WORKER_SOURCE: d15c8ce0cbc557f4cf370192ad8354c9fb99ff46
+      EXPECTED_UI_SHA: e48769d206e8c723d0e7164c92fa7c4cd9cd43b858575cf0f9b6d6beaef1a69f
+      BACKEND_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 1,persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Prove exact source deltas (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1000 origin "$PREVIOUS_WORKER_SOURCE"
+          git diff --name-only "$PREVIOUS_WORKER_SOURCE" HEAD -- cloudflare-d1/src cloudflare-d1/production-shadow cloudflare-d1/wrangler.toml >/tmp/worker-delta.txt
+          printf 'cloudflare-d1/src/edge-orders-read-02cr-canary.mjs\ncloudflare-d1/src/t12-read-overlay.mjs\n' >/tmp/expected-worker.txt
+          diff -u /tmp/expected-worker.txt /tmp/worker-delta.txt
+          git diff --name-only "$PREVIOUS_WORKER_SOURCE" HEAD -- app.js index.html employee-api-dispatcher-v1.js >/tmp/ui-delta.txt
+          printf 'app.js\n' >/tmp/expected-ui.txt
+          diff -u /tmp/expected-ui.txt /tmp/ui-delta.txt
+          echo WORK_QUEUE_EXACT_BACKEND_2FILES_UI_1FILE=PASS
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+      - name: Verify pinned 100-percent backend and UI versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in trendos-d1-api trendos-ui; do
+            curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$name/deployments" >/tmp/ver-$name.json
+            NAME="$name" node <<'NODE'
+          const x=require('/tmp/ver-'+process.env.NAME+'.json');
+          const a=Array.isArray(x.result)?x.result:x.result?.deployments||[];
+          const versions=a[0]?.versions||[];
+          if(!x.success||versions.length!==1||Number(versions[0].percentage)!==100)throw Error('Unstable release lease');
+          console.log('LIVE_WORKER_VERSION='+process.env.NAME+' '+versions[0].version_id);
+          NODE
+          done
+          curl -fsSL "$UI_URL/app.js?priority-readonly=$GITHUB_SHA" > /tmp/live-app.js
+          echo "$EXPECTED_UI_SHA  /tmp/live-app.js" | sha256sum --check
+          git show "$PREVIOUS_WORKER_SOURCE:app.js" >/tmp/base-app.js
+          cmp /tmp/base-app.js /tmp/live-app.js
+          sha256sum /tmp/live-app.js | awk '{print "LIVE_UI_SHA256="$1}'
+          curl -fsS "$BACKEND_URL/v1/employee/core/health" >/tmp/core.json
+          curl -fsS "$BACKEND_URL/v1/employee/auth/health" >/tmp/auth.json
+          node <<'NODE'
+          const c=require('/tmp/core.json'),a=require('/tmp/auth.json');
+          if(c.mode!=='GENERAL'||c.schemaReady!==true||a.mode!=='NATIVE'||a.nativeOnly!==true)throw Error('Live operational auth/health drift');
+          console.log('OPERATIONS_AUTH_HEALTH=PASS');
+          NODE
+          echo PREPARED_READ_ONLY_NO_PRODUCTION_WRITE=PASS

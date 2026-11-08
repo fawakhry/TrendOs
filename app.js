@@ -411,13 +411,19 @@
   }
 
   function defaultWorkSortRank(row) {
-    const p = text(row.priority) || "عادي";
-    if (p === "عاجل" || p === "VIP") return 0;
-    if (isOverdueRow(row)) return 1;
-    if (isTodayWorkRow(row)) return 2;
-    if (p === "عادي" || !p) return 3;
-    if (p === "مؤجل") return 4;
-    return 5;
+    // Identical priority queue to the D1 02CR endpoint. The backend must order
+    // the FULL result before pagination; this keeps each returned page and the
+    // "current order" banner in the same business-defined order.
+    const p = text(row && row.priority) || "عادي";
+    if (isHiddenFromUserScreens(row && row.status)) return 8;
+    if (state.screen === "print" && isFlyPrint(row && (row.flyPrint || row.quickPrint || row.fastPrint ||
+      row["طباعة على الطاير"] || row["طباعة ع الطاير"]))) return 0;
+    if (p === "عاجل" || p === "VIP") return 1;
+    if (isOverdueRow(row)) return 2;
+    if (isTodayWorkRow(row)) return 3;
+    if (p === "عادي" || !p) return 4;
+    if (p === "مؤجل") return 5;
+    return 6;
   }
 
   function displayPhone(phone) {
@@ -5129,7 +5135,7 @@ Trend Mall`;
     }).filter(function (x) {
       return finishedStatuses.indexOf(text(x.row.status)) === -1;
     }).sort(function (a, b) {
-      return (priorityRank(a.row.priority) - priorityRank(b.row.priority)) || (a.index - b.index);
+      return (defaultWorkSortRank(a.row) - defaultWorkSortRank(b.row)) || (a.index - b.index);
     });
 
     if (!candidates.length) {
@@ -5159,7 +5165,7 @@ Trend Mall`;
     const debts = summary ? Number(summary.debts || 0) : rows.filter(hasDebt).length;
     const heatPress = summary ? Number(summary.heatPress || 0) : rows.filter(function (r) { return isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]); }).length;
     const cancelled = summary ? Number(summary.cancelled || 0) : rows.filter(function (r) { return text(r.status) === "ملغى"; }).length;
-    const flyPrint = summary ? Number(summary.flyPrint || 0) : rows.filter(r => isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"])).length;
+    const flyPrint = state.screen === "print" ? (summary ? Number(summary.flyPrint || 0) : rows.filter(r => isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"])).length) : 0;
     statsBar.innerHTML =
       "<span class='stat-chip'>المعروض: <b>" + displayed + "</b></span>" +
       "<span class='stat-chip blue'>عاجل: <b>" + urgent + "</b></span>" +
@@ -5196,7 +5202,7 @@ Trend Mall`;
 
   function compactWorkCell(r) {
     const press = isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]) ? '<span class="press-pill">🔥 مكبس</span>' : '';
-    const fly = isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"]) ? '<span class="fly-pill">⚡ طباعة على الطاير</span>' : '';
+    const fly = (state.screen === "print" && isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"])) ? '<span class="fly-pill">⚡ طباعة على الطاير</span>' : '';
     return '<div class="order-main"><b>' + escapeHtml(r.itemName || "-") + '</b> ' + press + ' ' + fly + '</div>' +
       '<div class="muted-line">القسم: ' + escapeHtml(r.department || "-") + '</div>' +
       '<div class="muted-line">الكمية: ' + escapeHtml(r.qty || "-") + '</div>';
@@ -5204,7 +5210,7 @@ Trend Mall`;
 
   function statusBadges(r) {
     const press = isHeatPress(r.heatPress || r.press || r.isPress || r["مكبس"] || r["مكبس حراري"]) ? '<span class="press-pill">🔥 مكبس</span>' : '';
-    const fly = isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"]) ? '<span class="fly-pill">⚡ طباعة على الطاير</span>' : '';
+    const fly = (state.screen === "print" && isFlyPrint(r.flyPrint || r.quickPrint || r.fastPrint || r["طباعة على الطاير"] || r["طباعة ع الطاير"])) ? '<span class="fly-pill">⚡ طباعة على الطاير</span>' : '';
     const cancelled = text(r.status) === "ملغى" ? '<span class="cancelled-pill">ملغى</span>' : '';
     return '<div class="badges-row"><span class="priority-pill">' + escapeHtml(r.priority || "-") + '</span>' + press + fly + cancelled + '</div>';
   }
