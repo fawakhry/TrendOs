@@ -1150,3 +1150,8 @@ Verified deployed `57b43cd5-cdb0-4a76-b245-bdcf16305651` at100%, baseline `eba1c
 ### OWNER-20261104-ORDER-D1-CREATION-READBACK — Unified §12.7
 - قراءة D1 من صورة المالك أثبتت أوقات إنشاء الأوردرات 5685 و5724 و5741 و5743 و5744؛ التفاصيل الدقيقة محفوظة بـ[الكتاب الموحد §12.7](https://github.com/fawakhry/TrendOs/blob/agent/trendos-book-audit-v1-20261014/docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md) على commit `de955aff7833ac6c3c1d9350e943f28ed0f71495`.
 - حقل موعد التسليم غير موجود في `t12_prod_orders` المصدرية، وصفوف native overlay تترك الموعد فارغًا. `CREATED_AT_VERIFIED`، `DUE_DATE_NOT_PROVEN`، `NO_PRODUCTION_WRITE`.
+
+### OWNER-20261108-DELIVERY-DATE-LIVE-HOTFIX — Unified §12.8
+- تم تأكيد نشر إصلاح Cloudflare Worker فقط بنجاح على `trendos-d1-api` ضمن [CI #42474040378](https://github.com/fawakhry/TrendOs/actions/runs/42474040378)، الإصدار الجديد `2d1a566d-3fdf-4c45-b634-837e6e4626d5` بنسبة 100%، مع حارس rollback بالإصدار السابق `f735c551-5b14-45b7-881a-70de73f0196e`. لم تتغير قاعدة D1 أو واجهة الموظفين.
+- [PR355](https://github.com/fawakhry/TrendOs/pull/355) مدموج إلى الفرع الأساسي لواجهة Worker؛ [PR352](https://github.com/fawakhry/TrendOs/pull/352) مدموج إلى main للواجهة المصدرية؛ [PR354](https://github.com/fawakhry/TrendOs/pull/354) ما زال Draft لتخزين الموعد الدائم لأن 0031/0032/0033 D1 migrations معلقة معًا.
+- تفاصيل الأرقام، المواعيد، مصدر الحقيقة، قيود النجاح، الاختبارات، النشر وخطة التحقق محفوظة كاملة في [الكتاب الموحد §12.8](https://github.com/fawakhry/TrendOs/blob/agent/trendos-book-audit-v1-20261014/docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md) على `4a2548c2d81f488b081dcf888632bb6372607bf1`. لا تغلق Issue #353 دون عرض UI أو قراءة authorized تثبت التواريخ؛ لا تُحسن تاريخ العملاء جماعيًا.
