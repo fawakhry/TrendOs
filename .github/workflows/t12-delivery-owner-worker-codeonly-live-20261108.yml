@@ -1,0 +1,139 @@
+name: T12 Delivery Date P0 - Owner Backend Code Only Live 20261108
+on:
+  push:
+    branches: [fix/t12-readonly-delivery-date-hotfix-20261108]
+    paths: ['.github/workflows/t12-delivery-owner-worker-codeonly-live-20261108.yml']
+permissions: {contents: read}
+concurrency:
+  group: trendos-d1-api-production-t12-bulk-status
+  cancel-in-progress: false
+jobs:
+  backend-codeonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PRE_BACKEND_VERSION: f735c551-5b14-45b7-881a-70de73f0196e
+      PUBLISHED_FROM_SHA: b8f3c1ffe05b4e5f3c58cb3e17908d43a02d527e
+      LIVE_UI_APP_SHA: e48769d206e8c723d0e7164c92fa7c4cd9cd43b858575cf0f9b6d6beaef1a69f
+      BACKEND_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 1,persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Assert exact source diff, credentials, PROD target and NO migration changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Fxq 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'main = "production-shadow/index.js"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'database_name = "trendos-main"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'TRENDOS_EMPLOYEE_AUTH_NATIVE_ONLY_V1 = "true"' cloudflare-d1/wrangler.toml
+          git fetch --no-tags --depth=1000 origin "$PUBLISHED_FROM_SHA"
+          git diff --name-only "$PUBLISHED_FROM_SHA" HEAD -- cloudflare-d1 > /tmp/backend-diff.txt
+          printf 'cloudflare-d1/src/t12-delivery-date-policy.mjs\ncloudflare-d1/src/t12-read-overlay.mjs\n' > /tmp/only-approved.txt
+          diff -u /tmp/only-approved.txt /tmp/backend-diff.txt
+          test ! -e cloudflare-d1/migrations/0033_t12_expected_delivery_date_v1.sql
+          ! grep -Eq '^\s*(INSERT\s+INTO|UPDATE\s+t12_prod|DELETE\s+FROM|ALTER\s+TABLE|DROP\s+TABLE)' cloudflare-d1/src/t12-read-overlay.mjs
+          echo WORKER_SOURCE_EXACT_TWO_FILES_NO_D1_WRITE=PASS
+      - name: Test native dates, original D1 schema and core order visibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/t12_readonly_delivery_hotfix.test.mjs
+          node tests/t12_read_overlay.test.mjs
+          node tests/t12_read_overlay_handler.test.mjs
+          node tests/cloudflare_edge_orders_02cr_canary.test.mjs
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+      - name: Pin live Worker version, unchanged UI, health and read-only D1 five-order fingerprint
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/trendos-d1-api/deployments" > /tmp/lease.json
+          node <<'NODE'
+          const x=require('/tmp/lease.json'),a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(!x.success||v.length!==1||v[0].version_id!==process.env.PRE_BACKEND_VERSION||Number(v[0].percentage)!==100)throw Error('Production Worker lease mismatch - no deploy');
+          console.log('PRE_BACKEND_VERSION_LEASE=PASS');
+          NODE
+          curl -fLsS "$UI_URL/app.js?delivery-pre=$GITHUB_SHA-$(date +%s%N)" > /tmp/ui-before.js
+          echo "$LIVE_UI_APP_SHA  /tmp/ui-before.js" | sha256sum --check
+          cmp app.js /tmp/ui-before.js
+          curl -fsS "$BACKEND_URL/v1/employee/core/health" > /tmp/core-before.json
+          curl -fsS "$BACKEND_URL/v1/employee/auth/health" > /tmp/auth-before.json
+          node <<'NODE'
+          const core=require('/tmp/core-before.json'),auth=require('/tmp/auth-before.json');
+          if(core.mode!=='GENERAL'||core.schemaReady!==true||auth.mode!=='NATIVE'||auth.nativeOnly!==true)throw Error('Original operational worker not ready');
+          console.log('ORIGINAL_HEALTH=PASS');
+          NODE
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT (SELECT COUNT(*) FROM pragma_table_info('t12_prod_orders') WHERE name='expected_delivery_date') AS n;" > /tmp/prod-schema.json
+          node <<'NODE'
+          const a=require('/tmp/prod-schema.json'),r=(Array.isArray(a)?a:[a]).flatMap(x=>x.results||[])[0]||{};
+          if(Number(r.n)!==0)throw Error('Existing native date schema differs; do not hotfix blindly');
+          console.log('ORIGINAL_D1_SCHEMA_NO_DELIVERY_COLUMN=PASS');
+          NODE
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT o.order_id,o.created_at,l.fly_print FROM t12_prod_orders o JOIN t12_prod_lines l ON l.order_id=o.order_id WHERE o.order_id IN ('5685','5724','5741','5743','5744') ORDER BY o.order_id,l.ordinal;" > /tmp/orders-before.json
+          node <<'NODE'
+          const a=require('/tmp/orders-before.json'),rows=(Array.isArray(a)?a:[a]).flatMap(x=>x.results||[]);
+          const map=Object.fromEntries(rows.map(x=>[String(x.order_id),String(x.created_at)+'/'+String(x.fly_print)]));
+          const expected={'5685':'2026-11-01 15:40:11/0','5724':'2026-11-02 14:14:09/0','5741':'2026-11-02 18:49:04/0','5743':'2026-11-02 18:59:22/0','5744':'2026-11-02 19:02:22/0'};
+          if(rows.length!==5||JSON.stringify(map)!==JSON.stringify(expected))throw Error('Five-order source fingerprint changed; stop before deploy');
+          console.log('FIVE_ORIGINAL_ORDERS_IMMUTABLE_FINGERPRINT=PASS');
+          NODE
+      - name: Deploy Worker CODE ONLY, verify health, UI and D1 invariants; rollback if any check fails
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$DEPLOYED" = 1 ]; then
+              echo 'BACKEND_ROLLBACK_ATTEMPTED=YES'
+              npx wrangler rollback "$PRE_BACKEND_VERSION" --config cloudflare-d1/wrangler.toml --message 'T12 Nov8 date-read hotfix failed postflight' || true
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+          # Recheck lease immediately before the actual Worker code-only publish.
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/trendos-d1-api/deployments" > /tmp/lease-final.json
+          node <<'NODE'
+          const x=require('/tmp/lease-final.json'),a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(!x.success||v.length!==1||v[0].version_id!==process.env.PRE_BACKEND_VERSION||Number(v[0].percentage)!==100)throw Error('Concurrent backend change before deploy');
+          NODE
+          DEPLOYED=1
+          npx wrangler deploy --config cloudflare-d1/wrangler.toml > /tmp/deploy.log
+          for attempt in 1 2 3 4 5 6 7 8; do
+            curl -fsS "$BACKEND_URL/v1/employee/core/health" >/tmp/core-after.json || true
+            if node -e 'const x=require("/tmp/core-after.json");process.exit(x.mode==="GENERAL"&&x.schemaReady===true?0:1)'; then break; fi
+            sleep 2
+          done
+          node -e 'const x=require("/tmp/core-after.json");if(x.mode!=="GENERAL"||x.schemaReady!==true)process.exit(1)'
+          curl -fsS "$BACKEND_URL/v1/employee/auth/health" >/tmp/auth-after.json
+          node -e 'const x=require("/tmp/auth-after.json");if(x.mode!=="NATIVE"||x.nativeOnly!==true)process.exit(1)'
+          curl -fLsS "$UI_URL/app.js?delivery-post=$GITHUB_SHA-$(date +%s%N)" > /tmp/ui-after.js
+          echo "$LIVE_UI_APP_SHA  /tmp/ui-after.js" | sha256sum --check
+          cmp /tmp/ui-before.js /tmp/ui-after.js
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT o.order_id,o.created_at,l.fly_print FROM t12_prod_orders o JOIN t12_prod_lines l ON l.order_id=o.order_id WHERE o.order_id IN ('5685','5724','5741','5743','5744') ORDER BY o.order_id,l.ordinal;" > /tmp/orders-after.json
+          node <<'NODE'
+          const fs=require('fs'),rows=(file)=>{const a=JSON.parse(fs.readFileSync(file,'utf8'));return (Array.isArray(a)?a:[a]).flatMap(x=>x.results||[])};
+          if(JSON.stringify(rows('/tmp/orders-before.json'))!==JSON.stringify(rows('/tmp/orders-after.json')))throw Error('Historical order fingerprint differs after deploy');
+          console.log('FIVE_ORDER_DATABASE_FINGERPRINT_UNCHANGED=PASS');
+          NODE
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/trendos-d1-api/deployments" >/tmp/lease-post.json
+          node <<'NODE'
+          const x=require('/tmp/lease-post.json'),a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(!x.success||v.length!==1||v[0].version_id===process.env.PRE_BACKEND_VERSION||Number(v[0].percentage)!==100)throw Error('New Worker version not active 100%');
+          console.log('T12_DATE_HOTFIX_NEW_BACKEND_VERSION='+v[0].version_id);
+          NODE
+          trap - ERR
+          echo 'T12_DELIVERY_HOTFIX_PRODUCTION_CODE_ONLY=DEPLOYED_AND_VERIFIED'
+          echo 'D1_SCHEMA_DATA_MUTATIONS=NONE'
+          echo 'LIVE_UI_MUTATIONS=NONE'
+          echo 'ROLLBACK_USED=NO'

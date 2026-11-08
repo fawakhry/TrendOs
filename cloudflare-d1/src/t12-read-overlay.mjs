@@ -2,6 +2,7 @@
  * Read-only: SELECTs from t12_prod_* and merges those rows with the existing
  * qualified Sheets mirror. No D1 mutation, no Sheets write, no CREATE authority.
  */
+import {t12DeliveryForCreation} from './t12-delivery-date-policy.mjs';
 
 function text(value) { return String(value == null ? '' : value).trim(); }
 
@@ -73,6 +74,14 @@ export function mapT12CloudNativeRows(rows, screen) {
     const sourceName = text(source.source);
     const createdAt = text(source.orderCreatedAt || source.lineCreatedAt);
     const updatedAt = text(source.runtimeUpdatedAt || source.lineUpdatedAt || source.orderUpdatedAt || createdAt);
+    // Old Cloud-native T12 tables do not contain a delivery-date field.
+    // Derive an explicitly unverified policy estimate from original UTC creation
+    // and each line's fly-print flag; never from the current browser/server day.
+    const isFlyPrint = Number(source.flyPrint || 0) === 1;
+    const dueDate = t12DeliveryForCreation(createdAt,isFlyPrint);
+    const deliveryText = dueDate
+      ? dueDate + (isFlyPrint ? ' - نفس اليوم' : '') + ' (محسوب حسب سياسة النظام)'
+      : '';
 
     out.push({
       rowNumber: 0,
@@ -109,8 +118,9 @@ export function mapT12CloudNativeRows(rows, screen) {
       lastWhatsAppAt: text(source.lastWhatsAppAt),
       lastWhatsAppBy: text(source.lastWhatsAppBy),
       receivedAt: createdAt,
-      expectedDeliveryAt: '',
-      expectedDeliveryText: '',
+      expectedDeliveryAt: dueDate,
+      expectedDeliveryText: deliveryText,
+      deliveryDateSource: dueDate ? 'policy-derived-legacy-unverified' : 'missing',
       overdue: 'لا',
       registrationSent: '',
       cloudNative: true,
