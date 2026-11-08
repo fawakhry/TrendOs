@@ -1,0 +1,25 @@
+name: T12 delivery Worker source provenance and delta 20261108
+on:
+  push:
+    branches: [fix/t12-readonly-delivery-date-hotfix-20261108]
+    paths: ['.github/workflows/t12-delivery-worker-source-parity-20261108.yml']
+permissions: {contents: read}
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 1}
+      - name: Prove only T12 date-read module changes vs source of current production Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED_LIVE_SOURCE=b8f3c1ffe05b4e5f3c58cb3e17908d43a02d527e
+          git fetch --no-tags --depth=1000 origin "$EXPECTED_LIVE_SOURCE"
+          git diff --name-only "$EXPECTED_LIVE_SOURCE" HEAD -- cloudflare-d1/src cloudflare-d1/production-shadow cloudflare-d1/wrangler.toml > /tmp/backend-diff-names.txt
+          echo WORKER_FILE_DIFF_BEGIN
+          cat /tmp/backend-diff-names.txt
+          echo WORKER_FILE_DIFF_END
+          printf 'cloudflare-d1/src/t12-delivery-date-policy.mjs\ncloudflare-d1/src/t12-read-overlay.mjs\n' > /tmp/expected.txt
+          diff -u /tmp/expected.txt /tmp/backend-diff-names.txt
+          echo EXACT_WORKER_SOURCE_DELTA_ONLY_DELIVERY_READ=PASS
