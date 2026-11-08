@@ -7,6 +7,7 @@ import {
 import { enrichFromMirrors02CR } from './edge-orders-operational-enrichment-02cr.mjs';
 import { mergeT12ReadOverlayRows, readT12CloudNativeOverlay } from './t12-read-overlay.mjs';
 import { applyLegacyRuntimeOverlay, readLegacyRuntimeRows } from './t12-legacy-line-runtime.mjs';
+import { cairoCreationDate } from './t12-delivery-date-policy.mjs';
 
 const PATH_02CR = '/v1/edge/orders/02cr/page';
 const LINES_NOTE_02CR = 'TrendOS orders live sync V2 quota-aware';
@@ -85,32 +86,41 @@ function isFlyPrint(value) {
     v === 'طباعة على الطاير' || v === 'طباعة ع الطاير' ||
     v === 'على الطاير' || v === 'ع الطاير';
 }
-function priorityRank(priority) {
-  const p = text(priority) || 'عادي';
-  if (p === 'عاجل' || p === 'VIP') return 0;
-  if (p === 'عادي') return 1;
-  if (p === 'مؤجل') return 2;
-  return 9;
+function expectedCalendarDay(row) {
+  const raw = arabicDigits(text(row && (row.expectedDeliveryAt || row.expectedDelivery || row.expectedDeliveryText)));
+  let m = raw.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
+  if (m) return m[1] + '-' + m[2].padStart(2,'0') + '-' + m[3].padStart(2,'0');
+  m = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+  if (m) return m[3] + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0');
+  return '';
 }
-export function sortOperationalRows(rows, screen) {
+export function isOperationalOverdue(row, now = new Date()) {
+  if (!row || isHidden(row.status)) return false;
+  const flag = text(row.overdue).toLowerCase();
+  if (flag === 'نعم' || flag === 'true' || flag === '1') return true;
+  const deadline = expectedCalendarDay(row);
+  const today = cairoCreationDate(now);
+  return !!(deadline && today && deadline < today);
+}
+export function operationalQueueTier(row, screen, now = new Date()) {
+  if (!row || isHidden(row.status)) return 4; // closed orders never displace active work
+  const lane = text(screen);
+  // One and only one lane supports fly-print.
+  if (lane === 'print' && isFlyPrint(row.flyPrint || row.quickPrint || row.fastPrint)) return 0;
+  if (['عاجل','VIP'].includes(text(row.priority))) return 1;
+  if (isOperationalOverdue(row, now)) return 2;
+  return 3;
+}
+export function sortOperationalRows(rows, screen, now = new Date()) {
   const lane = text(screen);
   return (rows || [])
     .map((row, index) => ({ row, index }))
-    .sort((a, b) => {
-      // Business rule: Fly Print is the highest operational tier ONLY
-      // on the print screen. Laser/service must ignore the fly flag.
-      if (lane === 'print') {
-        const aFly = isFlyPrint(a.row && (a.row.flyPrint || a.row.quickPrint));
-        const bFly = isFlyPrint(b.row && (b.row.flyPrint || b.row.quickPrint));
-        if (aFly !== bFly) return aFly ? -1 : 1;
-      }
-      const rank = priorityRank(a.row && a.row.priority) - priorityRank(b.row && b.row.priority);
-      if (rank) return rank;
-      // Preserve the deterministic order already produced by the rich
-      // mapper inside the same operational tier.
-      return a.index - b.index;
-    })
-    .map((item) => item.row);
+    .sort((a, b) =>
+      operationalQueueTier(a.row, lane, now) - operationalQueueTier(b.row, lane, now) ||
+      // Preserve original source ordering within each tier.
+      a.index - b.index
+    )
+    .map(item => item.row);
 }
 function rowMatchesAppsFilters(row, params, now = new Date()) {
   const q = searchKey(params.query || params.q || '');
@@ -127,7 +137,7 @@ function rowMatchesAppsFilters(row, params, now = new Date()) {
   if (heat === 'only' && !isHeatPress(row.heatPress)) return false;
   if (heat === 'without' && isHeatPress(row.heatPress)) return false;
   if (status === '__ACTIVE__' && isHidden(row.status)) return false;
-  if (status === '__OVERDUE__' && text(row.overdue) !== 'نعم') return false;
+  if (status === '__OVERDUE__' && !isOperationalOverdue(row, now)) return false;
   if (status === '__TODAY_WORK__') {
     const today = new Date(now), yesterday = new Date(today), tomorrow = new Date(today);
     yesterday.setDate(today.getDate() - 1);
