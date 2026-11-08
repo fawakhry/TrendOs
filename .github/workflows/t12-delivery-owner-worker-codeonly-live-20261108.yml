@@ -16,7 +16,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       PRE_BACKEND_VERSION: f735c551-5b14-45b7-881a-70de73f0196e
       PUBLISHED_FROM_SHA: b8f3c1ffe05b4e5f3c58cb3e17908d43a02d527e
-      LIVE_UI_APP_SHA: e48769d206e8c723d0e7164c92fa7c44cd43b858575cf0f9b6d6beaef1a69f
+      LIVE_UI_APP_SHA: e48769d206e8c723d0e7164c92fa7c4cd9cd43b858575cf0f9b6d6beaef1a69f
       BACKEND_URL: https://trendos-d1-api.trendmall-contact.workers.dev
       UI_URL: https://trendos-ui.trendmall-contact.workers.dev
     steps:
