@@ -2,7 +2,7 @@
  * Read-only: SELECTs from t12_prod_* and merges those rows with the existing
  * qualified Sheets mirror. No D1 mutation, no Sheets write, no CREATE authority.
  */
-import {t12DeliveryForCreation} from './t12-delivery-date-policy.mjs';
+import {t12DeliveryForCreation, cairoCreationDate} from './t12-delivery-date-policy.mjs';
 
 function text(value) { return String(value == null ? '' : value).trim(); }
 
@@ -64,6 +64,7 @@ function screenMatches(screen, department, heatPress) {
 
 export function mapT12CloudNativeRows(rows, screen) {
   const out = [];
+  const cairoToday = cairoCreationDate(new Date());
   for (const source of rows || []) {
     const orderId = text(source && source.orderId);
     const lineId = text(source && source.lineId);
@@ -82,6 +83,8 @@ export function mapT12CloudNativeRows(rows, screen) {
     const deliveryText = dueDate
       ? dueDate + (isFlyPrint ? ' - نفس اليوم' : '') + ' (محسوب حسب سياسة النظام)'
       : '';
+    const overdue = !!(dueDate && cairoToday && dueDate < cairoToday &&
+      !hiddenStatus(text(source.status)));
 
     out.push({
       rowNumber: 0,
@@ -121,7 +124,7 @@ export function mapT12CloudNativeRows(rows, screen) {
       expectedDeliveryAt: dueDate,
       expectedDeliveryText: deliveryText,
       deliveryDateSource: dueDate ? 'policy-derived-legacy-unverified' : 'missing',
-      overdue: 'لا',
+      overdue: overdue ? 'نعم' : 'لا',
       registrationSent: '',
       cloudNative: true,
       readOnly: true,
