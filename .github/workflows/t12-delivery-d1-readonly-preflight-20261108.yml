@@ -36,6 +36,9 @@ jobs:
         run: |
           set -euo pipefail
           npx wrangler d1 migrations list trendos-main --remote --config cloudflare-d1/wrangler.toml > /tmp/migrations.txt
+          echo 'PENDING_MIGRATIONS_TABLE_BEGIN'
+          sed -n '1,100p' /tmp/migrations.txt
+          echo 'PENDING_MIGRATIONS_TABLE_END'
           if grep -q '0033_t12_expected_delivery_date_v1.sql' /tmp/migrations.txt; then echo 'DELIVERY_MIGRATION_PENDING_OR_LISTED=YES'; else echo 'DELIVERY_MIGRATION_LISTED=NO'; fi
       - name: Read only schema column presence and anonymous order dates
         shell: bash
@@ -64,5 +67,7 @@ jobs:
           NODE
           curl -fsSL "https://trendos-ui.trendmall-contact.workers.dev/app.js?date-preflight=$GITHUB_SHA" > /tmp/live-ui-app.js
           sha256sum /tmp/live-ui-app.js | cut -d' ' -f1 | sed 's/^/LIVE_UI_APP_SHA256=/'
+          sha256sum app.js | cut -d' ' -f1 | sed 's/^/CANDIDATE_UI_APP_SHA256=/'
+          if cmp -s app.js /tmp/live-ui-app.js; then echo 'CANDIDATE_UI_EXACT_LIVE_PARITY=PASS'; else echo 'CANDIDATE_UI_EXACT_LIVE_PARITY=FAIL'; fi
           if grep -q 'expectedDeliveryTextFromNow()' /tmp/live-ui-app.js; then echo 'LIVE_UI_ROLLING_DATE_FALLBACK=PRESENT'; else echo 'LIVE_UI_ROLLING_DATE_FALLBACK=ABSENT'; fi
           echo 'PREPARED_DIAGNOSTIC_ONLY_NO_PRODUCTION_MUTATION=PASS'
