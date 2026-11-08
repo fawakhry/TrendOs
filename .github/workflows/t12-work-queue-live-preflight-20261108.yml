@@ -13,8 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       PREVIOUS_WORKER_SOURCE: d15c8ce0cbc557f4cf370192ad8354c9fb99ff46
       EXPECTED_UI_SHA: e48769d206e8c723d0e7164c92fa7c4cd9cd43b858575cf0f9b6d6beaef1a69f
       BACKEND_URL: https://trendos-d1-api.trendmall-contact.workers.dev
