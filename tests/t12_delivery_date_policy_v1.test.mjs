@@ -59,6 +59,8 @@ test('explicit persisted date beats any historical computed date, even when over
 test('schema migration is additive and does not backfill or change any preexisting order',()=>{
  const db=new DatabaseSync(':memory:');
  db.exec(fs.readFileSync(new URL('../cloudflare-d1/migrations/0005_t12_production_create_canary.sql',import.meta.url),'utf8'));
+ db.prepare("INSERT INTO t12_prod_request_ledger(request_key,actor,policy_epoch,canonical_json,order_id,status,response_json) VALUES(?,?,?,?,?,'COMMITTED','{}')")
+  .run('fixture_req_5741','owner','test_epoch','{}','5741');
  db.prepare("INSERT INTO t12_prod_orders(order_id,request_key,customer_mode,customer_name,department,priority,status,actor,created_at) VALUES(?,?,?,?,?,?,?,?,?)")
   .run('5741','fixture_req_5741','registered','Fixture','طباعة','عادي','طلب جديد','owner','2026-11-02 18:49:04');
  db.prepare("INSERT INTO t12_prod_lines(line_id,order_id,request_key,ordinal,department,item_name,qty,priority,status,heat_press,fly_print,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
@@ -78,6 +80,8 @@ test('real overlay SQL reads projected date columns and preserves original regis
  sqlite.exec(fs.readFileSync(new URL('../cloudflare-d1/migrations/0005_t12_production_create_canary.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('../cloudflare-d1/migrations/0006_t12_operational_runtime.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('../cloudflare-d1/migrations/0033_t12_expected_delivery_date_v1.sql',import.meta.url),'utf8'));
+ sqlite.prepare("INSERT INTO t12_prod_request_ledger(request_key,actor,policy_epoch,canonical_json,order_id,status,response_json) VALUES(?,?,?,?,?,'COMMITTED','{}')")
+  .run('fixture_req_5741','owner','test_epoch','{}','5741');
  sqlite.prepare("INSERT INTO t12_prod_orders(order_id,request_key,customer_mode,customer_name,department,priority,status,actor,created_at) VALUES(?,?,?,?,?,?,?,?,?)")
   .run('5741','fixture_req_5741','registered','Fixture','طباعة','عادي','طلب جديد','owner','2026-11-02 18:49:04');
  sqlite.prepare("INSERT INTO t12_prod_lines(line_id,order_id,request_key,ordinal,department,item_name,qty,priority,status,heat_press,fly_print,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
