@@ -68,7 +68,7 @@ test('schema migration is additive and does not backfill or change any preexisti
  const old=db.prepare('SELECT created_at FROM t12_prod_orders WHERE order_id=?').get('5741');
  db.exec(fs.readFileSync(new URL('../cloudflare-d1/migrations/0033_t12_expected_delivery_date_v1.sql',import.meta.url),'utf8'));
  const now=db.prepare('SELECT created_at,expected_delivery_date,expected_delivery_source FROM t12_prod_orders WHERE order_id=?').get('5741');
- const line=db.prepare('SELECT expected_delivery_date FROM t12_prod_lines WHERE order_id=?').get('5741-01');
+ const line=db.prepare('SELECT expected_delivery_date FROM t12_prod_lines WHERE line_id=?').get('5741-01');
  assert.equal(now.created_at,old.created_at);
  assert.equal(now.expected_delivery_date,'');
  assert.equal(now.expected_delivery_source,'');
