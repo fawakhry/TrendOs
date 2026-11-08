@@ -1,0 +1,201 @@
+name: T12 Owner Print Laser Queue Exact Production Release 20261108
+on:
+  push:
+    branches: [fix/t12-print-laser-operational-queue-20261108]
+    paths: ['.github/workflows/t12-owner-work-queue-production-20261108.yml']
+permissions: {contents: read}
+concurrency:
+  group: trendos-t12-work-queue-owner-live-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SOURCE_BASE: d15c8ce0cbc557f4cf370192ad8354c9fb99ff46
+      UI_ASSETS_MANIFEST_BASE: 2da755ca910b84911378c018d050cf806d8349d5
+      PRE_BACKEND_VERSION: 2d1a566d-3fdf-4c45-b634-837e6e4626d5
+      PRE_UI_VERSION: 4bfbd9e9-f89f-4bc6-b436-64b30850ed54
+      PRE_UI_APP_SHA: e48769d206e8c723d0e7164c92fa7c4cd9cd43b858575cf0f9b6d6beaef1a69f
+      BACKEND_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 1,persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Safety source diff + only exact authorized worker and UI changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          git fetch --no-tags --depth=1000 origin "$SOURCE_BASE"
+          git diff --name-only "$SOURCE_BASE" HEAD -- cloudflare-d1 >/tmp/worker-diff.txt
+          printf 'cloudflare-d1/src/edge-orders-read-02cr-canary.mjs\ncloudflare-d1/src/t12-read-overlay.mjs\n' >/tmp/allowed-worker.txt
+          diff -u /tmp/allowed-worker.txt /tmp/worker-diff.txt
+          git diff --name-only "$SOURCE_BASE" HEAD -- app.js index.html employee-api-dispatcher-v1.js >/tmp/ui-diff.txt
+          printf 'app.js\n' >/tmp/allowed-ui.txt
+          diff -u /tmp/allowed-ui.txt /tmp/ui-diff.txt
+          test ! -e cloudflare-d1/migrations/0033_t12_expected_delivery_date_v1.sql
+          grep -Fxq 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'main = "production-shadow/index.js"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'database_name = "trendos-main"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          echo QUEUE_EXACT_TWO_BACKEND_MODULES_AND_ONE_UI_APP_NO_DB_CHANGES=PASS
+      - name: Confirm queue tiers + deployed T12 native contract before any release
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check app.js
+          node --test tests/operational_queue_print_laser_v1.test.mjs
+          node tests/cloudflare_edge_orders_operational_ordering_02cs.test.mjs
+          node tests/cloudflare_edge_orders_02cr_canary.test.mjs
+          node tests/t12_read_overlay.test.mjs
+          node tests/t12_read_overlay_handler.test.mjs
+          node tests/frontend_order_status_ux_02cv.test.mjs
+          node --test tests/t12_readonly_delivery_hotfix.test.mjs
+          echo QUEUE_TESTS_SEVEN_FAMILIES_PASS=YES
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+      - name: Pin both live Worker versions and verify authentication
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in trendos-d1-api trendos-ui; do
+            if [ "$name" = trendos-ui ]; then expected="$PRE_UI_VERSION"; else expected="$PRE_BACKEND_VERSION"; fi
+            curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$name/deployments" >/tmp/lease-$name.json
+            NAME="$name" EXPECTED="$expected" node <<'NODE'
+          const x=require('/tmp/lease-'+process.env.NAME+'.json'),a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(!x.success||v.length!==1||v[0].version_id!==process.env.EXPECTED||Number(v[0].percentage)!==100)throw Error('Concurrent deployment before release for '+process.env.NAME);
+          console.log('PINNED_BEFORE='+process.env.NAME+' '+v[0].version_id);
+          NODE
+          done
+          curl -fLsS "$UI_URL/app.js?queue-before=$GITHUB_SHA-$(date +%s%N)" >/tmp/app-before.js
+          echo "$PRE_UI_APP_SHA  /tmp/app-before.js" | sha256sum --check
+          git show "$SOURCE_BASE:app.js" >/tmp/source-before-app.js
+          cmp /tmp/app-before.js /tmp/source-before-app.js
+          curl -fsS "$BACKEND_URL/v1/employee/core/health" >/tmp/core-before.json
+          curl -fsS "$BACKEND_URL/v1/employee/auth/health" >/tmp/auth-before.json
+          node <<'NODE'
+          const c=require('/tmp/core-before.json'),a=require('/tmp/auth-before.json');
+          if(c.mode!=='GENERAL'||c.schemaReady!==true||a.mode!=='NATIVE'||!a.nativeOnly)throw Error('Native core auth health drift');
+          console.log('CORE_AUTH_SAFE_BEFORE=PASS');
+          NODE
+      - name: Snapshot all live UI assets and stage only the approved app.js
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$UI_ASSETS_MANIFEST_BASE"
+          git ls-tree -r --name-only "$UI_ASSETS_MANIFEST_BASE" | grep -E '^[^/]+\.(html|js|css)$' >/tmp/ui-assets.txt
+          test "$(wc -l </tmp/ui-assets.txt)" = 46
+          mkdir -p cloudflare-d1/frontend-dist
+          while IFS= read -r asset; do
+            mime="$(curl -fLsS --max-time 30 --output "cloudflare-d1/frontend-dist/$asset" --write-out '%{content_type}' "$UI_URL/$asset?queue-copy=$GITHUB_SHA-$(date +%s%N)")"
+            case "$asset" in
+              *.js) case "$mime" in *javascript*|*ecmascript*) ;; *) echo "BAD_JS_MIME $asset"; exit 20;; esac ;;
+              *.css) case "$mime" in *css*) ;; *) echo "BAD_CSS_MIME $asset"; exit 21;; esac ;;
+              *.html) case "$mime" in *html*) ;; *) echo "BAD_HTML_MIME $asset"; exit 22;; esac ;;
+            esac
+            test -s "cloudflare-d1/frontend-dist/$asset"
+          done </tmp/ui-assets.txt
+          echo "$PRE_UI_APP_SHA  cloudflare-d1/frontend-dist/app.js" | sha256sum --check
+          cmp /tmp/app-before.js cloudflare-d1/frontend-dist/app.js
+          cp app.js cloudflare-d1/frontend-dist/app.js
+          node --check cloudflare-d1/frontend-dist/app.js
+          node --check cloudflare-d1/frontend-dist/employee-api-dispatcher-v1.js
+          for name in trendos-d1-api trendos-ui; do
+            if [ "$name" = trendos-ui ]; then expected="$PRE_UI_VERSION"; else expected="$PRE_BACKEND_VERSION"; fi
+            curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$name/deployments" >/tmp/staged-$name.json
+            NAME="$name" EXPECTED="$expected" node <<'NODE'
+          const x=require('/tmp/staged-'+process.env.NAME+'.json'),a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(!x.success||v.length!==1||v[0].version_id!==process.env.EXPECTED||Number(v[0].percentage)!==100)throw Error('Live Worker changed while snapshotting UI assets');
+          NODE
+          done
+          npx wrangler deploy --dry-run --config cloudflare-d1/wrangler.toml --outdir /tmp/backend-dry >/tmp/backend-dry.log
+          npx wrangler deploy --dry-run --config cloudflare-d1/wrangler.frontend.toml --outdir /tmp/ui-dry >/tmp/ui-dry.log
+          echo LIVE_UI_ASSET_SNAPSHOT_46_ONLY_APP_PATCHED=PASS
+          echo BOTH_CODE_ONLY_DRY_RUNS=PASS
+      - name: Release guarded backend then UI, verify versions/46 assets and rollback on error
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          BACKEND_DEPLOYED=0
+          UI_DEPLOYED=0
+          rollback(){
+            rc=$?
+            trap - ERR
+            if [ "$UI_DEPLOYED" = 1 ]; then
+              echo UI_ROLLBACK_ATTEMPTED=YES
+              npx wrangler rollback "$PRE_UI_VERSION" --config cloudflare-d1/wrangler.frontend.toml --message 'T12 queue UI postflight failed' || true
+            fi
+            if [ "$BACKEND_DEPLOYED" = 1 ]; then
+              echo BACKEND_ROLLBACK_ATTEMPTED=YES
+              npx wrangler rollback "$PRE_BACKEND_VERSION" --config cloudflare-d1/wrangler.toml --message 'T12 queue backend postflight failed' || true
+            fi
+            exit "$rc"
+          }
+          trap rollback ERR
+          for name in trendos-d1-api trendos-ui; do
+            if [ "$name" = trendos-ui ]; then expected="$PRE_UI_VERSION"; else expected="$PRE_BACKEND_VERSION"; fi
+            curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$name/deployments" >/tmp/final-$name.json
+            NAME="$name" EXPECTED="$expected" node <<'NODE'
+          const x=require('/tmp/final-'+process.env.NAME+'.json'),a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(!x.success||v.length!==1||v[0].version_id!==process.env.EXPECTED||Number(v[0].percentage)!==100)throw Error('Version lease mismatch immediately before release');
+          NODE
+          done
+          BACKEND_DEPLOYED=1
+          npx wrangler deploy --config cloudflare-d1/wrangler.toml >/tmp/deploy-backend.log
+          curl -fsS "$BACKEND_URL/v1/employee/core/health" >/tmp/core-post.json
+          curl -fsS "$BACKEND_URL/v1/employee/auth/health" >/tmp/auth-post.json
+          node <<'NODE'
+          const c=require('/tmp/core-post.json'),a=require('/tmp/auth-post.json');
+          if(c.mode!=='GENERAL'||!c.schemaReady||a.mode!=='NATIVE'||!a.nativeOnly)throw Error('Backend worker core/auth health regression');
+          console.log('BACKEND_AFTER_HEALTH=PASS');
+          NODE
+          status="$(curl -sS -o /tmp/anonymous-page.json -w '%{http_code}' "$BACKEND_URL/v1/edge/orders/02cr/page?screen=print")"
+          test "$status" = 401
+          echo PRIVATE_ORDERS_ROUTE_UNAUTHENTICATED_401=PASS
+          curl -fLsS "$UI_URL/app.js?queue-mid=$GITHUB_SHA-$(date +%s%N)" >/tmp/app-mid.js
+          echo "$PRE_UI_APP_SHA  /tmp/app-mid.js" | sha256sum --check
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/trendos-ui/deployments" >/tmp/pre-ui-deploy.json
+          node <<'NODE'
+          const x=require('/tmp/pre-ui-deploy.json'),a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(!x.success||v.length!==1||v[0].version_id!==process.env.PRE_UI_VERSION||Number(v[0].percentage)!==100)throw Error('Concurrent UI deployment');
+          NODE
+          UI_DEPLOYED=1
+          npx wrangler deploy --config cloudflare-d1/wrangler.frontend.toml >/tmp/deploy-ui.log
+          FOUND=0
+          for i in $(seq 1 15); do
+            curl -fLsS "$UI_URL/app.js?queue-new=$GITHUB_SHA-$(date +%s%N)" >/tmp/app-live-new.js || true
+            if cmp -s /tmp/app-live-new.js cloudflare-d1/frontend-dist/app.js; then FOUND=1;break;fi
+            sleep 2
+          done
+          test "$FOUND" = 1
+          while IFS= read -r asset; do
+            [ "$asset" = app.js ] && continue
+            curl -fLsS --max-time 30 "$UI_URL/$asset?queue-static=$GITHUB_SHA-$(date +%s%N)" -o "/tmp/new-$asset"
+            cmp "/tmp/new-$asset" "cloudflare-d1/frontend-dist/$asset"
+          done </tmp/ui-assets.txt
+          echo EXACT_UI_46_ASSETS_POSTFLIGHT=PASS
+          for name in trendos-d1-api trendos-ui; do
+            if [ "$name" = trendos-ui ]; then previous="$PRE_UI_VERSION"; else previous="$PRE_BACKEND_VERSION"; fi
+            curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$name/deployments" >/tmp/post-$name.json
+            NAME="$name" PREVIOUS="$previous" node <<'NODE'
+          const x=require('/tmp/post-'+process.env.NAME+'.json'),a=Array.isArray(x.result)?x.result:x.result?.deployments||[],v=a[0]?.versions||[];
+          if(!x.success||v.length!==1||v[0].version_id===process.env.PREVIOUS||Number(v[0].percentage)!==100)throw Error('New version not 100% live');
+          console.log('NEW_QUEUE_WORKER_VERSION='+process.env.NAME+' '+v[0].version_id);
+          NODE
+          done
+          curl -fsS "$BACKEND_URL/v1/employee/core/health" >/tmp/final-core.json
+          curl -fsS "$BACKEND_URL/v1/employee/auth/health" >/tmp/final-auth.json
+          node <<'NODE'
+          const c=require('/tmp/final-core.json'),a=require('/tmp/final-auth.json');
+          if(c.mode!=='GENERAL'||!c.schemaReady||a.mode!=='NATIVE'||!a.nativeOnly)throw Error('Final auth health not safe');
+          NODE
+          trap - ERR
+          echo PRINT_LASER_QUEUE_POLICY_LIVE_DEPLOYMENT=VERIFIED
+          echo DATABASE_MUTATIONS=NONE
+          echo ROLLBACK_USED=NO
