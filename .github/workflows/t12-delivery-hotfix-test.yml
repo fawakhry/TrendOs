@@ -1,0 +1,25 @@
+name: T12 readonly delivery date hotfix source regression
+on:
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/t12-read-overlay.mjs'
+      - 'cloudflare-d1/src/t12-delivery-date-policy.mjs'
+      - 'tests/t12_readonly_delivery_hotfix.test.mjs'
+      - '.github/workflows/t12-delivery-hotfix-test.yml'
+  push:
+    branches:
+      - fix/t12-readonly-delivery-date-hotfix-20261108
+permissions:
+  contents: read
+jobs:
+  sql-readonly-date:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: |
+          node --test tests/t12_readonly_delivery_hotfix.test.mjs
+          node tests/t12_read_overlay.test.mjs
+          node tests/t12_read_overlay_handler.test.mjs
+          node tests/cloudflare_edge_orders_02cr_canary.test.mjs
