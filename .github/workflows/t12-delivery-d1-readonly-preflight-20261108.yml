@@ -1,0 +1,68 @@
+name: T12 delivery production read-only preflight 20261108
+on:
+  push:
+    branches: [fix/t12-persist-and-read-delivery-dates-20261108]
+    paths: ['.github/workflows/t12-delivery-d1-readonly-preflight-20261108.yml']
+permissions:
+  contents: read
+concurrency:
+  group: trendos-t12-delivery-production-readonly-preflight
+  cancel-in-progress: false
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Verify credentials and exact D1 target WITHOUT logging secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          grep -Fxq 'name = "trendos-d1-api"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'database_name = "trendos-main"' cloudflare-d1/wrangler.toml
+          grep -Fxq 'database_id = "5c4b92bf-e043-4f6e-bd6d-d514a92cd825"' cloudflare-d1/wrangler.toml
+          echo "CLOUDFLARE_TARGET_IDENTITY=VERIFIED"
+      - name: Install pinned Wrangler
+        run: npm install --no-save wrangler@4.33.2
+      - name: Read current prod migration status - NO MUTATION
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 migrations list trendos-main --remote --config cloudflare-d1/wrangler.toml > /tmp/migrations.txt
+          if grep -q '0033_t12_expected_delivery_date_v1.sql' /tmp/migrations.txt; then echo 'DELIVERY_MIGRATION_PENDING_OR_LISTED=YES'; else echo 'DELIVERY_MIGRATION_LISTED=NO'; fi
+      - name: Read only schema column presence and anonymous order dates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT (SELECT COUNT(*) FROM pragma_table_info('t12_prod_orders') WHERE name='expected_delivery_date') AS order_delivery_col,(SELECT COUNT(*) FROM pragma_table_info('t12_prod_lines') WHERE name='expected_delivery_date') AS line_delivery_col;" >/tmp/date-schema.json
+          npx wrangler d1 execute trendos-main --remote --config cloudflare-d1/wrangler.toml --json --command "SELECT o.order_id,o.created_at,l.fly_print FROM t12_prod_orders o LEFT JOIN t12_prod_lines l ON l.order_id=o.order_id WHERE o.order_id IN ('5685','5724','5741','5743','5744') ORDER BY o.order_id,l.ordinal;" >/tmp/date-orders.json
+          node <<'NODE'
+          const fs=require('fs');
+          const rows=(file)=>{const a=JSON.parse(fs.readFileSync(file,'utf8'));return (Array.isArray(a)?a:[a]).flatMap(x=>x.results||[])};
+          const sch=rows('/tmp/date-schema.json')[0]||{};
+          console.log('D1_DELIVERY_COLUMNS='+JSON.stringify(sch));
+          const orders=rows('/tmp/date-orders.json');
+          if(orders.some(x=>!['5685','5724','5741','5743','5744'].includes(String(x.order_id))))throw Error('Unexpected query scope');
+          console.log('READONLY_ORDER_META='+JSON.stringify(orders.map(x=>({order_id:x.order_id,created_at:x.created_at,fly_print:x.fly_print}))));
+          NODE
+      - name: Record current Worker version and live UI JavaScript parity - NO DEPLOY
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/trendos-d1-api/deployments" >/tmp/backend-versions.json
+          node <<'NODE'
+          const x=require('/tmp/backend-versions.json');if(!x.success)throw Error('Cloudflare deployment status unavailable');
+          const a=Array.isArray(x.result)?x.result:x.result?.deployments||[];
+          console.log('LIVE_BACKEND_DEPLOYMENT='+JSON.stringify(a.slice(0,1).map(d=>({id:d.id,versions:(d.versions||[]).map(v=>({version_id:v.version_id,percentage:v.percentage}))}))));
+          NODE
+          curl -fsSL "https://trendos-ui.trendmall-contact.workers.dev/app.js?date-preflight=$GITHUB_SHA" > /tmp/live-ui-app.js
+          sha256sum /tmp/live-ui-app.js | cut -d' ' -f1 | sed 's/^/LIVE_UI_APP_SHA256=/'
+          if grep -q 'expectedDeliveryTextFromNow()' /tmp/live-ui-app.js; then echo 'LIVE_UI_ROLLING_DATE_FALLBACK=PRESENT'; else echo 'LIVE_UI_ROLLING_DATE_FALLBACK=ABSENT'; fi
+          echo 'PREPARED_DIAGNOSTIC_ONLY_NO_PRODUCTION_MUTATION=PASS'
