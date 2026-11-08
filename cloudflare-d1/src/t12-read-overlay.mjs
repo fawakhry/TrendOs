@@ -2,6 +2,7 @@
  * Read-only: SELECTs from t12_prod_* and merges those rows with the existing
  * qualified Sheets mirror. No D1 mutation, no Sheets write, no CREATE authority.
  */
+import {t12DeliveryForCreation,validStoredDeliveryDay,cairoCreationDate} from './t12-delivery-date-policy.mjs';
 
 function text(value) { return String(value == null ? '' : value).trim(); }
 
@@ -73,6 +74,20 @@ export function mapT12CloudNativeRows(rows, screen) {
     const sourceName = text(source.source);
     const createdAt = text(source.orderCreatedAt || source.lineCreatedAt);
     const updatedAt = text(source.runtimeUpdatedAt || source.lineUpdatedAt || source.orderUpdatedAt || createdAt);
+    const isFly = Number(source.flyPrint || 0) === 1;
+    const storedDue=validStoredDeliveryDay(source.lineExpectedDeliveryDate) ||
+      validStoredDeliveryDay(source.orderExpectedDeliveryDate);
+    const due=storedDue || t12DeliveryForCreation(createdAt,isFly);
+    const dateSource=storedDue
+      ? (text(source.lineExpectedDeliverySource || source.orderExpectedDeliverySource) || 'stored')
+      : (due ? 'policy-derived-legacy-unverified' : 'missing');
+    const dueText=due && !storedDue
+      ? due + (isFly ? ' - نفس اليوم' : '') + ' (محسوب حسب سياسة النظام)'
+      : (due ? due + (isFly ? ' - نفس اليوم' : '') : '');
+    // Historical T12 orders had no persisted promised date. Read-time derivation is
+    // anchored to immutable order creation, NEVER to the browser's current day.
+    const cairoToday=cairoCreationDate(new Date());
+    const overdue=!!(due && cairoToday && due<cairoToday && !hiddenStatus(source.status));
 
     out.push({
       rowNumber: 0,
@@ -109,9 +124,10 @@ export function mapT12CloudNativeRows(rows, screen) {
       lastWhatsAppAt: text(source.lastWhatsAppAt),
       lastWhatsAppBy: text(source.lastWhatsAppBy),
       receivedAt: createdAt,
-      expectedDeliveryAt: '',
-      expectedDeliveryText: '',
-      overdue: 'لا',
+      expectedDeliveryAt: due,
+      expectedDeliveryText: dueText,
+      deliveryDateSource: dateSource,
+      overdue: overdue ? 'نعم' : 'لا',
       registrationSent: '',
       cloudNative: true,
       readOnly: true,
@@ -177,6 +193,8 @@ export async function readT12CloudNativeOverlay(env, screen) {
            COALESCE(r.status,l.status) AS status,
            l.heat_press AS heatPress,
            l.fly_print AS flyPrint,
+           l.expected_delivery_date AS lineExpectedDeliveryDate,
+           l.expected_delivery_source AS lineExpectedDeliverySource,
            l.created_at AS lineCreatedAt,
            l.updated_at AS lineUpdatedAt,
            o.customer_mode AS customerMode,
@@ -193,6 +211,8 @@ export async function readT12CloudNativeOverlay(env, screen) {
            COALESCE(r.last_whatsapp_by,'') AS lastWhatsAppBy,
            r.updated_at AS runtimeUpdatedAt,
            o.created_at AS orderCreatedAt,
+           o.expected_delivery_date AS orderExpectedDeliveryDate,
+           o.expected_delivery_source AS orderExpectedDeliverySource,
            o.updated_at AS orderUpdatedAt
       FROM t12_prod_lines l
       JOIN t12_prod_orders o ON o.order_id = l.order_id

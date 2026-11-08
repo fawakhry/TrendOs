@@ -11,6 +11,7 @@ const schema7=fs.readFileSync(new URL('../cloudflare-d1/migrations/0007_t12_gene
 const schema10=fs.readFileSync(new URL('../cloudflare-d1/migrations/0010_t12_duplicate_order_guard.sql',import.meta.url),'utf8');
 const schema11=fs.readFileSync(new URL('../cloudflare-d1/migrations/0011_t12_legacy_line_runtime.sql',import.meta.url),'utf8');
 const schema12=fs.readFileSync(new URL('../cloudflare-d1/migrations/0012_t12_customer_lane_claim.sql',import.meta.url),'utf8');
+const schema33=fs.readFileSync(new URL('../cloudflare-d1/migrations/0033_t12_expected_delivery_date_v1.sql',import.meta.url),'utf8');
 
 class Stmt {
   constructor(db,sql){this.db=db;this.sql=sql;this.params=[];}
@@ -29,6 +30,7 @@ class D1 {
     this.raw.exec(schema10);
     this.raw.exec(schema11);
     this.raw.exec(schema12);
+    this.raw.exec(schema33);
     this.raw.exec("CREATE TABLE sheet_catalog (sheet_name TEXT PRIMARY KEY,headers_json TEXT,status TEXT); CREATE TABLE sheet_rows (sheet_name TEXT,row_number INTEGER,values_json TEXT,display_json TEXT);");
     this.raw.prepare("INSERT INTO sheet_catalog (sheet_name,headers_json,status) VALUES (?,?,?)")
       .run('بنود الأوردرات',JSON.stringify(['رقم الأوردر','كود الأوردر','اسم الشات / المكتب','','القسم','رقم البند','اسم البند','الكمية','مسؤول القسم','الأولوية','الحالة','','','','','','رقم العميل الخارجي']), 'ready');
@@ -92,6 +94,13 @@ const input=(key='cld1_1790000020000_GENERALCANARY_1234567890123456',qty=1)=>({
   const db=new D1('GENERAL',0);
   const first=await createT12GeneralOrder(db,input('cld1_1790000021000_GENERALCREATE_1234567890123456'),actor,{canary:false});
   assert.equal(first.success,true); assert.equal(first.orderId,'4323');
+  // T12 creates immutable deadlines transactionally alongside the native order and line.
+  const stored=db.raw.prepare('SELECT expected_delivery_date AS due,expected_delivery_source AS source,created_at AS created FROM t12_prod_orders WHERE order_id=?').get(first.orderId);
+  const storedLine=db.raw.prepare('SELECT expected_delivery_date AS due,expected_delivery_source AS source FROM t12_prod_lines WHERE order_id=?').get(first.orderId);
+  assert.match(stored.due,/^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(stored.source,'policy-at-create-v1');
+  assert.equal(storedLine.due,stored.due);
+  assert.equal(storedLine.source,'policy-at-create-v1');
   const second=await createT12GeneralOrder(db,{...input('cld1_1790000021001_GENERALCREATE_1234567890123457',2),department:'ليزر'},actor,{canary:false});
   assert.equal(second.success,true); assert.equal(second.orderId,'4324');
   assert.deepEqual(db.control(),{nextNo:4325,mode:'GENERAL',remaining:0});
