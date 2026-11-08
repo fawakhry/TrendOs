@@ -1,0 +1,32 @@
+name: T12 immutable delivery date contract
+
+on:
+  pull_request:
+    paths:
+      - 'cloudflare-d1/src/t12-delivery-date-policy.mjs'
+      - 'cloudflare-d1/src/t12-read-overlay.mjs'
+      - 'cloudflare-d1/src/t12-general-create.mjs'
+      - 'cloudflare-d1/src/t12-general-create-handler.mjs'
+      - 'cloudflare-d1/migrations/0033_t12_expected_delivery_date_v1.sql'
+      - 'tests/t12_delivery_date_policy_v1.test.mjs'
+      - 'tests/t12_general_create.test.mjs'
+      - '.github/workflows/t12-delivery-date-v1.yml'
+  push:
+    branches:
+      - fix/t12-persist-and-read-delivery-dates-20261108
+permissions:
+  contents: read
+jobs:
+  date-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Unit + SQLite native integration
+        run: |
+          node --test tests/t12_delivery_date_policy_v1.test.mjs
+          node tests/t12_read_overlay.test.mjs
+          node tests/t12_read_overlay_handler.test.mjs
+          node tests/t12_general_create.test.mjs
