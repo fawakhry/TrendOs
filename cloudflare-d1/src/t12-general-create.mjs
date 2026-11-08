@@ -1,6 +1,7 @@
 import { buildT12OrderCreateShadowIntent } from './t12-order-create-shadow-intent.mjs';
 import { classifyT12ClientRequestKey } from './t12-cloud-client-key-admission.mjs';
 import { readCustomerLanePartition, customerLaneIdentityMaterial } from './t12-customer-lane-policy.mjs';
+import { t12DeliveryForCreation } from './t12-delivery-date-policy.mjs';
 
 export const T12_GENERAL_CREATE_VERSION='T12_GENERAL_CREATE_20261008_PER_DEPARTMENT_ATOMIC_CANDIDATE_V2';
 export const T12_DUPLICATE_ORDER_GUARD_WINDOW_MS=120000;
@@ -184,6 +185,10 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
   const effectiveIntent=projectAllowedIntent(intent,partition.allowedDepartments);
   if(!effectiveIntent.lines.length)return fail('customer-department-empty-projection-no-retry');
   const nowMs=Number.isSafeInteger(Number(options.nowMs))&&Number(options.nowMs)>0?Number(options.nowMs):Date.now();
+  // Stable Cairo-local calendar date, captured once; never rederived when orders are read.
+  const createdAtUtc=new Date(nowMs).toISOString().slice(0,19).replace('T',' ');
+  const expectedDeliveryDay=t12DeliveryForCreation(new Date(nowMs),effectiveIntent.order.flyPrint);
+  if(!expectedDeliveryDay)return fail('expected-delivery-date-policy-invalid-no-write');
   const canonicalBusinessJson=businessCanonical(effectiveIntent);
   let duplicateFingerprint;
   try{duplicateFingerprint=await sha256Hex(canonicalBusinessJson);}
@@ -230,12 +235,16 @@ export async function createT12GeneralOrder(db,input={},actor='',options={}){
   s.push(stmt(db,"UPDATE t12_prod_create_control SET next_order_number=next_order_number+1,updated_at=CURRENT_TIMESTAMP WHERE singleton=1 AND marker='T12_PROD_CREATE_CANARY_V1' AND canary_remaining=0 AND next_order_number=?",nextNo));
   s.push(stmt(db,"INSERT INTO t12_prod_request_ledger (request_key,actor,policy_epoch,canonical_json,order_id,status,response_json) SELECT ?,?,?,?,?,'PREPARED','{}' WHERE EXISTS(SELECT 1 FROM t12_prod_create_control WHERE singleton=1 AND marker='T12_PROD_CREATE_CANARY_V1' AND canary_remaining=0 AND next_order_number=?)",
     intent.requestKey,safeActor,epoch,canonicalJson,orderId,nextNo+1));
-  s.push(stmt(db,"INSERT INTO t12_prod_orders (order_id,request_key,customer_mode,customer_name,customer_phone,external_customer_id,department,priority,status,source,notes,actor) SELECT order_id,request_key,?,?,?,?,?,?,'طلب جديد',?,?,? FROM t12_prod_request_ledger WHERE request_key=? AND status='PREPARED'",
+  s.push(stmt(db,"INSERT INTO t12_prod_orders (order_id,request_key,customer_mode,customer_name,customer_phone,external_customer_id,department,priority,status,source,notes,actor,expected_delivery_date,expected_delivery_source,created_at) SELECT order_id,request_key,?,?,?,?,?,?,'طلب جديد',?,?,?,?,?,? FROM t12_prod_request_ledger WHERE request_key=? AND status='PREPARED'",
     effectiveIntent.identity.mode,effectiveIntent.identity.customerName,effectiveIntent.identity.customerPhone,effectiveIntent.identity.externalCustomerId,
-    effectiveIntent.order.department,effectiveIntent.order.priority,effectiveIntent.order.source,effectiveIntent.order.notes,safeActor,intent.requestKey));
+    effectiveIntent.order.department,effectiveIntent.order.priority,effectiveIntent.order.source,effectiveIntent.order.notes,safeActor,
+    expectedDeliveryDay,'policy-at-create-v1',createdAtUtc,intent.requestKey));
   for(const line of effectiveIntent.lines){
-    s.push(stmt(db,"INSERT INTO t12_prod_lines (line_id,order_id,request_key,ordinal,department,assigned_to,item_name,qty,priority,status,heat_press,fly_print) SELECT order_id || '-' || printf('%02d',?),order_id,request_key,?,?,?,?,?,?,'طلب جديد',?,? FROM t12_prod_request_ledger WHERE request_key=? AND status='PREPARED'",
-      line.ordinal,line.ordinal,line.department,line.assignedTo,line.itemName,line.qty,line.priority,boolInt(line.heatPress),boolInt(line.flyPrint),intent.requestKey));
+    const lineDue=t12DeliveryForCreation(new Date(nowMs),line.flyPrint);
+    if(!lineDue)return fail('line-delivery-date-policy-invalid-no-write');
+    s.push(stmt(db,"INSERT INTO t12_prod_lines (line_id,order_id,request_key,ordinal,department,assigned_to,item_name,qty,priority,status,heat_press,fly_print,expected_delivery_date,expected_delivery_source,created_at) SELECT order_id || '-' || printf('%02d',?),order_id,request_key,?,?,?,?,?,?,'طلب جديد',?,?,?,?,? FROM t12_prod_request_ledger WHERE request_key=? AND status='PREPARED'",
+      line.ordinal,line.ordinal,line.department,line.assignedTo,line.itemName,line.qty,line.priority,
+      boolInt(line.heatPress),boolInt(line.flyPrint),lineDue,'policy-at-create-v1',createdAtUtc,intent.requestKey));
   }
   s.push(stmt(db,"INSERT INTO t12_prod_events (request_key,event_key,order_id,event_type,payload_json) SELECT request_key,'activity',order_id,'order-create',? FROM t12_prod_request_ledger WHERE request_key=? AND status='PREPARED'",
     JSON.stringify(effectiveIntent.activityPlan),intent.requestKey));
