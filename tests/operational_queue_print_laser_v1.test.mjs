@@ -21,16 +21,16 @@ const rows=[
 test('print full queue: Fly Print, urgent/VIP, overdue, all remaining, closed last',()=>{
   const sorted=sortOperationalRows(rows,'print',NOW);
   assert.deepEqual(sorted.map(x=>x.orderId),
-    ['F1','F2','U1','U2','L1','L2','N1','N2','DONE']);
+    ['F1','F2','U2','U1','L2','L1','N2','N1','DONE']);
   assert.equal(new Set(sorted.map(x=>x.orderId)).size,rows.length,'orders must not duplicate across tiers');
-  assert.deepEqual(sorted.slice(0,4).map(x=>x.orderId), ['F1','F2','U1','U2'],
+  assert.deepEqual(sorted.slice(0,4).map(x=>x.orderId), ['F1','F2','U2','U1'],
     'server paging must slice AFTER full queue sorting, not per returned page');
 });
 
 test('laser has NO fly tier even if corrupt legacy row contains flyPrint=yes',()=>{
   const sorted=sortOperationalRows(rows,'laser',NOW);
   assert.deepEqual(sorted.map(x=>x.orderId),
-    ['U1','F1','U2','L1','L2','N1','F2','N2','DONE']);
+    ['F1','U2','U1','L2','L1','N2','F2','N1','DONE']);
   assert.equal(operationalQueueTier(rows[3],'laser',NOW),1);
   assert.equal(operationalQueueTier(rows[3],'print',NOW),0);
   assert.equal(operationalQueueTier(rows[5],'laser',NOW),3);
@@ -47,7 +47,7 @@ test('overdue by Cairo date, not by old flag or an already completed order',()=>
 
 test('same rules outside print without a global fly print lane',()=>{
   assert.deepEqual(sortOperationalRows(rows,'service',NOW).map(x=>x.orderId).slice(0,4),
-    ['U1','F1','U2','L1']);
+    ['F1','U2','U1','L2']);
 });
 
 test('Cloud-native expired fixed delivery is classified overdue while closed is not',()=>{
@@ -81,9 +81,9 @@ test('employee browser uses the same tiers and the current-order banner obeys th
  assert.equal(print({priority:'عاجل',flyPrint:'نعم',status:'طلب جديد'}),0);
  assert.equal(print({priority:'عاجل',flyPrint:'لا',status:'طلب جديد'}),1);
  assert.equal(print({priority:'عادي',expectedDeliveryAt:'2026-11-04',status:'طلب جديد'}),2);
- assert.equal(laser({priority:'عادي',flyPrint:'نعم',status:'طلب جديد'}),4);
+ assert.equal(laser({priority:'عادي',flyPrint:'نعم',status:'طلب جديد'}),3);
  assert.equal(laser({priority:'عاجل',flyPrint:'نعم',status:'طلب جديد'}),1);
- assert.match(code,/function renderCurrentOrder\(rows\)[\s\S]*?defaultWorkSortRank\(a\.row\) - defaultWorkSortRank\(b\.row\)/);
+ assert.match(code,/function renderCurrentOrder\(rows\)[\s\S]*?compareOperationalWork\(a\.row, b\.row\)/);
  assert.match(code,/state\.screen === "print" && isFlyPrint\(r\.flyPrint/);
  assert.match(code,/state\.serverPaging\.enabled \? rows : rows\.slice\(start, start \+ state\.pageSize\)/);
 });
