@@ -13,7 +13,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       BASELINE: 90416dcf73f0d9ca072426674e73994a2c0e53d4
       PRE_BACKEND_VERSION: 03f03cae-9865-4881-9f3b-c3cb17c04f4d
-      PRE_UI_VERSION: 50f92de3-b685-4577-a594-f680bccb08d7
+      PRE_UI_VERSION: 9c554113-7375-48cd-98be-b8ea3fef75ed
       PRE_UI_APP_SHA: UNKNOWN
       BACKEND_URL: https://trendos-d1-api.trendmall-contact.workers.dev
       UI_URL: https://trendos-ui.trendmall-contact.workers.dev
