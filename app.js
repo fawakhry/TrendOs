@@ -427,7 +427,15 @@
 
   function workDeliverySortTime(row) {
     const source = row && (row.expectedDeliveryAt || row.expectedDelivery || row.expectedDeliveryText);
-    const date = parseRowDate(arabicDigitsToEnglish(source || ""));
+    const raw = arabicDigitsToEnglish(text(source));
+    // Egyptian legacy rows can contain DD/MM/YYYY; Date.parse interprets that
+    // as US MM/DD/YYYY, which reorders pages incorrectly in the browser.
+    let match = raw.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+    let date = match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null;
+    if (!date) {
+      match = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+      date = match ? new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1])) : parseRowDate(raw);
+    }
     // Unrecorded deadlines go after recorded dates inside their priority tier.
     return date && !isNaN(date.getTime()) ? date.getTime() : Number.POSITIVE_INFINITY;
   }
