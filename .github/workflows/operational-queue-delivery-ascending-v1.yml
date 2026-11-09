@@ -1,0 +1,35 @@
+name: TrendOS Operational Queue Earliest Delivery First
+
+on:
+  pull_request:
+    paths:
+      - 'app.js'
+      - 'cloudflare-d1/src/edge-orders-read-02cr-canary.mjs'
+      - 'tests/operational_queue_delivery_ascending_v1.test.mjs'
+      - 'tests/operational_queue_print_laser_v1.test.mjs'
+      - '.github/workflows/operational-queue-delivery-ascending-v1.yml'
+  push:
+    branches: ['fix/queue-sort-delivery-ascending-within-tier-20261109']
+
+permissions:
+  contents: read
+
+jobs:
+  date-priority:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate pre-pagination earliest-delivery sorting with screen examples
+        run: |
+          node --check app.js
+          node --check cloudflare-d1/src/edge-orders-read-02cr-canary.mjs
+          node --test tests/operational_queue_delivery_ascending_v1.test.mjs
+          node --test tests/operational_queue_print_laser_v1.test.mjs
+          node tests/cloudflare_edge_orders_operational_ordering_02cs.test.mjs
+          node tests/cloudflare_edge_orders_02cr_canary.test.mjs
+          node tests/t12_read_overlay.test.mjs
+          node tests/t12_read_overlay_handler.test.mjs
+          node tests/frontend_order_status_ux_02cv.test.mjs

@@ -111,13 +111,19 @@ export function operationalQueueTier(row, screen, now = new Date()) {
   if (isOperationalOverdue(row, now)) return 2;
   return 3;
 }
+export function operationalDeliverySortKey(row) {
+  // Dates are normalized as YYYY-MM-DD; missing deadlines follow dated work
+  // inside the SAME tier. Never recompute a customer deadline from today.
+  return expectedCalendarDay(row) || '9999-12-31';
+}
 export function sortOperationalRows(rows, screen, now = new Date()) {
   const lane = text(screen);
   return (rows || [])
     .map((row, index) => ({ row, index }))
     .sort((a, b) =>
       operationalQueueTier(a.row, lane, now) - operationalQueueTier(b.row, lane, now) ||
-      // Preserve original source ordering within each tier.
+      operationalDeliverySortKey(a.row).localeCompare(operationalDeliverySortKey(b.row)) ||
+      // When category and due date match, retain the previous source order.
       a.index - b.index
     )
     .map(item => item.row);

@@ -420,10 +420,29 @@
       row["طباعة على الطاير"] || row["طباعة ع الطاير"]))) return 0;
     if (p === "عاجل" || p === "VIP") return 1;
     if (isOverdueRow(row)) return 2;
-    if (isTodayWorkRow(row)) return 3;
-    if (p === "عادي" || !p) return 4;
-    if (p === "مؤجل") return 5;
-    return 6;
+    // "Remaining" is one category. Its internal order depends on the nearest
+    // delivery date; TODAY and deferred work must not create hidden date tiers.
+    return 3;
+  }
+
+  function workDeliverySortTime(row) {
+    const source = row && (row.expectedDeliveryAt || row.expectedDelivery || row.expectedDeliveryText);
+    const raw = arabicDigitsToEnglish(text(source));
+    // Egyptian legacy rows can contain DD/MM/YYYY; Date.parse interprets that
+    // as US MM/DD/YYYY, which reorders pages incorrectly in the browser.
+    let match = raw.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+    let date = match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null;
+    if (!date) {
+      match = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+      date = match ? new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1])) : parseRowDate(raw);
+    }
+    // Unrecorded deadlines go after recorded dates inside their priority tier.
+    return date && !isNaN(date.getTime()) ? date.getTime() : Number.POSITIVE_INFINITY;
+  }
+
+  function compareOperationalWork(a, b) {
+    return (defaultWorkSortRank(a) - defaultWorkSortRank(b)) ||
+      (workDeliverySortTime(a) - workDeliverySortTime(b)) || 0;
   }
 
   function displayPhone(phone) {
@@ -5108,9 +5127,7 @@ Trend Mall`;
       if (priority === "__ACTIVE__" && !isActiveDefaultPriority(r.priority)) return false;
       if (priority && priority !== "__ACTIVE__" && text(r.priority) !== priority) return false;
       return true;
-    }).sort(function (a, b) {
-      return (defaultWorkSortRank(a) - defaultWorkSortRank(b)) || String(a.orderId || "").localeCompare(String(b.orderId || ""));
-    });
+    }).sort(compareOperationalWork);
 
     if (resetPage === true) state.currentPage = 1;
 
@@ -5135,7 +5152,7 @@ Trend Mall`;
     }).filter(function (x) {
       return finishedStatuses.indexOf(text(x.row.status)) === -1;
     }).sort(function (a, b) {
-      return (defaultWorkSortRank(a.row) - defaultWorkSortRank(b.row)) || (a.index - b.index);
+      return compareOperationalWork(a.row, b.row) || (a.index - b.index);
     });
 
     if (!candidates.length) {
