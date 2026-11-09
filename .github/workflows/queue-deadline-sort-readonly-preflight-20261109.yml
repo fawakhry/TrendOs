@@ -1,0 +1,67 @@
+name: T12 Nov9 Deadline Queue - Production Readonly Preflight
+on:
+  push:
+    branches: [fix/queue-sort-delivery-ascending-within-tier-20261109]
+    paths: ['.github/workflows/queue-deadline-sort-readonly-preflight-20261109.yml']
+permissions: {contents: read}
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BASELINE: 90416dcf73f0d9ca072426674e73994a2c0e53d4
+      PRE_BACKEND_VERSION: 03f03cae-9865-4881-9f3b-c3cb17c04f4d
+      PRE_UI_VERSION: 50f92de3-b685-4577-a594-f680bccb08d7
+      PRE_UI_APP_SHA: UNKNOWN
+      BACKEND_URL: https://trendos-d1-api.trendmall-contact.workers.dev
+      UI_URL: https://trendos-ui.trendmall-contact.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 1,persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Exact source scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1000 origin "$BASELINE"
+          git diff --name-only "$BASELINE" HEAD -- cloudflare-d1 >/tmp/worker.txt
+          printf 'cloudflare-d1/src/edge-orders-read-02cr-canary.mjs\n' >/tmp/expected-worker.txt
+          diff -u /tmp/expected-worker.txt /tmp/worker.txt
+          git diff --name-only "$BASELINE" HEAD -- app.js index.html employee-api-dispatcher-v1.js >/tmp/ui.txt
+          printf 'app.js\n' >/tmp/expected-ui.txt
+          diff -u /tmp/expected-ui.txt /tmp/ui.txt
+          echo SCOPED_DELTA_ONE_BACKEND_ONE_APP_NO_D1=PASS
+      - name: Inspect both active Workers, live app byte parity, core and auth
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          for name in trendos-d1-api trendos-ui; do
+            if [ "$name" = trendos-ui ]; then expected="$PRE_UI_VERSION"; else expected="$PRE_BACKEND_VERSION"; fi
+            curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$name/deployments" >"/tmp/active-$name.json"
+            NAME="$name" EXPECTED="$expected" node <<'NODE'
+          const x=require('/tmp/active-'+process.env.NAME+'.json'),a=Array.isArray(x.result)?x.result:x.result?.deployments||[];
+          const v=a[0]?.versions||[];
+          if(!x.success||v.length!==1||Number(v[0].percentage)!==100)throw Error('Unexpected percentage or access');
+          console.log('CURRENT_WORKER_VERSION='+process.env.NAME+' '+v[0].version_id);
+          if(v[0].version_id!==process.env.EXPECTED)throw Error('Worker version changed since last deployed baseline');
+          NODE
+          done
+          curl -fLsS "$UI_URL/app.js?deadline-preflight=$GITHUB_SHA-$(date +%s%N)" >/tmp/live-app.js
+          sha256sum /tmp/live-app.js | awk '{print "CURRENT_LIVE_APP_SHA="$1}'
+          git show "$BASELINE:app.js" >/tmp/base-app.js
+          cmp /tmp/base-app.js /tmp/live-app.js
+          echo LIVE_APP_EXACT_SOURCE_BASELINE=PASS
+          curl -fsS "$BACKEND_URL/v1/employee/core/health" > /tmp/core.json
+          curl -fsS "$BACKEND_URL/v1/employee/auth/health" > /tmp/auth.json
+          node <<'NODE'
+          const c=require('/tmp/core.json'),a=require('/tmp/auth.json');
+          if(c.mode!=='GENERAL'||c.schemaReady!==true||a.mode!=='NATIVE'||!a.nativeOnly)throw Error('Core/auth baseline changed');
+          console.log('NATIVE_CORE_AND_AUTH=PASS');
+          NODE
+          echo READONLY_PREFLIGHT_NO_DATABASE_MUTATIONS=PASS
