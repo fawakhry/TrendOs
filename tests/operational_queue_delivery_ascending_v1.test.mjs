@@ -90,7 +90,7 @@ test('browser list and current-order banner use same chronological tie-break as 
  ];
  const displayed=input.slice().sort(lib.compareOperationalWork).map(x=>x.orderId);
  assert.deepEqual(displayed,['5724','5850','5851','5952','5953']);
- assert.match(app,/\]\)\.sort\(compareOperationalWork\);/);
+ assert.match(app,/\}\)\.sort\(compareOperationalWork\);/);
  assert.match(app,/function renderCurrentOrder\(rows\)[\s\S]*?compareOperationalWork\(a\.row, b\.row\)/);
  env.state.screen='laser';
  const old=lib.defaultWorkSortRank(row('laser-fly','2026-11-09','عادي',{flyPrint:'نعم'}));
