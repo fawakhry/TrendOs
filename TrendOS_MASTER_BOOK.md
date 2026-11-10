@@ -1165,3 +1165,18 @@ Verified deployed `57b43cd5-cdb0-4a76-b245-bdcf16305651` at100%, baseline `eba1c
 - **صورة المالك:** في الصفحة الأولى أوردرات عادية `5952/5953/5955` تسليمها 2026-11-11، وفي الصفحة الخامسة `5850/5851/5855/5866` تسليمها 2026-11-09. تم إصلاح العيب: ترتيب داخل كل فئة بالأقدم تسليمًا أولًا **قبل تقسيم الصفحات**. فئات الطباعة: الطاير ← عاجل ← متأخر ← الباقي؛ الليزر: عاجل ← متأخر ← الباقي.
 - [PR #357](https://github.com/fawakhry/TrendOs/pull/357) **MERGED**، commit `ddbdb3c5e53550fee90e3e5972a28603285f34ea`. [Production Release #42686479012](https://github.com/fawakhry/TrendOs/actions/runs/42686479012) **SUCCESS**، backend `345d6b59-1fb5-4104-a944-e11c580bf81f`، UI `d15dc1d3-31b3-4194-a89e-c09d45a6d2f2`، 46/46 assets PASS، `DATABASE_MUTATIONS=NONE`، rollback لم يُستخدم.
 - التوثيق الكامل لفروق النسخ قبل النشر، والاختبارات، وسبب الخطأ وقواعد الترتيب في [الكتاب الموحد §12.10](https://github.com/fawakhry/TrendOs/blob/agent/trendos-book-audit-v1-20261014/docs/trendos/book-agent/TRENDOS_CURRENT_SYSTEM_CATALOG.md) commit `c36f522ca2e50f38d5a20747a5e1a16b28641ad9`. فحص شاشة الموظف بعد تحديث المتصفح ما زال مُعلقًا، وتوجد Integrity V1 عامة فاشلة لسبب سابق خارج نطاق التغيير.
+
+
+### OWNER-20261110-DESKTOP-EASYSTORE-SHARED-INVOICE — مصدر العملاء والأوردرات + فاتورة الطباعة والليزر
+
+طلب المالك ربط نسخة EasyStore Windows المسترجعة التي أكد تشغيلها مع منصة TrendOS: سحب العملاء وبياناتهم وأرقام أوردراتهم، واستخدام نفس العميل/الفاتورة بين مكتب الطباعة وجابر في مكتب الليزر. أكد أن الجهازين على نفس الشبكة واختار البرنامج الحالي على الجهازين. Ubuntu اقتراح للمضيف لم يؤهل بعد؛ التطبيق net35 Windows Forms، وليس واجهة متصفح. أكد تفريغ بيانات النسخة مع استمرار الدخول؛ لم تفحص metadata لقاعدته بعد ولم تعتمد أرصدة.
+
+مرجع المنتج المكتبي ومراحل استرجاعه في fawakhry/EasyStore، opensource/no-activation، docs/recovery/PROJECT_BOOK.md. المواصفة المحددة: docs/recovery/SHARED_INVOICE_TREND_INTEGRATION_20261110.md. R1 المكتبي محفوظ كمرجع رجوع. هذا البرنامج مختلف عن EasyStore web accounting القديم ومحول Gaber pure الموجود في TrendOS؛ لا يعاد استخدامهما على أنهما موصل SQL desktop جاهز.
+
+مراجعة read-only لفرع API candidate/t12-full-cloud-cutover-a56-20260929 @ ddbdb3c5e53550fee90e3e5972a28603285f34ea: customer search في edge-customer-search-v1.mjs يستخدم /v1/edge/customers/search ويتحقق من OrdersEdge Bearer؛ service orders في edge-orders-service-v1.mjs يستخدم /v1/edge/orders/service/page مع صلاحيات/حدود حداثة. source-only review، لا إثبات لرحلة استيراد حي أو لشمول صفحات الخدمة لكل التاريخ. يلزم تأهيل lookup تفصيلي وصفحات ومفاتيح ثابتة. لم تنشأ/تقرأ أسرار أو Tokens، ولا طلب authenticated لبيانات العملاء الحقيقيين.
+
+المستهدف: TrendOS يبقى مصدر العميل ومرجع الأوردر، وEasyStore مصدر الفاتورة والتحصيل. جدول ربط بمعرفات المصدر يمنع التكرار؛ الهاتف ليس مفتاح دمج. استيراد الأوردر لا يرحل مبلغًا أو تحصيلًا تلقائيًا. مسودة مركزية واحدة تتضمن بنود الطباعة والليزر مع القسم والمستخدم وتعارض الإصدارات؛ اعتماد نهائي مرة واحدة عبر الكاتب المالي الأصلي بعد اختباره. اكتشف في المصدر أن الكاتب المسترجع يعدل ClientMove/Bills/Sales وحركات أخرى ضمن transaction، فلا تبنى المحاسبة بإدراج Sales وحده. مشاركة SQL لا تثبت التزامن أو حدود الصلاحيات.
+
+سُلّم EasyStore_Integration_ReadOnly_Check_20261110.sql للحصول على metadata من قاعدة المالك بلا سجلات عملاء أو كلمات مرور أو أي تعديل. النتيجة وإصدار Windows لدى جابر والمضيف المتاح هي المدخل التالي. لم ينفذ ربط أو migration أو اتصال المكتب الثاني، ولا نشر Cloudflare أو D1/Google/Access أو كتابة مالية. الكتالوج الموحد المجمد لم يعدّل.
+
+DESKTOP_TREND_INTEGRATION=DISCOVERY_ONLY; SHARED_LAN=OWNER_CONFIRMED; CLIENT_MODE=EXISTING_WINDOWS_DESKTOPS; GABER_CONNECTION=NOT_CONFIGURED; SHARED_INVOICE_CONCURRENCY=NOT_TESTED; DATABASE_METADATA=AWAITING_OWNER_REPORT; PRODUCTION_MUTATIONS=NONE.
