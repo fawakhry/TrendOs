@@ -601,3 +601,17 @@ node tests/customer_messenger_browser_fixture.cjs /absolute/disposable/qa
 
 
 **إغلاق PR349 المثبت:** دُمج إلى main في `be10fde890217e3eff900e26823550ea482effbd`، source النهائي المختبر `44af3f2eda8f523a7268d732a4224a1bf1bea412`، tree `7cb83699718740a87044c1c9423e7e0a0fd3c2e7`. فرق PR النهائي9 ملفات فقط؛ لا Workflow remote مؤقت ولا تغيير Code.gs أو config.js أو مصدر Worker/TOML/resolver الأصلي. Actions Chat41706465709 / Readiness41706465821 / P0mocks41706465944 = SUCCESS؛ Log الجاهزية19:47:28–32UTC يثبت32 Node +7 AST و11 bootstrap +17 postbind Python PASS، CUSTOMER_PORTAL_READINESS=NO_GO_CONFIRMED وUNSAFE_RELEASE_BLOCKED=YES. Workers Builds tasks-preview check126163062288 فشل كما هو موثق سابقًا على الأساس؛ لا ادعاء all-green ولا تعطيل حارس. دمج المصدر والتوثيق ليس deploy أو تشغيل العملاء؛ فحص Cloudflare الحقيقي السابق مثبت في Run41705383110 على source08e05b7e. الربط خاص، العملاء OFF، والتأهيل الباقي كما هو.
+
+## 2026-11-15 — كتالوج التصميمات والصور داخل بوابة العملاء (Draft PR #358)
+
+**توجيه المالك:** «هرفع عليه صورة المنتج أو الموك أب وكود التصميم، والعميل ممكن ياخد التصميم سكرين أو يعمل كوبي لرقم/كود التصميم».
+
+**التنفيذ على فرع معزول** feature/customer-design-catalog-upload-copy-20261115، للمراجعة فقط:
+- الرفع السريع في لوحة الإدارة/ماركت بليس: صورة واحدة PNG/JPEG/WEBP حتى 8MiB، كود مطلوب يُحفظ حرفيًا، اسم وتصنيف اختياريان، اختيار «موك أب / صورة المنتج».
+- يعيد استخدام getMarketplace, saveMarketplaceVendor, saveMarketplaceProduct بنفس مصادقة الموظف/Google Apps Script الحالية. الكتالوج يملك بائعًا مخصصًا MB-DESIGNS فقط؛ لا مخزن آخر ولا تغيير لـ Code.gs أو T12/D1/R2.
+- معرض العميل للمنتجات المنشورة فقط، بحث وتكبير الصورة (لتصوير الشاشة من جهازه)، نسخ الكود، و«اطلب التصميم» الذي يضع الكود في ملاحظات البند بالكاتب الأصلي. روابط الصور المسموحة لعرض هذا الكتالوج مقصورة على Drive/Googleusercontent HTTPS.
+- حماية مبدئية من تكرار كود المنتج عند الرفع من الواجهة. Backend القديم يقوم بـ upsert لنفس الكود؛ لذلك لا يكفي فحص واجهة المتصفح لإثبات منع السباق/التعارض على السيرفر.
+- سياسة صور الكتالوج: الصورة المرفوعة عبر saveMarketImage_ تُشارك كرابط عام ANYONE_WITH_LINK؛ هذا مقصود فقط لصور المنتجات التسويقية المسموح نشرها، ممنوع وضع صور عملاء أصلية أو ملفات حصرية/سرية. ملف عرض الكتالوج مشتق من thumbnail وليس أصلًا للطباعة.
+- المكونات: customer-design-catalog-v1.js/css، تغييرات صغيرة في index.html, app.js, config.js، اختبارات tests/customer_design_catalog_v1.test.cjs وWorkflow مستقل .github/workflows/customer-design-catalog-v1.yml.
+- مصدر PR: https://github.com/fawakhry/TrendOs/pull/358 . أول Source CI على HEAD 44eae075a6e34fe9077d3dad731b257c0fc4f0ad = SUCCESS (run https://github.com/fawakhry/TrendOs/actions/runs/43669388671)؛ يثبت قواعد المصدر فقط، لا تجربة Upload/Cloudflare إنتاجية.
+- قفل الإصدار: TRENDOS_DESIGN_CATALOG_V1_ENABLED=false في config.js، PR Draft، بلا نشر أو دمج أو تعديل أوردرات وملفات فعلية. كتالوج الصور ليس تصريحًا بتفعيل بوابة العملاء القديمة؛ CUSTOMER_PRODUCTION=NO_GO حتى التحقق من Cloudflare live parity، اختبار رفع صور تركيبية وصلاحيات الموظف ونسخ الكود على الأجهزة، ثم تأهيل مسار T12/الصور الخاصة بشكل مستقل.
