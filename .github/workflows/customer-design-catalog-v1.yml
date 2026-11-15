@@ -1,0 +1,35 @@
+name: TrendOS Customer Design Catalogue V1 (Source Only)
+
+on:
+  push:
+    branches:
+      - feature/customer-design-catalog-upload-copy-20261115
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  design-catalog-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check syntax of integrated source
+        run: |
+          node --check customer-design-catalog-v1.js
+          node --check app.js
+          node --check config.js
+          node --check tests/customer_design_catalog_v1.test.cjs
+      - name: Synthetic source, privacy, and catalogue tests
+        run: |
+          node --test tests/customer_design_catalog_v1.test.cjs tests/customer_messenger_v1.test.cjs tests/customer_ui_default_off_gate.test.cjs
+      - name: Keep the new feature OFF by default
+        run: |
+          grep -Fxq 'window.TRENDOS_DESIGN_CATALOG_V1_ENABLED = false;' config.js
+          test -f customer-design-catalog-v1.css

@@ -1,0 +1,52 @@
+/* Catalogue is mounted only after the explicit V1 flag and an active portal session. */
+#marketplaceCard .dc-admin{margin:16px 0;padding:18px;border:1px solid #bcd6f4;border-radius:17px;background:#f4f9ff;direction:rtl}
+#marketplaceCard .dc-admin h3{margin:0 0 7px;color:#093e79}
+#marketplaceCard .dc-admin-hint{margin:0 0 16px;font-size:13px;color:#506d89;line-height:1.9}
+#marketplaceCard .dc-admin-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+#marketplaceCard .dc-admin-form>*{min-width:0;width:100%;padding:11px;border:1px solid #cbdbec;border-radius:10px;background:#fff;font-size:13px}
+#marketplaceCard .dc-admin-form .dc-save{background:#176fe7;color:#fff;border-color:#176fe7;font-weight:800}
+#marketplaceCard .dc-admin-form .dc-save:disabled{opacity:.55;cursor:wait}
+#customerView .dc-open-catalog{width:100%;border:0;border-bottom:1px solid #e5edf7;border-radius:0;text-align:right;background:#edf5ff;color:#075fbc;padding:17px 21px;font-size:14px;font-weight:800;box-shadow:none}
+#customerView .customer-topbar .dc-open-catalog{width:auto;border-radius:11px;padding:10px 14px;border:1px solid #b6d5f5}
+#customerView .dc-dialog,#customerView .dc-viewer{border:0;box-shadow:0 25px 90px #103b6560;border-radius:18px;background:#fff;color:#254761;direction:rtl}
+#customerView .dc-dialog{width:min(1040px,calc(100vw - 24px));max-height:92dvh;padding:0 0 20px;overflow:auto}
+#customerView .dc-viewer{width:min(980px,calc(100vw - 18px));max-height:96dvh;padding:12px;overflow:auto;text-align:center}
+#customerView .dc-dialog::backdrop,#customerView .dc-viewer::backdrop{background:#0b203cc7}
+#customerView .dc-head{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px 24px 12px;border-bottom:1px solid #dfe9f5}
+#customerView .dc-head h3{font-size:22px;font-weight:900;margin:0;color:#073d79}
+#customerView .dc-head p{font-size:13px;margin:7px 0 0;color:#557493;line-height:1.7}
+#customerView .dc-close{border:0;background:#eff4fa;color:#3d5971;border-radius:50%;font-size:26px;font-weight:400;min-width:36px;height:36px;box-shadow:none}
+#customerView .dc-tools{display:flex;gap:12px;padding:15px 24px}
+#customerView .dc-tools input{flex:1;min-width:0;border:1px solid #c9deee;border-radius:10px;padding:11px 14px;font-size:14px}
+#customerView .dc-tools button{background:#eaf4ff;color:#155fa9;border:1px solid #c4dffc;border-radius:9px;padding:8px 18px;font-weight:700}
+#customerView .dc-status,#marketplaceCard .dc-status{min-height:24px;line-height:1.8;font-size:12px;color:#3e658b;margin:0 24px 12px}
+#marketplaceCard .dc-status{margin:8px 0 0}
+#customerView .dc-status[data-error=yes],#marketplaceCard .dc-status[data-error=yes]{color:#b42335}
+#customerView .dc-grid{padding:4px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:16px}
+#customerView .dc-product{min-width:0;border:1px solid #e0eaf5;border-radius:16px;background:#fff;overflow:hidden;box-shadow:0 5px 16px #0b3f7920;display:flex;flex-direction:column}
+#customerView .dc-media{display:block;width:100%;height:200px;padding:0;background:#f3f7fb;border:0;border-radius:0;box-shadow:none;overflow:hidden}
+#customerView .dc-media img{display:block;width:100%;height:100%;object-fit:contain}
+#customerView .dc-no-image{display:grid;place-items:center;min-height:140px;color:#8599ad;font-size:13px}
+#customerView .dc-product-name{padding:10px 12px 0;font-weight:800;color:#254968;font-size:14px}
+#customerView .dc-code{font-family:monospace;letter-spacing:.3px;font-size:15px;font-weight:800;padding:9px 12px;user-select:all;overflow-wrap:anywhere;color:#096bd1;text-align:right}
+#customerView .dc-description{font-size:11px;color:#667f98;line-height:1.7;padding:0 12px 10px}
+#customerView .dc-product-actions{display:flex;gap:6px;padding:9px 11px 12px;margin-top:auto}
+#customerView .dc-product-actions button{flex:1;min-width:0;font-size:11px;padding:10px 6px;border-radius:8px;border:1px solid #b9d9f5;background:#ecf6ff;color:#0858a5;font-weight:800;box-shadow:none}
+#customerView .dc-product-actions .dc-order{background:#176fe7;color:#fff;border-color:#176fe7}
+#customerView .dc-empty{grid-column:1/-1;text-align:center;padding:60px 10px;color:#748ca4;font-size:14px}
+#customerView .dc-viewer>.dc-close{display:block;margin:0 0 6px auto}
+#customerView .dc-viewer-body img{display:block;margin:auto;max-width:100%;max-height:calc(96dvh - 115px);object-fit:contain}
+#customerView .dc-viewer-code{font-weight:800;margin:8px 0 0;overflow-wrap:anywhere;user-select:all}
+@media(max-width:720px){
+ #marketplaceCard .dc-admin-form{grid-template-columns:1fr}
+ #customerView .dc-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:3px 12px}
+ #customerView .dc-head{padding:13px}
+ #customerView .dc-head h3{font-size:17px}
+ #customerView .dc-head p{font-size:11px}
+ #customerView .dc-tools{padding:12px;gap:7px}
+ #customerView .dc-status{margin:0 12px 12px}
+ #customerView .dc-media{height:150px}
+ #customerView .dc-product-name{font-size:12px}
+ #customerView .dc-code{font-size:12px}
+ #customerView .dc-product-actions{flex-direction:column}
+}

@@ -48,6 +48,8 @@ window.MATBAGY_SHEETS_DISABLE_PHONE = true;
 window.MATBAGY_SHEETS_DISABLE_ACTIVATION = true;
 window.MATBAGY_USE_EASY_STORE_FOR_ACCOUNTING = true;
 window.MATBAGY_CUSTOMER_ACCOUNTS_PORTAL = true;
+// Customer design catalogue: source integrated, explicitly OFF until customer release gates pass.
+window.TRENDOS_DESIGN_CATALOG_V1_ENABLED = false;
 window.MATBAGY_AUTO_INVOICE_REVIEW_LINK = true;
 window.MATBAGY_FAST_PRINT_UPLOAD_URL = '';
 window.MATBAGY_FAST_PRINT_ALLOWED_CUSTOMERS = [];
