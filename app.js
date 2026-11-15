@@ -1720,6 +1720,7 @@ Trend Mall`;
   }
 
   function clearSession() {
+    if (window.TrendOSDesignCatalogV1) window.TrendOSDesignCatalogV1.clearAdmin();
     sessionStorage.removeItem("trendos_session");
     try { sessionStorage.removeItem("matbagy_user_name"); sessionStorage.removeItem("matbagy_username"); sessionStorage.removeItem("matbagy_session_token"); localStorage.removeItem("trendos_session"); localStorage.removeItem("matbagy_session_token"); localStorage.removeItem("MATBAGY_EMPLOYEE_SSO"); } catch(e) {}
     state.user = null;
@@ -1743,6 +1744,7 @@ Trend Mall`;
   }
 
   function clearCustomerSession() {
+    if (window.TrendOSDesignCatalogV1) window.TrendOSDesignCatalogV1.clearCustomer();
     sessionStorage.removeItem("matbagy_platform_customer_session");
     try { localStorage.removeItem("matbagy_platform_customer_session"); } catch (e) {}
     // Tenant/user boundary: never leave selected photos or their local preview URLs
@@ -1857,10 +1859,45 @@ Trend Mall`;
     }
   }
 
+  // Design catalogue uses the current Marketplace feed. Never touches private
+  // customer draft files. A chosen code is recorded in the original order notes.
+  function mountCustomerDesignCatalog() {
+    const catalog = window.TrendOSDesignCatalogV1;
+    if (window.TRENDOS_DESIGN_CATALOG_V1_ENABLED !== true || !catalog) return;
+    catalog.mountCustomer({
+      load: function () { return api("getMarketplace", {}); },
+      isCurrent: function () { return !!state.customer && !state.visitorPreview; },
+      onChoose: function (product, vendor) {
+        if (!state.customer || state.visitorPreview) return;
+        const designCode = String(product.productCode || "").trim();
+        if (!designCode) return;
+        if (!state.customerDraft || state.customerDraft.submitted) resetCustomerDraft();
+        state.customerSelectedMarketVendor = vendor;
+        state.customerSelectedMarketProduct = product;
+        state.customerSelectedSection = null;
+        state.customerViewMode = "newOrder";
+        renderCustomerHome();
+        const item = $("customerOrderItem");
+        if (item) item.value = product.productName || ("تصميم " + designCode);
+        const notes = $("customerOrderNotes");
+        if (notes) {
+          const codeNote = "كود التصميم من كتالوج مطبعجي: " + designCode;
+          const old = String(notes.value || "").trim();
+          if (!old.includes(codeNote)) notes.value = (old ? old + "\n" : "") + codeNote;
+          notes.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        refreshCustomerPendingPreview();
+        const dialog = $("customerMessengerDetails");
+        if (dialog && !dialog.open && typeof dialog.showModal === "function") dialog.showModal();
+      }
+    });
+  }
+
   function bootCustomerMain() {
     showCustomerMain();
     renderCustomerHeader();
     renderCustomerHome();
+    mountCustomerDesignCatalog();
     loadCustomerOrders();
     // Chat-first mode omits the retired home catalogue/ads/GPS requests.
     if (customerMessengerApi()) return;
@@ -3192,7 +3229,18 @@ Trend Mall`;
     if (!card) return;
     const can = canManageMarketplace();
     card.classList.toggle("hidden", !can);
-    if (can) loadMarketplace(true);
+    if (can) {
+      loadMarketplace(true);
+      const catalog = window.TrendOSDesignCatalogV1;
+      if (window.TRENDOS_DESIGN_CATALOG_V1_ENABLED === true && catalog) {
+        catalog.mountAdmin({
+          isAllowed: canManageMarketplace,
+          load: function () { return api("getMarketplace", authParams({ includeInactive: "نعم" })); },
+          post: function (action, payload) { return apiPost(action, authParams(payload)); },
+          afterSave: function () { loadMarketplace(true); }
+        });
+      }
+    }
   }
 
   async function loadMarketplace(forAdmin) {
@@ -3818,6 +3866,8 @@ Trend Mall`;
     revokeCustomerPendingFiles();
     if ($("customerHeatPress")) $("customerHeatPress").checked = false;
     if ($("customerFlyPrint")) $("customerFlyPrint").checked = false;
+    state.customerSelectedMarketVendor = null;
+    state.customerSelectedMarketProduct = null;
     updateCustomerPrintOptions();
   }
 
